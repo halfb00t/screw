@@ -13,8 +13,9 @@ parameters, get a live 3D preview, the numbers you would measure on the real par
 STL or STEP download — from a web UI, an HTTP API or a CLI, all driven by one parameter
 model. The sibling of `spur` (github.com/halfb00t/spur, gears), built to the same rules.
 
-**Nothing is built yet** (2026-10-05): this tree is the foundation. Full intent: gsd
-`.planning/PROJECT.md` (written by `gsd-new-project`). System map:
+**Nothing is built yet** (2026-10-05): this tree is the foundation. Full intent and the
+owner's decisions: `.planning/PROJECT.md`; scoped requirements: `.planning/REQUIREMENTS.md`;
+phases: `.planning/ROADMAP.md`; research: `.planning/research/SUMMARY.md`. System map:
 `docs/architecture/overview.md`. Global requirements: `docs/requirements/`. How the human
 drives this: `docs/HOW_TO_DEVELOP.md`.
 
@@ -120,8 +121,12 @@ Non-blocking work survives in files, not just in a reply. One file per item,
 
 - Reuse the project's command surface (`make`) instead of ad-hoc shell. `make` on its own
   lists every target. Check for an existing one before inventing a command.
-- Planning and execution: gsd skill suite (`gsd-new-project`, `gsd-plan-phase`,
-  `gsd-execute-phase`, ...).
+- Planning and execution: gsd skill suite. Start file-changing work through a gsd entry
+  point so `.planning/` and the execution context stay in sync — `/gsd-fast` for a trivial
+  inline task, `/gsd-quick` for small fixes and doc updates, `/gsd-debug` for
+  investigation, `/gsd-execute-phase` for planned phase work. No direct repo edits outside
+  a gsd workflow unless the human explicitly asks to bypass it. There is no
+  `.claude/CLAUDE.md`: this file is the only instruction file, as in spur.
 - User-facing text (explanations, reviews): caveman — terse, no filler.
 - Commit messages: Conventional Commits, normal prose — NOT caveman.
 - Writing code: ponytail — simplest thing that works, no speculative abstractions.

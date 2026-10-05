@@ -117,13 +117,51 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (filled by the roadmapper) | | |
+| THRD-01 | Phase 3 | Pending |
+| THRD-02 | Phase 3 | Pending |
+| THRD-03 | Phase 4 | Pending |
+| THRD-04 | Phase 3 | Pending |
+| THRD-05 | Phase 5 | Pending |
+| PAIR-01 | Phase 5 | Pending |
+| PAIR-02 | Phase 6 | Pending |
+| PAIR-03 | Phase 5 | Pending |
+| PAIR-04 | Phase 5 | Pending |
+| PAIR-05 | Phase 6 | Pending |
+| PAIR-06 | Phase 6 | Pending |
+| TYPE-01 | Phase 4 | Pending |
+| TYPE-02 | Phase 4 | Pending |
+| TYPE-03 | Phase 5 | Pending |
+| TYPE-04 | Phase 5 | Pending |
+| TABL-01 | Phase 4 | Pending |
+| TABL-02 | Phase 4 | Pending |
+| TABL-03 | Phase 4 | Pending |
+| TABL-04 | Phase 4 | Pending |
+| TABL-05 | Phase 4 | Pending |
+| TABL-06 | Phase 4 | Pending |
+| TABL-07 | Phase 4 | Pending |
+| INFO-01 | Phase 5 | Pending |
+| INFO-02 | Phase 5 | Pending |
+| INFO-03 | Phase 4 | Pending |
+| INFO-04 | Phase 6 | Pending |
+| INFO-05 | Phase 4 | Pending |
+| FRNT-01 | Phase 1 | Pending |
+| FRNT-02 | Phase 1 | Pending |
+| FRNT-03 | Phase 1 | Pending |
+| FRNT-04 | Phase 1 | Pending |
+| FRNT-05 | Phase 1 | Pending |
+| FRNT-06 | Phase 5 | Pending |
+| OPER-01 | Phase 7 | Pending |
+| OPER-02 | Phase 7 | Pending |
+| OPER-03 | Phase 7 | Pending |
+| INFR-01 | Phase 1 | Pending |
+| INFR-02 | Phase 1 | Pending |
+| INFR-03 | Phase 2 | Pending |
 
 **Coverage:**
 - v1 requirements: 39 total
-- Mapped to phases: 0
-- Unmapped: 39 ⚠️
+- Mapped to phases: 39
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-10-05*
-*Last updated: 2026-10-05 after initial definition*
+*Last updated: 2026-10-05 after roadmap creation*
