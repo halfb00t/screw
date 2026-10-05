@@ -1,92 +1,98 @@
-# Как разрабатывать screw (гид для человека)
+# How to develop screw (the human's guide)
 
-Цикл, по которому идёт работа с AI-агентами в этом репозитории, и твоя роль на каждом
-шаге. Проект — брат `spur`, цикл тот же. Стена вокруг `main` (ruleset + `make pr.land`,
-как в spur) пока сознательно не поставлена — `docs/ideas/2026-10-05-wall-main-like-spur.md`.
+The loop this repository is worked in with AI agents, and your role at each step. screw is
+spur's sibling and runs the same loop. The wall around `main` (a ruleset plus
+`make pr.land`, as in spur) is deliberately not up yet —
+`docs/ideas/2026-10-05-wall-main-like-spur.md`.
 
 ```
-обсуждение -> план -> проверка плана -> выполнение (ветка фазы) -> приёмка -> PR -> ревью другим CLI -> merge
-  ты ставишь   AI пишет    ты одобряешь      AI строит на gsd/phase-NN    ты проверяешь  CI   кросс-проверка    squash
-     цель        план
+discuss -> plan -> review the plan -> execute (phase branch) -> acceptance -> PR -> review by the other CLI -> merge
+ you set    AI      you approve      AI builds on gsd/phase-NN      you check   CI    cross-check                 squash
+ the goal  writes
 ```
 
-Один проход = одна фаза = одна ветка = один PR = один squash-коммит в `main`. Держи
-фазы маленькими.
+One pass = one phase = one branch = one PR = one squash commit on `main`. Keep phases
+small.
 
-## 0. Что уже гарантировано
+## 0. What is already guaranteed
 
-- `make verify` — единый гейт (L03): ruff, mypy `--strict` с запретом `Any` (L04),
-  контракты границ импортов, скан незавершёнки (`TODO`/`FIXME`/`NotImplementedError`),
-  pytest. Docker не нужен.
-- Тот же `make verify` стоит в pre-commit хуке (поставь один раз на клон:
-  `.venv/bin/pre-commit install`), в CI (на каждый push в `main` и каждый PR,
-  Python 3.12) и внутри `make worktree.land` перед вливанием. Одно определение
-  «прошло» в трёх местах.
-- `requirements.txt` — замороженный набор версий (L06). CI и `make venv` ставят ровно
-  его; `make lock` пересобирает с нуля.
-- `AGENTS.md` — правила, которые агент читает первым делом; `docs/architecture/` — карта
-  системы и журнал решений `Lxx`; `docs/CODING_VALUES.md` — какой код здесь принимают.
+- `make verify` — the one gate (L03): ruff, mypy `--strict` with `Any` forbidden (L04),
+  the import-boundary contracts, the unfinished-work scan (`TODO`/`FIXME`/
+  `NotImplementedError`), pytest. No Docker needed.
+- The same `make verify` runs in the pre-commit hook (install once per clone:
+  `.venv/bin/pre-commit install`), in CI (every push to `main` and every PR, Python 3.12)
+  and inside `make worktree.land` before a merge. One definition of "passing" in three
+  places.
+- `requirements.txt` — the pinned closure (L06). CI and `make venv` install exactly it;
+  `make lock` regenerates it from scratch.
+- `AGENTS.md` — the rules an agent reads first; `docs/architecture/` — the system map and
+  the `Lxx` decision log; `docs/CODING_VALUES.md` — what code is welcome here.
 
-Первый `make verify` после `make clean` собирает `.venv` (~1.4 ГБ OpenCascade) и
-занимает пару минут — это установка, не тесты.
+The first `make verify` after `make clean` builds `.venv` (~1.4 GB of OpenCascade) and
+takes a couple of minutes — that is the install, not the tests.
 
-## 1. Старт проекта
+## 1. Project start
 
-Кода нет. Первый шаг — `gsd-new-project`: интервью, спецификация (`.planning/PROJECT.md`),
-требования, роадмап. Твоя роль: сказать, что такое screw и чего он не делает. Правила
-L02 (число или предупреждение, замороженные дефолты, cap-and-warn или `422`) уже
-зафиксированы — спецификация строится на них, не наоборот.
+`gsd-new-project` ran on 2026-10-05: `.planning/PROJECT.md` (intent and the owner's
+decisions), `.planning/REQUIREMENTS.md` (39 v1 requirements), `.planning/research/`
+(four research files and `SUMMARY.md`) and `.planning/ROADMAP.md`. The L02 rules (a
+number or a warning, frozen defaults, cap-and-warn or `422`) were fixed before the spec;
+the spec is built on them, not the other way round.
 
-В `.planning/config.json` поставь `git.branching_strategy: "phase"` (как в spur): тогда
-`gsd-execute-phase` сам режет ветку `gsd/phase-NN-<slug>` от `origin/main`.
+`.planning/config.json` has `git.branching_strategy: "phase"` (as in spur), so
+`gsd-execute-phase` cuts the `gsd/phase-NN-<slug>` branch from `origin/main` itself.
 
-## 2. Обсуждение фазы
+## 2. Discuss a phase
 
-`gsd-discuss-phase`. Обсуди, что нужно дальше. Твоя роль: сформулировать цель и
-ограничения, а не решение.
+`gsd-discuss-phase N`. Discuss what comes next. Your role: state the goal and the
+constraints, not the solution.
 
-## 3. План
+## 3. Plan
 
-`gsd-plan-phase`. Агент пишет пошаговый план в `.planning/`. Твоя роль: дождаться.
+`gsd-plan-phase N`. The agent writes a step-by-step plan into `.planning/`. Your role:
+wait.
 
-Ветку фазы режь до обсуждения — `git switch -c gsd/phase-NN-<slug> origin/main` — чтобы
-коммиты обсуждения и плана не легли на `main`. `gsd-execute-phase` переиспользует её.
+Cut the phase branch before the discussion —
+`git switch -c gsd/phase-NN-<slug> origin/main` — so the discussion and plan commits do
+not land on `main`. `gsd-execute-phase` reuses that branch.
 
-## 4. Проверка и правка плана
+## 4. Review and amend the plan
 
-`gsd-review --phase N` — второй CLI смотрит план до того, как что-то написано.
+`gsd-review --phase N` — the other CLI reads the plan before anything is written.
 
-**Не одобряй план, который не понимаешь — спрашивай, пока не поймёшь.** Здесь ошибка
-стоит минут, после сборки — часов.
+**Never approve a plan you do not understand — ask until you do.** A mistake costs
+minutes here and hours after the build.
 
-Для этого проекта на плане особенно стоит проверить три вещи:
+Three things to check on every plan in this project:
 
-- Меняется ли деталь, которую пользователь не просил менять? Дефолты заморожены (L02),
-  каждая ссылка на модель опирается на них.
-- Появляется ли число, которое может быть неправдой? Лучше предупреждение без числа,
-  чем правдоподобное число (L02).
-- Есть ли измерение под утверждением о скорости или памяти? В комментариях стоят цифры
-  и нагрузка, на которой они получены.
+- Does it change a part the user did not ask to change? Defaults are frozen (L02); every
+  model link depends on them.
+- Does a number appear that could be untrue? A warning without a number beats a plausible
+  number (L02).
+- Is there a measurement under every claim about speed or memory? Comments here carry the
+  figure and the load it was taken under.
 
-## 5. Выполнение на ветке фазы
+## 5. Execute on the phase branch
 
-`gsd-execute-phase N`. По ходу работы `make verify` должен оставаться зелёным.
+`gsd-execute-phase N`. `make verify` stays green throughout.
 
-**Ловушка, унаследованная от spur.** У любого worktree — агентского или сделанного через
-`make worktree.new` — нет своего `.venv`. Соблазн — подсунуть общий из основного
-checkout'а. Нельзя: editable-установка в `.venv` прописана на `src/` основного
-checkout'а, поэтому `import screw` из worktree резолвится обратно туда, и тесты молча
-проверяют неизменённый код. Либо `make venv` внутри worktree (первый `make verify` там
-сделает это сам — пара минут), либо позже — `make test-image`, когда появится образ.
+**A trap inherited from spur.** No worktree — an agent's or one made with
+`make worktree.new` — has its own `.venv`. The temptation is to share the main checkout's.
+Do not: the editable install in `.venv` points at the main checkout's `src/`, so
+`import screw` from a worktree resolves back there and the tests silently check unmodified
+code. Either `make venv` inside the worktree (the first `make verify` there does it — a
+couple of minutes), or, once an image exists, `make test-image`.
 
-## 6. Приёмка
+## 6. Acceptance
 
-`gsd-verify-work N` — на ветке фазы, до PR. Пройди фичу как пользователь: собрать деталь,
-посмотреть предупреждения, если менялась геометрия или числа — сверить размеры. Не
-сошлось — назад к обсуждению, а не вслепую патчить.
+`gsd-verify-work N` — on the phase branch, before the PR. Use the feature as a user: build
+a part, read the warnings, and if geometry or numbers changed, measure. For a mating pair
+that means printing the bolt and the nut and threading them by hand (PAIR-05) — a kernel
+`proven` is necessary, not sufficient. If it does not add up, go back to the discussion;
+do not patch blind.
 
-Туда же, до PR: `gsd-secure-phase N` (даёт `SECURITY.md`, без него ship не пройдёт) и
-`gsd-validate-phase N`.
+Also before the PR: `gsd-secure-phase N` (writes `SECURITY.md`; ship refuses without it)
+and `gsd-validate-phase N`.
 
 ## 7. PR
 
@@ -94,47 +100,49 @@ checkout'а, поэтому `import screw` из worktree резолвится о
 /gsd-ship N
 ```
 
-Проверяет верификацию, чистое дерево и что ты не на `main`; пушит ветку фазы; создаёт PR
-«Phase N: …» в `main`. CI запускается на PR сам — зелёный CI до merge, а не после.
+Checks the verification, a clean tree and that you are not on `main`; pushes the phase
+branch; opens the "Phase N: …" PR into `main`. CI runs on the PR itself — green CI before
+the merge, not after.
 
-## 8. Ревью кода *другим* CLI
+## 8. Code review by the *other* CLI
 
-Писал Claude → ревьюит **Codex**; писал Codex → ревьюит **Claude**. Обе CLI читают один и
-тот же `AGENTS.md`, так что правила общие, а взгляд разный. Предмет ревью — PR
-(`gh pr diff N` или `gh pr checkout N` для второй CLI).
+Claude wrote it → **Codex** reviews; Codex wrote it → **Claude** reviews. Both CLIs read
+the same `AGENTS.md`, so the rules are shared and the eyes are different. The object of
+review is the PR (`gh pr diff N`, or `gh pr checkout N` for the second CLI).
 
-Реальные замечания — в правки коммитами на ветку фазы, `make verify`, `git push`; PR
-обновится сам.
+Real findings become commits on the phase branch, `make verify`, `git push`; the PR
+updates itself.
 
-## 9. Влить
+## 9. Land
 
-Только squash, только с зелёным CI и закрытыми замечаниями ревью:
+Squash only, only with green CI and the review findings closed:
 
 ```sh
 gh pr merge N --squash --delete-branch
 ```
 
-Красный CI или незакрытые замечания — не merge. Руками влитая работа, которая пропустила
-ревью и verify, — это ровно та дыра, ради закрытия которой всё это стоит. Когда фаз
-станет несколько, поставь стену из `docs/ideas/2026-10-05-wall-main-like-spur.md`.
+Red CI or open findings — no merge. Work merged by hand that skipped review and verify is
+exactly the hole all of this exists to close. Once there are a few phases on `main`, put
+up the wall from `docs/ideas/2026-10-05-wall-main-like-spur.md`.
 
-## Параллельные циклы
+## Parallel loops
 
-Фазы gsd идут по одной: каждая режется от уже влитого `main`. Параллелить есть смысл
-работу вне фаз — `gsd-quick`, точечные правки: `make worktree.new SLUG=<slug>` (ветка
-`agent/<slug>` в `.claude/worktrees/<slug>`) и `make worktree.land SLUG=<slug>
-MSG="<commit>"`, который сам проверит чистоту, сделает squash-merge, ещё раз прогонит
-`make verify` на слитом результате и только тогда закоммитит — в базовую ветку worktree.
+gsd phases go one at a time: each is cut from the already-merged `main`. What parallelises
+is work outside phases — `gsd-quick`, point fixes: `make worktree.new SLUG=<slug>` (branch
+`agent/<slug>` in `.claude/worktrees/<slug>`) and
+`make worktree.land SLUG=<slug> MSG="<commit>"`, which checks cleanliness, squash-merges,
+runs `make verify` once more on the merged result and only then commits — into the
+worktree's base branch.
 
-Оценивай зависимости честно — два цикла, редактирующие один модуль, столкнутся при
-вливании. Не уверен, что задачи независимы, — спроси агента до того, как запускать обе.
+Judge dependencies honestly — two loops editing the same module will collide at landing.
+Not sure two tasks are independent? Ask the agent before starting both.
 
-## Практические правила
+## Working rules
 
-- Никогда не одобряй план или результат, который не понимаешь. Спрашивай.
-- `make verify` и ревью другим CLI — страховка, а не формальность. Пропуск одного из них
-  — это и есть то, как в проект попадает слоп.
-- Маленькие фазы лучше больших. Одна за раз.
-- Нашёл хорошую идею или срезал угол — зафиксируй файлом в `docs/ideas/` или
-  `docs/tech_debt/`, иначе это исчезнет вместе с сессией.
-- Если агент утверждает, что стало быстрее или экономнее, требуй цифру и нагрузку.
+- Never approve a plan or a result you do not understand. Ask.
+- `make verify` and review by the other CLI are insurance, not ceremony. Skipping either
+  is exactly how slop gets in.
+- Small phases beat big ones. One at a time.
+- Found a good idea or cut a corner — write the file in `docs/ideas/` or
+  `docs/tech_debt/`, or it disappears with the session.
+- When an agent claims something got faster or leaner, demand the number and the load.
