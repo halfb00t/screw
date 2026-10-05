@@ -1,0 +1,29 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      # The same gate a developer runs locally and `make worktree.land` runs before a
+      # merge: ruff, mypy --strict, the import-boundary contracts, the unfinished-work
+      # scan and the tests (L03). The Makefile constrains the install to
+      # requirements.txt whenever that file exists (L06), so this run resolves exactly
+      # the closure the last `make lock` did.
+      - run: make verify PYTHON=python
+      # `.venv` exists only once make verify has made it; `if: always()` keeps the pair
+      # in the log of a red run too.
+      - name: kernel pair this run resolved
+        if: always()
+        run: >-
+          .venv/bin/python -c "from importlib.metadata import version;
+          print('cadquery', version('cadquery'), 'cadquery-ocp', version('cadquery-ocp'))"

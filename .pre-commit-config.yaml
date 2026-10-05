@@ -1,0 +1,19 @@
+# The gate, at the commit boundary (L03). `make verify` is the same command CI runs and
+# the same one `make worktree.land` runs before a merge -- one definition of "passing",
+# three places that enforce it.
+#
+# Install once per clone:  .venv/bin/pre-commit install
+# The first run after `make clean` builds .venv (~1.4 GB of OpenCascade) and takes a
+# couple of minutes; that is the install, not the tests.
+#
+# There is deliberately no formatter hook: L05.
+repos:
+  - repo: local
+    hooks:
+      - id: verify
+        name: make verify (ruff, mypy, import boundaries, unfinished-work scan, pytest)
+        entry: make verify
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]

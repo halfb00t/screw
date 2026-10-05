@@ -1,0 +1,123 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "screw"
+dynamic = ["version"]
+description = "Parametric thread and fastener generator: web UI, HTTP API and CLI with STL/STEP export"
+readme = "README.md"
+# 3.12 only (L01): cadquery-ocp publishes wheels for nothing newer, and the upper bound
+# makes pip refuse instead of spending minutes building OpenCascade from source.
+requires-python = ">=3.12,<3.13"
+keywords = ["thread", "screw", "bolt", "nut", "cad", "cadquery", "stl", "step", "3d-printing"]
+dependencies = [
+    "cadquery>=2.5",
+    "fastapi>=0.115",
+    "pydantic>=2.7",
+    "uvicorn>=0.30",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "ruff>=0.14",
+    "mypy>=1.18",
+    "import-linter>=2.3",
+    "pre-commit>=4",
+]
+
+[tool.hatch.version]
+path = "src/screw/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/screw"]
+
+# --- the gate: lint, types, import boundaries, tests. `make verify` runs all four (L03). --
+
+[tool.ruff]
+target-version = "py312"   # one supported interpreter (L01)
+line-length = 100
+
+# `ruff format` is deliberately not part of this project -- L05.
+
+[tool.ruff.lint]
+# High-signal set, not "ALL": ALL churns between ruff releases and turns review into
+# bikeshedding. No D/DOC (docstrings here are prose, not a schema), no ANN (mypy strict
+# already demands annotations).
+select = [
+    "E", "F", "W",   # pycodestyle + pyflakes
+    "I",             # import sorting
+    "N",             # naming
+    "UP",            # modern syntax for the supported Python
+    "B",             # bugbear: real bugs, not style
+    "SIM",           # simplifications
+    "C4",            # comprehensions
+    "PTH",           # pathlib over os.path
+    "TID",           # tidy imports
+    "ARG",           # unused arguments
+    "ERA",           # commented-out code
+    "TRY",           # exception antipatterns
+    "LOG", "G",      # logging correctness
+    "PT",            # pytest style
+    "RUF",           # ruff's own, including RUF100: an unused noqa is an error
+]
+# A bare `# noqa` is itself a violation -- suppress one rule, by code, or not at all.
+ignore = [
+    # TRY003 wants long messages moved into exception classes. This project's error
+    # messages are the product: they name the offending parameter and say what to
+    # change. A class per message would make them worse, not better. See L05.
+    "TRY003",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests name their fixtures and parametrised cases for the reader, not for a linter.
+"tests/*" = ["ARG001"]
+
+[tool.mypy]
+python_version = "3.12"
+plugins = ["pydantic.mypy"]   # without it mypy cannot see the generated model __init__
+strict = true
+warn_unreachable = true
+enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool", "possibly-undefined"]
+# On from the first line, for everything mypy checks, with no per-module exception (L04).
+# `Any` is not written in this codebase: a genuinely untyped value is `object`, and a
+# value a library already names keeps the library's own alias.
+disallow_any_explicit = true
+
+[tool.pydantic-mypy]
+# Without these the pydantic mypy plugin writes an explicit `Any` into the initialiser it
+# generates for every model and reports it on the model's own `class` line -- spur
+# counted exactly six, one per model, before adding them (spur L21). Trade-off: every
+# model constructor call is type-checked against its fields. Static only.
+init_typed = true
+init_forbid_extra = true
+
+[[tool.mypy.overrides]]
+# OCP, the OpenCascade binding, ships no type information (no .pyi and no py.typed in
+# cadquery-ocp 7.9.x), so the entry is scoped to it -- never a global
+# ignore_missing_imports, which would blind the whole project. cadquery itself ships
+# py.typed and needs no entry.
+module = ["OCP.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-markers --strict-config"
+xfail_strict = true
+filterwarnings = ["error"]
+
+[tool.importlinter]
+root_package = "screw"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "The app never imports its own tests"
+type = "forbidden"
+source_modules = ["screw"]
+forbidden_modules = ["tests"]
+
+# Next, in the same commit as the first maths module: "The thread maths stays free of the
+# CAD kernel" (source: the maths and parameter modules; forbidden: cadquery, OCP), and
+# with the CLI, "The CLI does not inherit web-serving policy" (forbidden: the app module,
+# fastapi, starlette). spur's pyproject.toml has the worked versions.
