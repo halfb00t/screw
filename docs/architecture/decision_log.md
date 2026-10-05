@@ -99,3 +99,51 @@ image yet, so the simpler host-side freeze is enough and is replaced, not patche
 image arrives. Constraints pin versions, not wheels, so one file serves macOS/arm64 and
 CI's linux/amd64 as long as both have wheels for the pinned versions — CI proves that on
 every run.
+
+## L07 — Infrastructure is forked from spur at `ec195fb`, and extracted into a shared package only on a named trigger
+
+Date: 2026-10-05. Decided by the owner in spur's `/gsd-new-milestone` session the same day,
+over the alternative of turning spur into a "parts generator".
+
+screw copies spur's infrastructure rather than depending on it. The copy is done in two
+cuts: the scaffold took the house rules and the gate's shape; the first phase ports the
+runtime. Nothing is extracted into a package shared by both repos until the first time a
+fix has to land in both — that trigger, and nothing earlier, is when the duplication
+starts costing more than a third repository would
+(`docs/tech_debt/active/2026-10-05-shared-infra-extraction.md`, severity `nice`).
+
+**Ported by the scaffold (commit `46315f3`):** the `AGENTS.md`/`CLAUDE.md` shape;
+`docs/CODING_VALUES.md`; `docs/HOW_TO_DEVELOP.md`; the `docs/tech_debt/` and
+`docs/ideas/` templates and INDEX shape; `.ai_skills/README.md`; `Makefile` (`venv`,
+`verify`, `lint`, `typecheck`, `lint-imports`, `no-fake-done` — with `-w` in place of the
+`\b` that git grep -E does not implement on macOS — `test`, `lock`, `worktree.*`,
+`clean`); `.github/workflows/ci.yml` (the `test` job); `.pre-commit-config.yaml` (the
+`verify` hook); the `pyproject.toml` tooling blocks (ruff, mypy, pydantic-mypy, pytest,
+import-linter shape); `.gitignore`.
+
+**To port in the first phase, as-is:** `scripts/pr_land.py`, `scripts/skip_tokens.py` and
+their tests; the `commit-msg` hook and the `main` ruleset (spur L22, L25); `docker/`
+(`Dockerfile`, `compose.yaml`, `smoke.py`, `refresh-requirements.sh`, replacing L06's
+host-side freeze); the coverage floor and `pytest-xdist`/`pytest-cov` wiring (spur L34);
+`src/spur/static/` and `web/` (the schema-driven form, the viewer, the vendored three.js
+bundle, `make vendor` / `vendor-check`, spur L11); the `vendor-bundle` and `image` CI jobs.
+
+**To port with one generalization:** `src/spur/pool.py`, `records.py`, `app.py`,
+`cli.py`, `build_errors.py` — each is typed on spur's `GearParams`; retype over screw's
+parameter model.
+
+**To port as a harness, not as numbers:** `bench/latency.py`, `memory.py`,
+`build_time.py`, `export_cost.py`, `bench/README.md`'s method. Re-sweep the build timeout,
+memory limit, gzip level and worker count for threaded parts. None of spur's figures carry.
+
+**Never copied:** `calc.py`, `model.py`, `params.py`, their tests, and the regression
+fixture — all involute-gear geometry.
+
+Reason: the two repos share a team, a stack and a working method, and spur's runtime is
+measured and proven; re-deriving it would spend a milestone on what is already known.
+A shared package now would be a third thing to keep green before either product needs it,
+and its API would be guessed from one consumer. The fork is cheap today and the trigger
+for undoing it is observable.
+
+Reversibility: moderate. Extraction is a mechanical move once both copies have diverged
+only in the typed parameter model; the longer the fork lives, the more they diverge.
