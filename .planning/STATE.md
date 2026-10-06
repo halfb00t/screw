@@ -4,9 +4,9 @@ current_phase: 01
 current_phase_name: Runtime Port and Walking Skeleton
 status: "Phase 01 shipped — PR #1 (gate bypassed per D-11/D-12; verifier + security audit run after merge)"
 stopped_at: Phase 1 waves 1-9 complete (9/10 plans); 01-10 waits on the Phase 1 PR merge (D-11) — ship, merge, then re-run /gsd-execute-phase 1
-last_updated: "2026-10-06T06:46:47.442Z"
+last_updated: "2026-10-06T06:52:21.007Z"
 last_activity: 2026-10-06
-state_head: 4ad868400ad510a92518b2e14feb7ff38f96552d
+state_head: 4951d47522aa29885b179896fa601b2c7f5f2061
 progress:
   total_phases: 7
   completed_phases: 0
@@ -95,6 +95,7 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-08: the Phase 1 bench runs are harness checks; the memory sweep is an emulation figure (linux/amd64 on an aarch64 daemon) with 4 to 12 samples per row and is not a footprint — Phase 7 re-sweeps on native linux/amd64 with the threaded grid; sampling limit filed as tech debt
 - [Phase 01]: fail_under = 94 = floor(95.03 - max(0.25, 0.00)) by spur L34's rule on the 285-test skeleton suite (serial 95.03, three -n 8 at 95.56); recorded in bench/RESULTS.md
 - [Phase 01]: PYTEST_WORKERS stays 8, spur L34's knee, carried and not re-measured for screw's suite
+- [Phase 01]: Phase 1 PR #1 landed as a merge commit (4951d47, 51 commits on main), not the single squash D-12 prescribes; owner accepted the shape on 2026-10-06 — D-12's squash rule applies from the wall onward via PR_TITLE/PR_BODY and make pr.land
 
 ### Pending Todos
 
