@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Thread Spike
 status: executing
-stopped_at: Phase 2 context gathered
-last_updated: "2026-10-06T11:37:30.875Z"
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-10-06T11:49:05.906Z"
 last_activity: 2026-10-06
 last_activity_desc: Phase 02 execution started
-state_head: 8ac5256c71406744192d683f1e6b620abb90f7b0
+state_head: df710d991d88daf7dcfb36a1efbeb5d884bd011a
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 18
-  completed_plans: 10
+  completed_plans: 11
   percent: 14
 ---
 
@@ -28,8 +28,8 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 ## Current Position
 
 Phase: 02 (Thread Spike) — EXECUTING
-Plan: 1 of 8
-Status: Executing Phase 02
+Plan: 2 of 8
+Status: Ready to execute
 Last activity: 2026-10-06 — Phase 02 execution started
 
 Progress: [█░░░░░░░░░] 14%
@@ -66,6 +66,7 @@ Progress: [█░░░░░░░░░] 14%
 | Phase 01 P08 | 17 min | 2 tasks | 12 files |
 | Phase 01 P09 | 8 min | 2 tasks | 8 files |
 | Phase 01 P10 | 20 min | 2 tasks | 1 files |
+| Phase 02 P01 | 4 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -80,6 +81,8 @@ Recent decisions affecting current work:
 - 01-08: the bench harness is ported with its method and predicates, none of spur's numbers and no latency bar; Phase 1 runs are harness checks, not bounds. Phase 2 re-uses it on threaded parts.
 - Roadmap (pending owner approval): Phase 7 runs after Phase 6 so the sweep covers the final grid; it could run alongside Phase 6 if the owner prefers speed.
 - `clearance` lives on the nut; no default ships before Phase 6's printed test (PAIR-02).
+- [Phase 02]: 02-01: ISO 68-1:2023 profile pinned basic by the owner (read 2026-10-06); coefficients owner-confirmed; R1-R5 planner defaults; one-way door (D-01)
+- [Phase 02]: 02-01: M7 nut height 0.8*d = 5.60 is a stated input, UNVERIFIED (owner supplied no value)
 
 ### Pending Todos
 
@@ -105,6 +108,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-06T09:41:34.726Z
-Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-thread-spike/02-CONTEXT.md
+Last session: 2026-10-06T11:49:05.867Z
+Stopped at: Completed 02-01-PLAN.md
+Resume file: None
