@@ -517,3 +517,53 @@ def test_two_same_slot_deaths_from_one_incident_replace_the_worker_once(
         assert isinstance(second_result, BrokenProcessPool)
         assert pool.replaced == replaced_before + 1
         assert len(_event_records(caplog, "worker.replaced")) == 1
+
+
+# RED marker, removed in the commit that adds the guard. The pre-commit hook runs the whole
+# suite, so a bare failing test cannot be committed without --no-verify; strict xfail
+# (xfail_strict is on) keeps it honest: it fails the suite the moment the guard makes it pass.
+@pytest.mark.xfail(
+    raises=AssertionError, reason="the same-slot guard is not in pool.py yet (reproduced 6/6)")
+def test_two_same_slot_timeouts_in_one_incident_end_as_build_timeout_not_attribute_error() -> None:
+    """Ten same-slot builds that all overrun in one incident each end as BuildTimeout or
+    BrokenProcessPool -- never AttributeError, which app.py maps to no status at all and
+    uvicorn turns into a raw 500.
+
+    The first request to time out terminates the worker, shuts the executor down and
+    installs a replacement in its slot. A second request's own timeout, firing in the
+    same event-loop pass, still holds the shut-down executor in its local, and
+    CPython 3.12 sets `_processes` to None on shutdown, so reading it raised
+    `AttributeError: 'NoneType' object has no attribute 'values'`. spur measured this
+    under ten concurrent builds (its open `must` debt file
+    2026-10-02-same-slot-timeout-cleanup-race-produces-undocumented-500.md); screw's
+    guard in `_run_with_timeout` is the divergence recorded in L09.
+
+    The 0.2 s timeout is far below `_sleep_past_timeout`'s 10 s, so every request times
+    out; all ten are created in one tick, so their deadlines land in one loop pass.
+    """
+    with TestClient(app):
+        pool = app.state.pool
+        params = BoltParams()
+        worker_pid_before = pool.executor_for(params).submit(os.getpid).result()
+
+        original_timeout = pool.timeout
+        pool.timeout = 0.2
+        try:
+            async def _drive() -> list[object]:
+                tasks = [
+                    asyncio.create_task(
+                        pool._run_with_timeout(params, _sleep_past_timeout, 10.0))
+                    for _ in range(10)
+                ]
+                return cast(list[object], await asyncio.gather(*tasks, return_exceptions=True))
+
+            results = asyncio.run(_drive())
+        finally:
+            pool.timeout = original_timeout
+
+        assert not [r for r in results if isinstance(r, AttributeError)], results
+        assert all(isinstance(r, BuildTimeout | BrokenProcessPool) for r in results), results
+        assert any(isinstance(r, BuildTimeout) for r in results), results
+
+        new_pid = pool.executor_for(params).submit(os.getpid).result()
+        assert new_pid != worker_pid_before
