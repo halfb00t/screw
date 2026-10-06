@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>screw · parametric fasteners</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔩</text></svg>">
+  <link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+  <header>
+    <h1>screw</h1>
+    <span class="sub">parametric thread and fastener generator</span>
+    <nav><a href="docs" target="_blank" rel="noopener">API</a></nav>
+  </header>
+
+  <main>
+    <aside>
+      <label class="field">Kind <select id="kind"></select></label>
+      <form id="params" autocomplete="off"></form>
+      <div class="actions">
+        <button type="button" id="reset">Reset</button>
+        <button type="button" id="copy-link">Copy link</button>
+      </div>
+    </aside>
+
+    <section id="view">
+      <div id="canvas-wrap">
+        <canvas id="canvas" aria-label="3D preview of the part"></canvas>
+        <div id="status" role="status"></div>
+        <button type="button" id="fit" title="Fit part to view">Fit</button>
+      </div>
+
+      <div id="bottom">
+        <div class="col">
+          <div class="downloads">
+            <a id="dl-stl" class="btn primary" aria-disabled="true">Download STL</a>
+            <a id="dl-step" class="btn primary" aria-disabled="true">Download STEP</a>
+          </div>
+          <div id="messages" aria-live="polite"></div>
+        </div>
+        <div class="col">
+          <dl id="dims"></dl>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="static/app.js"></script>
+</body>
+</html>

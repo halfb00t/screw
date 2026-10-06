@@ -1,5 +1,6 @@
 """HTTP API.
 
+    GET /                            the web UI (static/index.html); assets under /static
     GET /api/health                  liveness, plus build pool state
     GET /api/kinds                   the registered kinds and the default one
     GET /api/schema?kind=            JSON schema of one kind's parameters (drives the form)
@@ -21,11 +22,13 @@ from collections import OrderedDict
 from collections.abc import AsyncIterator, Awaitable, Callable, Hashable, Iterator
 from concurrent.futures.process import BrokenProcessPool
 from contextlib import asynccontextmanager, contextmanager
+from pathlib import Path
 from typing import Annotated, Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import Response
+from fastapi.responses import FileResponse, Response
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.json_schema import JsonSchemaValue
 from starlette.concurrency import run_in_threadpool
@@ -37,6 +40,7 @@ from .params import DEFAULT_KIND, KINDS, BoltParams, FastenerParams
 from .pool import BuildPool
 from .records import build_failed, build_started, configure, export_served, queue_refused
 
+STATIC = Path(__file__).parent / "static"
 MEDIA_TYPES = {"stl": "model/stl", "step": "model/step"}
 
 
@@ -186,6 +190,7 @@ _GZIP_LEVEL = 1
 # INTERIM (D-01): `minimum_size=1024` carried from spur; not measured for screw. Phase 7
 # re-sweeps (OPER-02).
 app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=_GZIP_LEVEL)
+app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
 def build_backend() -> BuildBackend:
@@ -483,3 +488,8 @@ async def _serve(params: FastenerParams, fmt: Literal["stl", "step"], quality: s
         # middleware/gzip.py: "if it is [already set], the body passes through unchanged").
         headers["Content-Encoding"] = "gzip"
     return Response(data, media_type=MEDIA_TYPES[fmt], headers=headers)
+
+
+@app.get("/", include_in_schema=False)
+def index() -> FileResponse:
+    return FileResponse(STATIC / "index.html")

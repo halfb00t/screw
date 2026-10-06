@@ -110,6 +110,12 @@ def test_health() -> None:
     assert body["pool"] is None
 
 
+def test_index_and_static() -> None:
+    assert "screw" in client.get("/").text
+    assert client.get("/static/app.js").status_code == 200
+    assert client.get("/static/vendor/three.bundle.min.js").status_code == 200
+
+
 def test_kinds_names_the_frozen_default() -> None:
     assert client.get("/api/kinds").json() == {"default": "bolt", "kinds": ["bolt"]}
     # The literal, not DEFAULT_KIND: a link that omits `kind` means bolt forever (L02).

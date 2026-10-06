@@ -35,9 +35,10 @@ for screw (D-01).
 | `TESSELLATION` | preview (0.08, 0.5), fine (0.01, 0.1) | solid/__init__.py | spur model.py:53, F9: chosen for gears; Phase 5 re-chooses it against pair clearance (FRNT-06) |
 | `_release_arenas` (`malloc_trim`) | on after every export | solid/__init__.py | spur model.py: 1578 MiB resident without it, 360 MiB with it, over 40 distinct 160-199 tooth gears |
 | `INTERIM_MAX_MM` | 1e5 mm on `d` and `length` | params.py | D-14, F1: a cylinder at d=1e5 and length=1e5 measured 0.107 s / 550 MiB (preview STL) and 0.934 s / 1,052 MiB (fine STL) on macOS arm64; d=1e7 is 25 s and 6.0 GiB, past compose's interim `mem_limit: 4g` |
+| UI debounce | 350 ms | src/screw/static/app.js `scheduleUpdate` | spur app.js:221 (F9): a UI choice, never measured for screw |
 
-Plans 01-04 and 01-06 append the debounce, `SCREW_WORKERS`, `mem_limit`, HEALTHCHECK and
-tmpfs rows when they land those knobs.
+Plan 01-06 appends the `SCREW_WORKERS`, `mem_limit`, HEALTHCHECK and tmpfs rows when it
+lands those knobs.
 
 ## Why it matters
 These numbers decide what a user may ask for (`INTERIM_MAX_MM` is a hard 422) and when a

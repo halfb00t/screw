@@ -52,7 +52,7 @@ async def main() -> None:
     # lifespan itself via Starlette's own `router.lifespan_context`, the same callable a
     # real ASGI server invokes.
     async with app.router.lifespan_context(app):
-        for path, query in (("/api/health", b""), ("/api/kinds", b""),
+        for path, query in (("/", b""), ("/api/health", b""), ("/api/kinds", b""),
                             ("/api/schema", b"kind=bolt"), ("/api/bolt/info", b"")):
             status, _ = await get(path, query)
             assert status == 200, f"{path} -> {status}"
