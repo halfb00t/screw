@@ -92,6 +92,8 @@ serve: $(STAMP)  ## run the dev server on http://127.0.0.1:8000
 lock:  ## regenerate requirements.txt, the runtime closure the image installs (resolved in linux/amd64)
 	docker/refresh-requirements.sh
 
+check: verify smoke vendor-check  ## everything CI runs, locally (needs Docker)
+
 # --- container ---------------------------------------------------------------------
 
 image:  ## build the container image
@@ -99,6 +101,22 @@ image:  ## build the container image
 
 smoke: image  ## exercise the kernel, both exporters and the ASGI app inside the image
 	docker run --rm $(PLATFORM_ARG) --entrypoint python $(IMAGE) docker/smoke.py
+
+up:  ## build, start and wait for the service on http://localhost:8000
+	docker compose up -d --build
+	@printf 'waiting for the container to report healthy'
+	@n=0; until [ "$$(docker compose ps --format '{{.Health}}')" = healthy ]; do \
+	   n=$$((n+1)); \
+	   if [ $$n -gt 60 ]; then echo ' gave up'; docker compose logs --tail=20; exit 1; fi; \
+	   printf '.'; sleep 2; \
+	 done
+	@echo ' -> http://localhost:8000'
+
+down:  ## stop and remove the service
+	docker compose down
+
+logs:  ## follow the service log
+	docker compose logs -f
 
 # The committed three.js bundle is a build artefact; these two make it reproducible from
 # web/ (spur L11). They need node 22; the gate does not, CI's vendor-bundle job runs the check.
@@ -153,3 +171,7 @@ clean:  ## remove the venvs, caches and exported models
 	find . -name '__pycache__' -type d -prune -exec rm -rf {} +
 	find . -name '*.egg-info' -type d -prune -exec rm -rf {} +
 	rm -f *.stl *.step *.stp
+
+clean-docker:  ## remove this project's container and image
+	-docker compose down --remove-orphans
+	-docker image rm $(IMAGE)

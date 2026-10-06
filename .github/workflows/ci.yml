@@ -45,3 +45,23 @@ jobs:
         working-directory: web
       - name: bundle matches web/
         run: git diff --exit-code -- src/screw/static/vendor
+
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      # The build runs docker/smoke.py, so a broken dependency closure fails here.
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: screw:ci
+      - name: the packaged entrypoint serves a part
+        run: |
+          docker run -d --name screw -p 8000:8000 screw:ci
+          for _ in $(seq 60); do curl -sf localhost:8000/api/health >/dev/null && break; sleep 1; done
+          curl -sf localhost:8000/api/health
+          curl -sfo /dev/null 'localhost:8000/api/bolt/model.stl?quality=preview'
+          curl -sfo /dev/null 'localhost:8000/api/bolt/model.step'
+          docker rm -f screw

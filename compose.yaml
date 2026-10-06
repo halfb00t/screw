@@ -1,0 +1,30 @@
+services:
+  screw:
+    build: .
+    image: screw:latest
+    ports:
+      # Localhost only. To expose on the network use "8000:8000" and put
+      # something with authentication in front (the app has none).
+      - "127.0.0.1:8000:8000"
+    environment:
+      # INTERIM (D-01, D-03): one server process, N builders -- process count and cache
+      # count move together on one knob (SCREW_BUILD_WORKERS below), so a memory sweep has
+      # one variable, not two multiplied. spur L17's choice; not measured for screw;
+      # Phase 7 re-sweeps (OPER-02).
+      SCREW_WORKERS: "1"
+      SCREW_BUILD_WORKERS: "2"
+      # SCREW_ROOT_PATH: /screw   # when served under a sub-path by a reverse proxy
+    # INTERIM (D-01, D-03): spur L17's 4g, measured on two workers over spur's 160-199
+    # tooth gear corpus; a labelled cap beats none and the skeleton is lighter; not
+    # measured for screw; Phase 7 re-sweeps (OPER-02)
+    mem_limit: 4g
+    read_only: true
+    tmpfs:
+      # INTERIM (D-01, D-03): spur's choice (F9), not measured for screw; Phase 7
+      # re-sweeps (OPER-02). Exports are written here before being read back; bounded so
+      # a huge STL cannot eat the memory limit.
+      - /tmp:size=256m
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
