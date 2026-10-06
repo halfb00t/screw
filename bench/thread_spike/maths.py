@@ -120,24 +120,50 @@ def closed_volume(d: float, pitch: float, length: float, clearance: float = 0.0)
 
 
 def standard_max(d: Fraction) -> Fraction:
-    return d
+    """The greatest length the grid covers: min(10 d, 200 mm) (D-03)."""
+    return min(LENGTH_CAP_DIAMETERS * d, LENGTH_CAP_MM)
 
 
 def lengths(d: Fraction, pitch: Fraction, lower: Fraction | None = None) -> list[Fraction]:
-    return [lower or d + pitch]
+    """The D-03 grid in exact fractions, ascending, each length once: every integer-turn length
+    k * P and every integer-millimetre length from `lower` up to `standard_max(d)`, both ends
+    included.
+
+    `lower` defaults to min(P, 1 mm), the owner's R2 ruling (02-SPIKE.md): it keeps sub-turn
+    rows such as M8 L = 1 mm = 0.8 turn, where the short-length floor lives. Exact fractions
+    because the grid is also the set of integer-turn lengths: float k * P drifts (168 of 3000
+    products fail (k * P) / P == k) and would list a coincident length twice, e.g. 9 mm = 20
+    turns of M2.5's 9/20 (RESEARCH Pitfall 1).
+    """
+    cap = standard_max(d)
+    low = min(pitch, Fraction(1)) if lower is None else lower
+    by_turns = {k * pitch for k in range(1, int(cap / pitch) + 1)}
+    by_mm = {Fraction(mm) for mm in range(1, int(cap) + 1)}
+    return sorted(x for x in by_turns | by_mm if low <= x <= cap)
 
 
 def is_integer_turn(length: Fraction, pitch: Fraction) -> bool:
-    return length < pitch
+    """Exact: the quotient's denominator is 1. Never a float comparison (see `lengths`)."""
+    return turns_of(length, pitch).denominator == 1
 
 
 def turns_of(length: Fraction, pitch: Fraction) -> Fraction:
-    return length * pitch
+    """Turns in `length`, exactly. The builder gets `float(turns_of(...))`, never a float
+    division of two floats, so an integer-turn row is built with its exact integer."""
+    return length / pitch
 
 
 def frontier_turns(d: Fraction, pitch: Fraction) -> list[int]:
-    return [int(d / pitch)]
+    """The D-04 frontier: from the first multiple of 5 turns strictly above the standard max,
+    in steps of 5, up to and including 250. A standard max that is itself a multiple of 5 turns
+    (M2 50, M6 60) starts at the next one: that length is already in the grid."""
+    standard_turns = turns_of(standard_max(d), pitch)
+    first = (int(standard_turns // FRONTIER_STEP_TURNS) + 1) * FRONTIER_STEP_TURNS
+    return list(range(first, FRONTIER_MAX_TURNS + 1, FRONTIER_STEP_TURNS))
 
 
 def depth_presets(pitch: float) -> list[tuple[str, float, float]]:
-    return [("h", pitch, LADDER_ANGULAR)]
+    """The ladder's deflection presets: (name, linear deflection mm, angular rad) at h/4,
+    h/8, h/16 and h/32 of the thread depth h = 5H/8, angular `LADDER_ANGULAR`."""
+    depth = thread_depth(pitch)
+    return [(f"h/{n}", depth / n, LADDER_ANGULAR) for n in DEPTH_FRACTIONS]

@@ -469,9 +469,6 @@ def _grid(size: str, lower: Fraction | None = None) -> list[Fraction]:
     return maths.lengths(d, pitch, lower)
 
 
-_XFAIL_T1 = pytest.mark.xfail(strict=True, reason="plan 02-03 task 1 RED: not implemented yet")
-
-
 def test_the_grid_and_frontier_constants_are_the_ones_the_protocol_names() -> None:
     assert maths.FRONTIER_MAX_TURNS == 250
     assert maths.FRONTIER_STEP_TURNS == 5
@@ -482,13 +479,11 @@ def test_the_grid_and_frontier_constants_are_the_ones_the_protocol_names() -> No
     assert set(maths.SAMPLE_SIZES) <= set(maths.SIZES)
 
 
-@_XFAIL_T1
 def test_the_grid_has_the_pinned_length_count_per_size_and_1790_in_all() -> None:
     assert {size: len(_grid(size)) for size in maths.SIZES} == _GRID_COUNTS
     assert sum(_GRID_COUNTS.values()) == 1790
 
 
-@_XFAIL_T1
 def test_the_grid_under_the_alternative_lower_bound_loses_rows_only_at_m8_and_above() -> None:
     """Starting at L = P instead of min(P, 1 mm) drops the integer-mm lengths below P: the
     sizes with P > 1 mm, which is exactly M8 (1.25) to M20 (2.5). 1790 - 1781 = 9 rows."""
@@ -499,7 +494,6 @@ def test_the_grid_under_the_alternative_lower_bound_loses_rows_only_at_m8_and_ab
     assert sum(lost.values()) == 9
 
 
-@_XFAIL_T1
 def test_the_grid_includes_both_ends_and_lists_each_length_once() -> None:
     for size in maths.SIZES:
         d, pitch = maths.PITCH[size]
@@ -509,7 +503,6 @@ def test_the_grid_includes_both_ends_and_lists_each_length_once() -> None:
         assert grid == sorted(set(grid))
 
 
-@_XFAIL_T1
 def test_a_length_that_is_both_an_integer_turn_and_an_integer_mm_appears_once() -> None:
     """M2.5 (P = 9/20): 9 mm and 18 mm are 20 and 40 turns."""
     grid = _grid("M2.5")
@@ -517,14 +510,12 @@ def test_a_length_that_is_both_an_integer_turn_and_an_integer_mm_appears_once() 
     assert grid.count(Fraction(18)) == 1
 
 
-@_XFAIL_T1
 def test_the_grid_stops_at_ten_diameters_capped_at_200_mm() -> None:
     assert maths.standard_max(Fraction(6)) == 60
     assert maths.standard_max(Fraction(20)) == 200
     assert maths.standard_max(Fraction(25)) == 200
 
 
-@_XFAIL_T1
 def test_integer_turns_are_decided_on_fractions_where_the_float_product_drifts() -> None:
     assert 0.4 * 3 != 1.2  # the drift this guards against: 1.2000000000000002
     assert maths.is_integer_turn(Fraction(6, 5), Fraction(2, 5))
@@ -532,7 +523,6 @@ def test_integer_turns_are_decided_on_fractions_where_the_float_product_drifts()
     assert maths.turns_of(Fraction(6, 5), Fraction(2, 5)) == 3
 
 
-@_XFAIL_T1
 @pytest.mark.parametrize(("size", "first", "count"), [
     ("M2", 55, 40),    # standard max 50 turns: the next multiple of 5 above it
     ("M2.5", 60, 39),  # 55.56 turns
@@ -550,7 +540,6 @@ def test_the_frontier_starts_above_the_standard_max_and_steps_by_five_to_250(
     assert turns[0] > maths.turns_of(maths.standard_max(d), pitch)
 
 
-@_XFAIL_T1
 def test_the_depth_presets_are_fractions_of_five_eighths_of_the_fundamental_height() -> None:
     h = 5 / 8 * math.sqrt(3) / 2
     presets = maths.depth_presets(1.0)
