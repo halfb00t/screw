@@ -7,6 +7,7 @@ The default `Shape.Volume()` is a reference column, never a verdict input: it re
 
 from __future__ import annotations
 
+import gzip
 import math
 import struct
 import tempfile
@@ -28,6 +29,10 @@ PRECISE_EPS = 1e-6
 # Vertices of the STL are welded by rounding each coordinate to this many mm before edges are
 # paired, so the two sides of a seam compare equal.
 WELD_MM = 1e-5
+# The app's INTERIM gzip level (`src/screw/app.py` `_GZIP_LEVEL`, spur L19): the byte budget is
+# raw + gzip at the level that ships. Levels 6 and 9 gave 4.9 % smaller on an M6 L60 STL, under
+# L19's 10 % bar, so 1 stays (RESEARCH Pattern 7); Phase 7 re-measures.
+GZIP_LEVEL = 1
 
 
 def precise_volume(shape: cq.Shape) -> float:
@@ -54,6 +59,25 @@ def mesh_stl(shape: cq.Shape, tolerance: float, angular: float) -> tuple[bytes, 
                                ascii=False, relative=False)
         seconds = time.perf_counter() - t0
         return path.read_bytes(), seconds
+
+
+def gzip1(data: bytes) -> tuple[int, float]:
+    """gzip at the app's level: the compressed size in bytes and the seconds it took."""
+    t0 = time.perf_counter()
+    compressed = gzip.compress(data, compresslevel=GZIP_LEVEL)
+    return len(compressed), time.perf_counter() - t0
+
+
+def step_export(shape: cq.Shape) -> tuple[int, float]:
+    """STEP of `shape`, written the shipped way (`screw.solid`'s `_write_export`): the file's
+    size in bytes and the seconds the export took. The temporary directory is removed on return
+    or on an exception."""
+    with tempfile.TemporaryDirectory(prefix="screw-spike-") as directory:
+        path = Path(directory) / "part.step"
+        t0 = time.perf_counter()
+        shape.exportStep(str(path))
+        seconds = time.perf_counter() - t0
+        return path.stat().st_size, seconds
 
 
 @dataclass(frozen=True)

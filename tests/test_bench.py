@@ -58,21 +58,25 @@ from bench.memory import (
 )
 from bench.quiet import QuietResult, Reading, wait_quiet
 from bench.thread_spike import __main__ as spike_cli
-from bench.thread_spike import helical, maths, measure
+from bench.thread_spike import helical, maths, measure, worker
 from bench.thread_spike.__main__ import _table_row
 from bench.thread_spike.runner import Worker
 from bench.thread_spike.verdict import (
+    FINE_CHECK_CEILING,
     PROTOCOL_PATH,
     ROW_TIMEOUT_S,
     T_PASS,
+    HeaderRecord,
     MeshRecord,
     RowRecord,
     RowRequest,
     before_results,
     classify_row,
     failed_record,
+    parse_header,
     parse_record,
     parse_request,
+    parse_result_row,
     protocol_guard,
     relative_error,
 )
@@ -552,6 +556,7 @@ def test_the_depth_presets_are_fractions_of_five_eighths_of_the_fundamental_heig
 _REQUEST: RowRequest = {
     "kind": "rod", "size": "M6", "d": 6.0, "pitch": 1.0, "turns": 5.0, "length": 5.0,
     "left_hand": False, "k": 5, "clearance": 0.0, "presets": [("preview", 0.08, 0.5)],
+    "step": False, "gzip_on": [], "check_ceiling": FINE_CHECK_CEILING,
 }
 
 
@@ -560,7 +565,7 @@ def _built(precise: float, *, solids: int = 1, valid: bool = True,
     return {
         **_REQUEST, "outcome": "built", "error": None, "solids": solids, "is_valid": valid,
         "precise_volume": precise, "default_volume": precise, "build_s": 0.1, "volume_s": 0.1,
-        "meshes": [] if meshes is None else meshes,
+        "meshes": [] if meshes is None else meshes, "step_bytes": None, "step_s": None,
     }
 
 
@@ -568,7 +573,8 @@ def _mesh(*, watertight: bool = True, volume: float = 1.0, area: float = 10.0,
           checked: bool = True) -> MeshRecord:
     return {
         "preset": "preview", "tolerance": 0.08, "angular": 0.5, "triangles": 100, "bytes": 5084,
-        "mesh_s": 0.01, "checked": checked,
+        "mesh_s": 0.01, "gzip1_bytes": None, "gzip1_s": None, "checked": checked,
+        "check_s": 0.01 if checked else None,
         "watertight": watertight if checked else None,
         "open_edges": (0 if watertight else 3) if checked else None,
         "stl_volume": volume if checked else None, "surface_area": area if checked else None,
@@ -662,6 +668,125 @@ def test_a_record_survives_the_wire_unchanged() -> None:
     assert parse_record(json.dumps(built)) == built
     died = failed_record(_REQUEST, "worker_died", "exit 139")
     assert parse_record(json.dumps(died)) == died
+
+
+def test_a_record_with_a_step_export_and_a_gzipped_mesh_survives_the_wire() -> None:
+    request: RowRequest = {**_REQUEST, "step": True, "gzip_on": ["preview"]}
+    mesh: MeshRecord = {**_mesh(), "gzip1_bytes": 2400, "gzip1_s": 0.002}
+    record: RowRecord = {**_built(1.0, meshes=[mesh]), **request,
+                         "step_bytes": 3_570_000, "step_s": 0.31}
+    assert parse_record(json.dumps(record)) == record
+    assert parse_request(json.dumps(request)) == request
+
+
+def test_a_built_record_carries_step_exactly_when_its_request_asked_for_it() -> None:
+    asked: RowRecord = {**_built(1.0), "step": True}  # asked, nothing measured
+    with pytest.raises(ValueError, match="step_bytes"):
+        parse_record(json.dumps(asked))
+    unasked: RowRecord = {**_built(1.0), "step_bytes": 10, "step_s": 0.1}  # measured, not asked
+    with pytest.raises(ValueError, match="step_bytes"):
+        parse_record(json.dumps(unasked))
+    half: RowRecord = {**_built(1.0), "step": True, "step_bytes": 10}
+    with pytest.raises(ValueError, match="step_bytes"):
+        parse_record(json.dumps(half))
+    liar = {**failed_record(_REQUEST, "failure", "boom"), "step_bytes": 10, "step_s": 0.1}
+    with pytest.raises(ValueError, match="STEP"):
+        parse_record(json.dumps(liar))
+
+
+def test_a_mesh_names_its_gzip_pair_together_and_its_check_time_with_its_check() -> None:
+    lopsided: MeshRecord = {**_mesh(), "gzip1_bytes": 5}
+    with pytest.raises(ValueError, match="gzip1"):
+        parse_record(json.dumps(_built(1.0, meshes=[lopsided])))
+    untimed: MeshRecord = {**_mesh(), "check_s": None}
+    with pytest.raises(ValueError, match="check fields"):
+        parse_record(json.dumps(_built(1.0, meshes=[untimed])))
+
+
+_HEADER: HeaderRecord = {
+    "run_id": "2026-10-08-a-grid", "block": "grid", "head": "a" * 40,
+    "protocol_blob": "b" * 40, "protocol_commit": "c" * 40, "decisive": True,
+    "readings": [("2026-10-08T09:00:00+00:00", 1.2), ("2026-10-08T09:00:30+00:00", 1.1)],
+    "k": 5, "k_source": "selected by select_k from run 2026-10-08-a-ksweep",
+}
+
+
+def test_a_header_survives_the_wire_and_refuses_an_unknown_or_malformed_key() -> None:
+    assert parse_header(json.dumps(_HEADER)) == _HEADER
+    ksweep: HeaderRecord = {**_HEADER, "block": "ksweep", "k": None}
+    assert parse_header(json.dumps(ksweep)) == ksweep
+    with pytest.raises(ValueError, match="kay"):
+        parse_header(json.dumps({**_HEADER, "kay": 5}))
+    with pytest.raises(ValueError, match="readings"):
+        parse_header(json.dumps({**_HEADER, "readings": [["only-a-time"]]}))
+    with pytest.raises(ValueError, match="decisive"):
+        parse_header(json.dumps({**_HEADER, "decisive": "yes"}))
+
+
+def test_a_result_row_gives_back_its_record_and_needs_the_runs_own_verdict_keys() -> None:
+    record = _built(1.0, meshes=[_mesh()])
+    row = {**record, "closed_volume": 1.0, "rel_err": 0.0, "class": "ok", "reasons": [],
+           "over_budget": []}
+    assert parse_result_row(json.dumps(row)) == record
+    del row["class"]
+    with pytest.raises(ValueError, match="class"):
+        parse_result_row(json.dumps(row))
+
+
+_ROD_REQUEST: RowRequest = {
+    **_REQUEST, "turns": 3.0, "length": 3.0, "presets": [("preview", 0.08, 0.5),
+                                                         ("fine", 0.01, 0.1)],
+    "step": True, "gzip_on": ["fine"],
+}
+
+
+def test_a_rod_row_meshes_gzips_checks_and_exports_step_as_the_request_asks() -> None:
+    record = worker.run_row(_ROD_REQUEST)
+    assert parse_record(json.dumps(record)) == record  # what the child writes parses back
+    meshes = {m["preset"]: m for m in record["meshes"] or []}
+    assert set(meshes) == {"preview", "fine"}
+    assert meshes["preview"]["gzip1_bytes"] is None
+    gzipped = meshes["fine"]["gzip1_bytes"]
+    assert gzipped is not None
+    assert 0 < gzipped < meshes["fine"]["bytes"]
+    assert meshes["fine"]["triangles"] > meshes["preview"]["triangles"]
+    assert all(m["checked"] and m["watertight"] for m in meshes.values())
+    assert record["step_bytes"] is not None
+    assert record["step_bytes"] > 0
+    closed = maths.closed_volume(6.0, 1.0, 3.0)
+    assert classify_row(record, closed) == ("ok", ())
+
+
+def test_a_mesh_over_the_check_ceiling_is_recorded_as_not_checked_never_as_a_pass() -> None:
+    record = worker.run_row({**_ROD_REQUEST, "step": False, "check_ceiling": 10})
+    meshes = record["meshes"] or []
+    assert len(meshes) == 2
+    for mesh in meshes:
+        assert not mesh["checked"]
+        assert (mesh["watertight"], mesh["check_s"], mesh["stl_volume"]) == (None, None, None)
+        assert mesh["triangles"] > 10
+    assert record["step_bytes"] is None
+    assert classify_row(record, maths.closed_volume(6.0, 1.0, 3.0))[0] == "ok"
+
+
+def test_a_void_row_records_the_postcondition_only_against_the_closed_form_with_clearance() -> None:
+    request: RowRequest = {**_REQUEST, "kind": "void", "turns": 3.0, "length": 3.0,
+                           "clearance": 0.2, "presets": []}
+    record = worker.run_row(request)
+    assert (record["outcome"], record["solids"], record["is_valid"]) == ("built", 1, True)
+    assert record["meshes"] == []
+    assert record["step_bytes"] is None
+    closed = maths.closed_volume(6.0, 1.0, 3.0, 0.2)
+    assert classify_row(record, closed) == ("ok", ())
+    assert closed > maths.closed_volume(6.0, 1.0, 3.0)  # the void really is the larger section
+
+
+@pytest.mark.parametrize("extra", [{"presets": [("preview", 0.08, 0.5)]}, {"step": True}])
+def test_a_void_row_that_asks_for_a_mesh_or_a_step_is_refused(extra: dict[str, object]) -> None:
+    request: RowRequest = {**_REQUEST, "kind": "void", "presets": [], **extra}  # type: ignore[typeddict-item]
+    record = worker.run_row(request)
+    assert record["outcome"] == "failure"
+    assert "void" in (record["error"] or "")
 
 
 def test_a_record_with_an_unknown_key_is_refused_naming_it() -> None:

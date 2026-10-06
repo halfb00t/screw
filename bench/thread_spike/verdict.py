@@ -26,6 +26,12 @@ T_PASS = 1e-4
 # than killed (RESEARCH Pattern 3). A protocol input.
 ROW_TIMEOUT_S = 120.0
 
+# The pure-Python STL check costs about 3 us per triangle (1.3 s for 605 450, 9.4 s for 3 203
+# 406) and gigabytes of objects above this many triangles (in-process peak 2.98 GB after a 3.2 M
+# triangle mesh and its check against 2.26 GB for the mesh alone, RESEARCH Pitfalls 5 and 6), so
+# a mesh above it is not checked, and the report counts every skipped check.
+FINE_CHECK_CEILING = 1_000_000
+
 RowClass = Literal["ok", "silent_wrong", "failure", "timeout", "worker_died"]
 Outcome = Literal["built", "failure", "timeout", "worker_died"]
 Preset = tuple[str, float, float]
@@ -45,11 +51,15 @@ class RowRequest(TypedDict):
     k: int
     clearance: float
     presets: list[Preset]
+    step: bool
+    gzip_on: list[str]
+    check_ceiling: int
 
 
 class MeshRecord(TypedDict):
-    """One mesh of a row. The four check fields are `None` when the check was not run
-    (`checked` False): a skipped check is counted visibly, never reported as a pass."""
+    """One mesh of a row. The five check fields are `None` when the check was not run
+    (`checked` False): a skipped check is counted visibly, never reported as a pass. The two
+    gzip fields are `None` unless the request named this preset in `gzip_on`."""
 
     preset: str
     tolerance: float
@@ -57,7 +67,10 @@ class MeshRecord(TypedDict):
     triangles: int
     bytes: int
     mesh_s: float
+    gzip1_bytes: int | None
+    gzip1_s: float | None
     checked: bool
+    check_s: float | None
     watertight: bool | None
     open_edges: int | None
     stl_volume: float | None
@@ -66,7 +79,8 @@ class MeshRecord(TypedDict):
 
 class RowRecord(RowRequest):
     """The request echoed plus what happened. Every measurement is `None` unless `outcome` is
-    "built"; `error` is set exactly when it is not."""
+    "built"; `error` is set exactly when it is not. The STEP fields are set exactly when the
+    request asked for STEP and the row was built."""
 
     outcome: Outcome
     error: str | None
@@ -77,15 +91,21 @@ class RowRecord(RowRequest):
     build_s: float | None
     volume_s: float | None
     meshes: list[MeshRecord] | None
+    step_bytes: int | None
+    step_s: float | None
 
 
 _REQUEST_KEYS = ("kind", "size", "d", "pitch", "turns", "length", "left_hand", "k",
-                 "clearance", "presets")
+                 "clearance", "presets", "step", "gzip_on", "check_ceiling")
 _MEASURE_KEYS = ("solids", "is_valid", "precise_volume", "default_volume", "build_s",
                  "volume_s", "meshes")
-_RECORD_KEYS = (*_REQUEST_KEYS, "outcome", "error", *_MEASURE_KEYS)
-_MESH_KEYS = ("preset", "tolerance", "angular", "triangles", "bytes", "mesh_s", "checked",
-              "watertight", "open_edges", "stl_volume", "surface_area")
+_RECORD_KEYS = (*_REQUEST_KEYS, "outcome", "error", *_MEASURE_KEYS, "step_bytes", "step_s")
+_MESH_KEYS = ("preset", "tolerance", "angular", "triangles", "bytes", "mesh_s", "gzip1_bytes",
+              "gzip1_s", "checked", "check_s", "watertight", "open_edges", "stl_volume",
+              "surface_area")
+# What a campaign JSONL row carries beyond the record: the run's own verdict on it, kept for a
+# reader's convenience and never trusted by `verdict`, which recomputes every one of them.
+_RESULT_KEYS = ("closed_volume", "rel_err", "class", "reasons", "over_budget")
 
 
 def _refuse(message: str) -> NoReturn:
@@ -173,6 +193,13 @@ def _presets(obj: dict[str, object]) -> list[Preset]:
     return presets
 
 
+def _strings(obj: dict[str, object], key: str) -> list[str]:
+    value = obj[key]
+    if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+        _refuse(f"{key!r} must be a list of strings, got {value!r}")
+    return [item for item in value if isinstance(item, str)]
+
+
 def _request_fields(obj: dict[str, object]) -> RowRequest:
     return {
         "kind": _str(obj, "kind"),
@@ -185,6 +212,9 @@ def _request_fields(obj: dict[str, object]) -> RowRequest:
         "k": _int(obj, "k"),
         "clearance": _num(obj, "clearance"),
         "presets": _presets(obj),
+        "step": _bool(obj, "step"),
+        "gzip_on": _strings(obj, "gzip_on"),
+        "check_ceiling": _int(obj, "check_ceiling"),
     }
 
 
@@ -201,14 +231,19 @@ def _mesh(item: object) -> MeshRecord:
         _refuse(f"'meshes' items must be objects, got {item!r}")
     _exact_keys(item, _MESH_KEYS, "mesh")
     checked = _bool(item, "checked")
+    check_s = _optional(_num, item, "check_s")
     watertight = _optional(_bool, item, "watertight")
     open_edges = _optional(_int, item, "open_edges")
     stl_volume = _optional(_num, item, "stl_volume")
     surface_area = _optional(_num, item, "surface_area")
-    present = (watertight is not None, open_edges is not None, stl_volume is not None,
-               surface_area is not None)
+    present = (check_s is not None, watertight is not None, open_edges is not None,
+               stl_volume is not None, surface_area is not None)
     if checked != all(present) or (not checked and any(present)):
         raise ValueError("mesh: the check fields are set exactly when 'checked' is true")
+    gzip1_bytes = _optional(_int, item, "gzip1_bytes")
+    gzip1_s = _optional(_num, item, "gzip1_s")
+    if (gzip1_bytes is None) != (gzip1_s is None):
+        raise ValueError("mesh: 'gzip1_bytes' and 'gzip1_s' are set together or not at all")
     return {
         "preset": _str(item, "preset"),
         "tolerance": _num(item, "tolerance"),
@@ -216,7 +251,10 @@ def _mesh(item: object) -> MeshRecord:
         "triangles": _int(item, "triangles"),
         "bytes": _int(item, "bytes"),
         "mesh_s": _num(item, "mesh_s"),
+        "gzip1_bytes": gzip1_bytes,
+        "gzip1_s": gzip1_s,
         "checked": checked,
+        "check_s": check_s,
         "watertight": watertight,
         "open_edges": open_edges,
         "stl_volume": stl_volume,
@@ -230,6 +268,18 @@ def parse_record(line: str) -> RowRecord:
     error saying why."""
     obj = _load_object(line, "record")
     _exact_keys(obj, _RECORD_KEYS, "record")
+    return _record_from(obj)
+
+
+def parse_result_row(line: str) -> RowRecord:
+    """A campaign JSONL row line as the `RowRecord` inside it: the run's own verdict keys must
+    be present, are dropped, and nothing else is trusted from them."""
+    obj = _load_object(line, "result row")
+    _exact_keys(obj, (*_RECORD_KEYS, *_RESULT_KEYS), "result row")
+    return _record_from({key: value for key, value in obj.items() if key not in _RESULT_KEYS})
+
+
+def _record_from(obj: dict[str, object]) -> RowRecord:
     outcome = _outcome(obj)
     error = _optional(_str, obj, "error")
     solids = _optional(_int, obj, "solids")
@@ -242,6 +292,9 @@ def parse_record(line: str) -> RowRecord:
     if raw_meshes is not None and not isinstance(raw_meshes, list):
         _refuse(f"'meshes' must be a list or null, got {raw_meshes!r}")
     meshes = None if raw_meshes is None else [_mesh(item) for item in raw_meshes]
+    step_bytes = _optional(_int, obj, "step_bytes")
+    step_s = _optional(_num, obj, "step_s")
+    request = _request_fields(obj)
     measured = (solids, is_valid, precise, default, build_s, volume_s, meshes)
     if outcome == "built":
         for key, value in zip(_MEASURE_KEYS, measured, strict=True):
@@ -249,14 +302,19 @@ def parse_record(line: str) -> RowRecord:
                 raise ValueError(f"a built record must carry {key!r}")
         if error is not None:
             raise ValueError("a built record must not carry an 'error'")
+        if (step_bytes is None) != (step_s is None) or request["step"] != (step_bytes is not None):
+            raise ValueError("a built record carries 'step_bytes' and 'step_s' exactly when "
+                             "its request asked for STEP")
     else:
         for key, value in zip(_MEASURE_KEYS, measured, strict=True):
             if value is not None:
                 raise ValueError(f"a {outcome} record must not carry {key!r}")
         if not error:
             raise ValueError(f"a {outcome} record must carry an 'error'")
+        if step_bytes is not None or step_s is not None:
+            raise ValueError(f"a {outcome} record must not carry a STEP measurement")
     return {
-        **_request_fields(obj),
+        **request,
         "outcome": outcome,
         "error": error,
         "solids": solids,
@@ -266,6 +324,8 @@ def parse_record(line: str) -> RowRecord:
         "build_s": build_s,
         "volume_s": volume_s,
         "meshes": meshes,
+        "step_bytes": step_bytes,
+        "step_s": step_s,
     }
 
 
@@ -283,6 +343,54 @@ def failed_record(request: RowRequest, outcome: Outcome, error: str) -> RowRecor
         "build_s": None,
         "volume_s": None,
         "meshes": None,
+        "step_bytes": None,
+        "step_s": None,
+    }
+
+
+class HeaderRecord(TypedDict):
+    """The first JSONL line of a campaign run: who ran what, on which protocol, behind which
+    quiet readings. `readings` are (UTC time, 1-minute load) pairs; `k` is `None` for the K
+    sweep, which has none, and `k_source` says where every other run's K came from."""
+
+    run_id: str
+    block: str
+    head: str
+    protocol_blob: str
+    protocol_commit: str
+    decisive: bool
+    readings: list[tuple[str, float]]
+    k: int | None
+    k_source: str
+
+
+_HEADER_KEYS = ("run_id", "block", "head", "protocol_blob", "protocol_commit", "decisive",
+                "readings", "k", "k_source")
+
+
+def parse_header(line: str) -> HeaderRecord:
+    """A header line as a `HeaderRecord`, with the same refusals as `parse_record`."""
+    obj = _load_object(line, "header")
+    _exact_keys(obj, _HEADER_KEYS, "header")
+    value = obj["readings"]
+    if not isinstance(value, list):
+        _refuse(f"'readings' must be a list, got {value!r}")
+    readings: list[tuple[str, float]] = []
+    for item in value:
+        if not isinstance(item, list) or len(item) != 2:
+            raise ValueError(f"'readings' items are [utc, load1], got {item!r}")
+        entry: dict[str, object] = dict(zip(("utc", "load1"), item, strict=True))
+        readings.append((_str(entry, "utc"), _num(entry, "load1")))
+    return {
+        "run_id": _str(obj, "run_id"),
+        "block": _str(obj, "block"),
+        "head": _str(obj, "head"),
+        "protocol_blob": _str(obj, "protocol_blob"),
+        "protocol_commit": _str(obj, "protocol_commit"),
+        "decisive": _bool(obj, "decisive"),
+        "readings": readings,
+        "k": _optional(_int, obj, "k"),
+        "k_source": _str(obj, "k_source"),
     }
 
 

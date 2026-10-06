@@ -28,6 +28,7 @@ from bench.quiet import Reading, read_now, wait_quiet
 from bench.thread_spike.maths import INTERIM_PRESETS, closed_volume
 from bench.thread_spike.runner import Worker
 from bench.thread_spike.verdict import (
+    FINE_CHECK_CEILING,
     PROTOCOL_PATH,
     ROW_TIMEOUT_S,
     GuardResult,
@@ -112,7 +113,8 @@ def _smoke_request() -> RowRequest:
     return {
         "kind": "rod", "size": "M6", "d": 6.0, "pitch": 1.0, "turns": 5.0, "length": 5.0,
         "left_hand": False, "k": 5, "clearance": 0.0,
-        "presets": [("preview", tolerance, angular)],
+        "presets": [("preview", tolerance, angular)], "step": False, "gzip_on": [],
+        "check_ceiling": FINE_CHECK_CEILING,
     }
 
 
