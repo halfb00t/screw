@@ -2055,6 +2055,20 @@ def test_a_campaign_without_all_four_blocks_lists_the_missing_ones_and_never_pas
     assert "no frontier record" in out
 
 
+def test_a_sweep_in_which_no_k_qualified_fires_the_escape_clause_and_never_passes(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Every other block is clean: the grid at K = 5 would read held, and without this rule
+    the campaign would exit 0 with "no K was selected" printed above a pass."""
+    _full_campaign(tmp_path)
+    _write_run(tmp_path / "c1-ksweep.jsonl", "ksweep",
+               [r for k in (3, 5, 10) for r in _ksweep(k, cls="silent_wrong")])
+    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 1
+    out = capsys.readouterr().out
+    assert "pass bar: held" in out
+    assert "escape clause: FIRED" in out
+    assert "- K: no K qualified under the rule" in out
+
+
 def test_a_timeout_on_a_non_decisive_grid_makes_the_bar_not_established_and_exit_1(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     _full_campaign(tmp_path, grid_extra=[_synth(turns=30.0, cls="timeout")],

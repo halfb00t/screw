@@ -1532,8 +1532,13 @@ def verdict_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR) -> int:
         covered = [s for s in SIZES if any(r["size"] == s for r in grid)] or list(SIZES)
         pair_escape = (() if locked_k is None
                        else pair_escapes(pair_cells, locked_k, covered))
+        # D-07 / the protocol's escape clause: a sweep in which no K qualified leaves the
+        # construction without a segment length the rule can defend, so it is an escape and
+        # never a clean pass at the research's K = 5 (`run` still uses 5 to keep the data).
+        no_k = (("K: no K qualified under the rule (every candidate has a non-ok row)",)
+                if "ksweep" in runs and select_k(runs["ksweep"][1]) is None else ())
         escaped = (*escape_rows(grid), *(f"container {r}" for r in escape_rows(container)),
-                   *pair_escape)
+                   *pair_escape, *no_k)
         headers = {**{block: head for block, (head, _) in runs.items()},
                    **({"pair": pair_header} if pair_header is not None else {})}
         lines = [f"## Thread spike verdict: campaign {prefix}", ""]
