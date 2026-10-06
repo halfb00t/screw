@@ -24,6 +24,7 @@ import itertools
 import json
 import math
 import struct
+import subprocess
 import sys
 from collections.abc import Iterable, Sequence
 from pathlib import Path
@@ -54,10 +55,12 @@ from bench.memory import (
     _publish,
 )
 from bench.quiet import QuietResult, Reading, wait_quiet
+from bench.thread_spike import __main__ as spike_cli
 from bench.thread_spike import helical, maths, measure
 from bench.thread_spike.__main__ import _table_row
 from bench.thread_spike.runner import Worker
 from bench.thread_spike.verdict import (
+    PROTOCOL_PATH,
     ROW_TIMEOUT_S,
     T_PASS,
     MeshRecord,
@@ -740,7 +743,6 @@ def test_a_worker_that_speaks_garbage_is_one_failure_row_and_not_reused() -> Non
 # --- the pre-registration guard ------------------------------------------------------------
 
 _PROTOCOL = "# Phase 2\n\n## Question\nWhich construction?\n\n## Results\n\nNo run yet.\n"
-_RED = pytest.mark.xfail(strict=True, reason="RED: protocol_guard is not implemented yet")
 
 
 def _guard(local: str | None = _PROTOCOL, main: str | None = _PROTOCOL, *,
@@ -749,12 +751,10 @@ def _guard(local: str | None = _PROTOCOL, main: str | None = _PROTOCOL, *,
     return result.held, result.reasons
 
 
-@_RED
 def test_the_guard_holds_when_the_protocol_is_on_main_unchanged_and_an_ancestor() -> None:
     assert _guard() == (True, ())
 
 
-@_RED
 def test_the_guard_refuses_when_origin_main_was_not_fetched() -> None:
     held, reasons = _guard(fetched=False)
     assert not held
@@ -762,7 +762,6 @@ def test_the_guard_refuses_when_origin_main_was_not_fetched() -> None:
     assert "not fetched" in reasons[0]
 
 
-@_RED
 def test_the_guard_refuses_when_the_protocol_is_missing_from_the_working_tree() -> None:
     held, reasons = _guard(local=None)
     assert not held
@@ -770,7 +769,6 @@ def test_the_guard_refuses_when_the_protocol_is_missing_from_the_working_tree() 
     assert "working tree" in reasons[0]
 
 
-@_RED
 def test_the_guard_refuses_when_the_protocol_is_missing_from_origin_main() -> None:
     held, reasons = _guard(main=None)
     assert not held
@@ -778,7 +776,6 @@ def test_the_guard_refuses_when_the_protocol_is_missing_from_origin_main() -> No
     assert "origin/main has no protocol" in reasons[0]
 
 
-@_RED
 def test_the_guard_refuses_when_either_text_has_no_results_line() -> None:
     headless = "# Phase 2\n\n## Question\nWhich construction?\n"
     held, reasons = _guard(local=headless)
@@ -793,7 +790,6 @@ def test_the_guard_refuses_when_either_text_has_no_results_line() -> None:
     assert "## Results" in reasons[0]
 
 
-@_RED
 def test_the_guard_refuses_a_single_changed_character_before_the_results_line() -> None:
     edited = _PROTOCOL.replace("Which", "Whish")
     held, reasons = _guard(local=edited)
@@ -802,7 +798,6 @@ def test_the_guard_refuses_a_single_changed_character_before_the_results_line() 
     assert "differs" in reasons[0]
 
 
-@_RED
 def test_the_guard_refuses_when_the_protocol_commit_is_not_an_ancestor_of_head() -> None:
     """A branch cut from the pre-squash PR 1 branch: the same text, but the commit that put it
     on origin/main is not in this branch's history (RESEARCH Pitfall 10)."""
@@ -812,29 +807,106 @@ def test_the_guard_refuses_when_the_protocol_commit_is_not_an_ancestor_of_head()
     assert "ancestor" in reasons[0]
 
 
-@_RED
 def test_the_guard_names_every_reason_not_only_the_first() -> None:
     held, reasons = _guard(local=None, main=None, fetched=False, ancestor=False)
     assert not held
     assert len(reasons) == 4
 
 
-@_RED
 def test_the_text_after_the_results_line_may_differ_freely() -> None:
     """PR 2 writes the Results and the Verdict, and that must not trip the guard."""
     written = _PROTOCOL.replace("No run yet.", "Run 1: see bench/RESULTS.md.\n\n## Verdict\nx")
     assert _guard(local=written) == (True, ())
 
 
-@_RED
 def test_the_results_boundary_is_the_first_line_that_is_exactly_the_heading() -> None:
     assert before_results(_PROTOCOL) == "# Phase 2\n\n## Question\nWhich construction?\n\n"
     twice = _PROTOCOL + "\n## Results\nagain\n"
     assert before_results(twice) == before_results(_PROTOCOL)
 
 
-@_RED
 def test_a_heading_that_only_starts_with_the_results_words_is_no_boundary() -> None:
     assert before_results("# A\n\n## Results and more\n") is None
     assert before_results("# A\n\n### Results\n") is None
     assert before_results("# A\n") is None
+
+
+def _git(cwd: Path, *args: str) -> str:
+    done = subprocess.run(
+        ["git", "-c", "user.name=spike", "-c", "user.email=spike@example.com",
+         "-c", "commit.gpgsign=false", *args],
+        cwd=cwd, capture_output=True, text=True, check=True)
+    return done.stdout.strip()
+
+
+def _repo_with_protocol(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *,
+                        landed: bool) -> tuple[Path, str]:
+    """A throwaway clone of a throwaway origin whose `main` carries the protocol commit when
+    `landed`, and a local-only protocol commit when not. Returns the clone and that commit.
+    The guard's git wiring runs against it for real: no mock stands in for git."""
+    origin = tmp_path / "origin.git"
+    work = tmp_path / "work"
+    _git(tmp_path, "init", "--bare", "-b", "main", str(origin))
+    _git(tmp_path, "init", "-b", "main", str(work))
+    _git(work, "remote", "add", "origin", str(origin))
+    (work / "README").write_text("start\n")
+    _git(work, "add", "README")
+    _git(work, "commit", "-m", "start")
+    _git(work, "push", "origin", "main")
+    protocol = work / PROTOCOL_PATH
+    protocol.parent.mkdir(parents=True)
+    protocol.write_text(_PROTOCOL)
+    _git(work, "add", PROTOCOL_PATH)
+    _git(work, "commit", "-m", "protocol")
+    commit = _git(work, "rev-parse", "HEAD")
+    if landed:
+        _git(work, "push", "origin", "main")
+    monkeypatch.setattr(spike_cli, "_REPO_ROOT", work)
+    return work, commit
+
+
+def test_the_guard_reads_real_git_and_refuses_while_the_protocol_is_not_on_origin_main(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    _repo_with_protocol(tmp_path, monkeypatch, landed=False)
+    assert spike_cli.check_protocol() == 2
+    err = capsys.readouterr().err
+    assert err.startswith("protocol guard: refused -- ")
+    assert "origin/main has no protocol file" in err
+
+
+def test_the_guard_reads_real_git_and_holds_once_the_protocol_has_landed(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    _, commit = _repo_with_protocol(tmp_path, monkeypatch, landed=True)
+    assert spike_cli.check_protocol() == 0
+    out = capsys.readouterr().out
+    assert out.startswith("protocol guard: held")
+    assert commit in out
+
+
+def test_the_guard_refuses_a_branch_cut_before_the_protocol_landed(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    """The same protocol text in the working tree, but the commit that put it on origin/main is
+    not in this branch's history: only the ancestor check can tell."""
+    work, _ = _repo_with_protocol(tmp_path, monkeypatch, landed=True)
+    _git(work, "checkout", "-b", "old", "HEAD~1")
+    (work / PROTOCOL_PATH).parent.mkdir(parents=True)
+    (work / PROTOCOL_PATH).write_text(_PROTOCOL)
+    assert spike_cli.check_protocol() == 2
+    err = capsys.readouterr().err
+    assert "ancestor" in err
+    assert "differs" not in err
+
+
+def test_the_guard_refuses_an_edit_before_results_and_allows_one_after_it(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    work, _ = _repo_with_protocol(tmp_path, monkeypatch, landed=True)
+    path = work / PROTOCOL_PATH
+    path.write_text(_PROTOCOL.replace("Which", "Whish"))
+    assert spike_cli.check_protocol() == 2
+    assert "differs" in capsys.readouterr().err
+    path.write_text(_PROTOCOL.replace("No run yet.", "Run 1: see bench/RESULTS.md."))
+    assert spike_cli.check_protocol() == 0

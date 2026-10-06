@@ -339,7 +339,16 @@ RESULTS_HEADING = "## Results"
 
 
 def before_results(text: str) -> str | None:
-    return text
+    """The text up to, excluding, the first line that is exactly `## Results`; `None` when no
+    line is. Split on newlines only: `splitlines` also breaks on form feeds and Unicode line
+    separators, which would move the boundary of a file that carries one. A heading that merely
+    starts with the words (`## Results and more`) is not the boundary."""
+    offset = 0
+    for line in text.split("\n"):
+        if line == RESULTS_HEADING:
+            return text[:offset]
+        offset += len(line) + 1
+    return None
 
 
 @dataclass(frozen=True)
@@ -350,5 +359,34 @@ class GuardResult:
 
 def protocol_guard(local_text: str | None, main_text: str | None, *, fetched: bool,
                    landed_is_ancestor: bool) -> GuardResult:
-    _ = (local_text, main_text, fetched, landed_is_ancestor)
-    return GuardResult(held=False, reasons=())
+    """Whether the pre-registered protocol is on `origin/main`, as a pure predicate over what
+    git said (the caller reads git; this decides). Every failed check is named, not only the
+    first.
+
+    Each check exists because SC1 is a property of main's history, not of a file. The refs must
+    have been fetched, or "on origin/main" is a guess. The text before `## Results` must equal
+    origin/main's own blob: `make pr.land` squashes, so the PR 1 branch commits are absent from
+    main and only origin/main's blob is the proof. And origin/main's commit of the protocol must
+    be an ancestor of HEAD, or the branch was cut before the squash and its run would post-date
+    nothing (RESEARCH Pattern 6, Pitfall 10). Text after `## Results` may differ freely: PR 2
+    writes the Results and the Verdict there.
+    """
+    reasons: list[str] = []
+    if not fetched:
+        reasons.append("origin/main was not fetched, so what it holds is not known to be current")
+    if local_text is None:
+        reasons.append("the protocol file is missing from the working tree")
+    if main_text is None:
+        reasons.append("origin/main has no protocol file: the protocol PR has not landed")
+    local_head = None if local_text is None else before_results(local_text)
+    main_head = None if main_text is None else before_results(main_text)
+    if local_text is not None and local_head is None:
+        reasons.append(f"the working tree's protocol has no '{RESULTS_HEADING}' line")
+    if main_text is not None and main_head is None:
+        reasons.append(f"origin/main's protocol has no '{RESULTS_HEADING}' line")
+    if local_head is not None and main_head is not None and local_head != main_head:
+        reasons.append(f"the protocol text before '{RESULTS_HEADING}' differs from origin/main's")
+    if not landed_is_ancestor:
+        reasons.append("origin/main's protocol commit is not an ancestor of HEAD "
+                       "(a branch cut before the squash?)")
+    return GuardResult(held=not reasons, reasons=tuple(reasons))
