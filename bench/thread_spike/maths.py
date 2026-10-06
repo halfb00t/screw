@@ -12,6 +12,7 @@ Symbols, defined once: `d` major diameter, `P` pitch (`pitch`), `H` fundamental 
 
 from __future__ import annotations
 
+import functools
 import math
 from fractions import Fraction
 
@@ -225,8 +226,8 @@ CONTROL_OFFSET_PITCHES = 0.5
 PAIR_REFERENCE_SIZES: tuple[str, ...] = ("M2", "M6", "M10", "M20")
 
 
-def interference_area(
-        d: float, pitch: float, clearance: float, phase: float) -> float:
+@functools.cache
+def interference_area(d: float, pitch: float, clearance: float, phase: float) -> float:
     """Transverse area in mm2 where a rod of the pinned profile overlaps a void of the same
     profile grown by `clearance` and turned by `phase`: 0.5 * max(0, r_b(t)^2 - (r_b(t + phase)
     + c)^2) integrated over one turn. Times the engaged length m it is the volume of the
@@ -235,7 +236,12 @@ def interference_area(
 
     `phase` 0 is a matched pose, pi the half-pitch control. M6, m = 5.2: control 12.213 at
     c = 0.10, 14.1335 at 0.05, 16.1427 at 0; matched 4.3627 at c = -0.05 and exactly 0 at
-    every c > 0 (RESEARCH Pattern 5).
+    every c > 0 (RESEARCH Pattern 5). Cached: 400 000 midpoints take about 0.35 s, and the
+    verdict asks for the same (size, c, phase) once per hand.
     """
-    del d, pitch, clearance, phase
-    return -1.0
+    step = 2 * math.pi / INTEGRATION_POINTS
+    total = math.fsum(
+        max(0.0, section_radius(d, pitch, 0.0, theta) ** 2
+            - section_radius(d, pitch, clearance, theta + phase) ** 2)
+        for theta in ((i + 0.5) * step for i in range(INTEGRATION_POINTS)))
+    return 0.5 * total * step

@@ -20,10 +20,16 @@ from decimal import ROUND_CEILING, Decimal
 from typing import Literal, NoReturn, TypedDict
 
 from bench.thread_spike.maths import (
+    CONTROL_OFFSET_PITCHES,
+    DIAGNOSTIC_CLEARANCES,
     FRONTIER_MAX_TURNS,
     K_CANDIDATES,
+    MATCHED_POSES,
+    PAIR_CLEARANCES,
     PITCH,
     closed_volume,
+    interference_area,
+    section_area,
     standard_max,
     turns_of,
 )
@@ -1057,46 +1063,339 @@ class PairRecord(PairCell):
     readings: list[PairReading]
 
 
-def parse_pair_request(line: str) -> PairRequest:  # noqa: ARG001
-    raise ValueError("stub")
+_PAIR_CELL_KEYS = ("size", "d", "pitch", "m", "clearance", "rod_left_hand", "nut_left_hand", "k")
+_PAIR_REQUEST_KEYS = (*_PAIR_CELL_KEYS, "poses")
+_PAIR_RECORD_KEYS = (*_PAIR_CELL_KEYS, "outcome", "error", "nut_volume", "readings")
+_PAIR_READING_KEYS = ("theta", "offset_pitches", "outcome", "solids", "volume", "diag_errors",
+                      "diag_warnings", "seconds")
+# What a campaign JSONL pair row carries beyond the record: the run's own verdict on it, kept for a
+# reader's convenience and never trusted by `verdict`, which recomputes it.
+_PAIR_RESULT_KEYS = ("verdict", "reasons", "closed_control")
 
 
-def parse_pair_record(line: str) -> PairRecord:  # noqa: ARG001
-    raise ValueError("stub")
+def _pair_cell_fields(obj: dict[str, object]) -> PairCell:
+    return {
+        "size": _str(obj, "size"),
+        "d": _num(obj, "d"),
+        "pitch": _num(obj, "pitch"),
+        "m": _num(obj, "m"),
+        "clearance": _num(obj, "clearance"),
+        "rod_left_hand": _bool(obj, "rod_left_hand"),
+        "nut_left_hand": _bool(obj, "nut_left_hand"),
+        "k": _int(obj, "k"),
+    }
 
 
-def parse_pair_result_row(line: str) -> PairRecord:  # noqa: ARG001
-    raise ValueError("stub")
+def _offset(value: float) -> float:
+    """A pose is matched (offset 0) or a control (half a pitch): nothing else is pre-registered."""
+    if value not in (0.0, CONTROL_OFFSET_PITCHES):
+        raise ValueError(f"'offset_pitches' must be 0 or {CONTROL_OFFSET_PITCHES}, got {value!r}")
+    return value
+
+
+def parse_pair_request(line: str) -> PairRequest:
+    """A pair request line as a `PairRequest`: JSON only, the key set exactly the expected one,
+    every pose a [theta, offset] pair at a pre-registered offset."""
+    obj = _load_object(line, "pair request")
+    _exact_keys(obj, _PAIR_REQUEST_KEYS, "pair request")
+    raw = obj["poses"]
+    if not isinstance(raw, list):
+        _refuse(f"'poses' must be a list, got {raw!r}")
+    poses: list[tuple[float, float]] = []
+    for item in raw:
+        if not isinstance(item, list) or len(item) != 2:
+            raise ValueError(f"'poses' items are [theta, offset_pitches], got {item!r}")
+        entry: dict[str, object] = dict(zip(("theta", "offset"), item, strict=True))
+        poses.append((_num(entry, "theta"), _offset(_num(entry, "offset"))))
+    return {**_pair_cell_fields(obj), "poses": poses}
+
+
+def _pair_reading(item: object) -> PairReading:
+    if not isinstance(item, dict):
+        _refuse(f"'readings' items must be objects, got {item!r}")
+    _exact_keys(item, _PAIR_READING_KEYS, "pair reading")
+    outcome = _str(item, "outcome")
+    solids = _optional(_int, item, "solids")
+    volume = _optional(_num, item, "volume")
+    diag_errors = _optional(_bool, item, "diag_errors")
+    diag_warnings = _optional(_bool, item, "diag_warnings")
+    seconds = _optional(_num, item, "seconds")
+    measured = {"solids": solids, "volume": volume, "diag_errors": diag_errors,
+                "diag_warnings": diag_warnings, "seconds": seconds}
+    kind: ReadingOutcome
+    if outcome == "built":
+        kind = "built"
+        for key, value in measured.items():
+            if value is None:
+                raise ValueError(f"a built reading must carry {key!r}")
+    elif outcome == "failure":
+        kind = "failure"
+        for key, value in measured.items():
+            if value is not None:
+                raise ValueError(f"a failure reading must not carry {key!r}")
+    else:
+        raise ValueError(f"a reading's 'outcome' must be built or failure, got {outcome!r}")
+    return {
+        "theta": _num(item, "theta"),
+        "offset_pitches": _offset(_num(item, "offset_pitches")),
+        "outcome": kind,
+        "solids": solids,
+        "volume": volume,
+        "diag_errors": diag_errors,
+        "diag_warnings": diag_warnings,
+        "seconds": seconds,
+    }
+
+
+def _pair_record_from(obj: dict[str, object]) -> PairRecord:
+    outcome = _outcome(obj)
+    error = _optional(_str, obj, "error")
+    nut_volume = _optional(_num, obj, "nut_volume")
+    raw = obj["readings"]
+    if not isinstance(raw, list):
+        _refuse(f"'readings' must be a list, got {raw!r}")
+    readings = [_pair_reading(item) for item in raw]
+    if outcome == "built":
+        if error is not None:
+            raise ValueError("a built pair record must not carry an 'error'")
+        if nut_volume is None:
+            raise ValueError("a built pair record must carry its 'nut_volume'")
+        if not readings or any(r["outcome"] != "built" for r in readings):
+            raise ValueError("a built pair record carries readings, every one of them built")
+    else:
+        if not error:
+            raise ValueError(f"a {outcome} pair record must carry an 'error'")
+        if outcome != "failure" and (readings or nut_volume is not None):
+            raise ValueError(f"a {outcome} pair record carries no readings and no nut_volume: "
+                             "the worker never answered")
+    return {**_pair_cell_fields(obj), "outcome": outcome, "error": error,
+            "nut_volume": nut_volume, "readings": readings}
+
+
+def parse_pair_record(line: str) -> PairRecord:
+    """A pair record line as a `PairRecord`, with the refusals of `parse_pair_request` plus: a
+    built cell carries its nut volume, built readings and no error, and a cell that timed out or
+    whose worker died carries an error and nothing measured."""
+    obj = _load_object(line, "pair record")
+    _exact_keys(obj, _PAIR_RECORD_KEYS, "pair record")
+    return _pair_record_from(obj)
+
+
+def parse_pair_result_row(line: str) -> PairRecord:
+    """A campaign JSONL pair row as the `PairRecord` inside it: the run's own verdict keys must be
+    present, are dropped, and nothing else is trusted from them."""
+    obj = _load_object(line, "pair result row")
+    _exact_keys(obj, (*_PAIR_RECORD_KEYS, *_PAIR_RESULT_KEYS), "pair result row")
+    return _pair_record_from({k: v for k, v in obj.items() if k not in _PAIR_RESULT_KEYS})
 
 
 def failed_pair_record(request: PairRequest, outcome: Outcome, error: str) -> PairRecord:
-    del request, outcome, error
-    raise ValueError("stub")
+    """The request's cell echoed with an outcome that is not a measurement: no nut volume and no
+    reading, never a zero (L02)."""
+    return {
+        "size": request["size"], "d": request["d"], "pitch": request["pitch"], "m": request["m"],
+        "clearance": request["clearance"], "rod_left_hand": request["rod_left_hand"],
+        "nut_left_hand": request["nut_left_hand"], "k": request["k"],
+        "outcome": outcome, "error": error, "nut_volume": None, "readings": [],
+    }
 
 
-def closed_control(record: PairCell) -> float:  # noqa: ARG001
-    return -1.0
+def closed_control(record: PairCell) -> float:
+    """The closed-form volume in mm3 of the half-pitch control: engaged length times the
+    interference area at phase pi. The band's centre for every control reading (D-14)."""
+    return record["m"] * interference_area(record["d"], record["pitch"], record["clearance"],
+                                           math.pi)
 
 
-def cell_verdict(record: PairRecord) -> tuple[PairVerdict, tuple[str, ...]]:  # noqa: ARG001
-    return "inconclusive", ()
+def _closed_matched(record: PairCell) -> float:
+    return record["m"] * interference_area(record["d"], record["pitch"], record["clearance"], 0.0)
 
 
-def size_falsifiable(cells: list[PairRecord]) -> bool:  # noqa: ARG001
-    return False
+def _nut_body(record: PairCell) -> float:
+    """pi d^2 m - A(c) m: the plain blank less the void thread through all of it (STACK § C:
+    within 1.1e-6)."""
+    d = record["d"]
+    return (math.pi * d * d - section_area(d, record["pitch"], record["clearance"])) * record["m"]
 
 
-def excluded_clearances(cells: list[PairRecord]) -> tuple[float, ...]:  # noqa: ARG001
-    return ()
+def _is_empty(reading: PairReading) -> bool:
+    volume = reading["volume"]
+    return reading["solids"] == 0 or volume is None or abs(volume) <= EMPTY_MM3
 
 
-def mixed_hand_violated(cells: list[PairRecord]) -> bool:  # noqa: ARG001
-    return False
+def _off_by(reading: PairReading, closed: float) -> float:
+    volume = reading["volume"]
+    if volume is None:
+        raise ValueError("a built reading must carry its volume")
+    return abs(volume / closed - 1.0)
 
 
-def sensitivity_ok(cell: PairRecord) -> bool:  # noqa: ARG001
-    return False
+def _matched(record: PairRecord) -> list[PairReading]:
+    return [r for r in record["readings"] if r["offset_pitches"] == 0.0]
 
 
-def variant_rules(cells: list[PairRecord]) -> dict[str, dict[str, bool]]:  # noqa: ARG001
-    return {}
+def _controls(record: PairRecord) -> list[PairReading]:
+    return [r for r in record["readings"] if r["offset_pitches"] == CONTROL_OFFSET_PITCHES]
+
+
+def _is_mixed(record: PairCell) -> bool:
+    return record["rod_left_hand"] != record["nut_left_hand"]
+
+
+def _hand(record: PairCell) -> str:
+    return "left" if record["rod_left_hand"] else "right"
+
+
+def _poses_ok(readings: list[PairReading]) -> bool:
+    return tuple(r["theta"] for r in readings) == MATCHED_POSES
+
+
+def cell_verdict(record: PairRecord) -> tuple[PairVerdict, tuple[str, ...]]:
+    """The pre-registered rule for one cell, and why (D-12, D-14; owner ruling R1 left D-14
+    exactly as written).
+
+    A cell that did not finish is inconclusive. A mixed-hand cell is `violated` when every
+    matched pose reads non-empty, else inconclusive: an empty read at a pair that cannot thread
+    proves nothing either way. For a same-hand cell: c <= 0 is inconclusive by definition (D-11);
+    poses other than the pre-registered ones are refused; a nut body whose precise volume misses
+    pi d^2 m - A(c) m by more than `T_PASS` is not believed (not even a violation); any matched
+    pose non-empty is `violated`; otherwise `proven` only when every matched pose is empty AND
+    every control is non-empty within `PAIR_BAND` of the closed form. Anything else is
+    inconclusive, with every reason. The diagnostic columns are never read.
+    """
+    outcome = record["outcome"]
+    if outcome != "built":
+        return "inconclusive", (f"cell {outcome}: {record['error']}",)
+    matched, controls = _matched(record), _controls(record)
+    if _is_mixed(record):
+        reads = [r for r in matched if not _is_empty(r)]
+        if matched and len(reads) == len(matched):
+            return "violated", (f"mixed-hand pair: all {len(matched)} matched poses non-empty",)
+        return "inconclusive", (f"mixed-hand pair: {len(matched) - len(reads)} of "
+                                f"{len(matched)} matched poses empty",)
+    clearance = record["clearance"]
+    if clearance <= 0:
+        return "inconclusive", (f"c = {clearance:g} mm: inconclusive by definition (D-11)",)
+    if not (_poses_ok(matched) and _poses_ok(controls)):
+        return "inconclusive", ("the poses are not the pre-registered ones: no verdict is "
+                                "drawn from poses chosen after the fact (D-12)",)
+    nut_volume = record["nut_volume"]
+    if nut_volume is None:
+        raise ValueError("a built pair record must carry its nut_volume")
+    body = _nut_body(record)
+    if abs(nut_volume / body - 1.0) > T_PASS:
+        return "inconclusive", (f"the nut body is {nut_volume:.6g} mm3, not the closed form "
+                                f"{body:.6g} mm3 within {T_PASS:g}: no reading is believed",)
+    reads = [r for r in matched if not _is_empty(r)]
+    if reads:
+        return "violated", tuple(f"matched pose theta {r['theta']:+.4f} reads {r['volume']:.6g} mm3"
+                                 for r in reads)
+    closed = closed_control(record)
+    if closed <= EMPTY_MM3:
+        return "inconclusive", (f"control cannot fire by geometry: its closed form is "
+                                f"{closed:.3g} mm3, at or below {EMPTY_MM3:g}",)
+    reasons: list[str] = []
+    for r in controls:
+        if _is_empty(r):
+            reasons.append(f"control at theta {r['theta']:+.4f} reads empty "
+                           f"(closed form {closed:.6g} mm3)")
+        elif _off_by(r, closed) > PAIR_BAND:
+            reasons.append(f"control at theta {r['theta']:+.4f} reads {r['volume']:.6g} mm3, "
+                           f"{_off_by(r, closed):.2e} off the closed form {closed:.6g} mm3: "
+                           f"outside the band {PAIR_BAND:g}")
+    return ("inconclusive", tuple(reasons)) if reasons else ("proven", ())
+
+
+def _same_hand(cells: list[PairRecord]) -> list[PairRecord]:
+    return [c for c in cells if not _is_mixed(c)]
+
+
+def size_falsifiable(cells: list[PairRecord]) -> bool:
+    """True when some cell at a proof clearance (c >= 0.05) is proven (D-14). The cells are one
+    size's, of one hand or both: the caller decides what "a size" spans."""
+    return any(c["clearance"] >= min(PAIR_CLEARANCES) and cell_verdict(c)[0] == "proven"
+               for c in _same_hand(cells))
+
+
+def excluded_clearances(cells: list[PairRecord]) -> tuple[float, ...]:
+    """The proof clearances at which some cell did not prove, ascending: the flaky (size, c)
+    cells Phase 5 must leave out of its allowed clearances (D-14)."""
+    return tuple(sorted({c["clearance"] for c in _same_hand(cells)
+                         if c["clearance"] in PAIR_CLEARANCES and cell_verdict(c)[0] != "proven"}))
+
+
+def mixed_hand_violated(cells: list[PairRecord]) -> bool:
+    """True only when there is at least one mixed-hand cell and every one finished with every
+    matched reading non-empty (D-14: a mixed-hand pair must read violated). No cell, a cell that
+    did not finish, or one empty reading is not a violation."""
+    mixed = [c for c in cells if _is_mixed(c)]
+    return bool(mixed) and all(c["outcome"] == "built" and _matched(c)
+                               and not any(_is_empty(r) for r in _matched(c)) for c in mixed)
+
+
+_SENSITIVITY = DIAGNOSTIC_CLEARANCES[1]
+
+
+def sensitivity_ok(cell: PairRecord) -> bool:
+    """D-11's sensitivity check: the c = -0.05 cell's matched readings are all non-empty and
+    within `PAIR_BAND` of the closed form of a matched pose with interference."""
+    if cell["outcome"] != "built" or cell["clearance"] != _SENSITIVITY:
+        return False
+    matched, closed = _matched(cell), _closed_matched(cell)
+    return (_poses_ok(matched) and closed > EMPTY_MM3
+            and all(not _is_empty(r) and _off_by(r, closed) <= PAIR_BAND for r in matched))
+
+
+def _fires_in_band(readings: list[PairReading], closed: float) -> list[bool]:
+    return [not _is_empty(r) and _off_by(r, closed) <= PAIR_BAND for r in readings]
+
+
+def _key(cell: PairRecord) -> str:
+    return f"{cell['size']} {_hand(cell)} c={cell['clearance']:g} K={cell['k']}"
+
+
+def _two_of_three(cell: PairRecord) -> bool:
+    """Matched poses all empty; at least two of three controls fire, each fired one in band."""
+    closed = closed_control(cell)
+    controls = _controls(cell)
+    fired = [r for r in controls if not _is_empty(r)]
+    return (closed > EMPTY_MM3 and all(_is_empty(r) for r in _matched(cell))
+            and len(fired) >= 2 and all(_fires_in_band(fired, closed)))
+
+
+def _seam_excluded(cell: PairRecord) -> bool:
+    """The primary rule over the poses off the seam (theta != 0)."""
+    closed = closed_control(cell)
+    matched = [r for r in _matched(cell) if r["theta"] != 0.0]
+    controls = [r for r in _controls(cell) if r["theta"] != 0.0]
+    return (closed > EMPTY_MM3 and bool(controls) and all(_is_empty(r) for r in matched)
+            and all(_fires_in_band(controls, closed)))
+
+
+def _same_pose_control(cell: PairRecord, cells: list[PairRecord]) -> bool:
+    """Matched poses all empty, and the same cell's c = -0.05 reading at each of those poses (the
+    nut and rod of the same size, hands and K) non-empty within the band: the same-pose control."""
+    twins = [c for c in cells if c["outcome"] == "built" and c["clearance"] == _SENSITIVITY
+             and (c["size"], c["rod_left_hand"], c["nut_left_hand"], c["k"])
+             == (cell["size"], cell["rod_left_hand"], cell["nut_left_hand"], cell["k"])]
+    if not twins or not all(_is_empty(r) for r in _matched(cell)):
+        return False
+    closed = _closed_matched(twins[0])
+    reference = _matched(twins[0])
+    return (closed > EMPTY_MM3 and _poses_ok(reference)
+            and all(_fires_in_band(reference, closed)))
+
+
+def variant_rules(cells: list[PairRecord]) -> dict[str, dict[str, bool]]:
+    """Variant pair rules computed from the same recorded readings, per same-hand proof cell, for
+    Phase 5's revision: two of three controls firing in band; the seam pose (theta = 0) left out;
+    the same-pose c = -0.05 reading as the control. Reported beside the verdict and never an
+    input to `cell_verdict` (owner ruling R1: no one tunes a rule toward a pass)."""
+    proof = [c for c in _same_hand(cells) if c["clearance"] in PAIR_CLEARANCES]
+    built = [c for c in proof if c["outcome"] == "built"]
+    names: dict[str, Callable[[PairRecord], bool]] = {
+        "two of three controls fire in band": _two_of_three,
+        "seam pose excluded": _seam_excluded,
+        "same-pose c=-0.05 reading as the control": lambda c: _same_pose_control(c, cells),
+    }
+    return {name: {_key(c): c in built and rule(c) for c in proof} for name, rule in names.items()}

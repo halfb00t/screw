@@ -2765,11 +2765,9 @@ def test_smoke_rss_runs_one_real_fresh_child_and_prints_its_peak_and_the_table(
 
 # --- The pair check's closed form and pre-registered rules (Phase 2, plan 02-05) ---
 
-_XFAIL_P = pytest.mark.xfail(strict=True, reason="plan 02-05 task 1 pair rules RED: not built")
 _M6_PAIR_M = 5.2  # the closed-form pins below are for m = 5.2 whatever NUT_HEIGHT says
 
 
-@_XFAIL_P
 @pytest.mark.parametrize(("clearance", "phase", "volume"), [
     (0.10, math.pi, 12.213),    # the half-pitch control at the middle proof clearance
     (0.05, math.pi, 14.1335),
@@ -2783,14 +2781,12 @@ def test_interference_area_reads_the_research_pins_for_m6_within_a_part_in_a_tho
     assert got == pytest.approx(volume, rel=1e-3)
 
 
-@_XFAIL_P
 @pytest.mark.parametrize("clearance", maths.PAIR_CLEARANCES)
 def test_interference_area_of_a_matched_pose_is_exactly_zero_at_every_proof_clearance(
         clearance: float) -> None:
     assert maths.interference_area(6.0, 1.0, clearance, 0.0) == 0.0
 
 
-@_XFAIL_P
 def test_the_control_closed_form_falls_as_the_clearance_grows_and_depends_on_the_size() -> None:
     values = [maths.interference_area(6.0, 1.0, c, math.pi) for c in (-0.05, 0.0, 0.05, 0.10)]
     assert values == sorted(values, reverse=True)
@@ -2866,43 +2862,36 @@ def _pair(clearance: float = 0.10, *, size: str = "M6", matched: tuple[float, ..
             "readings": readings if outcome == "built" else []}
 
 
-@_XFAIL_P
 def test_cell_verdict_proves_a_cell_with_empty_matched_poses_and_controls_in_band() -> None:
     assert cell_verdict(_pair()) == ("proven", ())
 
 
-@_XFAIL_P
 def test_cell_verdict_proves_controls_within_the_band_on_either_side_of_the_closed_form() -> None:
     assert cell_verdict(_pair(controls=(1.0009, 0.9991, 1.0)))[0] == "proven"
 
 
-@_XFAIL_P
 def test_cell_verdict_calls_a_control_just_outside_the_band_inconclusive_naming_it() -> None:
     verdict, reasons = cell_verdict(_pair(controls=(1.0, 1.0011, 1.0)))
     assert verdict == "inconclusive"
     assert any("control" in r and "band" in r for r in reasons)
 
 
-@_XFAIL_P
 def test_cell_verdict_calls_a_cell_with_one_empty_control_inconclusive_never_proven() -> None:
     verdict, reasons = cell_verdict(_pair(controls=(1.0, 0.0, 1.0)))
     assert verdict == "inconclusive"
     assert any("control" in r and "empty" in r for r in reasons)
 
 
-@_XFAIL_P
 def test_cell_verdict_calls_one_non_empty_matched_pose_violated() -> None:
     verdict, reasons = cell_verdict(_pair(matched=(0.0, 0.5, 0.0)))
     assert verdict == "violated"
     assert any("matched" in r for r in reasons)
 
 
-@_XFAIL_P
 def test_cell_verdict_lets_a_non_empty_matched_pose_outrank_a_control_that_did_not_fire() -> None:
     assert cell_verdict(_pair(matched=(0.0, 0.5, 0.0), controls=(0.0, 0.0, 0.0)))[0] == "violated"
 
 
-@_XFAIL_P
 @pytest.mark.parametrize("clearance", [0.0, -0.05])
 def test_cell_verdict_is_inconclusive_by_definition_at_the_diagnostic_clearances(
         clearance: float) -> None:
@@ -2913,7 +2902,6 @@ def test_cell_verdict_is_inconclusive_by_definition_at_the_diagnostic_clearances
     assert any("by definition" in r for r in reasons)
 
 
-@_XFAIL_P
 @pytest.mark.parametrize("outcome", ["failure", "timeout", "worker_died"])
 def test_cell_verdict_calls_a_cell_that_did_not_finish_inconclusive_with_its_outcome_named(
         outcome: verdict_module.Outcome) -> None:
@@ -2922,7 +2910,6 @@ def test_cell_verdict_calls_a_cell_that_did_not_finish_inconclusive_with_its_out
     assert any(outcome in r for r in reasons)
 
 
-@_XFAIL_P
 def test_cell_verdict_reports_a_control_that_cannot_fire_by_geometry_and_is_inconclusive() -> None:
     """A clearance so large that the closed form is 0: the control could never have fired, so
     reading it as empty proves nothing."""
@@ -2933,7 +2920,6 @@ def test_cell_verdict_reports_a_control_that_cannot_fire_by_geometry_and_is_inco
     assert any("control cannot fire by geometry" in r for r in reasons)
 
 
-@_XFAIL_P
 def test_cell_verdict_distrusts_a_nut_whose_body_volume_misses_the_closed_form() -> None:
     assert cell_verdict(_pair(nut_factor=1 + 0.5 * verdict_module.T_PASS))[0] == "proven"
     verdict, reasons = cell_verdict(_pair(nut_factor=1.001, matched=(0.5, 0.5, 0.5)))
@@ -2941,7 +2927,6 @@ def test_cell_verdict_distrusts_a_nut_whose_body_volume_misses_the_closed_form()
     assert any("nut" in r for r in reasons)
 
 
-@_XFAIL_P
 def test_cell_verdict_refuses_to_prove_poses_other_than_the_pre_registered_ones() -> None:
     cell = _pair()
     cell["readings"] = [{**r, "theta": r["theta"] + 0.01} for r in cell["readings"]]
@@ -2957,14 +2942,12 @@ def _mixed(clearance: float, matched: tuple[float, ...], *,
                  outcome=outcome)
 
 
-@_XFAIL_P
 def test_cell_verdict_calls_a_mixed_hand_cell_violated_only_if_every_matched_pose_reads() -> None:
     assert cell_verdict(_mixed(0.10, (6.5, 6.9, 6.7)))[0] == "violated"
     verdict, _ = cell_verdict(_mixed(0.10, (6.5, 0.0, 6.7)))
     assert verdict == "inconclusive"  # an empty read at a mixed pair proves nothing either way
 
 
-@_XFAIL_P
 def test_size_falsifiable_needs_one_proven_cell_at_a_proof_clearance() -> None:
     proven, off = _pair(0.10), _pair(0.15, controls=(1.0, 1.0, 0.0))
     assert size_falsifiable([off, proven])
@@ -2976,7 +2959,6 @@ def test_size_falsifiable_needs_one_proven_cell_at_a_proof_clearance() -> None:
     assert size_falsifiable([*diagnostic, proven])
 
 
-@_XFAIL_P
 def test_excluded_clearances_are_the_proof_clearances_that_did_not_prove() -> None:
     cells = [_pair(0.05), _pair(0.10, controls=(0.0, 1.0, 1.0)), _pair(0.15),
              _pair(0.20, outcome="timeout"), _pair(0.0), _pair(-0.05)]
@@ -2984,7 +2966,6 @@ def test_excluded_clearances_are_the_proof_clearances_that_did_not_prove() -> No
     assert excluded_clearances([_pair(0.05)]) == ()
 
 
-@_XFAIL_P
 def test_mixed_hand_violated_is_true_only_if_every_matched_reading_of_every_cell_is_non_empty(
         ) -> None:
     two = [_mixed(0.05, (6.5, 6.9, 6.7)), _mixed(0.10, (6.5, 6.9, 6.7))]
@@ -2994,7 +2975,6 @@ def test_mixed_hand_violated_is_true_only_if_every_matched_reading_of_every_cell
     assert not mixed_hand_violated([])  # no mixed cell is no proof of anything
 
 
-@_XFAIL_P
 def test_sensitivity_ok_needs_every_matched_reading_at_minus_005_inside_the_band() -> None:
     near = maths.NUT_HEIGHT["M6"] * maths.interference_area(6.0, 1.0, -0.05, 0.0)
     assert near == pytest.approx(4.3627, rel=1e-3)
@@ -3005,7 +2985,6 @@ def test_sensitivity_ok_needs_every_matched_reading_at_minus_005_inside_the_band
     assert not sensitivity_ok(_pair(-0.05, outcome="timeout"))
 
 
-@_XFAIL_P
 def test_variant_rules_accept_two_of_three_controls_while_the_verdict_stays_inconclusive() -> None:
     cell = _pair(controls=(1.0, 0.0, 1.0))
     assert cell_verdict(cell)[0] == "inconclusive"
@@ -3013,13 +2992,11 @@ def test_variant_rules_accept_two_of_three_controls_while_the_verdict_stays_inco
     assert rules["two of three controls fire in band"] == {"M6 right c=0.1 K=5": True}
 
 
-@_XFAIL_P
 def test_variant_rules_refuse_a_fired_control_that_is_out_of_band() -> None:
     rules = variant_rules([_pair(controls=(1.0, 1.01, 0.0))])
     assert rules["two of three controls fire in band"] == {"M6 right c=0.1 K=5": False}
 
 
-@_XFAIL_P
 def test_variant_rules_can_drop_the_seam_pose_without_touching_the_verdict() -> None:
     """The control at theta = 0 is the false-empty cluster of the research; excluding it is a
     variant, reported, never the verdict (owner ruling R1)."""
@@ -3030,7 +3007,6 @@ def test_variant_rules_can_drop_the_seam_pose_without_touching_the_verdict() -> 
     assert cell_verdict(cell)[0] == "inconclusive"
 
 
-@_XFAIL_P
 def test_variant_rules_can_use_the_same_pose_reading_at_minus_005_as_the_control() -> None:
     sensitivity = _pair(-0.05, with_controls=False)
     cell = _pair(0.10, controls=(0.0, 0.0, 0.0))
@@ -3041,7 +3017,6 @@ def test_variant_rules_can_use_the_same_pose_reading_at_minus_005_as_the_control
         "M6 right c=0.1 K=5": False}  # no sensitivity cell, no such control
 
 
-@_XFAIL_P
 def test_variant_rules_cover_every_same_hand_proof_cell_and_nothing_else() -> None:
     cells = [_pair(0.05), _pair(0.10, nut_left=True, rod_left=True), _pair(0.0), _pair(-0.05),
              _mixed(0.15, (6.5, 6.9, 6.7))]
@@ -3053,13 +3028,11 @@ def _wire(cell: PairRecord) -> str:
     return json.dumps(cell)
 
 
-@_XFAIL_P
 def test_a_pair_record_parses_back_to_itself() -> None:
     cell = _pair()
     assert parse_pair_record(_wire(cell)) == cell
 
 
-@_XFAIL_P
 def test_a_pair_request_parses_back_to_itself_and_refuses_an_unknown_key() -> None:
     request: PairRequest = {
         "size": "M6", "d": 6.0, "pitch": 1.0, "m": 5.2, "clearance": 0.1, "rod_left_hand": False,
@@ -3069,7 +3042,6 @@ def test_a_pair_request_parses_back_to_itself_and_refuses_an_unknown_key() -> No
         parse_pair_request(json.dumps({**request, "extra": 1}))
 
 
-@_XFAIL_P
 def test_a_pair_record_with_an_unknown_or_missing_key_is_refused_naming_it() -> None:
     cell = dict(_pair())
     with pytest.raises(ValueError, match="unknown key 'verdict'"):
@@ -3079,7 +3051,6 @@ def test_a_pair_record_with_an_unknown_or_missing_key_is_refused_naming_it() -> 
         parse_pair_record(json.dumps(cell))
 
 
-@_XFAIL_P
 def test_a_built_pair_record_needs_its_nut_volume_and_a_finished_cell_needs_no_error() -> None:
     cell = _pair()
     with pytest.raises(ValueError, match="nut_volume"):
@@ -3088,7 +3059,6 @@ def test_a_built_pair_record_needs_its_nut_volume_and_a_finished_cell_needs_no_e
         parse_pair_record(json.dumps({**cell, "error": "boom"}))
 
 
-@_XFAIL_P
 def test_a_cell_that_did_not_finish_carries_an_error_and_a_killed_one_no_readings() -> None:
     cell = _pair(outcome="timeout")
     assert parse_pair_record(_wire(cell)) == cell
@@ -3098,7 +3068,6 @@ def test_a_cell_that_did_not_finish_carries_an_error_and_a_killed_one_no_reading
         parse_pair_record(json.dumps({**cell, "readings": _pair()["readings"]}))
 
 
-@_XFAIL_P
 def test_a_pair_reading_that_failed_carries_no_measurement_and_a_built_one_all_of_them() -> None:
     cell = _pair()
     bad = {**cell["readings"][0], "volume": None}
@@ -3109,7 +3078,6 @@ def test_a_pair_reading_that_failed_carries_no_measurement_and_a_built_one_all_o
         parse_pair_record(json.dumps({**cell, "readings": [failed]}))
 
 
-@_XFAIL_P
 def test_a_pair_reading_at_an_offset_that_is_neither_matched_nor_control_is_refused() -> None:
     cell = _pair()
     odd = {**cell["readings"][0], "offset_pitches": 0.25}
@@ -3117,7 +3085,6 @@ def test_a_pair_reading_at_an_offset_that_is_neither_matched_nor_control_is_refu
         parse_pair_record(json.dumps({**cell, "readings": [odd]}))
 
 
-@_XFAIL_P
 def test_a_pair_result_row_drops_the_runs_own_verdict_and_keeps_the_record() -> None:
     cell = _pair()
     row = {**cell, "verdict": "proven", "reasons": [], "closed_control": 1.0}
@@ -3126,7 +3093,6 @@ def test_a_pair_result_row_drops_the_runs_own_verdict_and_keeps_the_record() -> 
         parse_pair_result_row(_wire(cell))
 
 
-@_XFAIL_P
 def test_a_failed_pair_record_echoes_the_request_and_has_no_number_in_it() -> None:
     request: PairRequest = {
         "size": "M6", "d": 6.0, "pitch": 1.0, "m": 5.2, "clearance": 0.1, "rod_left_hand": False,
