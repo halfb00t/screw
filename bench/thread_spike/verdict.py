@@ -828,3 +828,20 @@ def turn_caps(grid_rows: list[RowRecord], frontier_rows: list[RowRecord],
             size, construction, reason, by_bytes,
             None if by_bytes is None else by_bytes / float(pitch), by_seconds, decisive)
     return caps
+
+
+@dataclass(frozen=True)
+class KScore:
+    k: int
+    rows: int
+    non_ok: int
+    triangles: int | None
+    step_bytes: int | None
+
+
+def k_scores(rows: list[RowRecord]) -> list[KScore]:  # noqa: ARG001
+    return []
+
+
+def escape_rows(rows: list[RowRecord]) -> tuple[str, ...]:  # noqa: ARG001
+    return ("stub",)

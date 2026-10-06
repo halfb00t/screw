@@ -612,6 +612,10 @@ def smoke_block(block: str) -> int:
     return 0 if all(m.row_class == "ok" for m in campaign.rows) else 1
 
 
+def verdict_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR) -> int:  # noqa: ARG001
+    return 99
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="bench.thread_spike",

@@ -77,9 +77,11 @@ from bench.thread_spike.verdict import (
     RowRequest,
     before_results,
     classify_row,
+    escape_rows,
     failed_record,
     frontier_stop,
     gate_tolerance,
+    k_scores,
     over_budget,
     parse_header,
     parse_record,
@@ -1662,10 +1664,11 @@ def _guard_says(monkeypatch: pytest.MonkeyPatch, facts: spike_cli.GuardFacts) ->
     monkeypatch.setattr(spike_cli, "read_guard", read_guard)
 
 
-def _write_run(path: Path, block: str, rows: list[RowRecord]) -> None:
+def _write_run(path: Path, block: str, rows: list[RowRecord], *, decisive: bool = True) -> None:
     """A recorded run as a campaign writes it: the header, then one row per line carrying the
-    run's own verdict keys."""
-    header: HeaderRecord = {**_HEADER, "block": block, "k": None, "run_id": path.stem}
+    run's own verdict keys, `class` always `ok`: `verdict` must not believe it."""
+    header: HeaderRecord = {**_HEADER, "block": block, "k": None, "run_id": path.stem,
+                            "decisive": decisive}
     lines = [json.dumps(header)]
     for row in rows:
         closed = maths.closed_volume(row["d"], row["pitch"], row["length"], row["clearance"])
@@ -1904,3 +1907,140 @@ def test_smoke_block_runs_the_real_frontier_code_on_a_subset_and_says_it_is_not_
     assert "not a campaign run" in out
     assert "frontier M2 right: no stop up to 55 turns; last measured 55 turns" in out
     assert "| M2 | right | 55 | 5 | rod | ok |" in out
+
+
+# --- The verdict subcommand over recorded runs ---
+
+_XFAIL_V = pytest.mark.xfail(strict=True, reason="plan 02-03 task 3 verdict RED: not implemented")
+
+
+@_XFAIL_V
+def test_k_scores_lists_every_k_with_its_counts_and_scores_only_the_ones_that_qualify() -> None:
+    rows = _ksweep(3, triangles=900, step_bytes=30) + _ksweep(5, cls="silent_wrong") + [
+        _synth(k=10, cls="timeout", turns=250.0, fine=None, step=None)]
+    scores = k_scores(rows)
+    assert [score.k for score in scores] == [3, 5, 10]
+    three, five, ten = scores
+    assert (three.k, three.rows, three.non_ok, three.triangles, three.step_bytes) == (
+        3, 4, 0, 900, 30)
+    assert (five.k, five.rows, five.non_ok, five.triangles, five.step_bytes) == (
+        5, 4, 1, None, None)
+    assert (ten.k, ten.rows, ten.non_ok, ten.triangles, ten.step_bytes) == (10, 1, 1, None, None)
+
+
+@_XFAIL_V
+def test_k_scores_leaves_out_a_k_with_no_rows() -> None:
+    assert [score.k for score in k_scores(_ksweep(3) + _ksweep(10))] == [3, 10]
+
+
+@_XFAIL_V
+def test_the_escape_rows_are_the_failures_inside_the_standard_range_of_either_hand() -> None:
+    rows = [
+        _synth(cls="silent_wrong"), _synth(left=True, cls="failure"),
+        _synth(kind="void", cls="worker_died"), _synth(cls="timeout"),  # a cap, not an escape
+        _synth(turns=65.0, cls="silent_wrong"),  # frontier: beyond the standard max of 60
+        _synth(turns=10.0),
+    ]
+    reasons = escape_rows(rows)
+    assert len(reasons) == 3
+    assert any("right" in r and "silent_wrong" in r for r in reasons)
+    assert any("left" in r and "failure" in r for r in reasons)
+    assert any("void" in r and "worker_died" in r for r in reasons)
+
+
+def _full_campaign(tmp_path: Path, *, prefix: str = "c1", grid_extra: list[RowRecord] | None = None,
+                   grid_decisive: bool = True, skip: tuple[str, ...] = ()) -> None:
+    """A clean M6-only campaign of all four blocks, written the way a run writes it."""
+    grid = [row for left in (False, True) for turns in (10.0, 20.0, 60.0)
+            for row in (_synth(left=left, turns=turns, k=3, err=1.5e-6, stl_err=1e-3),
+                        _synth(kind="void", left=left, turns=turns, k=3))]
+    blocks: dict[str, list[RowRecord]] = {
+        "ksweep": [r for k in (3, 5, 10) for r in _ksweep(k, triangles=1000 + k)],
+        "grid": grid + (grid_extra or []),
+        "frontier": _full_walk("M6", None),
+        "ladder": [_synth(turns=10.0)],
+    }
+    for block, rows in blocks.items():
+        if block not in skip:
+            _write_run(tmp_path / f"{prefix}-{block}.jsonl", block, rows,
+                       decisive=grid_decisive if block == "grid" else True)
+
+
+@_XFAIL_V
+def test_a_clean_campaign_passes_with_the_k_the_estimator_and_the_turn_caps_printed(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _full_campaign(tmp_path)
+    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 0
+    out = capsys.readouterr().out
+    assert "selected K: 3" in out
+    assert "estimator: precise" in out
+    assert "T_gate" in out
+    assert "pass bar: held" in out
+    assert "escape clause: not fired" in out
+    assert "M6" in out.split("### Turn caps")[1]
+    assert "no stop up to 250 turns" in out
+    assert "Blocks read: ksweep" in out
+    assert "missing" not in out.split("### K")[0]
+
+
+@_XFAIL_V
+def test_a_silent_wrong_grid_row_fails_the_verdict_and_fires_the_escape_clause_naming_it(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """The row is stored with class `ok`: the verdict recomputes every class from the raw
+    record, so a hand-edited class cannot pass a wrong row (T-02-09)."""
+    _full_campaign(tmp_path, grid_extra=[_synth(turns=30.0, cls="silent_wrong", left=True)])
+    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 1
+    out = capsys.readouterr().out
+    assert "pass bar: failed" in out
+    assert "escape clause: FIRED" in out
+    assert out.count("- M6 left L=30 rod: silent_wrong") == 2  # under the bar and the clause
+
+
+@_XFAIL_V
+def test_a_campaign_without_all_four_blocks_lists_the_missing_ones_and_never_passes(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _full_campaign(tmp_path, skip=("frontier", "ladder"))
+    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 1
+    out = capsys.readouterr().out
+    assert "Blocks missing: frontier, ladder" in out
+    assert "no frontier record" in out
+
+
+@_XFAIL_V
+def test_a_timeout_on_a_non_decisive_grid_makes_the_bar_not_established_and_exit_1(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _full_campaign(tmp_path, grid_extra=[_synth(turns=30.0, cls="timeout")],
+                   grid_decisive=False)
+    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 1
+    out = capsys.readouterr().out
+    assert "pass bar: not established" in out
+    assert "escape clause: not fired" in out
+    assert "not established (non-decisive gate)" in out.split("### Turn caps")[1]
+
+
+@_XFAIL_V
+def test_the_verdict_only_reads_runs_under_its_own_prefix(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _full_campaign(tmp_path, prefix="c1")
+    _full_campaign(tmp_path, prefix="c2", grid_extra=[_synth(turns=30.0, cls="failure")])
+    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 0
+    assert "c2-" not in capsys.readouterr().out
+
+
+@_XFAIL_V
+@pytest.mark.parametrize(("prefix", "wanted"), [("../c1", "prefix"), ("nothing", "no runs")])
+def test_a_bad_prefix_or_an_empty_one_is_refused_not_passed(
+        prefix: str, wanted: str, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _full_campaign(tmp_path)
+    assert spike_cli.verdict_campaign(prefix, results_dir=tmp_path) in (1, 2)
+    captured = capsys.readouterr()
+    assert wanted in captured.out + captured.err
+
+
+@_XFAIL_V
+def test_two_runs_of_one_block_under_a_prefix_are_ambiguous_and_refused(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _full_campaign(tmp_path)
+    _write_run(tmp_path / "c1-grid-again.jsonl", "grid", [_synth()])
+    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 2
+    assert "two runs of block grid" in capsys.readouterr().err
