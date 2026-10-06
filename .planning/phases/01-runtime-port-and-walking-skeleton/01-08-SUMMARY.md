@@ -155,7 +155,7 @@ All on one host: Apple M2 Max, 12 CPUs, 32 GiB RAM, macOS, 2026-10-06, load aver
 - `bench/README.md`, `bench/RESULTS.md` - method, where each half must run, the recorded runs
 - `tests/test_bench.py` - 25 tests
 - `Makefile` - `bench`, `bench.build`, `bench.export`, `bench.latency`, `bench.memory`, `SWEEP`, `SET`; `typecheck` covers `bench`
-- `docs/tech_debt/INDEX.md` and `active/2026-10-06-bench-memory-sampling-is-too-coarse-for-short-corpora.md` - the sampling limit, trigger Phase 7
+- `docs/tech_debt/INDEX.md` and `docs/tech_debt/active/2026-10-06-bench-memory-sampling-is-too-coarse-for-short-corpora.md` - the sampling limit, trigger Phase 7
 
 ## Decisions Made
 

@@ -172,7 +172,7 @@ The plan is `type: execute` with one `tdd="true"` task, so the plan-level gate i
 
 - `src/screw/params.py` - `FastenerParams`, `BoltParams`, `KINDS`, `DEFAULT_KIND`, `INTERIM_MAX_MM` (corner measured and recorded in its comment)
 - `src/screw/calc/__init__.py` - kernel-free `derive`, `PartInfo`, `InfoRow`, `SKELETON_WARNING`
-- `src/screw/solid/__init__.py`, `solid/bolt.py` - the kernel doorway and the cylinder
+- `src/screw/solid/__init__.py`, `src/screw/solid/bolt.py` - the kernel doorway and the cylinder
 - `src/screw/build_errors.py`, `records.py` - failure types and the JSON-lines log vocabulary (`kind` in every per-request record)
 - `src/screw/pool.py` - `BuildPool`; now carries the D-16 same-slot guard
 - `src/screw/app.py` - routes, caches, admission queue, error mapping
