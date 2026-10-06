@@ -48,8 +48,8 @@ verify: lint typecheck lint-imports no-fake-done test  ## the gate: lint, types,
 lint: $(STAMP)  ## ruff: correctness rules only, no reformatting (L05)
 	$(PY) -m ruff check .
 
-typecheck: $(STAMP)  ## mypy --strict over the package and its tests (L04)
-	$(PY) -m mypy src tests
+typecheck: $(STAMP)  ## mypy --strict over the package, its tests and the smoke driver (L04)
+	$(PY) -m mypy src tests docker
 
 lint-imports: $(STAMP)  ## the module boundaries declared in pyproject.toml
 	$(VENV)/bin/lint-imports

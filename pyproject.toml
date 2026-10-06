@@ -117,7 +117,49 @@ type = "forbidden"
 source_modules = ["screw"]
 forbidden_modules = ["tests"]
 
-# Next, in the same commit as the first maths module: "The thread maths stays free of the
-# CAD kernel" (source: the maths and parameter modules; forbidden: cadquery, OCP), and
-# with the CLI, "The CLI does not inherit web-serving policy" (forbidden: the app module,
-# fastapi, starlette). spur's pyproject.toml has the worked versions.
+[[tool.importlinter.contracts]]
+name = "The thread maths stays free of the CAD kernel"
+# calc runs on every keystroke in the UI. It is pure arithmetic on purpose: the moment it
+# can reach OpenCascade, that property is gone and nobody notices until the form goes slow.
+# The solid package is the only code allowed to touch the kernel (contract 8 below says so
+# for the whole tree). screw.cli joins this list in the plan that adds it.
+type = "forbidden"
+source_modules = ["screw.calc", "screw.params"]
+forbidden_modules = ["cadquery", "OCP"]
+# Reaching the kernel *through* the solid package is the whole point of lazy imports in the
+# CLI; only a direct import here is the violation.
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "The thread maths stays free of the logger"
+# calc runs on every keystroke in the UI and must stay pure arithmetic, the same reason it
+# must stay free of the CAD kernel above -- a logging import would mean this package can
+# raise from formatting/handler I/O, or silently drift its own state. `warnings` in the
+# info document is its diagnostic.
+type = "forbidden"
+source_modules = ["screw.calc"]
+forbidden_modules = ["screw.records", "logging"]
+
+[[tool.importlinter.contracts]]
+name = "The serving process never imports the CAD kernel"
+# app.py never imports the solid package: builds happen in worker processes only, reached
+# through screw.pool's runtime importlib call, never a static import. The serving process's
+# memory must never contain OpenCascade, so a transitive path is as bad as a direct one --
+# allow_indirect_imports = false is what makes mem_limit a number about a kernel-free
+# parent plus N workers, rather than a guess.
+type = "forbidden"
+source_modules = ["screw.app"]
+forbidden_modules = ["cadquery", "OCP"]
+allow_indirect_imports = false
+
+[[tool.importlinter.contracts]]
+name = "Only the solid package imports the CAD kernel"
+# The one doorway: no CadQuery object escapes screw.solid, and no other module may even
+# import it (contract 2 only covers the maths; this covers everything else, present and
+# future). screw.solid's own edges to the kernel are the point, so they are ignored; both
+# forms are listed because `screw.solid.**` does not match `screw.solid` itself, and an
+# ignore that matches nothing is itself an error in import-linter.
+type = "forbidden"
+source_modules = ["screw"]
+forbidden_modules = ["cadquery", "OCP"]
+ignore_imports = ["screw.solid -> cadquery", "screw.solid.** -> cadquery"]
