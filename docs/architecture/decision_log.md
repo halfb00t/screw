@@ -199,7 +199,8 @@ still the pip constraint for every install, but ruff, mypy, pytest, import-linte
 pre-commit are not in it and float. L06's promise that a ruff or mypy release cannot turn
 the gate red on its own no longer holds; the kernel pair, the thing that can move a
 regression fixture, is still pinned. spur L34 accepted the same trade. A second pin file for
-the dev tools would be speculative, so there is none.
+the dev tools would be speculative, so there is none. (L10 pins the four owner-vetted dev tools inside
+the extras; the rest still float.)
 
 Reason: the wall is what turns "every commit on main has a green run" from a habit into a
 property, and spur proved each piece against a real failed merge before screw has a merge to
@@ -259,3 +260,23 @@ cannot yet feed, and the pool guard fixes a known 500 now rather than porting th
 Reversibility: the defaults and the omitted-`kind` hash rule are one-way (an old link
 rebuilds a different part if either moves). The URL shape is costly: every consumer and the
 UI bind to it. The interim numbers are reversible by design; replacing them is Phase 7.
+
+## L10 — The owner-vetted dev tools are pinned `==` in the dev extras (narrows L08)
+
+Date: 2026-10-06. Decided by the owner at the Phase 1 security audit (threat T-01-SC).
+
+`httpx2==2.13.1`, `pytest-xdist==3.8.0`, `pytest-cov==7.1.0` and `pre-commit==4.6.2` in
+`[project.optional-dependencies] dev` of `pyproject.toml`. The first three are the packages the
+owner vetted at the 01-01 Task 2 legitimacy checkpoint; `73a0d13` pinned them in
+`requirements.txt` and `ff4b22c` (plan 01-06, D-17) dropped them with the rest of the dev tools
+when `requirements.txt` became the runtime closure, leaving `>=` floors only. L08's "no second
+pin file" stands: the pin lives in the extras, not in a file. `ruff`, `mypy`, `pytest` and
+`import-linter` still float per L08, and so do the transitive dependencies of the four.
+
+Reason: a package vetted by hand at one version is not vetted at the next. With a floor only,
+the first release after the vetted one installs into every fresh venv and CI run unvetted — a
+supply-chain gate that holds once and then opens. None of the four enters the image, so the pin
+costs nothing at runtime.
+
+Reversibility: reversible. Four lines in `pyproject.toml`; bumping one is a deliberate re-vet,
+which is the point.

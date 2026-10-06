@@ -16,6 +16,8 @@ Severity (grep-able `Severity:` field):
 
 | Severity | Item | Trigger to revisit |
 |---|---|---|
+| blocker | [A collapsed thin solid passes the validity check and is served as a 200](active/2026-10-06-collapsed-thin-solid-served-as-200.md) | the `/gsd-quick` fix PR right after the Phase 1 close lands (owner, 2026-10-06) |
+| must | [A repeated query key or CLI flag silently drops one of two explicit values](active/2026-10-06-repeated-query-key-silently-wins.md) | same `/gsd-quick` PR as the collapsed-solid item |
 | must | [Interim runtime bounds are spur's figures, not screw's measurements](active/2026-10-05-interim-runtime-bounds.md) | Phase 7 operability re-sweep (OPER-02) |
 | must | [The web page rounds every displayed number in the browser](active/2026-10-06-ui-rounds-displayed-numbers.md) | before the Phase 4 plan that puts cited ISO rows on the info panel |
 | must | [The web page drops a foreign or unparseable hash key silently](active/2026-10-06-ui-drops-foreign-hash-keys.md) | before the Phase 3 plan that adds the first shareable field (`left_hand`) |
