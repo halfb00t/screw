@@ -3598,3 +3598,211 @@ def test_a_pair_run_cell_with_an_unknown_key_is_refused_not_read(
          "hand_edited": True}) + "\n")
     assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 2
     assert "unknown key 'hand_edited'" in capsys.readouterr().err
+
+
+# --- The whole campaign as one guarded command (Phase 2, plan 02-05) ---
+
+
+def test_the_campaign_runs_the_blocks_in_protocol_order_and_every_block_is_runnable() -> None:
+    assert spike_cli.CAMPAIGN_BLOCKS == (
+        "ksweep", "grid", "frontier", "ladder", "trim", "controls", "rss", "pair", "container")
+    assert set(spike_cli.CAMPAIGN_BLOCKS) == set(spike_cli.BLOCKS)
+
+
+def _forbid_the_guard_and_every_block(monkeypatch: pytest.MonkeyPatch) -> None:
+    def boom(*args: object, **kwargs: object) -> None:
+        raise AssertionError("a refused campaign reached the guard or a block")
+
+    monkeypatch.setattr(spike_cli, "read_guard", boom)
+    monkeypatch.setattr(spike_cli, "run_block", boom)
+
+
+@pytest.mark.parametrize("prefix", ["a" * 51, "../x", "A", ""])
+def test_a_prefix_that_is_not_a_run_id_or_is_over_50_characters_is_refused_before_anything(
+        prefix: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    _forbid_the_guard_and_every_block(monkeypatch)
+    assert spike_cli.run_campaign(prefix, results_dir=tmp_path) == 2
+    assert "at most 50 characters" in capsys.readouterr().err
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_a_50_character_prefix_still_makes_a_run_id_of_every_block() -> None:
+    prefix = "a" * spike_cli.MAX_PREFIX
+    assert all(spike_cli.RUN_ID.fullmatch(f"{prefix}-{b}") for b in spike_cli.CAMPAIGN_BLOCKS)
+
+
+@pytest.mark.parametrize("taken", ["c1-grid.jsonl", "c1-container.jsonl", "c1-campaign.md"])
+def test_one_recorded_block_refuses_the_whole_campaign_before_anything_runs_and_is_left_intact(
+        taken: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    _forbid_the_guard_and_every_block(monkeypatch)
+    (tmp_path / taken).write_text("what the first run measured\n")
+    assert spike_cli.run_campaign("c1", results_dir=tmp_path) == 2
+    err = capsys.readouterr().err
+    assert taken in err
+    assert "already recorded" in err
+    assert (tmp_path / taken).read_text() == "what the first run measured\n"
+    assert [p.name for p in tmp_path.iterdir()] == [taken]
+
+
+def _forbid_a_block(*args: object, **kwargs: object) -> int:
+    pytest.fail("a block ran")
+
+
+def test_a_refused_protocol_guard_refuses_the_campaign_with_nothing_written(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    refused = spike_cli.GuardFacts(GuardResult(False, ("it has not landed",)), "none", "none", "h")
+    _guard_says(monkeypatch, refused)
+    monkeypatch.setattr(spike_cli, "run_block", _forbid_a_block)
+    target = tmp_path / "results"
+    assert spike_cli.run_campaign("c1", results_dir=target) == 2
+    assert "protocol guard: refused -- it has not landed" in capsys.readouterr().err
+    assert not target.exists()
+
+
+class _BlockLog:
+    """A stand-in for `run_block`: records each call, writes the K-sweep record the others must
+    read their K from, and resolves K the way the real one does, through `_locked_k`."""
+
+    def __init__(self, results_dir: Path, *, refuse: dict[str, str] | None = None,
+                 crash: tuple[str, ...] = ()) -> None:
+        self.dir = results_dir
+        self.refuse = refuse or {}
+        self.crash = crash
+        self.calls: list[tuple[str, str, str | None, str | None]] = []
+        self.k: dict[str, int] = {}
+
+    def __call__(self, block: str, run_id: str, k_from: str | None, *,
+                 results_dir: Path = Path("unused"), env: object = None,
+                 frontier_from: str | None = None) -> int:
+        del env
+        assert results_dir == self.dir
+        self.calls.append((block, run_id, k_from, frontier_from))
+        if block in self.refuse:
+            print(f"refused: {self.refuse[block]}", file=sys.stderr)
+            return 2
+        if block == "ksweep":
+            ksweep = [r for k in (3, 5, 10) for r in _ksweep(k, triangles=1000 + k)]
+            _write_run(self.dir / f"{run_id}.jsonl", "ksweep", ksweep)
+        else:
+            assert k_from is not None
+            self.k[block] = spike_cli._locked_k(k_from, self.dir)[0]
+            (self.dir / f"{run_id}.jsonl").write_text("partial\n")
+        if block in self.crash:
+            raise RuntimeError("the kernel fell over")
+        print(f"## block {block}")
+        return 0
+
+
+def _campaign_goes(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, verdict_code: int = 0, *,
+                   refuse: dict[str, str] | None = None, crash: tuple[str, ...] = ()) -> _BlockLog:
+    facts = spike_cli.GuardFacts(GuardResult(True, ()), "b" * 40, "c" * 40, "a" * 40)
+    _guard_says(monkeypatch, facts)
+    log = _BlockLog(tmp_path, refuse=refuse, crash=crash)
+    monkeypatch.setattr(spike_cli, "run_block", log)
+
+    def verdict(prefix: str, *, results_dir: Path) -> int:
+        print(f"## verdict over {prefix} in {results_dir.name}")
+        return verdict_code
+
+    monkeypatch.setattr(spike_cli, "verdict_campaign", verdict)
+    return log
+
+
+def test_every_block_runs_as_prefix_dash_block_with_k_from_the_ksweep_record_never_a_flag(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    log = _campaign_goes(monkeypatch, tmp_path)
+    assert spike_cli.run_campaign("c1", results_dir=tmp_path) == 0
+    assert [c[0] for c in log.calls] == list(spike_cli.CAMPAIGN_BLOCKS)
+    assert [c[1] for c in log.calls] == [f"c1-{b}" for b in spike_cli.CAMPAIGN_BLOCKS]
+    # No block after the sweep is handed a K: each is handed the sweep's run id and reads the K
+    # the rule selects from that record (3: the fewest triangles in the synthetic sweep).
+    assert [c[2] for c in log.calls] == [None] + ["c1-ksweep"] * 8
+    assert set(log.k) == set(spike_cli.CAMPAIGN_BLOCKS) - {"ksweep"}
+    assert set(log.k.values()) == {3}
+    assert [c[3] for c in log.calls if c[3] is not None] == ["c1-frontier"]
+    assert [c[0] for c in log.calls if c[3] is not None] == ["rss"]
+
+
+def test_the_campaign_log_names_every_block_then_the_verdict_and_ends_with_campaign_finished(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    _campaign_goes(monkeypatch, tmp_path)
+    assert spike_cli.run_campaign("c1", results_dir=tmp_path) == 0
+    text = (tmp_path / "c1-campaign.md").read_text()
+    assert text.splitlines()[0] == "## Thread spike campaign c1"
+    assert "- ksweep: ran as `c1-ksweep`" in text
+    assert "- container: ran as `c1-container`" in text
+    assert "## verdict over c1 in " in text
+    assert text.endswith("\ncampaign finished\n")
+    assert text.index("- container: ran") < text.index("## verdict over")
+    out = capsys.readouterr().out
+    assert "## verdict over c1" in out  # the verdict is printed as well as appended
+    assert out.rstrip().endswith("campaign finished")
+
+
+@pytest.mark.parametrize("code", [0, 1, 2])
+def test_the_campaign_exits_with_the_verdicts_code(
+        code: int, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _campaign_goes(monkeypatch, tmp_path, verdict_code=code)
+    assert spike_cli.run_campaign("c1", results_dir=tmp_path) == code
+    assert (tmp_path / "c1-campaign.md").read_text().endswith("campaign finished\n")
+
+
+def test_a_block_that_refuses_to_start_is_logged_with_its_reason_and_the_rest_still_run(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    log = _campaign_goes(monkeypatch, tmp_path, refuse={
+        "controls": "SCREW_SPIKE_CQW is not set", "container": "docker is not installed"})
+    assert spike_cli.run_campaign("c1", results_dir=tmp_path) == 0
+    assert [c[0] for c in log.calls] == list(spike_cli.CAMPAIGN_BLOCKS)
+    text = (tmp_path / "c1-campaign.md").read_text()
+    assert "- controls: refused to start (exit 2): refused: SCREW_SPIKE_CQW is not set" in text
+    assert "- container: refused to start (exit 2): refused: docker is not installed" in text
+    assert "- pair: ran as `c1-pair`" in text
+
+
+def test_a_block_that_crashes_keeps_its_partial_record_and_is_logged_as_interrupted(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _campaign_goes(monkeypatch, tmp_path, crash=("grid",))
+    assert spike_cli.run_campaign("c1", results_dir=tmp_path) == 0
+    text = (tmp_path / "c1-campaign.md").read_text()
+    assert ("- grid: interrupted (RuntimeError: the kernel fell over); its partial record "
+            "`c1-grid.jsonl` is kept and is never re-run") in text
+    assert (tmp_path / "c1-grid.jsonl").read_text() == "partial\n"
+    assert "- frontier: ran as `c1-frontier`" in text  # the rest of the campaign went on
+
+
+def test_a_sweep_that_did_not_finish_stops_every_block_that_needs_its_k(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    log = _campaign_goes(monkeypatch, tmp_path, refuse={"ksweep": "the host is busy"})
+    assert spike_cli.run_campaign("c1", results_dir=tmp_path) == 0
+    assert [c[0] for c in log.calls] == ["ksweep"]  # a K from half a sweep is not the sweep's K
+    text = (tmp_path / "c1-campaign.md").read_text()
+    assert "- grid: skipped, needs c1-ksweep, which did not complete" in text
+    assert "- container: skipped, needs c1-ksweep, which did not complete" in text
+
+
+def test_a_frontier_that_did_not_finish_skips_the_rss_block_that_measures_its_terminal_rows(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    log = _campaign_goes(monkeypatch, tmp_path, crash=("frontier",))
+    assert spike_cli.run_campaign("c1", results_dir=tmp_path) == 0
+    assert "rss" not in [c[0] for c in log.calls]
+    assert "- rss: skipped, needs c1-frontier, which did not complete" in (
+        tmp_path / "c1-campaign.md").read_text()
+
+
+def test_the_campaign_subcommand_takes_a_run_id_prefix_and_returns_the_campaigns_code(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: list[str] = []
+
+    def run_campaign(prefix: str) -> int:
+        seen.append(prefix)
+        return 1
+
+    monkeypatch.setattr(spike_cli, "run_campaign", run_campaign)
+    assert spike_cli.main(["campaign", "--run-id", "plan-check"]) == 1
+    assert seen == ["plan-check"]
+    with pytest.raises(SystemExit):
+        spike_cli.main(["campaign"])

@@ -28,6 +28,11 @@ The controls block runs its ruled-surface rows in a second worker whose PYTHONPA
 scratch directory named by SCREW_SPIKE_CQW, and refuses (exit 2) when the package is not
 importable there: the reference package is never on the default worker's path (D-06).
 
+`campaign --run-id PREFIX` is the whole spike as one guarded command: every block in protocol
+order as run id PREFIX-<block>, K taken from PREFIX-ksweep by the rule, then the verdict over
+PREFIX-*; a block that refuses to start or crashes is logged in PREFIX-campaign.md and the rest
+still run.
+
 The parent never imports the kernel (an import-linter contract keeps it so): the kernel versions
 are read from package metadata, and every build happens in the child.
 """
@@ -35,6 +40,8 @@ are read from package metadata, and every build happens in the child.
 from __future__ import annotations
 
 import argparse
+import contextlib
+import io
 import itertools
 import json
 import os
@@ -1557,6 +1564,107 @@ def verdict_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR) -> int:
     return 0 if clean else 1
 
 
+# The campaign's blocks in protocol order. K first: D-07 locks it before the grid reads it. `rss`
+# after `frontier`: it measures the frontier's terminal rows. `container` last: it validates the
+# construction the other blocks locked. `pair` reads the locked K too.
+CAMPAIGN_BLOCKS = ("ksweep", "grid", "frontier", "ladder", "trim", "controls", "rss", "pair", "container")  # noqa: E501
+# PREFIX-container is ten characters longer than PREFIX, and a run id is at most 64.
+MAX_PREFIX = 50
+# What a block reads from an earlier one: K from the K sweep, and the rss block's terminal rows
+# from the frontier walk. A block whose input did not complete is skipped, because a K selected
+# from half a sweep is not the sweep's K.
+_NEEDS: dict[str, tuple[str, ...]] = {
+    **{block: ("ksweep",) for block in CAMPAIGN_BLOCKS if block != "ksweep"},
+    "rss": ("ksweep", "frontier"),
+}
+
+
+def _campaign_block(block: str, prefix: str, results_dir: Path,
+                    env: Mapping[str, str] | None) -> tuple[bool, str]:
+    """One block exactly as `run` would run it, as run id PREFIX-<block> with its own guard,
+    gate, header and end reading. (Completed, the line for the campaign log.) A refusal to start
+    (exit 2, nothing written) and a crash mid-way (the partial JSONL is kept, never re-run) are
+    both logged and neither stops the campaign."""
+    run_id = f"{prefix}-{block}"
+    stderr = io.StringIO()
+    try:
+        with contextlib.redirect_stderr(stderr):
+            code = run_block(block, run_id, None if block == "ksweep" else f"{prefix}-ksweep",
+                             results_dir=results_dir, env=env,
+                             frontier_from=f"{prefix}-frontier" if block == "rss" else None)
+    except Exception as exc:  # a crashed block is one logged block, not a lost campaign
+        return False, (f"- {block}: interrupted ({type(exc).__name__}: {exc}); its partial "
+                       f"record `{run_id}.jsonl` is kept and is never re-run")
+    reason = stderr.getvalue().strip()
+    if code == 0:
+        if reason:
+            print(reason, file=sys.stderr)
+        return True, f"- {block}: ran as `{run_id}`"
+    return False, f"- {block}: refused to start (exit {code}): {reason or 'no reason given'}"
+
+
+def run_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR,
+                 env: Mapping[str, str] | None = None) -> int:
+    """The whole spike as one guarded command (D-15): every block of `CAMPAIGN_BLOCKS` in that
+    order as run id PREFIX-<block>, K read from PREFIX-ksweep by `select_k` and never typed, then
+    `verdict --campaign PREFIX`, whose output and the line "campaign finished" are printed and
+    appended to PREFIX-campaign.md; the exit code is the verdict's.
+
+    Refusals, all exit 2 with nothing written: a PREFIX that is not a run id or is longer than 50
+    characters; any PREFIX-<block>.jsonl or PREFIX-campaign.md already there (a campaign never
+    overwrites or resumes); the protocol guard, asked once up front (and again by every block).
+    """
+    problem = None
+    log_path = results_dir / f"{prefix}-campaign.md"
+    if not RUN_ID.fullmatch(prefix) or len(prefix) > MAX_PREFIX:
+        problem = (f"prefix {prefix!r} must fullmatch [a-z0-9][a-z0-9-]{{0,63}} and be at most "
+                   f"{MAX_PREFIX} characters, so PREFIX-container is a run id")
+    else:
+        taken = [f"{prefix}-{b}.jsonl" for b in CAMPAIGN_BLOCKS
+                 if (results_dir / f"{prefix}-{b}.jsonl").exists()]
+        if taken or log_path.exists():
+            problem = (f"{', '.join(taken) or log_path.name} already recorded; a campaign never "
+                       "overwrites or resumes a run")
+    if problem is not None:
+        print(f"refused: {problem}", file=sys.stderr)
+        return 2
+    facts = read_guard(fetch=True)
+    if not facts.result.held:
+        print("protocol guard: refused -- " + "; ".join(facts.result.reasons), file=sys.stderr)
+        return 2
+    results_dir.mkdir(parents=True, exist_ok=True)
+    with log_path.open("x", encoding="utf-8") as log:
+        def note(text: str) -> None:
+            print(text)
+            log.write(text + "\n")
+            log.flush()
+
+        note(f"## Thread spike campaign {prefix}")
+        note("")
+        completed: set[str] = set()
+        for block in CAMPAIGN_BLOCKS:
+            waiting = [b for b in _NEEDS.get(block, ()) if b not in completed]
+            if waiting:
+                note(f"- {block}: skipped, needs {', '.join(f'{prefix}-{b}' for b in waiting)}, "
+                     "which did not complete")
+                continue
+            done, line = _campaign_block(block, prefix, results_dir, env)
+            if done:
+                completed.add(block)
+            note(line)
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = verdict_campaign(prefix, results_dir=results_dir)
+        note("")
+        if err.getvalue().strip():
+            note(f"verdict: {err.getvalue().strip()}")
+        if out.getvalue().strip():
+            note(out.getvalue().rstrip("\n"))
+        note("")
+        note("campaign finished")
+    return code
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="bench.thread_spike",
@@ -1588,11 +1696,18 @@ def main(argv: list[str] | None = None) -> int:
     run_parser.add_argument("--frontier-from", default=None,
                             help="the frontier run id whose terminal rows the rss block "
                                  "measures; required by the rss block, refused by every other")
+    campaign_parser = commands.add_parser(
+        "campaign", help="every block in protocol order, then the verdict; exit 1 unless clean")
+    campaign_parser.add_argument(
+        "--run-id", required=True, metavar="PREFIX",
+        help=f"at most {MAX_PREFIX} characters; the blocks are recorded as PREFIX-<block>")
     args = parser.parse_args(argv)
     if args.command == "check-protocol":
         return check_protocol()
     if args.command == "verdict":
         return verdict_campaign(args.campaign)
+    if args.command == "campaign":
+        return run_campaign(args.run_id)
     if args.command == "run":
         return run_block(args.block, args.run_id, args.k_from,
                          frontier_from=args.frontier_from)
