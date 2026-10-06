@@ -32,6 +32,7 @@ from fractions import Fraction
 from pathlib import Path
 from typing import Literal
 
+import cadquery as cq
 import httpx2 as httpx
 import pytest
 from pydantic import ValidationError
@@ -58,7 +59,7 @@ from bench.memory import (
 )
 from bench.quiet import QuietResult, Reading, wait_quiet
 from bench.thread_spike import __main__ as spike_cli
-from bench.thread_spike import helical, maths, measure, worker
+from bench.thread_spike import helical, maths, measure, pair, worker
 from bench.thread_spike import verdict as verdict_module
 from bench.thread_spike.__main__ import _table_row
 from bench.thread_spike.runner import (
@@ -75,6 +76,7 @@ from bench.thread_spike.verdict import (
     ESTIMATOR_TIE,
     FINE_CHECK_CEILING,
     GATE_FACTOR,
+    PAIR_BAND,
     PROTOCOL_PATH,
     ROW_TIMEOUT_S,
     T_PASS,
@@ -1972,9 +1974,10 @@ def test_the_escape_rows_are_the_failures_inside_the_standard_range_of_either_ha
 
 def _full_campaign(tmp_path: Path, *, prefix: str = "c1", grid_extra: list[RowRecord] | None = None,
                    grid_decisive: bool = True, skip: tuple[str, ...] = (),
-                   container_extra: list[RowRecord] | None = None) -> None:
-    """A clean M6-only campaign of all four rod blocks and the container run, written the way a
-    run writes it."""
+                   container_extra: list[RowRecord] | None = None,
+                   pair_cells: list[PairRecord] | None = None) -> None:
+    """A clean M6-only campaign of all four rod blocks, the pair run and the container run,
+    written the way a run writes it."""
     grid = [row for left in (False, True) for turns in (10.0, 20.0, 60.0)
             for row in (_synth(left=left, turns=turns, k=3, err=1.5e-6, stl_err=1e-3),
                         _synth(kind="void", left=left, turns=turns, k=3))]
@@ -1994,6 +1997,25 @@ def _full_campaign(tmp_path: Path, *, prefix: str = "c1", grid_extra: list[RowRe
             # Emulated timings: a container run is written non-decisive, as a run writes it.
             _write_run(tmp_path / f"{prefix}-{block}.jsonl", block, rows,
                        decisive=grid_decisive if block == "grid" else block != "container")
+    if "pair" not in skip:
+        _write_pair_run(tmp_path / f"{prefix}-pair.jsonl", _clean_pair_cells()
+                        if pair_cells is None else pair_cells)
+
+
+def _clean_pair_cells() -> list[PairRecord]:
+    """M6 proven on both hands at c = 0.10, the mixed pair violated: a falsifiable size."""
+    return [_pair(0.10), _pair(0.10, rod_left=True, nut_left=True),
+            _mixed(0.10, (6.5, 6.9, 6.7))]
+
+
+def _write_pair_run(path: Path, cells: list[PairRecord], *, k: int | None = 5) -> None:
+    """A pair run as the block writes it, every cell stored with a verdict of `proven`: the
+    verdict must not believe it."""
+    header: HeaderRecord = {**_HEADER, "block": "pair", "k": k, "run_id": path.stem}
+    lines = [json.dumps(header)]
+    lines += [json.dumps({**cell, "verdict": "proven", "reasons": [], "closed_control": 1.0})
+              for cell in cells]
+    path.write_text("\n".join(lines) + "\n")
 
 
 def test_a_clean_campaign_passes_with_the_k_the_estimator_and_the_turn_caps_printed(
@@ -3103,3 +3125,476 @@ def test_a_failed_pair_record_echoes_the_request_and_has_no_number_in_it() -> No
     assert record["nut_volume"] is None
     assert record["readings"] == []
     assert (record["size"], record["nut_left_hand"], record["k"]) == ("M6", True, 5)
+
+
+# --- The pair builder, the pair block and smoke --pair (Phase 2, plan 02-05) ---
+
+
+def test_the_turn_count_of_the_rod_piece_is_exact_where_a_float_division_drifts() -> None:
+    """M2: (1.6 + 2 * 0.4) / 0.4 is 6 turns, and the float quotient is 6.000000000000001."""
+    assert (1.6 + 2 * 0.4) / 0.4 != 6.0
+    assert pair._turns(0.4, 1.6) == 6.0
+    assert pair._turns(1.0, 5.2) == pytest.approx(7.2)
+
+
+@pytest.mark.parametrize("size", ["M2", "M20"])
+def test_place_keeps_a_right_hand_nut_at_the_widest_pose_with_a_control_inside_the_rod_piece(
+        size: str) -> None:
+    d, pitch = (float(x) for x in maths.PITCH[size])
+    m = maths.NUT_HEIGHT[size]
+    rod = pair.rod_piece(d, pitch, m, False, 5)
+    placed = pair.place(cq.Solid.makeCylinder(d, m), 2 * math.pi / 3, 0.5, pitch, False)
+    box, rod_box = placed.BoundingBox(), rod.BoundingBox()
+    assert box.zmin == pytest.approx(5 * pitch / 6)  # P/3 of screw motion plus P/2 of control
+    assert box.zmax == pytest.approx(m + 5 * pitch / 6)
+    assert (rod_box.zmin, rod_box.zmax) == pytest.approx((-pitch, m + pitch), abs=1e-6)
+    pair.check_cover(rod, placed)
+
+
+def test_place_slides_a_left_hand_nut_the_other_way_and_turns_it_by_theta() -> None:
+    blank = cq.Solid.makeCylinder(6.0, 5.2)
+    right = pair.place(blank, 2 * math.pi / 3, 0.0, 1.0, False).BoundingBox()
+    left = pair.place(blank, 2 * math.pi / 3, 0.0, 1.0, True).BoundingBox()
+    assert right.zmin == pytest.approx(1 / 3)
+    assert left.zmin == pytest.approx(-1 / 3)
+    assert pair.place(blank, 0.0, 0.0, 1.0, False).BoundingBox().zmin == pytest.approx(0.0)
+
+
+def test_a_placed_nut_the_rod_does_not_cover_is_a_raised_defect_not_a_reading() -> None:
+    rod = pair.rod_piece(6.0, 1.0, 5.2, False, 5)
+    pair.check_cover(rod, pair.place(cq.Solid.makeCylinder(6.0, 5.2), 0.0, 0.0, 1.0, False))
+    for offset in (1.2, -1.2):
+        with pytest.raises(ValueError, match="slides past the pad"):
+            pair.check_cover(rod, pair.place(cq.Solid.makeCylinder(6.0, 5.2), 0.0, offset, 1.0,
+                                             False))
+
+
+def test_the_nut_is_a_plain_blank_less_the_void_and_its_volume_is_the_closed_form() -> None:
+    d, pitch = (float(x) for x in maths.PITCH["M2"])
+    m = maths.NUT_HEIGHT["M2"]
+    blank = pair.nut(d, pitch, m, 0.10, False, 5)
+    body = (math.pi * d * d - maths.section_area(d, pitch, 0.10)) * m
+    assert measure.precise_volume(blank) == pytest.approx(body, rel=T_PASS)
+    box = blank.BoundingBox()
+    assert (box.zmin, box.zmax) == pytest.approx((0.0, m), abs=1e-6)
+    assert box.xmax == pytest.approx(d, abs=1e-6)  # radius d: the hex adds nothing (D-13)
+
+
+def test_common_reads_the_volume_of_an_overlap_and_zero_solids_for_a_disjoint_pair() -> None:
+    one = cq.Solid.makeBox(2, 2, 2)
+    kept = len(pair._KEEP)
+    volume, solids, errors, warnings, seconds = pair.common(
+        one, cq.Solid.makeBox(2, 2, 2).translate(cq.Vector(1, 1, 1)))
+    assert volume == pytest.approx(1.0)
+    assert (solids, errors, warnings) == (1, False, False)
+    assert seconds > 0
+    apart = pair.common(one, cq.Solid.makeBox(1, 1, 1).translate(cq.Vector(5, 5, 5)))
+    assert apart[:2] == (0.0, 0)
+    assert len(pair._KEEP) == kept + 2  # the boolean and its filler outlive the call
+
+
+def test_the_pair_boolean_and_its_filler_are_kept_alive_for_the_process() -> None:
+    assert "_KEEP: list[object]" in Path(pair.__file__).read_text()
+
+
+def _m2_request(poses: list[tuple[float, float]], *, clearance: float = 0.10) -> PairRequest:
+    d, pitch = (float(x) for x in maths.PITCH["M2"])
+    return {"size": "M2", "d": d, "pitch": pitch, "m": maths.NUT_HEIGHT["M2"],
+            "clearance": clearance, "rod_left_hand": False, "nut_left_hand": False, "k": 5,
+            "poses": poses}
+
+
+def test_a_worker_reads_the_requested_pose_of_a_real_cell_and_judges_nothing() -> None:
+    """M2, c = 0.10, one control a half pitch off the widest matched pose (not theta = pi: its
+    control slides the nut a whole pitch, the pad's edge), through a real child: the record
+    carries the nut's volume and a built reading at the closed form. The matched poses cost
+    about 12 s each, so `smoke --pair` is where those are read for real."""
+    cell = Worker()
+    try:
+        record = cell.run_pair(_m2_request([(2 * math.pi / 3, 0.5)]),
+                               verdict_module.PAIR_TIMEOUT_S)
+    finally:
+        cell.close()
+    assert record["outcome"] == "built"
+    assert record["nut_volume"] == pytest.approx(
+        (math.pi * 4.0 - maths.section_area(2.0, 0.4, 0.10)) * 1.6, rel=T_PASS)
+    (control,) = record["readings"]
+    assert (control["theta"], control["offset_pitches"]) == (2 * math.pi / 3, 0.5)
+    assert control["solids"] == 1
+    assert control["volume"] is not None
+    assert control["volume"] == pytest.approx(closed_control(record), rel=PAIR_BAND)
+    assert (control["diag_errors"], control["diag_warnings"]) == (False, False)
+
+
+def test_an_exception_at_a_pose_ends_the_cell_as_a_failure_that_keeps_the_readings_so_far(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[int] = []
+
+    def common(a: cq.Shape, b: cq.Shape) -> tuple[float, int, bool, bool, float]:
+        calls.append(1)
+        if len(calls) == 2:
+            raise RuntimeError("the boolean raised")
+        return 0.0, 0, False, False, 0.5
+
+    monkeypatch.setattr(pair, "common", common)
+    record = worker.run_pair(_m2_request([(0.0, 0.0), (0.0, 0.5), (math.pi, 0.5)]))
+    assert record["outcome"] == "failure"
+    assert record["error"] == "RuntimeError: the boolean raised"
+    assert record["nut_volume"] is not None  # the nut was built before the boolean raised
+    assert [r["outcome"] for r in record["readings"]] == ["built", "failure"]
+    assert record["readings"][1]["volume"] is None
+    assert len(calls) == 2  # the third pose was never read
+
+
+def test_a_pose_the_rod_does_not_cover_is_a_failure_naming_the_pad_never_a_reading() -> None:
+    record = worker.run_pair(_m2_request([(0.0, 1.5)]))
+    assert record["outcome"] == "failure"
+    assert record["error"] is not None
+    assert "slides past the pad" in record["error"]
+    assert [r["outcome"] for r in record["readings"]] == ["failure"]
+
+
+def test_a_cell_whose_build_raises_has_no_readings_and_no_nut_volume() -> None:
+    bad = _m2_request([(0.0, 0.0)])
+    record = worker.run_pair({**bad, "d": 1e-9, "clearance": 5.0})
+    assert record["outcome"] == "failure"
+    assert record["readings"] == []
+    assert record["nut_volume"] is None
+
+
+def test_a_pair_request_is_told_from_a_row_request_by_its_poses() -> None:
+    assert worker._is_pair(json.dumps(_m2_request([(0.0, 0.0)])))
+    assert not worker._is_pair(json.dumps(_REQUEST))
+
+
+def test_a_worker_that_dies_or_stalls_on_a_pair_cell_is_one_cell_with_no_reading_in_it() -> None:
+    request = _m2_request([(0.0, 0.0)])
+    dying = Worker(argv=[sys.executable, "-c", "import os; os._exit(3)"])
+    stalled = Worker(argv=[sys.executable, "-c", "import time; time.sleep(60)"])
+    babbling = Worker(argv=[sys.executable, "-c",
+                            "import sys; sys.stdin.readline(); print('not json')"])
+    try:
+        died = dying.run_pair(request, 30.0)
+        late = stalled.run_pair(request, 0.5)
+        garbled = babbling.run_pair(request, 30.0)
+    finally:
+        for w in (dying, stalled, babbling):
+            w.close()
+    assert died["outcome"] == "worker_died"
+    assert died["error"] is not None
+    assert "return code 3" in died["error"]
+    assert (late["outcome"], late["error"]) == ("timeout", "no record within 0.5 s")
+    assert garbled["outcome"] == "failure"
+    assert garbled["error"] is not None
+    assert "unreadable worker output" in garbled["error"]
+    for record in (died, late, garbled):
+        assert (record["nut_volume"], record["readings"]) == (None, [])
+        assert (record["size"], record["clearance"], record["k"]) == ("M2", 0.10, 5)
+
+
+class _FakePairWorker(_FakeWorker):
+    """Answers every pair request in-process: a cell as the closed form would have it, with the
+    seam control empty (the research's false-empty) when `seam_false_empty`."""
+
+    def __init__(self, seam_false_empty: bool = False, **_: object) -> None:
+        super().__init__()
+        self.cells: list[PairRequest] = []
+        self.seam_false_empty = seam_false_empty
+
+    def run_pair(self, request: PairRequest, timeout_s: float) -> PairRecord:
+        del timeout_s
+        self.cells.append(request)
+        controls = (1.0, 0.0, 1.0) if self.seam_false_empty else (1.0, 1.0, 1.0)
+        return _pair(request["clearance"], size=request["size"], k=request["k"],
+                     rod_left=request["rod_left_hand"], nut_left=request["nut_left_hand"],
+                     controls=controls, with_controls=len(request["poses"]) == 6)
+
+
+class _RecordingPairWorker(_FakePairWorker):
+    """Records the cells it is asked for and answers each as a failed one: structure tests need
+    no closed form, which costs about 0.35 s per (size, clearance)."""
+
+    def run_pair(self, request: PairRequest, timeout_s: float) -> PairRecord:
+        del timeout_s
+        self.cells.append(request)
+        return failed_pair_record(request, "failure", "recorded only")
+
+
+def _run_pair_block(k: int, smoke: bool = False) -> list[PairRequest]:
+    fake = _RecordingPairWorker()
+    spike_cli.BLOCKS["pair"](spike_cli.Campaign(fake, True, None), k, smoke)
+    return fake.cells
+
+
+def test_the_pair_block_is_per_size_two_hands_six_clearances_and_four_mixed_cells() -> None:
+    cells = [c for c in _run_pair_block(5) if c["k"] == 5]
+    assert len(cells) == 15 * (2 * 6 + 4)
+    m6 = [c for c in cells if c["size"] == "M6"]
+    same = [c for c in m6 if c["rod_left_hand"] == c["nut_left_hand"]]
+    assert sorted((c["rod_left_hand"], c["clearance"]) for c in same) == sorted(
+        (left, c) for left in (False, True) for c in (0.0, -0.05, 0.05, 0.10, 0.15, 0.20))
+    assert all(len(c["poses"]) == 6 for c in same)
+    assert [p[0] for p in same[0]["poses"]] == list(maths.MATCHED_POSES) * 2
+    assert [p[1] for p in same[0]["poses"]] == [0.0] * 3 + [0.5] * 3
+    mixed = [c for c in m6 if c["rod_left_hand"] != c["nut_left_hand"]]
+    assert sorted(c["clearance"] for c in mixed) == [0.05, 0.10, 0.15, 0.20]
+    assert all((c["rod_left_hand"], c["nut_left_hand"]) == (False, True) for c in mixed)
+    assert all(len(c["poses"]) == 3 and {p[1] for p in c["poses"]} == {0.0} for c in mixed)
+    assert {c["m"] for c in m6} == {5.2}
+    assert {(c["d"], c["pitch"]) for c in m6} == {(6.0, 1.0)}
+
+
+def test_the_pair_block_reads_the_two_other_k_values_on_the_reference_sizes_right_hand() -> None:
+    reference = [c for c in _run_pair_block(5) if c["k"] != 5]
+    assert len(reference) == 4 * 2 * 4
+    assert {c["size"] for c in reference} == set(maths.PAIR_REFERENCE_SIZES)
+    assert {c["k"] for c in reference} == {3, 10}
+    assert all(not c["rod_left_hand"] and not c["nut_left_hand"] for c in reference)
+    assert {c["clearance"] for c in reference} == set(maths.PAIR_CLEARANCES)
+    # K is the locked one wherever it was locked: with 3 locked, the references are 5 and 10.
+    assert {c["k"] for c in _run_pair_block(3) if c["k"] != 3} == {5, 10}
+
+
+def test_the_pair_smoke_block_is_one_m6_right_hand_cell_at_c_010() -> None:
+    (cell,) = _run_pair_block(5, smoke=True)
+    assert (cell["size"], cell["clearance"], cell["k"], cell["rod_left_hand"]) == (
+        "M6", 0.10, 5, False)
+    assert len(cell["poses"]) == 6
+
+
+def test_a_pair_cell_is_streamed_with_the_verdict_this_run_drew_and_parses_back(
+        tmp_path: Path) -> None:
+    with (tmp_path / "pair.jsonl").open("w") as sink:
+        c = spike_cli.Campaign(_FakePairWorker(), True, sink)
+        c.measure_pair(_m2_request([(0.0, 0.0)]))
+    (line,) = (tmp_path / "pair.jsonl").read_text().splitlines()
+    row = json.loads(line)
+    assert row["verdict"] == "inconclusive"
+    assert row["closed_control"] == pytest.approx(closed_control(c.pairs[0]))
+    assert parse_pair_result_row(line) == c.pairs[0]
+
+
+def test_smoke_pair_prints_six_readings_the_closed_form_and_the_cell_verdict(
+        monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    monkeypatch.setattr(spike_cli, "Worker", lambda: _FakePairWorker(seam_false_empty=True))
+    assert spike_cli.smoke_pair() == 0  # a false-empty control is a measured outcome, not a defect
+    out = capsys.readouterr().out
+    assert "not a campaign run" in out
+    assert out.count("| matched |") == 3
+    assert out.count("| control |") == 3
+    assert "- control closed form: 12.213" in out
+    assert "- cell verdict: inconclusive" in out
+    assert "control at theta +0.0000 reads empty" in out
+
+
+@pytest.mark.parametrize("outcome", ["failure", "timeout", "worker_died"])
+def test_smoke_pair_exits_1_when_the_cell_did_not_finish(
+        outcome: verdict_module.Outcome, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    class Failing(_FakePairWorker):
+        def run_pair(self, request: PairRequest, timeout_s: float) -> PairRecord:
+            del timeout_s
+            return failed_pair_record(request, outcome, "it did not finish")
+
+    monkeypatch.setattr(spike_cli, "Worker", Failing)
+    assert spike_cli.smoke_pair() == 1
+    assert f"cell {outcome}: it did not finish" in capsys.readouterr().out
+    assert spike_cli.main(["smoke", "--pair"]) == 1
+
+
+def test_smoke_pair_is_reachable_from_the_command_line_and_not_beside_a_block(
+        monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    monkeypatch.setattr(spike_cli, "Worker", _FakePairWorker)
+    assert spike_cli.main(["smoke", "--pair"]) == 0
+    assert spike_cli.main(["smoke", "--block", "pair"]) == 0
+    assert capsys.readouterr().out.count("- cell verdict: proven") == 2
+    with pytest.raises(SystemExit):
+        spike_cli.main(["smoke", "--pair", "--block", "grid"])
+
+
+def _pair_cells() -> list[PairRecord]:
+    """M6 right and left: c = 0.10 proven, c = 0.05 with the seam control empty, the sensitivity
+    cell, and the mixed pair violated at c = 0.10; K = 3 reference rows beside them."""
+    return [
+        _pair(0.10), _pair(0.05, controls=(1.0, 0.0, 1.0)), _pair(-0.05, with_controls=False),
+        _pair(0.10, rod_left=True, nut_left=True),
+        _mixed(0.10, (6.5, 6.9, 6.7)),
+        _pair(0.10, k=3, controls=(0.0, 1.0, 1.0)),
+    ]
+
+
+def test_the_pair_section_renders_rows_falsifiability_mixed_sensitivity_and_the_variants() -> None:
+    text = "\n".join(spike_cli.pair_section(_pair_cells(), 5))
+    assert "#### M6 right hand (m = 5.2 mm, UNVERIFIED)" in text
+    assert "#### M6 left hand" in text
+    # every volume read, the control's closed form, the solids, the diagnostics, the verdict
+    assert ("| 0.1 | 0/0/0 | 12.213/12.213/12.213 | 12.213 | 0/0/0 ; 1/1/1 | "
+            "errors 0 of 6, warnings 0 of 6 | proven |") in text
+    assert ("| 0.05 | 0/0/0 | 14.1335/0/14.1335 | 14.1335 | 0/0/0 ; 1/0/1 | "
+            "errors 0 of 6, warnings 0 of 6 | inconclusive |") in text
+    assert "| -0.05 | 4.36267/4.36267/4.36267 | n/a |" in text
+    assert "- M6 right c=0.05: inconclusive: control at theta +0.0000 reads empty" in text
+    assert "- M6: falsifiable on both hands" in text
+    assert "- M6 right: excluded clearances 0.05" in text
+    assert "- M6 left: excluded clearances none" in text
+    assert "- M6: mixed-hand pair read violated at every matched pose: yes (1 mixed cells)" in text
+    assert "- M6 right: sensitivity (c = -0.05) ok" in text
+    assert "| M6 | 3 | n/a | inconclusive | n/a | n/a |" in text  # the K = 3 reference row
+
+
+def test_the_variant_table_sits_beside_the_verdict_and_says_it_never_changes_it() -> None:
+    text = "\n".join(spike_cli.pair_section(_pair_cells(), 5))
+    heading, table = text.split("#### Variant rules (reported, never the verdict)")
+    assert "never feed it" in table
+    assert "| Cell | D-14 verdict | two of three controls fire in band | seam pose excluded | " \
+           "same-pose c=-0.05 reading as the control |" in table
+    assert "| M6 right c=0.05 K=5 | inconclusive | yes | yes | yes |" in table
+    assert "| M6 right c=0.1 K=5 | proven | yes | yes | yes |" in table
+    assert "| M6 left c=0.1 K=5 | proven | yes | yes | NO |" in table  # no c = -0.05 cell
+    assert "K=3" not in table  # a reference row is not a variant row
+    assert heading.count("#### ") >= 3
+
+
+def test_a_size_without_a_proven_cell_on_both_hands_fires_the_escape_naming_the_hand() -> None:
+    cells = [_pair(0.10), _pair(0.10, rod_left=True, nut_left=True, controls=(0.0, 0.0, 0.0)),
+             _mixed(0.10, (6.5, 6.9, 6.7))]
+    assert spike_cli.pair_escapes(cells, 5, ["M6"]) == (
+        "pair: not falsifiable for size M6 (left hand)",)
+    text = "\n".join(spike_cli.pair_section(cells, 5))
+    assert "- not falsifiable for size M6 (left hand): the escape clause fires" in text
+
+
+def test_a_size_whose_mixed_pair_did_not_read_violated_or_was_never_read_fires_escape() -> None:
+    both = [_pair(0.10), _pair(0.10, rod_left=True, nut_left=True)]
+    reasons = spike_cli.pair_escapes([*both, _mixed(0.10, (6.5, 0.0, 6.7))], 5, ["M6"])
+    assert reasons == ("pair: size M6: the mixed-hand pair did not read violated at every "
+                       "matched pose",)
+    assert spike_cli.pair_escapes(both, 5, ["M6"]) == reasons
+    assert len(spike_cli.pair_escapes([], 5, ["M6", "M8"])) == 4  # a size never read is both
+
+
+def test_a_reference_k_cell_never_makes_a_size_falsifiable() -> None:
+    cells = [_pair(0.10, k=3), _pair(0.10, k=3, rod_left=True, nut_left=True),
+             _mixed(0.10, (6.5, 6.9, 6.7))]
+    assert len(spike_cli.pair_escapes(cells, 5, ["M6"])) == 1  # the K = 5 cells: only the mixed one
+
+
+def test_the_pair_report_is_the_header_the_section_and_the_end_reading_and_refuses_an_empty_run(
+        ) -> None:
+    end = Reading("2026-10-08T10:00:00+00:00", 2.5)
+    text = spike_cli.pair_report(["## Thread spike run x"], _pair_cells(), 5, end)
+    assert text.startswith("## Thread spike run x")
+    assert text.endswith("load1 2.50 read 2026-10-08T10:00:00+00:00 (includes this run's own load)")
+    with pytest.raises(ValueError, match="no cells"):
+        spike_cli.pair_report([], [], 5, end)
+
+
+def test_a_pair_run_streams_its_header_then_one_cell_per_line_and_reports_the_section(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    _held(monkeypatch)
+    monkeypatch.setattr(spike_cli, "Worker", _FakePairWorker)
+    ksweep = [r for k in (3, 5, 10) for r in _ksweep(k, triangles=1000 + k)]
+    _write_run(tmp_path / "sweep.jsonl", "ksweep", ksweep)
+
+    def one_cell(c: spike_cli.Campaign, k: int, smoke: bool) -> None:
+        c.measure_pair(_pair_request_for_test(k))
+
+    monkeypatch.setitem(spike_cli.BLOCKS, "pair", one_cell)
+    assert spike_cli.run_block("pair", "box-pair", "sweep", results_dir=tmp_path) == 0
+    lines = (tmp_path / "box-pair.jsonl").read_text().splitlines()
+    assert len(lines) == 2
+    header = parse_header(lines[0])
+    assert (header["block"], header["k"]) == ("pair", 3)
+    assert parse_pair_result_row(lines[1])["k"] == 3
+    assert "#### M6 right hand" in capsys.readouterr().out
+    assert "#### M6 right hand" in (tmp_path / "box-pair.md").read_text()
+
+
+def _pair_request_for_test(k: int) -> PairRequest:
+    return {"size": "M6", "d": 6.0, "pitch": 1.0, "m": 5.2, "clearance": 0.10,
+            "rod_left_hand": False, "nut_left_hand": False, "k": k,
+            "poses": [(t, 0.0) for t in maths.MATCHED_POSES]
+            + [(t, 0.5) for t in maths.MATCHED_POSES]}
+
+
+# --- The pair run in the verdict and the campaign driver ---
+
+
+def test_a_clean_campaign_reads_the_pair_run_and_prints_its_section_beside_the_verdict(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _full_campaign(tmp_path)
+    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 0
+    out = capsys.readouterr().out
+    assert "pair (run `c1-pair`, decisive)" in out
+    assert "escape clause: not fired" in out
+    section = out.split("### Pair check (D-11 to D-14)")[1]
+    assert "Locked K = 5" in section
+    assert "- M6: falsifiable on both hands" in section
+    assert "#### Variant rules (reported, never the verdict)" in section
+
+
+def test_a_pair_cell_stored_as_proven_is_judged_again_from_its_readings(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _full_campaign(tmp_path, pair_cells=[
+        _pair(0.10, controls=(0.0, 1.0, 1.0)), _pair(0.10, rod_left=True, nut_left=True),
+        _mixed(0.10, (6.5, 6.9, 6.7))])
+    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 1
+    out = capsys.readouterr().out
+    assert "escape clause: FIRED" in out
+    assert "- pair: not falsifiable for size M6 (right hand)" in out
+
+
+def test_a_mixed_hand_pair_that_did_not_read_violated_fires_the_escape_clause(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _full_campaign(tmp_path, pair_cells=[
+        _pair(0.10), _pair(0.10, rod_left=True, nut_left=True),
+        _mixed(0.10, (6.5, 0.0, 6.7))])
+    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 1
+    out = capsys.readouterr().out
+    assert "- pair: size M6: the mixed-hand pair did not read violated" in out
+    assert "mixed-hand pair read violated at every matched pose: NO" in out
+
+
+def test_a_campaign_without_the_pair_run_is_never_a_pass(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _full_campaign(tmp_path, skip=("pair",))
+    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 1
+    out = capsys.readouterr().out
+    assert "Blocks missing: pair" in out
+    assert "pair: not recorded" in out
+
+
+def test_a_reference_k_cell_is_printed_beside_the_verdict_and_never_changes_it(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _full_campaign(tmp_path, pair_cells=[*_clean_pair_cells(),
+                                         _pair(0.15, k=3, controls=(0.0, 0.0, 0.0))])
+    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 0
+    assert "| M6 | 3 | n/a | n/a | inconclusive | n/a |" in capsys.readouterr().out
+
+
+def test_two_pair_runs_under_a_prefix_are_ambiguous_and_refused(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _full_campaign(tmp_path)
+    _write_pair_run(tmp_path / "c1-pair-again.jsonl", _clean_pair_cells())
+    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 2
+    assert "two runs of block pair" in capsys.readouterr().err
+
+
+def test_a_pair_run_whose_header_has_no_k_is_refused(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _full_campaign(tmp_path)
+    _write_pair_run(tmp_path / "c1-pair.jsonl", _clean_pair_cells(), k=None)
+    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 2
+    assert "has no K in its header" in capsys.readouterr().err
+
+
+def test_a_pair_run_cell_with_an_unknown_key_is_refused_not_read(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _full_campaign(tmp_path)
+    path = tmp_path / "c1-pair.jsonl"
+    path.write_text(path.read_text() + json.dumps(
+        {**_pair(), "verdict": "proven", "reasons": [], "closed_control": 1.0,
+         "hand_edited": True}) + "\n")
+    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 2
+    assert "unknown key 'hand_edited'" in capsys.readouterr().err

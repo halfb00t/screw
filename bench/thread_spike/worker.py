@@ -9,7 +9,8 @@ This process holds the OpenCascade memory and is the one that may segfault, hang
 is why the parent is a separate, kernel-free process (RESEARCH Pattern 3).
 
 It measures; it does not judge. Whether a row is ok is decided by `verdict.classify_row` in the
-parent, against the closed form this process never sees.
+parent, against the closed form this process never sees. A pair request (the one with `poses`) is
+answered by `run_pair` with one reading per pose, judged by `verdict.cell_verdict` the same way.
 """
 
 from __future__ import annotations
@@ -26,14 +27,19 @@ import cadquery as cq
 
 from bench.build_time import stl_size
 from bench.export_cost import gzip_rows, maxrss_bytes, select_gzip_level
-from bench.thread_spike import helical, measure
+from bench.thread_spike import helical, measure, pair
 from bench.thread_spike.maths import TIP_CHAMFER_DEG
 from bench.thread_spike.verdict import (
     GzipEntry,
     MeshRecord,
+    PairCell,
+    PairReading,
+    PairRecord,
+    PairRequest,
     RowRecord,
     RowRequest,
     failed_record,
+    parse_pair_request,
     parse_request,
 )
 
@@ -191,10 +197,65 @@ def run_row(request: RowRequest, *, once: bool = False) -> RowRecord:
     }
 
 
+def run_pair(cell: PairRequest) -> PairRecord:
+    """Build one pair cell and read every requested pose; a Python exception ends the cell as a
+    `failure` that keeps the readings taken so far, the last of them the pose that raised.
+
+    The rod piece and the nut are built once and the nut's precise volume recorded, then each
+    (theta, offset) is a placed nut, a cover check (a nut hanging off the rod is a defect of the
+    harness, raised, never a measurement) and one boolean. Nothing is judged here: the parent
+    holds the closed form and the rules (`verdict.cell_verdict`).
+    """
+    readings: list[PairReading] = []
+    nut_volume: float | None = None
+    pose: tuple[float, float] | None = None
+    try:
+        rod = pair.rod_piece(cell["d"], cell["pitch"], cell["m"], cell["rod_left_hand"],
+                             cell["k"])
+        blank = pair.nut(cell["d"], cell["pitch"], cell["m"], cell["clearance"],
+                         cell["nut_left_hand"], cell["k"])
+        nut_volume = measure.precise_volume(blank)
+        for pose in cell["poses"]:
+            theta, offset = pose
+            placed = pair.place(blank, theta, offset, cell["pitch"], cell["nut_left_hand"])
+            pair.check_cover(rod, placed)
+            volume, solids, errors, warnings, seconds = pair.common(rod, placed)
+            readings.append({
+                "theta": theta, "offset_pitches": offset, "outcome": "built", "solids": solids,
+                "volume": volume, "diag_errors": errors, "diag_warnings": warnings,
+                "seconds": seconds})
+    except Exception as exc:  # any kernel exception is one recorded cell, not a dead worker
+        if pose is not None:
+            readings.append({
+                "theta": pose[0], "offset_pitches": pose[1], "outcome": "failure", "solids": None,
+                "volume": None, "diag_errors": None, "diag_warnings": None, "seconds": None})
+        return {**_echo(cell), "outcome": "failure", "error": f"{type(exc).__name__}: {exc}",
+                "nut_volume": nut_volume, "readings": readings}
+    return {**_echo(cell), "outcome": "built", "error": None, "nut_volume": nut_volume,
+            "readings": readings}
+
+
+def _echo(request: PairRequest) -> PairCell:
+    return {
+        "size": request["size"], "d": request["d"], "pitch": request["pitch"], "m": request["m"],
+        "clearance": request["clearance"], "rod_left_hand": request["rod_left_hand"],
+        "nut_left_hand": request["nut_left_hand"], "k": request["k"],
+    }
+
+
+def _is_pair(line: str) -> bool:
+    """A pair request is the one request with `poses`; the parser refuses anything else that
+    does not carry exactly its key set."""
+    value: object = json.loads(line)
+    return isinstance(value, dict) and "poses" in value
+
+
 def main() -> None:
     once = "--once" in sys.argv[1:]
     for line in sys.stdin:
-        record = run_row(parse_request(line), once=once)
+        record: RowRecord | PairRecord = (
+            run_pair(parse_pair_request(line)) if _is_pair(line)
+            else run_row(parse_request(line), once=once))
         sys.stdout.write(json.dumps(record) + "\n")
         sys.stdout.flush()
         if once:

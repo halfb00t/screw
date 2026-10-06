@@ -8,7 +8,7 @@ closed form and prints a Markdown report. It is not a campaign run: no run id, n
 `bench/RESULTS.md`, and its JSONL goes to a temporary directory. Not part of `make verify`.
 
 `run <block> --run-id ID` runs one campaign block (ksweep, grid, frontier, ladder, controls,
-trim, rss, container) behind the
+trim, rss, pair, container) behind the
 guard and the quiet gate, streaming one JSONL record per row under `bench/results/thread-spike/`
 and printing the Markdown report. A run is never overwritten or retried in place, and K comes
 only from a K-sweep run's own record through the pre-registered rule: there is no way to type
@@ -18,6 +18,11 @@ The rss block runs one fresh `--once` child per row, the only place a peak RSS e
 takes `--frontier-from` for the terminal rows of the frontier walk. The container block runs the
 locked construction over the full grid in the production image under linux/amd64 through the
 same worker protocol, validity, solid count and volume only, never decisive (emulated timings).
+
+The pair block is question 3: per size and hand, a nut against a rod piece read at three matched
+screw-motion poses and three half-pitch controls, each reading judged by `verdict.cell_verdict`
+against the kernel-free closed form (D-11 to D-14). `smoke --pair` reads one cell and prints its
+six readings.
 
 The controls block runs its ruled-surface rows in a second worker whose PYTHONPATH adds the
 scratch directory named by SCREW_SPIKE_CQW, and refuses (exit 2) when the package is not
@@ -49,9 +54,15 @@ from typing import IO, Literal
 from bench import machine_facts
 from bench.quiet import QUIET_CAP_S, QuietResult, Reading, read_now, wait_quiet
 from bench.thread_spike.maths import (
+    CONTROL_OFFSET_PITCHES,
+    DIAGNOSTIC_CLEARANCES,
     FRONTIER_MAX_TURNS,
     INTERIM_PRESETS,
     K_CANDIDATES,
+    MATCHED_POSES,
+    NUT_HEIGHT,
+    PAIR_CLEARANCES,
+    PAIR_REFERENCE_SIZES,
     PITCH,
     RULED_MODULE,
     SAMPLE_SIZES,
@@ -73,28 +84,39 @@ from bench.thread_spike.runner import (
     run_once,
 )
 from bench.thread_spike.verdict import (
+    EMPTY_MM3,
     FINE_CHECK_CEILING,
     GZIP_TABLE_TIMEOUT_S,
+    PAIR_BAND,
+    PAIR_TIMEOUT_S,
     PROTOCOL_PATH,
     ROW_TIMEOUT_S,
     GuardResult,
     HeaderRecord,
+    PairReading,
+    PairRecord,
+    PairRequest,
     Preset,
     RowClass,
     RowRecord,
     RowRequest,
     bytes_over,
     cache_bytes,
+    cell_verdict,
     classify_record,
     classify_row,
+    closed_control,
     closed_of,
     escape_rows,
+    excluded_clearances,
     fine_mesh,
     frontier_stop,
     k_scores,
     known_bad_inputs,
+    mixed_hand_violated,
     over_budget,
     parse_header,
+    parse_pair_result_row,
     parse_result_row,
     pass_bar,
     protocol_guard,
@@ -105,7 +127,10 @@ from bench.thread_spike.verdict import (
     seconds_over,
     select_estimator,
     select_k,
+    sensitivity_ok,
+    size_falsifiable,
     turn_caps,
+    variant_rules,
 )
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -310,6 +335,7 @@ class Campaign:
         self.decisive = decisive
         self._sink = sink
         self.rows: list[Measured] = []
+        self.pairs: list[PairRecord] = []
         self.stops: list[str] = []
         self.notes: list[str] = []
 
@@ -340,6 +366,20 @@ class Campaign:
             self._sink.write(json.dumps(line) + "\n")
             self._sink.flush()
         return measured
+
+    def measure_pair(self, request: PairRequest) -> PairRecord:
+        """One pair cell through the default worker under its own deadline, kept for the report
+        and streamed to the JSONL with the verdict this run drew from it (never trusted later:
+        `verdict` recomputes it)."""
+        record = self._worker.run_pair(request, PAIR_TIMEOUT_S)
+        self.pairs.append(record)
+        if self._sink is not None:
+            verdict, reasons = cell_verdict(record)
+            line = {**record, "verdict": verdict, "reasons": list(reasons),
+                    "closed_control": closed_control(record)}
+            self._sink.write(json.dumps(line) + "\n")
+            self._sink.flush()
+        return record
 
     def set_sink(self, sink: IO[str] | None) -> None:
         self._sink = sink
@@ -562,10 +602,46 @@ def _block_container(c: Campaign, k: int, smoke: bool) -> None:
                 c.measure(_request("void", size, length, left, k), via="container")
 
 
+_MATCHED = tuple((theta, 0.0) for theta in MATCHED_POSES)
+_CONTROLS = tuple((theta, CONTROL_OFFSET_PITCHES) for theta in MATCHED_POSES)
+
+
+def _pair_request(size: str, rod_left: bool, nut_left: bool, clearance: float, k: int,
+                  poses: tuple[tuple[float, float], ...]) -> PairRequest:
+    d, pitch = PITCH[size]
+    return {"size": size, "d": float(d), "pitch": float(pitch), "m": NUT_HEIGHT[size],
+            "clearance": clearance, "rod_left_hand": rod_left, "nut_left_hand": nut_left,
+            "k": k, "poses": list(poses)}
+
+
+def _block_pair(c: Campaign, k: int, smoke: bool) -> None:
+    """Question 3 at the locked K (D-11 to D-14). Per size, both same-hand pairs at every
+    diagnostic and proof clearance, read at the three matched poses and the three half-pitch
+    controls; the mixed pair (right-hand rod, left-hand nut) at every proof clearance, matched
+    poses only; then the two K values other than the locked one on the reference sizes, right
+    hand, proof clearances (reference rows, not verdict inputs, Pitfall 8). A smoke run is one M6
+    right-hand cell at c = 0.10."""
+    if smoke:
+        c.measure_pair(_pair_request("M6", False, False, 0.10, k, _MATCHED + _CONTROLS))
+        return
+    for size in SIZES:
+        for left in (False, True):
+            for clearance in (*DIAGNOSTIC_CLEARANCES, *PAIR_CLEARANCES):
+                c.measure_pair(_pair_request(size, left, left, clearance, k,
+                                             _MATCHED + _CONTROLS))
+        for clearance in PAIR_CLEARANCES:
+            c.measure_pair(_pair_request(size, False, True, clearance, k, _MATCHED))
+    for size in PAIR_REFERENCE_SIZES:
+        for other in (x for x in K_CANDIDATES if x != k):
+            for clearance in PAIR_CLEARANCES:
+                c.measure_pair(_pair_request(size, False, False, clearance, other,
+                                             _MATCHED + _CONTROLS))
+
+
 BLOCKS: dict[str, Callable[[Campaign, int, bool], None]] = {
     "ksweep": _block_ksweep, "grid": _block_grid, "frontier": _block_frontier,
     "ladder": _block_ladder, "controls": _block_controls, "trim": _block_trim,
-    "rss": _block_rss, "container": _block_container,
+    "rss": _block_rss, "pair": _block_pair, "container": _block_container,
 }
 
 
@@ -780,6 +856,165 @@ def container_section(rows: list[RowRecord]) -> list[str]:
     return [f"{len(rows)} rows in `{CONTAINER_IMAGE}` under linux/amd64: {classes}.",
             "Every timing in this run is emulation: validity, solid count and volume are the "
             "measurement, and a timing here feeds no bound (D-05)."]
+
+
+_HANDS = ("right", "left")
+_PAIR_HEAD = ("| c mm | Matched mm3 (-2pi/3, 0, 2pi/3) | Control mm3 (same poses) | "
+              "Control closed form mm3 | Solids matched ; control | Diagnostics (columns only) | "
+              "Cell verdict |")
+_PAIR_RULE = "|---|---|---|---|---|---|---|"
+
+
+def _hand_of(cell: PairRecord) -> str:
+    return "left" if cell["rod_left_hand"] else "right"
+
+
+def _same_hand_cells(cells: list[PairRecord], size: str, hand: str, k: int) -> list[PairRecord]:
+    return sorted((c for c in cells if c["size"] == size and c["k"] == k
+                   and c["rod_left_hand"] == c["nut_left_hand"] and _hand_of(c) == hand),
+                  key=lambda c: c["clearance"])
+
+
+def _vols(readings: list[PairReading]) -> str:
+    return "/".join("n/a" if r["volume"] is None else f"{r['volume']:.6g}" for r in readings)
+
+
+def _solids(readings: list[PairReading]) -> str:
+    return "/".join("n/a" if r["solids"] is None else str(r["solids"]) for r in readings)
+
+
+def _diagnostics(cell: PairRecord) -> str:
+    readings = cell["readings"]
+    if not readings:
+        return "n/a"
+    errors = sum(1 for r in readings if r["diag_errors"])
+    warnings = sum(1 for r in readings if r["diag_warnings"])
+    return f"errors {errors} of {len(readings)}, warnings {warnings} of {len(readings)}"
+
+
+def _pair_row(cell: PairRecord) -> str:
+    matched = [r for r in cell["readings"] if r["offset_pitches"] == 0.0]
+    controls = [r for r in cell["readings"] if r["offset_pitches"] != 0.0]
+    verdict, _ = cell_verdict(cell)
+    shown = "n/a" if cell["outcome"] != "built" else f"{closed_control(cell):.6g}"
+    cells = [f"{cell['clearance']:g}", _vols(matched) or "n/a", _vols(controls) or "n/a", shown,
+             f"{_solids(matched) or 'n/a'} ; {_solids(controls) or 'n/a'}", _diagnostics(cell),
+             verdict if cell["outcome"] == "built" else f"{verdict} ({cell['outcome']})"]
+    return "| " + " | ".join(cells) + " |"
+
+
+def _pair_reasons(cell: PairRecord) -> str | None:
+    verdict, reasons = cell_verdict(cell)
+    if verdict == "proven":
+        return None
+    return (f"- {cell['size']} {_hand_of(cell)} c={cell['clearance']:g}: {verdict}: "
+            f"{'; '.join(reasons) or 'no reason recorded'}")
+
+
+def pair_escapes(cells: list[PairRecord], locked_k: int, sizes: Sequence[str]) -> tuple[str, ...]:
+    """The escape clause of D-14 over the locked-K cells of `sizes`: a size is not falsifiable
+    unless both hands have a proven proof-clearance cell, and a size whose mixed-hand pair did not
+    read violated at every matched pose (or has no mixed cell) fails the rule that a mixed pair
+    must read violated. A size with no cell at all is both."""
+    reasons: list[str] = []
+    for size in sizes:
+        mine = [c for c in cells if c["size"] == size and c["k"] == locked_k]
+        weak = [hand for hand in _HANDS
+                if not size_falsifiable(_same_hand_cells(cells, size, hand, locked_k))]
+        if weak:
+            reasons.append(f"pair: not falsifiable for size {size} ({', '.join(weak)} hand)")
+        if not mixed_hand_violated(mine):
+            reasons.append(f"pair: size {size}: the mixed-hand pair did not read violated at "
+                           "every matched pose")
+    return tuple(reasons)
+
+
+def _yes(flag: bool) -> str:
+    return "yes" if flag else "NO"
+
+
+def pair_section(cells: list[PairRecord], locked_k: int) -> list[str]:
+    """Question 3 for the sizes recorded: per (size, hand) one row per clearance with every
+    volume read, the control's closed form and the cell verdict; then falsifiability, the
+    excluded clearances, the mixed-hand line and the sensitivity line per size; the reference K
+    rows; and the variant rules, which are computed from the same readings and never change the
+    verdict (owner ruling R1)."""
+    if not cells:
+        return ["pair: not recorded"]
+    sizes = [size for size in SIZES if any(c["size"] == size for c in cells)]
+    locked = [c for c in cells if c["k"] == locked_k]
+    lines = [f"Locked K = {locked_k}; every cell below is read at it. A cell is proven only if "
+             f"all 3 matched poses read empty (<= {EMPTY_MM3:g} mm3) and all 3 "
+             f"controls read within {PAIR_BAND:g} of the closed form (D-12, D-14).", ""]
+    for size in sizes:
+        for hand in _HANDS:
+            of_hand = _same_hand_cells(cells, size, hand, locked_k)
+            if not of_hand:
+                continue
+            lines += [f"#### {size} {hand} hand (m = {NUT_HEIGHT[size]:g} mm, UNVERIFIED)", "",
+                      _PAIR_HEAD, _PAIR_RULE, *(_pair_row(c) for c in of_hand), ""]
+            lines += [r for r in (_pair_reasons(c) for c in of_hand) if r is not None]
+            lines.append("")
+    lines += ["#### Falsifiability (D-14)", ""]
+    for size in sizes:
+        weak = [hand for hand in _HANDS
+                if not size_falsifiable(_same_hand_cells(cells, size, hand, locked_k))]
+        lines.append(f"- not falsifiable for size {size} ({', '.join(weak)} hand): the escape "
+                     "clause fires" if weak else f"- {size}: falsifiable on both hands")
+        for hand in _HANDS:
+            of_hand = _same_hand_cells(cells, size, hand, locked_k)
+            if of_hand:
+                dropped = excluded_clearances(of_hand)
+                lines.append(f"- {size} {hand}: excluded clearances "
+                             f"{', '.join(f'{c:g}' for c in dropped) or 'none'}")
+        mixed = [c for c in locked if c["size"] == size and c["rod_left_hand"]
+                 != c["nut_left_hand"]]
+        lines.append(f"- {size}: mixed-hand pair read violated at every matched pose: "
+                     f"{_yes(mixed_hand_violated(mixed))} ({len(mixed)} mixed cells)")
+        for hand in _HANDS:
+            twin = [c for c in _same_hand_cells(cells, size, hand, locked_k)
+                    if c["clearance"] == DIAGNOSTIC_CLEARANCES[1]]
+            if twin:
+                lines.append(f"- {size} {hand}: sensitivity (c = {DIAGNOSTIC_CLEARANCES[1]:g}) "
+                             f"{'ok' if sensitivity_ok(twin[0]) else 'NOT ok'}")
+    reference = [c for c in cells if c["k"] != locked_k]
+    lines += ["", "#### Reference K (reported, not verdict inputs)", ""]
+    if reference:
+        lines += ["| Size | K | " + " | ".join(f"c = {c:g}" for c in PAIR_CLEARANCES) + " |",
+                  "|---|---|" + "---|" * len(PAIR_CLEARANCES)]
+        for size in sizes:
+            for k in sorted({c["k"] for c in reference if c["size"] == size}):
+                verdicts = {c["clearance"]: cell_verdict(c)[0] for c in reference
+                            if c["size"] == size and c["k"] == k}
+                lines.append(f"| {size} | {k} | " + " | ".join(
+                    verdicts.get(c, "n/a") for c in PAIR_CLEARANCES) + " |")
+    else:
+        lines.append("none recorded")
+    rules = variant_rules(locked)
+    names = list(rules)
+    keys = list(dict.fromkeys(key for table in rules.values() for key in table))
+    lines += ["", "#### Variant rules (reported, never the verdict)", "",
+              "Computed from the same recorded readings. The D-14 column is the verdict; the "
+              "others are for Phase 5's revision and never feed it (owner ruling R1).", ""]
+    if keys:
+        proof = {f"{c['size']} {_hand_of(c)} c={c['clearance']:g} K={c['k']}": c for c in locked
+                 if c["rod_left_hand"] == c["nut_left_hand"]}
+        lines += ["| Cell | D-14 verdict | " + " | ".join(names) + " |",
+                  "|---|---|" + "---|" * len(names)]
+        lines += [f"| {key} | {cell_verdict(proof[key])[0]} | "
+                  + " | ".join(_yes(rules[name][key]) for name in names) + " |" for key in keys]
+    else:
+        lines.append("no proof cell recorded")
+    return lines
+
+
+def pair_report(header: list[str], cells: list[PairRecord], locked_k: int, end: Reading) -> str:
+    """The pair run's Markdown: header lines, the pair section, the end reading labelled as
+    including this run's own load. An empty run raises: an empty report reads as a pass."""
+    if not cells:
+        raise ValueError("the pair block produced no cells -- an empty report must be refused")
+    return "\n".join([*header, "", *pair_section(cells, locked_k), "",
+                      _reading_line(end, " (includes this run's own load)")])
 
 
 # What each block adds to its report beyond the per-size aggregate: a title and the lines, as a
@@ -1021,8 +1256,11 @@ def run_block(block: str, run_id: str, k_from: str | None, *,
         else f"- release: container run, non-decisive by construction (gate read at "
              f"{quiet.readings[-1].utc})",
     ]
-    text = report(head_lines, campaign.rows, campaign.stops, read_now(),
-                  _block_extra(block, campaign))
+    if block == "pair":
+        text = pair_report(head_lines, campaign.pairs, DEFAULT_K if k is None else k, read_now())
+    else:
+        text = report(head_lines, campaign.rows, campaign.stops, read_now(),
+                      _block_extra(block, campaign))
     (results_dir / f"{run_id}.md").write_text(text + "\n")
     print(text)
     return 0
@@ -1032,6 +1270,8 @@ def smoke_block(block: str) -> int:
     """A block's code on a smoke subset (sizes M2 and M6, right hand, at most 6 rows, lengths of
     at most 20 turns; frontier: M2's first step; K = 5): no run id, output in a temporary
     directory, the guard informational and the quiet cap 0. Exit 0 only when every row is ok."""
+    if block == "pair":
+        return smoke_pair()
     image: str | None = None
     if block == "container":
         image, why = _image_facts()
@@ -1075,29 +1315,85 @@ def smoke_block(block: str) -> int:
     return 0 if _smoke_passes(block, campaign.rows) else 1
 
 
+def smoke_pair() -> int:
+    """One M6 right-hand pair cell at c = 0.10 and K = 5, its six readings and its verdict
+    against the closed form: no run id, nothing recorded, the guard informational. Exit 0 when
+    the cell ran, whatever the verdict (a false-empty control is a measured outcome, not a defect
+    of the harness), 1 when it failed, timed out or its worker died."""
+    quiet = wait_quiet(cap=0.0)
+    print("## Thread spike smoke: pair")
+    print()
+    for line in _environment_lines():
+        print(line)
+    for reading in quiet.readings:
+        print(_reading_line(reading, " (at start)"))
+    print("- Quiet gate: smoke: quiet gate not waited")
+    guard = read_guard(fetch=False).result
+    state = "held" if guard.held else "refused -- " + "; ".join(guard.reasons)
+    print(f"- Protocol guard (informational in smoke (not fetched); never enforced here): {state}")
+    print()
+    campaign = _make_campaign("pair", quiet.decisive, None, reference_env=None,
+                              frontier_rows=None)
+    try:
+        BLOCKS["pair"](campaign, DEFAULT_K, True)
+    finally:
+        campaign.close()
+    cell = campaign.pairs[0]
+    if cell["outcome"] != "built":
+        print(f"cell {cell['outcome']}: {cell['error']}")
+    else:
+        print("| Pose | theta | Solids | Volume mm3 | Seconds | Diagnostics (columns only) |")
+        print("|---|---|---|---|---|---|")
+        for r in cell["readings"]:
+            pose = "matched" if r["offset_pitches"] == 0.0 else "control"
+            print(f"| {pose} | {r['theta']:+.4f} | {r['solids']} | {r['volume']:.6g} | "
+                  f"{r['seconds']:.1f} | errors {r['diag_errors']}, warnings "
+                  f"{r['diag_warnings']} |")
+        print()
+        print(f"- control closed form: {closed_control(cell):.6g} mm3 "
+              f"(m = {cell['m']:g}, c = {cell['clearance']:g})")
+        verdict, reasons = cell_verdict(cell)
+        print(f"- cell verdict: {verdict}")
+        for reason in reasons:
+            print(f"  - {reason}")
+    print(_reading_line(read_now(), " (includes this run's own load)"))
+    print()
+    print("**SMOKE** -- not a campaign run: no run id, never recorded in bench/RESULTS.md.")
+    return 0 if cell["outcome"] == "built" else 1
+
+
 ROD_BLOCKS = ("ksweep", "grid", "frontier", "ladder")
-# The runs a clean verdict needs: the four rod blocks and the container pass, whose rows count
-# toward the pass bar and the escape clause because production runs in that image (D-05).
-PASS_BLOCKS = (*ROD_BLOCKS, "container")
+# The runs a clean verdict needs: the four rod blocks, the container pass, whose rows count toward
+# the pass bar and the escape clause because production runs in that image (D-05), and the pair
+# block, whose falsifiability is question 3 and fires the escape clause by itself (D-14).
+PASS_BLOCKS = (*ROD_BLOCKS, "pair", "container")
 _NOT_ESTABLISHED = "not established"
 _Runs = dict[str, tuple[HeaderRecord, list[RowRecord]]]
+_PairRun = tuple[HeaderRecord, list[PairRecord]]
 
 
-def _read_runs(prefix: str, results_dir: Path) -> _Runs:
-    """Every `<prefix>-*.jsonl` as (header, rows) by block. Two runs of one block under a prefix
-    are ambiguous and refused: which one is the record?"""
+def _read_runs(prefix: str, results_dir: Path) -> tuple[_Runs, _PairRun | None]:
+    """Every `<prefix>-*.jsonl` as (header, rows) by block, the pair run apart because its rows
+    are cells. Two runs of one block under a prefix are ambiguous and refused: which one is the
+    record?"""
     runs: _Runs = {}
+    pair: _PairRun | None = None
     for path in sorted(results_dir.glob(f"{prefix}-*.jsonl")):
         lines = path.read_text().splitlines()
         if not lines:
             raise ValueError(f"{path.name} is empty")
         header = parse_header(lines[0])
         block = header["block"]
-        if block in runs:
+        taken = pair[0] if block == "pair" and pair is not None else (
+            runs[block][0] if block in runs else None)
+        if taken is not None:
             raise ValueError(f"two runs of block {block} under prefix {prefix!r}: "
-                             f"{runs[block][0]['run_id']!r} and {header['run_id']!r}")
-        runs[block] = (header, [parse_result_row(line) for line in lines[1:]])
-    return runs
+                             f"{taken['run_id']!r} and {header['run_id']!r}")
+        if block == "pair":
+            pair = (header, [parse_pair_result_row(line) for line in lines[1:]])
+        else:
+            runs[block] = (header, [parse_result_row(line) for line in lines[1:]])
+    return runs, pair
 
 
 def _first_over(rows: list[RowRecord], size: str, over: Callable[[RowRecord], bool]) -> str | None:
@@ -1204,11 +1500,12 @@ def verdict_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR) -> int:
               file=sys.stderr)
         return 2
     try:
-        runs = _read_runs(prefix, results_dir)
-        if not runs:
+        runs, pair = _read_runs(prefix, results_dir)
+        if not runs and pair is None:
             print(f"no runs recorded under prefix {prefix!r} in {results_dir}", file=sys.stderr)
             return 1
-        missing = [block for block in PASS_BLOCKS if block not in runs]
+        present = {*runs, *(("pair",) if pair is not None else ())}
+        missing = [block for block in PASS_BLOCKS if block not in present]
         grid_header, grid = _run_of(runs, "grid")
         container_header, container = _run_of(runs, "container")
         grid_bar = (pass_bar(grid, grid_header["decisive"]) if grid_header is not None
@@ -1218,12 +1515,25 @@ def verdict_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR) -> int:
                          else (_NOT_ESTABLISHED, ("no container run",)))
         bar, offenders = _combined_bar([
             grid_bar, (container_bar[0], tuple(f"container {r}" for r in container_bar[1]))])
-        escaped = (*escape_rows(grid), *(f"container {r}" for r in escape_rows(container)))
+        pair_header, pair_cells = pair if pair is not None else (None, [])
+        locked_k = None if pair_header is None else pair_header["k"]
+        if pair_header is not None and locked_k is None:
+            print(f"refused: pair run {pair_header['run_id']!r} has no K in its header",
+                  file=sys.stderr)
+            return 2
+        # Judged for the sizes the campaign covered: the grid's, or all of them when it has none.
+        covered = [s for s in SIZES if any(r["size"] == s for r in grid)] or list(SIZES)
+        pair_escape = (() if locked_k is None
+                       else pair_escapes(pair_cells, locked_k, covered))
+        escaped = (*escape_rows(grid), *(f"container {r}" for r in escape_rows(container)),
+                   *pair_escape)
+        headers = {**{block: head for block, (head, _) in runs.items()},
+                   **({"pair": pair_header} if pair_header is not None else {})}
         lines = [f"## Thread spike verdict: campaign {prefix}", ""]
         lines.append("- Blocks read: " + ", ".join(
-            f"{block} (run `{runs[block][0]['run_id']}`, "
-            f"{'decisive' if runs[block][0]['decisive'] else 'non-decisive'})"
-            for block in dict.fromkeys((*PASS_BLOCKS, *SECTIONS)) if block in runs))
+            f"{block} (run `{headers[block]['run_id']}`, "
+            f"{'decisive' if headers[block]['decisive'] else 'non-decisive'})"
+            for block in dict.fromkeys((*PASS_BLOCKS, *SECTIONS)) if block in headers))
         if missing:
             lines.append("- Blocks missing: " + ", ".join(missing))
         lines += ["", "### K", "", *_k_section(runs), "", "### Volume estimator", "",
@@ -1234,6 +1544,9 @@ def verdict_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR) -> int:
                   *_caps_section(runs), ""]
         for block, (title, build) in SECTIONS.items():
             lines += [title, "", *build(_run_of(runs, block)[1]), ""]
+        lines += ["### Pair check (D-11 to D-14)", "",
+                  *(["pair: not recorded"] if locked_k is None
+                    else pair_section(pair_cells, locked_k)), ""]
     except ValueError as exc:
         print(f"refused: {exc}", file=sys.stderr)
         return 2
@@ -1251,9 +1564,13 @@ def main(argv: list[str] | None = None) -> int:
     commands = parser.add_subparsers(dest="command", required=True)
     smoke_parser = commands.add_parser(
         "smoke", help="build one M6 right-hand 5-turn rod end to end; not a campaign run")
-    smoke_parser.add_argument(
+    smoke_modes = smoke_parser.add_mutually_exclusive_group()
+    smoke_modes.add_argument(
         "--block", choices=tuple(BLOCKS),
         help="run this block's code on a small subset instead; records nothing")
+    smoke_modes.add_argument(
+        "--pair", action="store_true",
+        help="one M6 right-hand pair cell at c = 0.10, K = 5: six readings and the cell verdict")
     commands.add_parser(
         "check-protocol", help="exit 2 unless the protocol is on origin/main (the run guard)")
     verdict_parser = commands.add_parser(
@@ -1279,6 +1596,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "run":
         return run_block(args.block, args.run_id, args.k_from,
                          frontier_from=args.frontier_from)
+    if args.pair:
+        return smoke_pair()
     return smoke() if args.block is None else smoke_block(args.block)
 
 

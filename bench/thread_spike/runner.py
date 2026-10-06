@@ -15,14 +15,19 @@ import subprocess
 import sys
 import tempfile
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import IO
 
 from bench.thread_spike.verdict import (
+    Outcome,
+    PairRecord,
+    PairRequest,
     RowRecord,
     RowRequest,
+    failed_pair_record,
     failed_record,
+    parse_pair_record,
     parse_record,
 )
 
@@ -106,7 +111,7 @@ class Worker:
         self._proc = None
         self._stderr = None
 
-    def _died(self, request: RowRequest) -> RowRecord:
+    def _died(self) -> tuple[Outcome, str]:
         proc = self._proc
         assert proc is not None
         try:
@@ -118,11 +123,12 @@ class Worker:
         self._drop()
         # A negative return code is the signal that killed it (-11: segmentation fault).
         error = f"worker exited with return code {code}"
-        return failed_record(request, "worker_died", f"{error}: {tail}" if tail else error)
+        return "worker_died", f"{error}: {tail}" if tail else error
 
-    def run(self, request: RowRequest, timeout_s: float) -> RowRecord:
-        """One row. Timed out: the child is killed and the request echoed with outcome
-        "timeout". Child gone: outcome "worker_died" with its return code and stderr tail."""
+    def _exchange(self, request: Mapping[str, object],
+                  timeout_s: float) -> str | tuple[Outcome, str]:
+        """One request line out and the record line the child answered, or the outcome and error
+        of why it did not: "timeout" (the child is killed) or "worker_died" (it is gone)."""
         proc = self._proc
         if proc is None or proc.poll() is not None:
             self._drop()
@@ -134,7 +140,7 @@ class Worker:
             stdin.write(json.dumps(request) + "\n")
             stdin.flush()
         except BrokenPipeError:
-            return self._died(request)
+            return self._died()
         lines: queue.Queue[str] = queue.Queue()
         threading.Thread(target=lambda: lines.put(stdout.readline()), daemon=True).start()
         try:
@@ -144,15 +150,35 @@ class Worker:
             self._drop()
             if self._on_timeout is not None:
                 self._on_timeout(spawned)
-            return failed_record(request, "timeout", f"no record within {timeout_s:g} s")
+            return "timeout", f"no record within {timeout_s:g} s"
         if not line.endswith("\n"):  # EOF, or a line cut short by the child dying
-            return self._died(request)
+            return self._died()
+        return line
+
+    def run(self, request: RowRequest, timeout_s: float) -> RowRecord:
+        """One row. Timed out: the child is killed and the request echoed with outcome
+        "timeout". Child gone: outcome "worker_died" with its return code and stderr tail."""
+        answer = self._exchange(request, timeout_s)
+        if not isinstance(answer, str):
+            return failed_record(request, *answer)
         try:
-            return parse_record(line)
+            return parse_record(answer)
         except ValueError as exc:
             # The child spoke, but not our protocol: its state is unknown, so do not reuse it.
             self._drop()
             return failed_record(request, "failure", f"unreadable worker output: {exc}")
+
+    def run_pair(self, request: PairRequest, timeout_s: float) -> PairRecord:
+        """One pair cell, with the same outcomes as `run`: a killed or dead child is one cell
+        with no reading in it, never a lost campaign."""
+        answer = self._exchange(request, timeout_s)
+        if not isinstance(answer, str):
+            return failed_pair_record(request, *answer)
+        try:
+            return parse_pair_record(answer)
+        except ValueError as exc:
+            self._drop()
+            return failed_pair_record(request, "failure", f"unreadable worker output: {exc}")
 
     def close(self) -> None:
         """End the child: EOF on stdin lets it exit, and a child that will not is killed."""
