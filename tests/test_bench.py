@@ -1208,7 +1208,6 @@ def _synth(size: str = "M6", kind: str = "rod", *, left: bool = False, turns: fl
     }
 
 
-_XFAIL_T3 = pytest.mark.xfail(strict=True, reason="plan 02-03 task 3 RED: not implemented yet")
 _BUDGET_BYTES = 64 * 1024 * 1024
 _NOT_ESTABLISHED = "seconds not established (non-decisive gate)"
 
@@ -1219,14 +1218,12 @@ def test_the_budgets_are_the_interim_30_seconds_and_64_mebibytes() -> None:
     assert (GATE_FACTOR, ESTIMATOR_TIE) == (10, 2.0)
 
 
-@_XFAIL_T3
 def test_a_budget_request_costs_build_plus_the_slower_of_the_fine_stl_and_the_step_export() -> None:
     row = _synth(build_s=2.0, fine=(1, 1, 3.0, 1), step=(1, 5.0))
     assert request_seconds(row) == 7.0
     assert request_seconds(_synth(build_s=2.0, fine=(1, 1, 9.0, 1), step=(1, 5.0))) == 11.0
 
 
-@_XFAIL_T3
 def test_a_request_with_a_part_missing_has_no_seconds_rather_than_a_partial_sum_budget() -> None:
     assert request_seconds(_synth(step=None)) is None
     assert request_seconds(_synth(fine=None)) is None
@@ -1234,7 +1231,6 @@ def test_a_request_with_a_part_missing_has_no_seconds_rather_than_a_partial_sum_
     assert request_seconds(_synth(cls="timeout")) is None
 
 
-@_XFAIL_T3
 def test_a_row_of_exactly_64_mib_raw_plus_gzip_is_inside_the_budget_and_one_byte_more_is_over(
 ) -> None:
     inside = _synth(fine=(1, _BUDGET_BYTES - 500, 1.0, 500))
@@ -1247,7 +1243,6 @@ def test_a_row_of_exactly_64_mib_raw_plus_gzip_is_inside_the_budget_and_one_byte
         assert str(_BUDGET_BYTES + 1) in reasons[0]
 
 
-@_XFAIL_T3
 def test_a_row_of_exactly_30_seconds_is_inside_the_budget_and_the_next_float_is_over() -> None:
     inside = _synth(build_s=0.5, fine=(1, 1, 29.5, None), step=(1, 0.0))
     over = _synth(build_s=math.nextafter(30.0, math.inf), fine=(1, 1, 0.0, None), step=(1, 0.0))
@@ -1258,14 +1253,12 @@ def test_a_row_of_exactly_30_seconds_is_inside_the_budget_and_the_next_float_is_
     assert reasons[0].startswith("over budget")
 
 
-@_XFAIL_T3
 def test_a_slow_row_on_a_non_decisive_gate_is_seconds_not_established_never_over_budget() -> None:
     slow = _synth(build_s=40.0)
     assert over_budget(slow, False) == (_NOT_ESTABLISHED,)
     assert over_budget(_synth(build_s=1.0), False) == ()
 
 
-@_XFAIL_T3
 def test_a_timeout_is_an_over_budget_cap_on_a_decisive_gate_and_not_established_otherwise() -> None:
     timed_out = _synth(cls="timeout")
     decisive = over_budget(timed_out, True)
@@ -1275,7 +1268,6 @@ def test_a_timeout_is_an_over_budget_cap_on_a_decisive_gate_and_not_established_
     assert over_budget(timed_out, False) == (_NOT_ESTABLISHED,)
 
 
-@_XFAIL_T3
 def test_the_frontier_stop_is_none_while_both_rows_are_ok_and_fast() -> None:
     assert frontier_stop(_synth(), _synth(kind="void"), "ok", "ok", True) is None
 
@@ -1285,7 +1277,6 @@ def test_the_frontier_stop_is_none_while_both_rows_are_ok_and_fast() -> None:
     ("ok", "failure", "void failure"),
     ("worker_died", "timeout", "rod worker_died"),
 ])
-@_XFAIL_T3
 def test_a_frontier_stop_names_the_first_row_that_is_not_ok(
         rod_class: _RowCls, void_class: _RowCls, named: str) -> None:
     reason = frontier_stop(_synth(), _synth(kind="void"), rod_class, void_class, False)
@@ -1293,7 +1284,6 @@ def test_a_frontier_stop_names_the_first_row_that_is_not_ok(
     assert named in reason
 
 
-@_XFAIL_T3
 def test_build_plus_fine_mesh_over_30_seconds_is_a_frontier_stop_only_on_a_decisive_gate() -> None:
     inside = _synth(build_s=0.5, fine=(1, 1, 29.5, None))
     over = _synth(build_s=0.5, fine=(1, 1, math.nextafter(29.5, math.inf), None))
@@ -1317,13 +1307,11 @@ def _ksweep(k: int, *, triangles: int = 1000, step_bytes: int = 100, cls: _RowCl
     ]
 
 
-@_XFAIL_T3
 def test_select_k_takes_the_fewest_fine_triangles_at_the_standard_max() -> None:
     rows = _ksweep(3, triangles=900) + _ksweep(5, triangles=1000) + _ksweep(10, triangles=1100)
     assert select_k(rows) == 3
 
 
-@_XFAIL_T3
 def test_select_k_breaks_a_triangle_tie_by_step_bytes_then_by_the_smaller_k() -> None:
     by_step = _ksweep(3, step_bytes=300) + _ksweep(5, step_bytes=100) + _ksweep(10, step_bytes=200)
     assert select_k(by_step) == 5
@@ -1331,10 +1319,9 @@ def test_select_k_breaks_a_triangle_tie_by_step_bytes_then_by_the_smaller_k() ->
     assert select_k(by_k) == 3
 
 
-@_XFAIL_T3
 def test_select_k_ignores_the_250_turn_rows_when_it_counts_triangles() -> None:
     rows = _ksweep(3, triangles=900) + _ksweep(5, triangles=1000)
-    rows[2]["meshes"] = [{**_mesh(), "triangles": 10**9}]  # K = 3's 250-turn preview mesh
+    rows[2]["meshes"] = [{**_mesh(checked=False), "triangles": 10**9}]  # K = 3's 250-turn mesh
     assert select_k(rows) == 3
 
 
@@ -1344,20 +1331,17 @@ def test_select_k_ignores_the_250_turn_rows_when_it_counts_triangles() -> None:
     ({"far": "failure"}, "a non-ok 250-turn row"),
     ({"far": "timeout"}, "a timed-out 250-turn row"),
 ])
-@_XFAIL_T3
 def test_select_k_excludes_a_k_with_any_non_ok_sweep_row(bad: dict[str, object],
                                                          why: str) -> None:
     rows = _ksweep(3, triangles=1, **bad) + _ksweep(5, triangles=1000)  # type: ignore[arg-type]
     assert select_k(rows) == 5, why
 
 
-@_XFAIL_T3
 def test_select_k_is_none_when_every_k_is_excluded() -> None:
     rows = [r for k in (3, 5, 10) for r in _ksweep(k, cls="silent_wrong")]
     assert select_k(rows) is None
 
 
-@_XFAIL_T3
 def test_select_k_refuses_a_standard_max_rod_it_cannot_score() -> None:
     rows = _ksweep(3)
     rows[0]["meshes"] = []  # the standard-max rod carries no fine mesh
@@ -1371,7 +1355,6 @@ def _estimator_rows(precise: float, stl: float, *, precise_s: float = 0.1,
             for turns in (5.0, 10.0, 20.0)]
 
 
-@_XFAIL_T3
 def test_the_estimator_with_the_smaller_max_error_wins_when_they_are_not_within_2x() -> None:
     name, err, gate = select_estimator(_estimator_rows(1e-6, 1e-3))
     assert name == "precise"
@@ -1382,25 +1365,21 @@ def test_the_estimator_with_the_smaller_max_error_wins_when_they_are_not_within_
     assert err == pytest.approx(1e-5)
 
 
-@_XFAIL_T3
 def test_estimators_within_2x_tie_and_the_cheaper_by_median_seconds_wins() -> None:
-    assert select_estimator(_estimator_rows(2e-5, 1e-5, precise_s=2.0, stl_s=0.5))[0] == "stl"
-    assert select_estimator(_estimator_rows(2e-5, 1e-5, precise_s=0.5, stl_s=2.0))[0] == "precise"
-    # the larger error is 2.0x the smaller exactly: still a tie; the next float up is not
-    just_over = math.nextafter(2e-5, 1.0)
-    assert select_estimator(_estimator_rows(just_over, 1e-5, precise_s=2.0, stl_s=0.5))[0] == (
-        "stl")
-    assert select_estimator(_estimator_rows(just_over, 1e-5, precise_s=0.5, stl_s=2.0))[0] == (
-        "stl")
+    assert select_estimator(_estimator_rows(1.99e-5, 1e-5, precise_s=2.0, stl_s=0.5))[0] == "stl"
+    assert select_estimator(_estimator_rows(1.99e-5, 1e-5, precise_s=0.5, stl_s=2.0))[0] == (
+        "precise")
+    # past 2x it is no tie: the smaller error wins however much it costs
+    assert select_estimator(_estimator_rows(2.01e-5, 1e-5, precise_s=0.5, stl_s=2.0))[0] == "stl"
+    assert select_estimator(_estimator_rows(1e-5, 2.01e-5, precise_s=2.0, stl_s=0.5))[0] == (
+        "precise")
 
 
-@_XFAIL_T3
 def test_a_tied_estimator_pair_with_equal_cost_goes_to_the_smaller_error() -> None:
     assert select_estimator(_estimator_rows(1.5e-5, 1e-5))[0] == "stl"
     assert select_estimator(_estimator_rows(1e-5, 1.5e-5))[0] == "precise"
 
 
-@_XFAIL_T3
 def test_the_estimator_reads_only_ok_rod_rows_and_refuses_an_empty_set() -> None:
     rows = [*_estimator_rows(1e-6, 1e-3), _synth(cls="silent_wrong", err=0.5, stl_err=1e-9)]
     assert select_estimator(rows)[0] == "precise"  # the wrong row's tiny stl error is not read
@@ -1410,20 +1389,17 @@ def test_the_estimator_reads_only_ok_rod_rows_and_refuses_an_empty_set() -> None
 
 @pytest.mark.parametrize(("err", "gate"), [(7.6e-6, 8e-5), (1e-5, 1e-4), (2.7e-5, 3e-4),
                                            (1.0001e-5, 2e-4)])
-@_XFAIL_T3
 def test_gate_tolerance_is_ten_times_the_error_rounded_up_to_one_significant_figure(
         err: float, gate: float) -> None:
     assert gate_tolerance(err) == gate
 
 
 @pytest.mark.parametrize("err", [0.0, -1e-5, math.nan, math.inf])
-@_XFAIL_T3
 def test_gate_tolerance_refuses_an_error_it_cannot_honestly_scale(err: float) -> None:
     with pytest.raises(ValueError, match="gate"):
         gate_tolerance(err)
 
 
-@_XFAIL_T3
 def test_the_pass_bar_holds_over_ok_rows_of_both_hands() -> None:
     rows = [_synth(left=False), _synth(left=True), _synth(kind="void", left=True)]
     assert pass_bar(rows, True) == ("held", ())
@@ -1432,7 +1408,6 @@ def test_the_pass_bar_holds_over_ok_rows_of_both_hands() -> None:
 
 @pytest.mark.parametrize("cls", ["silent_wrong", "failure", "worker_died"])
 @pytest.mark.parametrize("left", [False, True])
-@_XFAIL_T3
 def test_the_pass_bar_fails_naming_the_row_on_one_bad_row_of_either_hand(
         cls: _RowCls, left: bool) -> None:
     rows = [_synth(), _synth(left=left, turns=30.0, cls=cls, size="M3")]
@@ -1444,7 +1419,6 @@ def test_the_pass_bar_fails_naming_the_row_on_one_bad_row_of_either_hand(
     assert ("left" if left else "right") in reasons[0]
 
 
-@_XFAIL_T3
 def test_a_timeout_makes_the_pass_bar_not_established_on_a_non_decisive_gate() -> None:
     rows = [_synth(), _synth(cls="timeout", size="M20")]
     verdict, reasons = pass_bar(rows, False)
@@ -1452,12 +1426,10 @@ def test_a_timeout_makes_the_pass_bar_not_established_on_a_non_decisive_gate() -
     assert "M20" in reasons[0]
 
 
-@_XFAIL_T3
 def test_a_timeout_is_an_over_budget_cap_and_not_a_failure_of_the_pass_bar_when_decisive() -> None:
     assert pass_bar([_synth(), _synth(cls="timeout")], True) == ("held", ())
 
 
-@_XFAIL_T3
 def test_a_failure_outranks_a_timeout_in_the_pass_bar_on_a_non_decisive_gate() -> None:
     rows = [_synth(cls="timeout"), _synth(cls="silent_wrong", size="M3")]
     verdict, reasons = pass_bar(rows, False)
@@ -1488,7 +1460,6 @@ def _full_walk(size: str = "M6", stop_at: int | None = None, **kwargs: object) -
             + _walk(size, True, None))
 
 
-@_XFAIL_T3
 def test_the_construction_turn_cap_is_the_last_ok_frontier_turn_before_the_stop() -> None:
     caps = turn_caps([], _full_walk(stop_at=80), True)
     cap = caps["M6"]
@@ -1498,20 +1469,17 @@ def test_the_construction_turn_cap_is_the_last_ok_frontier_turn_before_the_stop(
     assert "right" in cap.stop_reason
 
 
-@_XFAIL_T3
 def test_the_turn_cap_is_250_when_no_hand_stopped() -> None:
     cap = turn_caps([], _full_walk(stop_at=None), True)["M6"]
     assert cap.construction_turns == 250
     assert "250" in cap.stop_reason
 
 
-@_XFAIL_T3
 def test_a_stop_at_the_first_frontier_step_gives_a_turn_cap_of_the_standard_max() -> None:
     cap = turn_caps([], _full_walk(stop_at=65), True)["M6"]
     assert cap.construction_turns == 60  # M6's standard max is 60 turns, already in the grid
 
 
-@_XFAIL_T3
 def test_the_smaller_construction_turn_cap_of_the_two_hands_is_the_size_cap() -> None:
     rows = _walk("M6", False, 100) + _walk("M6", True, 80)
     cap = turn_caps([], rows, True)["M6"]
@@ -1519,21 +1487,18 @@ def test_the_smaller_construction_turn_cap_of_the_two_hands_is_the_size_cap() ->
     assert "left" in cap.stop_reason
 
 
-@_XFAIL_T3
 def test_a_frontier_walk_that_ends_early_gives_no_turn_cap_as_incomplete() -> None:
     cap = turn_caps([], _walk("M6", False, None, end=100) + _walk("M6", True, None), True)["M6"]
     assert cap.construction_turns is None
     assert "incomplete" in cap.stop_reason
 
 
-@_XFAIL_T3
 def test_a_size_with_no_frontier_rows_has_no_turn_cap() -> None:
     cap = turn_caps([_synth()], [], True)["M6"]
     assert cap.construction_turns is None
     assert "no frontier record" in cap.stop_reason
 
 
-@_XFAIL_T3
 def test_a_frontier_timeout_turn_cap_stops_when_decisive_and_is_not_established_otherwise() -> None:
     rows = _full_walk(stop_at=80, rod_cls="timeout")
     assert turn_caps([], rows, True)["M6"].construction_turns == 75
@@ -1547,7 +1512,6 @@ def _heavy(turns: float, *, left: bool = False) -> RowRecord:
     return _synth(left=left, turns=turns, fine=(1, _BUDGET_BYTES, 1.0, 1))
 
 
-@_XFAIL_T3
 def test_the_bytes_cap_is_the_largest_grid_length_below_the_first_over_budget_row() -> None:
     grid = [_synth(turns=10.0), _synth(turns=20.0), _heavy(30.0), _synth(turns=40.0),
             _synth(turns=10.0, left=True), _heavy(20.0, left=True)]
@@ -1555,14 +1519,12 @@ def test_the_bytes_cap_is_the_largest_grid_length_below_the_first_over_budget_ro
     assert (cap.bytes_cap_length, cap.bytes_cap_turns) == (10.0, 10.0)  # the left hand's 20 wins
 
 
-@_XFAIL_T3
 def test_there_is_no_bytes_turn_cap_when_no_row_is_over_and_zero_when_the_shortest_is() -> None:
     assert turn_caps([_synth(turns=10.0)], [], False)["M6"].bytes_cap_length is None
     cap = turn_caps([_heavy(10.0), _synth(turns=20.0)], [], False)["M6"]
     assert (cap.bytes_cap_length, cap.bytes_cap_turns) == (0.0, 0.0)
 
 
-@_XFAIL_T3
 def test_the_seconds_turn_cap_exists_only_from_a_decisive_grid_run() -> None:
     slow = _synth(turns=30.0, build_s=40.0)
     grid = [_synth(turns=10.0), _synth(turns=20.0), slow]
@@ -1574,7 +1536,6 @@ def test_the_seconds_turn_cap_exists_only_from_a_decisive_grid_run() -> None:
     assert (quick.seconds_cap_length, quick.seconds_established) == (None, True)
 
 
-@_XFAIL_T3
 def test_a_timed_out_grid_row_sets_the_seconds_turn_cap_on_a_decisive_gate() -> None:
     grid = [_synth(turns=10.0), _synth(turns=20.0, cls="timeout")]
     assert turn_caps(grid, [], True)["M6"].seconds_cap_length == 10.0

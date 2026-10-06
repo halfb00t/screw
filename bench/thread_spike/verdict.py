@@ -13,9 +13,20 @@ from __future__ import annotations
 
 import json
 import math
+import statistics
 from collections.abc import Callable
 from dataclasses import dataclass
+from decimal import ROUND_CEILING, Decimal
 from typing import Literal, NoReturn, TypedDict
+
+from bench.thread_spike.maths import (
+    FRONTIER_MAX_TURNS,
+    K_CANDIDATES,
+    PITCH,
+    closed_volume,
+    standard_max,
+    turns_of,
+)
 
 # Relative tolerance of the precise volume against the closed form. The research maximum was
 # 7.6e-6 over 576 sewn rows (R10) and the naive construction's defect is about 0.76, so 1e-4
@@ -512,38 +523,226 @@ def protocol_guard(local_text: str | None, main_text: str | None, *, fetched: bo
     return GuardResult(held=not reasons, reasons=tuple(reasons))
 
 
-def request_seconds(record: RowRecord) -> float | None:  # noqa: ARG001
-    return -1.0
+# The rules below judge rod campaign rows. Each was written before any data existed and states
+# so: a rule that could be tuned after the fact proves nothing (D-17).
 
 
-def over_budget(record: RowRecord, decisive: bool) -> tuple[str, ...]:  # noqa: ARG001
-    return ("stub",)
+def closed_of(record: RowRecord) -> float:
+    """The closed form of this row's own section and length, kernel-free."""
+    return closed_volume(record["d"], record["pitch"], record["length"], record["clearance"])
 
 
-def frontier_stop(rod: RowRecord, void: RowRecord, rod_class: RowClass,  # noqa: ARG001
-                  void_class: RowClass, decisive: bool) -> str | None:  # noqa: ARG001
-    return "stub"
+def row_class(record: RowRecord) -> RowClass:
+    """The row's class recomputed from the raw record: a stored class is never trusted."""
+    return classify_row(record, closed_of(record))[0]
 
 
-def select_k(rows: list[RowRecord]) -> int | None:  # noqa: ARG001
-    return -1
+def row_label(record: RowRecord) -> str:
+    hand = "left" if record["left_hand"] else "right"
+    return f"{record['size']} {hand} L={record['length']:g} {record['kind']}"
 
 
-def select_estimator(rows: list[RowRecord]) -> tuple[str, float, float]:  # noqa: ARG001
-    return ("stub", -1.0, -1.0)
+def _fine_mesh(record: RowRecord) -> MeshRecord | None:
+    for mesh in record["meshes"] or []:
+        if mesh["preset"] == "fine":
+            return mesh
+    return None
 
 
-def gate_tolerance(max_abs_err: float) -> float:  # noqa: ARG001
-    return -1.0
+def request_seconds(record: RowRecord) -> float | None:
+    """What one cold request costs: build plus the slower of the fine STL and the STEP export,
+    the shape of `bench.build_time`'s "build + slower export". `None` when any part is missing,
+    never a partial sum (L02)."""
+    fine = _fine_mesh(record)
+    build_s, step_s = record["build_s"], record["step_s"]
+    if fine is None or build_s is None or step_s is None:
+        return None
+    return build_s + max(fine["mesh_s"], step_s)
 
 
-def pass_bar(rows: list[RowRecord], decisive: bool,  # noqa: ARG001
+def _cache_bytes(record: RowRecord) -> int | None:
+    """Fine STL raw plus its gzip-1: the two encodings the export cache holds (D-10)."""
+    fine = _fine_mesh(record)
+    if fine is None or fine["gzip1_bytes"] is None:
+        return None
+    return fine["bytes"] + fine["gzip1_bytes"]
+
+
+def bytes_over(record: RowRecord) -> bool:
+    """Over the 64 MiB cache budget. Integers, so exactly 64 MiB is inside and a byte more is
+    over; it needs no quiet host, so it holds on any run."""
+    total = _cache_bytes(record)
+    return total is not None and total > BUDGET_BYTES
+
+
+def seconds_over(record: RowRecord) -> bool:
+    """Over the 30 s budget by the clock, or killed by the row timeout (4 x the budget). Only a
+    decisive run may say so (`over_budget`): a load-slowed row is not a slow construction."""
+    if record["outcome"] == "timeout":
+        return True
+    seconds = request_seconds(record)
+    return seconds is not None and seconds > BUDGET_S
+
+
+SECONDS_NOT_ESTABLISHED = "seconds not established (non-decisive gate)"
+
+
+def over_budget(record: RowRecord, decisive: bool) -> tuple[str, ...]:
+    """Why this row is over budget (D-10), one reason per budget. Over budget caps a size; it
+    is never an escape. The bytes clause holds on any run. The seconds clause is a timing claim:
+    on a non-decisive gate it reads `SECONDS_NOT_ESTABLISHED` and never "over" (owner ruling R4).
+    Fixed before any data."""
+    reasons: list[str] = []
+    total = _cache_bytes(record)
+    if total is not None and total > BUDGET_BYTES:
+        reasons.append(f"over budget: fine raw + gzip-1 {total} bytes > {BUDGET_BYTES}")
+    if seconds_over(record):
+        seconds = request_seconds(record)
+        if not decisive:
+            reasons.append(SECONDS_NOT_ESTABLISHED)
+        elif seconds is None:
+            reasons.append(f"over budget: timeout, no record within {ROW_TIMEOUT_S:g} s")
+        else:
+            reasons.append(f"over budget: build + slower export {seconds!r} s > {BUDGET_S:g} s")
+    return tuple(reasons)
+
+
+def frontier_stop(rod: RowRecord, void: RowRecord, rod_class: RowClass, void_class: RowClass,
+                  decisive: bool) -> str | None:
+    """Why the walk up the frontier stops after this step, or `None` to take the next one
+    (D-04): the rod or the void is not ok, naming which and its class; or, on a decisive gate
+    only, build + fine mesh exceeded 30 s. A non-decisive run never stops on the clock, because
+    a loaded host proves nothing about the construction (owner ruling R4). Written before any
+    data."""
+    where = f"at {rod['turns']:g} turns"
+    if rod_class != "ok":
+        return f"rod {rod_class} {where}"
+    if void_class != "ok":
+        return f"void {void_class} at {void['turns']:g} turns"
+    fine, build_s = _fine_mesh(rod), rod["build_s"]
+    if decisive and fine is not None and build_s is not None:
+        seconds = build_s + fine["mesh_s"]
+        if seconds > BUDGET_S:
+            return f"build + fine mesh {seconds:.2f} s > {BUDGET_S:g} s {where}"
+    return None
+
+
+def _at_standard_max(record: RowRecord) -> bool:
+    return record["length"] == float(standard_max(PITCH[record["size"]][0]))
+
+
+def select_k(rows: list[RowRecord]) -> int | None:
+    """The segment length K the grid is locked to (D-07), from the K sweep's rows. A K
+    qualifies when it has rows and every one is ok (so no failure, no silent_wrong, every precise
+    error inside T_PASS, at the standard max and at 250 turns, both hands). Among those: the
+    fewest fine triangles summed over its standard-max rod rows, then fewer STEP bytes, then the
+    smaller K. `None` when none qualifies. Written before any data; nobody tunes it toward a
+    pass. A standard-max rod row with no fine mesh or STEP cannot be scored and is refused."""
+    best: tuple[tuple[int, int, int], int] | None = None
+    for k in K_CANDIDATES:
+        mine = [r for r in rows if r["k"] == k]
+        if not mine or any(row_class(r) != "ok" for r in mine):
+            continue
+        top = [r for r in mine if r["kind"] == "rod" and _at_standard_max(r)]
+        if not top:
+            raise ValueError(f"K = {k} has no standard-max rod row to score")
+        triangles = step_bytes = 0
+        for r in top:
+            fine, step = _fine_mesh(r), r["step_bytes"]
+            if fine is None or step is None:
+                raise ValueError(f"{row_label(r)} at K = {k} has no fine mesh or no STEP, "
+                                 "so it cannot be scored")
+            triangles += fine["triangles"]
+            step_bytes += step
+        key = (triangles, step_bytes, k)
+        if best is None or key < best[0]:
+            best = (key, k)
+    return None if best is None else best[1]
+
+
+def gate_tolerance(max_abs_err: float) -> float:
+    """The shipped gate's tolerance: GATE_FACTOR times the estimator's largest error on passing
+    rows, rounded up to one significant figure (7.6e-6 gives 8e-5, 1e-5 gives 1e-4). Decimal
+    arithmetic on the printed value so 1e-5 times 10 does not round up on float noise. Written
+    before any data (D-09, D-20)."""
+    if not math.isfinite(max_abs_err) or max_abs_err <= 0:
+        raise ValueError(f"no gate can be derived from a max abs error of {max_abs_err!r}")
+    scaled = Decimal(repr(max_abs_err)) * GATE_FACTOR
+    step = Decimal(1).scaleb(scaled.adjusted())
+    return float((scaled / step).to_integral_value(rounding=ROUND_CEILING) * step)
+
+
+def select_estimator(rows: list[RowRecord]) -> tuple[str, float, float]:
+    """The volume estimator to ship (D-20): `precise` (`BRepGProp`, eps 1e-6) or `stl` (the
+    preview mesh's signed volume), compared over the ok rod rows that have a checked preview
+    mesh by the largest absolute error against the closed form. When the larger error is within
+    ESTIMATOR_TIE times the smaller the two tie and the cheaper by median seconds wins (then the
+    smaller error); otherwise the smaller error wins. Returns the name, its largest error and
+    `gate_tolerance` of it. The default `Volume()` is a reference column and not a candidate.
+    Written before any data."""
+    precise_errs: list[float] = []
+    stl_errs: list[float] = []
+    precise_s: list[float] = []
+    stl_s: list[float] = []
+    for r in rows:
+        precise, volume_s = r["precise_volume"], r["volume_s"]
+        previews = [m for m in r["meshes"] or [] if m["preset"] == "preview" and m["checked"]]
+        if r["kind"] != "rod" or row_class(r) != "ok" or not previews:
+            continue
+        preview = previews[0]
+        stl, check_s = preview["stl_volume"], preview["check_s"]
+        if precise is None or volume_s is None or stl is None or check_s is None:
+            raise ValueError(f"{row_label(r)} is ok and checked but carries no volume")
+        closed = closed_of(r)
+        precise_errs.append(abs(relative_error(precise, closed)))
+        stl_errs.append(abs(relative_error(stl, closed)))
+        precise_s.append(volume_s)
+        stl_s.append(preview["mesh_s"] + check_s)
+    if not precise_errs:
+        raise ValueError("no ok rod row with a checked preview mesh to compare the estimators on")
+    candidates = [("precise", max(precise_errs), statistics.median(precise_s)),
+                  ("stl", max(stl_errs), statistics.median(stl_s))]
+    smaller, larger = sorted(candidates, key=lambda c: c[1])
+    if larger[1] <= ESTIMATOR_TIE * smaller[1]:
+        name, err, _ = min(candidates, key=lambda c: (c[2], c[1]))
+    else:
+        name, err, _ = smaller
+    return name, err, gate_tolerance(err)
+
+
+def pass_bar(rows: list[RowRecord], decisive: bool,
              ) -> tuple[Literal["held", "failed", "not established"], tuple[str, ...]]:
-    return ("not established", ("stub", "stub"))
+    """The pre-registered pass bar over the allowed grid (D-09), both hands, rod and void: any
+    silent_wrong, failure or worker_died row fails it, naming the row. A timeout is an
+    over-budget cap on a decisive gate (D-10) and leaves the bar held; on a non-decisive gate the
+    row's validity is unknown, so the bar is not established, which is not an escape either
+    (owner ruling R4). A failure outranks a timeout. Written before any data."""
+    failed: list[str] = []
+    timed_out: list[str] = []
+    for r in rows:
+        cls = row_class(r)
+        if cls in ("silent_wrong", "failure", "worker_died"):
+            failed.append(f"{row_label(r)}: {cls}")
+        elif cls == "timeout":
+            timed_out.append(f"{row_label(r)}: timeout")
+    if failed:
+        return "failed", tuple(failed)
+    if timed_out and not decisive:
+        return "not established", tuple(timed_out)
+    return "held", ()
 
 
 @dataclass(frozen=True)
 class TurnCap:
+    """One size's caps (D-04, D-10), each with the reason it is what it is.
+
+    `construction_turns`: the last ok frontier turn count before the stop, `None` when no cap can
+    be claimed (no record, an incomplete walk, a timeout stop on a non-decisive gate).
+    `bytes_cap_length` (mm) and `bytes_cap_turns`: the largest grid length below the first
+    over-budget row, `None` when no row is over and 0.0 when even the shortest is.
+    `seconds_cap_length` follows the same rule but only from a decisive run; `seconds_established`
+    says whether it could be claimed at all."""
+
     size: str
     construction_turns: float | None
     stop_reason: str
@@ -553,6 +752,79 @@ class TurnCap:
     seconds_established: bool
 
 
-def turn_caps(grid_rows: list[RowRecord], frontier_rows: list[RowRecord],  # noqa: ARG001
-              decisive: bool) -> dict[str, TurnCap]:  # noqa: ARG001
-    return {"M6": TurnCap("stub", -1.0, "stub", -1.0, -1.0, -1.0, False)}
+def _hand_cap(size: str, hand: str, rows: list[RowRecord], decisive: bool,
+              ) -> tuple[float | None, str]:
+    """One hand's frontier walk: step through the recorded turn counts in order and stop where
+    `frontier_stop` says. Its cap is the last ok step, or the standard max when the very first
+    step stopped (that length is already in the grid)."""
+    d, pitch = PITCH[size]
+    standard_turns = float(turns_of(standard_max(d), pitch))
+    steps: dict[float, dict[str, RowRecord]] = {}
+    for r in rows:
+        steps.setdefault(r["turns"], {})[r["kind"]] = r
+    last_ok: float | None = None
+    for turns in sorted(steps):
+        rod, void = steps[turns].get("rod"), steps[turns].get("void")
+        if rod is None or void is None:
+            raise ValueError(f"frontier step {turns:g} of {size} {hand} lacks its rod or void row")
+        classes = (row_class(rod), row_class(void))
+        stop = frontier_stop(rod, void, classes[0], classes[1], decisive)
+        if stop is None:
+            last_ok = turns
+            continue
+        if "timeout" in classes and not decisive:
+            return None, f"{hand}: {stop}; a timeout on a non-decisive gate is not established"
+        return (standard_turns if last_ok is None else last_ok), f"{hand}: {stop}"
+    assert last_ok is not None  # the caller passes at least one row
+    if last_ok != FRONTIER_MAX_TURNS:
+        return None, f"{hand}: frontier walk incomplete, last measured {last_ok:g} turns"
+    return float(FRONTIER_MAX_TURNS), f"{hand}: no stop up to {FRONTIER_MAX_TURNS} turns"
+
+
+def _construction_cap(size: str, rows: list[RowRecord], decisive: bool,
+                      ) -> tuple[float | None, str]:
+    """The smaller of the two hands' caps, with the limiting hand's reason."""
+    if not rows:
+        return None, "no frontier record"
+    caps: list[tuple[float, str]] = []
+    for hand, left in (("right", False), ("left", True)):
+        mine = [r for r in rows if r["left_hand"] == left]
+        if not mine:
+            return None, f"no frontier record for the {hand} hand"
+        cap, reason = _hand_cap(size, hand, mine, decisive)
+        if cap is None:
+            return None, reason
+        caps.append((cap, reason))
+    return min(caps)
+
+
+def _length_cap(rows: list[RowRecord], over: Callable[[RowRecord], bool]) -> float | None:
+    """The largest length below the first (shortest) row `over` budget, across both hands:
+    `None` when no row is over, 0.0 when no length is below the first that is."""
+    over_lengths = [r["length"] for r in rows if over(r)]
+    if not over_lengths:
+        return None
+    first = min(over_lengths)
+    return max((r["length"] for r in rows if r["length"] < first), default=0.0)
+
+
+def turn_caps(grid_rows: list[RowRecord], frontier_rows: list[RowRecord],
+              decisive: bool) -> dict[str, TurnCap]:
+    """Per size: the construction cap from the frontier walk (D-04), the bytes cap from the grid
+    (always established, integers) and the seconds cap from the grid (only when `decisive`,
+    D-10). The smaller of them is Phase 3's cap-and-warn input; this returns all three with
+    their reasons rather than hiding which one binds. Sizes with no rows are absent: the
+    caller reports them missing. Written before any data."""
+    caps: dict[str, TurnCap] = {}
+    for size, (_, pitch) in PITCH.items():
+        grid = [r for r in grid_rows if r["size"] == size and r["kind"] == "rod"]
+        frontier = [r for r in frontier_rows if r["size"] == size]
+        if not grid and not frontier:
+            continue
+        construction, reason = _construction_cap(size, frontier, decisive)
+        by_bytes = _length_cap(grid, bytes_over)
+        by_seconds = _length_cap(grid, seconds_over) if decisive else None
+        caps[size] = TurnCap(
+            size, construction, reason, by_bytes,
+            None if by_bytes is None else by_bytes / float(pitch), by_seconds, decisive)
+    return caps
