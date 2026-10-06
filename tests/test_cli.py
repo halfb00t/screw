@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import re
+import shlex
 import struct
 import subprocess
 import sys
@@ -158,3 +159,23 @@ def test_serve_runs_uvicorn_on_the_app_without_its_own_log_config(
     assert calls == [(("screw.app:app",), {
         "host": "127.0.0.1", "port": 8000, "workers": 1, "root_path": "",
         "proxy_headers": True, "log_config": None})]
+
+
+def test_readme_cli_examples_run(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Every `.venv/bin/screw` command the README shows runs as written (-o aside)."""
+    readme = (Path(__file__).parents[1] / "README.md").read_text()
+    lines = re.findall(r"^[ \t]+\.venv/bin/screw (.+)$", readme, re.MULTILINE)
+    # A regex that stops matching must fail the test, not pass it vacuously.
+    assert len(lines) >= 2
+    for n, line in enumerate(lines):
+        args = shlex.split(line.split("#", 1)[0])
+        capsys.readouterr()
+        if args[0] == "export":
+            at = args.index("-o") + 1
+            out = tmp_path / f"{n}{Path(args[at]).suffix}"
+            args[at] = str(out)
+            cli.main(args)
+            assert out.stat().st_size > 0
+        else:
+            cli.main(args)
+            assert json.loads(capsys.readouterr().out)["kind"] == "bolt"
