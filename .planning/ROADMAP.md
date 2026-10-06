@@ -93,7 +93,32 @@ Plans:
   4. A new decision entry records the construction chosen, the volume estimator chosen, the turn cap per size, and the ISO 68-1:2023 profile (basic or design) pinned after the standard was read, and no field that builds a thread exists in `src/` when it is committed.
   5. If the pair check cannot be made falsifiable, or the worst case trips the escape clause, the spike says so and the roadmap is revised before Phase 5 is planned; no constant is tuned toward a pass.
 
-**Plans**: TBD
+**Plans**: 8 plans (two PRs, D-19: plans 01-06 are PR 1 on `gsd/phase-02-thread-spike`; plans 07-08 are PR 2 on `gsd/phase-02-thread-spike-runs`, cut from `origin/main` after PR 1 lands)
+
+Plans:
+**Wave 1**
+- [ ] 02-01-PLAN.md — Owner checkpoint: read ISO 68-1:2023, pin the profile, rule on R0-R5; record them in 02-SPIKE.md
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 02-02-PLAN.md — Tracer: one sewn rod row end to end (quiet gate, worker, closed form, verdict, report); the pre-registration guard
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 02-03-PLAN.md — Exact D-03 grid and D-04 frontier, K sweep, mesh ladder, guarded blocks, verdict rules
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 02-04-PLAN.md — Negative control, one-pipe and ruled-surface reference (legitimacy checkpoint), tip trim, fresh-child RSS, container pass
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 02-05-PLAN.md — Pair check with half-pitch controls and closed-form oracle; one guarded campaign command
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 02-06-PLAN.md — Pre-register the protocol, other-CLI review, land PR 1 with make pr.land
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 02-07-PLAN.md — Owner runs the campaign on a quiet host; every block recorded verbatim in bench/RESULTS.md
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [ ] 02-08-PLAN.md — Reproducible verdict, Results/Verdict by citation, owner decision, L11
 
 ### Phase 3: Real Helical Thread
 
@@ -182,7 +207,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 2 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Runtime Port and Walking Skeleton | 10/10 | Complete    | 2026-10-06 |
-| 2. Thread Spike | 0/TBD | Not started | - |
+| 2. Thread Spike | 0/8 | Not started | - |
 | 3. Real Helical Thread | 0/TBD | Not started | - |
 | 4. ISO Hex Bolts and Screws | 0/TBD | Not started | - |
 | 5. Hex Nut and Kernel Pair Proof | 0/TBD | Not started | - |
