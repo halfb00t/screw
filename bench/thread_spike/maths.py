@@ -40,6 +40,27 @@ PITCH: dict[str, tuple[Fraction, Fraction]] = {
 
 SIZES: tuple[str, ...] = tuple(PITCH)
 
+# ISO 4017 greatest standard length <= 10d or 200 mm (D-03). The 200 mm cap is a preview value,
+# UNVERIFIED until Phase 4's row tests.
+LENGTH_CAP_DIAMETERS = 10
+LENGTH_CAP_MM = Fraction(200)
+# The failure frontier beyond the standard max: 5 turns a step (D-04) up to 250 turns, the
+# research's measured ceiling for sewn twist (STACK section A: 0 of 166 failures up to 250 turns).
+FRONTIER_STEP_TURNS = 5
+FRONTIER_MAX_TURNS = 250
+# The sizes the K sweep, the reference rows and the ladder run on (RESEARCH Open Question 7):
+# the six trim-probe sizes plus the odd pitches M2.5 and M8.
+SAMPLE_SIZES: tuple[str, ...] = ("M2", "M2.5", "M3", "M6", "M8", "M10", "M16", "M20")
+# Segment lengths in turns swept before K is locked for the grid (D-07).
+K_CANDIDATES: tuple[int, ...] = (3, 5, 10)
+# Radial clearance in mm of the void every grid and frontier row builds: the upper end of D-11's
+# proof bracket, the outline furthest from the rod section the research verified.
+VOID_CLEARANCE = 0.20
+# The mesh ladder is a fraction of the thread depth h = 5H/8 (CONTEXT discretion): h/4 ... h/32
+# at angular 0.5. Triangles scale about with 1/deflection (RESEARCH Pattern 7).
+DEPTH_FRACTIONS: tuple[int, ...] = (4, 8, 16, 32)
+LADDER_ANGULAR = 0.5
+
 # INTERIM (Phase 1 D-01): (linear deflection mm, angular deflection rad), carried from spur
 # model.py:53. Equal to `screw.solid.TESSELLATION`; tests/test_bench.py pins the equality so
 # this kernel-free module need not import the kernel to read it.
@@ -96,3 +117,27 @@ def section_area(d: float, pitch: float, clearance: float = 0.0) -> float:
 def closed_volume(d: float, pitch: float, length: float, clearance: float = 0.0) -> float:
     """Volume of a rod of `length`: the section is the same at every z, so area times length."""
     return section_area(d, pitch, clearance) * length
+
+
+def standard_max(d: Fraction) -> Fraction:
+    return d
+
+
+def lengths(d: Fraction, pitch: Fraction, lower: Fraction | None = None) -> list[Fraction]:
+    return [lower or d + pitch]
+
+
+def is_integer_turn(length: Fraction, pitch: Fraction) -> bool:
+    return length < pitch
+
+
+def turns_of(length: Fraction, pitch: Fraction) -> Fraction:
+    return length * pitch
+
+
+def frontier_turns(d: Fraction, pitch: Fraction) -> list[int]:
+    return [int(d / pitch)]
+
+
+def depth_presets(pitch: float) -> list[tuple[str, float, float]]:
+    return [("h", pitch, LADDER_ANGULAR)]

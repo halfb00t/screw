@@ -28,6 +28,7 @@ import struct
 import subprocess
 import sys
 from collections.abc import Iterable, Sequence
+from fractions import Fraction
 from pathlib import Path
 from typing import Literal
 
@@ -453,6 +454,110 @@ def test_the_interim_presets_equal_the_ones_the_service_ships() -> None:
     """The kernel-free spike module copies the INTERIM presets so it need not import the
     kernel to read them; this pins that the copy cannot drift from `screw.solid`."""
     assert maths.INTERIM_PRESETS == TESSELLATION
+
+
+# The D-03 grid per size under the owner's R2 reading (lower bound min(P, 1 mm)); RESEARCH
+# Pattern 1 counts, re-derived by `maths.lengths` and pinned so Phase 7's reuse cannot drift.
+_GRID_COUNTS = {
+    "M2": 60, "M2.5": 78, "M3": 60, "M3.5": 82, "M4": 92, "M5": 100, "M6": 60, "M7": 70,
+    "M8": 128, "M10": 133, "M12": 171, "M14": 140, "M16": 160, "M18": 216, "M20": 240,
+}
+
+
+def _grid(size: str, lower: Fraction | None = None) -> list[Fraction]:
+    d, pitch = maths.PITCH[size]
+    return maths.lengths(d, pitch, lower)
+
+
+_XFAIL_T1 = pytest.mark.xfail(strict=True, reason="plan 02-03 task 1 RED: not implemented yet")
+
+
+def test_the_grid_and_frontier_constants_are_the_ones_the_protocol_names() -> None:
+    assert maths.FRONTIER_MAX_TURNS == 250
+    assert maths.FRONTIER_STEP_TURNS == 5
+    assert maths.K_CANDIDATES == (3, 5, 10)
+    assert maths.VOID_CLEARANCE == 0.20
+    assert maths.DEPTH_FRACTIONS == (4, 8, 16, 32)
+    assert maths.SAMPLE_SIZES == ("M2", "M2.5", "M3", "M6", "M8", "M10", "M16", "M20")
+    assert set(maths.SAMPLE_SIZES) <= set(maths.SIZES)
+
+
+@_XFAIL_T1
+def test_the_grid_has_the_pinned_length_count_per_size_and_1790_in_all() -> None:
+    assert {size: len(_grid(size)) for size in maths.SIZES} == _GRID_COUNTS
+    assert sum(_GRID_COUNTS.values()) == 1790
+
+
+@_XFAIL_T1
+def test_the_grid_under_the_alternative_lower_bound_loses_rows_only_at_m8_and_above() -> None:
+    """Starting at L = P instead of min(P, 1 mm) drops the integer-mm lengths below P: the
+    sizes with P > 1 mm, which is exactly M8 (1.25) to M20 (2.5). 1790 - 1781 = 9 rows."""
+    lost = {size: _GRID_COUNTS[size] - len(_grid(size, maths.PITCH[size][1]))
+            for size in maths.SIZES}
+    assert {size for size, n in lost.items() if n} == {"M8", "M10", "M12", "M14", "M16", "M18",
+                                                       "M20"}
+    assert sum(lost.values()) == 9
+
+
+@_XFAIL_T1
+def test_the_grid_includes_both_ends_and_lists_each_length_once() -> None:
+    for size in maths.SIZES:
+        d, pitch = maths.PITCH[size]
+        grid = _grid(size)
+        assert grid[0] == min(pitch, Fraction(1))
+        assert grid[-1] == maths.standard_max(d)
+        assert grid == sorted(set(grid))
+
+
+@_XFAIL_T1
+def test_a_length_that_is_both_an_integer_turn_and_an_integer_mm_appears_once() -> None:
+    """M2.5 (P = 9/20): 9 mm and 18 mm are 20 and 40 turns."""
+    grid = _grid("M2.5")
+    assert grid.count(Fraction(9)) == 1
+    assert grid.count(Fraction(18)) == 1
+
+
+@_XFAIL_T1
+def test_the_grid_stops_at_ten_diameters_capped_at_200_mm() -> None:
+    assert maths.standard_max(Fraction(6)) == 60
+    assert maths.standard_max(Fraction(20)) == 200
+    assert maths.standard_max(Fraction(25)) == 200
+
+
+@_XFAIL_T1
+def test_integer_turns_are_decided_on_fractions_where_the_float_product_drifts() -> None:
+    assert 0.4 * 3 != 1.2  # the drift this guards against: 1.2000000000000002
+    assert maths.is_integer_turn(Fraction(6, 5), Fraction(2, 5))
+    assert not maths.is_integer_turn(Fraction(1), Fraction(2, 5))
+    assert maths.turns_of(Fraction(6, 5), Fraction(2, 5)) == 3
+
+
+@_XFAIL_T1
+@pytest.mark.parametrize(("size", "first", "count"), [
+    ("M2", 55, 40),    # standard max 50 turns: the next multiple of 5 above it
+    ("M2.5", 60, 39),  # 55.56 turns
+    ("M6", 65, 38),    # exactly 60 turns is not strictly above: starts at the next one
+    ("M20", 85, 34),   # 80 turns
+])
+def test_the_frontier_starts_above_the_standard_max_and_steps_by_five_to_250(
+        size: str, first: int, count: int) -> None:
+    d, pitch = maths.PITCH[size]
+    turns = maths.frontier_turns(d, pitch)
+    assert turns[0] == first
+    assert turns[-1] == 250
+    assert len(turns) == count
+    assert all(b - a == 5 for a, b in itertools.pairwise(turns))
+    assert turns[0] > maths.turns_of(maths.standard_max(d), pitch)
+
+
+@_XFAIL_T1
+def test_the_depth_presets_are_fractions_of_five_eighths_of_the_fundamental_height() -> None:
+    h = 5 / 8 * math.sqrt(3) / 2
+    presets = maths.depth_presets(1.0)
+    assert [name for name, _, _ in presets] == ["h/4", "h/8", "h/16", "h/32"]
+    assert [tolerance for _, tolerance, _ in presets] == pytest.approx(
+        [h / 4, h / 8, h / 16, h / 32])
+    assert {angular for _, _, angular in presets} == {0.5}
 
 
 _REQUEST: RowRequest = {
