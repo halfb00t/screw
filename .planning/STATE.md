@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Runtime Port and Walking Skeleton
 status: executing
-stopped_at: Completed 01-08-PLAN.md
-last_updated: "2026-10-06T05:58:35.718Z"
+stopped_at: Completed 01-09-PLAN.md
+last_updated: "2026-10-06T06:08:54.779Z"
 last_activity: 2026-10-06
 last_activity_desc: Phase 01 execution started
-state_head: 469c8ed0a33f3348103e15d55e98ae89a81b4c6f
+state_head: d7541042d2a576d05c4a098a5aa7f85789012f23
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 10
-  completed_plans: 8
+  completed_plans: 9
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-05)
 ## Current Position
 
 Phase: 01 (Runtime Port and Walking Skeleton) — EXECUTING
-Plan: 9 of 10
+Plan: 10 of 10
 Status: Ready to execute
 Last activity: 2026-10-06 — Phase 01 execution started
 
@@ -64,6 +64,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P06 | 10 min | 2 tasks | 8 files |
 | Phase 01 P07 | 13 min | 2 tasks | 14 files |
 | Phase 01 P08 | 17 min | 2 tasks | 12 files |
+| Phase 01 P09 | 8 min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -93,6 +94,8 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-08: bench sets no latency bar and carries no spur baseline; the harness is ported, its numbers are not (L07) — screw has no recorded baseline, and a bar printed beside a screw figure would read as a bound
 - [Phase 01]: 01-08: bench.memory publishes with docker compose run -p on the host port of --base-url, not --service-ports — a host whose 8000 belongs to another project can still run the sweep without editing compose.yaml; the default reproduces compose.yaml's mapping
 - [Phase 01]: 01-08: the Phase 1 bench runs are harness checks; the memory sweep is an emulation figure (linux/amd64 on an aarch64 daemon) with 4 to 12 samples per row and is not a footprint — Phase 7 re-sweeps on native linux/amd64 with the threaded grid; sampling limit filed as tech debt
+- [Phase 01]: fail_under = 94 = floor(95.03 - max(0.25, 0.00)) by spur L34's rule on the 285-test skeleton suite (serial 95.03, three -n 8 at 95.56); recorded in bench/RESULTS.md
+- [Phase 01]: PYTEST_WORKERS stays 8, spur L34's knee, carried and not re-measured for screw's suite
 
 ### Pending Todos
 
@@ -118,6 +121,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-06T05:58:35.695Z
-Stopped at: Completed 01-08-PLAN.md
+Last session: 2026-10-06T06:08:54.754Z
+Stopped at: Completed 01-09-PLAN.md
 Resume file: None
