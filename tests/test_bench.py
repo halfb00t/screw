@@ -62,7 +62,11 @@ from bench.thread_spike import helical, maths, measure, worker
 from bench.thread_spike.__main__ import _table_row
 from bench.thread_spike.runner import Worker
 from bench.thread_spike.verdict import (
+    BUDGET_BYTES,
+    BUDGET_S,
+    ESTIMATOR_TIE,
     FINE_CHECK_CEILING,
+    GATE_FACTOR,
     PROTOCOL_PATH,
     ROW_TIMEOUT_S,
     T_PASS,
@@ -73,12 +77,20 @@ from bench.thread_spike.verdict import (
     before_results,
     classify_row,
     failed_record,
+    frontier_stop,
+    gate_tolerance,
+    over_budget,
     parse_header,
     parse_record,
     parse_request,
     parse_result_row,
+    pass_bar,
     protocol_guard,
     relative_error,
+    request_seconds,
+    select_estimator,
+    select_k,
+    turn_caps,
 )
 from screw.params import BoltParams
 from screw.solid import TESSELLATION
@@ -1135,3 +1147,434 @@ def test_the_guard_refuses_an_edit_before_results_and_allows_one_after_it(
     assert "differs" in capsys.readouterr().err
     path.write_text(_PROTOCOL.replace("No run yet.", "Run 1: see bench/RESULTS.md."))
     assert spike_cli.check_protocol() == 0
+
+
+# --- Pre-registered rod verdict rules (Phase 2, plan 02-03): synthetic records, no kernel ---
+
+_Fine = tuple[int, int, float, int | None]  # triangles, bytes, mesh seconds, gzip-1 bytes
+_RowCls = Literal["ok", "silent_wrong", "failure", "timeout", "worker_died"]
+
+
+def _synth(size: str = "M6", kind: str = "rod", *, left: bool = False, turns: float = 60.0,
+           k: int = 5, cls: _RowCls = "ok", err: float = 0.0, build_s: float = 1.0,
+           fine: _Fine | None = (1000, 1000, 1.0, 500), preview: bool = True,
+           step: tuple[int, float] | None = (100, 1.0), volume_s: float = 0.1,
+           stl_err: float | None = None, preview_s: float = 0.01) -> RowRecord:
+    """A rod or void row of `size` at `turns`, with the measurements the rules read. An `ok`
+    row sits `err` off its closed form; `silent_wrong` is two solids; the other classes carry
+    nothing, as the runner records them. The preview mesh is checked, with a signed volume
+    `stl_err` off the closed form, only when `stl_err` is given."""
+    d_exact, pitch_exact = maths.PITCH[size]
+    d, pitch = float(d_exact), float(pitch_exact)
+    length = turns * pitch
+    clearance = maths.VOID_CLEARANCE if kind == "void" else 0.0
+    rod = kind == "rod"
+    presets = ([("preview", 0.08, 0.5)] if preview else []) + ([("fine", 0.01, 0.1)] if fine
+                                                               else [])
+    request: RowRequest = {
+        "kind": kind, "size": size, "d": d, "pitch": pitch, "turns": turns, "length": length,
+        "left_hand": left, "k": k, "clearance": clearance, "presets": presets if rod else [],
+        "step": rod and step is not None, "gzip_on": ["fine"] if rod and fine else [],
+        "check_ceiling": FINE_CHECK_CEILING,
+    }
+    if cls in ("failure", "timeout", "worker_died"):
+        return failed_record(request, cls, "it broke")
+    closed = maths.closed_volume(d, pitch, length, clearance)
+    meshes: list[MeshRecord] = []
+    if rod and preview:
+        checked = stl_err is not None
+        meshes.append({
+            "preset": "preview", "tolerance": 0.08, "angular": 0.5, "triangles": 100,
+            "bytes": 5084, "mesh_s": preview_s, "gzip1_bytes": None, "gzip1_s": None,
+            "checked": checked, "check_s": 0.0 if checked else None,
+            "watertight": True if checked else None, "open_edges": 0 if checked else None,
+            "stl_volume": closed * (1 + (stl_err or 0.0)) if checked else None,
+            "surface_area": 1e12 if checked else None,  # a band wide enough to never trip
+        })
+    if rod and fine:
+        triangles, nbytes, mesh_s, gzip_bytes = fine
+        meshes.append({
+            "preset": "fine", "tolerance": 0.01, "angular": 0.1, "triangles": triangles,
+            "bytes": nbytes, "mesh_s": mesh_s, "gzip1_bytes": gzip_bytes,
+            "gzip1_s": None if gzip_bytes is None else 0.1, "checked": False, "check_s": None,
+            "watertight": None, "open_edges": None, "stl_volume": None, "surface_area": None,
+        })
+    return {
+        **request, "outcome": "built", "error": None, "solids": 2 if cls == "silent_wrong" else 1,
+        "is_valid": True, "precise_volume": closed * (1 + err), "default_volume": closed,
+        "build_s": build_s, "volume_s": volume_s, "meshes": meshes,
+        "step_bytes": step[0] if rod and step else None,
+        "step_s": step[1] if rod and step else None,
+    }
+
+
+_XFAIL_T3 = pytest.mark.xfail(strict=True, reason="plan 02-03 task 3 RED: not implemented yet")
+_BUDGET_BYTES = 64 * 1024 * 1024
+_NOT_ESTABLISHED = "seconds not established (non-decisive gate)"
+
+
+def test_the_budgets_are_the_interim_30_seconds_and_64_mebibytes() -> None:
+    assert BUDGET_S == 30.0
+    assert BUDGET_BYTES == _BUDGET_BYTES
+    assert (GATE_FACTOR, ESTIMATOR_TIE) == (10, 2.0)
+
+
+@_XFAIL_T3
+def test_a_budget_request_costs_build_plus_the_slower_of_the_fine_stl_and_the_step_export() -> None:
+    row = _synth(build_s=2.0, fine=(1, 1, 3.0, 1), step=(1, 5.0))
+    assert request_seconds(row) == 7.0
+    assert request_seconds(_synth(build_s=2.0, fine=(1, 1, 9.0, 1), step=(1, 5.0))) == 11.0
+
+
+@_XFAIL_T3
+def test_a_request_with_a_part_missing_has_no_seconds_rather_than_a_partial_sum_budget() -> None:
+    assert request_seconds(_synth(step=None)) is None
+    assert request_seconds(_synth(fine=None)) is None
+    assert request_seconds(_synth(kind="void")) is None
+    assert request_seconds(_synth(cls="timeout")) is None
+
+
+@_XFAIL_T3
+def test_a_row_of_exactly_64_mib_raw_plus_gzip_is_inside_the_budget_and_one_byte_more_is_over(
+) -> None:
+    inside = _synth(fine=(1, _BUDGET_BYTES - 500, 1.0, 500))
+    over = _synth(fine=(1, _BUDGET_BYTES - 499, 1.0, 500))
+    for decisive in (True, False):  # bytes are integers and need no quiet host
+        assert over_budget(inside, decisive) == ()
+        reasons = over_budget(over, decisive)
+        assert len(reasons) == 1
+        assert reasons[0].startswith("over budget")
+        assert str(_BUDGET_BYTES + 1) in reasons[0]
+
+
+@_XFAIL_T3
+def test_a_row_of_exactly_30_seconds_is_inside_the_budget_and_the_next_float_is_over() -> None:
+    inside = _synth(build_s=0.5, fine=(1, 1, 29.5, None), step=(1, 0.0))
+    over = _synth(build_s=math.nextafter(30.0, math.inf), fine=(1, 1, 0.0, None), step=(1, 0.0))
+    assert request_seconds(inside) == 30.0
+    assert over_budget(inside, True) == ()
+    reasons = over_budget(over, True)
+    assert len(reasons) == 1
+    assert reasons[0].startswith("over budget")
+
+
+@_XFAIL_T3
+def test_a_slow_row_on_a_non_decisive_gate_is_seconds_not_established_never_over_budget() -> None:
+    slow = _synth(build_s=40.0)
+    assert over_budget(slow, False) == (_NOT_ESTABLISHED,)
+    assert over_budget(_synth(build_s=1.0), False) == ()
+
+
+@_XFAIL_T3
+def test_a_timeout_is_an_over_budget_cap_on_a_decisive_gate_and_not_established_otherwise() -> None:
+    timed_out = _synth(cls="timeout")
+    decisive = over_budget(timed_out, True)
+    assert len(decisive) == 1
+    assert decisive[0].startswith("over budget")
+    assert "timeout" in decisive[0]
+    assert over_budget(timed_out, False) == (_NOT_ESTABLISHED,)
+
+
+@_XFAIL_T3
+def test_the_frontier_stop_is_none_while_both_rows_are_ok_and_fast() -> None:
+    assert frontier_stop(_synth(), _synth(kind="void"), "ok", "ok", True) is None
+
+
+@pytest.mark.parametrize(("rod_class", "void_class", "named"), [
+    ("silent_wrong", "ok", "rod silent_wrong"),
+    ("ok", "failure", "void failure"),
+    ("worker_died", "timeout", "rod worker_died"),
+])
+@_XFAIL_T3
+def test_a_frontier_stop_names_the_first_row_that_is_not_ok(
+        rod_class: _RowCls, void_class: _RowCls, named: str) -> None:
+    reason = frontier_stop(_synth(), _synth(kind="void"), rod_class, void_class, False)
+    assert reason is not None
+    assert named in reason
+
+
+@_XFAIL_T3
+def test_build_plus_fine_mesh_over_30_seconds_is_a_frontier_stop_only_on_a_decisive_gate() -> None:
+    inside = _synth(build_s=0.5, fine=(1, 1, 29.5, None))
+    over = _synth(build_s=0.5, fine=(1, 1, math.nextafter(29.5, math.inf), None))
+    void = _synth(kind="void")
+    assert frontier_stop(inside, void, "ok", "ok", True) is None
+    reason = frontier_stop(over, void, "ok", "ok", True)
+    assert reason is not None
+    assert "30" in reason
+    assert frontier_stop(over, void, "ok", "ok", False) is None  # not established, so no stop
+
+
+def _ksweep(k: int, *, triangles: int = 1000, step_bytes: int = 100, cls: _RowCls = "ok",
+            err: float = 0.0, far: _RowCls = "ok") -> list[RowRecord]:
+    """One K's sweep rows for M6: the standard max (60 turns) rod and void, and the 250-turn rod
+    (preview only) and void."""
+    return [
+        _synth(k=k, cls=cls, err=err, fine=(triangles, 1000, 1.0, 500), step=(step_bytes, 1.0)),
+        _synth(kind="void", k=k),
+        _synth(k=k, turns=250.0, cls=far, fine=None, step=None),
+        _synth(kind="void", k=k, turns=250.0),
+    ]
+
+
+@_XFAIL_T3
+def test_select_k_takes_the_fewest_fine_triangles_at_the_standard_max() -> None:
+    rows = _ksweep(3, triangles=900) + _ksweep(5, triangles=1000) + _ksweep(10, triangles=1100)
+    assert select_k(rows) == 3
+
+
+@_XFAIL_T3
+def test_select_k_breaks_a_triangle_tie_by_step_bytes_then_by_the_smaller_k() -> None:
+    by_step = _ksweep(3, step_bytes=300) + _ksweep(5, step_bytes=100) + _ksweep(10, step_bytes=200)
+    assert select_k(by_step) == 5
+    by_k = _ksweep(10) + _ksweep(5) + _ksweep(3)
+    assert select_k(by_k) == 3
+
+
+@_XFAIL_T3
+def test_select_k_ignores_the_250_turn_rows_when_it_counts_triangles() -> None:
+    rows = _ksweep(3, triangles=900) + _ksweep(5, triangles=1000)
+    rows[2]["meshes"] = [{**_mesh(), "triangles": 10**9}]  # K = 3's 250-turn preview mesh
+    assert select_k(rows) == 3
+
+
+@pytest.mark.parametrize(("bad", "why"), [
+    ({"cls": "silent_wrong"}, "a silent_wrong row"),
+    ({"err": 2 * T_PASS}, "a precise error outside T_PASS"),
+    ({"far": "failure"}, "a non-ok 250-turn row"),
+    ({"far": "timeout"}, "a timed-out 250-turn row"),
+])
+@_XFAIL_T3
+def test_select_k_excludes_a_k_with_any_non_ok_sweep_row(bad: dict[str, object],
+                                                         why: str) -> None:
+    rows = _ksweep(3, triangles=1, **bad) + _ksweep(5, triangles=1000)  # type: ignore[arg-type]
+    assert select_k(rows) == 5, why
+
+
+@_XFAIL_T3
+def test_select_k_is_none_when_every_k_is_excluded() -> None:
+    rows = [r for k in (3, 5, 10) for r in _ksweep(k, cls="silent_wrong")]
+    assert select_k(rows) is None
+
+
+@_XFAIL_T3
+def test_select_k_refuses_a_standard_max_rod_it_cannot_score() -> None:
+    rows = _ksweep(3)
+    rows[0]["meshes"] = []  # the standard-max rod carries no fine mesh
+    with pytest.raises(ValueError, match="fine"):
+        select_k(rows)
+
+
+def _estimator_rows(precise: float, stl: float, *, precise_s: float = 0.1,
+                    stl_s: float = 0.1) -> list[RowRecord]:
+    return [_synth(turns=turns, err=precise, stl_err=stl, volume_s=precise_s, preview_s=stl_s)
+            for turns in (5.0, 10.0, 20.0)]
+
+
+@_XFAIL_T3
+def test_the_estimator_with_the_smaller_max_error_wins_when_they_are_not_within_2x() -> None:
+    name, err, gate = select_estimator(_estimator_rows(1e-6, 1e-3))
+    assert name == "precise"
+    assert err == pytest.approx(1e-6)
+    assert gate == gate_tolerance(err) == pytest.approx(1e-5)
+    name, err, _ = select_estimator(_estimator_rows(8e-5, 1e-5, precise_s=0.01, stl_s=9.0))
+    assert name == "stl"  # accuracy beats cost outside the tie
+    assert err == pytest.approx(1e-5)
+
+
+@_XFAIL_T3
+def test_estimators_within_2x_tie_and_the_cheaper_by_median_seconds_wins() -> None:
+    assert select_estimator(_estimator_rows(2e-5, 1e-5, precise_s=2.0, stl_s=0.5))[0] == "stl"
+    assert select_estimator(_estimator_rows(2e-5, 1e-5, precise_s=0.5, stl_s=2.0))[0] == "precise"
+    # the larger error is 2.0x the smaller exactly: still a tie; the next float up is not
+    just_over = math.nextafter(2e-5, 1.0)
+    assert select_estimator(_estimator_rows(just_over, 1e-5, precise_s=2.0, stl_s=0.5))[0] == (
+        "stl")
+    assert select_estimator(_estimator_rows(just_over, 1e-5, precise_s=0.5, stl_s=2.0))[0] == (
+        "stl")
+
+
+@_XFAIL_T3
+def test_a_tied_estimator_pair_with_equal_cost_goes_to_the_smaller_error() -> None:
+    assert select_estimator(_estimator_rows(1.5e-5, 1e-5))[0] == "stl"
+    assert select_estimator(_estimator_rows(1e-5, 1.5e-5))[0] == "precise"
+
+
+@_XFAIL_T3
+def test_the_estimator_reads_only_ok_rod_rows_and_refuses_an_empty_set() -> None:
+    rows = [*_estimator_rows(1e-6, 1e-3), _synth(cls="silent_wrong", err=0.5, stl_err=1e-9)]
+    assert select_estimator(rows)[0] == "precise"  # the wrong row's tiny stl error is not read
+    with pytest.raises(ValueError, match="no"):
+        select_estimator([_synth(kind="void"), _synth(cls="failure")])
+
+
+@pytest.mark.parametrize(("err", "gate"), [(7.6e-6, 8e-5), (1e-5, 1e-4), (2.7e-5, 3e-4),
+                                           (1.0001e-5, 2e-4)])
+@_XFAIL_T3
+def test_gate_tolerance_is_ten_times_the_error_rounded_up_to_one_significant_figure(
+        err: float, gate: float) -> None:
+    assert gate_tolerance(err) == gate
+
+
+@pytest.mark.parametrize("err", [0.0, -1e-5, math.nan, math.inf])
+@_XFAIL_T3
+def test_gate_tolerance_refuses_an_error_it_cannot_honestly_scale(err: float) -> None:
+    with pytest.raises(ValueError, match="gate"):
+        gate_tolerance(err)
+
+
+@_XFAIL_T3
+def test_the_pass_bar_holds_over_ok_rows_of_both_hands() -> None:
+    rows = [_synth(left=False), _synth(left=True), _synth(kind="void", left=True)]
+    assert pass_bar(rows, True) == ("held", ())
+    assert pass_bar(rows, False) == ("held", ())
+
+
+@pytest.mark.parametrize("cls", ["silent_wrong", "failure", "worker_died"])
+@pytest.mark.parametrize("left", [False, True])
+@_XFAIL_T3
+def test_the_pass_bar_fails_naming_the_row_on_one_bad_row_of_either_hand(
+        cls: _RowCls, left: bool) -> None:
+    rows = [_synth(), _synth(left=left, turns=30.0, cls=cls, size="M3")]
+    verdict, reasons = pass_bar(rows, True)
+    assert verdict == "failed"
+    assert len(reasons) == 1
+    assert "M3" in reasons[0]
+    assert cls in reasons[0]
+    assert ("left" if left else "right") in reasons[0]
+
+
+@_XFAIL_T3
+def test_a_timeout_makes_the_pass_bar_not_established_on_a_non_decisive_gate() -> None:
+    rows = [_synth(), _synth(cls="timeout", size="M20")]
+    verdict, reasons = pass_bar(rows, False)
+    assert verdict == "not established"
+    assert "M20" in reasons[0]
+
+
+@_XFAIL_T3
+def test_a_timeout_is_an_over_budget_cap_and_not_a_failure_of_the_pass_bar_when_decisive() -> None:
+    assert pass_bar([_synth(), _synth(cls="timeout")], True) == ("held", ())
+
+
+@_XFAIL_T3
+def test_a_failure_outranks_a_timeout_in_the_pass_bar_on_a_non_decisive_gate() -> None:
+    rows = [_synth(cls="timeout"), _synth(cls="silent_wrong", size="M3")]
+    verdict, reasons = pass_bar(rows, False)
+    assert verdict == "failed"
+    assert len(reasons) == 1
+
+
+def _walk(size: str, left: bool, stop_at: int | None, *, rod_cls: _RowCls = "silent_wrong",
+          end: int = 250) -> list[RowRecord]:
+    """Frontier rows of `size` and one hand: rod and void at every step from the first
+    frontier turn to `end`, the walk ending at `stop_at` with the rod in class `rod_cls`."""
+    d, pitch = maths.PITCH[size]
+    rows: list[RowRecord] = []
+    for turns in maths.frontier_turns(d, pitch):
+        if turns > end:
+            break
+        stopped = turns == stop_at
+        rows.append(_synth(size, left=left, turns=float(turns),
+                           cls=rod_cls if stopped else "ok"))
+        rows.append(_synth(size, "void", left=left, turns=float(turns)))
+        if stopped:
+            break
+    return rows
+
+
+def _full_walk(size: str = "M6", stop_at: int | None = None, **kwargs: object) -> list[RowRecord]:
+    return (_walk(size, False, stop_at, **kwargs)  # type: ignore[arg-type]
+            + _walk(size, True, None))
+
+
+@_XFAIL_T3
+def test_the_construction_turn_cap_is_the_last_ok_frontier_turn_before_the_stop() -> None:
+    caps = turn_caps([], _full_walk(stop_at=80), True)
+    cap = caps["M6"]
+    assert cap.construction_turns == 75
+    assert "rod silent_wrong" in cap.stop_reason
+    assert "80" in cap.stop_reason
+    assert "right" in cap.stop_reason
+
+
+@_XFAIL_T3
+def test_the_turn_cap_is_250_when_no_hand_stopped() -> None:
+    cap = turn_caps([], _full_walk(stop_at=None), True)["M6"]
+    assert cap.construction_turns == 250
+    assert "250" in cap.stop_reason
+
+
+@_XFAIL_T3
+def test_a_stop_at_the_first_frontier_step_gives_a_turn_cap_of_the_standard_max() -> None:
+    cap = turn_caps([], _full_walk(stop_at=65), True)["M6"]
+    assert cap.construction_turns == 60  # M6's standard max is 60 turns, already in the grid
+
+
+@_XFAIL_T3
+def test_the_smaller_construction_turn_cap_of_the_two_hands_is_the_size_cap() -> None:
+    rows = _walk("M6", False, 100) + _walk("M6", True, 80)
+    cap = turn_caps([], rows, True)["M6"]
+    assert cap.construction_turns == 75
+    assert "left" in cap.stop_reason
+
+
+@_XFAIL_T3
+def test_a_frontier_walk_that_ends_early_gives_no_turn_cap_as_incomplete() -> None:
+    cap = turn_caps([], _walk("M6", False, None, end=100) + _walk("M6", True, None), True)["M6"]
+    assert cap.construction_turns is None
+    assert "incomplete" in cap.stop_reason
+
+
+@_XFAIL_T3
+def test_a_size_with_no_frontier_rows_has_no_turn_cap() -> None:
+    cap = turn_caps([_synth()], [], True)["M6"]
+    assert cap.construction_turns is None
+    assert "no frontier record" in cap.stop_reason
+
+
+@_XFAIL_T3
+def test_a_frontier_timeout_turn_cap_stops_when_decisive_and_is_not_established_otherwise() -> None:
+    rows = _full_walk(stop_at=80, rod_cls="timeout")
+    assert turn_caps([], rows, True)["M6"].construction_turns == 75
+    cap = turn_caps([], rows, False)["M6"]
+    assert cap.construction_turns is None
+    assert "not established" in cap.stop_reason
+
+
+def _heavy(turns: float, *, left: bool = False) -> RowRecord:
+    """A rod row whose fine STL plus gzip-1 is one byte over the 64 MiB budget."""
+    return _synth(left=left, turns=turns, fine=(1, _BUDGET_BYTES, 1.0, 1))
+
+
+@_XFAIL_T3
+def test_the_bytes_cap_is_the_largest_grid_length_below_the_first_over_budget_row() -> None:
+    grid = [_synth(turns=10.0), _synth(turns=20.0), _heavy(30.0), _synth(turns=40.0),
+            _synth(turns=10.0, left=True), _heavy(20.0, left=True)]
+    cap = turn_caps(grid, [], False)["M6"]
+    assert (cap.bytes_cap_length, cap.bytes_cap_turns) == (10.0, 10.0)  # the left hand's 20 wins
+
+
+@_XFAIL_T3
+def test_there_is_no_bytes_turn_cap_when_no_row_is_over_and_zero_when_the_shortest_is() -> None:
+    assert turn_caps([_synth(turns=10.0)], [], False)["M6"].bytes_cap_length is None
+    cap = turn_caps([_heavy(10.0), _synth(turns=20.0)], [], False)["M6"]
+    assert (cap.bytes_cap_length, cap.bytes_cap_turns) == (0.0, 0.0)
+
+
+@_XFAIL_T3
+def test_the_seconds_turn_cap_exists_only_from_a_decisive_grid_run() -> None:
+    slow = _synth(turns=30.0, build_s=40.0)
+    grid = [_synth(turns=10.0), _synth(turns=20.0), slow]
+    decisive = turn_caps(grid, [], True)["M6"]
+    assert (decisive.seconds_cap_length, decisive.seconds_established) == (20.0, True)
+    loose = turn_caps(grid, [], False)["M6"]
+    assert (loose.seconds_cap_length, loose.seconds_established) == (None, False)
+    quick = turn_caps([_synth(turns=10.0)], [], True)["M6"]
+    assert (quick.seconds_cap_length, quick.seconds_established) == (None, True)
+
+
+@_XFAIL_T3
+def test_a_timed_out_grid_row_sets_the_seconds_turn_cap_on_a_decisive_gate() -> None:
+    grid = [_synth(turns=10.0), _synth(turns=20.0, cls="timeout")]
+    assert turn_caps(grid, [], True)["M6"].seconds_cap_length == 10.0

@@ -32,6 +32,18 @@ ROW_TIMEOUT_S = 120.0
 # a mesh above it is not checked, and the report counts every skipped check.
 FINE_CHECK_CEILING = 1_000_000
 
+# The INTERIM budgets of Phase 1 D-01 (SCREW_BUILD_TIMEOUT 30 s and SCREW_EXPORT_CACHE_MB 64):
+# a row is over budget past either, and over budget caps a size, it is never an escape (D-10).
+# Phase 7 re-measures both. Seconds compare as floats, bytes as integers.
+BUDGET_S = 30.0
+BUDGET_BYTES = 64 * 1024 * 1024
+# The shipped gate is derived from data by a rule fixed before any data: GATE_FACTOR times the
+# chosen estimator's largest error, rounded up to one significant figure. The two estimators
+# tie when the larger error is within ESTIMATOR_TIE times the smaller, and the cheaper wins
+# (RESEARCH Protocol Inputs, D-20). Nobody tunes either number toward a pass.
+GATE_FACTOR = 10
+ESTIMATOR_TIE = 2.0
+
 RowClass = Literal["ok", "silent_wrong", "failure", "timeout", "worker_died"]
 Outcome = Literal["built", "failure", "timeout", "worker_died"]
 Preset = tuple[str, float, float]
@@ -498,3 +510,49 @@ def protocol_guard(local_text: str | None, main_text: str | None, *, fetched: bo
         reasons.append("origin/main's protocol commit is not an ancestor of HEAD "
                        "(a branch cut before the squash?)")
     return GuardResult(held=not reasons, reasons=tuple(reasons))
+
+
+def request_seconds(record: RowRecord) -> float | None:  # noqa: ARG001
+    return -1.0
+
+
+def over_budget(record: RowRecord, decisive: bool) -> tuple[str, ...]:  # noqa: ARG001
+    return ("stub",)
+
+
+def frontier_stop(rod: RowRecord, void: RowRecord, rod_class: RowClass,  # noqa: ARG001
+                  void_class: RowClass, decisive: bool) -> str | None:  # noqa: ARG001
+    return "stub"
+
+
+def select_k(rows: list[RowRecord]) -> int | None:  # noqa: ARG001
+    return -1
+
+
+def select_estimator(rows: list[RowRecord]) -> tuple[str, float, float]:  # noqa: ARG001
+    return ("stub", -1.0, -1.0)
+
+
+def gate_tolerance(max_abs_err: float) -> float:  # noqa: ARG001
+    return -1.0
+
+
+def pass_bar(rows: list[RowRecord], decisive: bool,  # noqa: ARG001
+             ) -> tuple[Literal["held", "failed", "not established"], tuple[str, ...]]:
+    return ("not established", ("stub", "stub"))
+
+
+@dataclass(frozen=True)
+class TurnCap:
+    size: str
+    construction_turns: float | None
+    stop_reason: str
+    bytes_cap_length: float | None
+    bytes_cap_turns: float | None
+    seconds_cap_length: float | None
+    seconds_established: bool
+
+
+def turn_caps(grid_rows: list[RowRecord], frontier_rows: list[RowRecord],  # noqa: ARG001
+              decisive: bool) -> dict[str, TurnCap]:  # noqa: ARG001
+    return {"M6": TurnCap("stub", -1.0, "stub", -1.0, -1.0, -1.0, False)}
