@@ -24,6 +24,8 @@ purpose, so nothing here says anything about the interim `mem_limit` or `SCREW_B
 
 ### Build, fine STL and STEP time (`make bench.build`)
 
+Harness check on the walking skeleton -- not a bound (L07); Phase 7 re-sweeps.
+
 Run 2026-10-06T05:46:55Z, native arm64 (no container), in-process through `screw.solid`, load
 averages 2.79, 2.59, 2.60 at start (other projects were running on this host; this is not an
 idle machine). Output verbatim:
@@ -63,6 +65,8 @@ figure that rose off 0.00; its cause was not investigated). Triangle count follo
 why the length rows repeat.
 
 ### gzip level table and mesh-copy cost (`make bench.export SET="d=100 length=200"`)
+
+Harness check on the walking skeleton -- not a bound (L07); Phase 7 re-sweeps.
 
 Run 2026-10-06T05:46:57Z, native arm64, in-process plus six child processes, load averages
 2.79, 2.59, 2.60 at start. Output verbatim:
@@ -109,6 +113,8 @@ difference (0.1 ms, 0.9 MiB) is inside that run-to-run noise.
 
 ### `/api/health` under load (`bench.latency`)
 
+Harness check on the walking skeleton -- not a bound (L07); Phase 7 re-sweeps.
+
 Run 2026-10-06T05:52:50Z against `screw serve --port 8001` (8000 was held by another project's
 container, which was left running), started fresh for this run: native arm64 on the host, not in
 the container; 2 build workers and a 4-deep queue (the app's own defaults); harness at HEAD
@@ -147,6 +153,8 @@ build is not the cost of building a part; its cause (the first build in a fresh 
 the kernel import) was not isolated. The threaded-part answer is Phase 7's.
 
 ### Container memory sweep (`bench.memory sweep`)
+
+Harness check on the walking skeleton -- not a bound (L07); Phase 7 re-sweeps.
 
 Run 2026-10-06T05:53:17Z to 05:54:19Z, harness at HEAD `26bf992`, image `screw:latest`
 (`sha256:b2dccee07712`, rebuilt from cached layers with `make image` immediately before).
