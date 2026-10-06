@@ -25,9 +25,6 @@ from bench.corpus import corpus
 from bench.export_cost import GzipRow, find_set, maxrss_bytes, select_gzip_level
 from screw.params import BoltParams
 
-pytestmark = pytest.mark.xfail(
-    strict=True, reason="RED (01-08): bench is a placeholder until the GREEN commit")
-
 
 def test_the_skeleton_corpus_is_the_d_by_length_grid() -> None:
     """12 parts, d outermost: the grid is pinned so a later edit cannot quietly change the

@@ -4,6 +4,8 @@ VENV        ?= .venv
 IMAGE       ?= screw:latest
 PLATFORM    ?=
 PYTEST_ARGS ?=
+SWEEP       ?=
+SET         ?=
 
 # cadquery-ocp publishes wheels up to CPython 3.12 and screw supports 3.12 only (L01).
 # Choosing the interpreter here instead of a bare `python3` is what stops pip trying to
@@ -24,7 +26,8 @@ CONSTRAINT := $(if $(wildcard requirements.txt),PIP_CONSTRAINT=requirements.txt,
 .DEFAULT_GOAL := help
 .PHONY: help venv verify lint typecheck lint-imports no-fake-done test serve lock \
 	    check image smoke up down logs vendor vendor-check \
-	    worktree.bootstrap worktree.new worktree.land pr.land clean clean-docker
+	    worktree.bootstrap worktree.new worktree.land pr.land clean clean-docker \
+	    bench.build bench.export
 
 help:  ## list the targets
 	@grep -hE '^[a-z][a-z.-]*:.*##' $(MAKEFILE_LIST) | sed 's/:[^#]*##/\t/' | expand -t18
@@ -117,6 +120,20 @@ down:  ## stop and remove the service
 
 logs:  ## follow the service log
 	docker compose logs -f
+
+# --- measurement: not part of the gate ----------------------------------------------
+# A timing assertion on shared hardware would flap until someone stopped believing it, so
+# these are rerun deliberately, never on a commit. They are a harness (L07): what they print
+# is a measurement of one machine, not a bound.
+
+# Needs no service: it times screw.solid in-process, the code a worker runs.
+bench.build: $(STAMP)  ## build, fine STL and STEP time per corpus part vs SCREW_BUILD_TIMEOUT; SWEEP=<json> optional
+	$(PY) -m bench.build_time $(SWEEP)
+
+# Re-measures spur L19's gzip table and L24's mesh-copy cost for one part; needs no service,
+# for the same reason bench.build needs none.
+bench.export: $(STAMP)  ## gzip level table (L19) and mesh-copy cost (L24) for one part; SET="d=100 length=200"
+	$(PY) -m bench.export_cost $(SWEEP) --set "$(SET)"
 
 # The committed three.js bundle is a build artefact; these two make it reproducible from
 # web/ (spur L11). They need node 22; the gate does not, CI's vendor-bundle job runs the check.
