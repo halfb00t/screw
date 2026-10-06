@@ -18,9 +18,15 @@ dependencies = [
     "uvicorn>=0.30",
 ]
 
+[project.scripts]
+screw = "screw.cli:main"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=8",
+    "pytest-xdist>=3.8",
+    "pytest-cov>=7.1",
+    "httpx2>=2.13",
     "ruff>=0.14",
     "mypy>=1.18",
     "import-linter>=2.3",
@@ -107,6 +113,31 @@ addopts = "--strict-markers --strict-config"
 xfail_strict = true
 filterwarnings = ["error"]
 
+[tool.coverage.run]
+branch = true
+source = ["src/screw"]
+# BuildPool's workers are spawned processes and pytest-cov 7 dropped its subprocess hook,
+# so "multiprocessing" is what makes coverage measure them. "thread" must be listed too:
+# setting the key replaces coverage's default, and without it the lifespan thread that
+# builds and shuts down the pool stops being traced (spur measured pool.py at 85 % that
+# way). "parallel" writes one data file per process for pytest-cov to combine; "sigterm"
+# saves the data of a worker pool.py terminates -- a guard, since no test is known to
+# terminate a worker inside src/screw.
+concurrency = ["multiprocessing", "thread"]
+parallel = true
+sigterm = true
+
+[tool.coverage.report]
+# The floor, read by `make test`'s --cov and nowhere else (pytest-cov copies this value
+# when --cov-fail-under is absent): 94 = floor(L - max(0.25, S)) with L = 95.03 (the
+# serial run, the lowest of four totals) and S = 0.00 (the spread of three -n 8 totals,
+# all 95.56) -- bench/RESULTS.md "Coverage floor (Phase 1)", measured 2026-10-06 on the
+# 285-test skeleton suite, spur L34's rule. Re-measure the same way before moving it.
+fail_under = 94
+# fail_under compares the total rounded to `precision`; the default 0 let spur's 45.93 %
+# total pass a floor of 46.
+precision = 2
+
 [tool.importlinter]
 root_package = "screw"
 include_external_packages = true
@@ -117,7 +148,58 @@ type = "forbidden"
 source_modules = ["screw"]
 forbidden_modules = ["tests"]
 
-# Next, in the same commit as the first maths module: "The thread maths stays free of the
-# CAD kernel" (source: the maths and parameter modules; forbidden: cadquery, OCP), and
-# with the CLI, "The CLI does not inherit web-serving policy" (forbidden: the app module,
-# fastapi, starlette). spur's pyproject.toml has the worked versions.
+[[tool.importlinter.contracts]]
+name = "The thread maths stays free of the CAD kernel"
+# calc runs on every keystroke in the UI. It is pure arithmetic on purpose: the moment it
+# can reach OpenCascade, that property is gone and nobody notices until the form goes slow.
+# The solid package is the only code allowed to touch the kernel (contract 8 below says so
+# for the whole tree).
+type = "forbidden"
+source_modules = ["screw.calc", "screw.params", "screw.cli"]
+forbidden_modules = ["cadquery", "OCP"]
+# Reaching the kernel *through* the solid package is the whole point of lazy imports in the
+# CLI; only a direct import here is the violation.
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "The CLI does not inherit web-serving policy"
+# Admission control (the bounded build queue) is a property of serving HTTP, not of
+# building a part: a CLI export must never queue behind anything (spur L04).
+type = "forbidden"
+source_modules = ["screw.cli"]
+forbidden_modules = ["screw.app", "fastapi", "starlette"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "The thread maths stays free of the logger"
+# calc runs on every keystroke in the UI and must stay pure arithmetic, the same reason it
+# must stay free of the CAD kernel above -- a logging import would mean this package can
+# raise from formatting/handler I/O, or silently drift its own state. `warnings` in the
+# info document is its diagnostic.
+type = "forbidden"
+source_modules = ["screw.calc"]
+forbidden_modules = ["screw.records", "logging"]
+
+[[tool.importlinter.contracts]]
+name = "The serving process never imports the CAD kernel"
+# app.py never imports the solid package: builds happen in worker processes only, reached
+# through screw.pool's runtime importlib call, never a static import. The serving process's
+# memory must never contain OpenCascade, so a transitive path is as bad as a direct one --
+# allow_indirect_imports = false is what makes mem_limit a number about a kernel-free
+# parent plus N workers, rather than a guess.
+type = "forbidden"
+source_modules = ["screw.app"]
+forbidden_modules = ["cadquery", "OCP"]
+allow_indirect_imports = false
+
+[[tool.importlinter.contracts]]
+name = "Only the solid package imports the CAD kernel"
+# The one doorway: no CadQuery object escapes screw.solid, and no other module may even
+# import it (contract 2 only covers the maths; this covers everything else, present and
+# future). screw.solid's own edges to the kernel are the point, so they are ignored; both
+# forms are listed because `screw.solid.**` does not match `screw.solid` itself, and an
+# ignore that matches nothing is itself an error in import-linter.
+type = "forbidden"
+source_modules = ["screw"]
+forbidden_modules = ["cadquery", "OCP"]
+ignore_imports = ["screw.solid -> cadquery", "screw.solid.** -> cadquery"]

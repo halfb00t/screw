@@ -5,14 +5,23 @@ on:
     branches: [main]
   pull_request:
 
+# Every job below is required green on a PR head by `make pr.land` -- the exact list is
+# `.github/workflows/required-jobs.txt`, next to this file (L08). Change both together;
+# tests/test_pr_land.py fails when they disagree.
 jobs:
   test:
     runs-on: ubuntu-latest
+    # The matrix has one entry (L01) because GitHub reports a matrix job as `test (3.12)`,
+    # the name the ruleset and required-jobs.txt carry.
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python }}
           cache: pip
       # The same gate a developer runs locally and `make worktree.land` runs before a
       # merge: ruff, mypy --strict, the import-boundary contracts, the unfinished-work
@@ -27,3 +36,41 @@ jobs:
         run: >-
           .venv/bin/python -c "from importlib.metadata import version;
           print('cadquery', version('cadquery'), 'cadquery-ocp', version('cadquery-ocp'))"
+
+  vendor-bundle:
+    # The committed three.js bundle must stay reproducible from web/, or nobody can
+    # tell what is in the 568 KB blob the browser executes.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+        working-directory: web
+      - run: npm run build
+        working-directory: web
+      - name: bundle matches web/
+        run: git diff --exit-code -- src/screw/static/vendor
+
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      # The build runs docker/smoke.py, so a broken dependency closure fails here.
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: screw:ci
+      - name: the packaged entrypoint serves a part
+        run: |
+          docker run -d --name screw -p 8000:8000 screw:ci
+          for _ in $(seq 60); do curl -sf localhost:8000/api/health >/dev/null && break; sleep 1; done
+          curl -sf localhost:8000/api/health
+          curl -sfo /dev/null 'localhost:8000/api/bolt/model.stl?quality=preview'
+          curl -sfo /dev/null 'localhost:8000/api/bolt/model.step'
+          docker rm -f screw

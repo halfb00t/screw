@@ -53,11 +53,11 @@ Requirements for the first release: the mating-pair cut (infra port, thread spik
 
 ### Front Ends
 
-- [ ] **FRNT-01**: One frozen Pydantic model per fastener kind over a shared base, registered by `kind`; `kind` is the URL path segment, the CLI subcommand and the UI hash. A field that does not belong to the kind is a `422` naming it, never silently ignored.
-- [ ] **FRNT-02**: The web UI is generated from `/api/schema`: form, live 3D preview, info panel, shareable URL carrying the full parameter set with defaults omitted (L02).
-- [ ] **FRNT-03**: The HTTP API serves info, STL and STEP, schema and health per kind; admission control (bounded queue, `503` + `Retry-After`) lives in the web layer only.
-- [ ] **FRNT-04**: The CLI offers `screw serve | info | export | pair` with flags generated from the model; it never imports the web layer.
-- [ ] **FRNT-05**: Each kind ships on UI, API and CLI in the same change, with parity proven model-driven (one test over the registry), not by hand.
+- [x] **FRNT-01**: One frozen Pydantic model per fastener kind over a shared base, registered by `kind`; `kind` is the URL path segment, the CLI subcommand and the UI hash. A field that does not belong to the kind is a `422` naming it, never silently ignored.
+- [x] **FRNT-02**: The web UI is generated from `/api/schema`: form, live 3D preview, info panel, shareable URL carrying the full parameter set with defaults omitted (L02).
+- [x] **FRNT-03**: The HTTP API serves info, STL and STEP, schema and health per kind; admission control (bounded queue, `503` + `Retry-After`) lives in the web layer only.
+- [x] **FRNT-04**: The CLI offers `screw serve | info | export | pair` with flags generated from the model; it never imports the web layer.
+- [x] **FRNT-05**: Each kind ships on UI, API and CLI in the same change, with parity proven model-driven (one test over the registry), not by hand.
 - [ ] **FRNT-06**: STL and STEP come from the same modelled-thread solid. The STL chord deviation is explicit, recorded and chosen against the clearance so the mesh never consumes it (`ControlSurfaceDeflection` stays on for downloads); the preview may use a coarser mesh, the numbers may not.
 
 ### Operability
@@ -69,7 +69,7 @@ Requirements for the first release: the mating-pair cut (infra port, thread spik
 ### Infrastructure Port
 
 - [ ] **INFR-01**: spur's runtime is ported per L07 — `pool`, `records`, `app`, `cli`, `build_errors` retyped over screw's models; the schema-driven form, viewer and vendored three.js; `scripts/pr_land.py`, `scripts/skip_tokens.py`, the commit-msg hook and the `main` ruleset; `docker/` and compose; the coverage floor; the bench harness — with a walking-skeleton kind so the retyping has a target and parity is tested from the first phase.
-- [ ] **INFR-02**: The module graph is enforced by import-linter: the four inherited contracts plus the new ones — `params` and `calc` never import `tables` or the kernel; `tables` is a leaf; `solid` is the only doorway to `cadquery`/`OCP`; `cli` never imports the web layer; `app` never imports the kernel by any path.
+- [x] **INFR-02**: The module graph is enforced by import-linter: the four inherited contracts plus the new ones — `params` and `calc` never import `tables` or the kernel; `tables` is a leaf; `solid` is the only doorway to `cadquery`/`OCP`; `cli` never imports the web layer; `app` never imports the kernel by any path.
 - [ ] **INFR-03**: The thread spike is pre-registered (method, predictions, escape clause committed before the first run), run behind a quiet-host gate with load readings labelled by when they were taken, and its result is a decision entry — construction chosen, volume estimator chosen, turn cap per size — before any thread field exists.
 
 ## v2 Requirements
@@ -144,17 +144,17 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFO-03 | Phase 4 | Pending |
 | INFO-04 | Phase 6 | Pending |
 | INFO-05 | Phase 4 | Pending |
-| FRNT-01 | Phase 1 | Pending |
-| FRNT-02 | Phase 1 | Pending |
-| FRNT-03 | Phase 1 | Pending |
-| FRNT-04 | Phase 1 | Pending |
-| FRNT-05 | Phase 1 | Pending |
+| FRNT-01 | Phase 1 | Complete |
+| FRNT-02 | Phase 1 | Complete |
+| FRNT-03 | Phase 1 | Complete |
+| FRNT-04 | Phase 1 | Complete |
+| FRNT-05 | Phase 1 | Complete |
 | FRNT-06 | Phase 5 | Pending |
 | OPER-01 | Phase 7 | Pending |
 | OPER-02 | Phase 7 | Pending |
 | OPER-03 | Phase 7 | Pending |
 | INFR-01 | Phase 1 | Pending |
-| INFR-02 | Phase 1 | Pending |
+| INFR-02 | Phase 1 | Complete |
 | INFR-03 | Phase 2 | Pending |
 
 **Coverage:**

@@ -1,0 +1,14 @@
+{
+  "name": "screw-web-vendor",
+  "private": true,
+  "description": "Builds the tree-shaken three.js bundle served by the web UI. Only needed when upgrading three.",
+  "scripts": {
+    "build": "esbuild entry.js --bundle --format=esm --minify --legal-comments=eof --outfile=../src/screw/static/vendor/three.bundle.min.js && cp node_modules/three/LICENSE ../src/screw/static/vendor/three.LICENSE"
+  },
+  "dependencies": {
+    "three": "0.186.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12"
+  }
+}

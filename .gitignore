@@ -10,6 +10,8 @@ dist/
 .ruff_cache/
 .mypy_cache/
 .import_linter_cache/
+.coverage
+.coverage.*
 # generated models
 *.stl
 *.step
@@ -23,3 +25,9 @@ dist/
 
 # research-tool response cache (hashed JSON), regenerated on demand
 /.planning/research/.cache/
+
+# vendored-bundle build (make vendor)
+web/node_modules/
+
+# gsd per-session runtime lock (session id + pid), never shared
+/.planning/milestone.lock
