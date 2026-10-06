@@ -52,16 +52,24 @@ def _flag(name: str) -> str:
 
 
 def _cli_flags(kind: str, command: str, capsys: pytest.CaptureFixture[str]) -> list[str]:
-    """The kind's own flags, in the order `<command> <kind> --help` lists them."""
+    """Every long flag `<command> <kind> --help` lists, in the order it lists them.
+
+    The whole help, not only the kind's own group: a hand-written flag added to the kind's
+    parser outside the generated group would otherwise sit in the plain `options:` section
+    and go unseen (found by planting one, 01-05 Task 2).
+    """
     with pytest.raises(SystemExit) as stop:
         cli.main([command, kind, "--help"])
     assert stop.value.code == 0
     lines = capsys.readouterr().out.splitlines()
-    # The kind's flags are the only group titled so; the lines after it up to the end of the
-    # help are flags (two-space indent) or their wrapped help text (deeper indent).
-    start = lines.index(f"{kind} parameters (defaults in brackets):")
-    found = (re.match(r"^  (--[a-z0-9-]+)", line) for line in lines[start + 1:])
-    return [m.group(1) for m in found if m]
+    assert f"{kind} parameters (defaults in brackets):" in lines
+    # An option line is two spaces, the invocation, then (after two or more spaces) its help
+    # text; reading only the invocation keeps a `--word` inside help prose out of the list.
+    flags: list[str] = []
+    for line in lines:
+        if m := re.match(r"^ {2}(-\S.*?)(?: {2,}|$)", line):
+            flags += re.findall(r"--[a-z0-9-]+", m.group(1))
+    return flags
 
 
 def _field_literals(source: str, names: list[str]) -> list[str]:
@@ -132,9 +140,11 @@ def test_a_foreign_field_is_refused_on_every_route(kind: str) -> None:
 
 @pytest.mark.parametrize("kind", list(KINDS))
 def test_the_cli_flags_are_the_model(kind: str, capsys: pytest.CaptureFixture[str]) -> None:
-    expected = [_flag(name) for name in KINDS[kind].model_fields]
-    assert _cli_flags(kind, "info", capsys) == expected
-    assert _cli_flags(kind, "export", capsys) == expected
+    fields = [_flag(name) for name in KINDS[kind].model_fields]
+    assert _cli_flags(kind, "info", capsys) == ["--help", *fields]
+    # export's own three options come first; everything after them is the model.
+    assert _cli_flags(kind, "export", capsys) == ["--help", "--output", "--format",
+                                                  "--quality", *fields]
 
 
 @pytest.mark.parametrize("kind", list(KINDS))
