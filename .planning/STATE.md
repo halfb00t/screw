@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Runtime Port and Walking Skeleton
 status: executing
-stopped_at: Completed 01-03-PLAN.md
-last_updated: "2026-10-06T04:28:52.174Z"
+stopped_at: Completed 01-04-PLAN.md
+last_updated: "2026-10-06T04:37:16.978Z"
 last_activity: 2026-10-06
 last_activity_desc: Phase 01 execution started
-state_head: c0652afaf257bc869c980d29788be740ba6eade7
+state_head: 6d23fde4403da129af7b156c07ee76c7f2951ece
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 10
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-05)
 ## Current Position
 
 Phase: 01 (Runtime Port and Walking Skeleton) — EXECUTING
-Plan: 4 of 10
+Plan: 5 of 10
 Status: Ready to execute
 Last activity: 2026-10-06 — Phase 01 execution started
 
@@ -59,6 +59,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P01 | 17 min | 3 tasks | 19 files |
 | Phase 01 P02 | 8 min | 2 tasks | 6 files |
 | Phase 01 P03 | 8 min | 2 tasks | 6 files |
+| Phase 01 P04 | 12 min | 2 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -79,6 +80,7 @@ Recent decisions affecting current work:
 - [Phase 01]: L07 extraction trigger recorded as fired by the pool.py same-slot guard; owner decides extract-now vs fix-spur-by-hand — Plan 01-02 does not extract; surfaced in 01-02-SUMMARY
 - [Phase 01]: CLI reads SCREW_PORT and SCREW_WORKERS through int_env (as app.py does), so a garbage value falls back instead of crashing every subcommand
 - [Phase 01]: cmd_export checks the output extension before importing the CAD kernel; screw info/export require an explicit kind, following the API (D-08)
+- [Phase 01]: 01-04: navigate() bumps seq and formSeq and aborts in-flight requests on every call, and an unregistered kind clears the form and nulls currentKind so no later edit can build the default part under a link naming another kind (L02)
 
 ### Pending Todos
 
@@ -104,6 +106,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-06T04:28:52.153Z
-Stopped at: Completed 01-03-PLAN.md
+Last session: 2026-10-06T04:37:16.957Z
+Stopped at: Completed 01-04-PLAN.md
 Resume file: None
