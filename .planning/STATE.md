@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Runtime Port and Walking Skeleton
 status: executing
-stopped_at: Completed 01-07-PLAN.md
-last_updated: "2026-10-06T05:38:54.550Z"
+stopped_at: Completed 01-08-PLAN.md
+last_updated: "2026-10-06T05:58:35.718Z"
 last_activity: 2026-10-06
 last_activity_desc: Phase 01 execution started
-state_head: cff08fa21b160fd0b388e1cc5fd8a1b21001e235
+state_head: 469c8ed0a33f3348103e15d55e98ae89a81b4c6f
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 10
-  completed_plans: 7
+  completed_plans: 8
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-05)
 ## Current Position
 
 Phase: 01 (Runtime Port and Walking Skeleton) — EXECUTING
-Plan: 8 of 10
+Plan: 9 of 10
 Status: Ready to execute
 Last activity: 2026-10-06 — Phase 01 execution started
 
@@ -63,6 +63,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P05 | 15 min | 2 tasks | 1 files |
 | Phase 01 P06 | 10 min | 2 tasks | 8 files |
 | Phase 01 P07 | 13 min | 2 tasks | 14 files |
+| Phase 01 P08 | 17 min | 2 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -89,6 +90,9 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-06: amd64 runtime closure resolved under emulation; no runtime version moved; every carried container limit labelled INTERIM and listed in the D-02 item
 - [Phase 01]: L08: main is walled by required CI jobs on a current head, a commit-msg hook against skip tokens and make pr.land (ported from spur L22/L25); the ruleset is applied by the owner after the Phase 1 merge
 - [Phase 01]: requirements.txt pins the runtime closure only; dev tools float, narrowing L06 (L08)
+- [Phase 01]: 01-08: bench sets no latency bar and carries no spur baseline; the harness is ported, its numbers are not (L07) — screw has no recorded baseline, and a bar printed beside a screw figure would read as a bound
+- [Phase 01]: 01-08: bench.memory publishes with docker compose run -p on the host port of --base-url, not --service-ports — a host whose 8000 belongs to another project can still run the sweep without editing compose.yaml; the default reproduces compose.yaml's mapping
+- [Phase 01]: 01-08: the Phase 1 bench runs are harness checks; the memory sweep is an emulation figure (linux/amd64 on an aarch64 daemon) with 4 to 12 samples per row and is not a footprint — Phase 7 re-sweeps on native linux/amd64 with the threaded grid; sampling limit filed as tech debt
 
 ### Pending Todos
 
@@ -114,6 +118,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-06T05:38:54.526Z
-Stopped at: Completed 01-07-PLAN.md
+Last session: 2026-10-06T05:58:35.695Z
+Stopped at: Completed 01-08-PLAN.md
 Resume file: None
