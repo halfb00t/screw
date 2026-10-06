@@ -181,7 +181,7 @@ None - no external service configuration required.
 ## Next Phase Readiness
 
 - Phase 1's port is complete: `make verify` (285 passed, `Contracts: 6 kept, 0 broken`, coverage 95.56 % against a floor of 94) and `make check` (smoke line `smoke: kernel, exports, ASGI stack and validation all live`, no diff under `src/screw/static/vendor`) both exit 0.
-- Re-measure the floor the same way whenever a phase adds a large untested module, before moving it. Modules with the most headroom to lose: `src/screw/solid/__init__.py` (91.30 %), `src/screw/records.py` (94.03 %).
+- Re-measure the floor the same way whenever a phase adds a large untested module, before moving it. Modules with the most headroom to lose: `solid/__init__.py` (91.30 %), `records.py` (94.03 %).
 - Filed this plan: no new debt item (the pool.py serial gap is spur's existing nice-severity item and was not chased, per the plan).
 
 ## Self-Check: PASSED
