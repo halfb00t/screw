@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Thread Spike
 status: executing
-stopped_at: Completed 02-03-PLAN.md
-last_updated: "2026-10-06T12:43:05.494Z"
+stopped_at: Completed 02-04-PLAN.md
+last_updated: "2026-10-06T13:29:08.330Z"
 last_activity: 2026-10-06
 last_activity_desc: Phase 02 execution started
-state_head: ba40dba9f13ae4bac3d0d61bc4a19eba442bd866
+state_head: 396c5e31edc2590c92580a58c105facaca77c86f
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 18
-  completed_plans: 13
+  completed_plans: 14
   percent: 14
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 ## Current Position
 
 Phase: 02 (Thread Spike) — EXECUTING
-Plan: 4 of 8
+Plan: 5 of 8
 Status: Ready to execute
 Last activity: 2026-10-06 — Phase 02 execution started
 
@@ -69,6 +69,7 @@ Progress: [█░░░░░░░░░] 14%
 | Phase 02 P01 | 4 min | 2 tasks | 2 files |
 | Phase 02 P02 | 17 min | 2 tasks | 12 files |
 | Phase 02 P03 | 27 min | 3 tasks | 6 files |
+| Phase 02 P04 | 27 min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -91,6 +92,12 @@ Recent decisions affecting current work:
 - [Phase 02]: K reaches grid, frontier and ladder only through --k-from and select_k; no flag takes a K
 - [Phase 02]: Seconds-derived claims read not established on a non-decisive gate; byte claims are integer and hold on any run
 - [Phase 02]: check_ceiling is one number per request; a mesh over it is recorded as not checked, never as watertight
+- [Phase 02]: The gzip-table request flag is want_gzip_table (a RowRecord inherits the request keys, so its gzip_table list cannot share the name)
+- [Phase 02]: Rows that ask for the L19 gzip table get GZIP_TABLE_TIMEOUT_S = 900 s, not the 120 s row deadline (35 compressions per level on up to 164 MB); plan 02-06 must register it
+- [Phase 02]: A container run is never decisive and its header says so: emulated timings prove nothing about the production host
+- [Phase 02]: A campaign without a container run is never a pass: PASS_BLOCKS adds container to the four rod blocks
+- [Phase 02]: naive_sweep_fuse is the one of 12 readings of the research recipe that reproduces all three research ratios (helix radius d/2, core at root radius, root embedded 0.05 P, flank half-width from the embedded root)
+- [Phase 02]: Owner approved the cq_warehouse reference package on 2026-10-06 (reply: approved); installed from pinned commit daa46507 with --no-deps into a scratch directory outside the repo
 
 ### Pending Todos
 
@@ -116,6 +123,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-06T12:43:05.454Z
-Stopped at: Completed 02-03-PLAN.md
+Last session: 2026-10-06T13:29:08.287Z
+Stopped at: Completed 02-04-PLAN.md
 Resume file: None

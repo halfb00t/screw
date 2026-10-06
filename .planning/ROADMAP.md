@@ -93,7 +93,7 @@ Plans:
   4. A new decision entry records the construction chosen, the volume estimator chosen, the turn cap per size, and the ISO 68-1:2023 profile (basic or design) pinned after the standard was read, and no field that builds a thread exists in `src/` when it is committed.
   5. If the pair check cannot be made falsifiable, or the worst case trips the escape clause, the spike says so and the roadmap is revised before Phase 5 is planned; no constant is tuned toward a pass.
 
-**Plans**: 3/8 plans executed (two PRs, D-19: plans 01-06 are PR 1 on `gsd/phase-02-thread-spike`; plans 07-08 are PR 2 on `gsd/phase-02-thread-spike-runs`, cut from `origin/main` after PR 1 lands)
+**Plans**: 4/8 plans executed (two PRs, D-19: plans 01-06 are PR 1 on `gsd/phase-02-thread-spike`; plans 07-08 are PR 2 on `gsd/phase-02-thread-spike-runs`, cut from `origin/main` after PR 1 lands)
 
 Plans:
 **Wave 1**
@@ -106,7 +106,7 @@ Plans:
 - [x] 02-03-PLAN.md — Exact D-03 grid and D-04 frontier, K sweep, mesh ladder, guarded blocks, verdict rules
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 02-04-PLAN.md — Negative control, one-pipe and ruled-surface reference (legitimacy checkpoint), tip trim, fresh-child RSS, container pass
+- [x] 02-04-PLAN.md — Negative control, one-pipe and ruled-surface reference (legitimacy checkpoint), tip trim, fresh-child RSS, container pass
 
 **Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 02-05-PLAN.md — Pair check with half-pitch controls and closed-form oracle; one guarded campaign command
@@ -207,7 +207,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 2 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Runtime Port and Walking Skeleton | 10/10 | Complete    | 2026-10-06 |
-| 2. Thread Spike | 3/8 | In Progress | - |
+| 2. Thread Spike | 4/8 | In Progress | - |
 | 3. Real Helical Thread | 0/TBD | Not started | - |
 | 4. ISO Hex Bolts and Screws | 0/TBD | Not started | - |
 | 5. Hex Nut and Kernel Pair Proof | 0/TBD | Not started | - |
