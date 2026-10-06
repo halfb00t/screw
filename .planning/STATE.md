@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Runtime Port and Walking Skeleton
 status: executing
-stopped_at: Phase 1 UI-SPEC approved; execute-phase resumes at wave 5
-last_updated: "2026-10-06T05:13:05.310Z"
+stopped_at: Completed 01-05-PLAN.md
+last_updated: "2026-10-06T05:20:51.591Z"
 last_activity: 2026-10-06
 last_activity_desc: Phase 01 execution started
-state_head: 7868c86a5cb571bafa3aeb66ac5c64b726e4b43e
+state_head: 73f74cd9b083208a048c2dc726c923d463acc567
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 10
-  completed_plans: 4
+  completed_plans: 5
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-05)
 ## Current Position
 
 Phase: 01 (Runtime Port and Walking Skeleton) — EXECUTING
-Plan: 5 of 10
+Plan: 6 of 10
 Status: Ready to execute
 Last activity: 2026-10-06 — Phase 01 execution started
 
@@ -60,6 +60,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P02 | 8 min | 2 tasks | 6 files |
 | Phase 01 P03 | 8 min | 2 tasks | 6 files |
 | Phase 01 P04 | 12 min | 2 tasks | 16 files |
+| Phase 01 P05 | 15 min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -81,6 +82,8 @@ Recent decisions affecting current work:
 - [Phase 01]: CLI reads SCREW_PORT and SCREW_WORKERS through int_env (as app.py does), so a garbage value falls back instead of crashing every subcommand
 - [Phase 01]: cmd_export checks the output extension before importing the CAD kernel; screw info/export require an explicit kind, following the API (D-08)
 - [Phase 01]: 01-04: navigate() bumps seq and formSeq and aborts in-flight requests on every call, and an unregistered kind clears the form and nulls currentKind so no later edit can build the default part under a link naming another kind (L02)
+- [Phase 01]: 01-05: parity test compares model-route query names sorted (quality is inherited first by OpenAPI); schema and CLI flags stay in declaration order
+- [Phase 01]: 01-05: CLI parity reads every long flag in the whole help, not only the generated group, so a hand-written flag on a kind parser is caught (found by planting one)
 
 ### Pending Todos
 
@@ -106,6 +109,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-06T05:13:05.282Z
-Stopped at: Phase 1 UI-SPEC approved; execute-phase resumes at wave 5
-Resume file: .planning/phases/01-runtime-port-and-walking-skeleton/01-UI-SPEC.md
+Last session: 2026-10-06T05:20:51.569Z
+Stopped at: Completed 01-05-PLAN.md
+Resume file: None
