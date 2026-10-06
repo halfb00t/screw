@@ -75,7 +75,7 @@ Locked decisions live in `docs/architecture/decision_log.md` (L01–L10); owner 
 Recent decisions affecting current work:
 
 - L07: runtime forked from spur `ec195fb`; gear modules are never copied; the extraction trigger fired once (`pool.py` D-16 same-slot guard) and is recorded as debt (nice), not acted on.
-- L09: registry with a frozen default kind (`bolt`), per-kind URLs, `kind=` omitted from the hash at the default, `PartInfo` as the one info document; every runtime bound is INTERIM (11 knobs in the D-02 debt item, Severity must, Phase 7 trigger).
+- L09: registry with a frozen default kind (`bolt`), per-kind URLs, `kind=` omitted from the hash at the default, `PartInfo` as the one info document; every runtime bound is INTERIM (16 knobs in the D-02 debt item, Severity must, Phase 7 trigger).
 - L08: `main` is walled — ruleset `default` id 24563199, required jobs test (3.12) / vendor-bundle / image, skip-token commit-msg hook; every phase lands through `make pr.land`.
 - 01-08: the bench harness is ported with its method and predicates, none of spur's numbers and no latency bar; Phase 1 runs are harness checks, not bounds. Phase 2 re-uses it on threaded parts.
 - Roadmap (pending owner approval): Phase 7 runs after Phase 6 so the sweep covers the final grid; it could run alongside Phase 6 if the owner prefers speed.
@@ -89,7 +89,7 @@ None yet.
 
 - Phase 4/5 precondition (TABL-04): owner holds purchased copies of ISO 4014:2022, 4017:2022, 4032:2023, 262:2023, 724:2023, 965-2:2024.
 - ISO 68-1:2023 (profile, pinned by Phase 2) and ISO 4753 (bolt ends, THRD-05) must be read but are not on TABL-04's purchase list.
-- ⚠️ [Phase 1] Every runtime bound is INTERIM (timeout, memory, gzip, workers, cache budget, container limits — 11 knobs in the D-02 tech-debt item, Severity must) until the Phase 7 linux/amd64 re-sweep; the Phase 1 memory sweep is an emulation figure with 4–12 samples per row (sampling limit filed as debt).
+- ⚠️ [Phase 1] Every runtime bound is INTERIM (timeout, memory, gzip, workers, cache budget, container limits — 16 knobs in the D-02 tech-debt item, Severity must) until the Phase 7 linux/amd64 re-sweep; the Phase 1 memory sweep is an emulation figure with 4–12 samples per row (sampling limit filed as debt).
 - Coarse pitch only (TABL-05) vs contract 6 (`params` never imports `tables`): how an explicit non-coarse pitch is handled (refuse, or build and show row-dependent numbers as warnings) is a Phase 3/4 discussion question.
 - Pair-proof reliability on the full grid is unmeasured; if Phase 2 finds it cannot be made falsifiable, revise Phase 5 before planning it.
 - Printability threshold (INFO-04): a printed test over M6–M12 cannot locate a floor below M6; Phase 6 must widen the matrix or warn below the smallest size it proved.
