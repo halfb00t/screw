@@ -27,3 +27,21 @@ jobs:
         run: >-
           .venv/bin/python -c "from importlib.metadata import version;
           print('cadquery', version('cadquery'), 'cadquery-ocp', version('cadquery-ocp'))"
+
+  vendor-bundle:
+    # The committed three.js bundle must stay reproducible from web/, or nobody can
+    # tell what is in the 568 KB blob the browser executes.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+        working-directory: web
+      - run: npm run build
+        working-directory: web
+      - name: bundle matches web/
+        run: git diff --exit-code -- src/screw/static/vendor

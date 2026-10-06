@@ -19,7 +19,7 @@ CONSTRAINT := $(if $(wildcard requirements.txt),PIP_CONSTRAINT=requirements.txt,
 
 .DEFAULT_GOAL := help
 .PHONY: help venv verify lint typecheck lint-imports no-fake-done test serve lock \
-	    worktree.bootstrap worktree.new worktree.land clean
+	    vendor vendor-check worktree.bootstrap worktree.new worktree.land clean
 
 help:  ## list the targets
 	@grep -hE '^[a-z][a-z.-]*:.*##' $(MAKEFILE_LIST) | sed 's/:[^#]*##/\t/' | expand -t18
@@ -54,6 +54,9 @@ typecheck: $(STAMP)  ## mypy --strict over the package, its tests and the smoke 
 lint-imports: $(STAMP)  ## the module boundaries declared in pyproject.toml
 	$(VENV)/bin/lint-imports
 
+# ':!.../vendor' keeps a future three.js release's own comments from failing our gate:
+# the bundle is a build artefact (spur L11), not code we wrote.
+#
 # -w, not \b: git grep -E on macOS (git 2.54.0, system regex) does not implement \b, so
 # a \b-anchored scan matched nothing on the dev host and only CI's Linux git caught
 # markers -- proved 2026-10-05 with a staged file containing both TODO and
@@ -63,7 +66,8 @@ lint-imports: $(STAMP)  ## the module boundaries declared in pyproject.toml
 # refuses a new one. Scoped to src/screw/ so a test may still carry a deliberate,
 # code-qualified one.
 no-fake-done:  ## refuse unfinished work dressed up as finished
-	@if git grep -nwE '(TODO|FIXME|XXX|HACK|NotImplementedError)' -- '*.py' '*.js' '*.sh'; then \
+	@if git grep -nwE '(TODO|FIXME|XXX|HACK|NotImplementedError)' \
+	     -- '*.py' '*.js' '*.sh' ':!src/screw/static/vendor'; then \
 	  echo "make: unfinished-work markers above. Finish it, or file it in docs/tech_debt/."; \
 	  exit 1; \
 	fi
@@ -93,6 +97,15 @@ lock:  ## regenerate requirements.txt: resolve pyproject.toml's ranges from scra
 	  $(LOCK_VENV)/bin/python -m pip freeze --exclude-editable | LC_ALL=C sort; } > requirements.txt
 	rm -rf $(LOCK_VENV)
 	@echo "wrote requirements.txt ($$(grep -c '==' requirements.txt) packages). Prove it: make clean && make verify"
+
+# The committed three.js bundle is a build artefact; these two make it reproducible from
+# web/ (spur L11). They need node 22; the gate does not, CI's vendor-bundle job runs the check.
+vendor:  ## rebuild the vendored three.js bundle (needs node)
+	cd web && npm ci && npm run build
+
+vendor-check:  ## fail if the committed bundle no longer matches web/
+	cd web && npm ci --silent && npm run build
+	git diff --exit-code -- src/screw/static/vendor
 
 # --- worktrees: isolated, parallel agent work ---------------------------------------
 

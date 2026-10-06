@@ -23,3 +23,6 @@ dist/
 
 # research-tool response cache (hashed JSON), regenerated on demand
 /.planning/research/.cache/
+
+# vendored-bundle build (make vendor)
+web/node_modules/
