@@ -36,6 +36,10 @@ T_PASS = 1e-4
 # Four times the 30 s INTERIM build-plus-mesh budget, so an over-budget row is measured rather
 # than killed (RESEARCH Pattern 3). A protocol input.
 ROW_TIMEOUT_S = 120.0
+# The L19 gzip table compresses one fine STL 5 + 30 times at each of three levels, level 9
+# included, and the largest fine STL is 164 MB (RESEARCH Pitfall 6): minutes, not seconds, so a
+# row that asks for the table gets this deadline instead. A protocol input, like the row one.
+GZIP_TABLE_TIMEOUT_S = 900.0
 
 # The pure-Python STL check costs about 3 us per triangle (1.3 s for 605 450, 9.4 s for 3 203
 # 406) and gigabytes of objects above this many triangles (in-process peak 2.98 GB after a 3.2 M
@@ -58,6 +62,9 @@ ESTIMATOR_TIE = 2.0
 RowClass = Literal["ok", "silent_wrong", "failure", "timeout", "worker_died"]
 Outcome = Literal["built", "failure", "timeout", "worker_died"]
 Preset = tuple[str, float, float]
+# One level of L19's gzip table: (level, output bytes, single-threaded median ms, 10-concurrent
+# wall median ms). A tuple like `Preset`, so a record equals its parse.
+GzipEntry = tuple[int, int, float, float]
 
 
 class RowRequest(TypedDict):
@@ -77,6 +84,7 @@ class RowRequest(TypedDict):
     step: bool
     gzip_on: list[str]
     check_ceiling: int
+    want_gzip_table: bool
 
 
 class MeshRecord(TypedDict):
@@ -104,7 +112,11 @@ class RowRecord(RowRequest):
     """The request echoed plus what happened. Every measurement is `None` unless `outcome` is
     "built"; `error` is set exactly when it is not. The STEP fields are set exactly when the
     request asked for STEP and the row was built. `trim_s` is the seconds the tip trim took,
-    set exactly on a built `trim` row (D-08)."""
+    set exactly on a built `trim` row (D-08). The last three exist only from a fresh `--once`
+    child: `peak_rss_bytes` is that child's peak after its one mesh and gzip and before any STL
+    check (a persistent worker's high-water mark is never a row's memory), and `gzip_table` and
+    `gzip_selected` are L19's table on the row's STL and the level its rule picks, set exactly
+    when the request asked for them."""
 
     outcome: Outcome
     error: str | None
@@ -118,14 +130,17 @@ class RowRecord(RowRequest):
     step_bytes: int | None
     step_s: float | None
     trim_s: float | None
+    peak_rss_bytes: int | None
+    gzip_table: list[GzipEntry] | None
+    gzip_selected: int | None
 
 
 _REQUEST_KEYS = ("kind", "size", "d", "pitch", "turns", "length", "left_hand", "k",
-                 "clearance", "presets", "step", "gzip_on", "check_ceiling")
+                 "clearance", "presets", "step", "gzip_on", "check_ceiling", "want_gzip_table")
 _MEASURE_KEYS = ("solids", "is_valid", "precise_volume", "default_volume", "build_s",
                  "volume_s", "meshes")
 _RECORD_KEYS = (*_REQUEST_KEYS, "outcome", "error", *_MEASURE_KEYS, "step_bytes", "step_s",
-                "trim_s")
+                "trim_s", "peak_rss_bytes", "gzip_table", "gzip_selected")
 _MESH_KEYS = ("preset", "tolerance", "angular", "triangles", "bytes", "mesh_s", "gzip1_bytes",
               "gzip1_s", "checked", "check_s", "watertight", "open_edges", "stl_volume",
               "surface_area")
@@ -226,6 +241,24 @@ def _strings(obj: dict[str, object], key: str) -> list[str]:
     return [item for item in value if isinstance(item, str)]
 
 
+def _gzip_table(obj: dict[str, object]) -> list[GzipEntry] | None:
+    value = obj["gzip_table"]
+    if value is None:
+        return None
+    if not isinstance(value, list) or not value:
+        _refuse(f"'gzip_table' must be a non-empty list or null, got {value!r}")
+    table: list[GzipEntry] = []
+    for item in value:
+        if not isinstance(item, list) or len(item) != 4:
+            raise ValueError("'gzip_table' items are [level, out_bytes, single_ms, "
+                             f"concurrent_ms], got {item!r}")
+        entry: dict[str, object] = dict(zip(
+            ("level", "out_bytes", "single_ms", "concurrent_ms"), item, strict=True))
+        table.append((_int(entry, "level"), _int(entry, "out_bytes"),
+                      _num(entry, "single_ms"), _num(entry, "concurrent_ms")))
+    return table
+
+
 def _request_fields(obj: dict[str, object]) -> RowRequest:
     return {
         "kind": _str(obj, "kind"),
@@ -241,6 +274,7 @@ def _request_fields(obj: dict[str, object]) -> RowRequest:
         "step": _bool(obj, "step"),
         "gzip_on": _strings(obj, "gzip_on"),
         "check_ceiling": _int(obj, "check_ceiling"),
+        "want_gzip_table": _bool(obj, "want_gzip_table"),
     }
 
 
@@ -321,6 +355,9 @@ def _record_from(obj: dict[str, object]) -> RowRecord:
     step_bytes = _optional(_int, obj, "step_bytes")
     step_s = _optional(_num, obj, "step_s")
     trim_s = _optional(_num, obj, "trim_s")
+    peak_rss = _optional(_int, obj, "peak_rss_bytes")
+    gzip_table = _gzip_table(obj)
+    gzip_selected = _optional(_int, obj, "gzip_selected")
     request = _request_fields(obj)
     measured = (solids, is_valid, precise, default, build_s, volume_s, meshes)
     if outcome == "built":
@@ -334,6 +371,13 @@ def _record_from(obj: dict[str, object]) -> RowRecord:
                              "its request asked for STEP")
         if (trim_s is not None) != (request["kind"] == "trim"):
             raise ValueError("a built record carries 'trim_s' exactly when its kind is 'trim'")
+        if peak_rss is not None and request["kind"] != "rod":
+            raise ValueError("only a rod row carries 'peak_rss_bytes'")
+        if (gzip_table is None) != (gzip_selected is None):
+            raise ValueError("'gzip_table' and 'gzip_selected' are set together or not at all")
+        if (gzip_table is not None) != request["want_gzip_table"]:
+            raise ValueError("a built record carries 'gzip_table' exactly when its request "
+                             "asked for one")
     else:
         for key, value in zip(_MEASURE_KEYS, measured, strict=True):
             if value is not None:
@@ -344,6 +388,8 @@ def _record_from(obj: dict[str, object]) -> RowRecord:
             raise ValueError(f"a {outcome} record must not carry a STEP measurement")
         if trim_s is not None:
             raise ValueError(f"a {outcome} record must not carry 'trim_s'")
+        if peak_rss is not None or gzip_table is not None or gzip_selected is not None:
+            raise ValueError(f"a {outcome} record must not carry a memory or gzip measurement")
     return {
         **request,
         "outcome": outcome,
@@ -358,6 +404,9 @@ def _record_from(obj: dict[str, object]) -> RowRecord:
         "step_bytes": step_bytes,
         "step_s": step_s,
         "trim_s": trim_s,
+        "peak_rss_bytes": peak_rss,
+        "gzip_table": gzip_table,
+        "gzip_selected": gzip_selected,
     }
 
 
@@ -378,6 +427,9 @@ def failed_record(request: RowRequest, outcome: Outcome, error: str) -> RowRecor
         "step_bytes": None,
         "step_s": None,
         "trim_s": None,
+        "peak_rss_bytes": None,
+        "gzip_table": None,
+        "gzip_selected": None,
     }
 
 

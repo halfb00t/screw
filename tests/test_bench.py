@@ -59,8 +59,15 @@ from bench.memory import (
 from bench.quiet import QuietResult, Reading, wait_quiet
 from bench.thread_spike import __main__ as spike_cli
 from bench.thread_spike import helical, maths, measure, worker
+from bench.thread_spike import verdict as verdict_module
 from bench.thread_spike.__main__ import _table_row
-from bench.thread_spike.runner import Worker
+from bench.thread_spike.runner import (
+    CONTAINER_IMAGE,
+    Worker,
+    container_argv,
+    docker_kill,
+    run_once,
+)
 from bench.thread_spike.verdict import (
     BUDGET_BYTES,
     BUDGET_S,
@@ -573,7 +580,7 @@ def test_the_depth_presets_are_fractions_of_five_eighths_of_the_fundamental_heig
 _REQUEST: RowRequest = {
     "kind": "rod", "size": "M6", "d": 6.0, "pitch": 1.0, "turns": 5.0, "length": 5.0,
     "left_hand": False, "k": 5, "clearance": 0.0, "presets": [("preview", 0.08, 0.5)],
-    "step": False, "gzip_on": [], "check_ceiling": FINE_CHECK_CEILING,
+    "step": False, "gzip_on": [], "check_ceiling": FINE_CHECK_CEILING, "want_gzip_table": False,
 }
 
 
@@ -583,7 +590,7 @@ def _built(precise: float, *, solids: int = 1, valid: bool = True,
         **_REQUEST, "outcome": "built", "error": None, "solids": solids, "is_valid": valid,
         "precise_volume": precise, "default_volume": precise, "build_s": 0.1, "volume_s": 0.1,
         "meshes": [] if meshes is None else meshes, "step_bytes": None, "step_s": None,
-        "trim_s": None,
+        "trim_s": None, "peak_rss_bytes": None, "gzip_table": None, "gzip_selected": None,
     }
 
 
@@ -1181,7 +1188,7 @@ def _synth(size: str = "M6", kind: str = "rod", *, left: bool = False, turns: fl
         "kind": kind, "size": size, "d": d, "pitch": pitch, "turns": turns, "length": length,
         "left_hand": left, "k": k, "clearance": clearance, "presets": presets if rod else [],
         "step": rod and step is not None, "gzip_on": ["fine"] if rod and fine else [],
-        "check_ceiling": FINE_CHECK_CEILING,
+        "check_ceiling": FINE_CHECK_CEILING, "want_gzip_table": False,
     }
     if cls in ("failure", "timeout", "worker_died"):
         return failed_record(request, cls, "it broke")
@@ -1211,7 +1218,7 @@ def _synth(size: str = "M6", kind: str = "rod", *, left: bool = False, turns: fl
         "build_s": build_s, "volume_s": volume_s, "meshes": meshes,
         "step_bytes": step[0] if rod and step else None,
         "step_s": step[1] if rod and step else None,
-        "trim_s": None,
+        "trim_s": None, "peak_rss_bytes": None, "gzip_table": None, "gzip_selected": None,
     }
 
 
@@ -1569,6 +1576,7 @@ def _ok_record(request: RowRequest) -> RowRecord:
         "meshes": meshes, "step_bytes": 1000 if request["step"] else None,
         "step_s": 0.01 if request["step"] else None,
         "trim_s": 0.01 if request["kind"] == "trim" else None,
+        "peak_rss_bytes": None, "gzip_table": None, "gzip_selected": None,
     }
 
 
@@ -1948,21 +1956,29 @@ def test_the_escape_rows_are_the_failures_inside_the_standard_range_of_either_ha
 
 
 def _full_campaign(tmp_path: Path, *, prefix: str = "c1", grid_extra: list[RowRecord] | None = None,
-                   grid_decisive: bool = True, skip: tuple[str, ...] = ()) -> None:
-    """A clean M6-only campaign of all four blocks, written the way a run writes it."""
+                   grid_decisive: bool = True, skip: tuple[str, ...] = (),
+                   container_extra: list[RowRecord] | None = None) -> None:
+    """A clean M6-only campaign of all four rod blocks and the container run, written the way a
+    run writes it."""
     grid = [row for left in (False, True) for turns in (10.0, 20.0, 60.0)
             for row in (_synth(left=left, turns=turns, k=3, err=1.5e-6, stl_err=1e-3),
                         _synth(kind="void", left=left, turns=turns, k=3))]
+    container = [row for left in (False, True) for turns in (10.0, 60.0)
+                 for row in (_synth(left=left, turns=turns, k=3, preview=False, fine=None,
+                                    step=None),
+                             _synth(kind="void", left=left, turns=turns, k=3))]
     blocks: dict[str, list[RowRecord]] = {
         "ksweep": [r for k in (3, 5, 10) for r in _ksweep(k, triangles=1000 + k)],
         "grid": grid + (grid_extra or []),
         "frontier": _full_walk("M6", None),
         "ladder": [_synth(turns=10.0)],
+        "container": container + (container_extra or []),
     }
     for block, rows in blocks.items():
         if block not in skip:
+            # Emulated timings: a container run is written non-decisive, as a run writes it.
             _write_run(tmp_path / f"{prefix}-{block}.jsonl", block, rows,
-                       decisive=grid_decisive if block == "grid" else True)
+                       decisive=grid_decisive if block == "grid" else block != "container")
 
 
 def test_a_clean_campaign_passes_with_the_k_the_estimator_and_the_turn_caps_printed(
@@ -2341,3 +2357,392 @@ def test_a_verdict_without_the_controls_or_trim_runs_says_they_are_not_recorded(
     out = capsys.readouterr().out
     assert "controls: not recorded" in out
     assert "trim: not recorded" in out
+
+
+# --- Fresh-child RSS, the L19 gzip table and the container block (Phase 2, plan 02-04) ---
+
+_TABLE: list[tuple[int, int, float, float]] = [(1, 100, 1.0, 2.0), (6, 90, 2.0, 3.0),
+                                               (9, 89, 3.0, 4.0)]
+
+
+def _once_request(*, table: bool = False, presets: int = 1) -> RowRequest:
+    names = [("preview", 0.08, 0.5), ("fine", 0.01, 0.1)][:presets]
+    return {**_REQUEST, "turns": 3.0, "length": 3.0, "presets": names, "gzip_on": ["fine"],
+            "want_gzip_table": table}
+
+
+def _fresh(request: RowRequest, *, rss: int | None = 800 * 1024 * 1024) -> RowRecord:
+    """What a healthy fresh `--once` child would answer for a rod request."""
+    record = _ok_record(request)
+    table = _TABLE if request["want_gzip_table"] else None
+    return {**record, "peak_rss_bytes": rss, "gzip_table": table,
+            "gzip_selected": 1 if table else None}
+
+
+def test_the_container_argv_is_a_list_that_mounts_bench_read_only_under_linux_amd64() -> None:
+    argv = container_argv("probe-1", Path("/repo"))
+    assert isinstance(argv, list)
+    assert all(isinstance(part, str) for part in argv)
+    assert argv[:3] == ["docker", "run", "-i"]
+    assert "--rm" in argv
+    assert argv[argv.index("--platform") + 1] == "linux/amd64"
+    assert argv[argv.index("--name") + 1] == "probe-1"
+    assert argv[argv.index("-v") + 1] == "/repo/bench:/probe/bench:ro"
+    assert argv[argv.index("-e") + 1] == "PYTHONPATH=/probe"
+    assert argv[argv.index("--entrypoint") + 1] == "python"
+    assert argv[-3:] == [CONTAINER_IMAGE, "-m", "bench.thread_spike.worker"]
+    assert CONTAINER_IMAGE == "screw:latest"
+
+
+def test_docker_kill_stops_the_container_the_argv_named_and_ignores_an_argv_without_one(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[list[str]] = []
+
+    def fake_run(argv: list[str], **kwargs: object) -> None:
+        calls.append(argv)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    docker_kill(container_argv("probe-7", Path("/repo")))
+    docker_kill([sys.executable, "-c", "pass"])
+    assert calls == [["docker", "kill", "probe-7"]]
+
+
+def test_a_timeout_runs_the_on_timeout_hook_and_the_respawn_asks_for_a_new_argv() -> None:
+    spawned: list[list[str]] = []
+    killed: list[list[str]] = []
+
+    def argv() -> list[str]:
+        spawned.append([sys.executable, "-c", f"import time; time.sleep(60)  # {len(spawned)}"])
+        return spawned[-1]
+
+    worker = Worker(argv=argv, on_timeout=killed.append)
+    try:
+        first = worker.run(_REQUEST, 0.5)
+        second = worker.run(_REQUEST, 0.5)
+    finally:
+        worker.close()
+    assert (first["outcome"], second["outcome"]) == ("timeout", "timeout")
+    assert len(spawned) == 2
+    assert spawned[0] != spawned[1]
+    assert killed == spawned
+
+
+def test_a_worker_that_dies_does_not_run_the_on_timeout_hook() -> None:
+    killed: list[list[str]] = []
+    worker = Worker(argv=[sys.executable, "-c", "import os; os._exit(3)"],
+                    on_timeout=killed.append)
+    try:
+        assert worker.run(_REQUEST, 30.0)["outcome"] == "worker_died"
+    finally:
+        worker.close()
+    assert killed == []
+
+
+def test_a_fresh_once_child_records_its_peak_rss_and_a_persistent_worker_never_does() -> None:
+    fresh = run_once(_once_request(), ROW_TIMEOUT_S)
+    assert fresh["outcome"] == "built"
+    assert fresh["peak_rss_bytes"] is not None
+    assert fresh["peak_rss_bytes"] > 50 * 1024 * 1024  # a kernel process, not a stray byte count
+    assert fresh["gzip_table"] is None
+    assert parse_record(json.dumps(fresh)) == fresh
+    persistent = worker.run_row(_once_request())
+    assert persistent["outcome"] == "built"
+    assert persistent["peak_rss_bytes"] is None  # a high-water mark of the whole process
+
+
+def test_the_once_child_runs_l19s_table_on_the_rows_own_stl_after_the_rss_reading() -> None:
+    record = run_once({**_once_request(table=True), "presets": [("fine", 0.01, 0.1)]},
+                      ROW_TIMEOUT_S)
+    assert record["peak_rss_bytes"] is not None
+    table = record["gzip_table"]
+    assert table is not None
+    assert [level for level, *_ in table] == [1, 6, 9]
+    assert all(out_bytes > 0 and single > 0 and concurrent > 0
+               for _, out_bytes, single, concurrent in table)
+    assert record["gzip_selected"] in (1, 6, 9)
+    assert parse_record(json.dumps(record)) == record
+
+
+@pytest.mark.parametrize(("request_", "why"), [
+    (_once_request(presets=2), "exactly one preset"),
+    ({**_once_request(), "presets": []}, "exactly one preset"),
+])
+def test_a_once_rod_row_with_other_than_one_preset_is_refused_not_given_a_misleading_peak(
+        request_: RowRequest, why: str) -> None:
+    record = worker.run_row(request_, once=True)
+    assert record["outcome"] == "failure"
+    assert record["error"] is not None
+    assert why in record["error"]
+    assert record["peak_rss_bytes"] is None
+
+
+def test_a_persistent_worker_refuses_a_gzip_table_request_and_a_void_cannot_ask_for_one() -> None:
+    record = worker.run_row(_once_request(table=True))
+    assert record["outcome"] == "failure"
+    assert record["error"] is not None
+    assert "--once" in record["error"]
+    void = worker.run_row({**_REQUEST, "kind": "void", "presets": [], "want_gzip_table": True},
+                          once=True)
+    assert void["outcome"] == "failure"
+    assert void["error"] is not None
+    assert "rod" in void["error"]
+
+
+def test_a_record_carries_a_gzip_table_exactly_when_its_request_asked_for_one() -> None:
+    asked: RowRequest = {**_once_request(table=True), "kind": "rod"}
+    record = _fresh(asked)
+    assert parse_record(json.dumps(record)) == record
+    for broken in ({**record, "gzip_table": None, "gzip_selected": None},  # asked, not given
+                   {**record, "want_gzip_table": False},  # given, not asked
+                   {**record, "gzip_selected": None},  # a table with no selection
+                   {**record, "gzip_table": []}):  # an empty table is no table
+        with pytest.raises(ValueError, match="gzip"):
+            parse_record(json.dumps(broken))
+    with pytest.raises(ValueError, match="gzip_table"):
+        parse_record(json.dumps({**record, "gzip_table": [[1, 2, 3]]}))
+
+
+def test_only_a_built_rod_row_carries_a_peak_rss_or_a_gzip_table() -> None:
+    rod = _fresh(_once_request())
+    assert parse_record(json.dumps(rod)) == rod
+    with pytest.raises(ValueError, match="peak_rss_bytes"):
+        parse_record(json.dumps({**rod, "kind": "void", "presets": []}))
+    died = {**failed_record(_REQUEST, "timeout", "late"), "peak_rss_bytes": 5}
+    with pytest.raises(ValueError, match="memory or gzip"):
+        parse_record(json.dumps(died))
+    liar = {**failed_record(_REQUEST, "failure", "boom"), "gzip_table": [[1, 2, 3.0, 4.0]],
+            "gzip_selected": 1}
+    with pytest.raises(ValueError, match="memory or gzip"):
+        parse_record(json.dumps(liar))
+
+
+def test_an_rss_row_prints_its_figure_labelled_a_fresh_child_and_a_persistent_row_prints_none(
+) -> None:
+    fresh = _fresh({**_once_request(), "kind": "rod"})
+    persistent: RowRecord = {**_ok_record(_once_request()), "size": "M8"}
+    text = "\n".join(spike_cli.rss_section([fresh, persistent]))
+    assert "| M6 | right | preview | 3 | 3 | below standard max | 800.0 MiB (fresh child, this "\
+           "row only) | ok |" in text
+    assert "| M8 | right | preview | 3 | 3 | below standard max | n/a | ok |" in text
+    assert text.count("fresh child, this row only") == 1
+    assert spike_cli.rss_section([]) == ["rss: not recorded"]
+
+
+def test_the_l19_table_and_the_selected_level_print_only_for_rows_that_asked_for_one() -> None:
+    plain = _fresh(_once_request())
+    assert "L19" not in "\n".join(spike_cli.rss_section([plain]))
+    asked = _fresh({**_once_request(table=True), "kind": "rod"})
+    text = "\n".join(spike_cli.rss_section([plain, asked]))
+    assert "| M6 | 6 | 90 | 2.0 | 3.0 |" in text
+    assert "- M6: selected gzip level 1" in text
+    assert text.count("selected gzip level") == 1
+
+
+def test_the_standard_max_and_the_frontier_terminal_rows_are_told_apart_in_the_rss_table() -> None:
+    standard = _fresh({**_once_request(), "turns": 60.0, "length": 60.0})
+    terminal = _fresh({**_once_request(), "turns": 100.0, "length": 100.0})
+    text = "\n".join(spike_cli.rss_section([standard, terminal]))
+    assert "| 60 | 60 | standard max |" in text
+    assert "| 100 | 100 | frontier terminal |" in text
+
+
+def test_the_frontier_terminals_are_the_last_measured_turn_count_per_size_and_hand() -> None:
+    rows = _walk("M6", False, 100) + _walk("M6", True, None) + _walk("M2", False, 55)
+    assert spike_cli._frontier_terminals(rows) == [
+        ("M2", False, 55), ("M6", False, 100), ("M6", True, 250)]
+
+
+class _FreshLog:
+    def __init__(self) -> None:
+        self.requests: list[RowRequest] = []
+        self.timeouts: list[float] = []
+
+    def __call__(self, request: RowRequest, timeout_s: float) -> RowRecord:
+        self.requests.append(request)
+        self.timeouts.append(timeout_s)
+        return _fresh(request)
+
+
+def test_the_rss_block_is_one_fresh_child_per_size_hand_and_preset_plus_the_terminal_rows(
+) -> None:
+    log = _FreshLog()
+    default = _FakeWorker()
+    frontier = _walk("M6", False, 100) + _walk("M6", True, None)
+    c = spike_cli.Campaign(default, True, None, fresh=log, frontier_rows=frontier)
+    spike_cli.BLOCKS["rss"](c, 5, False)
+    assert default.requests == []  # no persistent worker: nothing else may print an RSS
+    assert len(log.requests) == 15 * 2 * 2 + 2
+    standard, terminals = log.requests[:60], log.requests[60:]
+    assert all(len(r["presets"]) == 1 and r["gzip_on"] == [r["presets"][0][0]]
+               for r in standard)
+    assert {name for r in standard for name, _, _ in r["presets"]} == {"preview", "fine"}
+    tabled = [r for r in standard if r["want_gzip_table"]]
+    assert len(tabled) == 15  # one per size: the right-hand fine standard-max child
+    assert all(r["presets"][0][0] == "fine" and not r["left_hand"] for r in tabled)
+    assert tabled[0]["length"] == 20.0
+    assert tabled[-1]["length"] == 200.0
+    assert [(r["size"], r["left_hand"], r["turns"]) for r in terminals] == [
+        ("M6", False, 100.0), ("M6", True, 250.0)]
+    assert all(r["presets"][0][0] == "fine" and not r["want_gzip_table"] for r in terminals)
+    assert {r["k"] for r in log.requests} == {5}
+    assert log.timeouts.count(verdict_module.GZIP_TABLE_TIMEOUT_S) == 15
+    assert log.timeouts.count(ROW_TIMEOUT_S) == 47
+
+
+def test_the_rss_block_without_frontier_rows_is_refused_and_its_smoke_is_one_child() -> None:
+    c = spike_cli.Campaign(_FakeWorker(), True, None, fresh=_FreshLog())
+    with pytest.raises(ValueError, match="frontier"):
+        spike_cli.BLOCKS["rss"](c, 5, False)
+    log = _FreshLog()
+    smoke = spike_cli.Campaign(_FakeWorker(), True, None, fresh=log)
+    spike_cli.BLOCKS["rss"](smoke, 5, True)
+    assert [(r["size"], r["turns"], r["presets"][0][0], r["want_gzip_table"])
+            for r in log.requests] == [("M6", 10.0, "fine", True)]
+
+
+def test_the_container_block_is_the_full_grid_in_the_image_with_no_presets_and_no_step() -> None:
+    default, container = _FakeWorker(), _FakeWorker()
+    c = spike_cli.Campaign(default, False, None, container=container)
+    spike_cli.BLOCKS["container"](c, 5, False)
+    assert default.requests == []
+    assert len(container.requests) == 2 * 2 * 1790
+    rod, void = container.requests[:2]
+    assert (rod["kind"], rod["presets"], rod["step"], rod["gzip_on"], rod["clearance"]) == (
+        "rod", [], False, [], 0.0)
+    assert (void["kind"], void["clearance"]) == ("void", maths.VOID_CLEARANCE)
+    assert {r["left_hand"] for r in container.requests} == {False, True}
+    assert {r["k"] for r in container.requests} == {5}
+    smoke_container = _FakeWorker()
+    smoke = spike_cli.Campaign(default, False, None, container=smoke_container)
+    spike_cli.BLOCKS["container"](smoke, 5, True)
+    assert [(r["kind"], r["size"], r["turns"]) for r in smoke_container.requests] == [
+        ("rod", "M6", 5.0), ("void", "M6", 5.0)]
+
+
+def test_a_container_row_that_is_silent_wrong_fails_the_pass_bar_naming_the_row() -> None:
+    assert pass_bar([_synth(), _synth(kind="void")], False) == ("held", ())
+    status, named = pass_bar([_synth(), _synth(turns=30.0, cls="silent_wrong")], False)
+    assert status == "failed"
+    assert named == ("M6 right L=30 rod: silent_wrong",)
+
+
+def test_the_container_rows_count_toward_the_pass_bar_and_the_escape_clause_in_the_verdict(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _full_campaign(tmp_path, container_extra=[_synth(turns=30.0, cls="silent_wrong", left=True,
+                                                     preview=False, fine=None, step=None)])
+    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 1
+    out = capsys.readouterr().out
+    assert "pass bar: failed" in out
+    assert "escape clause: FIRED" in out
+    assert out.count("- container M6 left L=30 rod: silent_wrong") == 2
+    assert "container (run `c1-container`, non-decisive)" in out
+
+
+def test_a_campaign_without_the_container_run_is_never_a_pass(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _full_campaign(tmp_path, skip=("container",))
+    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 1
+    out = capsys.readouterr().out
+    assert "Blocks missing: container" in out
+    assert "pass bar: not established" in out
+    assert "no container run" in out
+
+
+def test_a_container_timeout_is_never_a_cap_because_emulated_timings_are_never_decisive(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _full_campaign(tmp_path, container_extra=[_synth(turns=30.0, cls="timeout")])
+    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 1
+    out = capsys.readouterr().out
+    assert "pass bar: not established" in out
+    assert "- container M6 right L=30 rod: timeout" in out
+
+
+def test_the_verdict_prints_the_rss_table_and_the_l19_table_from_a_recorded_run(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _full_campaign(tmp_path)
+    asked: RowRequest = {**_once_request(table=True), "turns": 60.0, "length": 60.0}
+    _write_run(tmp_path / "c1-rss.jsonl", "rss", [_fresh(asked)])
+    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 0
+    out = capsys.readouterr().out.split("### Peak RSS and the L19 gzip table")[1]
+    assert "800.0 MiB (fresh child, this row only)" in out
+    assert "| M6 | 9 | 89 | 3.0 | 4.0 |" in out
+    assert "- M6: selected gzip level 1" in out
+
+
+def _image_says(monkeypatch: pytest.MonkeyPatch, image: str | None) -> None:
+    monkeypatch.setattr(spike_cli, "_image_facts",
+                        lambda: (image, "" if image else "image screw:latest is not available"))
+
+
+def test_the_container_block_refuses_before_the_guard_when_docker_or_the_image_is_absent(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    _forbid_everything_after_the_id_checks(monkeypatch)
+    _image_says(monkeypatch, None)
+    assert spike_cli.run_block("container", "a-run", "a-sweep", results_dir=tmp_path) == 2
+    assert "is not available" in capsys.readouterr().err
+    assert list(tmp_path.iterdir()) == []
+    assert spike_cli.smoke_block("container") == 2
+
+
+def test_a_container_run_is_never_decisive_and_says_which_image_and_that_timings_are_emulated(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    _held(monkeypatch, decisive=True)  # the host gate was quiet
+    _image_says(monkeypatch, "sha256:abc 2026-10-06T08:00:00Z")
+    monkeypatch.setattr("platform.machine", lambda: "arm64")
+
+    def one_container_row(c: spike_cli.Campaign, k: int, smoke: bool) -> None:
+        c.measure({**_REQUEST, "k": k, "presets": []}, via="container")
+
+    monkeypatch.setitem(spike_cli.BLOCKS, "container", one_container_row)
+    ksweep = [r for k in (3, 5, 10) for r in _ksweep(k, triangles=1000 + k)]
+    _write_run(tmp_path / "sweep.jsonl", "ksweep", ksweep)
+    assert spike_cli.run_block("container", "box", "sweep", results_dir=tmp_path) == 0
+    header = parse_header((tmp_path / "box.jsonl").read_text().splitlines()[0])
+    assert header["decisive"] is False  # emulated timings prove nothing about the host
+    out = capsys.readouterr().out
+    assert "- Image: `screw:latest` sha256:abc 2026-10-06T08:00:00Z" in out
+    assert "platform linux/amd64 under emulation on arm64: timings feed no bound" in out
+    assert "non-decisive by construction" in out
+    assert "### Container validity (D-05)" in out
+
+
+@pytest.mark.parametrize(("block", "frontier_from", "wanted"), [
+    ("rss", None, "requires --frontier-from"),
+    ("grid", "front", "only the rss block takes --frontier-from"),
+    ("rss", "../x", "not a run id"),
+])
+def test_only_the_rss_block_takes_frontier_from_and_it_requires_one(
+        block: str, frontier_from: str | None, wanted: str, tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    _forbid_everything_after_the_id_checks(monkeypatch)
+    assert spike_cli.run_block(block, "a-run", "a-sweep", results_dir=tmp_path,
+                               frontier_from=frontier_from) == 2
+    assert wanted in capsys.readouterr().err
+    assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.parametrize("which", ["missing", "wrong block"])
+def test_a_frontier_from_run_that_is_missing_or_not_a_frontier_run_is_refused(
+        which: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    _held(monkeypatch)
+    ksweep = [r for k in (3, 5, 10) for r in _ksweep(k, triangles=1000 + k)]
+    _write_run(tmp_path / "sweep.jsonl", "ksweep", ksweep)
+    if which == "wrong block":
+        _write_run(tmp_path / "front.jsonl", "grid", [_synth()])
+    assert spike_cli.run_block("rss", "a-rss", "sweep", results_dir=tmp_path,
+                               frontier_from="front") == 2
+    assert "refused" in capsys.readouterr().err
+    assert not (tmp_path / "a-rss.jsonl").exists()
+
+
+def test_smoke_rss_runs_one_real_fresh_child_and_prints_its_peak_and_the_table(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    assert spike_cli.smoke_block("rss") == 0
+    out = capsys.readouterr().out
+    assert "not a campaign run" in out
+    assert "(fresh child, this row only)" in out
+    assert "L19 gzip table" in out
+    assert "selected gzip level" in out

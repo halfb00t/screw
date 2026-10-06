@@ -15,6 +15,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+from collections.abc import Callable
 from pathlib import Path
 from typing import IO
 
@@ -28,15 +29,47 @@ from bench.thread_spike.verdict import (
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _STDERR_TAIL = 2000
 
+# The production image (D-05): the container pass runs the locked construction in it, because
+# production runs in it.
+CONTAINER_IMAGE = "screw:latest"
+
+
+def container_argv(name: str, repo_root: Path) -> list[str]:
+    """The argv that runs this package's worker inside `CONTAINER_IMAGE` as linux/amd64.
+
+    A list, never a shell string (T-02-12). The image runs as uid 10001 and has no `bench/`, so
+    the repository's `bench/` is mounted read-only and put on PYTHONPATH (RESEARCH Code Example
+    7). `--rm` removes the container when it exits and `--name` is what `docker_kill` needs to
+    stop one a timeout abandoned.
+    """
+    return ["docker", "run", "-i", "--rm", "--platform", "linux/amd64", "--name", name,
+            "--entrypoint", "python", "-v", f"{repo_root}/bench:/probe/bench:ro",
+            "-e", "PYTHONPATH=/probe", CONTAINER_IMAGE, "-m", "bench.thread_spike.worker"]
+
+
+def docker_kill(argv: list[str]) -> None:
+    """Stop the container `argv` (a `container_argv`) started. Killing the `docker run` client
+    does not stop its container, so a timed-out row would otherwise keep building in the
+    background; a container that is already gone is not an error."""
+    if "--name" in argv:
+        name = argv[argv.index("--name") + 1]
+        subprocess.run(["docker", "kill", name], capture_output=True, check=False)
+
 
 class Worker:
     """A persistent kernel child. `argv` and `env` are injectable for the container pass and
-    the reference rows; the default is this package's own worker."""
+    the reference rows; the default is this package's own worker. `argv` may be a callable,
+    asked at every spawn, so a respawn can take a new container name; `on_timeout` gets the argv
+    of the child a timeout just dropped, so the container worker can `docker_kill` it."""
 
-    def __init__(self, argv: list[str] | None = None, env: dict[str, str] | None = None) -> None:
+    def __init__(self, argv: list[str] | Callable[[], list[str]] | None = None,
+                 env: dict[str, str] | None = None,
+                 on_timeout: Callable[[list[str]], None] | None = None) -> None:
         self._argv = argv if argv is not None else [
             sys.executable, "-m", "bench.thread_spike.worker"]
         self._env = env
+        self._on_timeout = on_timeout
+        self._spawned: list[str] = []
         self._proc: subprocess.Popen[str] | None = None
         self._stderr: IO[str] | None = None
 
@@ -45,8 +78,9 @@ class Worker:
         # chatty child would fill it and deadlock the campaign.
         self._stderr = tempfile.TemporaryFile(  # noqa: SIM115 -- closed in _drop, per child
             mode="w+", encoding="utf-8")
+        self._spawned = self._argv() if callable(self._argv) else list(self._argv)
         self._proc = subprocess.Popen(
-            self._argv, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=self._stderr,
+            self._spawned, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=self._stderr,
             text=True, cwd=_REPO_ROOT, env=self._env)
         return self._proc
 
@@ -106,7 +140,10 @@ class Worker:
         try:
             line = lines.get(timeout=timeout_s)
         except queue.Empty:
+            spawned = self._spawned
             self._drop()
+            if self._on_timeout is not None:
+                self._on_timeout(spawned)
             return failed_record(request, "timeout", f"no record within {timeout_s:g} s")
         if not line.endswith("\n"):  # EOF, or a line cut short by the child dying
             return self._died(request)
@@ -126,4 +163,19 @@ class Worker:
                 proc.wait(timeout=10)
             except subprocess.TimeoutExpired:
                 proc.kill()
+                if self._on_timeout is not None:
+                    self._on_timeout(self._spawned)
         self._drop()
+
+
+def run_once(request: RowRequest, timeout_s: float, argv: list[str] | None = None,
+             env: dict[str, str] | None = None) -> RowRecord:
+    """One row in a fresh `--once` child, killed at `timeout_s`: the only way a row gets a peak
+    RSS, because the child's `ru_maxrss` is then that row's alone (RESEARCH Pitfall 5). Children
+    run one at a time, so a slow row costs time and never memory (T-02-13)."""
+    worker = Worker(argv=argv if argv is not None else [
+        sys.executable, "-m", "bench.thread_spike.worker", "--once"], env=env)
+    try:
+        return worker.run(request, timeout_s)
+    finally:
+        worker.close()

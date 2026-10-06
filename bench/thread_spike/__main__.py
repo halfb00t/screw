@@ -8,11 +8,16 @@ closed form and prints a Markdown report. It is not a campaign run: no run id, n
 `bench/RESULTS.md`, and its JSONL goes to a temporary directory. Not part of `make verify`.
 
 `run <block> --run-id ID` runs one campaign block (ksweep, grid, frontier, ladder, controls,
-trim) behind the
+trim, rss, container) behind the
 guard and the quiet gate, streaming one JSONL record per row under `bench/results/thread-spike/`
 and printing the Markdown report. A run is never overwritten or retried in place, and K comes
 only from a K-sweep run's own record through the pre-registered rule: there is no way to type
 one. `smoke --block NAME` runs the same block code on a small subset and records nothing.
+
+The rss block runs one fresh `--once` child per row, the only place a peak RSS exists, and
+takes `--frontier-from` for the terminal rows of the frontier walk. The container block runs the
+locked construction over the full grid in the production image under linux/amd64 through the
+same worker protocol, validity, solid count and volume only, never decisive (emulated timings).
 
 The controls block runs its ruled-surface rows in a second worker whose PYTHONPATH adds the
 scratch directory named by SCREW_SPIKE_CQW, and refuses (exit 2) when the package is not
@@ -25,6 +30,7 @@ are read from package metadata, and every build happens in the child.
 from __future__ import annotations
 
 import argparse
+import itertools
 import json
 import os
 import platform
@@ -59,9 +65,16 @@ from bench.thread_spike.maths import (
     standard_max,
     turns_of,
 )
-from bench.thread_spike.runner import Worker
+from bench.thread_spike.runner import (
+    CONTAINER_IMAGE,
+    Worker,
+    container_argv,
+    docker_kill,
+    run_once,
+)
 from bench.thread_spike.verdict import (
     FINE_CHECK_CEILING,
+    GZIP_TABLE_TIMEOUT_S,
     PROTOCOL_PATH,
     ROW_TIMEOUT_S,
     GuardResult,
@@ -180,7 +193,7 @@ def _smoke_request() -> RowRequest:
         "kind": "rod", "size": "M6", "d": 6.0, "pitch": 1.0, "turns": 5.0, "length": 5.0,
         "left_hand": False, "k": 5, "clearance": 0.0,
         "presets": [("preview", tolerance, angular)], "step": False, "gzip_on": [],
-        "check_ceiling": FINE_CHECK_CEILING,
+        "check_ceiling": FINE_CHECK_CEILING, "want_gzip_table": False,
     }
 
 
@@ -264,7 +277,7 @@ def smoke() -> int:
     return 0 if row_class == "ok" else 1
 
 
-Via = Literal["worker", "reference"]
+Via = Literal["worker", "reference", "container", "fresh"]
 
 
 @dataclass(frozen=True)
@@ -286,9 +299,14 @@ class Campaign:
     "not established" without it (owner ruling R4)."""
 
     def __init__(self, worker: Worker, decisive: bool, sink: IO[str] | None, *,
-                 reference: Worker | None = None) -> None:
+                 reference: Worker | None = None, container: Worker | None = None,
+                 fresh: Callable[[RowRequest, float], RowRecord] = run_once,
+                 frontier_rows: list[RowRecord] | None = None) -> None:
         self._worker = worker
         self.reference = reference
+        self.container = container
+        self._fresh = fresh
+        self.frontier_rows = frontier_rows
         self.decisive = decisive
         self._sink = sink
         self.rows: list[Measured] = []
@@ -296,10 +314,16 @@ class Campaign:
         self.notes: list[str] = []
 
     def measure(self, request: RowRequest, via: Via = "worker") -> Measured:
-        worker = self._worker if via == "worker" else self.reference
-        if worker is None:
-            raise ValueError(f"this campaign has no {via} worker")
-        record = worker.run(request, ROW_TIMEOUT_S)
+        if via == "fresh":
+            # A row asking for the gzip table gets its own, longer deadline (verdict.py).
+            record = self._fresh(request, GZIP_TABLE_TIMEOUT_S if request["want_gzip_table"]
+                                 else ROW_TIMEOUT_S)
+        else:
+            worker = {"worker": self._worker, "reference": self.reference,
+                      "container": self.container}[via]
+            if worker is None:
+                raise ValueError(f"this campaign has no {via} worker")
+            record = worker.run(request, ROW_TIMEOUT_S)
         closed = closed_of(record)
         row_class, reasons = classify_record(record)
         measured = Measured(record, row_class, reasons, over_budget(record, self.decisive),
@@ -321,9 +345,9 @@ class Campaign:
         self._sink = sink
 
     def close(self) -> None:
-        self._worker.close()
-        if self.reference is not None:
-            self.reference.close()
+        for worker in (self._worker, self.reference, self.container):
+            if worker is not None:
+                worker.close()
 
 
 # INTERIM presets in the order the report reads them: preview first, then fine.
@@ -332,7 +356,7 @@ _INTERIM: list[Preset] = [(name, tol, ang) for name, (tol, ang) in INTERIM_PRESE
 
 def _request(kind: str, size: str, length: Fraction, left_hand: bool, k: int, *,
              presets: list[Preset] | None = None, step: bool = False,
-             gzip_on: list[str] | None = None) -> RowRequest:
+             gzip_on: list[str] | None = None, want_gzip_table: bool = False) -> RowRequest:
     """One row request from exact fractions. The builder gets `float(length / pitch)`, never a
     float division of floats, so an integer-turn row is built with its exact integer (Pitfall
     1). A void is the cutter at `VOID_CLEARANCE`; a rod has none."""
@@ -344,6 +368,7 @@ def _request(kind: str, size: str, length: Fraction, left_hand: bool, k: int, *,
         "clearance": VOID_CLEARANCE if kind == "void" else 0.0,
         "presets": [] if presets is None else presets, "step": step,
         "gzip_on": [] if gzip_on is None else gzip_on, "check_ceiling": FINE_CHECK_CEILING,
+        "want_gzip_table": want_gzip_table,
     }
 
 
@@ -480,9 +505,67 @@ def _block_trim(c: Campaign, k: int, smoke: bool) -> None:
                                gzip_on=["fine"]))
 
 
+def _frontier_terminals(rows: list[RowRecord]) -> list[tuple[str, bool, int]]:
+    """The last measured turn count per (size, hand) of a frontier run's rod rows, in size order
+    and right hand first: where each walk ended, whether on a failure or on 250 turns."""
+    last: dict[tuple[str, bool], float] = {}
+    for r in rows:
+        if r["kind"] == "rod":
+            key = (r["size"], r["left_hand"])
+            last[key] = max(last.get(key, 0.0), r["turns"])
+    terminals: list[tuple[str, bool, int]] = []
+    for (size, left), turns in sorted(last.items(), key=lambda kv: (SIZES.index(kv[0][0]),
+                                                                    kv[0][1])):
+        if turns != int(turns):
+            raise ValueError(f"frontier terminal {turns!r} turns of {size} is not a whole turn")
+        terminals.append((size, left, int(turns)))
+    return terminals
+
+
+def _block_rss(c: Campaign, k: int, smoke: bool) -> None:
+    """Peak RSS from fresh children only (RESEARCH Pitfall 5): one `--once` child per row. Per
+    size and hand at the standard max, one at INTERIM fine and one at INTERIM preview, then each
+    frontier walk's terminal row at fine (rows from `--frontier-from`). The right-hand fine
+    standard-max child also runs L19's gzip table. A smoke run is one M6 right-hand 10-turn
+    fine child, which asks for the table so that the path runs end to end."""
+    fine = _INTERIM[1]
+    if smoke:
+        _, pitch = PITCH["M6"]
+        c.measure(_request("rod", "M6", 10 * pitch, False, k, presets=[fine], gzip_on=["fine"],
+                           want_gzip_table=True), via="fresh")
+        return
+    if c.frontier_rows is None:
+        raise ValueError("the rss block needs the rows of a frontier run (--frontier-from)")
+    for size in SIZES:
+        d, _ = PITCH[size]
+        for left in (False, True):
+            for preset in _INTERIM:
+                c.measure(_request("rod", size, standard_max(d), left, k, presets=[preset],
+                                   gzip_on=[preset[0]],
+                                   want_gzip_table=not left and preset[0] == "fine"),
+                          via="fresh")
+    for size, left, turns in _frontier_terminals(c.frontier_rows):
+        _, pitch = PITCH[size]
+        c.measure(_request("rod", size, Fraction(turns) * pitch, left, k, presets=[fine],
+                           gzip_on=["fine"]), via="fresh")
+
+
+def _block_container(c: Campaign, k: int, smoke: bool) -> None:
+    """The locked construction over the full D-03 grid, both hands, rod and void, in the
+    production image under linux/amd64 (D-05): validity, solid count and volume only, so the rod
+    takes no presets and no STEP. A smoke run is M6 at 5 turns, right hand."""
+    for size in ("M6",) if smoke else SIZES:
+        d, pitch = PITCH[size]
+        for length in [5 * pitch] if smoke else lengths(d, pitch):
+            for left in _hands(smoke):
+                c.measure(_request("rod", size, length, left, k), via="container")
+                c.measure(_request("void", size, length, left, k), via="container")
+
+
 BLOCKS: dict[str, Callable[[Campaign, int, bool], None]] = {
     "ksweep": _block_ksweep, "grid": _block_grid, "frontier": _block_frontier,
     "ladder": _block_ladder, "controls": _block_controls, "trim": _block_trim,
+    "rss": _block_rss, "container": _block_container,
 }
 
 
@@ -570,7 +653,7 @@ def report(header: list[str], measured: list[Measured], stops: list[str], end: R
             lines.append(f"- {row_label(m.record)}: {'; '.join(m.over)}")
     lines.extend(f"- frontier {stop}" for stop in stops)
     if extra:
-        lines.extend(["", *extra, ""])
+        lines.extend([*([] if lines[-1] == "" else [""]), *extra, ""])
     lines.append(_reading_line(end, " (includes this run's own load)"))
     return "\n".join(lines)
 
@@ -648,11 +731,64 @@ def trim_section(rows: list[RowRecord]) -> list[str]:
     return lines
 
 
+_MIB = 1024 * 1024
+
+
+def rss_section(rows: list[RowRecord]) -> list[str]:
+    """Peak RSS per row, every figure labelled as a fresh child's, then L19's gzip table and the
+    level its rule selects for each row that asked for one. A row with no figure prints `n/a`
+    and its class: a failed child has no memory to report (L02)."""
+    mine = [r for r in rows if r["kind"] == "rod"]
+    if not mine:
+        return ["rss: not recorded"]
+    lines = ["| Size | Hand | Preset | Turns | Length mm | Row | Peak RSS | Class |",
+             "|---|---|---|---|---|---|---|---|"]
+    for r in sorted(mine, key=_by_size):
+        peak = r["peak_rss_bytes"]
+        d = PITCH[r["size"]][0]
+        top = float(standard_max(d))
+        where = ("standard max" if r["length"] == top
+                 else "frontier terminal" if r["length"] > top else "below standard max")
+        figure = ("n/a" if peak is None
+                  else f"{peak / _MIB:.1f} MiB (fresh child, this row only)")
+        lines.append(f"| {r['size']} | {'left' if r['left_hand'] else 'right'} | "
+                     f"{', '.join(name for name, _, _ in r['presets'])} | {r['turns']:g} | "
+                     f"{r['length']:g} | {where} | {figure} | {row_class(r)} |")
+    tabled = [r for r in sorted(mine, key=_by_size) if r["gzip_table"] is not None]
+    if tabled:
+        lines += ["", "L19 gzip table (levels 1, 6 and 9 on the row's own STL, fresh child):", "",
+                  "| Size | Level | Output bytes | Single-threaded median ms | "
+                  "10-concurrent wall median ms |", "|---|---|---|---|---|"]
+        for r in tabled:
+            for level, out_bytes, single_ms, concurrent_ms in r["gzip_table"] or []:
+                lines.append(f"| {r['size']} | {level} | {out_bytes} | {single_ms:.1f} | "
+                             f"{concurrent_ms:.1f} |")
+        lines.append("")
+        lines += [f"- {r['size']}: selected gzip level {r['gzip_selected']} "
+                  "(spur L19's rule, `select_gzip_level`)" for r in tabled]
+    return lines
+
+
+def container_section(rows: list[RowRecord]) -> list[str]:
+    """The container pass in two lines: how many rows ran and in which classes, and that the
+    timings in them are not a measurement of anything but the emulator (D-05)."""
+    if not rows:
+        return ["container: not recorded"]
+    counts = Counter(row_class(r) for r in rows)
+    classes = ", ".join(f"{name} {counts[name]}" for name in (
+        "ok", "silent_wrong", "failure", "timeout", "worker_died"))
+    return [f"{len(rows)} rows in `{CONTAINER_IMAGE}` under linux/amd64: {classes}.",
+            "Every timing in this run is emulation: validity, solid count and volume are the "
+            "measurement, and a timing here feeds no bound (D-05)."]
+
+
 # What each block adds to its report beyond the per-size aggregate: a title and the lines, as a
 # function of the rows alone, so a run's report and the verdict over its JSONL print the same.
 SECTIONS: dict[str, tuple[str, Callable[[list[RowRecord]], list[str]]]] = {
     "controls": ("### Controls (D-06)", controls_section),
     "trim": ("### Tip trim cost (D-08)", trim_section),
+    "rss": ("### Peak RSS and the L19 gzip table", rss_section),
+    "container": ("### Container validity (D-05)", container_section),
 }
 
 
@@ -661,7 +797,7 @@ def _block_extra(block: str, campaign: Campaign) -> list[str]:
     lines = [f"- {note}" for note in campaign.notes]
     if section is not None:
         title, build = section
-        lines += ["", title, "", *build([m.record for m in campaign.rows])]
+        lines += [*([""] if lines else []), title, "", *build([m.record for m in campaign.rows])]
     return lines
 
 
@@ -706,6 +842,61 @@ def _reference_env(environ: Mapping[str, str]) -> tuple[dict[str, str] | None, s
     return child, ""
 
 
+def _image_facts() -> tuple[str | None, str]:
+    """`<id> <created>` of the production image, or `None` and why not: docker absent, or the
+    image not built (`make image`). One list-argv call, no shell (T-02-12)."""
+    try:
+        done = subprocess.run(
+            ["docker", "image", "inspect", CONTAINER_IMAGE, "--format", "{{.Id}} {{.Created}}"],
+            capture_output=True, text=True, check=False)
+    except FileNotFoundError:
+        return None, "docker is not installed or not on PATH"
+    if done.returncode != 0:
+        return None, (f"image {CONTAINER_IMAGE} is not available ({done.stderr.strip()}): "
+                      "run `make image` first")
+    return done.stdout.strip(), ""
+
+
+def _container_lines(image: str) -> list[str]:
+    machine = platform.machine()
+    where = (f"under emulation on {machine}" if machine.lower() in ("arm64", "aarch64")
+             else f"on a {machine} host")
+    return [f"- Image: `{CONTAINER_IMAGE}` {image}",
+            f"- platform linux/amd64 {where}: timings feed no bound"]
+
+
+def _container_worker() -> Worker:
+    """The worker that runs inside the image. A timeout abandons its container, so each spawn
+    takes a new name and `docker kill` stops the old one."""
+    names = itertools.count()
+    prefix = f"screw-spike-{os.getpid()}"
+    return Worker(argv=lambda: container_argv(f"{prefix}-{next(names)}", _REPO_ROOT),
+                  on_timeout=docker_kill)
+
+
+def _make_campaign(block: str, decisive: bool, sink: IO[str] | None, *,
+                   reference_env: dict[str, str] | None,
+                   frontier_rows: list[RowRecord] | None) -> Campaign:
+    """One block's campaign with the workers it needs. The container block is never decisive:
+    emulated timings say nothing about the production host (D-05)."""
+    return Campaign(
+        Worker(), decisive and block != "container", sink,
+        reference=None if reference_env is None else Worker(env=reference_env),
+        container=_container_worker() if block == "container" else None,
+        frontier_rows=frontier_rows)
+
+
+def _frontier_rows(frontier_from: str, results_dir: Path) -> list[RowRecord]:
+    """The rows of a recorded frontier run, for the rss block's terminal rows."""
+    path = results_dir / f"{frontier_from}.jsonl"
+    if not path.is_file():
+        raise ValueError(f"frontier run {frontier_from!r} is not recorded under {results_dir}")
+    lines = path.read_text().splitlines()
+    if not lines or parse_header(lines[0])["block"] != "frontier":
+        raise ValueError(f"run {frontier_from!r} is not a frontier run")
+    return [parse_result_row(line) for line in lines[1:]]
+
+
 def _environment_lines() -> list[str]:
     versions = ", ".join(f"{dist} {metadata.version(dist)}"
                          for dist in ("cadquery", "cadquery-ocp"))
@@ -735,14 +926,17 @@ def _locked_k(k_from: str, results_dir: Path) -> tuple[int, str]:
 
 
 def run_block(block: str, run_id: str, k_from: str | None, *,
-              results_dir: Path = RESULTS_DIR, env: Mapping[str, str] | None = None) -> int:
+              results_dir: Path = RESULTS_DIR, env: Mapping[str, str] | None = None,
+              frontier_from: str | None = None) -> int:
     """One guarded campaign block. Refusals, all exit 2 with nothing written: a run id that is
     not `RUN_ID`; a run id already recorded (a run is never overwritten or retried in place); a
     `--k-from` missing, malformed or given to the K sweep; the protocol guard. Then: the quiet
     gate, the header as the first JSONL line, rows streamed, the end reading, the Markdown.
     The controls block also refuses, before the guard and with nothing written, when
     SCREW_SPIKE_CQW (read from `env`, default the process environment) does not name a
-    directory the reference package imports from."""
+    directory the reference package imports from, and the container block when docker or the
+    image is absent. The rss block requires `--frontier-from <frontier run id>` and no other
+    block takes it."""
     target = results_dir / f"{run_id}.jsonl"
     problem = None
     if not RUN_ID.fullmatch(run_id):
@@ -754,6 +948,11 @@ def run_block(block: str, run_id: str, k_from: str | None, *,
                    if block == "ksweep" else f"block {block!r} requires --k-from <ksweep run id>")
     elif k_from is not None and not RUN_ID.fullmatch(k_from):
         problem = f"--k-from {k_from!r} is not a run id"
+    elif (block == "rss") != (frontier_from is not None):
+        problem = ("block 'rss' requires --frontier-from <frontier run id>" if block == "rss"
+                   else f"only the rss block takes --frontier-from, not {block!r}")
+    elif frontier_from is not None and not RUN_ID.fullmatch(frontier_from):
+        problem = f"--frontier-from {frontier_from!r} is not a run id"
     if problem is not None:
         print(f"refused: {problem}", file=sys.stderr)
         return 2
@@ -761,6 +960,12 @@ def run_block(block: str, run_id: str, k_from: str | None, *,
     if block == "controls":
         reference_env, why = _reference_env(os.environ if env is None else env)
         if reference_env is None:
+            print(f"refused: {why}", file=sys.stderr)
+            return 2
+    image: str | None = None
+    if block == "container":
+        image, why = _image_facts()
+        if image is None:
             print(f"refused: {why}", file=sys.stderr)
             return 2
     facts = read_guard(fetch=True)
@@ -774,11 +979,21 @@ def run_block(block: str, run_id: str, k_from: str | None, *,
         except ValueError as exc:
             print(f"refused: {exc}", file=sys.stderr)
             return 2
+    frontier_rows: list[RowRecord] | None = None
+    if frontier_from is not None:
+        try:
+            frontier_rows = _frontier_rows(frontier_from, results_dir)
+        except ValueError as exc:
+            print(f"refused: {exc}", file=sys.stderr)
+            return 2
     quiet = wait_quiet()  # the protocol's constants; no flag overrides them
+    # Emulated timings prove nothing about the production host, so a container run is never
+    # decisive whatever the host gate said (D-05); the gate's readings are still recorded.
+    decisive = quiet.decisive and block != "container"
     results_dir.mkdir(parents=True, exist_ok=True)
     header: HeaderRecord = {
         "run_id": run_id, "block": block, "head": facts.head, "protocol_blob": facts.main_blob,
-        "protocol_commit": facts.main_commit, "decisive": quiet.decisive,
+        "protocol_commit": facts.main_commit, "decisive": decisive,
         "readings": [(r.utc, r.load1) for r in quiet.readings], "k": k, "k_source": k_source,
     }
     try:
@@ -787,8 +1002,8 @@ def run_block(block: str, run_id: str, k_from: str | None, *,
         print(f"refused: run id {run_id!r} already recorded; a run is never overwritten",
               file=sys.stderr)
         return 2
-    campaign = Campaign(Worker(), quiet.decisive, sink,
-                        reference=None if reference_env is None else Worker(env=reference_env))
+    campaign = _make_campaign(block, decisive, sink, reference_env=reference_env,
+                              frontier_rows=frontier_rows)
     try:
         sink.write(json.dumps(header) + "\n")
         sink.flush()
@@ -800,7 +1015,11 @@ def run_block(block: str, run_id: str, k_from: str | None, *,
         f"## Thread spike run {run_id}", "", *_environment_lines(),
         f"- Protocol blob: `{facts.main_blob}`", f"- Protocol commit: `{facts.main_commit}`",
         f"- Block: {block}", f"- K: {'swept' if k is None else k} ({k_source})",
-        *(_reading_line(r) for r in quiet.readings), _release_line(quiet),
+        *(_reading_line(r) for r in quiet.readings),
+        *(_container_lines(image) if image is not None else []),
+        _release_line(quiet) if block != "container"
+        else f"- release: container run, non-decisive by construction (gate read at "
+             f"{quiet.readings[-1].utc})",
     ]
     text = report(head_lines, campaign.rows, campaign.stops, read_now(),
                   _block_extra(block, campaign))
@@ -813,11 +1032,20 @@ def smoke_block(block: str) -> int:
     """A block's code on a smoke subset (sizes M2 and M6, right hand, at most 6 rows, lengths of
     at most 20 turns; frontier: M2's first step; K = 5): no run id, output in a temporary
     directory, the guard informational and the quiet cap 0. Exit 0 only when every row is ok."""
+    image: str | None = None
+    if block == "container":
+        image, why = _image_facts()
+        if image is None:
+            print(f"refused: {why}", file=sys.stderr)
+            return 2
     quiet = wait_quiet(cap=0.0)
     print(f"## Thread spike smoke: {block}")
     print()
     for line in _environment_lines():
         print(line)
+    if image is not None:
+        for line in _container_lines(image):
+            print(line)
     for reading in quiet.readings:
         print(_reading_line(reading, " (at start)"))
     print("- Quiet gate: smoke: quiet gate not waited")
@@ -827,8 +1055,8 @@ def smoke_block(block: str) -> int:
     print()
     out_dir = Path(tempfile.mkdtemp(prefix="screw-spike-smoke-"))
     reference_env = _reference_env(os.environ)[0] if block == "controls" else None
-    campaign = Campaign(Worker(), quiet.decisive, None,
-                        reference=None if reference_env is None else Worker(env=reference_env))
+    campaign = _make_campaign(block, quiet.decisive, None, reference_env=reference_env,
+                              frontier_rows=None)
     try:
         with (out_dir / "smoke.jsonl").open("w", encoding="utf-8") as sink:
             campaign.set_sink(sink)
@@ -848,6 +1076,9 @@ def smoke_block(block: str) -> int:
 
 
 ROD_BLOCKS = ("ksweep", "grid", "frontier", "ladder")
+# The runs a clean verdict needs: the four rod blocks and the container pass, whose rows count
+# toward the pass bar and the escape clause because production runs in that image (D-05).
+PASS_BLOCKS = (*ROD_BLOCKS, "container")
 _NOT_ESTABLISHED = "not established"
 _Runs = dict[str, tuple[HeaderRecord, list[RowRecord]]]
 
@@ -945,17 +1176,29 @@ def _caps_section(runs: _Runs) -> list[str]:
     return lines
 
 
+def _combined_bar(parts: list[tuple[str, tuple[str, ...]]]) -> tuple[str, tuple[str, ...]]:
+    """The pass bar over several runs' rows: failed outranks not established outranks held, and
+    every offending row of that status is named."""
+    for status in ("failed", _NOT_ESTABLISHED):
+        named = tuple(reason for part, reasons in parts if part == status for reason in reasons)
+        if named:
+            return status, named
+    return "held", ()
+
+
 def verdict_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR) -> int:
     """Judge a recorded rod campaign: read every `<prefix>-*.jsonl`, recompute every row's class
     from its raw record (a stored class is never trusted: the file could be edited, T-02-09),
     and print K and the rule's table, the estimator and T_gate, the pass bar with every
     offending row, the escape clause, and the turn cap per size with where each came from.
 
-    Exit 0 only when the pass bar held, no escape fired and all four rod blocks were read;
-    otherwise 1, "not established" and a missing block included: a partial campaign never reads
-    as a pass (D-15). 2 for a prefix or a record it cannot read. The controls and trim runs are
-    evidence printed beside the verdict and never inputs to it. Plan 02-05 extends it with the
-    pair section."""
+    Exit 0 only when the pass bar held, no escape fired and all four rod blocks and the
+    container run were read; otherwise 1, "not established" and a missing block included: a
+    partial campaign never reads as a pass (D-15). 2 for a prefix or a record it cannot read.
+    The container rows count toward the pass bar and the escape clause beside the host grid's,
+    pre-registered because production runs in that image (D-05), and are never decisive. The
+    controls, trim and rss runs are evidence printed beside the verdict and never inputs to it.
+    Plan 02-05 extends it with the pair section."""
     if not RUN_ID.fullmatch(prefix):
         print(f"refused: prefix {prefix!r} must fullmatch [a-z0-9][a-z0-9-]{{0,63}}",
               file=sys.stderr)
@@ -965,16 +1208,22 @@ def verdict_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR) -> int:
         if not runs:
             print(f"no runs recorded under prefix {prefix!r} in {results_dir}", file=sys.stderr)
             return 1
-        missing = [block for block in ROD_BLOCKS if block not in runs]
+        missing = [block for block in PASS_BLOCKS if block not in runs]
         grid_header, grid = _run_of(runs, "grid")
-        bar, offenders = (pass_bar(grid, grid_header["decisive"]) if grid_header is not None
-                          else (_NOT_ESTABLISHED, ("no grid run",)))
-        escaped = escape_rows(grid)
+        container_header, container = _run_of(runs, "container")
+        grid_bar = (pass_bar(grid, grid_header["decisive"]) if grid_header is not None
+                    else (_NOT_ESTABLISHED, ("no grid run",)))
+        # Emulated timings are never decisive, whatever a stored header says (D-05).
+        container_bar = (pass_bar(container, False) if container_header is not None
+                         else (_NOT_ESTABLISHED, ("no container run",)))
+        bar, offenders = _combined_bar([
+            grid_bar, (container_bar[0], tuple(f"container {r}" for r in container_bar[1]))])
+        escaped = (*escape_rows(grid), *(f"container {r}" for r in escape_rows(container)))
         lines = [f"## Thread spike verdict: campaign {prefix}", ""]
         lines.append("- Blocks read: " + ", ".join(
             f"{block} (run `{runs[block][0]['run_id']}`, "
             f"{'decisive' if runs[block][0]['decisive'] else 'non-decisive'})"
-            for block in ROD_BLOCKS if block in runs))
+            for block in dict.fromkeys((*PASS_BLOCKS, *SECTIONS)) if block in runs))
         if missing:
             lines.append("- Blocks missing: " + ", ".join(missing))
         lines += ["", "### K", "", *_k_section(runs), "", "### Volume estimator", "",
@@ -1019,13 +1268,17 @@ def main(argv: list[str] | None = None) -> int:
     run_parser.add_argument("--k-from", default=None,
                             help="the ksweep run id whose record select_k reads; required by "
                                  "every block but ksweep")
+    run_parser.add_argument("--frontier-from", default=None,
+                            help="the frontier run id whose terminal rows the rss block "
+                                 "measures; required by the rss block, refused by every other")
     args = parser.parse_args(argv)
     if args.command == "check-protocol":
         return check_protocol()
     if args.command == "verdict":
         return verdict_campaign(args.campaign)
     if args.command == "run":
-        return run_block(args.block, args.run_id, args.k_from)
+        return run_block(args.block, args.run_id, args.k_from,
+                         frontier_from=args.frontier_from)
     return smoke() if args.block is None else smoke_block(args.block)
 
 
