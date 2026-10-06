@@ -203,7 +203,7 @@ status: complete
 - `bench/thread_spike/worker.py` - `run_pair`, dispatch on a request carrying `poses`
 - `bench/thread_spike/runner.py` - `Worker.run_pair` over one shared `_exchange`
 - `bench/thread_spike/__main__.py` - block `pair`, `smoke_pair` and `smoke --pair`, `pair_section`/`pair_report`/`pair_escapes`, the pair run in `verdict_campaign`, `CAMPAIGN_BLOCKS`, `run_campaign`, the `campaign` subcommand
-- `tests/test_bench.py` - 62 new tests (299 test functions in the file, 621 in the suite)
+- `tests/test_bench.py` - 84 new test functions (299 in the file, 621 collected in the suite)
 
 ## Decisions Made
 

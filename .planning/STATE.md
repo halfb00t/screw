@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Thread Spike
 status: executing
-stopped_at: Completed 02-04-PLAN.md
-last_updated: "2026-10-06T13:29:08.330Z"
+stopped_at: Completed 02-05-PLAN.md
+last_updated: "2026-10-06T14:05:06.078Z"
 last_activity: 2026-10-06
 last_activity_desc: Phase 02 execution started
-state_head: 396c5e31edc2590c92580a58c105facaca77c86f
+state_head: a1023dee99169a6447c4910041ae7178a57b10e5
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 18
-  completed_plans: 14
+  completed_plans: 15
   percent: 14
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 ## Current Position
 
 Phase: 02 (Thread Spike) — EXECUTING
-Plan: 5 of 8
+Plan: 6 of 8
 Status: Ready to execute
 Last activity: 2026-10-06 — Phase 02 execution started
 
@@ -70,6 +70,7 @@ Progress: [█░░░░░░░░░] 14%
 | Phase 02 P02 | 17 min | 2 tasks | 12 files |
 | Phase 02 P03 | 27 min | 3 tasks | 6 files |
 | Phase 02 P04 | 27 min | 3 tasks | 7 files |
+| Phase 02 P05 | 24 min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -98,6 +99,9 @@ Recent decisions affecting current work:
 - [Phase 02]: A campaign without a container run is never a pass: PASS_BLOCKS adds container to the four rod blocks
 - [Phase 02]: naive_sweep_fuse is the one of 12 readings of the research recipe that reproduces all three research ratios (helix radius d/2, core at root radius, root embedded 0.05 P, flank half-width from the embedded root)
 - [Phase 02]: Owner approved the cq_warehouse reference package on 2026-10-06 (reply: approved); installed from pinned commit daa46507 with --no-deps into a scratch directory outside the repo
+- [Phase 02]: 02-05: the pair run is a required verdict input; a size is falsifiable only if both hands have a proven cell at c >= 0.05, and a size whose mixed-hand pair did not read violated also fires the escape clause (D-14)
+- [Phase 02]: 02-05: cell_verdict is D-12/D-14 as written (owner ruling R1); a nut body off its closed form by more than T_PASS outranks even a violation; variant rules are a table beside the verdict and never feed it
+- [Phase 02]: 02-05: campaign skips a block whose K-sweep or frontier input did not complete rather than selecting K from half a sweep; refused and interrupted blocks are logged in PREFIX-campaign.md
 
 ### Pending Todos
 
@@ -123,6 +127,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-06T13:29:08.287Z
-Stopped at: Completed 02-04-PLAN.md
+Last session: 2026-10-06T14:05:06.037Z
+Stopped at: Completed 02-05-PLAN.md
 Resume file: None
