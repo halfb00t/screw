@@ -28,3 +28,6 @@ dist/
 
 # vendored-bundle build (make vendor)
 web/node_modules/
+
+# gsd per-session runtime lock (session id + pid), never shared
+/.planning/milestone.lock
