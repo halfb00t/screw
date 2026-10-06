@@ -23,6 +23,7 @@ Severity (grep-able `Severity:` field):
 | must | [The web page drops a foreign or unparseable hash key silently](active/2026-10-06-ui-drops-foreign-hash-keys.md) | before the Phase 3 plan that adds the first shareable field (`left_hand`) |
 | must | [A failed update hides the standing warnings while the last mesh stays on screen](active/2026-10-06-ui-hides-warnings-on-failed-update.md) | before the first warning other than the skeleton's ships (Phase 3 limits or Phase 6 printability) |
 | must | [bench.memory samples too coarsely to read a peak off a corpus that runs in seconds](active/2026-10-06-bench-memory-sampling-is-too-coarse-for-short-corpora.md) | before the Phase 7 memory sweep (OPER-02, OPER-03) |
+| must | [The pool's dying-worker test failed once under host load](active/2026-10-06-test-pool-dying-worker-flake.md) | a second occurrence: investigate and fix before the next phase lands |
 | nice | [The infrastructure forked from spur is not a shared package](active/2026-10-05-shared-infra-extraction.md) | fired: the pool.py race guard (L09) — owner decides extract vs fix twice |
 | nice | [Enji Guard not connected](active/2026-10-05-enji-guard-not-connected.md) | first product code on `main`, or the owner decides they want continuous AI audit |
 
