@@ -175,3 +175,67 @@ def depth_presets(pitch: float) -> list[tuple[str, float, float]]:
     h/8, h/16 and h/32 of the thread depth h = 5H/8, angular `LADDER_ANGULAR`."""
     depth = thread_depth(pitch)
     return [(f"h/{n}", depth / n, LADDER_ANGULAR) for n in DEPTH_FRACTIONS]
+
+
+# --- Pair check (question 3): the kernel-free expectation a pair reading is judged against ---
+
+# Midpoints over one turn: the integral below matched the kernel to 4-5 significant figures
+# whenever the kernel returned a non-empty result (RESEARCH R5, R7: 1e-5 relative at M10 and
+# M20), so it is the band's centre.
+INTEGRATION_POINTS = 400_000
+
+# Nut height m in mm per size (D-13, owner ruling R5, 02-SPIKE.md). m only scales the engaged
+# length and the closed-form expectation together: a label, never a verdict input. Every entry
+# carries its source label as recorded at the checkpoint and is UNVERIFIED until Phase 5 reads
+# the standard; none was read from it by the owner.
+NUT_HEIGHT: dict[str, float] = {
+    "M2": 1.60,    # Annex A not read; memory of the withdrawn ISO 4032:2012. UNVERIFIED
+    "M2.5": 2.00,  # Annex A not read; memory of the withdrawn ISO 4032:2012. UNVERIFIED
+    "M3": 2.40,    # Annex A not read; memory of the withdrawn ISO 4032:2012. UNVERIFIED
+    "M3.5": 2.80,  # 0.8 * d, no ISO 4032 row. UNVERIFIED
+    "M4": 3.20,    # Annex A not read; memory of the withdrawn ISO 4032:2012. UNVERIFIED
+    "M5": 4.70,    # m max as read from the ISO 4032:2023 preview by the research. UNVERIFIED
+    "M6": 5.20,    # m max as read from the ISO 4032:2023 preview by the research. UNVERIFIED
+    "M7": 5.60,    # ISO 4032:2023 added M7, no value read: 0.8 * d, a stated input. UNVERIFIED
+    "M8": 6.80,    # m max as read from the ISO 4032:2023 preview by the research. UNVERIFIED
+    "M10": 8.40,   # m max as read from the ISO 4032:2023 preview by the research. UNVERIFIED
+    "M12": 10.80,  # m max as read from the ISO 4032:2023 preview by the research. UNVERIFIED
+    "M14": 12.80,  # memory of the same table, not re-read. UNVERIFIED
+    "M16": 14.80,  # m max as read from the ISO 4032:2023 preview by the research. UNVERIFIED
+    "M18": 15.80,  # memory of the same table, not re-read. UNVERIFIED
+    "M20": 18.00,  # m max as read from the ISO 4032:2023 preview by the research. UNVERIFIED
+}
+
+# Radial clearance of the nut's void in mm, the proof bracket (D-11): the upper end brackets
+# Phase 6's printed matrix.
+PAIR_CLEARANCES: tuple[float, ...] = (0.05, 0.10, 0.15, 0.20)
+# The diagnostic rows (D-11): c = 0 reads inconclusive by definition (the boolean's answer at
+# contact is recorded, not trusted: garbage in 3 of 3 research readings), c = -0.05 is the
+# sensitivity check, where interference must appear near the closed form.
+DIAGNOSTIC_CLEARANCES: tuple[float, ...] = (0.0, -0.05)
+# Three screw-motion poses equally spaced over one turn and centred on the seam. The seam pose
+# stays in: dropping it would be a pose picked after the probes saw false-empty readings near
+# it (RESEARCH Pitfall 3). Every |theta| <= 2 pi / 3 keeps the matched slide at P / 3 and the
+# control slide at 5 P / 6, inside the rod's pad of P (Pitfall 2).
+MATCHED_POSES: tuple[float, ...] = (-2 * math.pi / 3, 0.0, 2 * math.pi / 3)
+# The control: the nut slid half a pitch from the matched pose, so crest meets root (D-12).
+CONTROL_OFFSET_PITCHES = 0.5
+# The sizes that also run at the two K values other than the locked one, as reference rows
+# (Pitfall 8): the research's four probe sizes.
+PAIR_REFERENCE_SIZES: tuple[str, ...] = ("M2", "M6", "M10", "M20")
+
+
+def interference_area(
+        d: float, pitch: float, clearance: float, phase: float) -> float:
+    """Transverse area in mm2 where a rod of the pinned profile overlaps a void of the same
+    profile grown by `clearance` and turned by `phase`: 0.5 * max(0, r_b(t)^2 - (r_b(t + phase)
+    + c)^2) integrated over one turn. Times the engaged length m it is the volume of the
+    interference. Hand-independent: a symmetric profile's transverse section is the same for
+    both hands (RESEARCH R4 read left = right).
+
+    `phase` 0 is a matched pose, pi the half-pitch control. M6, m = 5.2: control 12.213 at
+    c = 0.10, 14.1335 at 0.05, 16.1427 at 0; matched 4.3627 at c = -0.05 and exactly 0 at
+    every c > 0 (RESEARCH Pattern 5).
+    """
+    del d, pitch, clearance, phase
+    return -1.0

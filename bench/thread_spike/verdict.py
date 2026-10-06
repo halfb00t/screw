@@ -993,3 +993,110 @@ def known_bad_inputs(rows: list[RowRecord]) -> list[RowRecord]:
                 and precise / closed_of(r) < 0.5):
             bad.append(r)
     return bad
+
+
+# --- Pair check (question 3, D-11 to D-14) ---
+
+# Relative band of a control reading around the closed form: 100x the research's worst agreement
+# of a non-empty reading (1e-5, RESEARCH R7), fixed before any data (D-14).
+PAIR_BAND = 1e-3
+# A pair reading is empty when it has 0 solids or abs(volume) <= this: the c = 0 garbage read
+# -0.0000 in one solid (RESEARCH R4), which a plain `volume == 0` would call non-empty.
+EMPTY_MM3 = 1e-6
+# One pair cell is one request: a full M20 body took 16-121 s per boolean (STACK section C) and
+# a cell is six of them, so the cell gets its own deadline.
+PAIR_TIMEOUT_S = 600.0
+
+ReadingOutcome = Literal["built", "failure"]
+PairVerdict = Literal["proven", "violated", "inconclusive"]
+
+
+class PairReading(TypedDict):
+    """One pose's boolean. `offset_pitches` is 0 for a matched pose and `CONTROL_OFFSET_PITCHES`
+    for a control. `outcome` is "failure" when the boolean raised, and then every measurement is
+    `None`; the diagnostics are columns, never verdict inputs (they missed every false-empty in
+    research, Pitfall 4)."""
+
+    theta: float
+    offset_pitches: float
+    outcome: ReadingOutcome
+    solids: int | None
+    volume: float | None
+    diag_errors: bool | None
+    diag_warnings: bool | None
+    seconds: float | None
+
+
+class PairCell(TypedDict):
+    """What names a pair cell: the rod of one hand against a nut of one hand at one clearance."""
+
+    size: str
+    d: float
+    pitch: float
+    m: float
+    clearance: float
+    rod_left_hand: bool
+    nut_left_hand: bool
+    k: int
+
+
+class PairRequest(PairCell):
+    """One cell to read: `poses` are (theta, offset in pitches), read in order."""
+
+    poses: list[tuple[float, float]]
+
+
+class PairRecord(PairCell):
+    """The cell echoed plus what happened. A built cell has an `nut_volume` and no error; any
+    other outcome has an error and no readings unless the worker itself reported them (a
+    "failure" keeps the readings taken so far, the last of them the one that raised)."""
+
+    outcome: Outcome
+    error: str | None
+    nut_volume: float | None
+    readings: list[PairReading]
+
+
+def parse_pair_request(line: str) -> PairRequest:  # noqa: ARG001
+    raise ValueError("stub")
+
+
+def parse_pair_record(line: str) -> PairRecord:  # noqa: ARG001
+    raise ValueError("stub")
+
+
+def parse_pair_result_row(line: str) -> PairRecord:  # noqa: ARG001
+    raise ValueError("stub")
+
+
+def failed_pair_record(request: PairRequest, outcome: Outcome, error: str) -> PairRecord:
+    del request, outcome, error
+    raise ValueError("stub")
+
+
+def closed_control(record: PairCell) -> float:  # noqa: ARG001
+    return -1.0
+
+
+def cell_verdict(record: PairRecord) -> tuple[PairVerdict, tuple[str, ...]]:  # noqa: ARG001
+    return "inconclusive", ()
+
+
+def size_falsifiable(cells: list[PairRecord]) -> bool:  # noqa: ARG001
+    return False
+
+
+def excluded_clearances(cells: list[PairRecord]) -> tuple[float, ...]:  # noqa: ARG001
+    return ()
+
+
+def mixed_hand_violated(cells: list[PairRecord]) -> bool:  # noqa: ARG001
+    return False
+
+
+def sensitivity_ok(cell: PairRecord) -> bool:  # noqa: ARG001
+    return False
+
+
+def variant_rules(cells: list[PairRecord]) -> dict[str, dict[str, bool]]:  # noqa: ARG001
+    return {}
