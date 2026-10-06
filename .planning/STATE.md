@@ -3,15 +3,15 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Runtime Port and Walking Skeleton
 status: "Phase 01 shipped — PR #1 (gate bypassed per D-11/D-12; verifier + security audit run after merge)"
-stopped_at: Phase 1 waves 1-9 complete (9/10 plans); 01-10 waits on the Phase 1 PR merge (D-11) — ship, merge, then re-run /gsd-execute-phase 1
-last_updated: "2026-10-06T06:52:21.007Z"
+stopped_at: Completed 01-10-PLAN.md
+last_updated: "2026-10-06T07:16:07.988Z"
 last_activity: 2026-10-06
-state_head: 4951d47522aa29885b179896fa601b2c7f5f2061
+state_head: e69d35199fd53375f834f94d92a9717d01b11bbf
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 10
-  completed_plans: 9
+  completed_plans: 10
   percent: 0
 ---
 
@@ -64,6 +64,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P07 | 13 min | 2 tasks | 14 files |
 | Phase 01 P08 | 17 min | 2 tasks | 12 files |
 | Phase 01 P09 | 8 min | 2 tasks | 8 files |
+| Phase 01 P10 | 20 min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -96,6 +97,7 @@ Recent decisions affecting current work:
 - [Phase 01]: fail_under = 94 = floor(95.03 - max(0.25, 0.00)) by spur L34's rule on the 285-test skeleton suite (serial 95.03, three -n 8 at 95.56); recorded in bench/RESULTS.md
 - [Phase 01]: PYTEST_WORKERS stays 8, spur L34's knee, carried and not re-measured for screw's suite
 - [Phase 01]: Phase 1 PR #1 landed as a merge commit (4951d47, 51 commits on main), not the single squash D-12 prescribes; owner accepted the shape on 2026-10-06 — D-12's squash rule applies from the wall onward via PR_TITLE/PR_BODY and make pr.land
+- [Phase 01]: 01-10: ruleset default (id 24563199) applied 2026-10-06 and read back equal to required-jobs.txt with strict policy and empty bypass_actors; its record reached main as squash e69d351 through make pr.land (PR #2), the wall's first use
 
 ### Pending Todos
 
@@ -121,6 +123,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-06T06:11:04.407Z
-Stopped at: Phase 1 waves 1-9 complete (9/10 plans); 01-10 waits on the Phase 1 PR merge (D-11) — ship, merge, then re-run /gsd-execute-phase 1
-Resume file: .planning/phases/01-runtime-port-and-walking-skeleton/01-10-PLAN.md
+Last session: 2026-10-06T07:16:07.963Z
+Stopped at: Completed 01-10-PLAN.md
+Resume file: None

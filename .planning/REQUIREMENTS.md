@@ -68,7 +68,7 @@ Requirements for the first release: the mating-pair cut (infra port, thread spik
 
 ### Infrastructure Port
 
-- [ ] **INFR-01**: spur's runtime is ported per L07 — `pool`, `records`, `app`, `cli`, `build_errors` retyped over screw's models; the schema-driven form, viewer and vendored three.js; `scripts/pr_land.py`, `scripts/skip_tokens.py`, the commit-msg hook and the `main` ruleset; `docker/` and compose; the coverage floor; the bench harness — with a walking-skeleton kind so the retyping has a target and parity is tested from the first phase.
+- [x] **INFR-01**: spur's runtime is ported per L07 — `pool`, `records`, `app`, `cli`, `build_errors` retyped over screw's models; the schema-driven form, viewer and vendored three.js; `scripts/pr_land.py`, `scripts/skip_tokens.py`, the commit-msg hook and the `main` ruleset; `docker/` and compose; the coverage floor; the bench harness — with a walking-skeleton kind so the retyping has a target and parity is tested from the first phase.
 - [x] **INFR-02**: The module graph is enforced by import-linter: the four inherited contracts plus the new ones — `params` and `calc` never import `tables` or the kernel; `tables` is a leaf; `solid` is the only doorway to `cadquery`/`OCP`; `cli` never imports the web layer; `app` never imports the kernel by any path.
 - [ ] **INFR-03**: The thread spike is pre-registered (method, predictions, escape clause committed before the first run), run behind a quiet-host gate with load readings labelled by when they were taken, and its result is a decision entry — construction chosen, volume estimator chosen, turn cap per size — before any thread field exists.
 
@@ -153,7 +153,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | OPER-01 | Phase 7 | Pending |
 | OPER-02 | Phase 7 | Pending |
 | OPER-03 | Phase 7 | Pending |
-| INFR-01 | Phase 1 | Pending |
+| INFR-01 | Phase 1 | Complete |
 | INFR-02 | Phase 1 | Complete |
 | INFR-03 | Phase 2 | Pending |
 
