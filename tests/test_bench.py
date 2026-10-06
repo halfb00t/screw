@@ -23,6 +23,7 @@ from __future__ import annotations
 import itertools
 import json
 import math
+import os
 import struct
 import subprocess
 import sys
@@ -844,6 +845,11 @@ def _repo_with_protocol(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *,
     """A throwaway clone of a throwaway origin whose `main` carries the protocol commit when
     `landed`, and a local-only protocol commit when not. Returns the clone and that commit.
     The guard's git wiring runs against it for real: no mock stands in for git."""
+    # A commit hook hands its children GIT_DIR / GIT_INDEX_FILE for the outer repo; left in
+    # place, every git call below (and the guard's own) would act on that repo, not the
+    # throwaway one -- found when this suite first ran inside `git commit`'s pre-commit hook.
+    for name in [n for n in os.environ if n.startswith("GIT_")]:
+        monkeypatch.delenv(name)
     origin = tmp_path / "origin.git"
     work = tmp_path / "work"
     _git(tmp_path, "init", "--bare", "-b", "main", str(origin))
