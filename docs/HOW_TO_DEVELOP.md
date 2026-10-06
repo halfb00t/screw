@@ -168,42 +168,42 @@ green CI and the review findings closed:
 gh pr merge N --squash --delete-branch
 ```
 
-### Put up the wall (once, after the Phase 1 merge)
+### The wall (applied once, after the Phase 1 merge)
 
-Repository settings are not in git; this section is their only record. The first command
-makes the squash commit carry the PR title and body (the curated text `gsd-ship`
+Repository settings are not in git; this section is their only record. The squash-message
+setting makes the squash commit carry the PR title and body (the curated text `gsd-ship`
 assembles) instead of the branch's concatenated commit subjects, which is how a skip token
-reached spur's `main` twice. The second creates the ruleset `default` on `main`: no bypass
-actors, no deletion, no force push, a pull request for every change, and the three jobs of
-`required-jobs.txt` green from GitHub Actions on a head not behind `main`. The third reads
-the wall back; its check names must equal `required-jobs.txt`.
+reached spur's `main` twice:
 
 ```sh
 gh api -X PATCH repos/halfb00t/screw -f squash_merge_commit_title=PR_TITLE -f squash_merge_commit_message=PR_BODY
+```
 
-gh api -X POST repos/halfb00t/screw/rulesets --input - <<'JSON'
-{"name":"default","target":"branch","enforcement":"active","bypass_actors":[],
- "conditions":{"ref_name":{"include":["refs/heads/main"],"exclude":[]}},
- "rules":[{"type":"deletion"},{"type":"non_fast_forward"},
-  {"type":"pull_request","parameters":{"required_approving_review_count":0,"dismiss_stale_reviews_on_push":false,
-   "required_reviewers":[],"require_code_owner_review":false,"require_last_push_approval":false,
-   "required_review_thread_resolution":false,"require_extra_approval_for_unattributed_changes":true,
-   "allowed_merge_methods":["merge","squash","rebase"]}},
-  {"type":"required_status_checks","parameters":{"strict_required_status_checks_policy":true,"do_not_enforce_on_create":false,
-   "required_status_checks":[{"context":"test (3.12)","integration_id":15368},{"context":"vendor-bundle","integration_id":15368},{"context":"image","integration_id":15368}]}}]}
-JSON
+The wall is the ruleset `default` (id `24563199`) on `main`, applied 2026-10-06 after the
+Phase 1 merge: no bypass actors, no deletion, no force push, a pull request for every
+change, and the three jobs of `required-jobs.txt` green from GitHub Actions on a head not
+behind `main`. It was created by `POST repos/halfb00t/screw/rulesets` with the body copied
+from spur's ruleset, which GitHub accepted unchanged: the four rules `deletion`,
+`non_fast_forward`, `pull_request` and `required_status_checks`, and `bypass_actors: []`.
+The commands that act on it by id follow. The apply command keeps the other rules as they
+stand and replaces the required-checks rule whole; it is how a later change to
+`required-jobs.txt` reaches the wall:
 
-gh api repos/halfb00t/screw/rules/branches/main
+```sh
+gh api repos/halfb00t/screw/rulesets/24563199 --jq '{conditions: {ref_name: {include: ["refs/heads/main"], exclude: []}}, rules: ([.rules[] | select(.type != "required_status_checks")] + [{type: "required_status_checks", parameters: {strict_required_status_checks_policy: true, do_not_enforce_on_create: false, required_status_checks: [{context: "test (3.12)", integration_id: 15368}, {context: "vendor-bundle", integration_id: 15368}, {context: "image", integration_id: 15368}]}}])}' | gh api -X PUT repos/halfb00t/screw/rulesets/24563199 --input -
+
+gh api repos/halfb00t/screw/rules/branches/main   # read the wall as it stands
+
+gh api -X DELETE repos/halfb00t/screw/rulesets/24563199   # take the wall down
 ```
 
 `integration_id` 15368 is GitHub Actions, so a same-named status from anywhere else cannot
-satisfy the rule. The POST body is copied from spur's live ruleset and has not been run
-against screw: if GitHub rejects it, or the read-back differs, fix this block. Plan 01-10
-records the ruleset id here and swaps the POST for a PUT by id, which is how a later change
-to `required-jobs.txt` is applied (the PUT replaces the required-checks rule whole). The
-names in the list are the ones GitHub shows — `jobs.<id>.name` if set, otherwise the id,
-plus the matrix value (`test (3.12)`); the drift test in `tests/test_pr_land.py` derives
-them from `ci.yml` and compares.
+satisfy the rule. When `.github/workflows/required-jobs.txt` changes, fix the contexts in
+the apply command and run it again; until it is re-run, the wall and `make pr.land`
+require different lists of checks. The read-back's check names must equal
+`required-jobs.txt`. The names in the list are the ones GitHub shows: `jobs.<id>.name` if
+set, otherwise the id, plus the matrix value (`test (3.12)`); the drift test in
+`tests/test_pr_land.py` derives them from `ci.yml` and compares.
 
 ## Parallel loops
 
