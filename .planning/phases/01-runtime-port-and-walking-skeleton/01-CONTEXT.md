@@ -102,6 +102,41 @@ Roadmap wording corrected by this discussion (planner: build to this, not to the
 - **D-13:** `main` was pushed before the phase PR (this session), so the PR diff is phase
   work only.
 
+### Research-finding resolutions (owner decisions, 2026-10-06, after 01-RESEARCH.md § Findings to Surface)
+- **D-14 (F1, amends D-07):** One explicitly `INTERIM`-labelled upper bound on `d` and
+  `length`, chosen from the measured table in RESEARCH F1 (everything up to `d=1e5` is
+  cheap; `d=1e7` is 25 s and 6.0 GiB RSS, past `mem_limit: 4g`). Carries the D-01 label
+  (`INTERIM` + source + "Phase 7 re-sweeps (OPER-02)") and a D-02 debt row; Phase 7
+  replaces it from the sweep (OPER-03). D-07's "no cap" is superseded by this; its reason
+  ("a cap is an unmeasured number") no longer holds for the skeleton. A value above the
+  bound is a `422` naming the field (L02), never a silent clamp.
+- **D-15 (OQ1/F8/F2):** Info document is self-describing:
+  `PartInfo(kind: str, rows: list[InfoRow], warnings: list[str])`,
+  `InfoRow(key: str, label: str, value: float, unit: str)`. The UI renders rows
+  generically (no per-kind JS, no field-name literal, D-09/D-10). `volume` is absent from
+  `rows` and explained in `warnings` when it cannot be computed honestly (overflow or
+  non-finite, F2: `?d=1e200` must not 500). Parity test asserts the same document on API
+  and CLI and that no row key is read by name in JS.
+- **D-16 (F4):** `pool.py` is ported with the one-guard fix for spur's open same-slot
+  timeout race (compare the executor with `self._executors[hash(p) % self.workers]` in
+  `_run_with_timeout`'s `except TimeoutError` before touching `_processes`; skip to
+  `raise BuildTimeout`) plus a regression test. The divergence from spur is recorded in
+  L09 and in `docs/tech_debt/active/2026-10-05-shared-infra-extraction.md` (first change
+  that must land in both repos — L07's extraction trigger).
+- **D-17 (F5, option a):** Follow L07: `docker/refresh-requirements.sh` output is the
+  runtime closure only; ruff, mypy, pytest and import-linter are no longer pinned by
+  `requirements.txt`. L08 states that this narrows L06's promise (spur L34 accepted the
+  same). No second host-side pin file.
+- **D-18 (OQ3):** `make test-image` is not ported (no success criterion names it; A4).
+- **D-19 (OQ4):** Two decision-log entries land in this phase: `L08` = the wall of
+  `main` (D-11, cites spur L22/L25, records D-17's L06 narrowing); `L09` = registry with
+  a frozen default kind, URL shape (D-08), hash `kind=` omitted at default (D-09),
+  interim-bounds policy (D-01/D-14), and the `pool.py` divergence (D-16).
+- Also adopted from research, planner-level (no owner question): F3 parity-test regex
+  restricted to parameter-carrying receivers plus a positive control; F6 CI matrix
+  shape and `POST`+`PATCH` ruleset checkpoint with read-back; F9 knob list added to
+  D-02's item. F7 (L01 reason) is surfaced only, no Phase 1 action.
+
 ### Claude's Discretion
 - Env prefix `SPUR_*` → `SCREW_*`; the 503 text says "parts", not "gears".
 - The `httpx` dev dependency starlette's `TestClient` needs (research: `starlette 1.7.0`
