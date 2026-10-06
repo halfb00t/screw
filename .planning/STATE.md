@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Runtime Port and Walking Skeleton
 status: executing
-stopped_at: Completed 01-06-PLAN.md
-last_updated: "2026-10-06T05:32:15.651Z"
+stopped_at: Completed 01-07-PLAN.md
+last_updated: "2026-10-06T05:38:54.550Z"
 last_activity: 2026-10-06
 last_activity_desc: Phase 01 execution started
-state_head: b46ed572abecb9c4ad29f718f06d90db4fc27139
+state_head: cff08fa21b160fd0b388e1cc5fd8a1b21001e235
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 10
-  completed_plans: 6
+  completed_plans: 7
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-05)
 ## Current Position
 
 Phase: 01 (Runtime Port and Walking Skeleton) — EXECUTING
-Plan: 7 of 10
+Plan: 8 of 10
 Status: Ready to execute
 Last activity: 2026-10-06 — Phase 01 execution started
 
@@ -62,6 +62,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P04 | 12 min | 2 tasks | 16 files |
 | Phase 01 P05 | 15 min | 2 tasks | 1 files |
 | Phase 01 P06 | 10 min | 2 tasks | 8 files |
+| Phase 01 P07 | 13 min | 2 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -86,6 +87,8 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-05: parity test compares model-route query names sorted (quality is inherited first by OpenAPI); schema and CLI flags stay in declaration order
 - [Phase 01]: 01-05: CLI parity reads every long flag in the whole help, not only the generated group, so a hand-written flag on a kind parser is caught (found by planting one)
 - [Phase 01]: 01-06: amd64 runtime closure resolved under emulation; no runtime version moved; every carried container limit labelled INTERIM and listed in the D-02 item
+- [Phase 01]: L08: main is walled by required CI jobs on a current head, a commit-msg hook against skip tokens and make pr.land (ported from spur L22/L25); the ruleset is applied by the owner after the Phase 1 merge
+- [Phase 01]: requirements.txt pins the runtime closure only; dev tools float, narrowing L06 (L08)
 
 ### Pending Todos
 
@@ -111,6 +114,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-06T05:32:11.740Z
-Stopped at: Completed 01-06-PLAN.md
+Last session: 2026-10-06T05:38:54.526Z
+Stopped at: Completed 01-07-PLAN.md
 Resume file: None
