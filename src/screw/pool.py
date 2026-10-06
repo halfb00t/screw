@@ -175,6 +175,22 @@ class BuildPool:
             # Python 3.11 the asyncio name is an alias of the builtin, and 3.12 is this
             # project's only interpreter (L01) -- asyncio.wait_for always raises this one.
             #
+            # Same-slot guard (divergence from spur, recorded in L09). Several requests on
+            # one hash slot can time out in one incident. The first terminates the worker,
+            # shuts this executor down and installs a replacement in the slot; a second
+            # one's timeout, firing in the same loop pass, still holds the shut-down
+            # executor, and CPython 3.12 sets `_processes` to None on shutdown, so the
+            # loop below raised `AttributeError: 'NoneType' object has no attribute
+            # 'values'` -- no status in app.py, a raw 500 from uvicorn. spur measured it
+            # under ten concurrent builds and left it as its open `must` debt file
+            # 2026-10-02-same-slot-timeout-cleanup-race-produces-undocumented-500.md.
+            # The first request already killed the worker, so the slot being replaced
+            # means there is nothing left to terminate or recreate: report the timeout.
+            if self._executors[hash(p) % self.workers] is not executor:
+                raise BuildTimeout(
+                    f"Build exceeded the {self.timeout}s per-build timeout. "
+                    "Try a coarser quality."
+                ) from None
             # Executor.shutdown(cancel_futures=True) is not a substitute for this: it only
             # cancels futures that have not started running yet
             # (`inspect.signature(ProcessPoolExecutor.shutdown)` is `(self, wait=True, *,

@@ -519,11 +519,6 @@ def test_two_same_slot_deaths_from_one_incident_replace_the_worker_once(
         assert len(_event_records(caplog, "worker.replaced")) == 1
 
 
-# RED marker, removed in the commit that adds the guard. The pre-commit hook runs the whole
-# suite, so a bare failing test cannot be committed without --no-verify; strict xfail
-# (xfail_strict is on) keeps it honest: it fails the suite the moment the guard makes it pass.
-@pytest.mark.xfail(
-    raises=AssertionError, reason="the same-slot guard is not in pool.py yet (reproduced 6/6)")
 def test_two_same_slot_timeouts_in_one_incident_end_as_build_timeout_not_attribute_error() -> None:
     """Ten same-slot builds that all overrun in one incident each end as BuildTimeout or
     BrokenProcessPool -- never AttributeError, which app.py maps to no status at all and
