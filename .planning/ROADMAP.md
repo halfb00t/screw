@@ -43,7 +43,19 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. A field the `bolt` kind does not define is a `422` naming it on the API and an error naming it on the CLI, never silently ignored; one parity test over the registry proves the UI, API and CLI expose the same fields, and it stays in `make verify` for every later phase.
   3. The L07 runtime is ported and running: builds execute in worker processes off the event loop, an overloaded server answers `503` + `Retry-After` from the web layer only, `scripts/pr_land.py` + `skip_tokens.py`, the commit-msg hook and the `main` ruleset are in place, `make check` passes (in-image smoke test and vendored-bundle byte check), the coverage floor is enforced, and the `bench/` harness runs against the skeleton. No spur gear module (`calc.py`, `model.py`, `params.py`, their tests, the regression fixture) is copied and no spur runtime figure is carried as a final bound.
   4. `make verify` is green with import-linter enforcing the inherited contracts plus "only `solid` imports `cadquery`/`OCP`" and "`app` never imports the kernel by any path"; each later contract is written to land with the module it guards (tables in Phase 4, the pair proof in Phase 5).
-**Plans**: TBD
+**Plans**: 10 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Tracer: skeleton bolt over the API through the worker pool; owner vets dev packages; D-16 pool guard
+- [ ] 01-02-PLAN.md — API contract tests per kind; records tests; L09 and the interim-bounds debt item
+- [ ] 01-03-PLAN.md — CLI slice: `screw serve | info | export`, flags from the model; README commands as tests
+- [ ] 01-04-PLAN.md — Web UI slice: kind selector, schema form, preview, generic info panel, hash; vendored bundle check
+- [ ] 01-05-PLAN.md — One registry-driven parity test across UI, API and CLI, shown to fail on planted drift
+- [ ] 01-06-PLAN.md — Container delivery: linux/amd64 runtime closure, image with smoke, compose, `make check`
+- [ ] 01-07-PLAN.md — Wall `main`: skip-token hook, `make pr.land`, required jobs, L08 and docs
+- [ ] 01-08-PLAN.md — Bench harness ported and run once against the skeleton
+- [ ] 01-09-PLAN.md — Coverage floor measured and enforced; interim-bounds inventory complete; docs describe the skeleton
+- [ ] 01-10-PLAN.md — Owner checkpoint after the merge: apply and read back the `main` ruleset
 **UI hint**: yes
 
 ### Phase 2: Thread Spike
