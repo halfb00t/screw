@@ -139,7 +139,7 @@ fail_under = 94
 precision = 2
 
 [tool.importlinter]
-root_package = "screw"
+root_packages = ["screw", "bench"]
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
@@ -203,3 +203,21 @@ type = "forbidden"
 source_modules = ["screw"]
 forbidden_modules = ["cadquery", "OCP"]
 ignore_imports = ["screw.solid -> cadquery", "screw.solid.** -> cadquery"]
+
+[[tool.importlinter.contracts]]
+name = "The spike's oracle, verdict and parent process stay free of the CAD kernel"
+# The closed form is the oracle the kernel is judged against, so it must share no code path
+# with it; and the parent process never pays the 3-4 s import of cadquery nor holds OpenCascade
+# memory (RESEARCH Pattern 3, Pattern 8). No allow_indirect_imports: reaching the kernel
+# through another module is the violation -- research proved bench.build_time breaks this
+# contract through screw.solid -> cadquery. helical, measure and worker are the kernel half and
+# are deliberately not listed.
+type = "forbidden"
+source_modules = [
+    "bench.thread_spike.maths",
+    "bench.thread_spike.verdict",
+    "bench.thread_spike.runner",
+    "bench.thread_spike.__main__",
+    "bench.quiet",
+]
+forbidden_modules = ["cadquery", "OCP"]

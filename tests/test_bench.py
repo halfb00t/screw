@@ -6,6 +6,12 @@ and of a p95 over too few samples. spur's gear-sweep and composed-scenario tests
 carried over -- there is no gear corpus here. The skeleton corpus is pinned instead, so it
 cannot drift under a number that someone compares with an earlier run.
 
+The thread spike's (Phase 2) predicates are pinned here too, with the same rule: no timing
+assertion. The quiet gate runs on an injected host, the closed form against a numeric
+integral, the row verdict on synthetic records, the STL check on hand-built meshes. Two tests
+build a real rod in the kernel, because a verdict nobody ran against a real solid is a claim,
+not a check.
+
 Run as `.venv/bin/python -m pytest tests/test_bench.py -q` from the repo root: the `-m` form
 puts the root on `sys.path`, which is what makes `import bench` resolve. `bench` is not an
 installed package (`pyproject.toml` ships `src/screw` only) and `tests/conftest.py` puts
@@ -14,9 +20,14 @@ installed package (`pyproject.toml` ships `src/screw` only) and `tests/conftest.
 
 from __future__ import annotations
 
+import itertools
 import json
 import math
+import struct
+import sys
+from collections.abc import Iterable, Sequence
 from pathlib import Path
+from typing import Literal
 
 import httpx2 as httpx
 import pytest
@@ -42,7 +53,24 @@ from bench.memory import (
     _parse_mem,
     _publish,
 )
+from bench.quiet import QuietResult, Reading, wait_quiet
+from bench.thread_spike import helical, maths, measure
+from bench.thread_spike.__main__ import _table_row
+from bench.thread_spike.runner import Worker
+from bench.thread_spike.verdict import (
+    ROW_TIMEOUT_S,
+    T_PASS,
+    MeshRecord,
+    RowRecord,
+    RowRequest,
+    classify_row,
+    failed_record,
+    parse_record,
+    parse_request,
+    relative_error,
+)
 from screw.params import BoltParams
+from screw.solid import TESSELLATION
 
 
 def test_the_skeleton_corpus_is_the_d_by_length_grid() -> None:
@@ -306,3 +334,402 @@ def test_the_latency_report_counts_what_the_server_answered_and_sets_no_bar() ->
     assert "- Ratio (under-load / idle): 2.00x -- no bar is set for screw yet" in text
     assert "- Slowest successful build: 0.50 s" in text
     assert "3 attempted -- 200: 2, 503 busy: 1" in text
+
+
+# --- the thread spike (Phase 2) ----------------------------------------------------------
+
+
+def _quiet(loads: Iterable[float], cap: float = 900.0) -> QuietResult:
+    """`wait_quiet` on a made-up host: each read pops the next load, `sleep` advances a fake
+    clock, and `now` stamps the fake time, so no test waits and none reads the real load."""
+    clock = [0.0]
+    feed = iter(loads)
+
+    def sleep(seconds: float) -> None:
+        clock[0] += seconds
+
+    return wait_quiet(read=lambda: next(feed), sleep=sleep,
+                      now=lambda: f"t={clock[0]:g}", clock=lambda: clock[0], cap=cap)
+
+
+def test_three_readings_under_the_bar_release_the_gate_decisively_after_three() -> None:
+    result = _quiet([1.4, 1.4, 1.4])
+    assert result.decisive
+    assert [r.load1 for r in result.readings] == [1.4, 1.4, 1.4]
+
+
+def test_a_reading_of_exactly_the_bar_resets_the_run_of_quiet_readings() -> None:
+    """The bar is strict: 1.5 is not under 1.5. 1.4, 1.5, 1.4, 1.4, 1.4 releases only at the
+    fifth reading, because the third and fourth still have the 1.5 inside their window."""
+    result = _quiet([1.4, 1.5, 1.4, 1.4, 1.4])
+    assert result.decisive
+    assert len(result.readings) == 5
+
+
+def test_the_largest_float_below_the_bar_counts_as_quiet() -> None:
+    just_under = math.nextafter(1.5, 0.0)
+    result = _quiet([just_under] * 3)
+    assert result.decisive
+    assert len(result.readings) == 3
+
+
+def test_a_host_that_never_quiets_is_non_decisive_after_the_cap_with_31_readings() -> None:
+    """Cap 900 at interval 30: readings at t = 0, 30, ... 900, and the last one is the one
+    that finds the deadline reached."""
+    result = _quiet(itertools.repeat(2.0))
+    assert not result.decisive
+    assert len(result.readings) == 31
+    assert result.readings[-1].utc == "t=900"
+
+
+def test_a_zero_cap_reads_once_and_is_non_decisive_by_construction() -> None:
+    result = _quiet(itertools.repeat(0.1), cap=0.0)
+    assert not result.decisive
+    assert len(result.readings) == 1
+
+
+def test_every_reading_carries_the_time_it_was_read() -> None:
+    """The injected `now` stamps the fake clock at the moment of each read: 0, 30, 60."""
+    result = _quiet([1.9, 1.9, 1.4, 1.4, 1.4])
+    assert [r.utc for r in result.readings] == ["t=0", "t=30", "t=60", "t=90", "t=120"]
+    assert Reading("t=0", 1.9) == result.readings[0]
+
+
+def test_the_basic_profile_has_the_coefficients_the_owner_confirmed() -> None:
+    """H = (sqrt(3)/2) P and the depth 5H/8, against the digits the research read for M6 P=1:
+    H = 0.866 025 404 P, H1 = 0.541 265 877 P."""
+    assert maths.fundamental_height(1.0) == pytest.approx(0.866025404, abs=1e-9)
+    assert maths.thread_depth(1.0) == pytest.approx(0.541265877, abs=1e-9)
+
+
+def test_the_section_is_a_crest_flat_a_root_flat_and_two_linear_flanks() -> None:
+    d, pitch = 6.0, 1.0
+    ro, rr = d / 2, d / 2 - maths.thread_depth(pitch)
+    radius = maths.section_radius
+    assert radius(d, pitch, 0.0, 0.0) == ro
+    assert radius(d, pitch, 0.0, math.pi / 8) == pytest.approx(ro)
+    assert radius(d, pitch, 0.0, math.pi) == rr
+    assert radius(d, pitch, 0.0, 3 * math.pi / 4) == pytest.approx(rr)
+    mid_flank = radius(d, pitch, 0.0, (math.pi / 8 + 3 * math.pi / 4) / 2)
+    assert mid_flank == pytest.approx((ro + rr) / 2)
+    assert radius(d, pitch, 0.0, 2 * math.pi) == ro  # taken modulo 2 pi
+    assert radius(d, pitch, 0.2, 0.0) == pytest.approx(ro + 0.2)
+
+
+@pytest.mark.parametrize("clearance", [0.0, 0.2])
+@pytest.mark.parametrize("size", ["M2", "M6", "M20"])
+def test_the_closed_form_section_area_is_half_the_integral_of_the_radius_squared(
+        size: str, clearance: float) -> None:
+    """A 400 000-point midpoint rule over one turn: the radius is piecewise linear in angle
+    with its breaks on multiples of pi/8, which 400 000 points divide exactly, so the rule's
+    only error is the second-order one on each quadratic piece."""
+    d, pitch = (float(x) for x in maths.PITCH[size])
+    points = 400_000
+    step = 2 * math.pi / points
+    integral = sum(maths.section_radius(d, pitch, clearance, (i + 0.5) * step) ** 2
+                   for i in range(points)) * step / 2
+    assert maths.section_area(d, pitch, clearance) == pytest.approx(integral, rel=1e-9)
+
+
+def test_closed_volume_is_the_section_area_times_the_length() -> None:
+    assert maths.closed_volume(6.0, 1.0, 5.0) == maths.section_area(6.0, 1.0) * 5.0
+
+
+def test_the_spike_covers_the_15_sizes_in_numeric_order() -> None:
+    assert len(maths.SIZES) == 15
+    assert maths.SIZES[0] == "M2"
+    assert maths.SIZES[-1] == "M20"
+    diameters = [maths.PITCH[size][0] for size in maths.SIZES]
+    assert diameters == sorted(diameters)
+
+
+def test_the_interim_presets_equal_the_ones_the_service_ships() -> None:
+    """The kernel-free spike module copies the INTERIM presets so it need not import the
+    kernel to read them; this pins that the copy cannot drift from `screw.solid`."""
+    assert maths.INTERIM_PRESETS == TESSELLATION
+
+
+_REQUEST: RowRequest = {
+    "kind": "rod", "size": "M6", "d": 6.0, "pitch": 1.0, "turns": 5.0, "length": 5.0,
+    "left_hand": False, "k": 5, "clearance": 0.0, "presets": [("preview", 0.08, 0.5)],
+}
+
+
+def _built(precise: float, *, solids: int = 1, valid: bool = True,
+           meshes: list[MeshRecord] | None = None) -> RowRecord:
+    return {
+        **_REQUEST, "outcome": "built", "error": None, "solids": solids, "is_valid": valid,
+        "precise_volume": precise, "default_volume": precise, "build_s": 0.1, "volume_s": 0.1,
+        "meshes": [] if meshes is None else meshes,
+    }
+
+
+def _mesh(*, watertight: bool = True, volume: float = 1.0, area: float = 10.0,
+          checked: bool = True) -> MeshRecord:
+    return {
+        "preset": "preview", "tolerance": 0.08, "angular": 0.5, "triangles": 100, "bytes": 5084,
+        "mesh_s": 0.01, "checked": checked,
+        "watertight": watertight if checked else None,
+        "open_edges": (0 if watertight else 3) if checked else None,
+        "stl_volume": volume if checked else None, "surface_area": area if checked else None,
+    }
+
+
+def test_a_row_inside_the_tolerance_is_ok_and_the_next_volume_above_it_is_not() -> None:
+    """1.0001 against a closed form of 1.0 sits at T_PASS (1e-4); 1.00010001 is just outside."""
+    assert classify_row(_built(1.0001), 1.0) == ("ok", ())
+    row_class, reasons = classify_row(_built(1.00010001), 1.0)
+    assert row_class == "silent_wrong"
+    assert reasons == ("precise rel err +1.000e-04 outside +/-1e-4",)
+
+
+def test_the_tolerance_boundary_is_exact_to_the_next_representable_volume() -> None:
+    """Walk to the largest volume whose relative error is still <= T_PASS: that one is ok and
+    the very next float is silent_wrong."""
+    volume = 1.0 + T_PASS
+    while relative_error(volume, 1.0) > T_PASS:
+        volume = math.nextafter(volume, 0.0)
+    while relative_error(math.nextafter(volume, 2.0), 1.0) <= T_PASS:
+        volume = math.nextafter(volume, 2.0)
+    assert classify_row(_built(volume), 1.0)[0] == "ok"
+    assert classify_row(_built(math.nextafter(volume, 2.0)), 1.0)[0] == "silent_wrong"
+
+
+def test_the_naive_row_with_its_core_missing_is_silent_wrong_although_one_valid_solid() -> None:
+    """The recorded known-bad shape (RESEARCH Pitfall 9): one solid, isValid() True, volume
+    0.238 of the closed form. isValid() and the solid count both pass it; only the volume
+    against the closed form catches it."""
+    row_class, reasons = classify_row(_built(0.238), 1.0)
+    assert row_class == "silent_wrong"
+    assert reasons == ("precise rel err -7.620e-01 outside +/-1e-4",)
+
+
+def test_an_inverted_solid_is_silent_wrong_by_its_sign() -> None:
+    """An inside-out solid reports isValid() True and one solid; its volume is minus the
+    closed form, a relative error of -2, and the sign is what keeps it from reading as ok."""
+    row_class, reasons = classify_row(_built(-1.0), 1.0)
+    assert row_class == "silent_wrong"
+    assert reasons == ("precise rel err -2.000e+00 outside +/-1e-4",)
+
+
+def test_a_row_with_two_solids_or_an_invalid_solid_names_each_reason() -> None:
+    assert classify_row(_built(1.0, solids=2), 1.0) == ("silent_wrong", ("solids=2",))
+    assert classify_row(_built(1.0, valid=False), 1.0) == ("silent_wrong", ("isValid False",))
+
+
+@pytest.mark.parametrize("outcome", ["failure", "timeout", "worker_died"])
+def test_a_row_that_was_not_built_keeps_its_class_and_carries_no_measurement(
+        outcome: Literal["failure", "timeout", "worker_died"]) -> None:
+    """A failed row is never a zero or a guessed number: every measurement is None (L02)."""
+    record = failed_record(_REQUEST, outcome, "it broke")
+    assert classify_row(record, 1.0) == (outcome, ("it broke",))
+    measurements = (record["solids"], record["is_valid"], record["precise_volume"],
+                    record["default_volume"], record["build_s"], record["volume_s"],
+                    record["meshes"])
+    assert measurements == (None,) * 7
+
+
+def test_a_checked_mesh_that_is_open_inside_out_or_off_the_closed_form_is_silent_wrong() -> None:
+    closed = 100.0
+    ok_mesh = _mesh(volume=99.0, area=200.0)  # |99 - 100| <= 0.08 * 200
+    assert classify_row(_built(closed, meshes=[ok_mesh]), closed) == ("ok", ())
+    open_mesh = _mesh(watertight=False, volume=99.0, area=200.0)
+    assert classify_row(_built(closed, meshes=[open_mesh]), closed) == (
+        "silent_wrong", ("preview: STL not watertight (3 open edges)",))
+    inside_out = _mesh(volume=-99.0, area=200.0)
+    reasons = classify_row(_built(closed, meshes=[inside_out]), closed)[1]
+    assert reasons == ("preview: STL signed volume -9.900e+01 <= 0",)
+    far = _mesh(volume=50.0, area=200.0)  # |50 - 100| = 50 > 0.08 * 200 = 16
+    far_reasons = classify_row(_built(closed, meshes=[far]), closed)[1]
+    assert len(far_reasons) == 1
+    assert "misses the closed form" in far_reasons[0]
+
+
+def test_a_mesh_that_was_not_checked_is_neither_a_pass_nor_a_failure_and_prints_so() -> None:
+    skipped = _built(1.0, meshes=[_mesh(checked=False)])
+    assert classify_row(skipped, 1.0) == ("ok", ())
+    assert "| not checked |" in _table_row(skipped, "ok", 1.0)
+
+
+def test_a_row_with_no_measurement_prints_n_a_never_a_zero() -> None:
+    cells = _table_row(failed_record(_REQUEST, "timeout", "late"), "timeout", 1.0).split("|")
+    assert [c.strip() for c in cells[7:14]] == ["n/a"] * 7  # solids .. watertight, build s incl.
+
+
+def test_a_record_survives_the_wire_unchanged() -> None:
+    assert parse_request(json.dumps(_REQUEST)) == _REQUEST
+    built = _built(1.5, meshes=[_mesh()])
+    assert parse_record(json.dumps(built)) == built
+    died = failed_record(_REQUEST, "worker_died", "exit 139")
+    assert parse_record(json.dumps(died)) == died
+
+
+def test_a_record_with_an_unknown_key_is_refused_naming_it() -> None:
+    wire = {**_built(1.0), "volumne": 1.0}
+    with pytest.raises(ValueError, match="volumne"):
+        parse_record(json.dumps(wire))
+
+
+def test_a_record_with_a_missing_key_is_refused_naming_it() -> None:
+    wire = dict(_built(1.0))
+    del wire["precise_volume"]
+    with pytest.raises(ValueError, match="precise_volume"):
+        parse_record(json.dumps(wire))
+    request = dict(_REQUEST)
+    del request["pitch"]
+    with pytest.raises(ValueError, match="pitch"):
+        parse_request(json.dumps(request))
+
+
+def test_a_number_that_is_not_finite_or_not_a_number_is_refused_at_the_boundary() -> None:
+    """json.loads accepts NaN, and a NaN volume would compare as not-outside-the-tolerance."""
+    with pytest.raises(ValueError, match="precise_volume"):
+        parse_record(json.dumps(_built(float("nan"))))
+    wire = dict(_built(1.0))
+    wire["solids"] = "one"
+    with pytest.raises(ValueError, match="solids"):
+        parse_record(json.dumps(wire))
+    with pytest.raises(ValueError, match="not JSON"):
+        parse_record("not json")
+    with pytest.raises(ValueError, match="not a JSON object"):
+        parse_request("[1, 2]")
+
+
+def test_a_built_record_missing_a_measurement_or_a_failed_one_carrying_one_is_refused() -> None:
+    wire = dict(_built(1.0))
+    wire["build_s"] = None
+    with pytest.raises(ValueError, match="build_s"):
+        parse_record(json.dumps(wire))
+    liar = dict(failed_record(_REQUEST, "failure", "boom"))
+    liar["precise_volume"] = 0.0
+    with pytest.raises(ValueError, match="precise_volume"):
+        parse_record(json.dumps(liar))
+    nameless = dict(failed_record(_REQUEST, "failure", "boom"))
+    nameless["error"] = None
+    with pytest.raises(ValueError, match="error"):
+        parse_record(json.dumps(nameless))
+
+
+_Vertex = tuple[float, float, float]
+_Facet = tuple[_Vertex, _Vertex, _Vertex]
+
+
+def _stl(facets: Sequence[_Facet]) -> bytes:
+    body = b"".join(struct.pack("<12fH", 0, 0, 0, *v0, *v1, *v2, 0) for v0, v1, v2 in facets)
+    return bytes(80) + struct.pack("<I", len(facets)) + body
+
+
+_TETRAHEDRON: list[_Facet] = [
+    ((0.0, 0.0, 0.0), (0.0, 1.0, 0.0), (1.0, 0.0, 0.0)),
+    ((0.0, 0.0, 0.0), (0.0, 0.0, 1.0), (0.0, 1.0, 0.0)),
+    ((0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 0.0, 1.0)),
+    ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)),
+]
+
+
+def test_a_closed_tetrahedron_is_watertight_with_a_signed_volume_of_a_sixth() -> None:
+    check = measure.stl_check(_stl(_TETRAHEDRON))
+    assert check.watertight
+    assert check.open_edges == 0
+    assert check.triangles == 4
+    assert check.signed_volume == pytest.approx(1 / 6)
+    assert check.surface_area == pytest.approx(1.5 + math.sqrt(3) / 2)
+
+
+def test_a_tetrahedron_missing_a_facet_is_not_watertight_and_counts_its_open_edges() -> None:
+    check = measure.stl_check(_stl(_TETRAHEDRON[:3]))
+    assert not check.watertight
+    assert check.open_edges == 3
+
+
+def test_a_tetrahedron_with_every_facet_reversed_has_a_negative_volume() -> None:
+    reversed_facets = [(v0, v2, v1) for v0, v1, v2 in _TETRAHEDRON]
+    check = measure.stl_check(_stl(reversed_facets))
+    assert check.signed_volume == pytest.approx(-1 / 6)
+    assert check.watertight  # inside out is still closed: sign is what tells them apart
+
+
+def test_an_empty_stl_is_not_a_watertight_one() -> None:
+    assert not measure.stl_check(_stl([])).watertight
+
+
+def test_a_real_m6_right_hand_five_turn_rod_passes_the_row_verdict() -> None:
+    """Built in this process, judged by the kernel-free closed form: one solid, valid, and a
+    precise volume within T_PASS. The precise volume is what this verdict reads; the default
+    Volume() is only a reference column."""
+    d, pitch, turns = 6.0, 1.0, 5.0
+    shape = helical.thread(d, pitch, turns, k=5)
+    precise = measure.precise_volume(shape)
+    record = _built(precise)
+    record["solids"] = len(shape.Solids())
+    record["is_valid"] = bool(shape.isValid())
+    closed = maths.closed_volume(d, pitch, turns * pitch)
+    assert record["solids"] == 1
+    assert classify_row(record, closed) == ("ok", ())
+    assert abs(relative_error(precise, closed)) < T_PASS
+    data, _ = measure.mesh_stl(shape, *maths.INTERIM_PRESETS["preview"])
+    assert measure.stl_check(data).watertight
+
+
+def test_a_worker_round_trip_returns_one_record_per_request_and_survives_a_bad_rod() -> None:
+    """A rod the kernel cannot build (d = 1e-9) is a recorded failure or a silent-wrong row,
+    never a crash of the parent, and the same child still serves the next request."""
+    worker = Worker()
+    try:
+        first = worker.run(_REQUEST, ROW_TIMEOUT_S)
+        bad_request: RowRequest = {**_REQUEST, "size": "bad", "d": 1e-9}
+        bad = worker.run(bad_request, ROW_TIMEOUT_S)
+        third = worker.run(_REQUEST, ROW_TIMEOUT_S)
+    finally:
+        worker.close()
+    closed = maths.closed_volume(6.0, 1.0, 5.0)
+    assert classify_row(first, closed) == ("ok", ())
+    bad_closed = maths.closed_volume(1e-9, 1.0, 5.0)
+    assert classify_row(bad, bad_closed)[0] in ("failure", "silent_wrong")
+    assert classify_row(third, closed) == ("ok", ())
+    assert third["size"] == "M6"
+
+
+def test_a_worker_that_dies_is_one_worker_died_row_with_its_return_code() -> None:
+    worker = Worker(argv=[sys.executable, "-c", "import os; os._exit(3)"])
+    try:
+        record = worker.run(_REQUEST, 30.0)
+    finally:
+        worker.close()
+    assert record["outcome"] == "worker_died"
+    assert record["error"] is not None
+    assert "return code 3" in record["error"]
+    assert record["precise_volume"] is None
+
+
+def test_a_worker_killed_by_a_signal_reports_the_negative_return_code() -> None:
+    script = "import os, signal; os.kill(os.getpid(), signal.SIGSEGV)"
+    worker = Worker(argv=[sys.executable, "-c", script])
+    try:
+        record = worker.run(_REQUEST, 30.0)
+    finally:
+        worker.close()
+    assert record["outcome"] == "worker_died"
+    assert record["error"] is not None
+    assert "return code -11" in record["error"]
+
+
+def test_a_worker_that_does_not_answer_in_time_is_killed_and_recorded_as_a_timeout() -> None:
+    worker = Worker(argv=[sys.executable, "-c", "import time; time.sleep(60)"])
+    try:
+        record = worker.run(_REQUEST, 0.5)
+    finally:
+        worker.close()
+    assert record["outcome"] == "timeout"
+    assert record["solids"] is None
+
+
+def test_a_worker_that_speaks_garbage_is_one_failure_row_and_not_reused() -> None:
+    worker = Worker(argv=[sys.executable, "-c", "print('garbage')"])
+    try:
+        record = worker.run(_REQUEST, 30.0)
+    finally:
+        worker.close()
+    assert record["outcome"] == "failure"
+    assert record["error"] is not None
+    assert "unreadable worker output" in record["error"]

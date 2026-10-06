@@ -6,6 +6,7 @@ PLATFORM    ?=
 PYTEST_ARGS ?=
 SWEEP       ?=
 SET         ?=
+ARGS        ?=
 
 # cadquery-ocp publishes wheels up to CPython 3.12 and screw supports 3.12 only (L01).
 # Choosing the interpreter here instead of a bare `python3` is what stops pip trying to
@@ -27,7 +28,7 @@ CONSTRAINT := $(if $(wildcard requirements.txt),PIP_CONSTRAINT=requirements.txt,
 .PHONY: help venv verify lint typecheck lint-imports no-fake-done test serve lock \
 	    check image smoke up down logs vendor vendor-check \
 	    worktree.bootstrap worktree.new worktree.land pr.land clean clean-docker \
-	    bench bench.build bench.export bench.latency bench.memory
+	    bench bench.build bench.export bench.latency bench.memory bench.thread
 
 help:  ## list the targets
 	@grep -hE '^[a-z][a-z.-]*:.*##' $(MAKEFILE_LIST) | sed 's/:[^#]*##/\t/' | expand -t18
@@ -159,6 +160,11 @@ bench.build: $(STAMP)  ## build, fine STL and STEP time per corpus part vs SCREW
 # for the same reason bench.build needs none.
 bench.export: $(STAMP)  ## gzip level table (L19) and mesh-copy cost (L24) for one part; SET="d=100 length=200"
 	$(PY) -m bench.export_cost $(SWEEP) --set "$(SET)"
+
+# The thread spike (Phase 2) is a measurement campaign, outside the gate for the same reason,
+# and needs no service: the kernel runs in a worker subprocess it spawns itself.
+bench.thread: $(STAMP)  ## thread spike (Phase 2): ARGS="smoke" | "check-protocol" | ...
+	$(PY) -m bench.thread_spike $(ARGS)
 
 # The committed three.js bundle is a build artefact; these two make it reproducible from
 # web/ (spur L11). They need node 22; the gate does not, CI's vendor-bundle job runs the check.
