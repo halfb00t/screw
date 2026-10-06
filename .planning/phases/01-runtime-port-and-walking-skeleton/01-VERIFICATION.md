@@ -1,8 +1,10 @@
 ---
 phase: 01-runtime-port-and-walking-skeleton
 verified: 2026-10-06T08:05:00Z
-status: human_needed
-score: 15/17 must-haves verified
+status: passed
+score: 17/17 must-haves verified
+human_verified: 2026-10-06T08:28:30Z
+human_verified_items: 2
 covered_files:
   - ".github/workflows/ci.yml"
   - ".github/workflows/required-jobs.txt"
@@ -103,10 +105,14 @@ human_verification:
 
 **Phase Goal:** A user can generate a walking-skeleton bolt (`d`, `pitch`, `length`, plain unthreaded solid; an internal milestone, never released) from the web UI, the HTTP API and the CLI, all served by spur's ported runtime from one registered model, with front-end parity proven by one test over the registry.
 **Verified:** 2026-10-06T08:05:00Z
-**Status:** human_needed
-**Re-verification:** No, initial verification
+**Status:** passed
+**Re-verification:** Human UAT 2026-10-06 (01-UAT.md), see closure below
 
-Every automated check passed and nothing observable is missing. The one thing no automated check can prove is the web UI's behavior in a browser, so the phase stops at `human_needed`. No gaps (BLOCKERs) were found.
+Every automated check passed and nothing observable is missing. The one thing no automated check can prove is the web UI's behavior in a browser, so the automated run stopped at `human_needed`. No gaps (BLOCKERs) were found.
+
+## Human verification closure (2026-10-06)
+
+Both `behavior_unverified_items` were walked by the owner in a browser against `make serve` and recorded in `01-UAT.md` (tests 1 and 2, both `pass`, session completed 2026-10-06T08:28:30Z). Status is therefore `passed`: 15 must-haves verified by the automated run above plus 2 by human UAT. The kind-switch half of item 2 could not be exercised — `KINDS` registers only `bolt` (`src/screw/params.py:88`) — and stays deferred until a second kind exists, as item 2's own test text already says.
 
 ## Goal Achievement
 
