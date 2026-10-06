@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Runtime Port and Walking Skeleton
 status: executing
-stopped_at: Completed 01-01-PLAN.md
-last_updated: "2026-10-06T04:09:57.095Z"
+stopped_at: Completed 01-02-PLAN.md
+last_updated: "2026-10-06T04:20:05.771Z"
 last_activity: 2026-10-06
 last_activity_desc: Phase 01 execution started
-state_head: 6d7d19b7cf27490ac312fb5f9cc10333eac4d297
+state_head: 2a47651c0d6be204127e5406e547fd32383a3001
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 10
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-05)
 ## Current Position
 
 Phase: 01 (Runtime Port and Walking Skeleton) — EXECUTING
-Plan: 2 of 10
+Plan: 3 of 10
 Status: Ready to execute
 Last activity: 2026-10-06 — Phase 01 execution started
 
@@ -57,6 +57,7 @@ Progress: [░░░░░░░░░░] 0%
 | Plan | Duration | Tasks | Files |
 |------|----------|-------|-------|
 | Phase 01 P01 | 17 min | 3 tasks | 19 files |
+| Phase 01 P02 | 8 min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,8 @@ Recent decisions affecting current work:
 - [Phase 01]: D-16 same-slot guard raises BuildTimeout when the slot was already replaced (divergence from spur, L09); RED carried past the pre-commit hook as a strict xfail
 - [Phase 01]: derive() and solid._build dispatch by isinstance with TypeError for an unregistered kind; the registry test enforces the closed list
 - [Phase 01]: INTERIM_MAX_MM = 1e5 pinned after measuring the d=1e5 length=1e5 corner (fine STL 0.934 s / 1,052 MiB)
+- [Phase 01]: L09 logged: registry with frozen default kind, per-kind URLs, omitted kind= hash rule, PartInfo, INTERIM bounds policy, pool.py divergence from spur — Owner Phase 1 decisions D-01..D-19; L08 (wall of main) lands later in the phase
+- [Phase 01]: L07 extraction trigger recorded as fired by the pool.py same-slot guard; owner decides extract-now vs fix-spur-by-hand — Plan 01-02 does not extract; surfaced in 01-02-SUMMARY
 
 ### Pending Todos
 
@@ -98,6 +101,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-06T04:09:57.076Z
-Stopped at: Completed 01-01-PLAN.md
+Last session: 2026-10-06T04:20:02.776Z
+Stopped at: Completed 01-02-PLAN.md
 Resume file: None

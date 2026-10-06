@@ -45,14 +45,14 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. The L07 runtime is ported and running: builds execute in worker processes off the event loop, an overloaded server answers `503` + `Retry-After` from the web layer only, `scripts/pr_land.py` + `skip_tokens.py`, the commit-msg hook and the `main` ruleset are in place, `make check` passes (in-image smoke test and vendored-bundle byte check), the coverage floor is enforced, and the `bench/` harness runs against the skeleton. No spur gear module (`calc.py`, `model.py`, `params.py`, their tests, the regression fixture) is copied and no spur runtime figure is carried as a final bound.
   4. `make verify` is green with import-linter enforcing the inherited contracts plus "only `solid` imports `cadquery`/`OCP`" and "`app` never imports the kernel by any path"; each later contract is written to land with the module it guards (tables in Phase 4, the pair proof in Phase 5).
 
-**Plans**: 1/10 plans executed
+**Plans**: 2/10 plans executed
 
 Plans:
 **Wave 1**
 - [x] 01-01-PLAN.md — Tracer: skeleton bolt over the API through the worker pool; owner vets dev packages; D-16 pool guard
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 01-02-PLAN.md — API contract tests per kind; records tests; L09 and the interim-bounds debt item
+- [x] 01-02-PLAN.md — API contract tests per kind; records tests; L09 and the interim-bounds debt item
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 01-03-PLAN.md — CLI slice: `screw serve | info | export`, flags from the model; README commands as tests
@@ -181,7 +181,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 2 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Runtime Port and Walking Skeleton | 1/10 | In Progress | - |
+| 1. Runtime Port and Walking Skeleton | 2/10 | In Progress | - |
 | 2. Thread Spike | 0/TBD | Not started | - |
 | 3. Real Helical Thread | 0/TBD | Not started | - |
 | 4. ISO Hex Bolts and Screws | 0/TBD | Not started | - |
