@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Thread Spike
 status: executing
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-10-06T11:49:05.906Z"
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-10-06T12:10:09.082Z"
 last_activity: 2026-10-06
 last_activity_desc: Phase 02 execution started
-state_head: df710d991d88daf7dcfb36a1efbeb5d884bd011a
+state_head: f611dd05173be2544e6b2e90785298359ca21932
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 18
-  completed_plans: 11
+  completed_plans: 12
   percent: 14
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 ## Current Position
 
 Phase: 02 (Thread Spike) — EXECUTING
-Plan: 2 of 8
+Plan: 3 of 8
 Status: Ready to execute
 Last activity: 2026-10-06 — Phase 02 execution started
 
@@ -67,6 +67,7 @@ Progress: [█░░░░░░░░░] 14%
 | Phase 01 P09 | 8 min | 2 tasks | 8 files |
 | Phase 01 P10 | 20 min | 2 tasks | 1 files |
 | Phase 02 P01 | 4 min | 2 tasks | 2 files |
+| Phase 02 P02 | 17 min | 2 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -83,6 +84,8 @@ Recent decisions affecting current work:
 - `clearance` lives on the nut; no default ships before Phase 6's printed test (PAIR-02).
 - [Phase 02]: 02-01: ISO 68-1:2023 profile pinned basic by the owner (read 2026-10-06); coefficients owner-confirmed; R1-R5 planner defaults; one-way door (D-01)
 - [Phase 02]: 02-01: M7 nut height 0.8*d = 5.60 is a stated input, UNVERIFIED (owner supplied no value)
+- [Phase 02]: Non-finite JSON numbers are refused at the spike wire boundary: a NaN volume would compare as inside the tolerance and classify ok (L02)
+- [Phase 02]: Guard RED committed as strict-xfail tests over behaviourless stubs because the pre-commit gate cannot take a failing suite; evidence from --runxfail, RED_EVIDENCE_OK
 
 ### Pending Todos
 
@@ -108,6 +111,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-06T11:49:05.867Z
-Stopped at: Completed 02-01-PLAN.md
+Last session: 2026-10-06T12:06:56.338Z
+Stopped at: Completed 02-02-PLAN.md
 Resume file: None
