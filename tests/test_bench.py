@@ -63,10 +63,12 @@ from bench.thread_spike.verdict import (
     MeshRecord,
     RowRecord,
     RowRequest,
+    before_results,
     classify_row,
     failed_record,
     parse_record,
     parse_request,
+    protocol_guard,
     relative_error,
 )
 from screw.params import BoltParams
@@ -733,3 +735,106 @@ def test_a_worker_that_speaks_garbage_is_one_failure_row_and_not_reused() -> Non
     assert record["outcome"] == "failure"
     assert record["error"] is not None
     assert "unreadable worker output" in record["error"]
+
+
+# --- the pre-registration guard ------------------------------------------------------------
+
+_PROTOCOL = "# Phase 2\n\n## Question\nWhich construction?\n\n## Results\n\nNo run yet.\n"
+_RED = pytest.mark.xfail(strict=True, reason="RED: protocol_guard is not implemented yet")
+
+
+def _guard(local: str | None = _PROTOCOL, main: str | None = _PROTOCOL, *,
+           fetched: bool = True, ancestor: bool = True) -> tuple[bool, tuple[str, ...]]:
+    result = protocol_guard(local, main, fetched=fetched, landed_is_ancestor=ancestor)
+    return result.held, result.reasons
+
+
+@_RED
+def test_the_guard_holds_when_the_protocol_is_on_main_unchanged_and_an_ancestor() -> None:
+    assert _guard() == (True, ())
+
+
+@_RED
+def test_the_guard_refuses_when_origin_main_was_not_fetched() -> None:
+    held, reasons = _guard(fetched=False)
+    assert not held
+    assert len(reasons) == 1
+    assert "not fetched" in reasons[0]
+
+
+@_RED
+def test_the_guard_refuses_when_the_protocol_is_missing_from_the_working_tree() -> None:
+    held, reasons = _guard(local=None)
+    assert not held
+    assert len(reasons) == 1
+    assert "working tree" in reasons[0]
+
+
+@_RED
+def test_the_guard_refuses_when_the_protocol_is_missing_from_origin_main() -> None:
+    held, reasons = _guard(main=None)
+    assert not held
+    assert len(reasons) == 1
+    assert "origin/main has no protocol" in reasons[0]
+
+
+@_RED
+def test_the_guard_refuses_when_either_text_has_no_results_line() -> None:
+    headless = "# Phase 2\n\n## Question\nWhich construction?\n"
+    held, reasons = _guard(local=headless)
+    assert not held
+    assert len(reasons) == 1
+    assert "working tree" in reasons[0]
+    assert "## Results" in reasons[0]
+    held, reasons = _guard(main=headless)
+    assert not held
+    assert len(reasons) == 1
+    assert "origin/main" in reasons[0]
+    assert "## Results" in reasons[0]
+
+
+@_RED
+def test_the_guard_refuses_a_single_changed_character_before_the_results_line() -> None:
+    edited = _PROTOCOL.replace("Which", "Whish")
+    held, reasons = _guard(local=edited)
+    assert not held
+    assert len(reasons) == 1
+    assert "differs" in reasons[0]
+
+
+@_RED
+def test_the_guard_refuses_when_the_protocol_commit_is_not_an_ancestor_of_head() -> None:
+    """A branch cut from the pre-squash PR 1 branch: the same text, but the commit that put it
+    on origin/main is not in this branch's history (RESEARCH Pitfall 10)."""
+    held, reasons = _guard(ancestor=False)
+    assert not held
+    assert len(reasons) == 1
+    assert "ancestor" in reasons[0]
+
+
+@_RED
+def test_the_guard_names_every_reason_not_only_the_first() -> None:
+    held, reasons = _guard(local=None, main=None, fetched=False, ancestor=False)
+    assert not held
+    assert len(reasons) == 4
+
+
+@_RED
+def test_the_text_after_the_results_line_may_differ_freely() -> None:
+    """PR 2 writes the Results and the Verdict, and that must not trip the guard."""
+    written = _PROTOCOL.replace("No run yet.", "Run 1: see bench/RESULTS.md.\n\n## Verdict\nx")
+    assert _guard(local=written) == (True, ())
+
+
+@_RED
+def test_the_results_boundary_is_the_first_line_that_is_exactly_the_heading() -> None:
+    assert before_results(_PROTOCOL) == "# Phase 2\n\n## Question\nWhich construction?\n\n"
+    twice = _PROTOCOL + "\n## Results\nagain\n"
+    assert before_results(twice) == before_results(_PROTOCOL)
+
+
+@_RED
+def test_a_heading_that_only_starts_with_the_results_words_is_no_boundary() -> None:
+    assert before_results("# A\n\n## Results and more\n") is None
+    assert before_results("# A\n\n### Results\n") is None
+    assert before_results("# A\n") is None

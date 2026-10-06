@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import math
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Literal, NoReturn, TypedDict
 
 # Relative tolerance of the precise volume against the closed form. The research maximum was
@@ -331,3 +332,23 @@ def classify_row(record: RowRecord, closed_volume: float) -> tuple[RowClass, tup
             reasons.append(f"{name}: STL volume {stl_volume:.4f} misses the closed form "
                            f"{closed_volume:.4f} by more than deflection x area")
     return ("silent_wrong" if reasons else "ok"), tuple(reasons)
+
+
+PROTOCOL_PATH = ".planning/phases/02-thread-spike/02-SPIKE.md"
+RESULTS_HEADING = "## Results"
+
+
+def before_results(text: str) -> str | None:
+    return text
+
+
+@dataclass(frozen=True)
+class GuardResult:
+    held: bool
+    reasons: tuple[str, ...]
+
+
+def protocol_guard(local_text: str | None, main_text: str | None, *, fetched: bool,
+                   landed_is_ancestor: bool) -> GuardResult:
+    _ = (local_text, main_text, fetched, landed_is_ancestor)
+    return GuardResult(held=False, reasons=())
