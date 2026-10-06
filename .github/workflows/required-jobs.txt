@@ -1,0 +1,6 @@
+# The jobs `make pr.land` requires green on a PR head before it merges (L08).
+# One name per line, exactly as GitHub reports it. Change this file in the same commit
+# as ci.yml -- tests/test_pr_land.py fails when the two disagree.
+test (3.12)
+vendor-bundle
+image

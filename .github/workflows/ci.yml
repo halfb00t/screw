@@ -5,14 +5,23 @@ on:
     branches: [main]
   pull_request:
 
+# Every job below is required green on a PR head by `make pr.land` -- the exact list is
+# `.github/workflows/required-jobs.txt`, next to this file (L08). Change both together;
+# tests/test_pr_land.py fails when they disagree.
 jobs:
   test:
     runs-on: ubuntu-latest
+    # The matrix has one entry (L01) because GitHub reports a matrix job as `test (3.12)`,
+    # the name the ruleset and required-jobs.txt carry.
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python }}
           cache: pip
       # The same gate a developer runs locally and `make worktree.land` runs before a
       # merge: ruff, mypy --strict, the import-boundary contracts, the unfinished-work

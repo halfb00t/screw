@@ -1,6 +1,7 @@
 # Wall `main` the way spur does: a ruleset plus `make pr.land`
 
 Date: 2026-10-05
+Status: done — L08 (Phase 1); the ruleset is applied by the owner after the Phase 1 merge (plan 01-10)
 Source: agent-scaffold run; deliberately left out of the foundation
 Related files:
 - .github/workflows/ci.yml
@@ -17,6 +18,7 @@ The wall is what makes "every commit on `main` has a green run" a property inste
 habit. Without it a hand merge or a `[ci skip]` subject can land unverified code.
 
 ## Next step
-Once the first phase has landed by PR: enable the ruleset (spur's `docs/HOW_TO_DEVELOP.md`
-§8 has the exact `gh api` calls), port `scripts/pr_land.py` and `scripts/skip_tokens.py`
-with their tests, add `.github/workflows/required-jobs.txt`, log it as a new `Lxx`.
+Done. The code and the record landed in Phase 1: `scripts/pr_land.py`,
+`scripts/skip_tokens.py`, `.github/workflows/required-jobs.txt` and the `no-skip-token`
+hook, logged as L08. What remains is the repository ruleset, a setting outside git that the
+owner applies after the Phase 1 PR merges: the commands are in `docs/HOW_TO_DEVELOP.md` §9.

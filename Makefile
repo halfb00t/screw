@@ -24,7 +24,7 @@ CONSTRAINT := $(if $(wildcard requirements.txt),PIP_CONSTRAINT=requirements.txt,
 .DEFAULT_GOAL := help
 .PHONY: help venv verify lint typecheck lint-imports no-fake-done test serve lock \
 	    check image smoke up down logs vendor vendor-check \
-	    worktree.bootstrap worktree.new worktree.land clean clean-docker
+	    worktree.bootstrap worktree.new worktree.land pr.land clean clean-docker
 
 help:  ## list the targets
 	@grep -hE '^[a-z][a-z.-]*:.*##' $(MAKEFILE_LIST) | sed 's/:[^#]*##/\t/' | expand -t18
@@ -53,8 +53,8 @@ verify: lint typecheck lint-imports no-fake-done test  ## the gate: lint, types,
 lint: $(STAMP)  ## ruff: correctness rules only, no reformatting (L05)
 	$(PY) -m ruff check .
 
-typecheck: $(STAMP)  ## mypy --strict over the package, its tests and the smoke driver (L04)
-	$(PY) -m mypy src tests docker
+typecheck: $(STAMP)  ## mypy --strict over the package, its tests, the smoke driver and scripts (L04)
+	$(PY) -m mypy src tests docker scripts
 
 lint-imports: $(STAMP)  ## the module boundaries declared in pyproject.toml
 	$(VENV)/bin/lint-imports
@@ -163,6 +163,12 @@ worktree.land:  ## SLUG=<slug> MSG="<commit>" : verify, squash-merge, remove the
 	git worktree remove --force $$WT; \
 	git branch -D agent/$(SLUG); \
 	echo "landed agent/$(SLUG) on $$BASE"
+
+# --- landing on main: the merge gate (L08) ------------------------------------------
+
+pr.land: $(STAMP)  ## PR=<n> : squash-merge a PR only if its head is green and current with main
+	@test -n "$(PR)" || { echo "PR= required"; exit 1; }
+	$(PY) -m scripts.pr_land $(PR)
 
 # --- cleanup -----------------------------------------------------------------------
 

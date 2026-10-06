@@ -8,4 +8,10 @@ the same commit as the file.
 
 | Date | Item | Why it is not now |
 |---|---|---|
-| 2026-10-05 | [Wall `main` the way spur does: a ruleset plus `make pr.land`](2026-10-05-wall-main-like-spur.md) | The foundation commit is the first commit; the wall would guard an empty room. Revisit once the first phase has landed by PR |
+| | none open | |
+
+## Done
+
+| Date | Item | Done in |
+|---|---|---|
+| 2026-10-05 | [Wall `main` the way spur does: a ruleset plus `make pr.land`](2026-10-05-wall-main-like-spur.md) | Phase 1, L08 |

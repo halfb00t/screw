@@ -170,9 +170,10 @@ call counts is banned.
 
 - A new dependency is a decision — ask first. The closure already carries ~1.4 GB of
   OpenCascade and VTK.
-- `pyproject.toml` keeps loose ranges; `requirements.txt` is the generated, fully-pinned
-  closure every install is constrained to (`L06`). Regenerate with `make lock`; never
-  hand-edit a line.
+- `pyproject.toml` keeps loose ranges; `requirements.txt` is the generated runtime closure
+  the image installs and every install is constrained to (`L07`, `L08`). Regenerate with
+  `make lock`; never hand-edit a line. The gate's own tools (ruff, mypy, pytest, ...) are
+  not in it and float (`L08`).
 - Prefer the standard library. `argparse`, not a CLI framework; `struct` to parse an STL,
   not a mesh library.
 

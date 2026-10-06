@@ -3,10 +3,14 @@
 # three places that enforce it.
 #
 # Install once per clone:  .venv/bin/pre-commit install
+# `default_install_hook_types` below makes that one command install both git hooks; a
+# clone that installed before the commit-msg hook existed re-runs it once (L08).
 # The first run after `make clean` builds .venv (~1.4 GB of OpenCascade) and takes a
-# couple of minutes; that is the install, not the tests.
+# couple of minutes; that is the install, not the tests. Measure screw's own warm run
+# before quoting a number for it.
 #
 # There is deliberately no formatter hook: L05.
+default_install_hook_types: [pre-commit, commit-msg]
 repos:
   - repo: local
     hooks:
@@ -16,4 +20,19 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+        # Pinned: a hook with no `stages` gets the top-level `default_stages`, which
+        # defaults to every installed stage (pre_commit/repository.py). Unpinned, this
+        # ran twice per commit once commit-msg joined default_install_hook_types --
+        # confirmed in a scratch repo during planning (2 runs unpinned, 1 pinned; spur L22).
         stages: [pre-commit]
+      - id: no-skip-token
+        name: reject GitHub Actions skip tokens in the commit message
+        # .venv/bin/python, not a bare python3: the verify hook above already requires
+        # the venv make venv builds, and pre-commit runs the pre-commit stage (which
+        # builds it if missing) before the commit-msg stage -- a missing venv fails this
+        # hook closed, refusing the commit, which is the safe direction.
+        entry: .venv/bin/python -m scripts.skip_tokens
+        language: system
+        stages: [commit-msg]
+        # No pass_filenames: false here -- the message file's path is the one argument
+        # git hands a commit-msg hook; suppressing it would break the check.
