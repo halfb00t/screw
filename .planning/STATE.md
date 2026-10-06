@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Runtime Port and Walking Skeleton
 status: executing
-stopped_at: Completed 01-02-PLAN.md
-last_updated: "2026-10-06T04:20:05.771Z"
+stopped_at: Completed 01-03-PLAN.md
+last_updated: "2026-10-06T04:28:52.174Z"
 last_activity: 2026-10-06
 last_activity_desc: Phase 01 execution started
-state_head: 2a47651c0d6be204127e5406e547fd32383a3001
+state_head: c0652afaf257bc869c980d29788be740ba6eade7
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 10
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-05)
 ## Current Position
 
 Phase: 01 (Runtime Port and Walking Skeleton) — EXECUTING
-Plan: 3 of 10
+Plan: 4 of 10
 Status: Ready to execute
 Last activity: 2026-10-06 — Phase 01 execution started
 
@@ -58,6 +58,7 @@ Progress: [░░░░░░░░░░] 0%
 |------|----------|-------|-------|
 | Phase 01 P01 | 17 min | 3 tasks | 19 files |
 | Phase 01 P02 | 8 min | 2 tasks | 6 files |
+| Phase 01 P03 | 8 min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -76,6 +77,8 @@ Recent decisions affecting current work:
 - [Phase 01]: INTERIM_MAX_MM = 1e5 pinned after measuring the d=1e5 length=1e5 corner (fine STL 0.934 s / 1,052 MiB)
 - [Phase 01]: L09 logged: registry with frozen default kind, per-kind URLs, omitted kind= hash rule, PartInfo, INTERIM bounds policy, pool.py divergence from spur — Owner Phase 1 decisions D-01..D-19; L08 (wall of main) lands later in the phase
 - [Phase 01]: L07 extraction trigger recorded as fired by the pool.py same-slot guard; owner decides extract-now vs fix-spur-by-hand — Plan 01-02 does not extract; surfaced in 01-02-SUMMARY
+- [Phase 01]: CLI reads SCREW_PORT and SCREW_WORKERS through int_env (as app.py does), so a garbage value falls back instead of crashing every subcommand
+- [Phase 01]: cmd_export checks the output extension before importing the CAD kernel; screw info/export require an explicit kind, following the API (D-08)
 
 ### Pending Todos
 
@@ -101,6 +104,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-06T04:20:02.776Z
-Stopped at: Completed 01-02-PLAN.md
+Last session: 2026-10-06T04:28:52.153Z
+Stopped at: Completed 01-03-PLAN.md
 Resume file: None
