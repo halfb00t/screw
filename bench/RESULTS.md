@@ -106,3 +106,83 @@ mesh, not about a threaded part's, which is the reason the harness exists. The ~
 in the mesh-copy rows is dominated by the interpreter plus the cadquery import (the params.py
 comment measured the same floor, ~450 MiB), not by the export; the copy-versus-in-place
 difference (0.1 ms, 0.9 MiB) is inside that run-to-run noise.
+
+### `/api/health` under load (`bench.latency`)
+
+Run 2026-10-06T05:52:50Z against `screw serve --port 8001` (8000 was held by another project's
+container, which was left running), started fresh for this run: native arm64 on the host, not in
+the container; 2 build workers and a 4-deep queue (the app's own defaults); harness at HEAD
+`26bf992`. Launched as `.venv/bin/python -m bench.latency --base-url http://127.0.0.1:8001`,
+which is what `make bench.latency` runs plus the port. Load averages are the harness's own
+reading at the start of each scenario. Output verbatim:
+
+```
+## Latency: concurrent
+
+- Machine: 12 CPUs, arm64, 32.0 GiB RAM
+- Load averages at start: 2.38, 2.48, 2.54
+- Idle p95: 0.6 ms (n=3585)
+- Under-load p95: 0.8 ms (n=2989)
+- Ratio (under-load / idle): 1.26x -- no bar is set for screw yet
+- Slowest successful build: 2.14 s
+- Build requests: 10 attempted -- 200: 4, 503 busy: 6 (`503 busy` is admission control, expected once concurrency exceeds the queue)
+
+## Latency: single
+
+- Machine: 12 CPUs, arm64, 32.0 GiB RAM
+- Load averages at start: 2.35, 2.47, 2.53
+- Idle p95: 0.6 ms (n=3594)
+- Under-load p95: 0.6 ms (n=3765)
+- Ratio (under-load / idle): 0.99x -- no bar is set for screw yet
+- Slowest successful build: 2.11 s
+- Build requests: 1 attempted -- 200: 1 (`503 busy` is admission control, expected once concurrency exceeds the queue)
+```
+
+What this shows: the harness runs both scenarios, records the 503 reasons and prints the load.
+Admission control took 4 of the 10 concurrent requests and refused 6, as the queue depth says it
+should. It does not show a bound. An earlier run of the same two scenarios in this session, before
+the harness printed the load, read 1.27x and 1.08x with 2.14 s and 2.15 s slowest builds. A
+skeleton cylinder builds in about 10 ms in-process (`bench.build` above), so the 2.1 s slowest
+build is not the cost of building a part; its cause (the first build in a fresh worker, possibly
+the kernel import) was not isolated. The threaded-part answer is Phase 7's.
+
+### Container memory sweep (`bench.memory sweep`)
+
+Run 2026-10-06T05:53:17Z to 05:54:19Z, harness at HEAD `26bf992`, image `screw:latest`
+(`sha256:b2dccee07712`, rebuilt from cached layers with `make image` immediately before).
+Docker 29.4.0 via OrbStack on this host; the daemon is linux/aarch64 and the image is
+**linux/amd64 under emulation** (`DOCKER_DEFAULT_PLATFORM=linux/amd64`), so every figure below
+is an emulation figure, not a native linux/amd64 one, and not a macOS one either. The sweep ran
+under its own 8 GiB ceiling (not `compose.yaml`'s interim `mem_limit: 4g`), published on
+`127.0.0.1:8001` because 8000 was held by another project's container (left running). Launched as
+`.venv/bin/python -m bench.memory sweep --base-url http://127.0.0.1:8001`, which is what
+`make bench.memory` runs plus the port. Output verbatim (`uptime` at launch read load averages
+2.34 2.46 2.53, the same as the harness's own line):
+
+```
+## Memory sweep
+
+- Machine: 12 CPUs, arm64, 32.0 GiB RAM
+- Load averages at start: 2.34, 2.46, 2.53
+- Peak read from: `docker stats --no-stream` MEM USAGE, polled every 0.5s (a sampled peak, not the cgroup's exact accounting)
+- Early/late peak: max of the first half vs second half of the corpus run's samples
+
+| N (SCREW_BUILD_WORKERS) | Peak | Early peak | Late peak | Samples | Requests | Failures | Elapsed |
+|---|---|---|---|---|---|---|---|
+| 1 | 1323.0 MiB | 732.1 MiB | 1323.0 MiB | 4 | 12 | 0 | 5.8s |
+| 2 | 980.8 MiB | 488.5 MiB | 980.8 MiB | 6 | 12 | 0 | 10.9s |
+| 4 | 1881.1 MiB | 992.8 MiB | 1881.1 MiB | 12 | 12 | 0 | 22.0s |
+```
+
+No row was capped and no request failed. The containers were torn down by the harness, and no
+screw container or network was left on the host afterwards.
+
+What this shows: the sweep starts a container at each N, drives the corpus, samples and tears
+down. It does not show a footprint. Each peak is the maximum of 4 to 12 `docker stats` readings
+over a 5.8 to 22 s run (one reading takes longer than the 0.5 s poll interval), and the corpus is
+12 cylinders. In every row the peak falls in the second half of the readings, so the figure is where
+sampling happened to stop, not a plateau. N=1 reads higher than N=2 (1323 against 981 MiB), which a
+footprint that grows with workers would not produce; the cause was not isolated, and emulation
+and worker start-up are candidates, not findings. Do not read "late peak above early peak" as
+drift. Phase 7 drives the threaded grid under linux/amd64 for long enough to sample properly,
+and is what sets `mem_limit` (OPER-02, OPER-03).
