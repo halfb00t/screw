@@ -1911,10 +1911,6 @@ def test_smoke_block_runs_the_real_frontier_code_on_a_subset_and_says_it_is_not_
 
 # --- The verdict subcommand over recorded runs ---
 
-_XFAIL_V = pytest.mark.xfail(strict=True, reason="plan 02-03 task 3 verdict RED: not implemented")
-
-
-@_XFAIL_V
 def test_k_scores_lists_every_k_with_its_counts_and_scores_only_the_ones_that_qualify() -> None:
     rows = _ksweep(3, triangles=900, step_bytes=30) + _ksweep(5, cls="silent_wrong") + [
         _synth(k=10, cls="timeout", turns=250.0, fine=None, step=None)]
@@ -1928,12 +1924,10 @@ def test_k_scores_lists_every_k_with_its_counts_and_scores_only_the_ones_that_qu
     assert (ten.k, ten.rows, ten.non_ok, ten.triangles, ten.step_bytes) == (10, 1, 1, None, None)
 
 
-@_XFAIL_V
 def test_k_scores_leaves_out_a_k_with_no_rows() -> None:
     assert [score.k for score in k_scores(_ksweep(3) + _ksweep(10))] == [3, 10]
 
 
-@_XFAIL_V
 def test_the_escape_rows_are_the_failures_inside_the_standard_range_of_either_hand() -> None:
     rows = [
         _synth(cls="silent_wrong"), _synth(left=True, cls="failure"),
@@ -1966,7 +1960,6 @@ def _full_campaign(tmp_path: Path, *, prefix: str = "c1", grid_extra: list[RowRe
                        decisive=grid_decisive if block == "grid" else True)
 
 
-@_XFAIL_V
 def test_a_clean_campaign_passes_with_the_k_the_estimator_and_the_turn_caps_printed(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     _full_campaign(tmp_path)
@@ -1983,7 +1976,6 @@ def test_a_clean_campaign_passes_with_the_k_the_estimator_and_the_turn_caps_prin
     assert "missing" not in out.split("### K")[0]
 
 
-@_XFAIL_V
 def test_a_silent_wrong_grid_row_fails_the_verdict_and_fires_the_escape_clause_naming_it(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """The row is stored with class `ok`: the verdict recomputes every class from the raw
@@ -1996,7 +1988,6 @@ def test_a_silent_wrong_grid_row_fails_the_verdict_and_fires_the_escape_clause_n
     assert out.count("- M6 left L=30 rod: silent_wrong") == 2  # under the bar and the clause
 
 
-@_XFAIL_V
 def test_a_campaign_without_all_four_blocks_lists_the_missing_ones_and_never_passes(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     _full_campaign(tmp_path, skip=("frontier", "ladder"))
@@ -2006,7 +1997,6 @@ def test_a_campaign_without_all_four_blocks_lists_the_missing_ones_and_never_pas
     assert "no frontier record" in out
 
 
-@_XFAIL_V
 def test_a_timeout_on_a_non_decisive_grid_makes_the_bar_not_established_and_exit_1(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     _full_campaign(tmp_path, grid_extra=[_synth(turns=30.0, cls="timeout")],
@@ -2018,7 +2008,6 @@ def test_a_timeout_on_a_non_decisive_grid_makes_the_bar_not_established_and_exit
     assert "not established (non-decisive gate)" in out.split("### Turn caps")[1]
 
 
-@_XFAIL_V
 def test_the_verdict_only_reads_runs_under_its_own_prefix(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     _full_campaign(tmp_path, prefix="c1")
@@ -2027,7 +2016,6 @@ def test_the_verdict_only_reads_runs_under_its_own_prefix(
     assert "c2-" not in capsys.readouterr().out
 
 
-@_XFAIL_V
 @pytest.mark.parametrize(("prefix", "wanted"), [("../c1", "prefix"), ("nothing", "no runs")])
 def test_a_bad_prefix_or_an_empty_one_is_refused_not_passed(
         prefix: str, wanted: str, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -2037,7 +2025,6 @@ def test_a_bad_prefix_or_an_empty_one_is_refused_not_passed(
     assert wanted in captured.out + captured.err
 
 
-@_XFAIL_V
 def test_two_runs_of_one_block_under_a_prefix_are_ambiguous_and_refused(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     _full_campaign(tmp_path)

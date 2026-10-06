@@ -62,19 +62,26 @@ from bench.thread_spike.verdict import (
     RowClass,
     RowRecord,
     RowRequest,
+    bytes_over,
     cache_bytes,
     classify_row,
     closed_of,
+    escape_rows,
     fine_mesh,
     frontier_stop,
+    k_scores,
     over_budget,
     parse_header,
     parse_result_row,
+    pass_bar,
     protocol_guard,
     relative_error,
     request_seconds,
     row_label,
+    seconds_over,
+    select_estimator,
     select_k,
+    turn_caps,
 )
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -612,8 +619,149 @@ def smoke_block(block: str) -> int:
     return 0 if all(m.row_class == "ok" for m in campaign.rows) else 1
 
 
-def verdict_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR) -> int:  # noqa: ARG001
-    return 99
+ROD_BLOCKS = ("ksweep", "grid", "frontier", "ladder")
+_NOT_ESTABLISHED = "not established"
+_Runs = dict[str, tuple[HeaderRecord, list[RowRecord]]]
+
+
+def _read_runs(prefix: str, results_dir: Path) -> _Runs:
+    """Every `<prefix>-*.jsonl` as (header, rows) by block. Two runs of one block under a prefix
+    are ambiguous and refused: which one is the record?"""
+    runs: _Runs = {}
+    for path in sorted(results_dir.glob(f"{prefix}-*.jsonl")):
+        lines = path.read_text().splitlines()
+        if not lines:
+            raise ValueError(f"{path.name} is empty")
+        header = parse_header(lines[0])
+        block = header["block"]
+        if block in runs:
+            raise ValueError(f"two runs of block {block} under prefix {prefix!r}: "
+                             f"{runs[block][0]['run_id']!r} and {header['run_id']!r}")
+        runs[block] = (header, [parse_result_row(line) for line in lines[1:]])
+    return runs
+
+
+def _first_over(rows: list[RowRecord], size: str, over: Callable[[RowRecord], bool]) -> str | None:
+    """The shortest row of `size` over a budget, as its label, or `None`."""
+    hits = [r for r in rows if r["size"] == size and r["kind"] == "rod" and over(r)]
+    return row_label(min(hits, key=lambda r: r["length"])) if hits else None
+
+
+def _k_section(runs: _Runs) -> list[str]:
+    if "ksweep" not in runs:
+        return ["K: not established (no ksweep run)"]
+    header, rows = runs["ksweep"]
+    k = select_k(rows)
+    chosen = (f"selected K: {k} (select_k over run `{header['run_id']}`)" if k is not None
+              else f"{NO_K_SOURCE}; no K was selected")
+    lines = [chosen, "", "| K | Rows | Non-ok rows | Fine triangles at the standard max | "
+             "STEP bytes at the standard max | Qualifies |", "|---|---|---|---|---|---|"]
+    for score in k_scores(rows):
+        qualifies = score.triangles is not None
+        lines.append(f"| {score.k} | {score.rows} | {score.non_ok} | "
+                     f"{'n/a' if score.triangles is None else score.triangles} | "
+                     f"{'n/a' if score.step_bytes is None else score.step_bytes} | "
+                     f"{'yes' if qualifies else 'no'} |")
+    return lines
+
+
+def _estimator_line(grid_rows: list[RowRecord]) -> str:
+    try:
+        name, err, gate = select_estimator(grid_rows)
+    except ValueError as exc:
+        return f"estimator: {_NOT_ESTABLISHED} ({exc})"
+    return f"estimator: {name}; max abs error {err:.3e}; T_gate {gate:g}"
+
+
+def _cap_cell(value: float | None, *, established: bool = True) -> str:
+    if not established:
+        return f"{_NOT_ESTABLISHED} (non-decisive gate)"
+    return "no row over budget" if value is None else f"{value:g}"
+
+
+def _run_of(runs: _Runs, block: str) -> tuple[HeaderRecord | None, list[RowRecord]]:
+    """The block's header and rows, or `(None, [])` when that block was not recorded."""
+    return runs.get(block, (None, []))
+
+
+def _caps_section(runs: _Runs) -> list[str]:
+    grid_header, grid = _run_of(runs, "grid")
+    front_header, frontier = _run_of(runs, "frontier")
+    # The construction cap is a frontier claim and the seconds cap a grid claim; each is judged
+    # on its own run's gate, so they can differ (a decisive grid with a loose frontier).
+    by_frontier = turn_caps(grid, frontier, front_header["decisive"] if front_header else False)
+    by_grid = turn_caps(grid, [], grid_header["decisive"] if grid_header else False)
+    if not by_frontier:
+        return ["no rows to cap"]
+    lines = ["| Size | Construction cap (turns) | Construction stop | Bytes cap (mm) | "
+             "Bytes cap (turns) | Seconds cap (mm) |", "|---|---|---|---|---|---|"]
+    for size, cap in by_frontier.items():
+        seconds = by_grid[size]
+        construction = (_NOT_ESTABLISHED if cap.construction_turns is None
+                        else f"{cap.construction_turns:g}")
+        seconds_cell = _cap_cell(seconds.seconds_cap_length,
+                                 established=seconds.seconds_established)
+        lines.append(f"| {size} | {construction} | {cap.stop_reason} | "
+                     f"{_cap_cell(cap.bytes_cap_length)} | {_cap_cell(cap.bytes_cap_turns)} | "
+                     f"{seconds_cell} |")
+    front_id = front_header["run_id"] if front_header else "none"
+    grid_id = grid_header["run_id"] if grid_header else "none"
+    lines.append("")
+    lines.append(f"- construction cap from run `{front_id}`; "
+                 f"bytes and seconds caps from run `{grid_id}`")
+    for size in by_frontier:
+        for what, over in (("bytes", bytes_over), ("seconds", seconds_over)):
+            first = _first_over(grid, size, over)
+            if first is not None:
+                lines.append(f"- {size}: first row over the {what} budget: {first}")
+    return lines
+
+
+def verdict_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR) -> int:
+    """Judge a recorded rod campaign: read every `<prefix>-*.jsonl`, recompute every row's class
+    from its raw record (a stored class is never trusted: the file could be edited, T-02-09),
+    and print K and the rule's table, the estimator and T_gate, the pass bar with every
+    offending row, the escape clause, and the turn cap per size with where each came from.
+
+    Exit 0 only when the pass bar held, no escape fired and all four rod blocks were read;
+    otherwise 1, "not established" and a missing block included: a partial campaign never reads
+    as a pass (D-15). 2 for a prefix or a record it cannot read. Plans 02-04 and 02-05 extend it
+    with controls, container and pair sections."""
+    if not RUN_ID.fullmatch(prefix):
+        print(f"refused: prefix {prefix!r} must fullmatch [a-z0-9][a-z0-9-]{{0,63}}",
+              file=sys.stderr)
+        return 2
+    try:
+        runs = _read_runs(prefix, results_dir)
+        if not runs:
+            print(f"no runs recorded under prefix {prefix!r} in {results_dir}", file=sys.stderr)
+            return 1
+        missing = [block for block in ROD_BLOCKS if block not in runs]
+        grid_header, grid = _run_of(runs, "grid")
+        bar, offenders = (pass_bar(grid, grid_header["decisive"]) if grid_header is not None
+                          else (_NOT_ESTABLISHED, ("no grid run",)))
+        escaped = escape_rows(grid)
+        lines = [f"## Thread spike verdict: campaign {prefix}", ""]
+        lines.append("- Blocks read: " + ", ".join(
+            f"{block} (run `{runs[block][0]['run_id']}`, "
+            f"{'decisive' if runs[block][0]['decisive'] else 'non-decisive'})"
+            for block in ROD_BLOCKS if block in runs))
+        if missing:
+            lines.append("- Blocks missing: " + ", ".join(missing))
+        lines += ["", "### K", "", *_k_section(runs), "", "### Volume estimator", "",
+                  _estimator_line(grid), "", "### Pass bar", "", f"pass bar: {bar}",
+                  *(f"- {reason}" for reason in offenders), "", "### Escape clause", "",
+                  "escape clause: " + ("FIRED" if escaped else "not fired"),
+                  *(f"- {reason}" for reason in escaped), "", "### Turn caps", "",
+                  *_caps_section(runs), ""]
+    except ValueError as exc:
+        print(f"refused: {exc}", file=sys.stderr)
+        return 2
+    clean = bar == "held" and not escaped and not missing
+    lines.append("**Verdict:** " + ("pass bar held, no escape fired" if clean
+                                    else "not a pass: see the sections above"))
+    print("\n".join(lines))
+    return 0 if clean else 1
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -628,6 +776,10 @@ def main(argv: list[str] | None = None) -> int:
         help="run this block's code on a small subset instead; records nothing")
     commands.add_parser(
         "check-protocol", help="exit 2 unless the protocol is on origin/main (the run guard)")
+    verdict_parser = commands.add_parser(
+        "verdict", help="judge the recorded runs under a prefix; exit 0 only on a clean pass")
+    verdict_parser.add_argument("--campaign", required=True, metavar="PREFIX",
+                                help="read every bench/results/thread-spike/PREFIX-*.jsonl")
     run_parser = commands.add_parser(
         "run", help="one guarded campaign block, streamed to bench/results/thread-spike/")
     run_parser.add_argument("block", choices=tuple(BLOCKS))
@@ -639,6 +791,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "check-protocol":
         return check_protocol()
+    if args.command == "verdict":
+        return verdict_campaign(args.campaign)
     if args.command == "run":
         return run_block(args.block, args.run_id, args.k_from)
     return smoke() if args.block is None else smoke_block(args.block)

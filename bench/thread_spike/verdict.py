@@ -631,17 +631,35 @@ def _at_standard_max(record: RowRecord) -> bool:
     return record["length"] == float(standard_max(PITCH[record["size"]][0]))
 
 
-def select_k(rows: list[RowRecord]) -> int | None:
-    """The segment length K the grid is locked to (D-07), from the K sweep's rows. A K
-    qualifies when it has rows and every one is ok (so no failure, no silent_wrong, every precise
-    error inside T_PASS, at the standard max and at 250 turns, both hands). Among those: the
-    fewest fine triangles summed over its standard-max rod rows, then fewer STEP bytes, then the
-    smaller K. `None` when none qualifies. Written before any data; nobody tunes it toward a
-    pass. A standard-max rod row with no fine mesh or STEP cannot be scored and is refused."""
-    best: tuple[tuple[int, int, int], int] | None = None
+def _in_standard_range(record: RowRecord) -> bool:
+    return record["length"] <= float(standard_max(PITCH[record["size"]][0]))
+
+
+@dataclass(frozen=True)
+class KScore:
+    """One K's line of the K rule's table. `triangles` and `step_bytes` are summed over its
+    standard-max rod rows and are `None` unless the K qualifies (rows and every one ok)."""
+
+    k: int
+    rows: int
+    non_ok: int
+    triangles: int | None
+    step_bytes: int | None
+
+
+def k_scores(rows: list[RowRecord]) -> list[KScore]:
+    """Each candidate K that has rows, with its counts and, when it qualifies (every row ok: no
+    failure, no silent_wrong, every precise error inside T_PASS, at the standard max and at 250
+    turns, both hands), its triangle and STEP totals at the standard max. A standard-max rod row
+    with no fine mesh or STEP cannot be scored and is refused."""
+    scores: list[KScore] = []
     for k in K_CANDIDATES:
         mine = [r for r in rows if r["k"] == k]
-        if not mine or any(row_class(r) != "ok" for r in mine):
+        if not mine:
+            continue
+        non_ok = sum(1 for r in mine if row_class(r) != "ok")
+        if non_ok:
+            scores.append(KScore(k, len(mine), non_ok, None, None))
             continue
         top = [r for r in mine if r["kind"] == "rod" and _at_standard_max(r)]
         if not top:
@@ -654,10 +672,23 @@ def select_k(rows: list[RowRecord]) -> int | None:
                                  "so it cannot be scored")
             triangles += fine["triangles"]
             step_bytes += step
-        key = (triangles, step_bytes, k)
-        if best is None or key < best[0]:
-            best = (key, k)
-    return None if best is None else best[1]
+        scores.append(KScore(k, len(mine), 0, triangles, step_bytes))
+    return scores
+
+
+def select_k(rows: list[RowRecord]) -> int | None:
+    """The segment length K the grid is locked to (D-07), from the K sweep's rows: among the Ks
+    that qualify (`k_scores`), the fewest fine triangles summed over the standard-max rod rows,
+    then fewer STEP bytes, then the smaller K. `None` when none qualifies. Written before any
+    data; nobody tunes it toward a pass."""
+    best: tuple[int, int, int] | None = None
+    for score in k_scores(rows):
+        if score.triangles is None or score.step_bytes is None:
+            continue
+        key = (score.triangles, score.step_bytes, score.k)
+        if best is None or key < best:
+            best = key
+    return None if best is None else best[2]
 
 
 def gate_tolerance(max_abs_err: float) -> float:
@@ -830,18 +861,14 @@ def turn_caps(grid_rows: list[RowRecord], frontier_rows: list[RowRecord],
     return caps
 
 
-@dataclass(frozen=True)
-class KScore:
-    k: int
-    rows: int
-    non_ok: int
-    triangles: int | None
-    step_bytes: int | None
-
-
-def k_scores(rows: list[RowRecord]) -> list[KScore]:  # noqa: ARG001
-    return []
-
-
-def escape_rows(rows: list[RowRecord]) -> tuple[str, ...]:  # noqa: ARG001
-    return ("stub",)
+def escape_rows(rows: list[RowRecord]) -> tuple[str, ...]:
+    """The rows that fire the escape clause (D-10): a failure, worker_died or silent_wrong row,
+    rod or void, either hand, inside the standard range (length at most min(10 d, 200 mm)).
+    Beyond it a failure is a frontier stop, and a timeout is a cap (`pass_bar`), not an escape.
+    Written before any data."""
+    reasons: list[str] = []
+    for r in rows:
+        cls = row_class(r)
+        if cls in ("silent_wrong", "failure", "worker_died") and _in_standard_range(r):
+            reasons.append(f"{row_label(r)}: {cls}")
+    return tuple(reasons)
