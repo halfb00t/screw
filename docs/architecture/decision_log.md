@@ -147,3 +147,55 @@ for undoing it is observable.
 
 Reversibility: moderate. Extraction is a mechanical move once both copies have diverged
 only in the typed parameter model; the longer the fork lives, the more they diverge.
+
+## L09 — Fasteners are a registry of kinds with a frozen default, per-kind URLs, interim runtime bounds, and one deliberate pool divergence from spur
+
+Date: 2026-10-06. Decided by the owner in the Phase 1 discussion (D-01 to D-19). L08 (the
+wall of `main`) lands later in the same phase.
+
+**The registry.** Each fastener kind is one frozen, `extra="forbid"` Pydantic model over the
+shared `FastenerParams`, registered in `KINDS`. `DEFAULT_KIND = "bolt"` is a literal, not
+"whatever the registry lists first", so adding a kind can never move it. Defaults are
+`d=6.0`, `pitch=1.0`, `length=20.0`, absolute millimetres (D-05, L02).
+
+**The URLs (D-08).** Explicit per-kind routes over one `_serve()`: `/api/{kind}/info` and
+`/api/{kind}/model.{stl,step}`. `/api/schema?kind=` requires `kind` (the API has no
+default), `/api/kinds` returns the default and the list, `/api/health` is global. An unknown
+kind is a 404 by construction; a field the kind does not define is a 422 naming it, which
+is why `quality` is a 422 on the info route.
+
+**The hash (D-09).** The shareable link writes `kind=` only when it differs from the
+default. An omitted `kind` means bolt forever, so a link made today still builds the same
+part after a second kind exists.
+
+**The info document (D-15).** `PartInfo(kind, rows, warnings)` with self-describing
+`InfoRow(key, label, value, unit)`, identical on the API and the CLI, rendered by the UI
+with no per-kind code. A value that cannot be computed honestly is absent from `rows` and
+explained in `warnings` (L02).
+
+**Interim runtime bounds (D-01, D-14).** spur's measured figures (build timeout, workers,
+queue depth, byte-cache budget, gzip level and threshold, `Retry-After`, solid cache,
+tessellation) are carried as defaults, each commented `INTERIM` with its spur source, and
+none is presented as measured for screw. `INTERIM_MAX_MM = 1e5` bounds `d` and `length`,
+taken from the 01-RESEARCH.md F1 memory table plus the worst corner measured in plan 01-01;
+above it is a 422 naming the field, never a clamp. Phase 7 re-sweeps all of them
+(OPER-01 to OPER-03); `docs/tech_debt/active/2026-10-05-interim-runtime-bounds.md` lists
+every one so none is missed.
+
+**One deliberate divergence from spur (D-16).** `pool.py` guards `_run_with_timeout`'s
+timeout branch against a same-slot race: a second timeout on a slot whose executor the
+first had already replaced reached for `_processes` after CPython set it to `None` and
+surfaced as an `AttributeError`, a 500. spur still carries that race as an open `must`
+debt. This is the first change that has to land in both repos, so it is L07's extraction
+trigger (recorded in `docs/tech_debt/active/2026-10-05-shared-infra-extraction.md`).
+
+Reason: the registry makes the second kind (a nut) an entry rather than a rewrite while
+keeping the route, CLI and form layers generic; explicit routes are the shape mypy
+`disallow_any_explicit` (L04) permits where a route loop would not. Freezing the default
+kind and the hash rule is what keeps every shared link meaning the same part. The interim
+policy is honest about what was not measured instead of waiting on a sweep the skeleton
+cannot yet feed, and the pool guard fixes a known 500 now rather than porting the bug.
+
+Reversibility: the defaults and the omitted-`kind` hash rule are one-way (an old link
+rebuilds a different part if either moves). The URL shape is costly: every consumer and the
+UI bind to it. The interim numbers are reversible by design; replacing them is Phase 7.
