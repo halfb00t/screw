@@ -18,7 +18,7 @@ STAMP := $(VENV)/.installed
 CONSTRAINT := $(if $(wildcard requirements.txt),PIP_CONSTRAINT=requirements.txt,)
 
 .DEFAULT_GOAL := help
-.PHONY: help venv verify lint typecheck lint-imports no-fake-done test lock \
+.PHONY: help venv verify lint typecheck lint-imports no-fake-done test serve lock \
 	    worktree.bootstrap worktree.new worktree.land clean
 
 help:  ## list the targets
@@ -74,6 +74,9 @@ no-fake-done:  ## refuse unfinished work dressed up as finished
 
 test: $(STAMP)  ## run the test suite
 	$(PY) -m pytest $(PYTEST_ARGS)
+
+serve: $(STAMP)  ## run the dev server on http://127.0.0.1:8000
+	$(VENV)/bin/screw serve
 
 # --- generated artefacts -----------------------------------------------------------
 

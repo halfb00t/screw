@@ -18,6 +18,9 @@ dependencies = [
     "uvicorn>=0.30",
 ]
 
+[project.scripts]
+screw = "screw.cli:main"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=8",
@@ -125,12 +128,21 @@ name = "The thread maths stays free of the CAD kernel"
 # calc runs on every keystroke in the UI. It is pure arithmetic on purpose: the moment it
 # can reach OpenCascade, that property is gone and nobody notices until the form goes slow.
 # The solid package is the only code allowed to touch the kernel (contract 8 below says so
-# for the whole tree). screw.cli joins this list in the plan that adds it.
+# for the whole tree).
 type = "forbidden"
-source_modules = ["screw.calc", "screw.params"]
+source_modules = ["screw.calc", "screw.params", "screw.cli"]
 forbidden_modules = ["cadquery", "OCP"]
 # Reaching the kernel *through* the solid package is the whole point of lazy imports in the
 # CLI; only a direct import here is the violation.
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "The CLI does not inherit web-serving policy"
+# Admission control (the bounded build queue) is a property of serving HTTP, not of
+# building a part: a CLI export must never queue behind anything (spur L04).
+type = "forbidden"
+source_modules = ["screw.cli"]
+forbidden_modules = ["screw.app", "fastapi", "starlette"]
 allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]

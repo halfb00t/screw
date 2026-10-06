@@ -16,9 +16,6 @@ from screw import __version__, cli
 from screw.calc import derive
 from screw.params import KINDS, BoltParams
 
-pytestmark = pytest.mark.xfail(
-    strict=True, reason="RED (01-03): screw.cli is a placeholder until the GREEN commit")
-
 SKELETON = "warning: walking skeleton: plain unthreaded cylinder, not a product build"
 
 
