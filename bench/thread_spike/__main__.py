@@ -7,11 +7,16 @@ campaign run may start before that (SC1, D-16, D-19).
 closed form and prints a Markdown report. It is not a campaign run: no run id, never recorded in
 `bench/RESULTS.md`, and its JSONL goes to a temporary directory. Not part of `make verify`.
 
-`run <block> --run-id ID` runs one campaign block (ksweep, grid, frontier, ladder) behind the
+`run <block> --run-id ID` runs one campaign block (ksweep, grid, frontier, ladder, controls,
+trim) behind the
 guard and the quiet gate, streaming one JSONL record per row under `bench/results/thread-spike/`
 and printing the Markdown report. A run is never overwritten or retried in place, and K comes
 only from a K-sweep run's own record through the pre-registered rule: there is no way to type
 one. `smoke --block NAME` runs the same block code on a small subset and records nothing.
+
+The controls block runs its ruled-surface rows in a second worker whose PYTHONPATH adds the
+scratch directory named by SCREW_SPIKE_CQW, and refuses (exit 2) when the package is not
+importable there: the reference package is never on the default worker's path (D-06).
 
 The parent never imports the kernel (an import-linter contract keeps it so): the kernel versions
 are read from package metadata, and every build happens in the child.
@@ -21,18 +26,19 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import platform
 import re
 import subprocess
 import sys
 import tempfile
 from collections import Counter
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from fractions import Fraction
 from importlib import metadata
 from pathlib import Path
-from typing import IO
+from typing import IO, Literal
 
 from bench import machine_facts
 from bench.quiet import QUIET_CAP_S, QuietResult, Reading, read_now, wait_quiet
@@ -41,8 +47,10 @@ from bench.thread_spike.maths import (
     INTERIM_PRESETS,
     K_CANDIDATES,
     PITCH,
+    RULED_MODULE,
     SAMPLE_SIZES,
     SIZES,
+    TIP_CHAMFER_DEG,
     VOID_CLEARANCE,
     closed_volume,
     depth_presets,
@@ -64,12 +72,14 @@ from bench.thread_spike.verdict import (
     RowRequest,
     bytes_over,
     cache_bytes,
+    classify_record,
     classify_row,
     closed_of,
     escape_rows,
     fine_mesh,
     frontier_stop,
     k_scores,
+    known_bad_inputs,
     over_budget,
     parse_header,
     parse_result_row,
@@ -77,6 +87,7 @@ from bench.thread_spike.verdict import (
     protocol_guard,
     relative_error,
     request_seconds,
+    row_class,
     row_label,
     seconds_over,
     select_estimator,
@@ -195,12 +206,16 @@ def _table_row(record: RowRecord, row_class: str, closed: float) -> str:
     solids = record["solids"]
     valid = record["is_valid"]
     build_s = record["build_s"]
+    # A trimmed tip has no closed form, so a relative error against the untrimmed rod's would
+    # read as an accuracy figure it is not (D-08).
+    judged = record["kind"] != "trim"
     cells = [
         record["size"], "left" if record["left_hand"] else "right", f"{record['turns']:g}",
         str(record["k"]), record["kind"], row_class,
         "n/a" if solids is None else str(solids),
         "n/a" if valid is None else ("yes" if valid else "no"),
-        _signed(record["precise_volume"], closed), _signed(record["default_volume"], closed),
+        _signed(record["precise_volume"], closed) if judged else "n/a",
+        _signed(record["default_volume"], closed) if judged else "n/a",
         "n/a" if build_s is None else f"{build_s:.2f}", triangles, watertight,
     ]
     return "| " + " | ".join(cells) + " |"
@@ -249,6 +264,9 @@ def smoke() -> int:
     return 0 if row_class == "ok" else 1
 
 
+Via = Literal["worker", "reference"]
+
+
 @dataclass(frozen=True)
 class Measured:
     """One row as run: the record, the class and reasons recomputed from it, the over-budget
@@ -267,29 +285,45 @@ class Campaign:
     the report. `decisive` is the quiet gate's verdict: every timing-derived claim reads
     "not established" without it (owner ruling R4)."""
 
-    def __init__(self, worker: Worker, decisive: bool, sink: IO[str] | None) -> None:
+    def __init__(self, worker: Worker, decisive: bool, sink: IO[str] | None, *,
+                 reference: Worker | None = None) -> None:
         self._worker = worker
+        self.reference = reference
         self.decisive = decisive
         self._sink = sink
         self.rows: list[Measured] = []
         self.stops: list[str] = []
+        self.notes: list[str] = []
 
-    def measure(self, request: RowRequest) -> Measured:
-        record = self._worker.run(request, ROW_TIMEOUT_S)
+    def measure(self, request: RowRequest, via: Via = "worker") -> Measured:
+        worker = self._worker if via == "worker" else self.reference
+        if worker is None:
+            raise ValueError(f"this campaign has no {via} worker")
+        record = worker.run(request, ROW_TIMEOUT_S)
         closed = closed_of(record)
-        row_class, reasons = classify_row(record, closed)
+        row_class, reasons = classify_record(record)
         measured = Measured(record, row_class, reasons, over_budget(record, self.decisive),
                             closed)
         self.rows.append(measured)
         if self._sink is not None:
             precise = record["precise_volume"]
+            judged = record["kind"] != "trim"  # no closed form exists for a trimmed tip
             line = {**record, "closed_volume": closed,
-                    "rel_err": None if precise is None else relative_error(precise, closed),
+                    "rel_err": (relative_error(precise, closed)
+                                if precise is not None and judged else None),
                     "class": row_class, "reasons": list(reasons),
                     "over_budget": list(measured.over)}
             self._sink.write(json.dumps(line) + "\n")
             self._sink.flush()
         return measured
+
+    def set_sink(self, sink: IO[str] | None) -> None:
+        self._sink = sink
+
+    def close(self) -> None:
+        self._worker.close()
+        if self.reference is not None:
+            self.reference.close()
 
 
 # INTERIM presets in the order the report reads them: preview first, then fine.
@@ -399,9 +433,56 @@ def _block_ladder(c: Campaign, k: int, smoke: bool) -> None:
                                gzip_on=[name for name, _, _ in presets]))
 
 
+# The comparison rows' standard turn counts of the one-pipe twist: the research walked it up to
+# 250 turns, where inverted solids appeared at 160-171 (STACK, measured).
+ONE_PIPE_TURNS = (100, 160, 200, 250)
+CQW_ENV = "SCREW_SPIKE_CQW"
+PACKAGE_NOT_IMPORTABLE = "ruled: skipped, package not importable"
+
+
+def _block_controls(c: Campaign, k: int, smoke: bool) -> None:
+    """D-06's comparison on the sample sizes, right hand: the negative control (naive sweep +
+    fuse) at 10 turns, 10 mm, 20 mm and the standard max; the one-pipe twist at the standard
+    max and at 100, 160, 200 and 250 turns; the ruled-surface reference at 10 turns and the
+    standard max, in the reference worker only. A smoke run is M6 at 10 turns, and says so when
+    the reference package is missing instead of refusing. `k` is carried into the request, where
+    none of these constructions reads it."""
+    for size in ("M6",) if smoke else SAMPLE_SIZES:
+        d, pitch = PITCH[size]
+        top = standard_max(d)
+        if smoke:
+            naive_at, pipe_at, ruled_at = [10 * pitch], [10 * pitch], [10 * pitch]
+        else:
+            naive_at = sorted({10 * pitch, Fraction(10), Fraction(20), top})
+            pipe_at = sorted({top, *(Fraction(t) * pitch for t in ONE_PIPE_TURNS)})
+            ruled_at = sorted({10 * pitch, top})
+        for length in naive_at:
+            c.measure(_request("naive", size, length, False, k))
+        for length in pipe_at:
+            c.measure(_request("one_pipe", size, length, False, k))
+        for length in ruled_at:
+            if c.reference is None:
+                if PACKAGE_NOT_IMPORTABLE not in c.notes:
+                    c.notes.append(PACKAGE_NOT_IMPORTABLE)
+                continue
+            c.measure(_request("ruled", size, length, False, k), via="reference")
+
+
+def _block_trim(c: Campaign, k: int, smoke: bool) -> None:
+    """One tip-chamfer-trim row per size and hand at the standard max (D-08): the full rod row
+    trimmed, with preview and fine meshes, gzip-1 on the fine one and STEP, so the request
+    cost is build + trim + the slower export. A smoke run is M6 at 20 mm."""
+    for size in ("M6",) if smoke else SIZES:
+        d, _ = PITCH[size]
+        length = Fraction(20) if smoke else standard_max(d)
+        for left in _hands(smoke):
+            c.measure(_request("trim", size, length, left, k, presets=_INTERIM, step=True,
+                               gzip_on=["fine"]))
+
+
 BLOCKS: dict[str, Callable[[Campaign, int, bool], None]] = {
     "ksweep": _block_ksweep, "grid": _block_grid, "frontier": _block_frontier,
-    "ladder": _block_ladder,
+    "ladder": _block_ladder, "controls": _block_controls, "trim": _block_trim,
 }
 
 
@@ -433,10 +514,11 @@ def _aggregate_row(size: str, rows: list[Measured]) -> str:
     skipped = 0
     for m in rows:
         record = m.record
-        if record["precise_volume"] is not None:
-            precise.append(relative_error(record["precise_volume"], m.closed))
-        if record["default_volume"] is not None:
-            default.append(relative_error(record["default_volume"], m.closed))
+        if record["kind"] != "trim":  # no closed form exists for a trimmed tip (D-08)
+            if record["precise_volume"] is not None:
+                precise.append(relative_error(record["precise_volume"], m.closed))
+            if record["default_volume"] is not None:
+                default.append(relative_error(record["default_volume"], m.closed))
         fine = fine_mesh(record)
         if fine is not None:
             triangles.append(fine["triangles"])
@@ -475,10 +557,11 @@ def aggregate_table(measured: list[Measured]) -> list[str]:
     return lines
 
 
-def report(header: list[str], measured: list[Measured], stops: list[str], end: Reading) -> str:
+def report(header: list[str], measured: list[Measured], stops: list[str], end: Reading,
+           extra: Sequence[str] = ()) -> str:
     """The run's Markdown: header lines, the per-size aggregate, then every non-ok row and every
-    over-budget row on its own line with its reasons, the frontier stops, and the end reading
-    labelled as including this run's own load."""
+    over-budget row on its own line with its reasons, the frontier stops, the block's own
+    sections (`extra`), and the end reading labelled as including this run's own load."""
     lines = [*header, *([""] if header else []), *aggregate_table(measured), ""]
     for m in measured:
         if m.row_class != "ok":
@@ -486,8 +569,141 @@ def report(header: list[str], measured: list[Measured], stops: list[str], end: R
         if m.over:
             lines.append(f"- {row_label(m.record)}: {'; '.join(m.over)}")
     lines.extend(f"- frontier {stop}" for stop in stops)
+    if extra:
+        lines.extend(["", *extra, ""])
     lines.append(_reading_line(end, " (includes this run's own load)"))
     return "\n".join(lines)
+
+
+_CONSTRUCTIONS = {
+    "naive": "naive sweep + fuse (negative control)",
+    "one_pipe": "one-pipe twist",
+    "ruled": "ruled-surface reference",
+}
+
+
+def _ratio(value: float | None, closed: float) -> str:
+    return "n/a" if value is None else f"{value / closed:.6f}"
+
+
+def _by_size(record: RowRecord) -> tuple[int, bool, float]:
+    return SIZES.index(record["size"]), record["left_hand"], record["length"]
+
+
+def controls_section(rows: list[RowRecord]) -> list[str]:
+    """D-06's comparison: every comparison row with its class and its volume as a ratio to the
+    closed form, then the known-bad inputs THRD-04's positive-control test needs, with their
+    exact parameters. A negative control that reads ok is said so loudly: it did not control."""
+    mine = [r for r in rows if r["kind"] in _CONSTRUCTIONS]
+    if not mine:
+        return ["controls: not recorded"]
+    lines = ["| Construction | Size | Length mm | Turns | Class | Solids | Valid | "
+             "Precise ratio | Default ratio |", "|---|---|---|---|---|---|---|---|---|"]
+    for kind in _CONSTRUCTIONS:
+        for r in sorted((r for r in mine if r["kind"] == kind), key=_by_size):
+            closed = closed_of(r)
+            solids, valid = r["solids"], r["is_valid"]
+            lines.append(
+                f"| {_CONSTRUCTIONS[kind]} | {r['size']} | {r['length']:g} | {r['turns']:g} | "
+                f"{row_class(r)} | {'n/a' if solids is None else solids} | "
+                f"{'n/a' if valid is None else ('yes' if valid else 'no')} | "
+                f"{_ratio(r['precise_volume'], closed)} | "
+                f"{_ratio(r['default_volume'], closed)} |")
+    lines += ["", "Known-bad inputs for THRD-04 (naive rows with 1 solid, isValid True and a "
+              "precise ratio below 0.5):"]
+    bad = known_bad_inputs(mine)
+    for r in bad:
+        ratio = _ratio(r["precise_volume"], closed_of(r))
+        lines.append(f"- naive_sweep_fuse(d={r['d']!r}, pitch={r['pitch']!r}, "
+                     f"length={r['length']!r}): precise ratio {ratio}")
+    if not bad:
+        lines.append("- none recorded")
+    lines += [f"- NEGATIVE CONTROL READ OK: {row_label(r)} -- the control did not control"
+              for r in mine if r["kind"] == "naive" and row_class(r) == "ok"]
+    lines += ["", "The ruled-surface profile is not identical to the pinned profile, so its "
+              "ratio to this closed form is not an accuracy claim."]
+    return lines
+
+
+def trim_section(rows: list[RowRecord]) -> list[str]:
+    """D-08's cost evidence: per size and hand at the standard max, the trim seconds and the
+    request cost build + trim + the slower export. Never a pass-bar input."""
+    mine = sorted((r for r in rows if r["kind"] == "trim"), key=_by_size)
+    if not mine:
+        return ["trim: not recorded"]
+    lines = ["| Size | Hand | Length mm | Class | Trim s | Request s (build + trim + slower "
+             "export) | Fine triangles | STEP bytes |", "|---|---|---|---|---|---|---|---|"]
+    for r in mine:
+        fine = fine_mesh(r)
+        seconds, trim_s, step = request_seconds(r), r["trim_s"], r["step_bytes"]
+        lines.append(
+            f"| {r['size']} | {'left' if r['left_hand'] else 'right'} | {r['length']:g} | "
+            f"{row_class(r)} | {'n/a' if trim_s is None else format(trim_s, '.2f')} | "
+            f"{'n/a' if seconds is None else format(seconds, '.2f')} | "
+            f"{'n/a' if fine is None else fine['triangles']} | "
+            f"{'n/a' if step is None else step} |")
+    lines += ["", f"The cone angle is {TIP_CHAMFER_DEG:g} degrees from the end face at the "
+              "minor radius, UNVERIFIED (ISO 4753 is unread): these rows are cost evidence "
+              "for Phase 4, not geometry truth, and never enter the pass bar."]
+    return lines
+
+
+# What each block adds to its report beyond the per-size aggregate: a title and the lines, as a
+# function of the rows alone, so a run's report and the verdict over its JSONL print the same.
+SECTIONS: dict[str, tuple[str, Callable[[list[RowRecord]], list[str]]]] = {
+    "controls": ("### Controls (D-06)", controls_section),
+    "trim": ("### Tip trim cost (D-08)", trim_section),
+}
+
+
+def _block_extra(block: str, campaign: Campaign) -> list[str]:
+    section = SECTIONS.get(block)
+    lines = [f"- {note}" for note in campaign.notes]
+    if section is not None:
+        title, build = section
+        lines += ["", title, "", *build([m.record for m in campaign.rows])]
+    return lines
+
+
+def _controls_behave(rows: list[Measured]) -> bool:
+    """The comparison rows' smoke expectation: the negative control is wrong on purpose and
+    must not read ok, the one-pipe row must, and the reference row must build (its profile
+    differs from the pinned one, so its class says nothing)."""
+    for m in rows:
+        kind = m.record["kind"]
+        if (kind == "naive" and m.row_class == "ok") or (
+                kind == "one_pipe" and m.row_class != "ok") or (
+                kind == "ruled" and m.record["outcome"] != "built"):
+            return False
+    return True
+
+
+# A block's smoke exit is 0 only when its rows came out as that block expects; the default is
+# every row ok.
+SMOKE_EXPECTS: dict[str, Callable[[list[Measured]], bool]] = {"controls": _controls_behave}
+
+
+def _smoke_passes(block: str, rows: list[Measured]) -> bool:
+    expects = SMOKE_EXPECTS.get(block)
+    return all(m.row_class == "ok" for m in rows) if expects is None else expects(rows)
+
+
+def _reference_env(environ: Mapping[str, str]) -> tuple[dict[str, str] | None, str]:
+    """The environment of the reference worker (PYTHONPATH adding the scratch directory named
+    by SCREW_SPIKE_CQW) and why it could not be built, checked by importing the package in a
+    throw-away child: this parent never imports the reference package or the kernel (T-02-11)."""
+    scratch = environ.get(CQW_ENV)
+    if not scratch:
+        return None, (f"{CQW_ENV} is not set: the ruled-surface reference needs the scratch "
+                      "directory its package was installed into (D-06)")
+    path = os.pathsep.join(p for p in (scratch, environ.get("PYTHONPATH")) if p)
+    child = {**environ, "PYTHONPATH": path}
+    probe = subprocess.run([sys.executable, "-c", f"import {RULED_MODULE}"], env=child,
+                           cwd=_REPO_ROOT, capture_output=True, text=True, check=False)
+    if probe.returncode != 0:
+        last = (probe.stderr.strip().splitlines() or ["no error text"])[-1]
+        return None, f"{RULED_MODULE} is not importable from {CQW_ENV}={scratch}: {last}"
+    return child, ""
 
 
 def _environment_lines() -> list[str]:
@@ -519,11 +735,14 @@ def _locked_k(k_from: str, results_dir: Path) -> tuple[int, str]:
 
 
 def run_block(block: str, run_id: str, k_from: str | None, *,
-              results_dir: Path = RESULTS_DIR) -> int:
+              results_dir: Path = RESULTS_DIR, env: Mapping[str, str] | None = None) -> int:
     """One guarded campaign block. Refusals, all exit 2 with nothing written: a run id that is
     not `RUN_ID`; a run id already recorded (a run is never overwritten or retried in place); a
     `--k-from` missing, malformed or given to the K sweep; the protocol guard. Then: the quiet
-    gate, the header as the first JSONL line, rows streamed, the end reading, the Markdown."""
+    gate, the header as the first JSONL line, rows streamed, the end reading, the Markdown.
+    The controls block also refuses, before the guard and with nothing written, when
+    SCREW_SPIKE_CQW (read from `env`, default the process environment) does not name a
+    directory the reference package imports from."""
     target = results_dir / f"{run_id}.jsonl"
     problem = None
     if not RUN_ID.fullmatch(run_id):
@@ -538,6 +757,12 @@ def run_block(block: str, run_id: str, k_from: str | None, *,
     if problem is not None:
         print(f"refused: {problem}", file=sys.stderr)
         return 2
+    reference_env: dict[str, str] | None = None
+    if block == "controls":
+        reference_env, why = _reference_env(os.environ if env is None else env)
+        if reference_env is None:
+            print(f"refused: {why}", file=sys.stderr)
+            return 2
     facts = read_guard(fetch=True)
     if not facts.result.held:
         print("protocol guard: refused -- " + "; ".join(facts.result.reasons), file=sys.stderr)
@@ -562,14 +787,14 @@ def run_block(block: str, run_id: str, k_from: str | None, *,
         print(f"refused: run id {run_id!r} already recorded; a run is never overwritten",
               file=sys.stderr)
         return 2
-    worker = Worker()
+    campaign = Campaign(Worker(), quiet.decisive, sink,
+                        reference=None if reference_env is None else Worker(env=reference_env))
     try:
         sink.write(json.dumps(header) + "\n")
         sink.flush()
-        campaign = Campaign(worker, quiet.decisive, sink)
         BLOCKS[block](campaign, DEFAULT_K if k is None else k, False)
     finally:
-        worker.close()
+        campaign.close()
         sink.close()
     head_lines = [
         f"## Thread spike run {run_id}", "", *_environment_lines(),
@@ -577,7 +802,8 @@ def run_block(block: str, run_id: str, k_from: str | None, *,
         f"- Block: {block}", f"- K: {'swept' if k is None else k} ({k_source})",
         *(_reading_line(r) for r in quiet.readings), _release_line(quiet),
     ]
-    text = report(head_lines, campaign.rows, campaign.stops, read_now())
+    text = report(head_lines, campaign.rows, campaign.stops, read_now(),
+                  _block_extra(block, campaign))
     (results_dir / f"{run_id}.md").write_text(text + "\n")
     print(text)
     return 0
@@ -600,23 +826,25 @@ def smoke_block(block: str) -> int:
     print(f"- Protocol guard (informational in smoke (not fetched); never enforced here): {state}")
     print()
     out_dir = Path(tempfile.mkdtemp(prefix="screw-spike-smoke-"))
-    worker = Worker()
+    reference_env = _reference_env(os.environ)[0] if block == "controls" else None
+    campaign = Campaign(Worker(), quiet.decisive, None,
+                        reference=None if reference_env is None else Worker(env=reference_env))
     try:
         with (out_dir / "smoke.jsonl").open("w", encoding="utf-8") as sink:
-            campaign = Campaign(worker, quiet.decisive, sink)
+            campaign.set_sink(sink)
             BLOCKS[block](campaign, DEFAULT_K, True)
     finally:
-        worker.close()
+        campaign.close()
     print(_ROW_HEAD)
     print(_ROW_RULE)
     for m in campaign.rows:
         print(_table_row(m.record, m.row_class, m.closed))
     print()
-    print(report([], campaign.rows, campaign.stops, read_now()))
+    print(report([], campaign.rows, campaign.stops, read_now(), _block_extra(block, campaign)))
     print()
     print("**SMOKE** -- not a campaign run: no run id, never recorded in bench/RESULTS.md.")
     print(f"JSONL: `{out_dir / 'smoke.jsonl'}`")
-    return 0 if all(m.row_class == "ok" for m in campaign.rows) else 1
+    return 0 if _smoke_passes(block, campaign.rows) else 1
 
 
 ROD_BLOCKS = ("ksweep", "grid", "frontier", "ladder")
@@ -725,8 +953,9 @@ def verdict_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR) -> int:
 
     Exit 0 only when the pass bar held, no escape fired and all four rod blocks were read;
     otherwise 1, "not established" and a missing block included: a partial campaign never reads
-    as a pass (D-15). 2 for a prefix or a record it cannot read. Plans 02-04 and 02-05 extend it
-    with controls, container and pair sections."""
+    as a pass (D-15). 2 for a prefix or a record it cannot read. The controls and trim runs are
+    evidence printed beside the verdict and never inputs to it. Plan 02-05 extends it with the
+    pair section."""
     if not RUN_ID.fullmatch(prefix):
         print(f"refused: prefix {prefix!r} must fullmatch [a-z0-9][a-z0-9-]{{0,63}}",
               file=sys.stderr)
@@ -754,6 +983,8 @@ def verdict_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR) -> int:
                   "escape clause: " + ("FIRED" if escaped else "not fired"),
                   *(f"- {reason}" for reason in escaped), "", "### Turn caps", "",
                   *_caps_section(runs), ""]
+        for block, (title, build) in SECTIONS.items():
+            lines += [title, "", *build(_run_of(runs, block)[1]), ""]
     except ValueError as exc:
         print(f"refused: {exc}", file=sys.stderr)
         return 2

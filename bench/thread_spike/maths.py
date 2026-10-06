@@ -56,6 +56,14 @@ K_CANDIDATES: tuple[int, ...] = (3, 5, 10)
 # Radial clearance in mm of the void every grid and frontier row builds: the upper end of D-11's
 # proof bracket, the outline furthest from the rod section the research verified.
 VOID_CLEARANCE = 0.20
+# The ruled-surface reference package's module (D-06): imported by the reference worker only,
+# from a scratch directory outside the repository (PITFALLS M11). A name here, not an import:
+# this module is kernel-free and the parent process reads it to probe the scratch directory.
+RULED_MODULE = "cq_warehouse.thread"
+# Tip chamfer cone angle in degrees, measured from the end face, meeting it at the minor radius.
+# UNVERIFIED: ISO 4753 is unread, so this is a stated protocol input and the trim row it feeds
+# is cost evidence for Phase 4, not geometry truth (D-08, 02-SPIKE.md owner rulings).
+TIP_CHAMFER_DEG = 30.0
 # The mesh ladder is a fraction of the thread depth h = 5H/8 (CONTEXT discretion): h/4 ... h/32
 # at angular 0.5. Triangles scale about with 1/deflection (RESEARCH Pattern 7).
 DEPTH_FRACTIONS: tuple[int, ...] = (4, 8, 16, 32)

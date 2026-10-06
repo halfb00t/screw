@@ -76,12 +76,14 @@ from bench.thread_spike.verdict import (
     RowRecord,
     RowRequest,
     before_results,
+    classify_record,
     classify_row,
     escape_rows,
     failed_record,
     frontier_stop,
     gate_tolerance,
     k_scores,
+    known_bad_inputs,
     over_budget,
     parse_header,
     parse_record,
@@ -581,6 +583,7 @@ def _built(precise: float, *, solids: int = 1, valid: bool = True,
         **_REQUEST, "outcome": "built", "error": None, "solids": solids, "is_valid": valid,
         "precise_volume": precise, "default_volume": precise, "build_s": 0.1, "volume_s": 0.1,
         "meshes": [] if meshes is None else meshes, "step_bytes": None, "step_s": None,
+        "trim_s": None,
     }
 
 
@@ -1208,6 +1211,7 @@ def _synth(size: str = "M6", kind: str = "rod", *, left: bool = False, turns: fl
         "build_s": build_s, "volume_s": volume_s, "meshes": meshes,
         "step_bytes": step[0] if rod and step else None,
         "step_s": step[1] if rod and step else None,
+        "trim_s": None,
     }
 
 
@@ -1564,6 +1568,7 @@ def _ok_record(request: RowRequest) -> RowRecord:
         "precise_volume": closed, "default_volume": closed, "build_s": 0.1, "volume_s": 0.1,
         "meshes": meshes, "step_bytes": 1000 if request["step"] else None,
         "step_s": 0.01 if request["step"] else None,
+        "trim_s": 0.01 if request["kind"] == "trim" else None,
     }
 
 
@@ -1571,7 +1576,7 @@ class _FakeWorker(Worker):
     """Answers every request in-process without a kernel; a rod of `fail_size`, `fail_left` at
     `fail_turns` turns fails. Records every request it was given."""
 
-    def __init__(self, fail: tuple[str, bool, float] | None = None) -> None:
+    def __init__(self, fail: tuple[str, bool, float] | None = None, **_: object) -> None:
         super().__init__()
         self.fail = fail
         self.requests: list[RowRequest] = []
@@ -2031,3 +2036,308 @@ def test_two_runs_of_one_block_under_a_prefix_are_ambiguous_and_refused(
     _write_run(tmp_path / "c1-grid-again.jsonl", "grid", [_synth()])
     assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 2
     assert "two runs of block grid" in capsys.readouterr().err
+
+
+# --- The comparison rows and the tip trim (Phase 2, plan 02-04) ---
+
+_M6_CLOSED_10 = maths.closed_volume(6.0, 1.0, 10.0)
+
+
+def _comparison(kind: str, *, left_hand: bool = False) -> RowRequest:
+    """An M6 request of `kind` at 10 turns (10 mm), no mesh and no STEP."""
+    return {**_REQUEST, "kind": kind, "turns": 10.0, "length": 10.0, "presets": [],
+            "left_hand": left_hand}
+
+
+def test_the_negative_control_is_never_classified_ok_by_the_real_kernel() -> None:
+    """The class, not the ratio: the boolean may land differently on linux/amd64 (STACK)."""
+    record = worker.run_row(_comparison("naive"))
+    assert parse_record(json.dumps(record)) == record
+    assert classify_record(record)[0] != "ok"
+
+
+def test_the_one_pipe_twist_of_ten_turns_is_classified_ok_by_the_real_kernel() -> None:
+    record = worker.run_row(_comparison("one_pipe"))
+    assert classify_record(record) == ("ok", ())
+    assert record["trim_s"] is None
+
+
+def test_the_default_worker_cannot_see_the_ruled_surface_package() -> None:
+    """T-02-11: the reference package is on the reference worker's path only, so a ruled row
+    in the default environment is one recorded failure and not a built row."""
+    record = worker.run_row(_comparison("ruled"))
+    assert record["outcome"] == "failure"
+    assert record["error"] is not None
+    assert maths.RULED_MODULE.split(".")[0] in record["error"]
+
+
+@pytest.mark.parametrize("kind", ["naive", "ruled"])
+def test_the_negative_control_and_the_reference_are_right_hand_only(kind: str) -> None:
+    record = worker.run_row(_comparison(kind, left_hand=True))
+    assert record["outcome"] == "failure"
+    assert record["error"] is not None
+    assert "right hand only" in record["error"]
+
+
+def _naive(ratio: float, *, solids: int = 1, valid: bool = True, kind: str = "naive") -> RowRecord:
+    return {**_built(_M6_CLOSED_10 * ratio, solids=solids, valid=valid), "kind": kind,
+            "turns": 10.0, "length": 10.0, "presets": []}
+
+
+def test_the_known_bad_inputs_are_the_naive_rows_with_one_valid_solid_below_half_the_volume(
+) -> None:
+    keep = _naive(0.238)
+    rows = [keep, _naive(0.5), _naive(1.011), _naive(0.2, solids=2), _naive(0.2, valid=False),
+            _naive(0.2, kind="rod"), failed_record(_comparison("naive"), "failure", "Null"),
+            _naive(0.4999)]
+    assert known_bad_inputs(rows) == [keep, _naive(0.4999)]
+    assert known_bad_inputs([]) == []
+
+
+def _trim(*, precise: float = 1.0, solids: int = 1, valid: bool = True, watertight: bool = True,
+          volume: float = 100.0, checked: bool = True) -> RowRecord:
+    mesh = _mesh(watertight=watertight, volume=volume, checked=checked)
+    return {**_built(precise, solids=solids, valid=valid, meshes=[mesh]), "kind": "trim",
+            "trim_s": 0.5}
+
+
+def test_a_trim_row_is_judged_on_solids_validity_and_the_preview_check_never_on_a_closed_form(
+) -> None:
+    far_off = _trim(precise=0.3 * maths.closed_volume(6.0, 1.0, 5.0), volume=7.0)
+    assert classify_record(far_off) == ("ok", ())  # a closed form would call this wrong
+    assert classify_record(_trim(checked=False)) == ("ok", ())
+    assert classify_record(_trim(solids=2))[0] == "silent_wrong"
+    assert classify_record(_trim(valid=False))[0] == "silent_wrong"
+    assert classify_record(_trim(watertight=False))[0] == "silent_wrong"
+    assert classify_record(_trim(volume=-1.0))[0] == "silent_wrong"
+    died = failed_record(far_off, "timeout", "late")
+    assert classify_record(died) == ("timeout", ("late",))
+
+
+def test_no_comparison_or_trim_row_can_fail_the_pass_bar_or_fire_the_escape_clause() -> None:
+    rows = [_synth(), _naive(0.238), _naive(0.2, kind="one_pipe"), _trim(solids=2),
+            _naive(0.1, kind="ruled")]
+    assert pass_bar(rows, True) == ("held", ())
+    assert escape_rows(rows) == ()
+
+
+def test_a_trim_request_costs_build_plus_trim_plus_the_slower_export() -> None:
+    row: RowRecord = {**_synth(build_s=1.0, fine=(10, 10, 2.0, 5), step=(5, 3.0)),
+                      "kind": "trim", "trim_s": 0.5}
+    assert request_seconds(row) == 1.0 + 0.5 + 3.0
+    assert request_seconds({**row, "trim_s": None}) is None  # never a partial sum
+
+
+def test_a_real_trim_row_records_the_trim_seconds_and_is_judged_without_a_closed_form() -> None:
+    request: RowRequest = {**_REQUEST, "kind": "trim", "turns": 20.0, "length": 20.0}
+    record = worker.run_row(request)
+    assert parse_record(json.dumps(record)) == record
+    assert record["trim_s"] is not None
+    assert record["trim_s"] > 0
+    assert classify_record(record) == ("ok", ())
+
+
+def test_trim_seconds_are_set_exactly_on_a_built_trim_row() -> None:
+    row = _trim()
+    assert parse_record(json.dumps(row)) == row
+    with pytest.raises(ValueError, match="trim_s"):
+        parse_record(json.dumps({**_built(1.0), "trim_s": 0.1}))  # a rod row cannot carry one
+    with pytest.raises(ValueError, match="trim_s"):
+        parse_record(json.dumps({**row, "trim_s": None}))  # a trim row must
+    liar = {**failed_record(_REQUEST, "failure", "boom"), "trim_s": 0.1}
+    with pytest.raises(ValueError, match="trim_s"):
+        parse_record(json.dumps(liar))
+
+
+def test_the_tip_chamfer_angle_is_30_degrees_and_says_it_is_unverified() -> None:
+    source = (Path(spike_cli.__file__).parent / "maths.py").read_text()
+    line = next(line for line in source.splitlines() if line.startswith("TIP_CHAMFER_DEG"))
+    assert line == "TIP_CHAMFER_DEG = 30.0"
+    assert maths.TIP_CHAMFER_DEG == 30.0
+    comment: list[str] = []
+    for above in reversed(source.split(line)[0].splitlines()):
+        if not above.startswith("#"):
+            break
+        comment.append(above)
+    assert "UNVERIFIED" in " ".join(comment)
+
+
+def test_the_controls_block_runs_ruled_in_the_reference_worker_and_the_rest_right_hand() -> None:
+    default, reference = _FakeWorker(), _FakeWorker()
+    c = spike_cli.Campaign(default, True, None, reference=reference)
+    spike_cli.BLOCKS["controls"](c, 5, False)
+    assert {r["kind"] for r in default.requests} == {"naive", "one_pipe"}
+    assert {r["kind"] for r in reference.requests} == {"ruled"}
+    assert {r["left_hand"] for r in default.requests + reference.requests} == {False}
+    assert all(not r["presets"] and not r["step"] for r in default.requests)
+    assert {r["size"] for r in default.requests} == set(maths.SAMPLE_SIZES)
+    m6 = [r for r in default.requests if r["size"] == "M6"]
+    assert [r["length"] for r in m6 if r["kind"] == "naive"] == [10.0, 20.0, 60.0]
+    assert [r["turns"] for r in m6 if r["kind"] == "one_pipe"] == [60.0, 100.0, 160.0, 200.0,
+                                                                   250.0]
+    assert [r["length"] for r in reference.requests if r["size"] == "M6"] == [10.0, 60.0]
+
+
+def test_the_controls_smoke_scope_says_so_when_the_package_is_missing_and_refuses_nothing() -> None:
+    default = _FakeWorker()
+    c = spike_cli.Campaign(default, True, None)
+    spike_cli.BLOCKS["controls"](c, 5, True)
+    assert [r["kind"] for r in default.requests] == ["naive", "one_pipe"]
+    assert c.notes == [spike_cli.PACKAGE_NOT_IMPORTABLE]
+    assert spike_cli.PACKAGE_NOT_IMPORTABLE == "ruled: skipped, package not importable"
+    reference = _FakeWorker()
+    c2 = spike_cli.Campaign(default, True, None, reference=reference)
+    spike_cli.BLOCKS["controls"](c2, 5, True)
+    assert [(r["kind"], r["turns"]) for r in reference.requests] == [("ruled", 10.0)]
+    assert c2.notes == []
+
+
+def test_the_trim_block_is_one_full_rod_row_per_size_and_hand_at_the_standard_max() -> None:
+    c, fake = _campaign()
+    spike_cli.BLOCKS["trim"](c, 5, False)
+    assert len(fake.requests) == 2 * 15
+    first = fake.requests[0]
+    assert (first["kind"], first["size"], first["left_hand"], first["length"]) == (
+        "trim", "M2", False, 20.0)
+    assert (first["step"], first["gzip_on"], first["clearance"]) == (True, ["fine"], 0.0)
+    assert [name for name, _, _ in first["presets"]] == ["preview", "fine"]
+    assert {r["length"] for r in fake.requests if r["size"] == "M20"} == {200.0}
+    smoke_c, smoke_fake = _campaign()
+    spike_cli.BLOCKS["trim"](smoke_c, 5, True)
+    assert [(r["size"], r["length"], r["left_hand"]) for r in smoke_fake.requests] == [
+        ("M6", 20.0, False)]
+
+
+def _controls_rows() -> list[RowRecord]:
+    return [_naive(0.238), _naive(1.0, kind="one_pipe"), _naive(0.985, kind="ruled")]
+
+
+def test_the_controls_section_lists_the_rows_the_known_bad_inputs_and_the_profile_caveat() -> None:
+    text = "\n".join(spike_cli.controls_section(_controls_rows()))
+    assert "| naive sweep + fuse (negative control) | M6 | 10 | 10 | silent_wrong | 1 | yes " \
+           "| 0.238000 |" in text
+    assert "- naive_sweep_fuse(d=6.0, pitch=1.0, length=10.0): precise ratio 0.238000" in text
+    assert "ratio to this closed form is not an accuracy claim" in text
+    assert "NEGATIVE CONTROL READ OK" not in text
+    assert spike_cli.controls_section([]) == ["controls: not recorded"]
+
+
+def test_a_negative_control_that_reads_ok_is_said_so_loudly() -> None:
+    text = "\n".join(spike_cli.controls_section([_naive(1.0)]))
+    assert "NEGATIVE CONTROL READ OK: M6 right L=10 naive" in text
+    assert "- none recorded" in text
+
+
+def test_the_trim_section_labels_the_cone_angle_unverified_and_no_pass_bar_input() -> None:
+    text = "\n".join(spike_cli.trim_section([_trim()]))
+    assert "| M6 | right | 5 | ok | 0.50 |" in text
+    assert "30 degrees" in text
+    assert "UNVERIFIED" in text
+    assert "never enter the pass bar" in text
+    assert spike_cli.trim_section([]) == ["trim: not recorded"]
+
+
+def test_a_trim_row_prints_no_error_against_a_closed_form_it_does_not_have() -> None:
+    cells = _table_row(_trim(precise=0.3), "ok", 1.0).split("|")
+    assert [c.strip() for c in cells[9:11]] == ["n/a", "n/a"]  # precise and default rel err
+
+
+def test_the_controls_block_refuses_without_the_scratch_directory_before_anything_runs(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    _forbid_everything_after_the_id_checks(monkeypatch)
+    assert spike_cli.run_block("controls", "a-run", "a-sweep", results_dir=tmp_path, env={}) == 2
+    assert spike_cli.CQW_ENV in capsys.readouterr().err
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_the_controls_block_refuses_a_scratch_directory_the_package_does_not_import_from(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    _forbid_everything_after_the_id_checks(monkeypatch)
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    results = tmp_path / "results"
+    results.mkdir()
+    env = {spike_cli.CQW_ENV: str(empty)}
+    assert spike_cli.run_block("controls", "a-run", "a-sweep", results_dir=results, env=env) == 2
+    assert "not importable" in capsys.readouterr().err
+    assert list(results.iterdir()) == []
+
+
+def _stub_package(root: Path) -> Path:
+    package = root / "scratch" / "cq_warehouse"
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_text("")
+    (package / "thread.py").write_text("")
+    return package.parent
+
+
+def test_the_reference_worker_environment_puts_the_scratch_directory_first_on_pythonpath(
+        tmp_path: Path) -> None:
+    scratch = _stub_package(tmp_path)
+    env, why = spike_cli._reference_env({spike_cli.CQW_ENV: str(scratch), "PYTHONPATH": "/else"})
+    assert why == ""
+    assert env is not None
+    assert env["PYTHONPATH"] == f"{scratch}{os.pathsep}/else"
+    assert env[spike_cli.CQW_ENV] == str(scratch)
+
+
+def test_a_controls_run_streams_the_comparison_rows_and_prints_their_section(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    _held(monkeypatch)
+    scratch = _stub_package(tmp_path)
+    ksweep = [r for k in (3, 5, 10) for r in _ksweep(k, triangles=1000 + k)]
+    _write_run(tmp_path / "sweep.jsonl", "ksweep", ksweep)
+    env = {spike_cli.CQW_ENV: str(scratch)}
+    assert spike_cli.run_block("controls", "ctl", "sweep", results_dir=tmp_path, env=env) == 0
+    lines = (tmp_path / "ctl.jsonl").read_text().splitlines()
+    assert parse_header(lines[0])["block"] == "controls"
+    kinds = {parse_result_row(line)["kind"] for line in lines[1:]}
+    assert kinds == {"naive", "one_pipe", "ruled"}
+    assert "### Controls (D-06)" in capsys.readouterr().out
+
+
+def test_smoke_controls_runs_the_real_comparison_and_the_negative_control_is_not_ok(
+        monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    monkeypatch.delenv(spike_cli.CQW_ENV, raising=False)
+    assert spike_cli.smoke_block("controls") == 0
+    out = capsys.readouterr().out
+    assert "not a campaign run" in out
+    assert "| M6 | right | 10 | 5 | naive | silent_wrong |" in out
+    assert "| M6 | right | 10 | 5 | one_pipe | ok |" in out
+    assert "ruled: skipped, package not importable" in out
+
+
+def test_smoke_trim_runs_the_real_trim_and_prints_the_trim_seconds(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    assert spike_cli.smoke_block("trim") == 0
+    out = capsys.readouterr().out
+    assert "not a campaign run" in out
+    assert "| M6 | right | 20 | 5 | trim | ok |" in out
+    assert "Trim s" in out
+
+
+def test_the_verdict_prints_the_controls_and_trim_evidence_beside_a_clean_pass(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """A naive row that is silent_wrong on purpose and a trim row judged without a closed form
+    sit beside the verdict and cannot change it."""
+    _full_campaign(tmp_path)
+    _write_run(tmp_path / "c1-controls.jsonl", "controls", _controls_rows())
+    _write_run(tmp_path / "c1-trim.jsonl", "trim", [_trim()])
+    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 0
+    out = capsys.readouterr().out
+    controls = out.split("### Controls (D-06)")[1].split("### Tip trim cost")[0]
+    assert "naive_sweep_fuse(d=6.0, pitch=1.0, length=10.0)" in controls
+    assert "pass bar: held" in out
+    assert "| M6 | right | 5 | ok | 0.50 |" in out.split("### Tip trim cost (D-08)")[1]
+
+
+def test_a_verdict_without_the_controls_or_trim_runs_says_they_are_not_recorded(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _full_campaign(tmp_path)
+    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 0
+    out = capsys.readouterr().out
+    assert "controls: not recorded" in out
+    assert "trim: not recorded" in out

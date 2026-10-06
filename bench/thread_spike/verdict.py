@@ -103,7 +103,8 @@ class MeshRecord(TypedDict):
 class RowRecord(RowRequest):
     """The request echoed plus what happened. Every measurement is `None` unless `outcome` is
     "built"; `error` is set exactly when it is not. The STEP fields are set exactly when the
-    request asked for STEP and the row was built."""
+    request asked for STEP and the row was built. `trim_s` is the seconds the tip trim took,
+    set exactly on a built `trim` row (D-08)."""
 
     outcome: Outcome
     error: str | None
@@ -116,13 +117,15 @@ class RowRecord(RowRequest):
     meshes: list[MeshRecord] | None
     step_bytes: int | None
     step_s: float | None
+    trim_s: float | None
 
 
 _REQUEST_KEYS = ("kind", "size", "d", "pitch", "turns", "length", "left_hand", "k",
                  "clearance", "presets", "step", "gzip_on", "check_ceiling")
 _MEASURE_KEYS = ("solids", "is_valid", "precise_volume", "default_volume", "build_s",
                  "volume_s", "meshes")
-_RECORD_KEYS = (*_REQUEST_KEYS, "outcome", "error", *_MEASURE_KEYS, "step_bytes", "step_s")
+_RECORD_KEYS = (*_REQUEST_KEYS, "outcome", "error", *_MEASURE_KEYS, "step_bytes", "step_s",
+                "trim_s")
 _MESH_KEYS = ("preset", "tolerance", "angular", "triangles", "bytes", "mesh_s", "gzip1_bytes",
               "gzip1_s", "checked", "check_s", "watertight", "open_edges", "stl_volume",
               "surface_area")
@@ -317,6 +320,7 @@ def _record_from(obj: dict[str, object]) -> RowRecord:
     meshes = None if raw_meshes is None else [_mesh(item) for item in raw_meshes]
     step_bytes = _optional(_int, obj, "step_bytes")
     step_s = _optional(_num, obj, "step_s")
+    trim_s = _optional(_num, obj, "trim_s")
     request = _request_fields(obj)
     measured = (solids, is_valid, precise, default, build_s, volume_s, meshes)
     if outcome == "built":
@@ -328,6 +332,8 @@ def _record_from(obj: dict[str, object]) -> RowRecord:
         if (step_bytes is None) != (step_s is None) or request["step"] != (step_bytes is not None):
             raise ValueError("a built record carries 'step_bytes' and 'step_s' exactly when "
                              "its request asked for STEP")
+        if (trim_s is not None) != (request["kind"] == "trim"):
+            raise ValueError("a built record carries 'trim_s' exactly when its kind is 'trim'")
     else:
         for key, value in zip(_MEASURE_KEYS, measured, strict=True):
             if value is not None:
@@ -336,6 +342,8 @@ def _record_from(obj: dict[str, object]) -> RowRecord:
             raise ValueError(f"a {outcome} record must carry an 'error'")
         if step_bytes is not None or step_s is not None:
             raise ValueError(f"a {outcome} record must not carry a STEP measurement")
+        if trim_s is not None:
+            raise ValueError(f"a {outcome} record must not carry 'trim_s'")
     return {
         **request,
         "outcome": outcome,
@@ -349,6 +357,7 @@ def _record_from(obj: dict[str, object]) -> RowRecord:
         "meshes": meshes,
         "step_bytes": step_bytes,
         "step_s": step_s,
+        "trim_s": trim_s,
     }
 
 
@@ -368,6 +377,7 @@ def failed_record(request: RowRequest, outcome: Outcome, error: str) -> RowRecor
         "meshes": None,
         "step_bytes": None,
         "step_s": None,
+        "trim_s": None,
     }
 
 
@@ -465,6 +475,39 @@ def classify_row(record: RowRecord, closed_volume: float) -> tuple[RowClass, tup
     return ("silent_wrong" if reasons else "ok"), tuple(reasons)
 
 
+def classify_trim(record: RowRecord) -> tuple[RowClass, tuple[str, ...]]:
+    """A tip-trim row's class on what can be judged: exactly one solid, `isValid()`, and a
+    preview mesh that, when checked, is watertight with a positive signed volume. No closed form
+    exists for a trimmed tip, so the volume is never compared to one (D-08): this is cost
+    evidence, and the class never enters `pass_bar`."""
+    outcome = record["outcome"]
+    if outcome != "built":
+        return outcome, (record["error"] or outcome,)
+    reasons: list[str] = []
+    if record["solids"] != 1:
+        reasons.append(f"solids={record['solids']}")
+    if not record["is_valid"]:
+        reasons.append("isValid False")
+    for mesh in record["meshes"] or []:
+        if mesh["preset"] != "preview" or not mesh["checked"]:
+            continue
+        if not mesh["watertight"]:
+            reasons.append(f"preview: STL not watertight ({mesh['open_edges']} open edges)")
+        volume = mesh["stl_volume"]
+        if volume is None or volume <= 0:
+            reasons.append(f"preview: STL signed volume {volume!r} <= 0")
+    return ("silent_wrong" if reasons else "ok"), tuple(reasons)
+
+
+def classify_record(record: RowRecord) -> tuple[RowClass, tuple[str, ...]]:
+    """The class and reasons of any row, by its kind: a trim row on `classify_trim`, every other
+    row against its own closed form."""
+    if record["kind"] == "trim":
+        return classify_trim(record)
+    return classify_row(record, closed_volume(record["d"], record["pitch"], record["length"],
+                                              record["clearance"]))
+
+
 PROTOCOL_PATH = ".planning/phases/02-thread-spike/02-SPIKE.md"
 RESULTS_HEADING = "## Results"
 
@@ -534,7 +577,7 @@ def closed_of(record: RowRecord) -> float:
 
 def row_class(record: RowRecord) -> RowClass:
     """The row's class recomputed from the raw record: a stored class is never trusted."""
-    return classify_row(record, closed_of(record))[0]
+    return classify_record(record)[0]
 
 
 def row_label(record: RowRecord) -> str:
@@ -551,12 +594,16 @@ def fine_mesh(record: RowRecord) -> MeshRecord | None:
 
 def request_seconds(record: RowRecord) -> float | None:
     """What one cold request costs: build plus the slower of the fine STL and the STEP export,
-    the shape of `bench.build_time`'s "build + slower export". `None` when any part is missing,
-    never a partial sum (L02)."""
+    the shape of `bench.build_time`'s "build + slower export", plus the tip trim on a trim row
+    (D-08). `None` when any part is missing, never a partial sum (L02)."""
     fine = fine_mesh(record)
-    build_s, step_s = record["build_s"], record["step_s"]
+    build_s, step_s, trim_s = record["build_s"], record["step_s"], record["trim_s"]
     if fine is None or build_s is None or step_s is None:
         return None
+    if record["kind"] == "trim":
+        if trim_s is None:
+            return None
+        build_s += trim_s
     return build_s + max(fine["mesh_s"], step_s)
 
 
@@ -741,6 +788,13 @@ def select_estimator(rows: list[RowRecord]) -> tuple[str, float, float]:
     return name, err, gate_tolerance(err)
 
 
+def _grid_rows(rows: list[RowRecord]) -> list[RowRecord]:
+    """Only a rod or a void row is a verdict input. The negative control, the one-pipe and
+    ruled-surface comparison rows and the tip-trim rows are evidence beside the verdict, and the
+    naive control is wrong on purpose: it must never be able to fail a bar."""
+    return [r for r in rows if r["kind"] in ("rod", "void")]
+
+
 def pass_bar(rows: list[RowRecord], decisive: bool,
              ) -> tuple[Literal["held", "failed", "not established"], tuple[str, ...]]:
     """The pre-registered pass bar over the allowed grid (D-09), both hands, rod and void: any
@@ -750,7 +804,7 @@ def pass_bar(rows: list[RowRecord], decisive: bool,
     (owner ruling R4). A failure outranks a timeout. Written before any data."""
     failed: list[str] = []
     timed_out: list[str] = []
-    for r in rows:
+    for r in _grid_rows(rows):
         cls = row_class(r)
         if cls in ("silent_wrong", "failure", "worker_died"):
             failed.append(f"{row_label(r)}: {cls}")
@@ -867,8 +921,23 @@ def escape_rows(rows: list[RowRecord]) -> tuple[str, ...]:
     Beyond it a failure is a frontier stop, and a timeout is a cap (`pass_bar`), not an escape.
     Written before any data."""
     reasons: list[str] = []
-    for r in rows:
+    for r in _grid_rows(rows):
         cls = row_class(r)
         if cls in ("silent_wrong", "failure", "worker_died") and _in_standard_range(r):
             reasons.append(f"{row_label(r)}: {cls}")
     return tuple(reasons)
+
+
+def known_bad_inputs(rows: list[RowRecord]) -> list[RowRecord]:
+    """The naive construction's rows that pass every check short of the volume: exactly one
+    solid, `isValid()` True, and a precise volume below half the closed form. These are the
+    known-bad inputs THRD-04's positive-control test needs in Phase 3 (D-06): a shape a
+    validity-only gate waves through. A failure row carries no volume and is not one."""
+    bad: list[RowRecord] = []
+    for r in rows:
+        precise = r["precise_volume"]
+        if (r["kind"] == "naive" and r["outcome"] == "built" and r["solids"] == 1
+                and r["is_valid"] is True and precise is not None
+                and precise / closed_of(r) < 0.5):
+            bad.append(r)
+    return bad
