@@ -70,6 +70,7 @@ from bench.thread_spike.verdict import (
     PROTOCOL_PATH,
     ROW_TIMEOUT_S,
     T_PASS,
+    GuardResult,
     HeaderRecord,
     MeshRecord,
     RowRecord,
@@ -1539,3 +1540,367 @@ def test_the_seconds_turn_cap_exists_only_from_a_decisive_grid_run() -> None:
 def test_a_timed_out_grid_row_sets_the_seconds_turn_cap_on_a_decisive_gate() -> None:
     grid = [_synth(turns=10.0), _synth(turns=20.0, cls="timeout")]
     assert turn_caps(grid, [], True)["M6"].seconds_cap_length == 10.0
+
+
+# --- The guarded campaign blocks (Phase 2, plan 02-03) ---
+
+
+def _ok_record(request: RowRequest) -> RowRecord:
+    """What a healthy child would answer for `request`: exactly the closed form, one valid solid,
+    unchecked meshes (the check is the kernel's business, not this plumbing's)."""
+    closed = maths.closed_volume(request["d"], request["pitch"], request["length"],
+                                 request["clearance"])
+    meshes: list[MeshRecord] = [{
+        "preset": name, "tolerance": tol, "angular": ang, "triangles": 10, "bytes": 100,
+        "mesh_s": 0.001, "gzip1_bytes": 50 if name in request["gzip_on"] else None,
+        "gzip1_s": 0.001 if name in request["gzip_on"] else None, "checked": False,
+        "check_s": None, "watertight": None, "open_edges": None, "stl_volume": None,
+        "surface_area": None,
+    } for name, tol, ang in request["presets"]]
+    return {
+        **request, "outcome": "built", "error": None, "solids": 1, "is_valid": True,
+        "precise_volume": closed, "default_volume": closed, "build_s": 0.1, "volume_s": 0.1,
+        "meshes": meshes, "step_bytes": 1000 if request["step"] else None,
+        "step_s": 0.01 if request["step"] else None,
+    }
+
+
+class _FakeWorker(Worker):
+    """Answers every request in-process without a kernel; a rod of `fail_size`, `fail_left` at
+    `fail_turns` turns fails. Records every request it was given."""
+
+    def __init__(self, fail: tuple[str, bool, float] | None = None) -> None:
+        super().__init__()
+        self.fail = fail
+        self.requests: list[RowRequest] = []
+
+    def run(self, request: RowRequest, timeout_s: float) -> RowRecord:
+        del timeout_s
+        self.requests.append(request)
+        if self.fail == (request["size"], request["left_hand"], request["turns"]) and (
+                request["kind"] == "rod"):
+            return failed_record(request, "failure", "boom")
+        return _ok_record(request)
+
+    def close(self) -> None:
+        return None
+
+
+def _campaign(fail: tuple[str, bool, float] | None = None) -> tuple[spike_cli.Campaign,
+                                                                     _FakeWorker]:
+    fake = _FakeWorker(fail)
+    return spike_cli.Campaign(fake, True, None), fake
+
+
+def test_a_run_id_is_lower_case_letters_digits_and_hyphens_up_to_64_characters() -> None:
+    for good in ("2026-10-08-a-grid", "a", "0", "a" * 64):
+        assert spike_cli.RUN_ID.fullmatch(good), good
+    for bad in ("../x", "A", "", "a" * 65, "-a", "a/b", "a.b", "a b", "a\n", "é"):
+        assert not spike_cli.RUN_ID.fullmatch(bad), bad
+
+
+def _forbid_everything_after_the_id_checks(monkeypatch: pytest.MonkeyPatch) -> None:
+    def boom(*args: object, **kwargs: object) -> None:
+        raise AssertionError("a refused run id reached the guard, the gate or a build")
+
+    monkeypatch.setattr(spike_cli, "read_guard", boom)
+    monkeypatch.setattr(spike_cli, "wait_quiet", boom)
+    monkeypatch.setattr(spike_cli, "Worker", boom)
+
+
+@pytest.mark.parametrize("run_id", ["../x", "A", "", "a" * 65])
+def test_a_run_id_that_is_not_a_run_id_is_refused_with_exit_2_before_anything_runs(
+        run_id: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    _forbid_everything_after_the_id_checks(monkeypatch)
+    assert spike_cli.run_block("ksweep", run_id, None, results_dir=tmp_path) == 2
+    assert "fullmatch" in capsys.readouterr().err
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_a_run_id_already_recorded_is_refused_with_exit_2_before_any_build_and_left_intact(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    _forbid_everything_after_the_id_checks(monkeypatch)
+    (tmp_path / "taken.jsonl").write_text("what the first run measured\n")
+    assert spike_cli.run_block("ksweep", "taken", None, results_dir=tmp_path) == 2
+    assert "already recorded" in capsys.readouterr().err
+    assert (tmp_path / "taken.jsonl").read_text() == "what the first run measured\n"
+
+
+@pytest.mark.parametrize(("block", "k_from", "wanted"), [
+    ("ksweep", "some-run", "takes no --k-from"),
+    ("grid", None, "requires --k-from"),
+    ("frontier", "../x", "not a run id"),
+])
+def test_k_comes_only_from_a_ksweep_run_so_the_other_blocks_demand_one(
+        block: str, k_from: str | None, wanted: str, tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    _forbid_everything_after_the_id_checks(monkeypatch)
+    assert spike_cli.run_block(block, "a-run", k_from, results_dir=tmp_path) == 2
+    assert wanted in capsys.readouterr().err
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_a_refused_protocol_guard_writes_nothing_and_exits_2(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    refused = spike_cli.GuardFacts(GuardResult(False, ("it has not landed",)), "none", "none", "h")
+    _guard_says(monkeypatch, refused)
+    monkeypatch.setattr(spike_cli, "wait_quiet", lambda: pytest.fail("waited for a quiet host"))
+    target = tmp_path / "results"
+    assert spike_cli.run_block("ksweep", "a-run", None, results_dir=target) == 2
+    assert "protocol guard: refused -- it has not landed" in capsys.readouterr().err
+    assert not target.exists()
+
+
+def _guard_says(monkeypatch: pytest.MonkeyPatch, facts: spike_cli.GuardFacts) -> None:
+    def read_guard(*, fetch: bool) -> spike_cli.GuardFacts:
+        assert fetch  # a campaign run fetches: only then is "on origin/main" a fact
+        return facts
+
+    monkeypatch.setattr(spike_cli, "read_guard", read_guard)
+
+
+def _write_run(path: Path, block: str, rows: list[RowRecord]) -> None:
+    """A recorded run as a campaign writes it: the header, then one row per line carrying the
+    run's own verdict keys."""
+    header: HeaderRecord = {**_HEADER, "block": block, "k": None, "run_id": path.stem}
+    lines = [json.dumps(header)]
+    for row in rows:
+        closed = maths.closed_volume(row["d"], row["pitch"], row["length"], row["clearance"])
+        lines.append(json.dumps({**row, "closed_volume": closed, "rel_err": None,
+                                 "class": "ok", "reasons": [], "over_budget": []}))
+    path.write_text("\n".join(lines) + "\n")
+
+
+def _held(monkeypatch: pytest.MonkeyPatch, *, decisive: bool = True) -> None:
+    held = spike_cli.GuardFacts(GuardResult(True, ()), "b" * 40, "c" * 40, "a" * 40)
+    _guard_says(monkeypatch, held)
+    readings = (Reading("2026-10-08T09:00:00+00:00", 1.2), Reading("2026-10-08T09:00:30+00:00",
+                                                                    1.1))
+    monkeypatch.setattr(spike_cli, "wait_quiet", lambda: QuietResult(decisive, readings))
+    monkeypatch.setattr(spike_cli, "Worker", _FakeWorker)
+
+
+def _one_row_block(c: spike_cli.Campaign, k: int, smoke: bool) -> None:
+    assert not smoke
+    c.measure({**_REQUEST, "k": k, "turns": 3.0, "length": 3.0})
+
+
+def test_a_run_writes_its_header_first_then_one_row_per_line_and_never_overwrites_itself(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    _held(monkeypatch)
+    monkeypatch.setitem(spike_cli.BLOCKS, "grid", _one_row_block)
+    ksweep = [r for k in (3, 5, 10) for r in _ksweep(k, triangles=1000 + k)]
+    _write_run(tmp_path / "2026-10-08-a-ksweep.jsonl", "ksweep", ksweep)
+    assert spike_cli.run_block("grid", "2026-10-08-a-grid", "2026-10-08-a-ksweep",
+                               results_dir=tmp_path) == 0
+    lines = (tmp_path / "2026-10-08-a-grid.jsonl").read_text().splitlines()
+    assert len(lines) == 2
+    header = parse_header(lines[0])
+    assert header["run_id"] == "2026-10-08-a-grid"
+    assert header["block"] == "grid"
+    assert header["decisive"] is True
+    assert header["k"] == 3
+    assert "select_k" in header["k_source"]
+    assert "2026-10-08-a-ksweep" in header["k_source"]
+    assert [load for _, load in header["readings"]] == [1.2, 1.1]
+    assert (header["head"], header["protocol_blob"], header["protocol_commit"]) == (
+        "a" * 40, "b" * 40, "c" * 40)
+    row = json.loads(lines[1])
+    assert row["class"] == "ok"
+    assert row["k"] == 3  # the locked K reached the block, not a typed one
+    assert parse_result_row(lines[1])["kind"] == "rod"
+    text = capsys.readouterr().out
+    assert text == (tmp_path / "2026-10-08-a-grid.md").read_text()
+    assert "release: decisive at 2026-10-08T09:00:30+00:00" in text
+    assert "load1 1.20 read 2026-10-08T09:00:00+00:00" in text
+    assert "includes this run's own load" in text
+    before = (tmp_path / "2026-10-08-a-grid.jsonl").read_text()
+    assert spike_cli.run_block("grid", "2026-10-08-a-grid", "2026-10-08-a-ksweep",
+                               results_dir=tmp_path) == 2
+    assert (tmp_path / "2026-10-08-a-grid.jsonl").read_text() == before
+
+
+def test_a_non_decisive_run_says_so_in_its_header_and_its_release_line(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    _held(monkeypatch, decisive=False)
+    monkeypatch.setitem(spike_cli.BLOCKS, "ksweep", _one_row_block)
+    assert spike_cli.run_block("ksweep", "loose", None, results_dir=tmp_path) == 0
+    header = parse_header((tmp_path / "loose.jsonl").read_text().splitlines()[0])
+    assert header["decisive"] is False
+    assert header["k"] is None
+    assert "non-decisive after 900 s (2 readings)" in capsys.readouterr().out
+
+
+def test_k_is_5_and_says_why_when_no_k_qualified_under_the_rule(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _held(monkeypatch)
+    monkeypatch.setitem(spike_cli.BLOCKS, "frontier", _one_row_block)
+    _write_run(tmp_path / "sweep.jsonl", "ksweep",
+               [r for k in (3, 5, 10) for r in _ksweep(k, cls="silent_wrong")])
+    assert spike_cli.run_block("frontier", "front", "sweep", results_dir=tmp_path) == 0
+    header = parse_header((tmp_path / "front.jsonl").read_text().splitlines()[0])
+    assert header["k"] == 5
+    assert header["k_source"] == spike_cli.NO_K_SOURCE
+
+
+@pytest.mark.parametrize("which", ["missing", "wrong block"])
+def test_a_k_from_run_that_is_missing_or_not_a_ksweep_is_refused(
+        which: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    _held(monkeypatch)
+    if which == "wrong block":
+        _write_run(tmp_path / "sweep.jsonl", "grid", [_synth()])
+    assert spike_cli.run_block("grid", "a-grid", "sweep", results_dir=tmp_path) == 2
+    assert "refused" in capsys.readouterr().err
+    assert not (tmp_path / "a-grid.jsonl").exists()
+
+
+def test_a_block_with_no_rows_raises_instead_of_printing_an_empty_table() -> None:
+    with pytest.raises(ValueError, match="no rows"):
+        spike_cli.aggregate_table([])
+    with pytest.raises(ValueError, match="no rows"):
+        spike_cli.report([], [], [], Reading("2026-10-08T09:00:00+00:00", 1.0))
+
+
+def _measured(record: RowRecord) -> spike_cli.Measured:
+    closed = maths.closed_volume(record["d"], record["pitch"], record["length"],
+                                 record["clearance"])
+    cls, reasons = classify_row(record, closed)
+    return spike_cli.Measured(record, cls, reasons, over_budget(record, True), closed)
+
+
+def test_the_aggregate_prints_signed_errors_counts_classes_and_counts_skipped_checks() -> None:
+    rows = [_measured(_synth(turns=10.0, err=2e-6)), _measured(_synth(turns=20.0, err=-3e-5)),
+            _measured(_synth(turns=30.0, cls="silent_wrong", err=-0.5)),
+            _measured(_synth(turns=40.0, cls="timeout")),
+            _measured(_synth("M2", turns=10.0))]
+    lines = spike_cli.aggregate_table(rows)
+    cells = {line.split("|")[1].strip(): [c.strip() for c in line.split("|")[2:-1]]
+             for line in lines[2:]}
+    assert set(cells) == {"M2", "M6"}
+    m6 = cells["M6"]
+    assert m6[:6] == ["4", "2", "1", "0", "1", "0"]  # rows, ok, wrong, failure, timeout, died
+    assert m6[6] == "-5.000e-01"  # the signed extreme of greatest magnitude, sign kept
+    assert m6[8] == "1000"  # the largest fine triangle count
+    assert m6[10] == "1500"  # the largest raw + gzip-1 bytes
+    assert m6[-1] == "6"  # three built rod rows, each with a preview and a fine mesh unchecked
+    assert cells["M2"][-1] == "2"
+
+
+def test_the_report_lists_every_non_ok_and_over_budget_row_with_its_reasons() -> None:
+    rows = [_measured(_synth(turns=10.0)), _measured(_synth(turns=20.0, cls="timeout")),
+            _measured(_synth(turns=30.0, fine=(1, _BUDGET_BYTES, 1.0, 1)))]
+    text = spike_cli.report(["header line"], rows, ["M6 right: no stop up to 250 turns"],
+                            Reading("2026-10-08T09:30:00+00:00", 3.5))
+    assert text.startswith("header line\n")
+    assert "- M6 right L=20 rod: timeout: it broke" in text
+    assert "- M6 right L=20 rod: over budget: timeout" in text
+    assert f"- M6 right L=30 rod: over budget: fine raw + gzip-1 {_BUDGET_BYTES + 1} bytes" in text
+    assert "- frontier M6 right: no stop up to 250 turns" in text
+    assert text.endswith("- load1 3.50 read 2026-10-08T09:30:00+00:00 (includes this run's "
+                         "own load)")
+
+
+def test_the_grid_block_is_the_d03_grid_from_maths_for_both_hands_with_a_rod_and_a_void() -> None:
+    c, fake = _campaign()
+    spike_cli.BLOCKS["grid"](c, 5, False)
+    assert len(fake.requests) == 2 * 2 * 1790
+    expected = [(kind, size, left, float(length), float(length / maths.PITCH[size][1]))
+                for size in maths.SIZES
+                for length in _grid(size) for left in (False, True) for kind in ("rod", "void")]
+    assert [(r["kind"], r["size"], r["left_hand"], r["length"], r["turns"])
+            for r in fake.requests] == expected
+    rod, void = fake.requests[0], fake.requests[1]
+    assert (rod["k"], rod["clearance"], rod["step"], rod["gzip_on"]) == (5, 0.0, True, ["fine"])
+    assert [name for name, _, _ in rod["presets"]] == ["preview", "fine"]
+    assert (void["k"], void["clearance"], void["step"], void["presets"]) == (
+        5, maths.VOID_CLEARANCE, False, [])
+    assert rod["check_ceiling"] == FINE_CHECK_CEILING
+
+
+def test_the_grid_block_builds_an_integer_turn_row_with_its_exact_integer_turns() -> None:
+    c, fake = _campaign()
+    spike_cli.BLOCKS["grid"](c, 5, False)
+    m2 = [r for r in fake.requests if r["size"] == "M2" and r["kind"] == "rod"
+          and not r["left_hand"]]
+    by_length = {r["length"]: r["turns"] for r in m2}
+    assert by_length[1.2] == 3.0  # 1.2 mm = 3 turns of 0.4 mm: not 3.0000000000000004
+
+
+def test_the_ksweep_block_runs_the_sample_sizes_at_every_k_and_both_hands() -> None:
+    c, fake = _campaign()
+    spike_cli.BLOCKS["ksweep"](c, 99, False)  # the sweep ignores the K it is handed
+    assert len(fake.requests) == 8 * 3 * 2 * 4
+    assert {r["size"] for r in fake.requests} == set(maths.SAMPLE_SIZES)
+    assert {r["k"] for r in fake.requests} == {3, 5, 10}
+    first = fake.requests[:4]
+    assert [(r["kind"], r["turns"]) for r in first] == [("rod", 50.0), ("void", 50.0),
+                                                        ("rod", 250.0), ("void", 250.0)]
+    assert [name for name, _, _ in first[0]["presets"]] == ["preview", "fine"]
+    assert [name for name, _, _ in first[2]["presets"]] == ["preview"]  # the far rod: preview only
+    assert (first[2]["step"], first[2]["gzip_on"]) == (False, [])
+
+
+def test_the_frontier_block_walks_each_size_and_hand_to_250_turns_when_nothing_stops_it() -> None:
+    c, fake = _campaign()
+    spike_cli.BLOCKS["frontier"](c, 5, False)
+    steps = sum(len(maths.frontier_turns(*maths.PITCH[size])) for size in maths.SIZES)
+    assert len(fake.requests) == 2 * 2 * steps
+    assert len(c.stops) == 30
+    assert all("no stop up to 250 turns; last measured 250 turns" in stop for stop in c.stops)
+    assert c.stops[0] == "M2 right: no stop up to 250 turns; last measured 250 turns"
+    m2_right = [r["turns"] for r in fake.requests if r["size"] == "M2" and r["kind"] == "rod"
+                and not r["left_hand"]]
+    assert m2_right[0] == 55.0
+    assert m2_right[-1] == 250.0
+
+
+def test_the_frontier_block_stops_a_walk_at_the_first_failing_step_and_says_why() -> None:
+    c, fake = _campaign(fail=("M6", False, 100.0))
+    spike_cli.BLOCKS["frontier"](c, 5, False)
+    assert "M6 right: stop: rod failure at 100 turns; last measured 100 turns" in c.stops
+    assert "M6 left: no stop up to 250 turns; last measured 250 turns" in c.stops
+    m6_right = [r["turns"] for r in fake.requests if r["size"] == "M6" and r["kind"] == "rod"
+                and not r["left_hand"]]
+    assert m6_right[-1] == 100.0  # nothing was built beyond the stop
+
+
+def test_the_ladder_block_meshes_every_preset_of_the_right_hand_rod_with_gzip_on_each() -> None:
+    c, fake = _campaign()
+    spike_cli.BLOCKS["ladder"](c, 5, False)
+    assert len(fake.requests) == 8 * 2
+    assert {r["left_hand"] for r in fake.requests} == {False}
+    assert {r["kind"] for r in fake.requests} == {"rod"}
+    first, second = fake.requests[:2]
+    assert (first["turns"], second["length"]) == (10.0, 20.0)
+    names = [name for name, _, _ in first["presets"]]
+    assert names == ["preview", "fine", "h/4", "h/8", "h/16", "h/32"]
+    assert first["gzip_on"] == names
+    assert first["step"] is False
+
+
+@pytest.mark.parametrize(("block", "rows"), [("ksweep", 6), ("grid", 4), ("frontier", 2),
+                                             ("ladder", 4)])
+def test_a_smoke_scope_is_a_handful_of_rows_on_m2_and_m6_of_at_most_20_turns(
+        block: str, rows: int) -> None:
+    c, fake = _campaign()
+    spike_cli.BLOCKS[block](c, 5, True)
+    assert len(fake.requests) == rows <= 6
+    assert {r["size"] for r in fake.requests} <= {"M2", "M6"}
+    assert {r["left_hand"] for r in fake.requests} == {False}
+    if block != "frontier":
+        assert max(r["turns"] for r in fake.requests) <= 20.0
+
+
+def test_smoke_block_runs_the_real_frontier_code_on_a_subset_and_says_it_is_not_a_run(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    assert spike_cli.smoke_block("frontier") == 0
+    out = capsys.readouterr().out
+    assert "not a campaign run" in out
+    assert "frontier M2 right: no stop up to 55 turns; last measured 55 turns" in out
+    assert "| M2 | right | 55 | 5 | rod | ok |" in out

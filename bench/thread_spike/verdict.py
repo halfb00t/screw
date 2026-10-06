@@ -542,7 +542,7 @@ def row_label(record: RowRecord) -> str:
     return f"{record['size']} {hand} L={record['length']:g} {record['kind']}"
 
 
-def _fine_mesh(record: RowRecord) -> MeshRecord | None:
+def fine_mesh(record: RowRecord) -> MeshRecord | None:
     for mesh in record["meshes"] or []:
         if mesh["preset"] == "fine":
             return mesh
@@ -553,16 +553,16 @@ def request_seconds(record: RowRecord) -> float | None:
     """What one cold request costs: build plus the slower of the fine STL and the STEP export,
     the shape of `bench.build_time`'s "build + slower export". `None` when any part is missing,
     never a partial sum (L02)."""
-    fine = _fine_mesh(record)
+    fine = fine_mesh(record)
     build_s, step_s = record["build_s"], record["step_s"]
     if fine is None or build_s is None or step_s is None:
         return None
     return build_s + max(fine["mesh_s"], step_s)
 
 
-def _cache_bytes(record: RowRecord) -> int | None:
+def cache_bytes(record: RowRecord) -> int | None:
     """Fine STL raw plus its gzip-1: the two encodings the export cache holds (D-10)."""
-    fine = _fine_mesh(record)
+    fine = fine_mesh(record)
     if fine is None or fine["gzip1_bytes"] is None:
         return None
     return fine["bytes"] + fine["gzip1_bytes"]
@@ -571,7 +571,7 @@ def _cache_bytes(record: RowRecord) -> int | None:
 def bytes_over(record: RowRecord) -> bool:
     """Over the 64 MiB cache budget. Integers, so exactly 64 MiB is inside and a byte more is
     over; it needs no quiet host, so it holds on any run."""
-    total = _cache_bytes(record)
+    total = cache_bytes(record)
     return total is not None and total > BUDGET_BYTES
 
 
@@ -593,7 +593,7 @@ def over_budget(record: RowRecord, decisive: bool) -> tuple[str, ...]:
     on a non-decisive gate it reads `SECONDS_NOT_ESTABLISHED` and never "over" (owner ruling R4).
     Fixed before any data."""
     reasons: list[str] = []
-    total = _cache_bytes(record)
+    total = cache_bytes(record)
     if total is not None and total > BUDGET_BYTES:
         reasons.append(f"over budget: fine raw + gzip-1 {total} bytes > {BUDGET_BYTES}")
     if seconds_over(record):
@@ -619,7 +619,7 @@ def frontier_stop(rod: RowRecord, void: RowRecord, rod_class: RowClass, void_cla
         return f"rod {rod_class} {where}"
     if void_class != "ok":
         return f"void {void_class} at {void['turns']:g} turns"
-    fine, build_s = _fine_mesh(rod), rod["build_s"]
+    fine, build_s = fine_mesh(rod), rod["build_s"]
     if decisive and fine is not None and build_s is not None:
         seconds = build_s + fine["mesh_s"]
         if seconds > BUDGET_S:
@@ -648,7 +648,7 @@ def select_k(rows: list[RowRecord]) -> int | None:
             raise ValueError(f"K = {k} has no standard-max rod row to score")
         triangles = step_bytes = 0
         for r in top:
-            fine, step = _fine_mesh(r), r["step_bytes"]
+            fine, step = fine_mesh(r), r["step_bytes"]
             if fine is None or step is None:
                 raise ValueError(f"{row_label(r)} at K = {k} has no fine mesh or no STEP, "
                                  "so it cannot be scored")
