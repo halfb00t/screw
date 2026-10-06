@@ -13,7 +13,8 @@ parameters, get a live 3D preview, the numbers you would measure on the real par
 STL or STEP download — from a web UI, an HTTP API or a CLI, all driven by one parameter
 model. The sibling of `spur` (github.com/halfb00t/spur, gears), built to the same rules.
 
-**Nothing is built yet** (2026-10-05): this tree is the foundation. Full intent and the
+**Walking skeleton** (Phase 1): the `bolt` kind is a plain unthreaded cylinder served by
+the web UI, the HTTP API and the CLI; no thread, head, table or nut yet. Full intent and the
 owner's decisions: `.planning/PROJECT.md`; scoped requirements: `.planning/REQUIREMENTS.md`;
 phases: `.planning/ROADMAP.md`; research: `.planning/research/SUMMARY.md`. System map:
 `docs/architecture/overview.md`. Global requirements: `docs/requirements/`. How the human

@@ -85,7 +85,8 @@ Three things to check on every plan in this project:
 Do not: the editable install in `.venv` points at the main checkout's `src/`, so
 `import screw` from a worktree resolves back there and the tests silently check unmodified
 code. Either `make venv` inside the worktree (the first `make verify` there does it — a
-couple of minutes), or, once an image exists, `make test-image`.
+couple of minutes). There is no in-image test target (it was not ported, D-18); `make venv`
+inside the worktree is the way.
 
 ## 6. Acceptance
 
