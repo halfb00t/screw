@@ -23,7 +23,7 @@ release and is not in this roadmap.
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Runtime Port and Walking Skeleton** - spur's runtime ported per L07, serving a plain skeleton bolt on UI, API and CLI with parity proven
+- [x] **Phase 1: Runtime Port and Walking Skeleton** - spur's runtime ported per L07, serving a plain skeleton bolt on UI, API and CLI with parity proven (completed 2026-10-06)
 - [ ] **Phase 2: Thread Spike** - a pre-registered measurement picks the thread construction, volume estimator and turn cap before any thread field exists
 - [ ] **Phase 3: Real Helical Thread** - the bolt kind carries a real ISO 68-1 helical thread, right- or left-hand, behind a postcondition gate
 - [ ] **Phase 4: ISO Hex Bolts and Screws** - ISO 4014 and 4017 presets from cited, tested table rows fill explicit mm fields; a traceable info panel for the bolt
@@ -45,7 +45,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. The L07 runtime is ported and running: builds execute in worker processes off the event loop, an overloaded server answers `503` + `Retry-After` from the web layer only, `scripts/pr_land.py` + `skip_tokens.py`, the commit-msg hook and the `main` ruleset are in place, `make check` passes (in-image smoke test and vendored-bundle byte check), the coverage floor is enforced, and the `bench/` harness runs against the skeleton. No spur gear module (`calc.py`, `model.py`, `params.py`, their tests, the regression fixture) is copied and no spur runtime figure is carried as a final bound.
   4. `make verify` is green with import-linter enforcing the inherited contracts plus "only `solid` imports `cadquery`/`OCP`" and "`app` never imports the kernel by any path"; each later contract is written to land with the module it guards (tables in Phase 4, the pair proof in Phase 5).
 
-**Plans**: 10/10 plans executed
+**Plans**: 10/10 plans complete
 
 Plans:
 **Wave 1**
@@ -181,7 +181,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 2 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Runtime Port and Walking Skeleton | 10/10 | In Progress | - |
+| 1. Runtime Port and Walking Skeleton | 10/10 | Complete    | 2026-10-06 |
 | 2. Thread Spike | 0/TBD | Not started | - |
 | 3. Real Helical Thread | 0/TBD | Not started | - |
 | 4. ISO Hex Bolts and Screws | 0/TBD | Not started | - |

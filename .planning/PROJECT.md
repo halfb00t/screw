@@ -29,7 +29,13 @@ mating pair out.
 
 ### Validated
 
-(None yet — ship to validate)
+- ✓ Parity across UI, API and CLI is proven model-driven by one test over the registry
+      (`tests/test_parity.py`), not by hand — Phase 1, on the skeleton `bolt` kind; a
+      planted CLI flag, an extra info query field and an `info.length` read in `app.js`
+      each turn it red.
+- ✓ CAD builds run in worker processes off the event loop; admission control (bounded
+      queue, `503` + `Retry-After`) lives in the web layer only — Phase 1 (ported pool with
+      the D-16 same-slot guard; every bound is INTERIM until the Phase 7 re-sweep).
 
 ### Active
 
@@ -69,7 +75,8 @@ All hypotheses until shipped and validated. Grouped by the owner's decisions of
 
 **Three front ends, one model**
 - [ ] Every fastener type ships on UI, API and CLI from the one parameter model, with its
-      tests, in the same change; parity proven model-driven, not by hand.
+      tests, in the same change; the Phase 1 parity test covers each new `KINDS` entry
+      without an edit.
 - [ ] Every number on the info panel is traceable to an explicit mm field or to a cited ISO
       row with a test; where a number cannot be computed honestly the tool shows a warning
       and no number.
@@ -78,8 +85,6 @@ All hypotheses until shipped and validated. Grouped by the owner's decisions of
 - [ ] Every allowed configuration builds inside a measured per-build timeout, with the bound
       that keeps it there recorded; thread generation's cost is measured by a spike before
       any field exists.
-- [ ] CAD builds run in worker processes off the event loop; admission control (bounded
-      queue, 503 + Retry-After) lives in the web layer only.
 
 ### Out of Scope
 
@@ -194,7 +199,7 @@ table cites it. `cq_warehouse.fastener` is likewise unverified.
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Separate repo and product from spur; same stack and rules (L01) | spur stays a gear generator; a "parts generator" was rejected 2026-10-05 | — Pending |
+| Separate repo and product from spur; same stack and rules (L01) | spur stays a gear generator; a "parts generator" was rejected 2026-10-05 | Phase 1: runtime ported, skeleton `bolt` on UI, API and CLI, `make verify` green |
 | Real helical threads; mating pairs are the product | A cosmetic thread cannot be proven to mate; the core value is a pair that threads together | — Pending |
 | ISO tables as presets, explicit mm as truth | A looked-up number is still a number someone cuts metal to; the link must rebuild the part without the table | — Pending |
 | Every table row cites its standard and clause and has a test | Table liability: a row without a source is a claim nobody checked | — Pending |
@@ -206,7 +211,12 @@ table cites it. `cq_warehouse.fastener` is likewise unverified.
 | Tolerance classes 6g/6H as info-panel numbers only | Geometry is nominal plus clearance; modelling a tolerance would contradict explicit-mm truth | — Pending |
 | First release = infra port + thread spike + hex bolt + hex nut as a proven mating pair; socket cap 4762 second | Fewer tables before the first print; the thread, the risk, is shared | — Pending |
 | Self-tapping screws and head markings out of scope | Different thread form with no mating proof; fonts in the kernel | — Pending |
-| Infrastructure copied from spur `ec195fb`, extracted into a shared package only when a fix must land in both repos (L07) | Copying is cheap now; a package is a third repo to keep green | — Pending |
+| Infrastructure copied from spur `ec195fb`, extracted into a shared package only when a fix must land in both repos (L07) | Copying is cheap now; a package is a third repo to keep green | Phase 1: copied; the trigger fired once (`pool.py` D-16 same-slot guard) and is recorded as debt (nice), not extracted |
+| Registry of kinds with a frozen default, per-kind URLs, `kind=` omitted from the hash at the default, `PartInfo` as the one info document, INTERIM bounds policy (L09) | A new kind is a registry entry; UI, API and CLI read the model and never name a field | Phase 1: shipped; the parity test enforces it |
+| `main` walled by required CI jobs, a commit-msg skip-token hook and `make pr.land` (L08); ruleset `default` id 24563199 | Nothing lands red or stale; repository settings are recorded with the commands that reproduce them | Phase 1: applied 2026-10-06, read back equal to `required-jobs.txt`; first use PR #2 |
+| Coverage floor 94 = floor(95.03 − max(0.25, 0.00)) on the 285-test skeleton suite; `PYTEST_WORKERS` 8 carried from spur | A floor is a measured number, never a round one or spur's 96 | Phase 1: enforced in `make verify`; re-measure before moving it |
+| Bench harness ported with its method and predicates, none of spur's numbers; no latency bar | A bar beside a screw figure would read as a bound (L07) | Phase 1: one labelled run per harness half in `bench/RESULTS.md`; Phase 7 re-sweeps on native linux/amd64 |
+| PR #1 landed as a merge commit (51 commits), not D-12's squash | Owner accepted the shape 2026-10-06; D-12 applies from the wall onward | Phase 1: `make pr.land` squashes every later PR |
 
 ## Evolution
 
@@ -226,4 +236,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-10-05 after initialization*
+*Last updated: 2026-10-06 after Phase 1*
