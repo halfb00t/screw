@@ -194,3 +194,48 @@ footprint that grows with workers would not produce; the cause was not isolated,
 and worker start-up are candidates, not findings. Do not read "late peak above early peak" as
 drift. Phase 7 drives the threaded grid under linux/amd64 for long enough to sample properly,
 and is what sets `mem_limit` (OPER-02, OPER-03).
+
+## Coverage floor (Phase 1)
+
+Measured on the finished skeleton suite (285 tests across params, calc, solid, pool, api,
+records, cli, parity, pr_land, skip_tokens and bench), 2026-10-06, by spur L34's rule: one
+serial run and three `-n 8` runs, the floor being `floor(L - max(0.25, S))` with L the lowest of
+the four totals and S the spread (max minus min) of the three `-n 8` totals. This is a floor on
+what the suite covers today, not a statement that the code is correct to that fraction.
+
+Host: Apple M2 Max, 12 CPUs, 32 GiB RAM, macOS (Darwin 27.0.0), Python 3.12.13, pytest-cov 7.1.0,
+pytest-xdist 3.8.0, native arm64 (no container). Other projects were running on this host, so it
+was not idle; `uptime` immediately before each run read:
+
+| Run | Command | Load averages (1, 5, 15 min) | TOTAL | Wall |
+|---|---|---|---|---|
+| serial | `.venv/bin/python -m pytest -n0 --cov --cov-report=term --cov-fail-under=0` | 3.09, 2.72, 2.56 | 95.03 % | 34.28 s |
+| -n 8 (1) | `.venv/bin/python -m pytest -n 8 --cov --cov-report=term --cov-fail-under=0` | 2.59, 2.63, 2.53 | 95.56 % | 16.90 s |
+| -n 8 (2) | same | 2.67, 2.64, 2.54 | 95.56 % | 16.92 s |
+| -n 8 (3) | same | 3.21, 2.77, 2.59 | 95.56 % | 16.97 s |
+
+L = 95.03 (the serial run). S = 0.00 (three identical `-n 8` totals). Floor =
+floor(95.03 - max(0.25, 0.00)) = floor(94.78) = **94**, set as `fail_under` in `pyproject.toml`.
+
+The serial run reads 0.53 below the `-n 8` runs, and the whole difference is `pool.py`: the
+serial run missed 3 of its lines (95.31 %), all four `-n 8` runs (the three above and one more
+taken to read the per-module column) covered it fully (100.00 %). That is spur's Pitfall 13
+(serial runs lose `pool.py` lines); the cause was not isolated here, and the rule already takes
+the lowest total, so nothing was chased. Every other module reads the same serial and `-n 8`:
+
+| Module | Cover |
+|---|---|
+| `__init__.py` | 71.43 % |
+| `__main__.py` | 0.00 % |
+| `app.py` | 96.83 % |
+| `build_errors.py` | 100.00 % |
+| `calc/__init__.py` | 100.00 % |
+| `cli.py` | 95.88 % |
+| `params.py` | 96.00 % |
+| `pool.py` | 95.31 % serial, 100.00 % at `-n 8` |
+| `records.py` | 94.03 % |
+| `solid/__init__.py` | 91.30 % |
+| `solid/bolt.py` | 100.00 % |
+
+`PYTEST_WORKERS` is 8, spur L34's knee, not re-measured for screw. `make test` runs
+`-n 8 --cov`: the 16.9 s above is pytest's own time with coverage on, against 34.3 s serial.

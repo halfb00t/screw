@@ -84,8 +84,25 @@ no-fake-done:  ## refuse unfinished work dressed up as finished
 	  exit 1; \
 	fi
 
-test: $(STAMP)  ## run the test suite
-	$(PY) -m pytest $(PYTEST_ARGS)
+# --cov gates every run on [tool.coverage.report] fail_under (bench/RESULTS.md, "Coverage
+# floor (Phase 1)"). A run over part of the suite reads a low total and fails it: pass
+# --no-cov, e.g. make test PYTEST_ARGS="tests/test_calc.py -q -n0 --no-cov" (-n0 also runs
+# it serially, which -x and --pdb need). PYTEST_ARGS comes last so the caller's flags win.
+# --cov-report=term is the default report, spelt out because --cov takes an optional value:
+# a bare --cov followed by a path in PYTEST_ARGS would swallow it as the coverage source.
+#
+# PYTEST_WORKERS is 8, spur L34's measured knee on spur's suite and host (12-CPU M2 Max),
+# carried here and not re-measured for screw's suite; it changes gate speed, not any number
+# the tool prints. The clamp keeps it off a smaller host (CI's runner has 4 vCPUs, and
+# tests/test_pool.py's injected timeouts are what a starved runner would trip). A missing or
+# non-numeric answer from getconf falls back to one worker: left alone, an empty n reads as
+# 0 in the arithmetic and the suite would run -n 0 with no message. The count is the host's
+# online CPUs, not a cgroup quota.
+PYTEST_WORKERS ?= $(shell w=8; n=$$(getconf _NPROCESSORS_ONLN 2>/dev/null); \
+                    [ "$$n" -ge 1 ] 2>/dev/null || n=1; echo $$(( n < w ? n : w )))
+
+test: $(STAMP)  ## run the test suite under the coverage floor
+	$(PY) -m pytest -n $(PYTEST_WORKERS) --cov --cov-report=term $(PYTEST_ARGS)
 
 serve: $(STAMP)  ## run the dev server on http://127.0.0.1:8000
 	$(VENV)/bin/screw serve
