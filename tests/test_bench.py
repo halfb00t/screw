@@ -1,10 +1,10 @@
 """The bench harness's own predicates, pinned without a service, a daemon or a stopwatch.
 
 Ported from spur's `tests/test_bench.py` (L07): the capped-row rule, the STL size check, the
-L19 gzip selection rule, the `ru_maxrss` units, the 503 reasons and the refusal of an empty
-sweep. spur's gear-sweep and composed-scenario tests are not carried over -- there is no gear
-corpus here. The skeleton corpus is pinned instead, so it cannot drift under a number that
-someone compares with an earlier run.
+L19 gzip selection rule, the `ru_maxrss` units, the 503 reasons, the refusal of an empty sweep
+and of a p95 over too few samples. spur's gear-sweep and composed-scenario tests are not
+carried over -- there is no gear corpus here. The skeleton corpus is pinned instead, so it
+cannot drift under a number that someone compares with an earlier run.
 
 Run as `.venv/bin/python -m pytest tests/test_bench.py -q` from the repo root: the `-m` form
 puts the root on `sys.path`, which is what makes `import bench` resolve. `bench` is not an
@@ -15,14 +15,33 @@ installed package (`pyproject.toml` ships `src/screw` only) and `tests/conftest.
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 
+import httpx2 as httpx
 import pytest
 from pydantic import ValidationError
 
 from bench.build_time import Timing, load_sweep, report, stl_size
 from bench.corpus import corpus
 from bench.export_cost import GzipRow, find_set, maxrss_bytes, select_gzip_level
+from bench.latency import (
+    DEFAULT_SCENARIOS,
+    MIN_SAMPLES,
+    SCENARIOS,
+    RequestOutcome,
+    ScenarioResult,
+    _p95_or_warn,
+    fetch,
+    report_markdown,
+)
+from bench.memory import (
+    _CAP_TOLERANCE_FRACTION,
+    _SWEEP_MEM_LIMIT_BYTES,
+    _is_capped,
+    _parse_mem,
+    _publish,
+)
 from screw.params import BoltParams
 
 
@@ -176,3 +195,114 @@ def test_peak_rss_reads_bytes_on_macos_and_kibibytes_on_linux() -> None:
     (Linux, in the image); a mesh-copy reading needs the unit split to be believed at all."""
     assert maxrss_bytes(1000, "Darwin") == 1000
     assert maxrss_bytes(1000, "Linux") == 1024000
+
+
+def test_a_peak_equal_to_the_ceiling_is_capped() -> None:
+    """A sampled peak that reads the ceiling exactly -- what spur's two capped rows read -- is
+    the sweep's own limit showing up as a measurement, so it is capped."""
+    assert _is_capped(_SWEEP_MEM_LIMIT_BYTES, _SWEEP_MEM_LIMIT_BYTES)
+
+
+def test_a_peak_well_below_the_ceiling_is_not_capped() -> None:
+    """spur's honest N=1 and N=2 peaks (2052.1 and 2878.5 MiB) against the 8 GiB ceiling are
+    the uncapped cases this predicate must never call capped."""
+    assert not _is_capped(round(2052.1 * 1024**2), _SWEEP_MEM_LIMIT_BYTES)
+    assert not _is_capped(round(2878.5 * 1024**2), _SWEEP_MEM_LIMIT_BYTES)
+
+
+def test_the_tolerance_boundary_is_pinned_from_both_sides() -> None:
+    """The smallest integer peak inside the tolerance is capped; one byte less is not."""
+    just_inside = math.ceil(_SWEEP_MEM_LIMIT_BYTES * (1 - _CAP_TOLERANCE_FRACTION))
+    assert _is_capped(just_inside, _SWEEP_MEM_LIMIT_BYTES)
+    assert not _is_capped(just_inside - 1, _SWEEP_MEM_LIMIT_BYTES)
+
+
+def test_docker_stats_sizes_parse_by_their_longest_suffix() -> None:
+    """MiB itself ends in "B", so a check for "B" first would misparse every non-byte value."""
+    assert _parse_mem("612.5MiB") == 642252800
+    assert _parse_mem("1GiB") == 1024**3
+    assert _parse_mem("2KiB") == 2048
+    assert _parse_mem("17B") == 17
+    with pytest.raises(ValueError, match="unrecognised"):
+        _parse_mem("12")
+
+
+def test_the_container_is_published_on_the_host_port_the_base_url_names() -> None:
+    """A host whose 8000 belongs to another project points the sweep at a free port; the
+    image always listens on 8000, and the publish stays on localhost like compose.yaml's."""
+    assert _publish("http://127.0.0.1:8000") == "127.0.0.1:8000:8000"
+    assert _publish("http://127.0.0.1:8001") == "127.0.0.1:8001:8000"
+    with pytest.raises(ValueError, match="names no port"):
+        _publish("http://127.0.0.1")
+
+
+def test_the_no_argument_latency_run_is_still_concurrent_then_single() -> None:
+    """A scenario added to `SCENARIOS` must not slip into `make bench.latency`:
+    `DEFAULT_SCENARIOS` pins the run, and `sorted(SCENARIOS)` would reorder it."""
+    assert DEFAULT_SCENARIOS == ("concurrent", "single")
+    assert set(SCENARIOS) == {"concurrent", "single"}
+
+
+def test_the_concurrent_scenario_never_builds_the_single_scenarios_part() -> None:
+    """The default run is concurrent then single; a part built first would make the second a
+    cache hit that puts no load on the server."""
+    heaviest = corpus()[-1]
+    assert heaviest == {"d": 100.0, "length": 200.0}
+    assert heaviest not in corpus()[:10]
+
+
+def test_a_503_is_recorded_by_the_reason_the_server_gave() -> None:
+    """`fetch` turns a 200 into `"200"` and a 503 into `"503 " + detail[0]["type"]` read from
+    the body -- `busy`, `timeout` and `pool_broken` are `src/screw/app.py`'s own three. Any
+    other status still raises. No network: `httpx.MockTransport` stands in for the server."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.params["quality"] == "fine"
+        case = request.url.params["case"]
+        if case == "200":
+            return httpx.Response(200, content=b"stl-bytes")
+        if case in ("busy", "timeout", "pool_broken"):
+            return httpx.Response(
+                503, json={"detail": [{"loc": ["query"], "type": case, "msg": case}]})
+        if case == "no-type":
+            return httpx.Response(503, content=b"gateway says no")
+        return httpx.Response(500, content=b"boom")
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        outcome = fetch("http://test", client, {"case": "200"})
+        assert outcome.status == "200"
+        assert outcome.params == "case=200"
+        assert outcome.wall_s >= 0
+
+        for case in ("busy", "timeout", "pool_broken"):
+            assert fetch("http://test", client, {"case": case}).status == f"503 {case}"
+
+        with pytest.raises(ValueError, match="gateway says no"):
+            fetch("http://test", client, {"case": "no-type"})
+        with pytest.raises(httpx.HTTPStatusError):
+            fetch("http://test", client, {"case": "500"})
+
+
+def test_a_p95_over_too_few_samples_is_refused_with_a_warning(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    """`statistics.quantiles(n=20)` over fewer samples than buckets would print a plausible
+    number about data that was never collected: refuse it (L02), at the boundary exactly."""
+    assert _p95_or_warn([0.001] * (MIN_SAMPLES - 1), "x/idle") is None
+    assert "only 19 /api/health samples" in capsys.readouterr().err
+    assert _p95_or_warn([0.001] * MIN_SAMPLES, "x/idle") == (0.001, MIN_SAMPLES)
+    assert capsys.readouterr().err == ""
+
+
+def test_the_latency_report_counts_what_the_server_answered_and_sets_no_bar() -> None:
+    result = ScenarioResult("concurrent", [], [], (
+        RequestOutcome("d=2 length=5", "200", 0.25),
+        RequestOutcome("d=2 length=20", "200", 0.5),
+        RequestOutcome("d=6 length=5", "503 busy", 0.01),
+    ))
+    text = report_markdown(result, (0.002, 40), (0.004, 25), (9.87, 6.54, 3.21))
+    assert "- Load averages at start: 9.87, 6.54, 3.21" in text
+    assert "- Idle p95: 2.0 ms (n=40)" in text
+    assert "- Under-load p95: 4.0 ms (n=25)" in text
+    assert "- Ratio (under-load / idle): 2.00x -- no bar is set for screw yet" in text
+    assert "- Slowest successful build: 0.50 s" in text
+    assert "3 attempted -- 200: 2, 503 busy: 1" in text

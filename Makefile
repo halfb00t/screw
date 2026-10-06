@@ -27,7 +27,7 @@ CONSTRAINT := $(if $(wildcard requirements.txt),PIP_CONSTRAINT=requirements.txt,
 .PHONY: help venv verify lint typecheck lint-imports no-fake-done test serve lock \
 	    check image smoke up down logs vendor vendor-check \
 	    worktree.bootstrap worktree.new worktree.land pr.land clean clean-docker \
-	    bench.build bench.export
+	    bench bench.build bench.export bench.latency bench.memory
 
 help:  ## list the targets
 	@grep -hE '^[a-z][a-z.-]*:.*##' $(MAKEFILE_LIST) | sed 's/:[^#]*##/\t/' | expand -t18
@@ -125,6 +125,14 @@ logs:  ## follow the service log
 # A timing assertion on shared hardware would flap until someone stopped believing it, so
 # these are rerun deliberately, never on a commit. They are a harness (L07): what they print
 # is a measurement of one machine, not a bound.
+
+bench: bench.latency bench.memory  ## the service-side harness: latency under load, then the container memory sweep
+
+bench.latency: $(STAMP)  ## /api/health under load, on the host -- run `make serve` first, on a fresh server
+	$(PY) -m bench.latency
+
+bench.memory: $(STAMP)  ## container memory sweep over the corpus at 1, 2, 4 workers; manages its own containers
+	$(PY) -m bench.memory sweep
 
 # Needs no service: it times screw.solid in-process, the code a worker runs.
 bench.build: $(STAMP)  ## build, fine STL and STEP time per corpus part vs SCREW_BUILD_TIMEOUT; SWEEP=<json> optional

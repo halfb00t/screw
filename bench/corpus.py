@@ -22,3 +22,15 @@ def corpus() -> list[dict[str, object]]:
     the solid. The heaviest part is the last, d=100 length=200.
     """
     return [{"d": d, "length": length} for d in DIAMETERS for length in LENGTHS]
+
+
+def label(entry: dict[str, object]) -> str:
+    """`d=100 length=200`: the entry's own `key=value` pairs in order, numbers as `%g`.
+
+    One spelling for the corpus and for a sweep file, so a label printed by one run is found by
+    `bench.export_cost --set` in another. Lives here, not in `bench.build_time`, because that
+    module imports `screw.solid` and so the CAD kernel, which `bench.latency` -- a measuring
+    client that must stay kernel-free -- must not pull in.
+    """
+    return " ".join(
+        f"{k}={v:g}" if isinstance(v, int | float) else f"{k}={v}" for k, v in entry.items())

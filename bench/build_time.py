@@ -25,7 +25,7 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from bench import machine_facts
-from bench.corpus import corpus
+from bench.corpus import corpus, label
 from screw import int_env, solid
 from screw.params import BoltParams
 
@@ -53,16 +53,6 @@ class Timing:
 
     def inside(self, timeout: float) -> bool:
         return self.worst_request <= timeout
-
-
-def label(entry: dict[str, object]) -> str:
-    """`d=100 length=200`: the entry's own `key=value` pairs in order, numbers as `%g`.
-
-    One spelling for the corpus and for a sweep file, so a label printed by one is found by
-    `bench.export_cost --set` in the other.
-    """
-    return " ".join(
-        f"{k}={v:g}" if isinstance(v, int | float) else f"{k}={v}" for k, v in entry.items())
 
 
 def load_sweep(path: Path | None = None) -> list[tuple[str, BoltParams]]:
