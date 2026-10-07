@@ -80,3 +80,34 @@ nothing measured against it says anything about the interim `mem_limit` or
 then on: narrowing, shortening or re-picking a corpus to make a ceiling look better produces a
 number that cannot be compared with the one already on record, which defeats the point of
 measuring.
+
+## Thread spike (Phase 2)
+
+`bench.thread_spike` (`make bench.thread ARGS="..."`) answers four questions before any field
+builds a thread: which helical construction to build (sewn twist against the one-pipe,
+ruled-surface and naive `sweep` + `fuse` rows, with each size's failure frontier in turns), what
+a fine mesh costs (triangles, seconds, peak RSS, bytes, gzip ratio) against the INTERIM 30 s and
+64 MB budgets, whether a kernel pair check can be made falsifiable, and which volume estimator
+to trust. The method, every constant, every verdict rule, the predictions and the escape clause
+are in `.planning/phases/02-thread-spike/02-SPIKE.md`, written before the first run.
+
+- **Outside `make verify`.** The campaign is hours of kernel time (up to 16 969 rows and 272
+  pair cells) and its timings are only meaningful on a quiet host; a timing assertion on shared
+  hardware would flap. What the gate does run is the harness's own predicates on synthetic
+  records, and the check that every constant in the code equals the protocol's
+  (`tests/test_bench.py::test_the_protocol_pre_registers_every_constant_the_harness_uses`).
+- **The guard.** No campaign run starts until the protocol is on `origin/main` and its text above
+  `## Results` equals main's, byte for byte: `make bench.thread ARGS="check-protocol"` prints
+  "protocol guard: held" or the reasons it does not. A change to a pre-registered input after
+  landing is a new PR that visibly post-dates the protocol.
+- **Smoke against campaign.** `smoke` (`--block <block>`, `--pair`) checks the harness on two
+  small sizes: no run id, output in a temporary directory, never recorded, never cited. `campaign
+  --run-id <prefix>` is the measurement: nine blocks, each a recorded run `<prefix>-<block>`, and
+  `verdict --campaign <prefix>` reads them back and recomputes every row's class from the raw
+  record.
+- **Where records go.** `bench/results/thread-spike/<id>.jsonl` (a header, then one row per
+  line, written as measured) and `<id>.md`; a run id is never reused or overwritten. `bench/RESULTS.md`
+  carries each run's header, host state, load readings and every non-ok or over-budget row.
+- **Agents closed.** The owner runs the campaign detached with every agent session closed: an
+  open session keeps the host's load near 2.0, above the quiet gate's 1.5, and the run reads
+  non-decisive.

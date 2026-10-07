@@ -20,10 +20,13 @@ installed package (`pyproject.toml` ships `src/screw` only) and `tests/conftest.
 
 from __future__ import annotations
 
+import ast
+import importlib
 import itertools
 import json
 import math
 import os
+import re
 import struct
 import subprocess
 import sys
@@ -37,6 +40,7 @@ import httpx2 as httpx
 import pytest
 from pydantic import ValidationError
 
+from bench import quiet as quiet_module
 from bench.build_time import Timing, load_sweep, report, stl_size
 from bench.corpus import corpus
 from bench.export_cost import GzipRow, find_set, maxrss_bytes, select_gzip_level
@@ -3820,3 +3824,86 @@ def test_the_campaign_subcommand_takes_a_run_id_prefix_and_returns_the_campaigns
     assert seen == ["plan-check"]
     with pytest.raises(SystemExit):
         spike_cli.main(["campaign"])
+
+
+# The protocol's inputs are pre-registered in 02-SPIKE.md (D-16, D-19). These two tests bind the
+# text to the code, so after PR 1 lands no constant can move, and none can be added, without the
+# protocol changing in the same PR: a visible diff that post-dates the landed one.
+_PROTOCOL_TEXT_MODULES = {
+    "quiet": quiet_module, "maths": maths, "verdict": verdict_module, "helical": helical,
+    "measure": measure, "cli": spike_cli,
+    "runner": importlib.import_module("bench.thread_spike.runner"),
+}
+# The five modules whose every public constant the protocol must list. The driver and the
+# container runner are listed for the protocol-level data they carry, not exhaustively: most of
+# the driver's module constants are report plumbing (headings, column rules).
+_PROTOCOL_COMPLETE_MODULES = ("quiet", "maths", "verdict", "helical", "measure")
+_PROTOCOL_HEADINGS = ("Environment", "Method", "Protocol inputs", "Rules", "Predictions",
+                      "Escape clause")
+_INPUT_ROW = re.compile(
+    r"^\| `(?P<module>[a-z]+)\.(?P<name>[A-Z][A-Z0-9_]*)` \| `(?P<value>.+?)` \| ")
+_PITCH_ROW = re.compile(r"^\| (?P<size>M[0-9.]+) \| (?P<d>[0-9/]+) \| (?P<pitch>[0-9/]+) \|$")
+_NUT_ROW = re.compile(r"^\| (?P<size>M[0-9.]+) \| (?P<m>[0-9.]+) \| .+ \|$")
+
+
+def _protocol_head() -> str:
+    text = (Path(__file__).resolve().parents[1] / verdict_module.PROTOCOL_PATH).read_text()
+    head = verdict_module.before_results(text)
+    assert head is not None, f"{verdict_module.PROTOCOL_PATH} has no results heading"
+    return head
+
+
+def _defined_constants(module: object) -> set[str]:
+    """Public ALL_CAPS names a module assigns at its top level, read from its source, so a name it
+    merely imports (verdict re-uses maths.PITCH; quiet imports datetime's UTC) is not its own."""
+    path = getattr(module, "__file__", None)
+    assert isinstance(path, str)
+    names: set[str] = set()
+    for node in ast.parse(Path(path).read_text()).body:
+        targets = (node.targets if isinstance(node, ast.Assign)
+                   else [node.target] if isinstance(node, ast.AnnAssign) else [])
+        names.update(t.id for t in targets
+                     if isinstance(t, ast.Name) and t.id.isupper() and not t.id.startswith("_"))
+    return names
+
+
+def test_the_protocol_pre_registers_every_constant_the_harness_uses() -> None:
+    head = _protocol_head()
+    rows = [m for m in map(_INPUT_ROW.match, head.split("\n")) if m]
+    listed = [f"{m['module']}.{m['name']}" for m in rows]
+    assert len(listed) == len(set(listed)), "a constant is listed twice in the protocol"
+    assert rows, "no constant rows were parsed: the table's shape changed"
+
+    wrong: list[str] = []
+    for m in rows:
+        module = _PROTOCOL_TEXT_MODULES.get(m["module"])
+        if module is None or not hasattr(module, m["name"]):
+            wrong.append(f"{m['module']}.{m['name']} names no constant of the harness")
+            continue
+        registered = ast.literal_eval(m["value"])
+        actual = getattr(module, m["name"])
+        if registered != actual:
+            wrong.append(f"{m['module']}.{m['name']}: protocol {registered!r}, code {actual!r}")
+
+    pitch_part, _, nut_part = head.partition("### NUT_HEIGHT")
+    pitch_part = pitch_part.partition("### PITCH")[2]
+    pitch = {m["size"]: (Fraction(m["d"]), Fraction(m["pitch"]))
+             for m in map(_PITCH_ROW.match, pitch_part.split("\n")) if m}
+    nut = {m["size"]: float(m["m"]) for m in map(_NUT_ROW.match, nut_part.split("\n")) if m}
+    if pitch != maths.PITCH:
+        wrong.append(f"maths.PITCH: protocol {pitch!r}, code {maths.PITCH!r}")
+    if nut != maths.NUT_HEIGHT:
+        wrong.append(f"maths.NUT_HEIGHT: protocol {nut!r}, code {maths.NUT_HEIGHT!r}")
+
+    registered_names = {*listed, "maths.PITCH", "maths.NUT_HEIGHT"}  # the two tables above
+    for name in _PROTOCOL_COMPLETE_MODULES:
+        for constant in sorted(_defined_constants(_PROTOCOL_TEXT_MODULES[name])):
+            if f"{name}.{constant}" not in registered_names:
+                wrong.append(f"{name}.{constant} is not in the protocol")
+    assert not wrong, "the protocol and the code disagree:\n" + "\n".join(wrong)
+
+
+def test_the_protocol_text_above_results_carries_every_pre_registered_section() -> None:
+    headings = [line for line in _protocol_head().split("\n") if line.startswith("## ")]
+    names = [h.removeprefix("## ") for h in headings]
+    assert [n for n in names if n in _PROTOCOL_HEADINGS] == list(_PROTOCOL_HEADINGS)
