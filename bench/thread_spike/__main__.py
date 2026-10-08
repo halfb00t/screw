@@ -98,6 +98,7 @@ from bench.thread_spike.verdict import (
     PAIR_TIMEOUT_S,
     PROTOCOL_PATH,
     ROW_TIMEOUT_S,
+    SECONDS_NOT_ESTABLISHED,
     GuardResult,
     HeaderRecord,
     PairReading,
@@ -1528,10 +1529,14 @@ def _caps_section(runs: _Runs) -> list[str]:
     lines.append(f"- construction cap from run `{front_id}`; "
                  f"bytes and seconds caps from run `{grid_id}`")
     for size in by_frontier:
-        for what, over in (("bytes", bytes_over), ("seconds", seconds_over)):
-            first = _first_over(grid, size, over)
-            if first is not None:
-                lines.append(f"- {size}: first row over the {what} budget: {first}")
+        first = _first_over(grid, size, bytes_over)
+        if first is not None:
+            lines.append(f"- {size}: first row over the bytes budget: {first}")
+        # A row over the clock is a timing claim: only a decisive grid may name it (R4).
+        if grid_header is not None and not grid_header["decisive"]:
+            lines.append(f"- {size}: first row over the seconds budget: {SECONDS_NOT_ESTABLISHED}")
+        elif (first := _first_over(grid, size, seconds_over)) is not None:
+            lines.append(f"- {size}: first row over the seconds budget: {first}")
     return lines
 
 

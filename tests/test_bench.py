@@ -2469,6 +2469,25 @@ def test_a_decisive_void_timeout_holds_the_bar_and_the_turn_caps_name_it(
     assert "- M6: first row over the seconds budget: M6 right L=30 void" in caps
 
 
+def test_a_non_decisive_grid_does_not_name_the_first_row_over_the_seconds_budget(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """A row is over the clock only on a quiet host: the report must not point at one when the
+    grid ran loaded, even though the timeout row is right there in the record."""
+    _full_campaign(tmp_path, grid_extra=[_synth(turns=30.0, build_s=45.0)], grid_decisive=False)
+    _verdict("c1", tmp_path)
+    caps = capsys.readouterr().out.split("### Turn caps")[1].split("### Controls")[0]
+    assert f"- M6: first row over the seconds budget: {_NOT_ESTABLISHED}" in caps
+    assert "L=30 rod" not in caps
+
+
+def test_a_decisive_grid_names_the_first_row_over_the_seconds_budget(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _full_campaign(tmp_path, grid_extra=[_synth(turns=30.0, build_s=45.0)])
+    _verdict("c1", tmp_path)
+    caps = capsys.readouterr().out.split("### Turn caps")[1].split("### Controls")[0]
+    assert "- M6: first row over the seconds budget: M6 right L=30 rod" in caps
+
+
 def test_a_campaign_whose_volume_estimator_is_not_established_never_passes(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """No grid rod row has a checked preview mesh, so the two estimators cannot be compared:
