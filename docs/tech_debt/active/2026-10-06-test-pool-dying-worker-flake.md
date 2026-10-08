@@ -21,6 +21,16 @@ First suspect: the CPU-heavy tests that plan 02-02 added to `tests/test_bench.py
 starve the pool test's injected timeouts. The Makefile already notes that those timeouts
 are what a starved runner trips. This is a suspicion, not a measurement.
 
+## Second occurrence (2026-10-08) -- the trigger has fired
+The same test failed again in the pre-commit `make verify` of the commit that became
+`e77d7af` (plan 02-06, Task 3, the H5 fix): `1 failed, 694 passed in 49.41s`, and this time
+with a traceback: multiprocessing's resource tracker was called reentrantly during semaphore
+cleanup. The retry passed. Earlier the same day a `make verify` after commit `c54919d` ended
+`1 failed, 689 passed` with the failing test's name lost; whether that was this test is not
+known. Per the trigger below, the investigation is due before PR 2 lands Phase 2
+(`gsd/phase-02-thread-spike-runs`); PR 1 (the protocol, #5) lands first because the
+protocol must precede every campaign run (D-19) and this test is not part of the harness.
+
 ## Why it matters
 `make verify` is the gate, the pre-commit hook and CI. A test that fails under load but
 passes on retry teaches everyone to retry a red gate, which is how a real failure gets
