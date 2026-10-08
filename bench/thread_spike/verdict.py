@@ -875,6 +875,14 @@ def pass_bar(rows: list[RowRecord], decisive: bool,
     return "held", ()
 
 
+def skipped_checks(rows: list[RowRecord]) -> tuple[int, int]:
+    """(meshes whose STL check was skipped, meshes) over the pass-bar rows (rods and voids). A
+    skipped check leaves the row's class alone (`classify_row`) but is counted wherever the pass
+    bar is printed, so a held bar never reads as a claim about meshes nobody checked."""
+    meshes = [mesh for r in _grid_rows(rows) for mesh in r["meshes"] or []]
+    return sum(1 for mesh in meshes if not mesh["checked"]), len(meshes)
+
+
 @dataclass(frozen=True)
 class TurnCap:
     """One size's caps (D-04, D-10), each with the reason it is what it is.

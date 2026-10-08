@@ -122,6 +122,7 @@ from bench.thread_spike.verdict import (
     select_k,
     sensitivity_ok,
     size_falsifiable,
+    skipped_checks,
     turn_caps,
     variant_rules,
 )
@@ -2073,6 +2074,26 @@ def test_a_sweep_in_which_no_k_qualified_fires_the_escape_clause_and_never_passe
     assert "pass bar: held" in out
     assert "escape clause: FIRED" in out
     assert "- K: no K qualified under the rule" in out
+
+
+def test_skipped_checks_count_unchecked_meshes_of_rods_and_voids_and_nothing_else() -> None:
+    half = _synth(stl_err=1e-3)  # checked preview, unchecked fine
+    neither = _synth(turns=20.0)  # both unchecked
+    rows = [half, neither, _synth(kind="void"), _naive(0.3)]
+    assert skipped_checks(rows) == (3, 4)  # a void has no mesh, and the naive control is no input
+    assert skipped_checks([]) == (0, 0)
+
+
+def test_a_held_pass_bar_prints_how_many_mesh_checks_were_skipped_and_still_exits_0(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Skipped checks never change a row's class (the Rules), but a held bar must not read as a
+    claim about meshes nobody checked: the count sits beside it, named unchecked."""
+    _full_campaign(tmp_path, grid_extra=[_synth(turns=30.0, left=True)])  # +2 unchecked meshes
+    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 0
+    bar = capsys.readouterr().out.split("### Pass bar")[1].split("### Escape clause")[0]
+    assert "pass bar: held" in bar
+    # six rods with a checked preview and an unchecked fine mesh, one rod with neither checked
+    assert "mesh checks skipped: 8 of 14 meshes unchecked" in bar
 
 
 def test_a_campaign_whose_volume_estimator_is_not_established_never_passes(

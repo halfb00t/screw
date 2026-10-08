@@ -136,6 +136,7 @@ from bench.thread_spike.verdict import (
     select_k,
     sensitivity_ok,
     size_falsifiable,
+    skipped_checks,
     turn_caps,
     variant_rules,
 )
@@ -1553,9 +1554,12 @@ def verdict_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR) -> int:
         if missing:
             lines.append("- Blocks missing: " + ", ".join(missing))
         estimator_line, estimator_established = _estimator_line(grid)
+        unchecked, meshes = skipped_checks([*grid, *container])
         lines += ["", "### K", "", *_k_section(runs), "", "### Volume estimator", "",
                   estimator_line, "", "### Pass bar", "", f"pass bar: {bar}",
-                  *(f"- {reason}" for reason in offenders), "", "### Escape clause", "",
+                  *(f"- {reason}" for reason in offenders),
+                  f"- mesh checks skipped: {unchecked} of {meshes} meshes unchecked (a skipped "
+                  "check is not a pass for its mesh)", "", "### Escape clause", "",
                   "escape clause: " + ("FIRED" if escaped else "not fired"),
                   *(f"- {reason}" for reason in escaped), "", "### Turn caps", "",
                   *_caps_section(runs), ""]
