@@ -2319,6 +2319,31 @@ def test_a_frontier_step_missing_its_void_or_its_rod_is_incomplete() -> None:
     assert _walk_gaps(twice) == ["M6 right: step 65 has 2 rod rows, not 1"]
 
 
+def test_a_frontier_step_is_complete_only_at_its_own_length_and_with_no_other_kind() -> None:
+    """A step is named by its turns and measured at turns x P: a rod labelled 250 turns that is
+    1 mm long measured another part, and a row of another kind is no part of a walk."""
+    rows = _full_walk("M6", None, k=_LOCKED_K)
+    short: list[RowRecord] = [
+        {**r, "length": 1.0} if (r["turns"], r["kind"], r["left_hand"]) == (250.0, "rod", False)
+        else r for r in rows]
+    assert _walk_gaps(short) == ["M6 right: step 250 has a rod row at L=1.0 mm, not 250 turns x "
+                                 "P = 250.0 mm"]
+    stray: RowRecord = {**_synth(turns=65.0, k=_LOCKED_K), "kind": "trim"}
+    assert _walk_gaps([*rows, stray]) == ["M6 right: step 65 has trim rows, which a walk does "
+                                          "not record"]
+
+
+def test_a_frontier_row_whose_length_is_not_its_turns_times_the_pitch_feeds_no_cap() -> None:
+    near = math.nextafter(250.0, 0.0)  # one float below 250 turns x 1 mm
+    rows: list[RowRecord] = [
+        {**r, "length": near} if (r["turns"], r["kind"], r["left_hand"]) == (250.0, "void", True)
+        else r for r in _full_walk("M6", None, k=_LOCKED_K)]
+    cap = turn_caps([], rows, True)["M6"]
+    assert cap.construction_turns is None
+    assert "left: the void row of step 250 is at L=249.99999999999997 mm" in cap.stop_reason
+    assert "no cap is drawn from it" in cap.stop_reason
+
+
 def test_a_frontier_step_after_a_stop_is_reported_and_a_skipped_step_breaks_the_walk() -> None:
     stopped = _walk("M6", False, 100, k=_LOCKED_K)
     beyond = [r for r in _walk("M6", False, None, k=_LOCKED_K) if r["turns"] > 100.0]

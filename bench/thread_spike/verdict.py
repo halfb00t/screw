@@ -18,6 +18,7 @@ from collections import Counter
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from decimal import ROUND_CEILING, Decimal
+from fractions import Fraction
 from typing import Literal, NoReturn, TypedDict
 
 from bench.thread_spike.maths import (
@@ -911,11 +912,19 @@ class TurnCap:
     seconds_established: bool
 
 
+def _step_length(pitch: Fraction, turns: float) -> float:
+    """The length a frontier step of `turns` turns is recorded at: turns x P in exact fractions,
+    then one float, exactly as the harness writes a row's length. A row is compared with it by
+    `==`, never within a tolerance: a row whose length is not its step's measured another part."""
+    return float(Fraction(turns) * pitch)
+
+
 def _hand_cap(size: str, hand: str, rows: list[RowRecord], decisive: bool,
               ) -> tuple[float | None, str]:
     """One hand's frontier walk: step through the recorded turn counts in order and stop where
     `frontier_stop` says. Its cap is the last ok step, or the standard max when the very first
-    step stopped (that length is already in the grid)."""
+    step stopped (that length is already in the grid). A row whose length is not its turns x P
+    measured another part, so no cap is drawn past it."""
     d, pitch = PITCH[size]
     standard_turns = float(turns_of(standard_max(d), pitch))
     steps: dict[float, dict[str, RowRecord]] = {}
@@ -926,6 +935,11 @@ def _hand_cap(size: str, hand: str, rows: list[RowRecord], decisive: bool,
         rod, void = steps[turns].get("rod"), steps[turns].get("void")
         if rod is None or void is None:
             raise ValueError(f"frontier step {turns:g} of {size} {hand} lacks its rod or void row")
+        for row in (rod, void):
+            if row["length"] != _step_length(pitch, turns):
+                return None, (f"{hand}: the {row['kind']} row of step {turns:g} is at "
+                              f"L={row['length']!r} mm, not {turns:g} turns x P; no cap is "
+                              "drawn from it")
         classes = (row_class(rod), row_class(void))
         stop = frontier_stop(rod, void, classes[0], classes[1], decisive)
         if stop is None:
@@ -1096,9 +1110,10 @@ def _counted_gaps(wanted: Counter[str], got: Counter[str], what: str) -> list[st
 def frontier_gaps(rows: Sequence[RowRecord], k: int, decisive: bool, *,
                   sizes: Sequence[str]) -> list[str]:
     """How a frontier record falls short of the Method table: for every size and hand a walk of
-    consecutive steps from the first one, a rod and a void at each exactly once and at the
-    block's K, ending either at the last step (250 turns) or at a step `frontier_stop` ends, and
-    with no step after a stop."""
+    consecutive steps from the first one, a rod and a void at each exactly once, at the block's
+    K and at the step's own length (turns x P, exactly as the harness writes it), and no row of
+    any other kind, ending either at the last step (250 turns) or at a step `frontier_stop`
+    ends, and with no step after a stop. Every gap names its step."""
     gaps: list[str] = []
     for size in sizes:
         d, pitch = PITCH[size]
@@ -1123,6 +1138,15 @@ def frontier_gaps(rows: Sequence[RowRecord], k: int, decisive: bool, *,
                 for kind, found in kinds.items():
                     if len(found) != 1:
                         gaps.append(f"{name}: step {t:g} has {len(found)} {kind} rows, not 1")
+                    for r in found:
+                        if r["length"] != _step_length(pitch, t):
+                            gaps.append(f"{name}: step {t:g} has a {kind} row at "
+                                        f"L={r['length']!r} mm, not {t} turns x P = "
+                                        f"{_step_length(pitch, t)!r} mm")
+                stray = sorted({r["kind"] for r in by_step[t]} - {"rod", "void"})
+                if stray:
+                    gaps.append(f"{name}: step {t:g} has {', '.join(stray)} rows, which a walk "
+                                "does not record")
                 if any(r["k"] != k for found in kinds.values() for r in found):
                     gaps.append(f"{name}: step {t:g} was not recorded at K = {k}")
             whole = [t for t in walked if all(len(f) == 1 for f in pairs[t].values())]
