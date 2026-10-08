@@ -1575,7 +1575,8 @@ def verdict_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR) -> int:
     as a pass (D-15, D-20). A block is read only when its record is complete against the
     pre-registered row set (`block_gaps`, `pair_gaps`) and was recorded at the K that `select_k`
     takes from the sweep's own record; any other is reported by block, with why, and not judged.
-    2 for a prefix or a record it cannot read.
+    2 for a prefix or a record it cannot read; a header that names no K is readable and is an
+    unread block (exit 1), the pair run's included.
     The container rows count toward the pass bar and the escape clause beside the host grid's,
     pre-registered because production runs in that image (D-05), and are never decisive. The
     controls, trim and rss runs are evidence printed beside the verdict and never inputs to its
@@ -1591,10 +1592,6 @@ def verdict_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR) -> int:
         if not runs and pair is None:
             print(f"no runs recorded under prefix {prefix!r} in {results_dir}", file=sys.stderr)
             return 1
-        if pair is not None and pair[0]["k"] is None:
-            print(f"refused: pair run {pair[0]['run_id']!r} has no K in its header",
-                  file=sys.stderr)
-            return 2
         # A block is read only when its record is the pre-registered row set (the Method), at the
         # K the sweep selected: a partial one, such as the JSONL of a run that crashed, or one at
         # another K, is reported and not judged.

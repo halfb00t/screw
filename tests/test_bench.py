@@ -4165,12 +4165,18 @@ def test_two_pair_runs_under_a_prefix_are_ambiguous_and_refused(
     assert "two runs of block pair" in capsys.readouterr().err
 
 
-def test_a_pair_run_whose_header_has_no_k_is_refused(
+def test_a_pair_run_whose_header_has_no_k_is_reported_not_read_and_never_passes(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Like any block whose header names no K: listed under the blocks not read with the rest of
+    the verdict printed, and exit 1, never a refusal before the report."""
     _full_campaign(tmp_path)
     _write_pair_run(tmp_path / "c1-pair.jsonl", _clean_pair_cells(), k=None)
-    assert _verdict("c1", tmp_path) == 2
-    assert "has no K in its header" in capsys.readouterr().err
+    assert _verdict("c1", tmp_path) == 1
+    out = capsys.readouterr().out
+    assert "Blocks not read: pair" in out
+    assert "  - pair: its header carries no K, so the cells it should hold cannot be named" in out
+    assert "pair: not read" in out.split("### Pair check (D-11 to D-14)")[1]
+    assert "**Verdict:** not a pass" in out
 
 
 def test_a_pair_run_cell_with_an_unknown_key_is_refused_not_read(
