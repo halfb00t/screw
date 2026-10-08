@@ -2929,13 +2929,18 @@ def test_a_controls_run_streams_the_comparison_rows_and_prints_their_section(
     assert "### Controls (D-06)" in capsys.readouterr().out
 
 
-def test_smoke_controls_runs_the_real_comparison_and_the_negative_control_is_not_ok(
+def test_smoke_controls_prints_the_naive_class_and_it_never_reads_ok(
         monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """The protocol expects only "never ok" of the naive row: the class it does read is the
+    kernel's, `silent_wrong` on arm64 macOS and `failure` (Null TopoDS_Shape) on linux/amd64 in
+    `screw:latest`, so pinning one class failed CI on the other platform."""
     monkeypatch.delenv(spike_cli.CQW_ENV, raising=False)
     assert spike_cli.smoke_block("controls") == 0
     out = capsys.readouterr().out
     assert "not a campaign run" in out
-    assert "| M6 | right | 10 | 5 | naive | silent_wrong |" in out
+    naive = re.findall(r"^\| M6 \| right \| 10 \| 5 \| naive \| (\w+) \|", out, re.MULTILINE)
+    assert len(naive) == 1
+    assert naive[0] in ("silent_wrong", "failure", "worker_died", "timeout")
     assert "| M6 | right | 10 | 5 | one_pipe | ok |" in out
     assert "ruled: skipped, package not importable" in out
 
