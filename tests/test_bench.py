@@ -2025,6 +2025,13 @@ def test_the_escape_rows_are_the_failures_inside_the_standard_range_of_either_ha
 _LOCKED_K = 3  # `_m6_ksweep` makes K = 3 the K with the fewest fine triangles
 
 
+def _m6_ladder(k: int) -> list[RowRecord]:
+    """The M6 ladder at `k`: the rod at 10 turns and at the standard max (60 mm), each with the
+    ladder's own request (every INTERIM and depth preset, gzip on each, no STEP)."""
+    return [_ok_record(verdict_module.ladder_request("M6", Fraction(length), k))
+            for length in (10, 60)]
+
+
 def _m6_lengths(extra: list[RowRecord], *, container: bool, err: float,
                 stl_err: float | None, k: int = _LOCKED_K) -> list[RowRecord]:
     """The M6 grid at the locked K: P = 1 mm, so the D-03 lengths are every integer 1 to 60, a
@@ -2060,7 +2067,7 @@ def _full_campaign(tmp_path: Path, *, prefix: str = "c1", grid_extra: list[RowRe
         "ksweep": _m6_ksweep(),
         "grid": _m6_lengths(grid_extra or [], container=False, err=err, stl_err=stl_err, k=k),
         "frontier": _full_walk("M6", None, k=k),
-        "ladder": [_synth(turns=10.0, k=k), _synth(turns=60.0, k=k)],
+        "ladder": _m6_ladder(k),
         "container": _m6_lengths(container_extra or [], container=True, err=err, stl_err=None,
                                  k=k),
     }
@@ -2198,21 +2205,17 @@ def _m6_grid() -> list[RowRecord]:
     return _m6_lengths([], container=False, err=0.0, stl_err=None)
 
 
-def _requested_keys(requests: list[RowRequest]) -> list[verdict_module.RowKey]:
-    return [(r["kind"], r["size"], r["left_hand"], r["k"], r["length"], r["clearance"])
-            for r in requests]
-
-
 @pytest.mark.parametrize("block", ["ksweep", "grid", "ladder", "container"])
 def test_the_pre_registered_row_sets_are_what_the_blocks_request(block: str) -> None:
     """The completeness check holds a record against `expected_rows`; this holds `expected_rows`
-    against the rows each block really asks for, over all 15 sizes, so the two cannot drift."""
+    against the whole requests each block really makes (presets, STEP and gzip included), over
+    all 15 sizes, so the two cannot drift."""
     fake = _FakeWorker()
     c = spike_cli.Campaign(fake, False, None, container=fake if block == "container" else None)
     spike_cli._BLOCKS[block](c, 5, False)
     wanted = verdict_module.expected_rows(block, 5, sizes=maths.SIZES,
                                           sample_sizes=maths.SAMPLE_SIZES)
-    assert sorted(_requested_keys(fake.requests)) == sorted(wanted)
+    assert sorted(fake.requests, key=repr) == sorted(wanted, key=repr)
 
 
 def test_the_pre_registered_row_sets_have_the_counts_the_method_table_states() -> None:
@@ -2247,7 +2250,7 @@ def test_a_frontier_walk_that_nothing_stops_is_complete_for_every_size_and_hand(
 @pytest.mark.parametrize("block", ["ksweep", "grid", "ladder", "container"])
 def test_a_record_with_every_pre_registered_row_once_has_no_gaps(block: str) -> None:
     rows = {"ksweep": _m6_ksweep(), "grid": _m6_grid(),
-            "ladder": [_synth(turns=10.0, k=_LOCKED_K), _synth(turns=60.0, k=_LOCKED_K)],
+            "ladder": _m6_ladder(_LOCKED_K),
             "container": _m6_lengths([], container=True, err=0.0, stl_err=None)}[block]
     header = _m6_header(block, k=None if block == "ksweep" else _LOCKED_K)
     assert verdict_module.block_gaps(block, header, rows, **_M6) == []
@@ -2316,8 +2319,32 @@ def test_a_grid_or_frontier_void_is_complete_only_at_the_pre_registered_clearanc
         if (r["turns"], r["kind"], r["left_hand"]) == (80.0, "void", False) else r
         for r in _full_walk("M6", None, k=_LOCKED_K)]
     assert _walk_gaps(walk) == [
-        f"M6 right: step 80 has a void row at c={shown} mm, not the pre-registered 0.2 mm",
+        f"M6 right: step 80 has a void row that is not the pre-registered request: "
+        f"clearance {shown}, not 0.2",
         "M6 right: step 80 has 0 void rows, not 1"]
+
+
+def test_a_grid_rod_without_the_registered_request_is_stray_and_the_grid_is_never_read(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """A grid row counts only with the request the Method registers for it. 119 of the 120 rods
+    are recorded bare (no presets, no STEP, no gzip: the container's request), so they measured
+    no mesh: each is a stray naming what differs, the full rod it resembles stays missing, the
+    grid is not read, and no bytes or seconds claim is drawn from rows that meshed nothing."""
+    _full_campaign(tmp_path)
+    full = _m6_grid()
+    bare = _m6_lengths([], container=True, err=0.0, stl_err=None)
+    assert (full[0]["kind"], full[0]["left_hand"], full[0]["length"]) == ("rod", False, 1.0)
+    (tmp_path / "c1-grid.jsonl").unlink()
+    _write_run(tmp_path / "c1-grid.jsonl", "grid", [full[0], *bare[1:]], k=_LOCKED_K)
+    assert _verdict("c1", tmp_path) == 1
+    out = capsys.readouterr().out
+    assert "- Blocks not read: grid" in out
+    assert "  - grid: 119 of 240 pre-registered rows missing: M6 left L=1 rod K=3;" in out
+    assert ("  - grid: 119 rows not in the pre-registered set: M6 left L=1 rod K=3 (presets [], "
+            "not [('preview', 0.08, 0.5), ('fine', 0.01, 0.1)]; step False, not True; gzip_on "
+            "[], not ['fine'])") in out
+    assert "no row over budget" not in out
+    assert "pass bar: not established" in out
 
 
 def test_a_block_whose_header_names_no_k_cannot_be_held_against_its_rows() -> None:
@@ -2369,8 +2396,11 @@ def test_a_frontier_step_is_complete_only_at_its_own_length_and_with_no_other_ki
     short: list[RowRecord] = [
         {**r, "length": 1.0} if (r["turns"], r["kind"], r["left_hand"]) == (250.0, "rod", False)
         else r for r in rows]
-    assert _walk_gaps(short) == ["M6 right: step 250 has a rod row at L=1.0 mm, not 250 turns x "
-                                 "P = 250.0 mm"]
+    assert _walk_gaps(short) == [
+        "M6 right: step 250 has a rod row that is not the pre-registered request: length 1.0, "
+        "not 250.0",
+        "M6 right: step 250 has 0 rod rows, not 1",
+        "M6 right: the walk ends at 245 turns without a stop or reaching 250"]
     stray: RowRecord = {**_synth(turns=65.0, k=_LOCKED_K), "kind": "trim"}
     assert _walk_gaps([*rows, stray]) == ["1 rows not in the pre-registered set: M6 right L=65 "
                                           "trim K=3"]
@@ -3327,7 +3357,8 @@ def test_a_campaign_without_the_container_run_is_never_a_pass(
 
 def test_a_container_timeout_is_never_a_cap_because_emulated_timings_are_never_decisive(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    _full_campaign(tmp_path, container_extra=[_synth(turns=30.0, cls="timeout")])
+    _full_campaign(tmp_path, container_extra=[_synth(turns=30.0, cls="timeout", preview=False,
+                                                     fine=None, step=None)])
     assert _verdict("c1", tmp_path) == 1
     out = capsys.readouterr().out
     assert "pass bar: not established" in out

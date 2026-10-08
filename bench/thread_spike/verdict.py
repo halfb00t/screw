@@ -25,12 +25,14 @@ from bench.thread_spike.maths import (
     CONTROL_OFFSET_PITCHES,
     DIAGNOSTIC_CLEARANCES,
     FRONTIER_MAX_TURNS,
+    INTERIM_PRESETS,
     K_CANDIDATES,
     MATCHED_POSES,
     PAIR_CLEARANCES,
     PITCH,
     VOID_CLEARANCE,
     closed_volume,
+    depth_presets,
     frontier_turns,
     interference_area,
     lengths,
@@ -1037,14 +1039,69 @@ def known_bad_inputs(rows: list[RowRecord]) -> list[RowRecord]:
 # --- Completeness: a block is read only when its record is the pre-registered row set ---
 
 RowKey = tuple[str, str, bool, int, float, float]  # kind, size, left hand, K, length, clearance
+# A row's whole request as exact hashable values: its `RowKey`, then d, pitch, turns and how it
+# was to be measured (presets, STEP, gzip-1 on, the check ceiling, the gzip table).
+RequestKey = tuple[RowKey, float, float, float, tuple[Preset, ...], bool, tuple[str, ...], int,
+                   bool]
 _SHOWN = 4
 
 
 def _clearance(kind: str) -> float:
-    """The clearance the harness writes for a row of `kind` (`_request`): a void is the cutter
+    """The clearance the harness writes for a row of `kind` (`row_request`): a void is the cutter
     at `VOID_CLEARANCE`, every other kind has none. A void at any other clearance is a different
     cutter, so it is not the pre-registered row it resembles (G2's rule for the pair cells)."""
     return float(VOID_CLEARANCE) if kind == "void" else 0.0
+
+
+# The requests the blocks make. The harness builds every row through these and completeness
+# holds a record against them, so what a block asks for and what a complete record must hold are
+# one piece of code and cannot drift apart.
+
+
+def interim_presets() -> list[Preset]:
+    """The INTERIM presets as a request names them: preview first, then fine."""
+    return [(name, tol, ang) for name, (tol, ang) in INTERIM_PRESETS.items()]
+
+
+def row_request(kind: str, size: str, length: Fraction, left_hand: bool, k: int, *,
+                presets: list[Preset] | None = None, step: bool = False,
+                gzip_on: list[str] | None = None, want_gzip_table: bool = False) -> RowRequest:
+    """One row request from exact fractions. The builder gets `float(length / pitch)`, never a
+    float division of floats, so an integer-turn row is built with its exact integer (Pitfall
+    1). A void is the cutter at `VOID_CLEARANCE`; a rod has none."""
+    d, pitch = PITCH[size]
+    return {
+        "kind": kind, "size": size, "d": float(d), "pitch": float(pitch),
+        "turns": float(turns_of(length, pitch)), "length": float(length),
+        "left_hand": left_hand, "k": k, "clearance": _clearance(kind),
+        "presets": [] if presets is None else presets, "step": step,
+        "gzip_on": [] if gzip_on is None else gzip_on, "check_ceiling": FINE_CHECK_CEILING,
+        "want_gzip_table": want_gzip_table,
+    }
+
+
+def rod_request(size: str, length: Fraction, left_hand: bool, k: int) -> RowRequest:
+    """The full rod row: preview and fine meshes, STEP, gzip-1 on the fine STL (D-08, D-10)."""
+    return row_request("rod", size, length, left_hand, k, presets=interim_presets(), step=True,
+                       gzip_on=["fine"])
+
+
+def void_request(size: str, length: Fraction, left_hand: bool, k: int) -> RowRequest:
+    """The void row: the cutter at `VOID_CLEARANCE`, no mesh and no STEP."""
+    return row_request("void", size, length, left_hand, k)
+
+
+def preview_rod_request(size: str, length: Fraction, left_hand: bool, k: int) -> RowRequest:
+    """The K sweep's rod at 250 turns: the preview mesh only, no fine mesh and no STEP (D-07)."""
+    return row_request("rod", size, length, left_hand, k, presets=interim_presets()[:1])
+
+
+def ladder_request(size: str, length: Fraction, k: int) -> RowRequest:
+    """The mesh ladder's rod (D-20): right hand, every INTERIM and depth preset, gzip-1 on each,
+    no STEP, the STL check under the ceiling."""
+    presets = [*interim_presets(), *depth_presets(float(PITCH[size][1]))]
+    return row_request("rod", size, length, False, k, presets=presets,
+                       gzip_on=[name for name, _, _ in presets])
 
 
 def _mm(value: float) -> str:
@@ -1066,23 +1123,25 @@ def _some(items: Sequence[str]) -> str:
 
 
 def expected_rows(block: str, k: int | None, *, sizes: Sequence[str],
-                  sample_sizes: Sequence[str]) -> list[RowKey]:
+                  sample_sizes: Sequence[str]) -> list[RowRequest]:
     """The rows the Method table pre-registers for a block whose set is fixed in advance
-    (`ksweep`, `grid`, `ladder`, `container`), as (kind, size, hand, K, length, clearance): the
-    sizes x lengths x hands x kinds, one key per row, each at its kind's clearance. The frontier
-    walk stops where it stops and is judged by `frontier_gaps`; the pair block's cells by
-    `pair_gaps`. Nothing here is tuned: it is the table, written down once more so a record can
-    be held against it."""
-    keys: list[RowKey] = []
+    (`ksweep`, `grid`, `ladder`, `container`), each as the whole request the block makes for it,
+    built by the same builders the block calls: the sizes x lengths x hands x kinds, one request
+    per row, each at its kind's clearance and with the presets, STEP and gzip the Method
+    registers for that block and row. The frontier walk stops where it stops and is judged by
+    `frontier_gaps`; the pair block's cells by `pair_gaps`. Nothing here is tuned: it is the
+    table, written down once more so a record can be held against it."""
+    requests: list[RowRequest] = []
     if block == "ksweep":
         for size in sample_sizes:
             d, pitch = PITCH[size]
+            far = FRONTIER_MAX_TURNS * pitch
             for k_value in K_CANDIDATES:
                 for left in (False, True):
-                    for length in (standard_max(d), FRONTIER_MAX_TURNS * pitch):
-                        keys += [("rod", size, left, k_value, float(length), _clearance("rod")),
-                                 ("void", size, left, k_value, float(length),
-                                  _clearance("void"))]
+                    requests += [rod_request(size, standard_max(d), left, k_value),
+                                 void_request(size, standard_max(d), left, k_value),
+                                 preview_rod_request(size, far, left, k_value),
+                                 void_request(size, far, left, k_value)]
     elif block in ("grid", "container"):
         if k is None:
             raise ValueError(f"block {block} is judged at a K")
@@ -1090,22 +1149,38 @@ def expected_rows(block: str, k: int | None, *, sizes: Sequence[str],
             d, pitch = PITCH[size]
             for length in lengths(d, pitch):
                 for left in (False, True):
-                    keys += [("rod", size, left, k, float(length), _clearance("rod")),
-                             ("void", size, left, k, float(length), _clearance("void"))]
+                    # The container pass is validity, solid count and volume only (D-05): a bare
+                    # rod, no presets and no STEP.
+                    requests += [rod_request(size, length, left, k) if block == "grid"
+                                 else row_request("rod", size, length, left, k),
+                                 void_request(size, length, left, k)]
     elif block == "ladder":
         if k is None:
             raise ValueError("block ladder is judged at a K")
         for size in sample_sizes:
             d, pitch = PITCH[size]
-            keys += [("rod", size, False, k, float(length), _clearance("rod"))
-                     for length in (10 * pitch, standard_max(d))]
+            requests += [ladder_request(size, length, k)
+                         for length in (10 * pitch, standard_max(d))]
     else:
         raise ValueError(f"block {block} has no fixed row set")
-    return keys
+    return requests
 
 
-def _row_key(r: RowRecord) -> RowKey:
+def _row_key(r: RowRequest) -> RowKey:
     return (r["kind"], r["size"], r["left_hand"], r["k"], r["length"], r["clearance"])
+
+
+def _request_key(r: RowRequest) -> RequestKey:
+    return (_row_key(r), r["d"], r["pitch"], r["turns"], tuple(r["presets"]), r["step"],
+            tuple(r["gzip_on"]), r["check_ceiling"], r["want_gzip_table"])
+
+
+def _differs(got: RowRequest, wanted: RowRequest) -> str:
+    """Every field in which a recorded request is not the pre-registered one, with both values."""
+    mine: dict[str, object] = dict(got)
+    theirs: dict[str, object] = dict(wanted)
+    return "; ".join(f"{key} {mine[key]!r}, not {theirs[key]!r}" for key in _REQUEST_KEYS
+                     if mine[key] != theirs[key])
 
 
 def _counted_gaps[Key](wanted: Counter[Key], got: Counter[Key], what: str,
@@ -1132,14 +1207,14 @@ def _counted_gaps[Key](wanted: Counter[Key], got: Counter[Key], what: str,
 def frontier_gaps(rows: Sequence[RowRecord], k: int, decisive: bool, *,
                   sizes: Sequence[str]) -> list[str]:
     """How a frontier record falls short of the Method table: for every size and hand a walk of
-    consecutive steps from the first one, a rod and a void at each exactly once, at the block's
-    K and at the step's own length (turns x P, exactly as the harness writes it), each at its
-    kind's clearance exactly as the harness writes it (a void at any other clearance is a stray
-    row, and the void it resembles stays missing), ending either at the last step (250 turns)
-    or at a step `frontier_stop` ends, and with no step after a stop; and nothing else. Every
-    gap names its step; a row that belongs to no walk (a size outside `sizes`, a kind other
-    than rod or void) is reported as not in the pre-registered set, as `_counted_gaps` reports
-    a fixed block's stray row."""
+    consecutive steps from the first one, a rod and a void at each exactly once, each exactly the
+    request the block makes for that step (`rod_request`, `void_request`: the block's K, the
+    step's own length turns x P as the harness writes it, the kind's clearance, the presets, STEP
+    and gzip), ending either at the last step (250 turns) or at a step `frontier_stop` ends, and
+    with no step after a stop; and nothing else. Every gap names its step: a row whose request
+    differs is reported with what differs, and the row it resembles stays missing. A row that
+    belongs to no walk (a size outside `sizes`, a kind other than rod or void) is reported as
+    not in the pre-registered set, as `_counted_gaps` reports a fixed block's stray row."""
     gaps: list[str] = []
     walks = {(size, left) for size in sizes for left in (False, True)}
 
@@ -1164,25 +1239,20 @@ def frontier_gaps(rows: Sequence[RowRecord], k: int, decisive: bool, *,
             walked = [t for t in steps if t in by_step]
             if walked != steps[:len(walked)]:
                 gaps.append(f"{name}: the steps are not consecutive from {steps[0]} turns")
-            pairs = {t: {kind: [r for r in by_step[t]
-                                if r["kind"] == kind and r["clearance"] == _clearance(kind)]
-                         for kind in ("rod", "void")} for t in walked}
-            for t, kinds in pairs.items():
-                for r in by_step[t]:
-                    if r["kind"] in kinds and r["clearance"] != _clearance(r["kind"]):
-                        gaps.append(f"{name}: step {t:g} has a {r['kind']} row at "
-                                    f"c={_mm(r['clearance'])} mm, not the pre-registered "
-                                    f"{_mm(_clearance(r['kind']))} mm")
-                for kind, found in kinds.items():
+            pairs: dict[int, dict[str, list[RowRecord]]] = {}
+            for t in walked:
+                wanted = {"rod": rod_request(size, t * pitch, left, k),
+                          "void": void_request(size, t * pitch, left, k)}
+                pairs[t] = {}
+                for kind, want in wanted.items():
+                    recorded = [r for r in by_step[t] if r["kind"] == kind]
+                    found = [r for r in recorded if _request_key(r) == _request_key(want)]
+                    gaps += [f"{name}: step {t} has a {kind} row that is not the pre-registered "
+                             f"request: {_differs(r, want)}"
+                             for r in recorded if _request_key(r) != _request_key(want)]
                     if len(found) != 1:
-                        gaps.append(f"{name}: step {t:g} has {len(found)} {kind} rows, not 1")
-                    for r in found:
-                        if r["length"] != _step_length(pitch, t):
-                            gaps.append(f"{name}: step {t:g} has a {kind} row at "
-                                        f"L={r['length']!r} mm, not {t} turns x P = "
-                                        f"{_step_length(pitch, t)!r} mm")
-                if any(r["k"] != k for found in kinds.values() for r in found):
-                    gaps.append(f"{name}: step {t:g} was not recorded at K = {k}")
+                        gaps.append(f"{name}: step {t} has {len(found)} {kind} rows, not 1")
+                    pairs[t][kind] = found
             whole = [t for t in walked if all(len(f) == 1 for f in pairs[t].values())]
             for position, t in enumerate(whole):
                 rod, void = pairs[t]["rod"][0], pairs[t]["void"][0]
@@ -1202,15 +1272,28 @@ def block_gaps(block: str, header: HeaderRecord, rows: Sequence[RowRecord], *,
                sizes: Sequence[str], sample_sizes: Sequence[str]) -> list[str]:
     """How a recorded block falls short of its pre-registered row set, one line each; empty when
     it is complete. A block is read only when complete (the Method): a partial record, such as
-    the JSONL of a run that crashed, is reported and not judged."""
+    the JSONL of a run that crashed, is reported and not judged. A row counts only with the whole
+    request the block makes for it: one that differs (a rod with no meshes under a grid header,
+    say) is not in the set, is reported with what differs from the row it resembles, and that
+    row stays missing."""
     k = header["k"]
     if block != "ksweep" and k is None:
         return ["its header carries no K, so the rows it should hold cannot be named"]
     if block == "frontier":
         assert k is not None
         return frontier_gaps(rows, k, header["decisive"], sizes=sizes)
-    wanted = Counter(expected_rows(block, k, sizes=sizes, sample_sizes=sample_sizes))
-    return _counted_gaps(wanted, Counter(map(_row_key, rows)), "rows", _label)
+    expected = expected_rows(block, k, sizes=sizes, sample_sizes=sample_sizes)
+    resembled = {_row_key(r): r for r in expected}
+    recorded = {_request_key(r): r for r in rows}
+
+    def label(key: RequestKey) -> str:
+        like = resembled.get(key[0])
+        if like is None or _request_key(like) == key:
+            return _label(key[0])
+        return f"{_label(key[0])} ({_differs(recorded[key], like)})"
+
+    return _counted_gaps(Counter(map(_request_key, expected)), Counter(map(_request_key, rows)),
+                         "rows", label)
 
 
 # --- Pair check (question 3, D-11 to D-14) ---

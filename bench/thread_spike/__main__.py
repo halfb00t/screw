@@ -75,9 +75,7 @@ from bench.thread_spike.maths import (
     SAMPLE_SIZES,
     SIZES,
     TIP_CHAMFER_DEG,
-    VOID_CLEARANCE,
     closed_volume,
-    depth_presets,
     frontier_turns,
     lengths,
     standard_max,
@@ -104,7 +102,6 @@ from bench.thread_spike.verdict import (
     PairReading,
     PairRecord,
     PairRequest,
-    Preset,
     RowClass,
     RowRecord,
     RowRequest,
@@ -120,8 +117,10 @@ from bench.thread_spike.verdict import (
     excluded_clearances,
     fine_mesh,
     frontier_stop,
+    interim_presets,
     k_scores,
     known_bad_inputs,
+    ladder_request,
     mixed_hand_violated,
     over_budget,
     pair_gaps,
@@ -129,11 +128,14 @@ from bench.thread_spike.verdict import (
     parse_pair_result_row,
     parse_result_row,
     pass_bar,
+    preview_rod_request,
     protocol_guard,
     relative_error,
     request_seconds,
+    rod_request,
     row_class,
     row_label,
+    row_request,
     seconds_over,
     select_estimator,
     select_k,
@@ -142,6 +144,7 @@ from bench.thread_spike.verdict import (
     skipped_checks,
     turn_caps,
     variant_rules,
+    void_request,
 )
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -403,36 +406,9 @@ class Campaign:
                 worker.close()
 
 
-# INTERIM presets in the order the report reads them: preview first, then fine.
-_INTERIM: list[Preset] = [(name, tol, ang) for name, (tol, ang) in INTERIM_PRESETS.items()]
-
-
-def _request(kind: str, size: str, length: Fraction, left_hand: bool, k: int, *,
-             presets: list[Preset] | None = None, step: bool = False,
-             gzip_on: list[str] | None = None, want_gzip_table: bool = False) -> RowRequest:
-    """One row request from exact fractions. The builder gets `float(length / pitch)`, never a
-    float division of floats, so an integer-turn row is built with its exact integer (Pitfall
-    1). A void is the cutter at `VOID_CLEARANCE`; a rod has none."""
-    d, pitch = PITCH[size]
-    return {
-        "kind": kind, "size": size, "d": float(d), "pitch": float(pitch),
-        "turns": float(turns_of(length, pitch)), "length": float(length),
-        "left_hand": left_hand, "k": k,
-        "clearance": VOID_CLEARANCE if kind == "void" else 0.0,
-        "presets": [] if presets is None else presets, "step": step,
-        "gzip_on": [] if gzip_on is None else gzip_on, "check_ceiling": FINE_CHECK_CEILING,
-        "want_gzip_table": want_gzip_table,
-    }
-
-
-def _rod(size: str, length: Fraction, left_hand: bool, k: int) -> RowRequest:
-    """The full rod row: preview and fine meshes, STEP, gzip-1 on the fine STL (D-08, D-10)."""
-    return _request("rod", size, length, left_hand, k, presets=_INTERIM, step=True,
-                    gzip_on=["fine"])
-
-
-def _void(size: str, length: Fraction, left_hand: bool, k: int) -> RowRequest:
-    return _request("void", size, length, left_hand, k)
+# Every row request is built by `verdict`'s builders (`row_request`, `rod_request`, ...), the
+# ones completeness holds a record against, so a block cannot ask for one thing while a complete
+# record is held to another.
 
 
 def _smoke_sizes(sizes: tuple[str, ...], smoke: bool) -> tuple[str, ...]:
@@ -454,11 +430,11 @@ def _block_ksweep(c: Campaign, k: int, smoke: bool) -> None:
         far = 20 * pitch if smoke else FRONTIER_MAX_TURNS * pitch
         for k_value in (5,) if smoke else K_CANDIDATES:
             for left in _hands(smoke):
-                c.measure(_rod(size, near, left, k_value))
-                c.measure(_void(size, near, left, k_value))
-                c.measure(_request("rod", size, far, left, k_value, presets=_INTERIM[:1]))
+                c.measure(rod_request(size, near, left, k_value))
+                c.measure(void_request(size, near, left, k_value))
+                c.measure(preview_rod_request(size, far, left, k_value))
                 if not smoke:
-                    c.measure(_void(size, far, left, k_value))
+                    c.measure(void_request(size, far, left, k_value))
 
 
 def _block_grid(c: Campaign, k: int, smoke: bool) -> None:
@@ -471,8 +447,8 @@ def _block_grid(c: Campaign, k: int, smoke: bool) -> None:
             grid = [max(x for x in grid if turns_of(x, pitch) <= 20)]
         for length in grid:
             for left in _hands(smoke):
-                c.measure(_rod(size, length, left, k))
-                c.measure(_void(size, length, left, k))
+                c.measure(rod_request(size, length, left, k))
+                c.measure(void_request(size, length, left, k))
 
 
 def _block_frontier(c: Campaign, k: int, smoke: bool) -> None:
@@ -488,8 +464,8 @@ def _block_frontier(c: Campaign, k: int, smoke: bool) -> None:
             last = 0
             for turns in steps:
                 length = turns * pitch
-                rod = c.measure(_rod(size, length, left, k))
-                void = c.measure(_void(size, length, left, k))
+                rod = c.measure(rod_request(size, length, left, k))
+                void = c.measure(void_request(size, length, left, k))
                 last = turns
                 stop = frontier_stop(rod.record, void.record, rod.row_class, void.row_class,
                                      c.decisive)
@@ -505,10 +481,8 @@ def _block_ladder(c: Campaign, k: int, smoke: bool) -> None:
     10 and 20 turns on two sizes."""
     for size in _smoke_sizes(SAMPLE_SIZES, smoke):
         d, pitch = PITCH[size]
-        presets = [*_INTERIM, *depth_presets(float(pitch))]
         for length in (10 * pitch, 20 * pitch if smoke else standard_max(d)):
-            c.measure(_request("rod", size, length, False, k, presets=presets,
-                               gzip_on=[name for name, _, _ in presets]))
+            c.measure(ladder_request(size, length, k))
 
 
 # The comparison rows' standard turn counts of the one-pipe twist: the research walked it up to
@@ -535,15 +509,15 @@ def _block_controls(c: Campaign, k: int, smoke: bool) -> None:
             pipe_at = sorted({top, *(Fraction(t) * pitch for t in ONE_PIPE_TURNS)})
             ruled_at = sorted({10 * pitch, top})
         for length in naive_at:
-            c.measure(_request("naive", size, length, False, k))
+            c.measure(row_request("naive", size, length, False, k))
         for length in pipe_at:
-            c.measure(_request("one_pipe", size, length, False, k))
+            c.measure(row_request("one_pipe", size, length, False, k))
         for length in ruled_at:
             if c.reference is None:
                 if PACKAGE_NOT_IMPORTABLE not in c.notes:
                     c.notes.append(PACKAGE_NOT_IMPORTABLE)
                 continue
-            c.measure(_request("ruled", size, length, False, k), via="reference")
+            c.measure(row_request("ruled", size, length, False, k), via="reference")
 
 
 def _block_trim(c: Campaign, k: int, smoke: bool) -> None:
@@ -554,8 +528,8 @@ def _block_trim(c: Campaign, k: int, smoke: bool) -> None:
         d, _ = PITCH[size]
         length = Fraction(20) if smoke else standard_max(d)
         for left in _hands(smoke):
-            c.measure(_request("trim", size, length, left, k, presets=_INTERIM, step=True,
-                               gzip_on=["fine"]))
+            c.measure(row_request("trim", size, length, left, k, presets=interim_presets(),
+                                  step=True, gzip_on=["fine"]))
 
 
 def _frontier_terminals(rows: list[RowRecord]) -> list[tuple[str, bool, int]]:
@@ -581,26 +555,26 @@ def _block_rss(c: Campaign, k: int, smoke: bool) -> None:
     frontier walk's terminal row at fine (rows from `--frontier-from`). The right-hand fine
     standard-max child also runs L19's gzip table. A smoke run is one M6 right-hand 10-turn
     fine child, which asks for the table so that the path runs end to end."""
-    fine = _INTERIM[1]
+    fine = interim_presets()[1]
     if smoke:
         _, pitch = PITCH["M6"]
-        c.measure(_request("rod", "M6", 10 * pitch, False, k, presets=[fine], gzip_on=["fine"],
-                           want_gzip_table=True), via="fresh")
+        c.measure(row_request("rod", "M6", 10 * pitch, False, k, presets=[fine],
+                              gzip_on=["fine"], want_gzip_table=True), via="fresh")
         return
     if c.frontier_rows is None:
         raise ValueError("the rss block needs the rows of a frontier run (--frontier-from)")
     for size in SIZES:
         d, _ = PITCH[size]
         for left in (False, True):
-            for preset in _INTERIM:
-                c.measure(_request("rod", size, standard_max(d), left, k, presets=[preset],
-                                   gzip_on=[preset[0]],
-                                   want_gzip_table=not left and preset[0] == "fine"),
+            for preset in interim_presets():
+                c.measure(row_request("rod", size, standard_max(d), left, k, presets=[preset],
+                                      gzip_on=[preset[0]],
+                                      want_gzip_table=not left and preset[0] == "fine"),
                           via="fresh")
     for size, left, turns in _frontier_terminals(c.frontier_rows):
         _, pitch = PITCH[size]
-        c.measure(_request("rod", size, Fraction(turns) * pitch, left, k, presets=[fine],
-                           gzip_on=["fine"]), via="fresh")
+        c.measure(row_request("rod", size, Fraction(turns) * pitch, left, k, presets=[fine],
+                              gzip_on=["fine"]), via="fresh")
 
 
 def _block_container(c: Campaign, k: int, smoke: bool) -> None:
@@ -611,8 +585,8 @@ def _block_container(c: Campaign, k: int, smoke: bool) -> None:
         d, pitch = PITCH[size]
         for length in [5 * pitch] if smoke else lengths(d, pitch):
             for left in _hands(smoke):
-                c.measure(_request("rod", size, length, left, k), via="container")
-                c.measure(_request("void", size, length, left, k), via="container")
+                c.measure(row_request("rod", size, length, left, k), via="container")
+                c.measure(void_request(size, length, left, k), via="container")
 
 
 _MATCHED = tuple((theta, 0.0) for theta in MATCHED_POSES)
