@@ -2493,6 +2493,24 @@ def test_a_failure_recorded_in_an_unread_block_is_named_and_never_read_as_not_fi
     assert "not fired" not in out
 
 
+def test_a_fired_escape_clause_stays_fired_and_still_names_the_sources_nobody_judged(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """A silent_wrong grid row fires the clause; the container run is cut short and the pair run
+    is missing. More rows cannot un-fire it, so it reads FIRED, never "not established", and the
+    two sources it could not judge are named on the same line."""
+    _full_campaign(tmp_path, skip=("pair",),
+                   grid_extra=[_synth(turns=30.0, cls="silent_wrong", left=True)])
+    (tmp_path / "c1-container.jsonl").unlink()
+    _write_run(tmp_path / "c1-container.jsonl", "container",
+               _m6_lengths([], container=True, err=0.0, stl_err=None)[:-1], decisive=False,
+               k=_LOCKED_K)
+    assert _verdict("c1", tmp_path) == 1
+    out = capsys.readouterr().out
+    assert ("escape clause: FIRED (sources not read: container; sources missing: pair)\n"
+            "- M6 left L=30 rod: silent_wrong") in out
+    assert "escape clause: not established" not in out
+
+
 def test_the_escape_clause_is_not_established_while_a_block_it_draws_on_is_missing(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """No container run: the clause cannot say the container's rows fired nothing."""

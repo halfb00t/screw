@@ -1665,8 +1665,14 @@ def verdict_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR) -> int:
         unjudged = "; ".join([*(["blocks not read: " + ", ".join(not_read)] if not_read else []),
                               *(["blocks missing: " + ", ".join(not_recorded)]
                                 if not_recorded else [])])
-        escape = ("FIRED" if escaped else f"{_NOT_ESTABLISHED} ({unjudged})" if unjudged
-                  else "not fired")
+        # FIRED outranks not established: more rows cannot un-fire a clause the blocks read
+        # already fired, but the sources nobody judged are still named on the line.
+        unjudged_sources = "; ".join(
+            [*(["sources not read: " + ", ".join(not_read)] if not_read else []),
+             *(["sources missing: " + ", ".join(not_recorded)] if not_recorded else [])])
+        escape = (f"FIRED ({unjudged_sources})" if escaped and unjudged_sources
+                  else "FIRED" if escaped
+                  else f"{_NOT_ESTABLISHED} ({unjudged})" if unjudged else "not fired")
         headers = {**{block: head for block, (head, _) in runs.items()},
                    **({"pair": pair_header} if pair_header is not None else {})}
         lines = [f"## Thread spike verdict: campaign {prefix}", ""]
