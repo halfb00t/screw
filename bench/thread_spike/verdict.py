@@ -29,6 +29,7 @@ from bench.thread_spike.maths import (
     MATCHED_POSES,
     PAIR_CLEARANCES,
     PITCH,
+    VOID_CLEARANCE,
     closed_volume,
     frontier_turns,
     interference_area,
@@ -1035,8 +1036,15 @@ def known_bad_inputs(rows: list[RowRecord]) -> list[RowRecord]:
 
 # --- Completeness: a block is read only when its record is the pre-registered row set ---
 
-RowKey = tuple[str, str, bool, int, float]  # kind, size, left hand, K, length in mm
+RowKey = tuple[str, str, bool, int, float, float]  # kind, size, left hand, K, length, clearance
 _SHOWN = 4
+
+
+def _clearance(kind: str) -> float:
+    """The clearance the harness writes for a row of `kind` (`_request`): a void is the cutter
+    at `VOID_CLEARANCE`, every other kind has none. A void at any other clearance is a different
+    cutter, so it is not the pre-registered row it resembles (G2's rule for the pair cells)."""
+    return float(VOID_CLEARANCE) if kind == "void" else 0.0
 
 
 def _mm(value: float) -> str:
@@ -1047,8 +1055,9 @@ def _mm(value: float) -> str:
 
 
 def _label(key: RowKey) -> str:
-    kind, size, left, k, length = key
-    return f"{size} {'left' if left else 'right'} L={_mm(length)} {kind} K={k}"
+    kind, size, left, k, length, clearance = key
+    shown = "" if clearance == _clearance(kind) else f" c={_mm(clearance)}"
+    return f"{size} {'left' if left else 'right'} L={_mm(length)} {kind} K={k}{shown}"
 
 
 def _some(items: Sequence[str]) -> str:
@@ -1059,10 +1068,11 @@ def _some(items: Sequence[str]) -> str:
 def expected_rows(block: str, k: int | None, *, sizes: Sequence[str],
                   sample_sizes: Sequence[str]) -> list[RowKey]:
     """The rows the Method table pre-registers for a block whose set is fixed in advance
-    (`ksweep`, `grid`, `ladder`, `container`), as (kind, size, hand, K, length): the sizes x
-    lengths x hands x kinds, one key per row. The frontier walk stops where it stops and is
-    judged by `frontier_gaps`; the pair block's cells by `pair_gaps`. Nothing here is tuned: it
-    is the table, written down once more so a record can be held against it."""
+    (`ksweep`, `grid`, `ladder`, `container`), as (kind, size, hand, K, length, clearance): the
+    sizes x lengths x hands x kinds, one key per row, each at its kind's clearance. The frontier
+    walk stops where it stops and is judged by `frontier_gaps`; the pair block's cells by
+    `pair_gaps`. Nothing here is tuned: it is the table, written down once more so a record can
+    be held against it."""
     keys: list[RowKey] = []
     if block == "ksweep":
         for size in sample_sizes:
@@ -1070,8 +1080,9 @@ def expected_rows(block: str, k: int | None, *, sizes: Sequence[str],
             for k_value in K_CANDIDATES:
                 for left in (False, True):
                     for length in (standard_max(d), FRONTIER_MAX_TURNS * pitch):
-                        keys += [("rod", size, left, k_value, float(length)),
-                                 ("void", size, left, k_value, float(length))]
+                        keys += [("rod", size, left, k_value, float(length), _clearance("rod")),
+                                 ("void", size, left, k_value, float(length),
+                                  _clearance("void"))]
     elif block in ("grid", "container"):
         if k is None:
             raise ValueError(f"block {block} is judged at a K")
@@ -1079,14 +1090,14 @@ def expected_rows(block: str, k: int | None, *, sizes: Sequence[str],
             d, pitch = PITCH[size]
             for length in lengths(d, pitch):
                 for left in (False, True):
-                    keys += [("rod", size, left, k, float(length)),
-                             ("void", size, left, k, float(length))]
+                    keys += [("rod", size, left, k, float(length), _clearance("rod")),
+                             ("void", size, left, k, float(length), _clearance("void"))]
     elif block == "ladder":
         if k is None:
             raise ValueError("block ladder is judged at a K")
         for size in sample_sizes:
             d, pitch = PITCH[size]
-            keys += [("rod", size, False, k, float(length))
+            keys += [("rod", size, False, k, float(length), _clearance("rod"))
                      for length in (10 * pitch, standard_max(d))]
     else:
         raise ValueError(f"block {block} has no fixed row set")
@@ -1094,7 +1105,7 @@ def expected_rows(block: str, k: int | None, *, sizes: Sequence[str],
 
 
 def _row_key(r: RowRecord) -> RowKey:
-    return (r["kind"], r["size"], r["left_hand"], r["k"], r["length"])
+    return (r["kind"], r["size"], r["left_hand"], r["k"], r["length"], r["clearance"])
 
 
 def _counted_gaps[Key](wanted: Counter[Key], got: Counter[Key], what: str,
@@ -1122,9 +1133,11 @@ def frontier_gaps(rows: Sequence[RowRecord], k: int, decisive: bool, *,
                   sizes: Sequence[str]) -> list[str]:
     """How a frontier record falls short of the Method table: for every size and hand a walk of
     consecutive steps from the first one, a rod and a void at each exactly once, at the block's
-    K and at the step's own length (turns x P, exactly as the harness writes it), and no row of
-    any other kind, ending either at the last step (250 turns) or at a step `frontier_stop`
-    ends, and with no step after a stop. Every gap names its step."""
+    K and at the step's own length (turns x P, exactly as the harness writes it), each at its
+    kind's clearance exactly as the harness writes it (a void at any other clearance is a stray
+    row, and the void it resembles stays missing), and no row of any other kind, ending either
+    at the last step (250 turns) or at a step `frontier_stop` ends, and with no step after a
+    stop. Every gap names its step."""
     gaps: list[str] = []
     for size in sizes:
         d, pitch = PITCH[size]
@@ -1143,9 +1156,15 @@ def frontier_gaps(rows: Sequence[RowRecord], k: int, decisive: bool, *,
             walked = [t for t in steps if t in by_step]
             if walked != steps[:len(walked)]:
                 gaps.append(f"{name}: the steps are not consecutive from {steps[0]} turns")
-            pairs = {t: {kind: [r for r in by_step[t] if r["kind"] == kind]
+            pairs = {t: {kind: [r for r in by_step[t]
+                                if r["kind"] == kind and r["clearance"] == _clearance(kind)]
                          for kind in ("rod", "void")} for t in walked}
             for t, kinds in pairs.items():
+                for r in by_step[t]:
+                    if r["kind"] in kinds and r["clearance"] != _clearance(r["kind"]):
+                        gaps.append(f"{name}: step {t:g} has a {r['kind']} row at "
+                                    f"c={_mm(r['clearance'])} mm, not the pre-registered "
+                                    f"{_mm(_clearance(r['kind']))} mm")
                 for kind, found in kinds.items():
                     if len(found) != 1:
                         gaps.append(f"{name}: step {t:g} has {len(found)} {kind} rows, not 1")

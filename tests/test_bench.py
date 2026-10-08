@@ -2199,7 +2199,8 @@ def _m6_grid() -> list[RowRecord]:
 
 
 def _requested_keys(requests: list[RowRequest]) -> list[verdict_module.RowKey]:
-    return [(r["kind"], r["size"], r["left_hand"], r["k"], r["length"]) for r in requests]
+    return [(r["kind"], r["size"], r["left_hand"], r["k"], r["length"], r["clearance"])
+            for r in requests]
 
 
 @pytest.mark.parametrize("block", ["ksweep", "grid", "ladder", "container"])
@@ -2296,6 +2297,27 @@ def test_completeness_holds_a_record_to_the_exact_values_the_harness_wrote_not_t
     assert verdict_module.block_gaps("grid", _m6_header("grid"), rows, **_M6) == [
         "1 of 240 pre-registered rows missing: M6 left L=30 void K=3",
         "1 rows not in the pre-registered set: M6 left L=30.000000000000004 void K=3"]
+
+
+@pytest.mark.parametrize(("clearance", "shown"), [(0.21, "0.21"), (0.20000001, "0.20000001")])
+def test_a_grid_or_frontier_void_is_complete_only_at_the_pre_registered_clearance(
+        clearance: float, shown: str) -> None:
+    """A void at another clearance is another cutter, even one that prints as 0.2 to six digits:
+    it is a stray row, reported, and the void it resembles stays missing."""
+    rows: list[RowRecord] = [
+        {**r, "clearance": clearance}
+        if (r["kind"], r["left_hand"], r["length"]) == ("void", True, 30.0) else r
+        for r in _m6_grid()]
+    assert verdict_module.block_gaps("grid", _m6_header("grid"), rows, **_M6) == [
+        "1 of 240 pre-registered rows missing: M6 left L=30 void K=3",
+        f"1 rows not in the pre-registered set: M6 left L=30 void K=3 c={shown}"]
+    walk: list[RowRecord] = [
+        {**r, "clearance": clearance}
+        if (r["turns"], r["kind"], r["left_hand"]) == (80.0, "void", False) else r
+        for r in _full_walk("M6", None, k=_LOCKED_K)]
+    assert _walk_gaps(walk) == [
+        f"M6 right: step 80 has a void row at c={shown} mm, not the pre-registered 0.2 mm",
+        "M6 right: step 80 has 0 void rows, not 1"]
 
 
 def test_a_block_whose_header_names_no_k_cannot_be_held_against_its_rows() -> None:
