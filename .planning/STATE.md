@@ -1,18 +1,18 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 2
+current_phase: 02
 current_phase_name: Thread Spike
-status: planning
-stopped_at: Phase 01 complete, ready to plan Phase 2
-last_updated: "2026-10-06T08:31:13.621Z"
-last_activity: 2026-10-06
-last_activity_desc: Phase 01 complete, transitioned to Phase 2
-state_head: 9bcf6912cae84495be36c8e488fe8c706af4a2a5
+status: executing
+stopped_at: Completed 02-05-PLAN.md
+last_updated: "2026-10-07T15:10:20.480Z"
+last_activity: 2026-10-07
+last_activity_desc: Phase 02 execution started
+state_head: 5140840400a5a1ef9bffee1a8bb6f176b540d6db
 progress:
   total_phases: 7
   completed_phases: 1
-  total_plans: 10
-  completed_plans: 10
+  total_plans: 18
+  completed_plans: 15
   percent: 14
 ---
 
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 
 ## Current Position
 
-Phase: 2 — Thread Spike
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-10-06 — Phase 01 complete, transitioned to Phase 2
+Phase: 02 (Thread Spike) — EXECUTING
+Plan: 1 of 8
+Status: Executing Phase 02
+Last activity: 2026-10-07 — Phase 02 execution started
 
 Progress: [█░░░░░░░░░] 14%
 
@@ -66,6 +66,11 @@ Progress: [█░░░░░░░░░] 14%
 | Phase 01 P08 | 17 min | 2 tasks | 12 files |
 | Phase 01 P09 | 8 min | 2 tasks | 8 files |
 | Phase 01 P10 | 20 min | 2 tasks | 1 files |
+| Phase 02 P01 | 4 min | 2 tasks | 2 files |
+| Phase 02 P02 | 17 min | 2 tasks | 12 files |
+| Phase 02 P03 | 27 min | 3 tasks | 6 files |
+| Phase 02 P04 | 27 min | 3 tasks | 7 files |
+| Phase 02 P05 | 24 min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -80,6 +85,23 @@ Recent decisions affecting current work:
 - 01-08: the bench harness is ported with its method and predicates, none of spur's numbers and no latency bar; Phase 1 runs are harness checks, not bounds. Phase 2 re-uses it on threaded parts.
 - Roadmap (pending owner approval): Phase 7 runs after Phase 6 so the sweep covers the final grid; it could run alongside Phase 6 if the owner prefers speed.
 - `clearance` lives on the nut; no default ships before Phase 6's printed test (PAIR-02).
+- [Phase 02]: 02-01: ISO 68-1:2023 profile pinned basic by the owner (read 2026-10-06); coefficients owner-confirmed; R1-R5 planner defaults; one-way door (D-01)
+- [Phase 02]: 02-01: M7 nut height 0.8*d = 5.60 is a stated input, UNVERIFIED (owner supplied no value)
+- [Phase 02]: Non-finite JSON numbers are refused at the spike wire boundary: a NaN volume would compare as inside the tolerance and classify ok (L02)
+- [Phase 02]: Guard RED committed as strict-xfail tests over behaviourless stubs because the pre-commit gate cannot take a failing suite; evidence from --runxfail, RED_EVIDENCE_OK
+- [Phase 02]: The verdict recomputes every row class from its raw record and never trusts a stored class (T-02-09)
+- [Phase 02]: K reaches grid, frontier and ladder only through --k-from and select_k; no flag takes a K
+- [Phase 02]: Seconds-derived claims read not established on a non-decisive gate; byte claims are integer and hold on any run
+- [Phase 02]: check_ceiling is one number per request; a mesh over it is recorded as not checked, never as watertight
+- [Phase 02]: The gzip-table request flag is want_gzip_table (a RowRecord inherits the request keys, so its gzip_table list cannot share the name)
+- [Phase 02]: Rows that ask for the L19 gzip table get GZIP_TABLE_TIMEOUT_S = 900 s, not the 120 s row deadline (35 compressions per level on up to 164 MB); plan 02-06 must register it
+- [Phase 02]: A container run is never decisive and its header says so: emulated timings prove nothing about the production host
+- [Phase 02]: A campaign without a container run is never a pass: PASS_BLOCKS adds container to the four rod blocks
+- [Phase 02]: naive_sweep_fuse is the one of 12 readings of the research recipe that reproduces all three research ratios (helix radius d/2, core at root radius, root embedded 0.05 P, flank half-width from the embedded root)
+- [Phase 02]: Owner approved the cq_warehouse reference package on 2026-10-06 (reply: approved); installed from pinned commit daa46507 with --no-deps into a scratch directory outside the repo
+- [Phase 02]: 02-05: the pair run is a required verdict input; a size is falsifiable only if both hands have a proven cell at c >= 0.05, and a size whose mixed-hand pair did not read violated also fires the escape clause (D-14)
+- [Phase 02]: 02-05: cell_verdict is D-12/D-14 as written (owner ruling R1); a nut body off its closed form by more than T_PASS outranks even a violation; variant rules are a table beside the verdict and never feed it
+- [Phase 02]: 02-05: campaign skips a block whose K-sweep or frontier input did not complete rather than selecting K from half a sweep; refused and interrupted blocks are logged in PREFIX-campaign.md
 
 ### Pending Todos
 
@@ -88,7 +110,7 @@ None yet.
 ### Blockers/Concerns
 
 - Phase 4/5 precondition (TABL-04): owner holds purchased copies of ISO 4014:2022, 4017:2022, 4032:2023, 262:2023, 724:2023, 965-2:2024.
-- ISO 68-1:2023 (profile, pinned by Phase 2) and ISO 4753 (bolt ends, THRD-05) must be read but are not on TABL-04's purchase list.
+- ISO 4753 (bolt ends, THRD-05) must be read but is not on TABL-04's purchase list. (ISO 68-1:2023 read by the owner on 2026-10-06; profile pinned basic — `02-SPIKE.md` § Owner rulings, D-01.)
 - ⚠️ [Phase 1] Every runtime bound is INTERIM (timeout, memory, gzip, workers, cache budget, container limits — 16 knobs in the D-02 tech-debt item, Severity must) until the Phase 7 linux/amd64 re-sweep; the Phase 1 memory sweep is an emulation figure with 4–12 samples per row (sampling limit filed as debt).
 - Coarse pitch only (TABL-05) vs contract 6 (`params` never imports `tables`): how an explicit non-coarse pitch is handled (refuse, or build and show row-dependent numbers as warnings) is a Phase 3/4 discussion question.
 - Pair-proof reliability on the full grid is unmeasured; if Phase 2 finds it cannot be made falsifiable, revise Phase 5 before planning it.
@@ -105,6 +127,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-06T08:32:09.000Z
-Stopped at: Phase 01 complete, ready to plan Phase 2
+Last session: 2026-10-06T14:05:06.037Z
+Stopped at: Completed 02-05-PLAN.md
 Resume file: None
