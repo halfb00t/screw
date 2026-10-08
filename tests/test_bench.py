@@ -2560,6 +2560,20 @@ def test_a_decisive_void_timeout_holds_the_bar_and_the_turn_caps_name_it(
     assert "- M6: first row over the seconds budget: M6 right L=30 void" in caps
 
 
+@pytest.mark.parametrize("grid", ["missing", "not read"])
+def test_with_no_grid_read_every_grid_cap_says_no_grid_record_never_no_row_over_budget(
+        grid: str, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """The bytes and seconds caps are grid claims: with no grid rows read, "no row over budget"
+    would be drawn from zero rows."""
+    _full_campaign(tmp_path, skip=("grid",) if grid == "missing" else ())
+    if grid == "not read":
+        _write_run(tmp_path / "c1-grid.jsonl", "grid", _m6_grid()[:40], k=_LOCKED_K)
+    assert _verdict("c1", tmp_path) == 1
+    caps = capsys.readouterr().out.split("### Turn caps")[1].split("### Controls")[0]
+    assert "| no grid record | no grid record | no grid record |" in caps
+    assert "no row over budget" not in caps
+
+
 def test_a_non_decisive_grid_does_not_name_the_first_row_over_the_seconds_budget(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """A row is over the clock only on a quiet host: the report must not point at one when the

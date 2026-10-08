@@ -1553,9 +1553,12 @@ def _caps_section(runs: _Runs) -> list[str]:
         seconds_cell = ("no grid record" if seconds is None
                         else _cap_cell(seconds.seconds_cap_length,
                                        established=seconds.seconds_established))
+        # Both grid caps come from the grid's rows: with none read, "no row over budget" would be
+        # a claim drawn from zero rows (L02).
+        bytes_cells = ((_cap_cell(cap.bytes_cap_length), _cap_cell(cap.bytes_cap_turns))
+                       if grid_header is not None else ("no grid record", "no grid record"))
         lines.append(f"| {size} | {construction} | {cap.stop_reason} | "
-                     f"{_cap_cell(cap.bytes_cap_length)} | {_cap_cell(cap.bytes_cap_turns)} | "
-                     f"{seconds_cell} |")
+                     f"{bytes_cells[0]} | {bytes_cells[1]} | {seconds_cell} |")
     front_id = front_header["run_id"] if front_header else "none"
     grid_id = grid_header["run_id"] if grid_header else "none"
     lines.append("")
