@@ -2433,6 +2433,34 @@ def test_the_partial_record_of_a_run_that_crashed_is_reported_and_not_judged(
     assert "silent_wrong" not in out.split("### Pass bar")[1].split("### Escape clause")[0]
 
 
+def test_a_failure_recorded_in_an_unread_block_is_named_and_never_read_as_not_fired(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """A crashed grid keeps a silent_wrong row, and a cut-short pair run a cell that timed out.
+    Neither block is judged, but each recorded outcome is named under the blocks not read, and
+    the escape clause does not read "not fired" over rows nobody judged."""
+    _full_campaign(tmp_path, skip=("pair",))
+    partial = [*_m6_grid()[:40], _synth(turns=45.0, cls="silent_wrong", k=_LOCKED_K)]
+    _write_run(tmp_path / "c1-grid.jsonl", "grid", partial, k=_LOCKED_K)
+    cells = _clean_pair_cells()[:5]
+    cells[0] = _pair(maths.DIAGNOSTIC_CLEARANCES[0], outcome="timeout", k=_LOCKED_K)
+    _write_pair_run(tmp_path / "c1-pair.jsonl", cells)
+    assert _verdict("c1", tmp_path) == 1
+    out = capsys.readouterr().out
+    head = out.split("### K")[0]
+    assert "  - grid: recorded, not judged: M6 right L=45 rod: silent_wrong" in head
+    assert "  - pair: recorded, not judged: M6 right rod, right nut c=0 K=3: timeout" in head
+    assert "escape clause: not established (blocks not read: grid, pair)" in out
+    assert "not fired" not in out
+
+
+def test_the_escape_clause_is_not_established_while_a_block_it_draws_on_is_missing(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """No container run: the clause cannot say the container's rows fired nothing."""
+    _full_campaign(tmp_path, skip=("container",))
+    assert _verdict("c1", tmp_path) == 1
+    assert "escape clause: not established (blocks missing: container)" in capsys.readouterr().out
+
+
 def test_an_incomplete_pair_block_is_reported_and_the_campaign_is_not_clean(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     _full_campaign(tmp_path, skip=("pair",))

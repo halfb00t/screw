@@ -1468,6 +1468,26 @@ def _unread_blocks(runs: _Runs, pair: _PairRun | None) -> dict[str, list[str]]:
     return unread
 
 
+def _recorded_non_ok(block: str, runs: _Runs, pair: _PairRun | None) -> list[str]:
+    """Every row of an unread block whose class is not ok, with that class, and for the pair
+    block every cell that did not finish, with its outcome. Not judged, never silent: a
+    recorded failure in a block nobody could read is still named (L02)."""
+    if block == "pair":
+        cells = [] if pair is None else pair[1]
+        return [f"recorded, not judged: {c['size']} {_hand_of(c)} rod, "
+                f"{'left' if c['nut_left_hand'] else 'right'} nut c={c['clearance']:g} "
+                f"K={c['k']}: {c['outcome']}" for c in cells if c["outcome"] != "built"]
+    rows = runs[block][1] if block in runs else []
+    return [f"recorded, not judged: {row_label(r)}: {cls}" for r in rows
+            if (cls := row_class(r)) != "ok"]
+
+
+# The verdict blocks the escape clause is drawn from: the grid's and the container's rows
+# (`escape_rows`), the pair cells (`pair_escapes`) and the sweep (no K qualified). With one of
+# them unread or missing, "not fired" would be a claim about rows nobody judged.
+_ESCAPE_SOURCES = ("ksweep", "grid", "pair", "container")
+
+
 def _first_over(rows: list[RowRecord], size: str, over: Callable[[RowRecord], bool]) -> str | None:
     """The shortest row of `size`, rod or void, over a budget, as its label, or `None`."""
     hits = [r for r in rows if r["size"] == size and r["kind"] in ("rod", "void") and over(r)]
@@ -1597,6 +1617,7 @@ def verdict_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR) -> int:
         # another K, is reported and not judged.
         unread = _unread_blocks(runs, pair)
         for block in unread:
+            unread[block] += _recorded_non_ok(block, runs, pair)
             runs.pop(block, None)
         if "pair" in unread:
             pair = None
@@ -1629,6 +1650,13 @@ def verdict_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR) -> int:
                 if "ksweep" in runs and select_k(runs["ksweep"][1]) is None else ())
         escaped = (*escape_rows(grid), *(f"container {r}" for r in escape_rows(container)),
                    *pair_escape, *no_k)
+        not_read = [block for block in _ESCAPE_SOURCES if block in unread]
+        not_recorded = [block for block in _ESCAPE_SOURCES if block in missing]
+        unjudged = "; ".join([*(["blocks not read: " + ", ".join(not_read)] if not_read else []),
+                              *(["blocks missing: " + ", ".join(not_recorded)]
+                                if not_recorded else [])])
+        escape = ("FIRED" if escaped else f"{_NOT_ESTABLISHED} ({unjudged})" if unjudged
+                  else "not fired")
         headers = {**{block: head for block, (head, _) in runs.items()},
                    **({"pair": pair_header} if pair_header is not None else {})}
         lines = [f"## Thread spike verdict: campaign {prefix}", ""]
@@ -1649,7 +1677,7 @@ def verdict_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR) -> int:
                   *(f"- {reason}" for reason in offenders),
                   f"- mesh checks skipped: {unchecked} of {meshes} meshes unchecked (a skipped "
                   "check is not a pass for its mesh)", "", "### Escape clause", "",
-                  "escape clause: " + ("FIRED" if escaped else "not fired"),
+                  f"escape clause: {escape}",
                   *(f"- {reason}" for reason in escaped), "", "### Turn caps", "",
                   *_caps_section(runs), ""]
         for block, (title, build) in SECTIONS.items():
