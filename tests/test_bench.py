@@ -3686,7 +3686,6 @@ def test_the_nut_is_a_plain_blank_less_the_void_and_its_volume_is_the_closed_for
 
 def test_common_reads_the_volume_of_an_overlap_and_zero_solids_for_a_disjoint_pair() -> None:
     one = cq.Solid.makeBox(2, 2, 2)
-    kept = len(pair._KEEP)
     volume, solids, errors, warnings, seconds = pair.common(
         one, cq.Solid.makeBox(2, 2, 2).translate(cq.Vector(1, 1, 1)))
     assert volume == pytest.approx(1.0)
@@ -3694,11 +3693,28 @@ def test_common_reads_the_volume_of_an_overlap_and_zero_solids_for_a_disjoint_pa
     assert seconds > 0
     apart = pair.common(one, cq.Solid.makeBox(1, 1, 1).translate(cq.Vector(5, 5, 5)))
     assert apart[:2] == (0.0, 0)
-    assert len(pair._KEEP) == kept + 2  # the boolean and its filler outlive the call
 
 
-def test_the_pair_boolean_and_its_filler_are_kept_alive_for_the_process() -> None:
-    assert "_KEEP: list[object]" in Path(pair.__file__).read_text()
+def test_a_child_that_read_a_pose_comes_back_with_exit_0_the_way_the_worker_ends() -> None:
+    """The boolean and its filler must outlive `common`: freed with it, the process dies with a
+    segfault (RESEARCH Pitfall 4), which the worker meets after answering and before its
+    `os._exit(0)`. Read as the worker reads, in a fresh process, and the exit code is the
+    behaviour: with the hold dropped this child dies on signal 11 (checked when it was written)."""
+    code = "\n".join([
+        "import gc, os", "import cadquery as cq", "from bench.thread_spike import pair",
+        "box = cq.Solid.makeBox(2, 2, 2)",
+        "print(pair.common(box, cq.Solid.makeBox(2, 2, 2).translate(cq.Vector(1, 1, 1)))[:2],"
+        " flush=True)",
+        "print(pair.common(box, cq.Solid.makeBox(1, 1, 1).translate(cq.Vector(5, 5, 5)))[:2],"
+        " flush=True)",
+        "gc.collect()", "os._exit(0)"])
+    done = subprocess.run([sys.executable, "-c", code], cwd=Path(__file__).resolve().parents[1],
+                          capture_output=True, text=True, timeout=120, check=False)
+    assert done.returncode == 0, done.stderr
+    overlap, apart = done.stdout.splitlines()
+    assert overlap.startswith("(1.0")
+    assert overlap.endswith(", 1)")
+    assert apart == "(0.0, 0)"
 
 
 def _m2_request(poses: list[tuple[float, float]], *, clearance: float = 0.10) -> PairRequest:
