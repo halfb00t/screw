@@ -1135,16 +1135,24 @@ def frontier_gaps(rows: Sequence[RowRecord], k: int, decisive: bool, *,
     consecutive steps from the first one, a rod and a void at each exactly once, at the block's
     K and at the step's own length (turns x P, exactly as the harness writes it), each at its
     kind's clearance exactly as the harness writes it (a void at any other clearance is a stray
-    row, and the void it resembles stays missing), and no row of any other kind, ending either
-    at the last step (250 turns) or at a step `frontier_stop` ends, and with no step after a
-    stop. Every gap names its step."""
+    row, and the void it resembles stays missing), ending either at the last step (250 turns)
+    or at a step `frontier_stop` ends, and with no step after a stop; and nothing else. Every
+    gap names its step; a row that belongs to no walk (a size outside `sizes`, a kind other
+    than rod or void) is reported as not in the pre-registered set, as `_counted_gaps` reports
+    a fixed block's stray row."""
     gaps: list[str] = []
+    walks = {(size, left) for size in sizes for left in (False, True)}
+
+    def in_a_walk(r: RowRecord) -> bool:
+        return (r["size"], r["left_hand"]) in walks and r["kind"] in ("rod", "void")
+
     for size in sizes:
         d, pitch = PITCH[size]
         steps = frontier_turns(d, pitch)
         for left in (False, True):
             name = f"{size} {'left' if left else 'right'}"
-            mine = [r for r in rows if r["size"] == size and r["left_hand"] == left]
+            mine = [r for r in rows
+                    if in_a_walk(r) and r["size"] == size and r["left_hand"] == left]
             if not mine:
                 gaps.append(f"{name}: no walk recorded")
                 continue
@@ -1173,10 +1181,6 @@ def frontier_gaps(rows: Sequence[RowRecord], k: int, decisive: bool, *,
                             gaps.append(f"{name}: step {t:g} has a {kind} row at "
                                         f"L={r['length']!r} mm, not {t} turns x P = "
                                         f"{_step_length(pitch, t)!r} mm")
-                stray = sorted({r["kind"] for r in by_step[t]} - {"rod", "void"})
-                if stray:
-                    gaps.append(f"{name}: step {t:g} has {', '.join(stray)} rows, which a walk "
-                                "does not record")
                 if any(r["k"] != k for found in kinds.values() for r in found):
                     gaps.append(f"{name}: step {t:g} was not recorded at K = {k}")
             whole = [t for t in walked if all(len(f) == 1 for f in pairs[t].values())]
@@ -1188,6 +1192,9 @@ def frontier_gaps(rows: Sequence[RowRecord], k: int, decisive: bool, *,
                 elif stop is None and t == whole[-1] and t != steps[-1]:
                     gaps.append(f"{name}: the walk ends at {t:g} turns without a stop or "
                                 f"reaching {steps[-1]}")
+    stray = sorted(_label(_row_key(r)) for r in rows if not in_a_walk(r))
+    if stray:
+        gaps.append(f"{len(stray)} rows not in the pre-registered set: {_some(stray)}")
     return gaps
 
 

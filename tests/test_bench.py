@@ -2372,8 +2372,26 @@ def test_a_frontier_step_is_complete_only_at_its_own_length_and_with_no_other_ki
     assert _walk_gaps(short) == ["M6 right: step 250 has a rod row at L=1.0 mm, not 250 turns x "
                                  "P = 250.0 mm"]
     stray: RowRecord = {**_synth(turns=65.0, k=_LOCKED_K), "kind": "trim"}
-    assert _walk_gaps([*rows, stray]) == ["M6 right: step 65 has trim rows, which a walk does "
-                                          "not record"]
+    assert _walk_gaps([*rows, stray]) == ["1 rows not in the pre-registered set: M6 right L=65 "
+                                          "trim K=3"]
+
+
+def test_a_frontier_row_of_a_size_no_walk_covers_is_a_stray_and_the_block_is_incomplete(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """The frontier walks are per size and hand of the table, and nothing else: a row of a size
+    outside it is reported as not in the pre-registered set, as a fixed block's stray row is,
+    never dropped unreported, and the block is not read."""
+    rows = _full_walk("M6", None, k=_LOCKED_K)
+    stray: RowRecord = {**_synth(turns=65.0, k=_LOCKED_K), "size": "M99"}
+    assert _walk_gaps([*rows, stray]) == ["1 rows not in the pre-registered set: M99 right L=65 "
+                                          "rod K=3"]
+    _full_campaign(tmp_path)
+    (tmp_path / "c1-frontier.jsonl").unlink()
+    _write_run(tmp_path / "c1-frontier.jsonl", "frontier", [*rows, stray], k=_LOCKED_K)
+    assert _verdict("c1", tmp_path) == 1
+    out = capsys.readouterr().out
+    assert "- Blocks not read: frontier" in out
+    assert "  - frontier: 1 rows not in the pre-registered set: M99 right L=65 rod K=3" in out
 
 
 def test_a_frontier_row_whose_length_is_not_its_turns_times_the_pitch_feeds_no_cap() -> None:
