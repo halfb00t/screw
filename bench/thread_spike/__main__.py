@@ -154,7 +154,9 @@ RESULTS_DIR = _REPO_ROOT / "bench" / "results" / "thread-spike"
 # budget data still exist for a roadmap revision (D-07, D-10).
 DEFAULT_K = 5
 NO_K_SOURCE = "no K qualified under the rule (escape clause); 5 is the research reference value"
-SMOKE_SIZES = ("M2", "M6")
+# Private, not a protocol input: a smoke run is a harness check and never evidence (the Method),
+# so the subset it builds carries no value the protocol could pre-register.
+_SMOKE_SIZES = ("M2", "M6")
 
 
 def _git(*args: str) -> subprocess.CompletedProcess[str]:
@@ -434,7 +436,7 @@ def _void(size: str, length: Fraction, left_hand: bool, k: int) -> RowRequest:
 
 
 def _smoke_sizes(sizes: tuple[str, ...], smoke: bool) -> tuple[str, ...]:
-    return SMOKE_SIZES if smoke else sizes
+    return _SMOKE_SIZES if smoke else sizes
 
 
 def _hands(smoke: bool) -> tuple[bool, ...]:
@@ -649,7 +651,10 @@ def _block_pair(c: Campaign, k: int, smoke: bool) -> None:
                                              _MATCHED + _CONTROLS))
 
 
-BLOCKS: dict[str, Callable[[Campaign, int, bool], None]] = {
+# Private, not a protocol input: dispatch, not data. A function has no value to register; the
+# names are `CAMPAIGN_BLOCKS`, which is registered, and the rows each block builds are held to
+# the Method table by `verdict.expected_rows` (and the tests that pin it to these functions).
+_BLOCKS: dict[str, Callable[[Campaign, int, bool], None]] = {
     "ksweep": _block_ksweep, "grid": _block_grid, "frontier": _block_frontier,
     "ladder": _block_ladder, "controls": _block_controls, "trim": _block_trim,
     "rss": _block_rss, "pair": _block_pair, "container": _block_container,
@@ -1030,7 +1035,8 @@ def pair_report(header: list[str], cells: list[PairRecord], locked_k: int, end: 
 
 # What each block adds to its report beyond the per-size aggregate: a title and the lines, as a
 # function of the rows alone, so a run's report and the verdict over its JSONL print the same.
-SECTIONS: dict[str, tuple[str, Callable[[list[RowRecord]], list[str]]]] = {
+# Private, not a protocol input: report layout, which D-16 leaves to the planner.
+_SECTIONS: dict[str, tuple[str, Callable[[list[RowRecord]], list[str]]]] = {
     "controls": ("### Controls (D-06)", controls_section),
     "trim": ("### Tip trim cost (D-08)", trim_section),
     "rss": ("### Peak RSS and the L19 gzip table", rss_section),
@@ -1039,7 +1045,7 @@ SECTIONS: dict[str, tuple[str, Callable[[list[RowRecord]], list[str]]]] = {
 
 
 def _block_extra(block: str, campaign: Campaign) -> list[str]:
-    section = SECTIONS.get(block)
+    section = _SECTIONS.get(block)
     lines = [f"- {note}" for note in campaign.notes]
     if section is not None:
         title, build = section
@@ -1061,12 +1067,13 @@ def _controls_behave(rows: list[Measured]) -> bool:
 
 
 # A block's smoke exit is 0 only when its rows came out as that block expects; the default is
-# every row ok.
-SMOKE_EXPECTS: dict[str, Callable[[list[Measured]], bool]] = {"controls": _controls_behave}
+# every row ok. Private, not a protocol input: a function, and a smoke is never evidence; the
+# expectation itself is in the Method's prose.
+_SMOKE_EXPECTS: dict[str, Callable[[list[Measured]], bool]] = {"controls": _controls_behave}
 
 
 def _smoke_passes(block: str, rows: list[Measured]) -> bool:
-    expects = SMOKE_EXPECTS.get(block)
+    expects = _SMOKE_EXPECTS.get(block)
     return all(m.row_class == "ok" for m in rows) if expects is None else expects(rows)
 
 
@@ -1253,7 +1260,7 @@ def run_block(block: str, run_id: str, k_from: str | None, *,
     try:
         sink.write(json.dumps(header) + "\n")
         sink.flush()
-        BLOCKS[block](campaign, DEFAULT_K if k is None else k, False)
+        _BLOCKS[block](campaign, DEFAULT_K if k is None else k, False)
     finally:
         campaign.close()
         sink.close()
@@ -1311,7 +1318,7 @@ def smoke_block(block: str) -> int:
     try:
         with (out_dir / "smoke.jsonl").open("w", encoding="utf-8") as sink:
             campaign.set_sink(sink)
-            BLOCKS[block](campaign, DEFAULT_K, True)
+            _BLOCKS[block](campaign, DEFAULT_K, True)
     finally:
         campaign.close()
     print(_ROW_HEAD)
@@ -1346,7 +1353,7 @@ def smoke_pair() -> int:
     campaign = _make_campaign("pair", quiet.decisive, None, reference_env=None,
                               frontier_rows=None)
     try:
-        BLOCKS["pair"](campaign, DEFAULT_K, True)
+        _BLOCKS["pair"](campaign, DEFAULT_K, True)
     finally:
         campaign.close()
     cell = campaign.pairs[0]
@@ -1485,7 +1492,7 @@ def _recorded_non_ok(block: str, runs: _Runs, pair: _PairRun | None) -> list[str
 # The verdict blocks the escape clause is drawn from: the grid's and the container's rows
 # (`escape_rows`), the pair cells (`pair_escapes`) and the sweep (no K qualified). With one of
 # them unread or missing, "not fired" would be a claim about rows nobody judged.
-_ESCAPE_SOURCES = ("ksweep", "grid", "pair", "container")
+ESCAPE_SOURCES = ("ksweep", "grid", "pair", "container")
 
 
 def _first_over(rows: list[RowRecord], size: str, over: Callable[[RowRecord], bool]) -> str | None:
@@ -1653,8 +1660,8 @@ def verdict_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR) -> int:
                 if "ksweep" in runs and select_k(runs["ksweep"][1]) is None else ())
         escaped = (*escape_rows(grid), *(f"container {r}" for r in escape_rows(container)),
                    *pair_escape, *no_k)
-        not_read = [block for block in _ESCAPE_SOURCES if block in unread]
-        not_recorded = [block for block in _ESCAPE_SOURCES if block in missing]
+        not_read = [block for block in ESCAPE_SOURCES if block in unread]
+        not_recorded = [block for block in ESCAPE_SOURCES if block in missing]
         unjudged = "; ".join([*(["blocks not read: " + ", ".join(not_read)] if not_read else []),
                               *(["blocks missing: " + ", ".join(not_recorded)]
                                 if not_recorded else [])])
@@ -1666,7 +1673,7 @@ def verdict_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR) -> int:
         lines.append("- Blocks read: " + ", ".join(
             f"{block} (run `{headers[block]['run_id']}`, "
             f"{'decisive' if headers[block]['decisive'] else 'non-decisive'})"
-            for block in dict.fromkeys((*PASS_BLOCKS, *SECTIONS)) if block in headers))
+            for block in dict.fromkeys((*PASS_BLOCKS, *_SECTIONS)) if block in headers))
         if missing:
             lines.append("- Blocks missing: " + ", ".join(missing))
         if unread:
@@ -1683,7 +1690,7 @@ def verdict_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR) -> int:
                   f"escape clause: {escape}",
                   *(f"- {reason}" for reason in escaped), "", "### Turn caps", "",
                   *_caps_section(runs), ""]
-        for block, (title, build) in SECTIONS.items():
+        for block, (title, build) in _SECTIONS.items():
             lines += [title, "", *build(_run_of(runs, block)[1]), ""]
         lines += ["### Pair check (D-11 to D-14)", "",
                   *(["pair: not read" if "pair" in unread else "pair: not recorded"]
@@ -1810,7 +1817,7 @@ def main(argv: list[str] | None = None) -> int:
         "smoke", help="build one M6 right-hand 5-turn rod end to end; not a campaign run")
     smoke_modes = smoke_parser.add_mutually_exclusive_group()
     smoke_modes.add_argument(
-        "--block", choices=tuple(BLOCKS),
+        "--block", choices=tuple(_BLOCKS),
         help="run this block's code on a small subset instead; records nothing")
     smoke_modes.add_argument(
         "--pair", action="store_true",
@@ -1823,7 +1830,7 @@ def main(argv: list[str] | None = None) -> int:
                                 help="read every bench/results/thread-spike/PREFIX-*.jsonl")
     run_parser = commands.add_parser(
         "run", help="one guarded campaign block, streamed to bench/results/thread-spike/")
-    run_parser.add_argument("block", choices=tuple(BLOCKS))
+    run_parser.add_argument("block", choices=tuple(_BLOCKS))
     run_parser.add_argument("--run-id", required=True,
                             help="[a-z0-9][a-z0-9-]{0,63}; an id already recorded is refused")
     run_parser.add_argument("--k-from", default=None,

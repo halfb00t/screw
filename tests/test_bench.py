@@ -1775,7 +1775,7 @@ def test_a_run_writes_its_header_first_then_one_row_per_line_and_never_overwrite
         tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
         capsys: pytest.CaptureFixture[str]) -> None:
     _held(monkeypatch)
-    monkeypatch.setitem(spike_cli.BLOCKS, "grid", _one_row_block)
+    monkeypatch.setitem(spike_cli._BLOCKS, "grid", _one_row_block)
     ksweep = [r for k in (3, 5, 10) for r in _ksweep(k, triangles=1000 + k)]
     _write_run(tmp_path / "2026-10-08-a-ksweep.jsonl", "ksweep", ksweep)
     assert spike_cli.run_block("grid", "2026-10-08-a-grid", "2026-10-08-a-ksweep",
@@ -1811,7 +1811,7 @@ def test_a_non_decisive_run_says_so_in_its_header_and_its_release_line(
         tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
         capsys: pytest.CaptureFixture[str]) -> None:
     _held(monkeypatch, decisive=False)
-    monkeypatch.setitem(spike_cli.BLOCKS, "ksweep", _one_row_block)
+    monkeypatch.setitem(spike_cli._BLOCKS, "ksweep", _one_row_block)
     assert spike_cli.run_block("ksweep", "loose", None, results_dir=tmp_path) == 0
     header = parse_header((tmp_path / "loose.jsonl").read_text().splitlines()[0])
     assert header["decisive"] is False
@@ -1822,7 +1822,7 @@ def test_a_non_decisive_run_says_so_in_its_header_and_its_release_line(
 def test_k_is_5_and_says_why_when_no_k_qualified_under_the_rule(
         tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _held(monkeypatch)
-    monkeypatch.setitem(spike_cli.BLOCKS, "frontier", _one_row_block)
+    monkeypatch.setitem(spike_cli._BLOCKS, "frontier", _one_row_block)
     _write_run(tmp_path / "sweep.jsonl", "ksweep",
                [r for k in (3, 5, 10) for r in _ksweep(k, cls="silent_wrong")])
     assert spike_cli.run_block("frontier", "front", "sweep", results_dir=tmp_path) == 0
@@ -1891,7 +1891,7 @@ def test_the_report_lists_every_non_ok_and_over_budget_row_with_its_reasons() ->
 
 def test_the_grid_block_is_the_d03_grid_from_maths_for_both_hands_with_a_rod_and_a_void() -> None:
     c, fake = _campaign()
-    spike_cli.BLOCKS["grid"](c, 5, False)
+    spike_cli._BLOCKS["grid"](c, 5, False)
     assert len(fake.requests) == 2 * 2 * 1790
     expected = [(kind, size, left, float(length), float(length / maths.PITCH[size][1]))
                 for size in maths.SIZES
@@ -1908,7 +1908,7 @@ def test_the_grid_block_is_the_d03_grid_from_maths_for_both_hands_with_a_rod_and
 
 def test_the_grid_block_builds_an_integer_turn_row_with_its_exact_integer_turns() -> None:
     c, fake = _campaign()
-    spike_cli.BLOCKS["grid"](c, 5, False)
+    spike_cli._BLOCKS["grid"](c, 5, False)
     m2 = [r for r in fake.requests if r["size"] == "M2" and r["kind"] == "rod"
           and not r["left_hand"]]
     by_length = {r["length"]: r["turns"] for r in m2}
@@ -1917,7 +1917,7 @@ def test_the_grid_block_builds_an_integer_turn_row_with_its_exact_integer_turns(
 
 def test_the_ksweep_block_runs_the_sample_sizes_at_every_k_and_both_hands() -> None:
     c, fake = _campaign()
-    spike_cli.BLOCKS["ksweep"](c, 99, False)  # the sweep ignores the K it is handed
+    spike_cli._BLOCKS["ksweep"](c, 99, False)  # the sweep ignores the K it is handed
     assert len(fake.requests) == 8 * 3 * 2 * 4
     assert {r["size"] for r in fake.requests} == set(maths.SAMPLE_SIZES)
     assert {r["k"] for r in fake.requests} == {3, 5, 10}
@@ -1931,7 +1931,7 @@ def test_the_ksweep_block_runs_the_sample_sizes_at_every_k_and_both_hands() -> N
 
 def test_the_frontier_block_walks_each_size_and_hand_to_250_turns_when_nothing_stops_it() -> None:
     c, fake = _campaign()
-    spike_cli.BLOCKS["frontier"](c, 5, False)
+    spike_cli._BLOCKS["frontier"](c, 5, False)
     steps = sum(len(maths.frontier_turns(*maths.PITCH[size])) for size in maths.SIZES)
     assert len(fake.requests) == 2 * 2 * steps
     assert len(c.stops) == 30
@@ -1945,7 +1945,7 @@ def test_the_frontier_block_walks_each_size_and_hand_to_250_turns_when_nothing_s
 
 def test_the_frontier_block_stops_a_walk_at_the_first_failing_step_and_says_why() -> None:
     c, fake = _campaign(fail=("M6", False, 100.0))
-    spike_cli.BLOCKS["frontier"](c, 5, False)
+    spike_cli._BLOCKS["frontier"](c, 5, False)
     assert "M6 right: stop: rod failure at 100 turns; last measured 100 turns" in c.stops
     assert "M6 left: no stop up to 250 turns; last measured 250 turns" in c.stops
     m6_right = [r["turns"] for r in fake.requests if r["size"] == "M6" and r["kind"] == "rod"
@@ -1955,7 +1955,7 @@ def test_the_frontier_block_stops_a_walk_at_the_first_failing_step_and_says_why(
 
 def test_the_ladder_block_meshes_every_preset_of_the_right_hand_rod_with_gzip_on_each() -> None:
     c, fake = _campaign()
-    spike_cli.BLOCKS["ladder"](c, 5, False)
+    spike_cli._BLOCKS["ladder"](c, 5, False)
     assert len(fake.requests) == 8 * 2
     assert {r["left_hand"] for r in fake.requests} == {False}
     assert {r["kind"] for r in fake.requests} == {"rod"}
@@ -1972,7 +1972,7 @@ def test_the_ladder_block_meshes_every_preset_of_the_right_hand_rod_with_gzip_on
 def test_a_smoke_scope_is_a_handful_of_rows_on_m2_and_m6_of_at_most_20_turns(
         block: str, rows: int) -> None:
     c, fake = _campaign()
-    spike_cli.BLOCKS[block](c, 5, True)
+    spike_cli._BLOCKS[block](c, 5, True)
     assert len(fake.requests) == rows <= 6
     assert {r["size"] for r in fake.requests} <= {"M2", "M6"}
     assert {r["left_hand"] for r in fake.requests} == {False}
@@ -2209,7 +2209,7 @@ def test_the_pre_registered_row_sets_are_what_the_blocks_request(block: str) -> 
     against the rows each block really asks for, over all 15 sizes, so the two cannot drift."""
     fake = _FakeWorker()
     c = spike_cli.Campaign(fake, False, None, container=fake if block == "container" else None)
-    spike_cli.BLOCKS[block](c, 5, False)
+    spike_cli._BLOCKS[block](c, 5, False)
     wanted = verdict_module.expected_rows(block, 5, sizes=maths.SIZES,
                                           sample_sizes=maths.SAMPLE_SIZES)
     assert sorted(_requested_keys(fake.requests)) == sorted(wanted)
@@ -2239,7 +2239,7 @@ def test_the_pre_registered_pair_cells_are_what_the_pair_block_requests() -> Non
 def test_a_frontier_walk_that_nothing_stops_is_complete_for_every_size_and_hand() -> None:
     fake = _FakeWorker()
     c = spike_cli.Campaign(fake, True, None)
-    spike_cli.BLOCKS["frontier"](c, 5, False)
+    spike_cli._BLOCKS["frontier"](c, 5, False)
     rows = [m.record for m in c.rows]
     assert verdict_module.frontier_gaps(rows, 5, True, sizes=maths.SIZES) == []
 
@@ -2833,7 +2833,7 @@ def test_the_tip_chamfer_angle_is_30_degrees_and_says_it_is_unverified() -> None
 def test_the_controls_block_runs_ruled_in_the_reference_worker_and_the_rest_right_hand() -> None:
     default, reference = _FakeWorker(), _FakeWorker()
     c = spike_cli.Campaign(default, True, None, reference=reference)
-    spike_cli.BLOCKS["controls"](c, 5, False)
+    spike_cli._BLOCKS["controls"](c, 5, False)
     assert {r["kind"] for r in default.requests} == {"naive", "one_pipe"}
     assert {r["kind"] for r in reference.requests} == {"ruled"}
     assert {r["left_hand"] for r in default.requests + reference.requests} == {False}
@@ -2849,20 +2849,20 @@ def test_the_controls_block_runs_ruled_in_the_reference_worker_and_the_rest_righ
 def test_the_controls_smoke_scope_says_so_when_the_package_is_missing_and_refuses_nothing() -> None:
     default = _FakeWorker()
     c = spike_cli.Campaign(default, True, None)
-    spike_cli.BLOCKS["controls"](c, 5, True)
+    spike_cli._BLOCKS["controls"](c, 5, True)
     assert [r["kind"] for r in default.requests] == ["naive", "one_pipe"]
     assert c.notes == [spike_cli.PACKAGE_NOT_IMPORTABLE]
     assert spike_cli.PACKAGE_NOT_IMPORTABLE == "ruled: skipped, package not importable"
     reference = _FakeWorker()
     c2 = spike_cli.Campaign(default, True, None, reference=reference)
-    spike_cli.BLOCKS["controls"](c2, 5, True)
+    spike_cli._BLOCKS["controls"](c2, 5, True)
     assert [(r["kind"], r["turns"]) for r in reference.requests] == [("ruled", 10.0)]
     assert c2.notes == []
 
 
 def test_the_trim_block_is_one_full_rod_row_per_size_and_hand_at_the_standard_max() -> None:
     c, fake = _campaign()
-    spike_cli.BLOCKS["trim"](c, 5, False)
+    spike_cli._BLOCKS["trim"](c, 5, False)
     assert len(fake.requests) == 2 * 15
     first = fake.requests[0]
     assert (first["kind"], first["size"], first["left_hand"], first["length"]) == (
@@ -2871,7 +2871,7 @@ def test_the_trim_block_is_one_full_rod_row_per_size_and_hand_at_the_standard_ma
     assert [name for name, _, _ in first["presets"]] == ["preview", "fine"]
     assert {r["length"] for r in fake.requests if r["size"] == "M20"} == {200.0}
     smoke_c, smoke_fake = _campaign()
-    spike_cli.BLOCKS["trim"](smoke_c, 5, True)
+    spike_cli._BLOCKS["trim"](smoke_c, 5, True)
     assert [(r["size"], r["length"], r["left_hand"]) for r in smoke_fake.requests] == [
         ("M6", 20.0, False)]
 
@@ -3228,7 +3228,7 @@ def test_the_rss_block_is_one_fresh_child_per_size_hand_and_preset_plus_the_term
     default = _FakeWorker()
     frontier = _walk("M6", False, 100) + _walk("M6", True, None)
     c = spike_cli.Campaign(default, True, None, fresh=log, frontier_rows=frontier)
-    spike_cli.BLOCKS["rss"](c, 5, False)
+    spike_cli._BLOCKS["rss"](c, 5, False)
     assert default.requests == []  # no persistent worker: nothing else may print an RSS
     assert len(log.requests) == 15 * 2 * 2 + 2
     standard, terminals = log.requests[:60], log.requests[60:]
@@ -3251,10 +3251,10 @@ def test_the_rss_block_is_one_fresh_child_per_size_hand_and_preset_plus_the_term
 def test_the_rss_block_without_frontier_rows_is_refused_and_its_smoke_is_one_child() -> None:
     c = spike_cli.Campaign(_FakeWorker(), True, None, fresh=_FreshLog())
     with pytest.raises(ValueError, match="frontier"):
-        spike_cli.BLOCKS["rss"](c, 5, False)
+        spike_cli._BLOCKS["rss"](c, 5, False)
     log = _FreshLog()
     smoke = spike_cli.Campaign(_FakeWorker(), True, None, fresh=log)
-    spike_cli.BLOCKS["rss"](smoke, 5, True)
+    spike_cli._BLOCKS["rss"](smoke, 5, True)
     assert [(r["size"], r["turns"], r["presets"][0][0], r["want_gzip_table"])
             for r in log.requests] == [("M6", 10.0, "fine", True)]
 
@@ -3262,7 +3262,7 @@ def test_the_rss_block_without_frontier_rows_is_refused_and_its_smoke_is_one_chi
 def test_the_container_block_is_the_full_grid_in_the_image_with_no_presets_and_no_step() -> None:
     default, container = _FakeWorker(), _FakeWorker()
     c = spike_cli.Campaign(default, False, None, container=container)
-    spike_cli.BLOCKS["container"](c, 5, False)
+    spike_cli._BLOCKS["container"](c, 5, False)
     assert default.requests == []
     assert len(container.requests) == 2 * 2 * 1790
     rod, void = container.requests[:2]
@@ -3273,7 +3273,7 @@ def test_the_container_block_is_the_full_grid_in_the_image_with_no_presets_and_n
     assert {r["k"] for r in container.requests} == {5}
     smoke_container = _FakeWorker()
     smoke = spike_cli.Campaign(default, False, None, container=smoke_container)
-    spike_cli.BLOCKS["container"](smoke, 5, True)
+    spike_cli._BLOCKS["container"](smoke, 5, True)
     assert [(r["kind"], r["size"], r["turns"]) for r in smoke_container.requests] == [
         ("rod", "M6", 5.0), ("void", "M6", 5.0)]
 
@@ -3355,7 +3355,7 @@ def test_a_container_run_is_never_decisive_and_says_which_image_and_that_timings
     def one_container_row(c: spike_cli.Campaign, k: int, smoke: bool) -> None:
         c.measure({**_REQUEST, "k": k, "presets": []}, via="container")
 
-    monkeypatch.setitem(spike_cli.BLOCKS, "container", one_container_row)
+    monkeypatch.setitem(spike_cli._BLOCKS, "container", one_container_row)
     ksweep = [r for k in (3, 5, 10) for r in _ksweep(k, triangles=1000 + k)]
     _write_run(tmp_path / "sweep.jsonl", "ksweep", ksweep)
     assert spike_cli.run_block("container", "box", "sweep", results_dir=tmp_path) == 0
@@ -3995,7 +3995,7 @@ class _RecordingPairWorker(_FakePairWorker):
 
 def _run_pair_block(k: int, smoke: bool = False) -> list[PairRequest]:
     fake = _RecordingPairWorker()
-    spike_cli.BLOCKS["pair"](spike_cli.Campaign(fake, True, None), k, smoke)
+    spike_cli._BLOCKS["pair"](spike_cli.Campaign(fake, True, None), k, smoke)
     return fake.cells
 
 
@@ -4173,7 +4173,7 @@ def test_a_pair_run_streams_its_header_then_one_cell_per_line_and_reports_the_se
     def one_cell(c: spike_cli.Campaign, k: int, smoke: bool) -> None:
         c.measure_pair(_pair_request_for_test(k))
 
-    monkeypatch.setitem(spike_cli.BLOCKS, "pair", one_cell)
+    monkeypatch.setitem(spike_cli._BLOCKS, "pair", one_cell)
     assert spike_cli.run_block("pair", "box-pair", "sweep", results_dir=tmp_path) == 0
     lines = (tmp_path / "box-pair.jsonl").read_text().splitlines()
     assert len(lines) == 2
@@ -4283,7 +4283,7 @@ def test_a_pair_run_cell_with_an_unknown_key_is_refused_not_read(
 def test_the_campaign_runs_the_blocks_in_protocol_order_and_every_block_is_runnable() -> None:
     assert spike_cli.CAMPAIGN_BLOCKS == (
         "ksweep", "grid", "frontier", "ladder", "trim", "controls", "rss", "pair", "container")
-    assert set(spike_cli.CAMPAIGN_BLOCKS) == set(spike_cli.BLOCKS)
+    assert set(spike_cli.CAMPAIGN_BLOCKS) == set(spike_cli._BLOCKS)
 
 
 def _forbid_the_guard_and_every_block(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -4493,10 +4493,11 @@ _PROTOCOL_TEXT_MODULES = {
     "measure": measure, "cli": spike_cli,
     "runner": importlib.import_module("bench.thread_spike.runner"),
 }
-# The five modules whose every public constant the protocol must list. The driver and the
-# container runner are listed for the protocol-level data they carry, not exhaustively: most of
-# the driver's module constants are report plumbing (headings, column rules).
-_PROTOCOL_COMPLETE_MODULES = ("quiet", "maths", "verdict", "helical", "measure")
+# The modules whose every public constant the protocol must list: all seven, the driver and the
+# container runner included, so a policy constant of the driver cannot sit outside the table
+# unnoticed. A driver constant that is no protocol input (a dispatch table, the smoke subset) is
+# private, with its reason beside it, not exempted here.
+_PROTOCOL_COMPLETE_MODULES = ("quiet", "maths", "verdict", "helical", "measure", "cli", "runner")
 _PROTOCOL_HEADINGS = ("Environment", "Method", "Protocol inputs", "Rules", "Predictions",
                       "Escape clause")
 _INPUT_ROW = re.compile(
@@ -4527,6 +4528,9 @@ def _defined_constants(module: object) -> set[str]:
 
 
 def test_the_protocol_pre_registers_every_constant_the_harness_uses() -> None:
+    """Every public ALL_CAPS constant of the seven modules has a row, and every row's value is the
+    code's. A compiled pattern is registered by its text and a directory by its path in the
+    repository: the values a reader can check without running the code."""
     head = _protocol_head()
     rows = [m for m in map(_INPUT_ROW.match, head.split("\n")) if m]
     listed = [f"{m['module']}.{m['name']}" for m in rows]
@@ -4541,6 +4545,10 @@ def test_the_protocol_pre_registers_every_constant_the_harness_uses() -> None:
             continue
         registered = ast.literal_eval(m["value"])
         actual = getattr(module, m["name"])
+        if isinstance(actual, re.Pattern):
+            actual = actual.pattern
+        elif isinstance(actual, Path):
+            actual = actual.relative_to(Path(__file__).resolve().parents[1]).as_posix()
         if registered != actual:
             wrong.append(f"{m['module']}.{m['name']}: protocol {registered!r}, code {actual!r}")
 

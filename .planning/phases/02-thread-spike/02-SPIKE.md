@@ -113,7 +113,7 @@ At most 16 969 rows and 272 pair cells in all. A pair cell is one request with i
 
 ## Protocol inputs
 
-Every public module-level constant of `bench.quiet`, `bench.thread_spike.maths`, `verdict`, `helical` and `measure` is in the first table as `` `quiet.NAME` ``, `` `maths.NAME` ``, `` `verdict.NAME` ``, `` `helical.NAME` `` or `` `measure.NAME` ``, with its value as a Python literal; so is the protocol-level data of the driver (`cli.NAME` is `bench.thread_spike.__main__`) and of the container runner (`runner.NAME`). `maths.PITCH` and `maths.NUT_HEIGHT` are the two tables after it. `tests/test_bench.py::test_the_protocol_pre_registers_every_constant_the_harness_uses` parses these tables and fails when a constant is missing from them or its value differs from the code's, so after PR 1 lands no constant moves without a visible new PR (D-19). The Label says what stands behind a value: INTERIM (a Phase 1 figure Phase 7 re-measures), UNVERIFIED (a stated input, the standard unread), ASSUMED (planner-set; the owner raised no objection and the research gives its basis), MEASURED-PRIOR (set from a research probe, not from a campaign run), DECISION (a CONTEXT decision, named).
+Every public module-level constant of `bench.quiet`, `bench.thread_spike.maths`, `verdict`, `helical`, `measure`, the driver (`cli.NAME` is `bench.thread_spike.__main__`) and the container runner (`runner.NAME`) is in the first table as `` `quiet.NAME` ``, `` `maths.NAME` ``, `` `verdict.NAME` ``, `` `helical.NAME` ``, `` `measure.NAME` ``, `` `cli.NAME` `` or `` `runner.NAME` ``, with its value as a Python literal (a compiled pattern as its text, a directory as its path in the repository); the driver keeps its dispatch tables and its smoke subset private, because a function and a harness check carry no value to pre-register. `maths.PITCH` and `maths.NUT_HEIGHT` are the two tables after it. `tests/test_bench.py::test_the_protocol_pre_registers_every_constant_the_harness_uses` parses these tables and fails when a constant of any of those seven modules is missing from them or its value differs from the code's, so after PR 1 lands no constant moves without a visible new PR (D-19). The Label says what stands behind a value: INTERIM (a Phase 1 figure Phase 7 re-measures), UNVERIFIED (a stated input, the standard unread), ASSUMED (planner-set; the owner raised no objection and the research gives its basis), MEASURED-PRIOR (set from a research probe, not from a campaign run), DECISION (a CONTEXT decision, named).
 
 | Constant | Value | Label | Source |
 |---|---|---|---|
@@ -161,9 +161,18 @@ Every public module-level constant of `bench.quiet`, `bench.thread_spike.maths`,
 | `measure.WELD_MM` | `1e-05` | ASSUMED | STL vertices are welded to this many mm before edges are paired |
 | `measure.GZIP_LEVEL` | `1` | INTERIM | the app's gzip level (spur L19); levels 6 and 9 gave 4.9 % smaller at M6 L60 |
 | `cli.CAMPAIGN_BLOCKS` | `('ksweep', 'grid', 'frontier', 'ladder', 'trim', 'controls', 'rss', 'pair', 'container')` | DECISION (D-07, D-15) | the blocks in protocol order: K first, `rss` after `frontier`, `container` last |
+| `cli.ROD_BLOCKS` | `('ksweep', 'grid', 'frontier', 'ladder')` | DECISION (D-04, D-07, D-09) | the rod blocks a clean verdict needs: the K sweep, the grid, the frontier walk and the mesh ladder (owner ruling 1 of 2026-10-06); plan 02-03 |
 | `cli.PASS_BLOCKS` | `('ksweep', 'grid', 'frontier', 'ladder', 'pair', 'container')` | DECISION (D-05, D-14, D-15) | the blocks a clean verdict needs; a campaign without one is never a pass |
+| `cli.COMPLETE_BLOCKS` | `('ksweep', 'grid', 'frontier', 'ladder', 'container')` | ASSUMED | the verdict blocks held to a fixed row set or walk by `block_gaps` before they are read; `pair` is held by `pair_gaps` (Rules, Completeness); plan 02-06 review F4 |
+| `cli.ESCAPE_SOURCES` | `('ksweep', 'grid', 'pair', 'container')` | DECISION (D-05, D-07, D-10, D-14) | the blocks the escape clause is drawn from: the host grid's and the container's rows, the pair cells and the K sweep; while one is unread or missing the clause is not "not fired" (Escape clause); plan 02-06 review G6 |
 | `cli.ONE_PIPE_TURNS` | `(100, 160, 200, 250)` | ASSUMED | one-pipe comparison turn counts; inverted solids appeared at 160 to 171 turns in the research (STACK) |
 | `cli.DEFAULT_K` | `5` | ASSUMED | the research reference K, used only when no K qualifies, and labelled |
+| `cli.NO_K_SOURCE` | `"no K qualified under the rule (escape clause); 5 is the research reference value"` | ASSUMED | the K source a run's header records when no K qualifies (D-07); plan 02-03 |
+| `cli.RUN_ID` | `"[a-z0-9][a-z0-9-]{0,63}"` | ASSUMED | a run id fully matches this: no path separator, no dot, no upper case, at most 64 characters (T-02-08); plan 02-03 |
+| `cli.MAX_PREFIX` | `50` | ASSUMED | a campaign prefix at most this long keeps `<prefix>-container` a run id; plan 02-05 |
+| `cli.RESULTS_DIR` | `"bench/results/thread-spike"` | ASSUMED | where each run's JSONL and Markdown are written (owner ruling R3) |
+| `cli.CQW_ENV` | `"SCREW_SPIKE_CQW"` | DECISION (D-06) | the variable naming the scratch directory of the ruled-surface reference (Environment); plan 02-04 |
+| `cli.PACKAGE_NOT_IMPORTABLE` | `"ruled: skipped, package not importable"` | ASSUMED | the note a controls smoke prints when the reference package is not importable; a campaign run refuses instead (exit 2); plan 02-04 |
 | `runner.CONTAINER_IMAGE` | `"screw:latest"` | DECISION (D-05) | the production image the container block runs in |
 
 ### PITCH
