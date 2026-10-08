@@ -14,7 +14,8 @@ from __future__ import annotations
 import json
 import math
 import statistics
-from collections.abc import Callable
+from collections import Counter
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from decimal import ROUND_CEILING, Decimal
 from typing import Literal, NoReturn, TypedDict
@@ -28,7 +29,9 @@ from bench.thread_spike.maths import (
     PAIR_CLEARANCES,
     PITCH,
     closed_volume,
+    frontier_turns,
     interference_area,
+    lengths,
     section_area,
     standard_max,
     turns_of,
@@ -1009,6 +1012,139 @@ def known_bad_inputs(rows: list[RowRecord]) -> list[RowRecord]:
     return bad
 
 
+# --- Completeness: a block is read only when its record is the pre-registered row set ---
+
+RowKey = tuple[str, str, bool, int, float]  # kind, size, left hand, K, length in mm
+_SHOWN = 4
+
+
+def _label(key: RowKey) -> str:
+    kind, size, left, k, length = key
+    return f"{size} {'left' if left else 'right'} L={length:.10g} {kind} K={k}"
+
+
+def _some(items: Sequence[str]) -> str:
+    more = len(items) - _SHOWN
+    return "; ".join(items[:_SHOWN]) + (f"; and {more} more" if more > 0 else "")
+
+
+def expected_rows(block: str, k: int | None, *, sizes: Sequence[str],
+                  sample_sizes: Sequence[str]) -> list[RowKey]:
+    """The rows the Method table pre-registers for a block whose set is fixed in advance
+    (`ksweep`, `grid`, `ladder`, `container`), as (kind, size, hand, K, length): the sizes x
+    lengths x hands x kinds, one key per row. The frontier walk stops where it stops and is
+    judged by `frontier_gaps`; the pair block's cells by `pair_gaps`. Nothing here is tuned: it
+    is the table, written down once more so a record can be held against it."""
+    keys: list[RowKey] = []
+    if block == "ksweep":
+        for size in sample_sizes:
+            d, pitch = PITCH[size]
+            for k_value in K_CANDIDATES:
+                for left in (False, True):
+                    for length in (standard_max(d), FRONTIER_MAX_TURNS * pitch):
+                        keys += [("rod", size, left, k_value, float(length)),
+                                 ("void", size, left, k_value, float(length))]
+    elif block in ("grid", "container"):
+        if k is None:
+            raise ValueError(f"block {block} is judged at a K")
+        for size in sizes:
+            d, pitch = PITCH[size]
+            for length in lengths(d, pitch):
+                for left in (False, True):
+                    keys += [("rod", size, left, k, float(length)),
+                             ("void", size, left, k, float(length))]
+    elif block == "ladder":
+        if k is None:
+            raise ValueError("block ladder is judged at a K")
+        for size in sample_sizes:
+            d, pitch = PITCH[size]
+            keys += [("rod", size, False, k, float(length))
+                     for length in (10 * pitch, standard_max(d))]
+    else:
+        raise ValueError(f"block {block} has no fixed row set")
+    return keys
+
+
+def _row_key(r: RowRecord) -> RowKey:
+    return (r["kind"], r["size"], r["left_hand"], r["k"], r["length"])
+
+
+def _counted_gaps(wanted: Counter[str], got: Counter[str], what: str) -> list[str]:
+    """What a record lacks, adds or repeats against what was pre-registered, one line each. The
+    keys are labels, which name a row or cell uniquely."""
+    missing = sorted((wanted - got).elements())
+    unexpected = sorted(label for label in got if label not in wanted)
+    repeated = sorted(label for label in got if label in wanted and got[label] > wanted[label])
+    gaps: list[str] = []
+    if missing:
+        gaps.append(f"{len(missing)} of {wanted.total()} pre-registered {what} missing: "
+                    f"{_some(missing)}")
+    if unexpected:
+        gaps.append(f"{len(unexpected)} {what} not in the pre-registered set: {_some(unexpected)}")
+    if repeated:
+        gaps.append(f"{len(repeated)} {what} recorded more than once: {_some(repeated)}")
+    return gaps
+
+
+def frontier_gaps(rows: Sequence[RowRecord], k: int, decisive: bool, *,
+                  sizes: Sequence[str]) -> list[str]:
+    """How a frontier record falls short of the Method table: for every size and hand a walk of
+    consecutive steps from the first one, a rod and a void at each exactly once and at the
+    block's K, ending either at the last step (250 turns) or at a step `frontier_stop` ends, and
+    with no step after a stop."""
+    gaps: list[str] = []
+    for size in sizes:
+        d, pitch = PITCH[size]
+        steps = frontier_turns(d, pitch)
+        for left in (False, True):
+            name = f"{size} {'left' if left else 'right'}"
+            mine = [r for r in rows if r["size"] == size and r["left_hand"] == left]
+            if not mine:
+                gaps.append(f"{name}: no walk recorded")
+                continue
+            by_step: dict[float, list[RowRecord]] = {}
+            for r in mine:
+                by_step.setdefault(r["turns"], []).append(r)
+            for turns in sorted(t for t in by_step if t not in steps):
+                gaps.append(f"{name}: {turns:g} turns is not a pre-registered step")
+            walked = [t for t in steps if t in by_step]
+            if walked != steps[:len(walked)]:
+                gaps.append(f"{name}: the steps are not consecutive from {steps[0]} turns")
+            pairs = {t: {kind: [r for r in by_step[t] if r["kind"] == kind]
+                         for kind in ("rod", "void")} for t in walked}
+            for t, kinds in pairs.items():
+                for kind, found in kinds.items():
+                    if len(found) != 1:
+                        gaps.append(f"{name}: step {t:g} has {len(found)} {kind} rows, not 1")
+                if any(r["k"] != k for found in kinds.values() for r in found):
+                    gaps.append(f"{name}: step {t:g} was not recorded at K = {k}")
+            whole = [t for t in walked if all(len(f) == 1 for f in pairs[t].values())]
+            for position, t in enumerate(whole):
+                rod, void = pairs[t]["rod"][0], pairs[t]["void"][0]
+                stop = frontier_stop(rod, void, row_class(rod), row_class(void), decisive)
+                if stop is not None and position < len(whole) - 1:
+                    gaps.append(f"{name}: a step follows the stop at {t:g} turns")
+                elif stop is None and t == whole[-1] and t != steps[-1]:
+                    gaps.append(f"{name}: the walk ends at {t:g} turns without a stop or "
+                                f"reaching {steps[-1]}")
+    return gaps
+
+
+def block_gaps(block: str, header: HeaderRecord, rows: Sequence[RowRecord], *,
+               sizes: Sequence[str], sample_sizes: Sequence[str]) -> list[str]:
+    """How a recorded block falls short of its pre-registered row set, one line each; empty when
+    it is complete. A block is read only when complete (the Method): a partial record, such as
+    the JSONL of a run that crashed, is reported and not judged."""
+    k = header["k"]
+    if block != "ksweep" and k is None:
+        return ["its header carries no K, so the rows it should hold cannot be named"]
+    if block == "frontier":
+        assert k is not None
+        return frontier_gaps(rows, k, header["decisive"], sizes=sizes)
+    wanted = Counter(map(_label, expected_rows(block, k, sizes=sizes, sample_sizes=sample_sizes)))
+    return _counted_gaps(wanted, Counter(_label(_row_key(r)) for r in rows), "rows")
+
+
 # --- Pair check (question 3, D-11 to D-14) ---
 
 # Relative band of a control reading around the closed form: 100x the research's worst agreement
@@ -1412,3 +1548,45 @@ def variant_rules(cells: list[PairRecord]) -> dict[str, dict[str, bool]]:
         "same-pose c=-0.05 reading as the control": lambda c: _same_pose_control(c, cells),
     }
     return {name: {_key(c): c in built and rule(c) for c in proof} for name, rule in names.items()}
+
+
+PairKey = tuple[str, bool, bool, float, int]  # size, rod hand, nut hand, clearance, K
+
+
+def expected_cells(k: int, *, sizes: Sequence[str],
+                   reference_sizes: Sequence[str]) -> list[PairKey]:
+    """The cells the Method table pre-registers for the pair block at the locked K: per size both
+    same-hand pairs at every diagnostic and proof clearance and the mixed pair at every proof
+    clearance, then on the reference sizes the two other K values, right hand, proof
+    clearances."""
+    keys: list[PairKey] = []
+    for size in sizes:
+        for left in (False, True):
+            keys += [(size, left, left, c, k) for c in (*DIAGNOSTIC_CLEARANCES, *PAIR_CLEARANCES)]
+        keys += [(size, False, True, c, k) for c in PAIR_CLEARANCES]
+    for size in reference_sizes:
+        for other in (x for x in K_CANDIDATES if x != k):
+            keys += [(size, False, False, c, other) for c in PAIR_CLEARANCES]
+    return keys
+
+
+def _cell_label(key: PairKey) -> str:
+    size, rod_left, nut_left, clearance, k = key
+    hands = ("left" if rod_left else "right") + ("" if rod_left == nut_left
+                                                   else " rod, left nut" if nut_left
+                                                   else " rod, right nut")
+    return f"{size} {hands} c={clearance:g} K={k}"
+
+
+def pair_gaps(header: HeaderRecord, cells: Sequence[PairRecord], *, sizes: Sequence[str],
+              reference_sizes: Sequence[str]) -> list[str]:
+    """How a recorded pair block falls short of its pre-registered cells, one line each; empty
+    when complete. A cell that did not finish is a recorded outcome, not a gap."""
+    k = header["k"]
+    if k is None:
+        return ["its header carries no K, so the cells it should hold cannot be named"]
+    wanted = Counter(map(_cell_label, expected_cells(k, sizes=sizes,
+                                                     reference_sizes=reference_sizes)))
+    got = Counter(_cell_label((c["size"], c["rod_left_hand"], c["nut_left_hand"], c["clearance"],
+                               c["k"])) for c in cells)
+    return _counted_gaps(wanted, got, "cells")

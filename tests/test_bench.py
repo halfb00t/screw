@@ -1332,15 +1332,23 @@ def test_build_plus_fine_mesh_over_30_seconds_is_a_frontier_stop_only_on_a_decis
 
 
 def _ksweep(k: int, *, triangles: int = 1000, step_bytes: int = 100, cls: _RowCls = "ok",
-            err: float = 0.0, far: _RowCls = "ok") -> list[RowRecord]:
-    """One K's sweep rows for M6: the standard max (60 turns) rod and void, and the 250-turn rod
-    (preview only) and void."""
+            err: float = 0.0, far: _RowCls = "ok", left: bool = False) -> list[RowRecord]:
+    """One K's sweep rows for M6 and one hand: the standard max (60 turns) rod and void, and the
+    250-turn rod (preview only) and void."""
     return [
-        _synth(k=k, cls=cls, err=err, fine=(triangles, 1000, 1.0, 500), step=(step_bytes, 1.0)),
-        _synth(kind="void", k=k),
-        _synth(k=k, turns=250.0, cls=far, fine=None, step=None),
-        _synth(kind="void", k=k, turns=250.0),
+        _synth(k=k, left=left, cls=cls, err=err, fine=(triangles, 1000, 1.0, 500),
+               step=(step_bytes, 1.0)),
+        _synth(kind="void", k=k, left=left),
+        _synth(k=k, left=left, turns=250.0, cls=far, fine=None, step=None),
+        _synth(kind="void", k=k, left=left, turns=250.0),
     ]
+
+
+def _m6_ksweep(*, cls: _RowCls = "ok") -> list[RowRecord]:
+    """The whole M6 sweep: every K, both hands. K has 1000 + K fine triangles, so the rule
+    selects K = 3 unless `cls` spoils every row."""
+    return [row for k in (3, 5, 10) for left in (False, True)
+            for row in _ksweep(k, left=left, triangles=1000 + k, cls=cls)]
 
 
 def test_select_k_takes_the_fewest_fine_triangles_at_the_standard_max() -> None:
@@ -1474,7 +1482,7 @@ def test_a_failure_outranks_a_timeout_in_the_pass_bar_on_a_non_decisive_gate() -
 
 
 def _walk(size: str, left: bool, stop_at: int | None, *, rod_cls: _RowCls = "silent_wrong",
-          end: int = 250) -> list[RowRecord]:
+          end: int = 250, k: int = 5) -> list[RowRecord]:
     """Frontier rows of `size` and one hand: rod and void at every step from the first
     frontier turn to `end`, the walk ending at `stop_at` with the rod in class `rod_cls`."""
     d, pitch = maths.PITCH[size]
@@ -1483,17 +1491,18 @@ def _walk(size: str, left: bool, stop_at: int | None, *, rod_cls: _RowCls = "sil
         if turns > end:
             break
         stopped = turns == stop_at
-        rows.append(_synth(size, left=left, turns=float(turns),
+        rows.append(_synth(size, left=left, turns=float(turns), k=k,
                            cls=rod_cls if stopped else "ok"))
-        rows.append(_synth(size, "void", left=left, turns=float(turns)))
+        rows.append(_synth(size, "void", left=left, turns=float(turns), k=k))
         if stopped:
             break
     return rows
 
 
-def _full_walk(size: str = "M6", stop_at: int | None = None, **kwargs: object) -> list[RowRecord]:
-    return (_walk(size, False, stop_at, **kwargs)  # type: ignore[arg-type]
-            + _walk(size, True, None))
+def _full_walk(size: str = "M6", stop_at: int | None = None, *, k: int = 5,
+               **kwargs: object) -> list[RowRecord]:
+    return (_walk(size, False, stop_at, k=k, **kwargs)  # type: ignore[arg-type]
+            + _walk(size, True, None, k=k))
 
 
 def test_the_construction_turn_cap_is_the_last_ok_frontier_turn_before_the_stop() -> None:
@@ -1699,10 +1708,12 @@ def _guard_says(monkeypatch: pytest.MonkeyPatch, facts: spike_cli.GuardFacts) ->
     monkeypatch.setattr(spike_cli, "read_guard", read_guard)
 
 
-def _write_run(path: Path, block: str, rows: list[RowRecord], *, decisive: bool = True) -> None:
-    """A recorded run as a campaign writes it: the header, then one row per line carrying the
-    run's own verdict keys, `class` always `ok`: `verdict` must not believe it."""
-    header: HeaderRecord = {**_HEADER, "block": block, "k": None, "run_id": path.stem,
+def _write_run(path: Path, block: str, rows: list[RowRecord], *, decisive: bool = True,
+               k: int | None = None) -> None:
+    """A recorded run as a campaign writes it: the header (which names the run's K, none for the
+    K sweep), then one row per line carrying the run's own verdict keys, `class` always `ok`:
+    `verdict` must not believe it."""
+    header: HeaderRecord = {**_HEADER, "block": block, "k": k, "run_id": path.stem,
                             "decisive": decisive}
     lines = [json.dumps(header)]
     for row in rows:
@@ -1977,45 +1988,88 @@ def test_the_escape_rows_are_the_failures_inside_the_standard_range_of_either_ha
     assert any("void" in r and "worker_died" in r for r in reasons)
 
 
+_LOCKED_K = 3  # `_m6_ksweep` makes K = 3 the K with the fewest fine triangles
+
+
+def _m6_lengths(extra: list[RowRecord], *, container: bool, err: float,
+                stl_err: float | None) -> list[RowRecord]:
+    """The M6 grid at the locked K: P = 1 mm, so the D-03 lengths are every integer 1 to 60, a
+    rod and a void at each, both hands. A row of `extra` takes the place of the row it names
+    (kind, hand, length) and is recorded at the locked K."""
+    rows: dict[tuple[str, bool, float], RowRecord] = {}
+    for left in (False, True):
+        for turns in (float(x) for x in range(1, 61)):
+            rod = (_synth(left=left, turns=turns, k=_LOCKED_K, preview=False, fine=None, step=None)
+                   if container else
+                   _synth(left=left, turns=turns, k=_LOCKED_K, err=err, stl_err=stl_err))
+            rows[("rod", left, turns)] = rod
+            rows[("void", left, turns)] = _synth(kind="void", left=left, turns=turns,
+                                                 k=_LOCKED_K)
+    for row in extra:
+        rows[(row["kind"], row["left_hand"], row["turns"])] = {**row, "k": _LOCKED_K}
+    return list(rows.values())
+
+
 def _full_campaign(tmp_path: Path, *, prefix: str = "c1", grid_extra: list[RowRecord] | None = None,
                    grid_decisive: bool = True, skip: tuple[str, ...] = (),
                    container_extra: list[RowRecord] | None = None,
                    pair_cells: list[PairRecord] | None = None, err: float = 1.5e-6,
                    stl_err: float | None = 1e-3) -> None:
-    """A clean M6-only campaign of all four rod blocks, the pair run and the container run,
-    written the way a run writes it. `err` and `stl_err` are the grid rod rows' precise and
-    preview-mesh errors, which the estimator rule reads (no `stl_err`: no checked preview)."""
-    grid = [row for left in (False, True) for turns in (10.0, 20.0, 60.0)
-            for row in (_synth(left=left, turns=turns, k=3, err=err, stl_err=stl_err),
-                        _synth(kind="void", left=left, turns=turns, k=3))]
-    container = [row for left in (False, True) for turns in (10.0, 60.0)
-                 for row in (_synth(left=left, turns=turns, k=3, preview=False, fine=None,
-                                    step=None),
-                             _synth(kind="void", left=left, turns=turns, k=3))]
+    """A clean campaign for M6 alone, complete against the pre-registered row sets of the sizes
+    it covers (read it with `_verdict`): the K sweep, the grid, the frontier walk, the ladder, the
+    pair cells and the container grid, written the way a run writes them. `err` and `stl_err` are
+    the grid rod rows' precise and preview-mesh errors, which the estimator rule reads (no
+    `stl_err`: no checked preview). `grid_extra` and `container_extra` rows replace the row at the
+    same kind, hand and length; `pair_cells` replace the cell of the same pair, hands, c and K."""
     blocks: dict[str, list[RowRecord]] = {
-        "ksweep": [r for k in (3, 5, 10) for r in _ksweep(k, triangles=1000 + k)],
-        "grid": grid + (grid_extra or []),
-        "frontier": _full_walk("M6", None),
-        "ladder": [_synth(turns=10.0)],
-        "container": container + (container_extra or []),
+        "ksweep": _m6_ksweep(),
+        "grid": _m6_lengths(grid_extra or [], container=False, err=err, stl_err=stl_err),
+        "frontier": _full_walk("M6", None, k=_LOCKED_K),
+        "ladder": [_synth(turns=10.0, k=_LOCKED_K), _synth(turns=60.0, k=_LOCKED_K)],
+        "container": _m6_lengths(container_extra or [], container=True, err=err, stl_err=None),
     }
     for block, rows in blocks.items():
         if block not in skip:
             # Emulated timings: a container run is written non-decisive, as a run writes it.
             _write_run(tmp_path / f"{prefix}-{block}.jsonl", block, rows,
-                       decisive=grid_decisive if block == "grid" else block != "container")
+                       decisive=grid_decisive if block == "grid" else block != "container",
+                       k=None if block == "ksweep" else _LOCKED_K)
     if "pair" not in skip:
-        _write_pair_run(tmp_path / f"{prefix}-pair.jsonl", _clean_pair_cells()
-                        if pair_cells is None else pair_cells)
+        cells = {_pair_identity(c): c for c in _clean_pair_cells()}
+        cells.update({_pair_identity(c): c for c in pair_cells or []})
+        _write_pair_run(tmp_path / f"{prefix}-pair.jsonl", list(cells.values()))
 
 
-def _clean_pair_cells() -> list[PairRecord]:
-    """M6 proven on both hands at c = 0.10, the mixed pair violated: a falsifiable size."""
-    return [_pair(0.10), _pair(0.10, rod_left=True, nut_left=True),
-            _mixed(0.10, (6.5, 6.9, 6.7))]
+def _verdict(prefix: str, results_dir: Path) -> int:
+    """`verdict_campaign` over a campaign recorded for M6 alone: the pre-registered row sets are
+    the Method table's for the sizes covered, so it is told M6 is the only size. The full sets are
+    pinned by `test_the_pre_registered_row_sets_are_what_the_blocks_request`."""
+    with pytest.MonkeyPatch.context() as patch:
+        for name in ("SIZES", "SAMPLE_SIZES", "PAIR_REFERENCE_SIZES"):
+            patch.setattr(spike_cli, name, ("M6",))
+        return spike_cli.verdict_campaign(prefix, results_dir=results_dir)
 
 
-def _write_pair_run(path: Path, cells: list[PairRecord], *, k: int | None = 5) -> None:
+def _pair_identity(cell: PairRecord) -> tuple[str, bool, bool, float, int]:
+    return (cell["size"], cell["rod_left_hand"], cell["nut_left_hand"], cell["clearance"],
+            cell["k"])
+
+
+def _clean_pair_cells(k: int = _LOCKED_K) -> list[PairRecord]:
+    """Every cell the Method pre-registers for M6 at the locked K `k`: both same-hand pairs at
+    the two diagnostic and four proof clearances, the mixed pair violated at the four proof
+    ones, and the two other K values right hand at the proof clearances as reference rows. M6 is
+    proven on both hands at c = 0.10."""
+    cells = [_pair(c, rod_left=left, nut_left=left, k=k)
+             for left in (False, True) for c in (*maths.DIAGNOSTIC_CLEARANCES,
+                                                 *maths.PAIR_CLEARANCES)]
+    cells += [_mixed(c, (6.5, 6.9, 6.7), k=k) for c in maths.PAIR_CLEARANCES]
+    cells += [_pair(c, k=other) for other in maths.K_CANDIDATES if other != k
+              for c in maths.PAIR_CLEARANCES]
+    return cells
+
+
+def _write_pair_run(path: Path, cells: list[PairRecord], *, k: int | None = _LOCKED_K) -> None:
     """A pair run as the block writes it, every cell stored with a verdict of `proven`: the
     verdict must not believe it."""
     header: HeaderRecord = {**_HEADER, "block": "pair", "k": k, "run_id": path.stem}
@@ -2028,7 +2082,7 @@ def _write_pair_run(path: Path, cells: list[PairRecord], *, k: int | None = 5) -
 def test_a_clean_campaign_passes_with_the_k_the_estimator_and_the_turn_caps_printed(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     _full_campaign(tmp_path)
-    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 0
+    assert _verdict("c1", tmp_path) == 0
     out = capsys.readouterr().out
     assert "selected K: 3" in out
     assert "estimator: precise" in out
@@ -2046,7 +2100,7 @@ def test_a_silent_wrong_grid_row_fails_the_verdict_and_fires_the_escape_clause_n
     """The row is stored with class `ok`: the verdict recomputes every class from the raw
     record, so a hand-edited class cannot pass a wrong row (T-02-09)."""
     _full_campaign(tmp_path, grid_extra=[_synth(turns=30.0, cls="silent_wrong", left=True)])
-    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 1
+    assert _verdict("c1", tmp_path) == 1
     out = capsys.readouterr().out
     assert "pass bar: failed" in out
     assert "escape clause: FIRED" in out
@@ -2056,7 +2110,7 @@ def test_a_silent_wrong_grid_row_fails_the_verdict_and_fires_the_escape_clause_n
 def test_a_campaign_without_all_four_blocks_lists_the_missing_ones_and_never_passes(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     _full_campaign(tmp_path, skip=("frontier", "ladder"))
-    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 1
+    assert _verdict("c1", tmp_path) == 1
     out = capsys.readouterr().out
     assert "Blocks missing: frontier, ladder" in out
     assert "no frontier record" in out
@@ -2067,9 +2121,8 @@ def test_a_sweep_in_which_no_k_qualified_fires_the_escape_clause_and_never_passe
     """Every other block is clean: the grid at K = 5 would read held, and without this rule
     the campaign would exit 0 with "no K was selected" printed above a pass."""
     _full_campaign(tmp_path)
-    _write_run(tmp_path / "c1-ksweep.jsonl", "ksweep",
-               [r for k in (3, 5, 10) for r in _ksweep(k, cls="silent_wrong")])
-    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 1
+    _write_run(tmp_path / "c1-ksweep.jsonl", "ksweep", _m6_ksweep(cls="silent_wrong"))
+    assert _verdict("c1", tmp_path) == 1
     out = capsys.readouterr().out
     assert "pass bar: held" in out
     assert "escape clause: FIRED" in out
@@ -2088,12 +2141,224 @@ def test_a_held_pass_bar_prints_how_many_mesh_checks_were_skipped_and_still_exit
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """Skipped checks never change a row's class (the Rules), but a held bar must not read as a
     claim about meshes nobody checked: the count sits beside it, named unchecked."""
-    _full_campaign(tmp_path, grid_extra=[_synth(turns=30.0, left=True)])  # +2 unchecked meshes
-    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 0
+    _full_campaign(tmp_path, grid_extra=[_synth(turns=30.0, left=True)])  # preview unchecked too
+    assert _verdict("c1", tmp_path) == 0
     bar = capsys.readouterr().out.split("### Pass bar")[1].split("### Escape clause")[0]
     assert "pass bar: held" in bar
-    # six rods with a checked preview and an unchecked fine mesh, one rod with neither checked
-    assert "mesh checks skipped: 8 of 14 meshes unchecked" in bar
+    # 120 rods of two meshes each (the fine one never checked), one of them with neither checked
+    assert "mesh checks skipped: 121 of 240 meshes unchecked" in bar
+
+
+# --- A block is read only when its record is the pre-registered row set (plan 02-06 review) ---
+
+_M6 = {"sizes": ("M6",), "sample_sizes": ("M6",)}
+
+
+def _m6_header(block: str, *, k: int | None = _LOCKED_K, decisive: bool = True) -> HeaderRecord:
+    return {**_HEADER, "block": block, "k": k, "decisive": decisive}
+
+
+def _m6_grid() -> list[RowRecord]:
+    return _m6_lengths([], container=False, err=0.0, stl_err=None)
+
+
+def _requested_keys(requests: list[RowRequest]) -> list[verdict_module.RowKey]:
+    return [(r["kind"], r["size"], r["left_hand"], r["k"], r["length"]) for r in requests]
+
+
+@pytest.mark.parametrize("block", ["ksweep", "grid", "ladder", "container"])
+def test_the_pre_registered_row_sets_are_what_the_blocks_request(block: str) -> None:
+    """The completeness check holds a record against `expected_rows`; this holds `expected_rows`
+    against the rows each block really asks for, over all 15 sizes, so the two cannot drift."""
+    fake = _FakeWorker()
+    c = spike_cli.Campaign(fake, False, None, container=fake if block == "container" else None)
+    spike_cli.BLOCKS[block](c, 5, False)
+    wanted = verdict_module.expected_rows(block, 5, sizes=maths.SIZES,
+                                          sample_sizes=maths.SAMPLE_SIZES)
+    assert sorted(_requested_keys(fake.requests)) == sorted(wanted)
+
+
+def test_the_pre_registered_row_sets_have_the_counts_the_method_table_states() -> None:
+    counts = {block: len(verdict_module.expected_rows(block, 5, sizes=maths.SIZES,
+                                                      sample_sizes=maths.SAMPLE_SIZES))
+              for block in ("ksweep", "grid", "ladder", "container")}
+    assert counts == {"ksweep": 192, "grid": 7160, "ladder": 16, "container": 7160}
+    cells = verdict_module.expected_cells(5, sizes=maths.SIZES,
+                                          reference_sizes=maths.PAIR_REFERENCE_SIZES)
+    assert len(cells) == 272
+    longest = sum(4 * len(maths.frontier_turns(*maths.PITCH[size])) for size in maths.SIZES)
+    assert longest == 2236  # "at most": a walk that stops early is shorter
+
+
+def test_the_pre_registered_pair_cells_are_what_the_pair_block_requests() -> None:
+    requests = _run_pair_block(5)
+    asked = sorted((r["size"], r["rod_left_hand"], r["nut_left_hand"], r["clearance"], r["k"])
+                   for r in requests)
+    wanted = verdict_module.expected_cells(5, sizes=maths.SIZES,
+                                           reference_sizes=maths.PAIR_REFERENCE_SIZES)
+    assert asked == sorted(wanted)
+
+
+def test_a_frontier_walk_that_nothing_stops_is_complete_for_every_size_and_hand() -> None:
+    fake = _FakeWorker()
+    c = spike_cli.Campaign(fake, True, None)
+    spike_cli.BLOCKS["frontier"](c, 5, False)
+    rows = [m.record for m in c.rows]
+    assert verdict_module.frontier_gaps(rows, 5, True, sizes=maths.SIZES) == []
+
+
+@pytest.mark.parametrize("block", ["ksweep", "grid", "ladder", "container"])
+def test_a_record_with_every_pre_registered_row_once_has_no_gaps(block: str) -> None:
+    rows = {"ksweep": _m6_ksweep(), "grid": _m6_grid(),
+            "ladder": [_synth(turns=10.0, k=_LOCKED_K), _synth(turns=60.0, k=_LOCKED_K)],
+            "container": _m6_lengths([], container=True, err=0.0, stl_err=None)}[block]
+    header = _m6_header(block, k=None if block == "ksweep" else _LOCKED_K)
+    assert verdict_module.block_gaps(block, header, rows, **_M6) == []
+
+
+def test_a_grid_that_is_header_only_or_short_a_row_names_what_is_missing() -> None:
+    header, rows = _m6_header("grid"), _m6_grid()
+    (empty,) = verdict_module.block_gaps("grid", header, [], **_M6)
+    assert "240 of 240 pre-registered rows missing" in empty
+    short = [r for r in rows if not (r["kind"] == "void" and r["left_hand"]
+                                     and r["length"] == 30.0)]
+    (gap,) = verdict_module.block_gaps("grid", header, short, **_M6)
+    assert gap == "1 of 240 pre-registered rows missing: M6 left L=30 void K=3"
+
+
+def test_a_grid_row_recorded_twice_or_outside_the_set_is_reported() -> None:
+    header, rows = _m6_header("grid"), _m6_grid()
+    gaps = verdict_module.block_gaps("grid", header, [*rows, rows[0], _synth(turns=61.0, k=3)],
+                                     **_M6)
+    assert any("not in the pre-registered set: M6 right L=61 rod K=3" in g for g in gaps)
+    assert any("recorded more than once: M6 right L=1 rod K=3" in g for g in gaps)
+
+
+def test_a_grid_recorded_at_another_k_than_its_header_names_is_incomplete() -> None:
+    other: list[RowRecord] = [{**r, "k": 5} for r in _m6_grid()]
+    gaps = verdict_module.block_gaps("grid", _m6_header("grid"), other, **_M6)
+    assert any("240 of 240 pre-registered rows missing" in g for g in gaps)
+    assert any("240 rows not in the pre-registered set" in g for g in gaps)
+
+
+def test_a_block_whose_header_names_no_k_cannot_be_held_against_its_rows() -> None:
+    (gap,) = verdict_module.block_gaps("grid", _m6_header("grid", k=None), _m6_grid(), **_M6)
+    assert "no K" in gap
+
+
+def test_a_ksweep_missing_a_k_or_a_hand_is_incomplete() -> None:
+    rows = [r for r in _m6_ksweep() if not (r["k"] == 10 and r["left_hand"])]
+    (gap,) = verdict_module.block_gaps("ksweep", _m6_header("ksweep", k=None), rows, **_M6)
+    assert gap.startswith("4 of 24 pre-registered rows missing")
+    assert "M6 left L=60 rod K=10" in gap
+
+
+def _walk_gaps(rows: list[RowRecord], *, decisive: bool = True) -> list[str]:
+    return verdict_module.frontier_gaps(rows, _LOCKED_K, decisive, sizes=("M6",))
+
+
+def test_a_complete_frontier_walk_ends_at_250_turns_or_at_a_stop() -> None:
+    assert _walk_gaps(_full_walk("M6", None, k=_LOCKED_K)) == []
+    stopped = _walk("M6", False, 100, k=_LOCKED_K) + _walk("M6", True, None, k=_LOCKED_K)
+    assert _walk_gaps(stopped) == []
+
+
+def test_a_frontier_with_no_walk_for_a_hand_is_incomplete() -> None:
+    assert _walk_gaps(_walk("M6", False, None, k=_LOCKED_K)) == ["M6 left: no walk recorded"]
+    assert _walk_gaps([]) == ["M6 right: no walk recorded", "M6 left: no walk recorded"]
+
+
+def test_a_frontier_walk_that_ends_without_a_stop_before_250_turns_is_not_terminated() -> None:
+    cut = _walk("M6", False, None, end=100, k=_LOCKED_K) + _walk("M6", True, None, k=_LOCKED_K)
+    assert _walk_gaps(cut) == ["M6 right: the walk ends at 100 turns without a stop or "
+                               "reaching 250"]
+
+
+def test_a_frontier_step_missing_its_void_or_its_rod_is_incomplete() -> None:
+    rows = _full_walk("M6", None, k=_LOCKED_K)
+    no_void = [r for r in rows if not (r["kind"] == "void" and r["turns"] == 80.0
+                                       and not r["left_hand"])]
+    assert _walk_gaps(no_void) == ["M6 right: step 80 has 0 void rows, not 1"]
+    twice = [*rows, rows[0]]
+    assert _walk_gaps(twice) == ["M6 right: step 65 has 2 rod rows, not 1"]
+
+
+def test_a_frontier_step_after_a_stop_is_reported_and_a_skipped_step_breaks_the_walk() -> None:
+    stopped = _walk("M6", False, 100, k=_LOCKED_K)
+    beyond = [r for r in _walk("M6", False, None, k=_LOCKED_K) if r["turns"] > 100.0]
+    after = [*stopped, *beyond, *_walk("M6", True, None, k=_LOCKED_K)]
+    assert "M6 right: a step follows the stop at 100 turns" in _walk_gaps(after)
+    skipped = [r for r in _full_walk("M6", None, k=_LOCKED_K)
+               if not (r["turns"] == 70.0 and not r["left_hand"])]
+    assert any("not consecutive" in g for g in _walk_gaps(skipped))
+
+
+def test_a_frontier_stop_that_only_a_decisive_clock_would_make_is_not_a_stop_otherwise() -> None:
+    slow = _full_walk("M6", None, k=_LOCKED_K)
+    slow[0] = _synth(turns=65.0, k=_LOCKED_K, build_s=40.0)  # over 30 s, right hand, 65 turns
+    cut = [r for r in slow if not (r["turns"] > 65.0 and not r["left_hand"])]
+    assert _walk_gaps(cut, decisive=True) == []  # the clock stopped the walk at 65
+    assert any("without a stop" in g for g in _walk_gaps(cut, decisive=False))
+
+
+def test_the_pair_cells_of_the_method_table_are_complete_and_a_missing_one_is_named() -> None:
+    header = _m6_header("pair")
+    cells = _clean_pair_cells()
+    kwargs = {"sizes": ("M6",), "reference_sizes": ("M6",)}
+    assert verdict_module.pair_gaps(header, cells, **kwargs) == []
+    short = [c for c in cells if not (c["nut_left_hand"] and not c["rod_left_hand"]
+                                      and c["clearance"] == 0.15)]
+    (gap,) = verdict_module.pair_gaps(header, short, **kwargs)
+    assert gap == "1 of 24 pre-registered cells missing: M6 right rod, left nut c=0.15 K=3"
+    assert "no K" in verdict_module.pair_gaps(_m6_header("pair", k=None), cells, **kwargs)[0]
+
+
+def test_a_pair_cell_that_did_not_finish_is_a_recorded_outcome_not_a_gap() -> None:
+    cells = _clean_pair_cells()
+    cells[0] = _pair(maths.DIAGNOSTIC_CLEARANCES[0], outcome="timeout", k=_LOCKED_K)
+    assert verdict_module.pair_gaps(_m6_header("pair"), cells, sizes=("M6",),
+                                    reference_sizes=("M6",)) == []
+
+
+def test_a_header_only_grid_with_header_only_frontier_ladder_and_container_never_passes(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """The review's scenario: every block present, none of them holding its rows. The bar over no
+    rows must not read as held."""
+    _full_campaign(tmp_path)
+    for block in ("grid", "frontier", "ladder", "container"):
+        _write_run(tmp_path / f"c1-{block}.jsonl", block, [], k=_LOCKED_K,
+                   decisive=block != "container")
+    assert _verdict("c1", tmp_path) == 1
+    out = capsys.readouterr().out
+    assert "Blocks incomplete, not read: grid, frontier, ladder, container" in out
+    assert "  - grid: 240 of 240 pre-registered rows missing" in out
+    assert "  - frontier: M6 right: no walk recorded" in out
+    assert "pass bar: not established" in out
+    assert "grid run incomplete, not read" in out
+
+
+def test_the_partial_record_of_a_run_that_crashed_is_reported_and_not_judged(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """A crashed block keeps its partial JSONL. Its rows are not read: a silent_wrong row among
+    them is not fed to the pass bar, and the campaign says the block is incomplete."""
+    _full_campaign(tmp_path)
+    partial = [*_m6_grid()[:40], _synth(turns=45.0, cls="silent_wrong", k=_LOCKED_K)]
+    _write_run(tmp_path / "c1-grid.jsonl", "grid", partial, k=_LOCKED_K)
+    assert _verdict("c1", tmp_path) == 1
+    out = capsys.readouterr().out
+    assert "Blocks incomplete, not read: grid" in out
+    assert "pass bar: not established" in out
+    assert "silent_wrong" not in out.split("### Pass bar")[1].split("### Escape clause")[0]
+
+
+def test_an_incomplete_pair_block_is_reported_and_the_campaign_is_not_clean(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _full_campaign(tmp_path, skip=("pair",))
+    _write_pair_run(tmp_path / "c1-pair.jsonl", _clean_pair_cells()[:5])
+    assert _verdict("c1", tmp_path) == 1
+    out = capsys.readouterr().out
+    assert "Blocks incomplete, not read: pair" in out
+    assert "pair: not read, its record is incomplete" in out
 
 
 def test_a_campaign_whose_volume_estimator_is_not_established_never_passes(
@@ -2101,7 +2366,7 @@ def test_a_campaign_whose_volume_estimator_is_not_established_never_passes(
     """No grid rod row has a checked preview mesh, so the two estimators cannot be compared:
     everything else is clean, and the campaign still must not read as a pass."""
     _full_campaign(tmp_path, stl_err=None)
-    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 1
+    assert _verdict("c1", tmp_path) == 1
     out = capsys.readouterr().out
     assert "pass bar: held" in out
     assert "escape clause: not fired" in out
@@ -2114,7 +2379,7 @@ def test_a_campaign_whose_gate_tolerance_cannot_be_derived_never_passes(
     """Both estimators agree with the closed form exactly, so there is no error to scale into a
     gate: T_gate is not established and the campaign is not a clean pass."""
     _full_campaign(tmp_path, err=0.0, stl_err=0.0)
-    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 1
+    assert _verdict("c1", tmp_path) == 1
     out = capsys.readouterr().out
     assert "no gate can be derived" in out
     assert "estimator and T_gate: not established" in out
@@ -2124,7 +2389,7 @@ def test_a_timeout_on_a_non_decisive_grid_makes_the_bar_not_established_and_exit
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     _full_campaign(tmp_path, grid_extra=[_synth(turns=30.0, cls="timeout")],
                    grid_decisive=False)
-    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 1
+    assert _verdict("c1", tmp_path) == 1
     out = capsys.readouterr().out
     assert "pass bar: not established" in out
     assert "escape clause: not fired" in out
@@ -2135,7 +2400,7 @@ def test_the_verdict_only_reads_runs_under_its_own_prefix(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     _full_campaign(tmp_path, prefix="c1")
     _full_campaign(tmp_path, prefix="c2", grid_extra=[_synth(turns=30.0, cls="failure")])
-    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 0
+    assert _verdict("c1", tmp_path) == 0
     assert "c2-" not in capsys.readouterr().out
 
 
@@ -2143,7 +2408,7 @@ def test_the_verdict_only_reads_runs_under_its_own_prefix(
 def test_a_bad_prefix_or_an_empty_one_is_refused_not_passed(
         prefix: str, wanted: str, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     _full_campaign(tmp_path)
-    assert spike_cli.verdict_campaign(prefix, results_dir=tmp_path) in (1, 2)
+    assert _verdict(prefix, tmp_path) in (1, 2)
     captured = capsys.readouterr()
     assert wanted in captured.out + captured.err
 
@@ -2152,7 +2417,7 @@ def test_two_runs_of_one_block_under_a_prefix_are_ambiguous_and_refused(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     _full_campaign(tmp_path)
     _write_run(tmp_path / "c1-grid-again.jsonl", "grid", [_synth()])
-    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 2
+    assert _verdict("c1", tmp_path) == 2
     assert "two runs of block grid" in capsys.readouterr().err
 
 
@@ -2444,7 +2709,7 @@ def test_the_verdict_prints_the_controls_and_trim_evidence_beside_a_clean_pass(
     _full_campaign(tmp_path)
     _write_run(tmp_path / "c1-controls.jsonl", "controls", _controls_rows())
     _write_run(tmp_path / "c1-trim.jsonl", "trim", [_trim()])
-    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 0
+    assert _verdict("c1", tmp_path) == 0
     out = capsys.readouterr().out
     controls = out.split("### Controls (D-06)")[1].split("### Tip trim cost")[0]
     assert "naive_sweep_fuse(d=6.0, pitch=1.0, length=10.0)" in controls
@@ -2455,7 +2720,7 @@ def test_the_verdict_prints_the_controls_and_trim_evidence_beside_a_clean_pass(
 def test_a_verdict_without_the_controls_or_trim_runs_says_they_are_not_recorded(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     _full_campaign(tmp_path)
-    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 0
+    assert _verdict("c1", tmp_path) == 0
     out = capsys.readouterr().out
     assert "controls: not recorded" in out
     assert "trim: not recorded" in out
@@ -2732,7 +2997,7 @@ def test_the_container_rows_count_toward_the_pass_bar_and_the_escape_clause_in_t
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     _full_campaign(tmp_path, container_extra=[_synth(turns=30.0, cls="silent_wrong", left=True,
                                                      preview=False, fine=None, step=None)])
-    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 1
+    assert _verdict("c1", tmp_path) == 1
     out = capsys.readouterr().out
     assert "pass bar: failed" in out
     assert "escape clause: FIRED" in out
@@ -2743,7 +3008,7 @@ def test_the_container_rows_count_toward_the_pass_bar_and_the_escape_clause_in_t
 def test_a_campaign_without_the_container_run_is_never_a_pass(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     _full_campaign(tmp_path, skip=("container",))
-    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 1
+    assert _verdict("c1", tmp_path) == 1
     out = capsys.readouterr().out
     assert "Blocks missing: container" in out
     assert "pass bar: not established" in out
@@ -2753,7 +3018,7 @@ def test_a_campaign_without_the_container_run_is_never_a_pass(
 def test_a_container_timeout_is_never_a_cap_because_emulated_timings_are_never_decisive(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     _full_campaign(tmp_path, container_extra=[_synth(turns=30.0, cls="timeout")])
-    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 1
+    assert _verdict("c1", tmp_path) == 1
     out = capsys.readouterr().out
     assert "pass bar: not established" in out
     assert "- container M6 right L=30 rod: timeout" in out
@@ -2764,7 +3029,7 @@ def test_the_verdict_prints_the_rss_table_and_the_l19_table_from_a_recorded_run(
     _full_campaign(tmp_path)
     asked: RowRequest = {**_once_request(table=True), "turns": 60.0, "length": 60.0}
     _write_run(tmp_path / "c1-rss.jsonl", "rss", [_fresh(asked)])
-    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 0
+    assert _verdict("c1", tmp_path) == 0
     out = capsys.readouterr().out.split("### Peak RSS and the L19 gzip table")[1]
     assert "800.0 MiB (fresh child, this row only)" in out
     assert "| M6 | 9 | 89 | 3.0 | 4.0 |" in out
@@ -3023,10 +3288,10 @@ def test_cell_verdict_refuses_to_prove_poses_other_than_the_pre_registered_ones(
 
 
 def _mixed(clearance: float, matched: tuple[float, ...], *,
-           outcome: verdict_module.Outcome = "built") -> PairRecord:
+           outcome: verdict_module.Outcome = "built", k: int = 5) -> PairRecord:
     """A right-hand rod against a left-hand nut: matched poses only, no controls."""
     return _pair(clearance, matched=matched, rod_left=False, nut_left=True, with_controls=False,
-                 outcome=outcome)
+                 outcome=outcome, k=k)
 
 
 def test_cell_verdict_calls_a_mixed_hand_cell_violated_only_if_every_matched_pose_reads() -> None:
@@ -3623,22 +3888,21 @@ def _pair_request_for_test(k: int) -> PairRequest:
 def test_a_clean_campaign_reads_the_pair_run_and_prints_its_section_beside_the_verdict(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     _full_campaign(tmp_path)
-    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 0
+    assert _verdict("c1", tmp_path) == 0
     out = capsys.readouterr().out
     assert "pair (run `c1-pair`, decisive)" in out
     assert "escape clause: not fired" in out
     section = out.split("### Pair check (D-11 to D-14)")[1]
-    assert "Locked K = 5" in section
+    assert "Locked K = 3" in section
     assert "- M6: falsifiable on both hands" in section
     assert "#### Variant rules (reported, never the verdict)" in section
 
 
 def test_a_pair_cell_stored_as_proven_is_judged_again_from_its_readings(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    _full_campaign(tmp_path, pair_cells=[
-        _pair(0.10, controls=(0.0, 1.0, 1.0)), _pair(0.10, rod_left=True, nut_left=True),
-        _mixed(0.10, (6.5, 6.9, 6.7))])
-    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 1
+    _full_campaign(tmp_path, pair_cells=[  # a control reads empty at every right-hand proof c
+        _pair(c, controls=(0.0, 1.0, 1.0), k=_LOCKED_K) for c in maths.PAIR_CLEARANCES])
+    assert _verdict("c1", tmp_path) == 1
     out = capsys.readouterr().out
     assert "escape clause: FIRED" in out
     assert "- pair: not falsifiable for size M6 (right hand)" in out
@@ -3646,10 +3910,8 @@ def test_a_pair_cell_stored_as_proven_is_judged_again_from_its_readings(
 
 def test_a_mixed_hand_pair_that_did_not_read_violated_fires_the_escape_clause(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    _full_campaign(tmp_path, pair_cells=[
-        _pair(0.10), _pair(0.10, rod_left=True, nut_left=True),
-        _mixed(0.10, (6.5, 0.0, 6.7))])
-    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 1
+    _full_campaign(tmp_path, pair_cells=[_mixed(0.10, (6.5, 0.0, 6.7), k=_LOCKED_K)])
+    assert _verdict("c1", tmp_path) == 1
     out = capsys.readouterr().out
     assert "- pair: size M6: the mixed-hand pair did not read violated" in out
     assert "mixed-hand pair read violated at every matched pose: NO" in out
@@ -3658,7 +3920,7 @@ def test_a_mixed_hand_pair_that_did_not_read_violated_fires_the_escape_clause(
 def test_a_campaign_without_the_pair_run_is_never_a_pass(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     _full_campaign(tmp_path, skip=("pair",))
-    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 1
+    assert _verdict("c1", tmp_path) == 1
     out = capsys.readouterr().out
     assert "Blocks missing: pair" in out
     assert "pair: not recorded" in out
@@ -3666,17 +3928,18 @@ def test_a_campaign_without_the_pair_run_is_never_a_pass(
 
 def test_a_reference_k_cell_is_printed_beside_the_verdict_and_never_changes_it(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    _full_campaign(tmp_path, pair_cells=[*_clean_pair_cells(),
-                                         _pair(0.15, k=3, controls=(0.0, 0.0, 0.0))])
-    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 0
-    assert "| M6 | 3 | n/a | n/a | inconclusive | n/a |" in capsys.readouterr().out
+    _full_campaign(tmp_path, pair_cells=[_pair(0.15, k=5, controls=(0.0, 0.0, 0.0))])
+    assert _verdict("c1", tmp_path) == 0
+    out = capsys.readouterr().out
+    assert "| M6 | 5 | proven | proven | inconclusive | proven |" in out
+    assert "| M6 | 10 | proven | proven | proven | proven |" in out
 
 
 def test_two_pair_runs_under_a_prefix_are_ambiguous_and_refused(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     _full_campaign(tmp_path)
     _write_pair_run(tmp_path / "c1-pair-again.jsonl", _clean_pair_cells())
-    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 2
+    assert _verdict("c1", tmp_path) == 2
     assert "two runs of block pair" in capsys.readouterr().err
 
 
@@ -3684,7 +3947,7 @@ def test_a_pair_run_whose_header_has_no_k_is_refused(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     _full_campaign(tmp_path)
     _write_pair_run(tmp_path / "c1-pair.jsonl", _clean_pair_cells(), k=None)
-    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 2
+    assert _verdict("c1", tmp_path) == 2
     assert "has no K in its header" in capsys.readouterr().err
 
 
@@ -3695,7 +3958,7 @@ def test_a_pair_run_cell_with_an_unknown_key_is_refused_not_read(
     path.write_text(path.read_text() + json.dumps(
         {**_pair(), "verdict": "proven", "reasons": [], "closed_control": 1.0,
          "hand_edited": True}) + "\n")
-    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 2
+    assert _verdict("c1", tmp_path) == 2
     assert "unknown key 'hand_edited'" in capsys.readouterr().err
 
 

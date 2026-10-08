@@ -107,6 +107,7 @@ from bench.thread_spike.verdict import (
     RowClass,
     RowRecord,
     RowRequest,
+    block_gaps,
     bytes_over,
     cache_bytes,
     cell_verdict,
@@ -122,6 +123,7 @@ from bench.thread_spike.verdict import (
     known_bad_inputs,
     mixed_hand_violated,
     over_budget,
+    pair_gaps,
     parse_header,
     parse_pair_result_row,
     parse_result_row,
@@ -1404,6 +1406,29 @@ def _read_runs(prefix: str, results_dir: Path) -> tuple[_Runs, _PairRun | None]:
     return runs, pair
 
 
+# The blocks whose record is held against the Method table's row set before it is read. The
+# controls, trim and rss runs are evidence beside the verdict, not inputs to it, and are not.
+COMPLETE_BLOCKS = ("ksweep", "grid", "frontier", "ladder", "container")
+
+
+def _incomplete_blocks(runs: _Runs, pair: _PairRun | None) -> dict[str, list[str]]:
+    """Per verdict block, how its record falls short of the pre-registered row set (sizes x
+    lengths or turns x hands x kinds, each row once, frontier walks ended); a block with nothing
+    to report is complete and absent from the result."""
+    gaps: dict[str, list[str]] = {}
+    for block in COMPLETE_BLOCKS:
+        if block in runs:
+            header, rows = runs[block]
+            found = block_gaps(block, header, rows, sizes=SIZES, sample_sizes=SAMPLE_SIZES)
+            if found:
+                gaps[block] = found
+    if pair is not None:
+        found = pair_gaps(pair[0], pair[1], sizes=SIZES, reference_sizes=PAIR_REFERENCE_SIZES)
+        if found:
+            gaps["pair"] = found
+    return gaps
+
+
 def _first_over(rows: list[RowRecord], size: str, over: Callable[[RowRecord], bool]) -> str | None:
     """The shortest row of `size` over a budget, as its label, or `None`."""
     hits = [r for r in rows if r["size"] == size and r["kind"] == "rod" and over(r)]
@@ -1462,11 +1487,12 @@ def _caps_section(runs: _Runs) -> list[str]:
     lines = ["| Size | Construction cap (turns) | Construction stop | Bytes cap (mm) | "
              "Bytes cap (turns) | Seconds cap (mm) |", "|---|---|---|---|---|---|"]
     for size, cap in by_frontier.items():
-        seconds = by_grid[size]
+        seconds = by_grid.get(size)  # absent when the grid was not recorded or not read
         construction = (_NOT_ESTABLISHED if cap.construction_turns is None
                         else f"{cap.construction_turns:g}")
-        seconds_cell = _cap_cell(seconds.seconds_cap_length,
-                                 established=seconds.seconds_established)
+        seconds_cell = ("no grid record" if seconds is None
+                        else _cap_cell(seconds.seconds_cap_length,
+                                       established=seconds.seconds_established))
         lines.append(f"| {size} | {construction} | {cap.stop_reason} | "
                      f"{_cap_cell(cap.bytes_cap_length)} | {_cap_cell(cap.bytes_cap_turns)} | "
                      f"{seconds_cell} |")
@@ -1502,7 +1528,9 @@ def verdict_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR) -> int:
     Exit 0 only when the pass bar held, no escape fired, all four rod blocks, the pair run and
     the container run were read, and the volume estimator and its T_gate were established;
     otherwise 1, "not established" and a missing block included: a partial campaign never reads
-    as a pass (D-15, D-20). 2 for a prefix or a record it cannot read.
+    as a pass (D-15, D-20). A block is read only when its record is complete against the
+    pre-registered row set (`block_gaps`, `pair_gaps`); an incomplete one is reported by block,
+    with what it lacks, and not judged. 2 for a prefix or a record it cannot read.
     The container rows count toward the pass bar and the escape clause beside the host grid's,
     pre-registered because production runs in that image (D-05), and are never decisive. The
     controls, trim and rss runs are evidence printed beside the verdict and never inputs to it.
@@ -1516,23 +1544,35 @@ def verdict_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR) -> int:
         if not runs and pair is None:
             print(f"no runs recorded under prefix {prefix!r} in {results_dir}", file=sys.stderr)
             return 1
+        if pair is not None and pair[0]["k"] is None:
+            print(f"refused: pair run {pair[0]['run_id']!r} has no K in its header",
+                  file=sys.stderr)
+            return 2
+        # A block is read only when its record is the pre-registered row set (the Method): a
+        # partial one, such as the JSONL of a run that crashed, is reported and not judged.
+        incomplete = _incomplete_blocks(runs, pair)
+        for block in incomplete:
+            runs.pop(block, None)
+        if "pair" in incomplete:
+            pair = None
         present = {*runs, *(("pair",) if pair is not None else ())}
-        missing = [block for block in PASS_BLOCKS if block not in present]
+        missing = [block for block in PASS_BLOCKS if block not in present
+                   and block not in incomplete]
+
+        def absent(block: str) -> str:
+            return f"{block} run incomplete, not read" if block in incomplete else f"no {block} run"
+
         grid_header, grid = _run_of(runs, "grid")
         container_header, container = _run_of(runs, "container")
         grid_bar = (pass_bar(grid, grid_header["decisive"]) if grid_header is not None
-                    else (_NOT_ESTABLISHED, ("no grid run",)))
+                    else (_NOT_ESTABLISHED, (absent("grid"),)))
         # Emulated timings are never decisive, whatever a stored header says (D-05).
         container_bar = (pass_bar(container, False) if container_header is not None
-                         else (_NOT_ESTABLISHED, ("no container run",)))
+                         else (_NOT_ESTABLISHED, (absent("container"),)))
         bar, offenders = _combined_bar([
             grid_bar, (container_bar[0], tuple(f"container {r}" for r in container_bar[1]))])
         pair_header, pair_cells = pair if pair is not None else (None, [])
         locked_k = None if pair_header is None else pair_header["k"]
-        if pair_header is not None and locked_k is None:
-            print(f"refused: pair run {pair_header['run_id']!r} has no K in its header",
-                  file=sys.stderr)
-            return 2
         # Judged for the sizes the campaign covered: the grid's, or all of them when it has none.
         covered = [s for s in SIZES if any(r["size"] == s for r in grid)] or list(SIZES)
         pair_escape = (() if locked_k is None
@@ -1553,6 +1593,9 @@ def verdict_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR) -> int:
             for block in dict.fromkeys((*PASS_BLOCKS, *SECTIONS)) if block in headers))
         if missing:
             lines.append("- Blocks missing: " + ", ".join(missing))
+        if incomplete:
+            lines.append("- Blocks incomplete, not read: " + ", ".join(incomplete))
+            lines += [f"  - {block}: {gap}" for block, gaps in incomplete.items() for gap in gaps]
         estimator_line, estimator_established = _estimator_line(grid)
         unchecked, meshes = skipped_checks([*grid, *container])
         lines += ["", "### K", "", *_k_section(runs), "", "### Volume estimator", "",
@@ -1566,12 +1609,14 @@ def verdict_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR) -> int:
         for block, (title, build) in SECTIONS.items():
             lines += [title, "", *build(_run_of(runs, block)[1]), ""]
         lines += ["### Pair check (D-11 to D-14)", "",
-                  *(["pair: not recorded"] if locked_k is None
+                  *(["pair: not read, its record is incomplete" if "pair" in incomplete
+                     else "pair: not recorded"] if locked_k is None
                     else pair_section(pair_cells, locked_k)), ""]
     except ValueError as exc:
         print(f"refused: {exc}", file=sys.stderr)
         return 2
-    clean = bar == "held" and not escaped and not missing and estimator_established
+    clean = (bar == "held" and not escaped and not missing and not incomplete
+             and estimator_established)
     lines.append("**Verdict:** " + ("pass bar held, no escape fired" if clean
                                     else "not a pass: see the sections above"))
     print("\n".join(lines))

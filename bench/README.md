@@ -104,7 +104,8 @@ are in `.planning/phases/02-thread-spike/02-SPIKE.md`, written before the first 
   small sizes: no run id, output in a temporary directory, never recorded, never cited. `campaign
   --run-id <prefix>` is the measurement: nine blocks, each a recorded run `<prefix>-<block>`, and
   `verdict --campaign <prefix>` reads them back and recomputes every row's class from the raw
-  record.
+  record. It reads a block only when its record is the complete pre-registered row set; a
+  partial record (a crashed run's) is reported by block and is never judged.
 - **Where records go.** `bench/results/thread-spike/<id>.jsonl` (a header, then one row per
   line, written as measured) and `<id>.md`; a run id is never reused or overwritten. `bench/RESULTS.md`
   carries each run's header, host state, load readings and every non-ok or over-budget row.
