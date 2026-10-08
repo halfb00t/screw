@@ -1175,6 +1175,28 @@ def _request_key(r: RowRequest) -> RequestKey:
             tuple(r["gzip_on"]), r["check_ceiling"], r["want_gzip_table"])
 
 
+def geometry_gap(record: RowRequest | PairCell) -> str | None:
+    """Why a row's or a pair cell's recorded d and P are not its size label's, as the harness
+    writes them (the floats of `PITCH[size]`), or `None` when they are. A row is judged against
+    the closed form of the d and P it records, so one whose d or P is not its label's would be
+    judged as another part under that label: it is never classified or counted."""
+    if record["size"] not in PITCH:
+        return f"size {record['size']!r} is not in the table"
+    d, pitch = (float(x) for x in PITCH[record["size"]])
+    wrong = ([f"d {record['d']!r}, not {d!r}"] if record["d"] != d else []) + (
+        [f"pitch {record['pitch']!r}, not {pitch!r}"] if record["pitch"] != pitch else [])
+    return "; ".join(wrong) or None
+
+
+def mislabelled_rows(rows: Sequence[RowRecord]) -> list[str]:
+    """One line naming every row whose d or P is not its size's (`geometry_gap`), with what
+    differs; empty when there is none."""
+    wrong = sorted(f"{_label(_row_key(r))} ({gap})" for r in rows
+                   if (gap := geometry_gap(r)) is not None)
+    return ([f"{len(wrong)} rows whose d or P is not their size's, never judged: {_some(wrong)}"]
+            if wrong else [])
+
+
 def _differs(got: RowRequest, wanted: RowRequest) -> str:
     """Every field in which a recorded request is not the pre-registered one, with both values."""
     mine: dict[str, object] = dict(got)
@@ -1732,11 +1754,20 @@ def _cell_label(key: PairKey) -> str:
 def pair_gaps(header: HeaderRecord, cells: Sequence[PairRecord], *, sizes: Sequence[str],
               reference_sizes: Sequence[str]) -> list[str]:
     """How a recorded pair block falls short of its pre-registered cells, one line each; empty
-    when complete. A cell that did not finish is a recorded outcome, not a gap."""
+    when complete. A cell that did not finish is a recorded outcome, not a gap. A cell whose d or
+    P is not its size's (`geometry_gap`) is not in the set, is reported with what differs, and
+    the cell it resembles stays missing."""
     k = header["k"]
     if k is None:
         return ["its header carries no K, so the cells it should hold cannot be named"]
+
+    def key(c: PairRecord) -> PairKey:
+        return (c["size"], c["rod_left_hand"], c["nut_left_hand"], c["clearance"], c["k"])
+
     wanted = Counter(expected_cells(k, sizes=sizes, reference_sizes=reference_sizes))
-    got = Counter((c["size"], c["rod_left_hand"], c["nut_left_hand"], c["clearance"], c["k"])
-                  for c in cells)
-    return _counted_gaps(wanted, got, "cells", _cell_label)
+    got = Counter(key(c) for c in cells if geometry_gap(c) is None)
+    wrong = sorted(f"{_cell_label(key(c))} ({gap})" for c in cells
+                   if (gap := geometry_gap(c)) is not None)
+    return [*_counted_gaps(wanted, got, "cells", _cell_label),
+            *([f"{len(wrong)} cells not in the pre-registered set, their d or P not their "
+               f"size's: {_some(wrong)}"] if wrong else [])]

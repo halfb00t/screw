@@ -2347,6 +2347,57 @@ def test_a_grid_rod_without_the_registered_request_is_stray_and_the_grid_is_neve
     assert "pass bar: not established" in out
 
 
+def _m2_labelled_m6() -> RowRecord:
+    """An M2 rod (d = 2, P = 0.4) at 75 turns, 30 mm, labelled M6 at the locked K: against the
+    closed form of the d and P it records it reads ok, at a length the M6 grid registers."""
+    forged: RowRecord = {**_synth("M2", turns=75.0, left=True, k=_LOCKED_K), "size": "M6"}
+    assert forged["length"] == 30.0
+    assert verdict_module.row_class(forged) == "ok"
+    return forged
+
+
+def test_a_row_whose_d_or_pitch_is_not_its_sizes_is_a_stray_and_its_block_is_never_read(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """The M6 left 30 mm rod of the grid is replaced by an M2 rod labelled M6. Its d and P are
+    not M6's, so it is a stray naming both, the M6 rod it resembles stays missing, the grid is
+    not read and the campaign never passes; nothing judges it as the M6 part it is labelled."""
+    forged = _m2_labelled_m6()
+    rows = [forged if (r["kind"], r["left_hand"], r["length"]) == ("rod", True, 30.0) else r
+            for r in _m6_grid()]
+    assert verdict_module.block_gaps("grid", _m6_header("grid"), rows, **_M6) == [
+        "1 of 240 pre-registered rows missing: M6 left L=30 rod K=3",
+        "1 rows not in the pre-registered set: M6 left L=30 rod K=3 (d 2.0, not 6.0; pitch "
+        "0.4, not 1.0; turns 75.0, not 30.0)"]
+    _full_campaign(tmp_path)
+    (tmp_path / "c1-grid.jsonl").unlink()
+    _write_run(tmp_path / "c1-grid.jsonl", "grid", rows, k=_LOCKED_K)
+    assert _verdict("c1", tmp_path) == 1
+    assert "- Blocks not read: grid" in capsys.readouterr().out
+
+
+def test_an_evidence_row_or_a_pair_cell_whose_d_or_pitch_is_not_its_sizes_is_never_judged(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """The evidence runs are held to no row set, yet a row whose d or P is not its size's would
+    be printed as evidence about a part it is not: its run is not read. A pair cell likewise is
+    a stray, and the cell it resembles stays missing."""
+    _full_campaign(tmp_path)
+    _write_run(tmp_path / "c1-rss.jsonl", "rss", [_m2_labelled_m6()], k=_LOCKED_K)
+    assert _verdict("c1", tmp_path) == 1
+    out = capsys.readouterr().out
+    assert "- Blocks not read: rss" in out
+    assert ("  - rss: run `c1-rss` holds 1 rows whose d or P is not their size's, never judged: "
+            "M6 left L=30 rod K=3 (d 2.0, not 6.0; pitch 0.4, not 1.0)") in out
+    cells: list[PairRecord] = [
+        {**c, "d": 2.0, "pitch": 0.4}
+        if (c["clearance"], c["rod_left_hand"], c["nut_left_hand"], c["k"])
+        == (0.10, False, False, _LOCKED_K) else c for c in _clean_pair_cells()]
+    assert verdict_module.pair_gaps(_m6_header("pair"), cells, sizes=("M6",),
+                                    reference_sizes=("M6",)) == [
+        "1 of 24 pre-registered cells missing: M6 right c=0.1 K=3",
+        "1 cells not in the pre-registered set, their d or P not their size's: M6 right c=0.1 "
+        "K=3 (d 2.0, not 6.0; pitch 0.4, not 1.0)"]
+
+
 def test_a_block_whose_header_names_no_k_cannot_be_held_against_its_rows() -> None:
     (gap,) = verdict_module.block_gaps("grid", _m6_header("grid", k=None), _m6_grid(), **_M6)
     assert "no K" in gap

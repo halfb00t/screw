@@ -117,10 +117,12 @@ from bench.thread_spike.verdict import (
     excluded_clearances,
     fine_mesh,
     frontier_stop,
+    geometry_gap,
     interim_presets,
     k_scores,
     known_bad_inputs,
     ladder_request,
+    mislabelled_rows,
     mixed_hand_violated,
     over_budget,
     pair_gaps,
@@ -1421,6 +1423,13 @@ def _unread_blocks(runs: _Runs, pair: _PairRun | None) -> dict[str, list[str]]:
     nothing to check a K against, which is a missing block and not a licence to trust a
     header."""
     unread = _incomplete_blocks(runs, pair)
+    # A row is judged against the closed form of the d and P it records, so a row whose d or P is
+    # not its size's would be judged as another part under that label. Completeness reports it in
+    # a verdict block; this holds the evidence runs, held to no row set, to it as well.
+    for block, (header, rows) in runs.items():
+        if block not in COMPLETE_BLOCKS:
+            for line in mislabelled_rows(rows):
+                unread.setdefault(block, []).append(f"run `{header['run_id']}` holds {line}")
     if "ksweep" not in runs or "ksweep" in unread:
         return unread
     chosen = select_k(runs["ksweep"][1])
@@ -1459,8 +1468,9 @@ def _recorded_non_ok(block: str, runs: _Runs, pair: _PairRun | None) -> list[str
                 f"{'left' if c['nut_left_hand'] else 'right'} nut c={c['clearance']:g} "
                 f"K={c['k']}: {c['outcome']}" for c in cells if c["outcome"] != "built"]
     rows = runs[block][1] if block in runs else []
+    # A row whose d or P is not its size's is never classified: it is already named as such.
     return [f"recorded, not judged: {row_label(r)}: {cls}" for r in rows
-            if (cls := row_class(r)) != "ok"]
+            if geometry_gap(r) is None and (cls := row_class(r)) != "ok"]
 
 
 # The verdict blocks the escape clause is drawn from: the grid's and the container's rows
