@@ -3035,6 +3035,40 @@ def test_cell_verdict_calls_a_mixed_hand_cell_violated_only_if_every_matched_pos
     assert verdict == "inconclusive"  # an empty read at a mixed pair proves nothing either way
 
 
+def _mixed_at(thetas: tuple[float, ...], volume: float = 6.5) -> PairRecord:
+    """A mixed-hand cell with a non-empty reading at each of `thetas` and no other reading."""
+    cell = _mixed(0.10, (volume,) * 3)
+    cell["readings"] = [_reading(theta, 0.0, volume) for theta in thetas]
+    return cell
+
+
+@pytest.mark.parametrize("thetas", [
+    (0.3,),  # one non-empty reading at an arbitrary pose
+    _POSES[:2],  # a pre-registered pose missing
+    (*_POSES, 0.3),  # a pose chosen after the fact beside the three
+    (_POSES[0], _POSES[1], 2.0),  # one of the three replaced
+], ids=["arbitrary", "missing", "stray", "replaced"])
+def test_a_mixed_hand_cell_read_at_other_poses_than_the_matched_ones_is_inconclusive(
+        thetas: tuple[float, ...]) -> None:
+    cell = _mixed_at(thetas)
+    verdict, reasons = cell_verdict(cell)
+    assert verdict == "inconclusive"
+    assert any("pre-registered" in r for r in reasons)
+    assert not mixed_hand_violated([cell])
+
+
+def test_a_mixed_hand_cell_read_with_controls_is_inconclusive_not_violated() -> None:
+    cell = _mixed_at(_POSES)
+    cell["readings"] += [_reading(t, maths.CONTROL_OFFSET_PITCHES, 6.5) for t in _POSES]
+    assert cell_verdict(cell)[0] == "inconclusive"
+
+
+def test_one_mixed_cell_at_the_wrong_poses_stops_a_size_from_reading_violated() -> None:
+    good = [_mixed(0.05, (6.5, 6.9, 6.7)), _mixed(0.10, (6.5, 6.9, 6.7))]
+    assert mixed_hand_violated(good)
+    assert not mixed_hand_violated([*good, _mixed_at((0.3,))])
+
+
 def test_size_falsifiable_needs_one_proven_cell_at_a_proof_clearance() -> None:
     proven, off = _pair(0.10), _pair(0.15, controls=(1.0, 1.0, 0.0))
     assert size_falsifiable([off, proven])

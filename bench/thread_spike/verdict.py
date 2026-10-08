@@ -1262,10 +1262,12 @@ def cell_verdict(record: PairRecord) -> tuple[PairVerdict, tuple[str, ...]]:
     """The pre-registered rule for one cell, and why (D-12, D-14; owner ruling R1 left D-14
     exactly as written).
 
-    A cell that did not finish is inconclusive. A mixed-hand cell is `violated` when every
-    matched pose reads non-empty, else inconclusive: an empty read at a pair that cannot thread
-    proves nothing either way. For a same-hand cell: c <= 0 is inconclusive by definition (D-11);
-    poses other than the pre-registered ones are refused; a nut body whose precise volume misses
+    A cell that did not finish is inconclusive. A mixed-hand cell whose poses are exactly
+    `MATCHED_POSES` and nothing else is `violated` when every matched pose reads non-empty, else
+    inconclusive: an empty read at a pair that cannot thread proves nothing either way, and one
+    reading at a pose chosen after the fact proves nothing at all. For a same-hand cell: c <= 0
+    is inconclusive by definition (D-11); poses other than the pre-registered ones are refused;
+    a nut body whose precise volume misses
     pi d^2 m - A(c) m by more than `T_PASS` is not believed (not even a violation); any matched
     pose non-empty is `violated`; otherwise `proven` only when every matched pose is empty AND
     every control is non-empty within `PAIR_BAND` of the closed form. Anything else is
@@ -1276,8 +1278,11 @@ def cell_verdict(record: PairRecord) -> tuple[PairVerdict, tuple[str, ...]]:
         return "inconclusive", (f"cell {outcome}: {record['error']}",)
     matched, controls = _matched(record), _controls(record)
     if _is_mixed(record):
+        if controls or not _poses_ok(matched):
+            return "inconclusive", ("the poses are not the pre-registered ones: a mixed-hand "
+                                    "cell is read at the matched poses and nothing else (D-12)",)
         reads = [r for r in matched if not _is_empty(r)]
-        if matched and len(reads) == len(matched):
+        if len(reads) == len(matched):
             return "violated", (f"mixed-hand pair: all {len(matched)} matched poses non-empty",)
         return "inconclusive", (f"mixed-hand pair: {len(matched) - len(reads)} of "
                                 f"{len(matched)} matched poses empty",)
@@ -1333,12 +1338,12 @@ def excluded_clearances(cells: list[PairRecord]) -> tuple[float, ...]:
 
 
 def mixed_hand_violated(cells: list[PairRecord]) -> bool:
-    """True only when there is at least one mixed-hand cell and every one finished with every
-    matched reading non-empty (D-14: a mixed-hand pair must read violated). No cell, a cell that
-    did not finish, or one empty reading is not a violation."""
+    """True only when there is at least one mixed-hand cell and `cell_verdict` reads every one
+    violated (D-14: a mixed-hand pair must read violated): it finished, it was read at exactly
+    the pre-registered matched poses and every matched reading is non-empty. No cell, a cell
+    that did not finish, an empty reading or a pose chosen after the fact is not a violation."""
     mixed = [c for c in cells if _is_mixed(c)]
-    return bool(mixed) and all(c["outcome"] == "built" and _matched(c)
-                               and not any(_is_empty(r) for r in _matched(c)) for c in mixed)
+    return bool(mixed) and all(cell_verdict(c)[0] == "violated" for c in mixed)
 
 
 _SENSITIVITY = DIAGNOSTIC_CLEARANCES[1]
