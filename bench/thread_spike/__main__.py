@@ -1432,11 +1432,12 @@ def _incomplete_blocks(runs: _Runs, pair: _PairRun | None) -> dict[str, list[str
 
 def _unread_blocks(runs: _Runs, pair: _PairRun | None) -> dict[str, list[str]]:
     """The blocks the verdict will not read, each with why. A block is unread when its
-    record is incomplete (`_incomplete_blocks`) or when its header names another K than the one
-    `select_k` takes from the sweep's own record (`DEFAULT_K` when none qualifies, as
-    `run_block` does): K is never read from a header, so a run at a K the rule did not select
-    cannot stand in for the locked construction. With no complete sweep there is nothing to
-    check a K against, which is a missing block and not a licence to trust a header."""
+    record is incomplete (`_incomplete_blocks`) or when its header, or any row it holds, names
+    another K than the one `select_k` takes from the sweep's own record (`DEFAULT_K` when none
+    qualifies, as `run_block` does): K is never read from a header, so a run at a K the rule did
+    not select cannot stand in for the locked construction. With no complete sweep there is
+    nothing to check a K against, which is a missing block and not a licence to trust a
+    header."""
     unread = _incomplete_blocks(runs, pair)
     if "ksweep" not in runs or "ksweep" in unread:
         return unread
@@ -1452,6 +1453,17 @@ def _unread_blocks(runs: _Runs, pair: _PairRun | None) -> dict[str, list[str]]:
             unread.setdefault(block, []).append(
                 f"run `{header['run_id']}` was recorded at K = {header['k']}, but the sweep's "
                 f"locked K is {locked} ({source})")
+    # A header vouches for nothing it did not build: every row must carry the locked K too. The
+    # evidence runs are held to no row set, so this is the only place their rows' K is read.
+    # The pair cells are not checked here: `pair_gaps` holds the locked cells at the header's K
+    # and the reference cells at the two other K values, which the Method pre-registers.
+    for block, (header, rows) in runs.items():
+        others = sorted({r["k"] for r in rows} - {locked})
+        if block != "ksweep" and others:
+            count = sum(1 for r in rows if r["k"] != locked)
+            unread.setdefault(block, []).append(
+                f"run `{header['run_id']}` holds {count} rows recorded at K = "
+                f"{', '.join(map(str, others))}, but the sweep's locked K is {locked} ({source})")
     return unread
 
 

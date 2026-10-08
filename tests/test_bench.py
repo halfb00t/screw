@@ -2468,6 +2468,23 @@ def test_a_run_recorded_at_another_k_than_the_sweep_selected_is_not_read_and_nev
             "(selected by select_k from run `c1-ksweep`)") in out
 
 
+@pytest.mark.parametrize("block", ["controls", "trim", "rss"])
+def test_an_evidence_run_with_a_row_at_another_k_than_the_locked_one_is_not_read(
+        block: str, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """The header names the K the sweep selected, but one row was built at K = 5: a header
+    vouches for nothing it did not build, so the run is not read and the campaign never passes."""
+    _full_campaign(tmp_path)
+    rows = {"controls": _controls_rows(), "trim": [_trim()],
+            "rss": [_synth(k=_LOCKED_K)]}[block]
+    rows[-1] = {**rows[-1], "k": 5}
+    _write_run(tmp_path / f"c1-{block}.jsonl", block, rows, k=_LOCKED_K)
+    assert _verdict("c1", tmp_path) == 1
+    out = capsys.readouterr().out
+    assert f"Blocks not read: {block}" in out
+    assert (f"  - {block}: run `c1-{block}` holds 1 rows recorded at K = 5, but the sweep's "
+            "locked K is 3 (selected by select_k from run `c1-ksweep`)") in out
+
+
 def test_the_pair_run_is_read_at_the_k_the_sweep_selected_not_at_the_one_its_header_names(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """The pair evidence, its header and its cells all at K = 5 while the sweep selects 3: the
@@ -2667,7 +2684,7 @@ def _trim(*, precise: float = 1.0, solids: int = 1, valid: bool = True, watertig
           volume: float = 100.0, checked: bool = True) -> RowRecord:
     mesh = _mesh(watertight=watertight, volume=volume, checked=checked)
     return {**_built(precise, solids=solids, valid=valid, meshes=[mesh]), "kind": "trim",
-            "trim_s": 0.5}
+            "trim_s": 0.5, "k": _LOCKED_K}
 
 
 def test_a_trim_row_is_judged_on_solids_validity_and_the_preview_check_never_on_a_closed_form(
@@ -2778,7 +2795,9 @@ def test_the_trim_block_is_one_full_rod_row_per_size_and_hand_at_the_standard_ma
 
 
 def _controls_rows() -> list[RowRecord]:
-    return [_naive(0.238), _naive(1.0, kind="one_pipe"), _naive(0.985, kind="ruled")]
+    """The comparison rows as a controls run at the locked K records them."""
+    rows = [_naive(0.238), _naive(1.0, kind="one_pipe"), _naive(0.985, kind="ruled")]
+    return [{**r, "k": _LOCKED_K} for r in rows]
 
 
 def test_the_controls_section_lists_the_rows_the_known_bad_inputs_and_the_profile_caveat() -> None:
@@ -3213,7 +3232,8 @@ def test_a_container_timeout_is_never_a_cap_because_emulated_timings_are_never_d
 def test_the_verdict_prints_the_rss_table_and_the_l19_table_from_a_recorded_run(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     _full_campaign(tmp_path)
-    asked: RowRequest = {**_once_request(table=True), "turns": 60.0, "length": 60.0}
+    asked: RowRequest = {**_once_request(table=True), "turns": 60.0, "length": 60.0,
+                         "k": _LOCKED_K}
     _write_run(tmp_path / "c1-rss.jsonl", "rss", [_fresh(asked)], k=_LOCKED_K)
     assert _verdict("c1", tmp_path) == 0
     out = capsys.readouterr().out.split("### Peak RSS and the L19 gzip table")[1]
