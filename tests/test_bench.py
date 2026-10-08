@@ -1992,21 +1992,20 @@ _LOCKED_K = 3  # `_m6_ksweep` makes K = 3 the K with the fewest fine triangles
 
 
 def _m6_lengths(extra: list[RowRecord], *, container: bool, err: float,
-                stl_err: float | None) -> list[RowRecord]:
+                stl_err: float | None, k: int = _LOCKED_K) -> list[RowRecord]:
     """The M6 grid at the locked K: P = 1 mm, so the D-03 lengths are every integer 1 to 60, a
     rod and a void at each, both hands. A row of `extra` takes the place of the row it names
     (kind, hand, length) and is recorded at the locked K."""
     rows: dict[tuple[str, bool, float], RowRecord] = {}
     for left in (False, True):
         for turns in (float(x) for x in range(1, 61)):
-            rod = (_synth(left=left, turns=turns, k=_LOCKED_K, preview=False, fine=None, step=None)
+            rod = (_synth(left=left, turns=turns, k=k, preview=False, fine=None, step=None)
                    if container else
-                   _synth(left=left, turns=turns, k=_LOCKED_K, err=err, stl_err=stl_err))
+                   _synth(left=left, turns=turns, k=k, err=err, stl_err=stl_err))
             rows[("rod", left, turns)] = rod
-            rows[("void", left, turns)] = _synth(kind="void", left=left, turns=turns,
-                                                 k=_LOCKED_K)
+            rows[("void", left, turns)] = _synth(kind="void", left=left, turns=turns, k=k)
     for row in extra:
-        rows[(row["kind"], row["left_hand"], row["turns"])] = {**row, "k": _LOCKED_K}
+        rows[(row["kind"], row["left_hand"], row["turns"])] = {**row, "k": k}
     return list(rows.values())
 
 
@@ -2014,30 +2013,33 @@ def _full_campaign(tmp_path: Path, *, prefix: str = "c1", grid_extra: list[RowRe
                    grid_decisive: bool = True, skip: tuple[str, ...] = (),
                    container_extra: list[RowRecord] | None = None,
                    pair_cells: list[PairRecord] | None = None, err: float = 1.5e-6,
-                   stl_err: float | None = 1e-3) -> None:
+                   stl_err: float | None = 1e-3, k: int = _LOCKED_K) -> None:
     """A clean campaign for M6 alone, complete against the pre-registered row sets of the sizes
     it covers (read it with `_verdict`): the K sweep, the grid, the frontier walk, the ladder, the
     pair cells and the container grid, written the way a run writes them. `err` and `stl_err` are
     the grid rod rows' precise and preview-mesh errors, which the estimator rule reads (no
     `stl_err`: no checked preview). `grid_extra` and `container_extra` rows replace the row at the
-    same kind, hand and length; `pair_cells` replace the cell of the same pair, hands, c and K."""
+    same kind, hand and length; `pair_cells` replace the cell of the same pair, hands, c and K.
+    Every block after the sweep is recorded at `k`, which the sweep selects unless it is spoiled
+    (then the harness records at its default, 5)."""
     blocks: dict[str, list[RowRecord]] = {
         "ksweep": _m6_ksweep(),
-        "grid": _m6_lengths(grid_extra or [], container=False, err=err, stl_err=stl_err),
-        "frontier": _full_walk("M6", None, k=_LOCKED_K),
-        "ladder": [_synth(turns=10.0, k=_LOCKED_K), _synth(turns=60.0, k=_LOCKED_K)],
-        "container": _m6_lengths(container_extra or [], container=True, err=err, stl_err=None),
+        "grid": _m6_lengths(grid_extra or [], container=False, err=err, stl_err=stl_err, k=k),
+        "frontier": _full_walk("M6", None, k=k),
+        "ladder": [_synth(turns=10.0, k=k), _synth(turns=60.0, k=k)],
+        "container": _m6_lengths(container_extra or [], container=True, err=err, stl_err=None,
+                                 k=k),
     }
     for block, rows in blocks.items():
         if block not in skip:
             # Emulated timings: a container run is written non-decisive, as a run writes it.
             _write_run(tmp_path / f"{prefix}-{block}.jsonl", block, rows,
                        decisive=grid_decisive if block == "grid" else block != "container",
-                       k=None if block == "ksweep" else _LOCKED_K)
+                       k=None if block == "ksweep" else k)
     if "pair" not in skip:
-        cells = {_pair_identity(c): c for c in _clean_pair_cells()}
+        cells = {_pair_identity(c): c for c in _clean_pair_cells(k)}
         cells.update({_pair_identity(c): c for c in pair_cells or []})
-        _write_pair_run(tmp_path / f"{prefix}-pair.jsonl", list(cells.values()))
+        _write_pair_run(tmp_path / f"{prefix}-pair.jsonl", list(cells.values()), k=k)
 
 
 def _verdict(prefix: str, results_dir: Path) -> int:
@@ -2120,7 +2122,7 @@ def test_a_sweep_in_which_no_k_qualified_fires_the_escape_clause_and_never_passe
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """Every other block is clean: the grid at K = 5 would read held, and without this rule
     the campaign would exit 0 with "no K was selected" printed above a pass."""
-    _full_campaign(tmp_path)
+    _full_campaign(tmp_path, k=5)  # every later block ran at the harness's default K
     _write_run(tmp_path / "c1-ksweep.jsonl", "ksweep", _m6_ksweep(cls="silent_wrong"))
     assert _verdict("c1", tmp_path) == 1
     out = capsys.readouterr().out
@@ -2330,11 +2332,11 @@ def test_a_header_only_grid_with_header_only_frontier_ladder_and_container_never
                    decisive=block != "container")
     assert _verdict("c1", tmp_path) == 1
     out = capsys.readouterr().out
-    assert "Blocks incomplete, not read: grid, frontier, ladder, container" in out
+    assert "Blocks not read: grid, frontier, ladder, container" in out
     assert "  - grid: 240 of 240 pre-registered rows missing" in out
     assert "  - frontier: M6 right: no walk recorded" in out
     assert "pass bar: not established" in out
-    assert "grid run incomplete, not read" in out
+    assert "grid run not read" in out
 
 
 def test_the_partial_record_of_a_run_that_crashed_is_reported_and_not_judged(
@@ -2346,7 +2348,7 @@ def test_the_partial_record_of_a_run_that_crashed_is_reported_and_not_judged(
     _write_run(tmp_path / "c1-grid.jsonl", "grid", partial, k=_LOCKED_K)
     assert _verdict("c1", tmp_path) == 1
     out = capsys.readouterr().out
-    assert "Blocks incomplete, not read: grid" in out
+    assert "Blocks not read: grid" in out
     assert "pass bar: not established" in out
     assert "silent_wrong" not in out.split("### Pass bar")[1].split("### Escape clause")[0]
 
@@ -2357,8 +2359,71 @@ def test_an_incomplete_pair_block_is_reported_and_the_campaign_is_not_clean(
     _write_pair_run(tmp_path / "c1-pair.jsonl", _clean_pair_cells()[:5])
     assert _verdict("c1", tmp_path) == 1
     out = capsys.readouterr().out
-    assert "Blocks incomplete, not read: pair" in out
-    assert "pair: not read, its record is incomplete" in out
+    assert "Blocks not read: pair" in out
+    assert "pair: not read" in out
+
+
+# --- K is the sweep's, never a header's (plan 02-06 review) ---
+
+
+@pytest.mark.parametrize("block", ["grid", "frontier", "ladder", "container", "pair", "rss"])
+def test_a_run_recorded_at_another_k_than_the_sweep_selected_is_not_read_and_never_passes(
+        block: str, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """The sweep selects K = 3 from its own rows. Every later run must name that K; one that
+    names 5, whatever its rows say, is reported with both Ks and not read."""
+    _full_campaign(tmp_path)
+    if block == "pair":
+        _write_pair_run(tmp_path / "c1-pair.jsonl", _clean_pair_cells(5), k=5)
+    elif block == "rss":
+        _write_run(tmp_path / "c1-rss.jsonl", "rss", [_synth(k=5)], k=5)
+    else:
+        rows = {"grid": _m6_grid(), "frontier": _full_walk("M6", None, k=5),
+                "ladder": [_synth(turns=10.0, k=5), _synth(turns=60.0, k=5)],
+                "container": _m6_lengths([], container=True, err=0.0, stl_err=None, k=5)}[block]
+        _write_run(tmp_path / f"c1-{block}.jsonl", block, rows, k=5)
+    assert _verdict("c1", tmp_path) == 1
+    out = capsys.readouterr().out
+    assert f"Blocks not read: {block}" in out
+    assert (f"  - {block}: run `c1-{block}` was recorded at K = 5, but the sweep's locked K is 3 "
+            "(selected by select_k from run `c1-ksweep`)") in out
+
+
+def test_the_pair_run_is_read_at_the_k_the_sweep_selected_not_at_the_one_its_header_names(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """The pair evidence, its header and its cells all at K = 5 while the sweep selects 3: the
+    review's case. Nothing about the pair is judged, and the pair escape does not fire on cells
+    nobody read."""
+    _full_campaign(tmp_path, skip=("pair",))
+    _write_pair_run(tmp_path / "c1-pair.jsonl", _clean_pair_cells(5), k=5)
+    assert _verdict("c1", tmp_path) == 1
+    out = capsys.readouterr().out
+    assert "pair: not read" in out.split("### Pair check (D-11 to D-14)")[1]
+    assert "pair: not falsifiable" not in out
+
+
+def test_a_header_that_names_no_k_cannot_stand_in_for_the_locked_one(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _full_campaign(tmp_path)
+    _write_run(tmp_path / "c1-ladder.jsonl", "ladder",
+               [_synth(turns=10.0, k=3), _synth(turns=60.0, k=3)], k=None)
+    assert _verdict("c1", tmp_path) == 1
+    out = capsys.readouterr().out
+    assert "Blocks not read: ladder" in out
+    assert "recorded at K = None" in out
+
+
+def test_with_no_k_selected_the_harness_default_is_the_locked_k(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """No K qualifies, so the blocks ran at 5 and say so; a run at 3 is not the locked one."""
+    _full_campaign(tmp_path, k=5)
+    _write_run(tmp_path / "c1-ksweep.jsonl", "ksweep", _m6_ksweep(cls="silent_wrong"))
+    _write_run(tmp_path / "c1-ladder.jsonl", "ladder",
+               [_synth(turns=10.0, k=3), _synth(turns=60.0, k=3)], k=3)
+    assert _verdict("c1", tmp_path) == 1
+    out = capsys.readouterr().out
+    assert "  - ladder: run `c1-ladder` was recorded at K = 3, but the sweep's locked K is 5 " \
+           "(no K qualified, so the harness's 5)" in out
+    assert "Blocks not read: ladder" in out
 
 
 def test_a_campaign_whose_volume_estimator_is_not_established_never_passes(
@@ -2707,8 +2772,8 @@ def test_the_verdict_prints_the_controls_and_trim_evidence_beside_a_clean_pass(
     """A naive row that is silent_wrong on purpose and a trim row judged without a closed form
     sit beside the verdict and cannot change it."""
     _full_campaign(tmp_path)
-    _write_run(tmp_path / "c1-controls.jsonl", "controls", _controls_rows())
-    _write_run(tmp_path / "c1-trim.jsonl", "trim", [_trim()])
+    _write_run(tmp_path / "c1-controls.jsonl", "controls", _controls_rows(), k=_LOCKED_K)
+    _write_run(tmp_path / "c1-trim.jsonl", "trim", [_trim()], k=_LOCKED_K)
     assert _verdict("c1", tmp_path) == 0
     out = capsys.readouterr().out
     controls = out.split("### Controls (D-06)")[1].split("### Tip trim cost")[0]
@@ -3028,7 +3093,7 @@ def test_the_verdict_prints_the_rss_table_and_the_l19_table_from_a_recorded_run(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     _full_campaign(tmp_path)
     asked: RowRequest = {**_once_request(table=True), "turns": 60.0, "length": 60.0}
-    _write_run(tmp_path / "c1-rss.jsonl", "rss", [_fresh(asked)])
+    _write_run(tmp_path / "c1-rss.jsonl", "rss", [_fresh(asked)], k=_LOCKED_K)
     assert _verdict("c1", tmp_path) == 0
     out = capsys.readouterr().out.split("### Peak RSS and the L19 gzip table")[1]
     assert "800.0 MiB (fresh child, this row only)" in out

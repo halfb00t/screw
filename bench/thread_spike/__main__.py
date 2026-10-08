@@ -1429,6 +1429,31 @@ def _incomplete_blocks(runs: _Runs, pair: _PairRun | None) -> dict[str, list[str
     return gaps
 
 
+def _unread_blocks(runs: _Runs, pair: _PairRun | None) -> dict[str, list[str]]:
+    """The blocks the verdict will not read, each with why. A block is unread when its
+    record is incomplete (`_incomplete_blocks`) or when its header names another K than the one
+    `select_k` takes from the sweep's own record (`DEFAULT_K` when none qualifies, as
+    `run_block` does): K is never read from a header, so a run at a K the rule did not select
+    cannot stand in for the locked construction. With no complete sweep there is nothing to
+    check a K against, which is a missing block and not a licence to trust a header."""
+    unread = _incomplete_blocks(runs, pair)
+    if "ksweep" not in runs or "ksweep" in unread:
+        return unread
+    chosen = select_k(runs["ksweep"][1])
+    locked = DEFAULT_K if chosen is None else chosen
+    source = (f"selected by select_k from run `{runs['ksweep'][0]['run_id']}`"
+              if chosen is not None else f"no K qualified, so the harness's {DEFAULT_K}")
+    headers = {block: head for block, (head, _) in runs.items() if block != "ksweep"}
+    if pair is not None:
+        headers["pair"] = pair[0]
+    for block, header in headers.items():
+        if header["k"] != locked:
+            unread.setdefault(block, []).append(
+                f"run `{header['run_id']}` was recorded at K = {header['k']}, but the sweep's "
+                f"locked K is {locked} ({source})")
+    return unread
+
+
 def _first_over(rows: list[RowRecord], size: str, over: Callable[[RowRecord], bool]) -> str | None:
     """The shortest row of `size` over a budget, as its label, or `None`."""
     hits = [r for r in rows if r["size"] == size and r["kind"] == "rod" and over(r)]
@@ -1529,8 +1554,9 @@ def verdict_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR) -> int:
     the container run were read, and the volume estimator and its T_gate were established;
     otherwise 1, "not established" and a missing block included: a partial campaign never reads
     as a pass (D-15, D-20). A block is read only when its record is complete against the
-    pre-registered row set (`block_gaps`, `pair_gaps`); an incomplete one is reported by block,
-    with what it lacks, and not judged. 2 for a prefix or a record it cannot read.
+    pre-registered row set (`block_gaps`, `pair_gaps`) and was recorded at the K that `select_k`
+    takes from the sweep's own record; any other is reported by block, with why, and not judged.
+    2 for a prefix or a record it cannot read.
     The container rows count toward the pass bar and the escape clause beside the host grid's,
     pre-registered because production runs in that image (D-05), and are never decisive. The
     controls, trim and rss runs are evidence printed beside the verdict and never inputs to it.
@@ -1548,19 +1574,19 @@ def verdict_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR) -> int:
             print(f"refused: pair run {pair[0]['run_id']!r} has no K in its header",
                   file=sys.stderr)
             return 2
-        # A block is read only when its record is the pre-registered row set (the Method): a
-        # partial one, such as the JSONL of a run that crashed, is reported and not judged.
-        incomplete = _incomplete_blocks(runs, pair)
-        for block in incomplete:
+        # A block is read only when its record is the pre-registered row set (the Method), at the
+        # K the sweep selected: a partial one, such as the JSONL of a run that crashed, or one at
+        # another K, is reported and not judged.
+        unread = _unread_blocks(runs, pair)
+        for block in unread:
             runs.pop(block, None)
-        if "pair" in incomplete:
+        if "pair" in unread:
             pair = None
         present = {*runs, *(("pair",) if pair is not None else ())}
-        missing = [block for block in PASS_BLOCKS if block not in present
-                   and block not in incomplete]
+        missing = [block for block in PASS_BLOCKS if block not in present and block not in unread]
 
         def absent(block: str) -> str:
-            return f"{block} run incomplete, not read" if block in incomplete else f"no {block} run"
+            return f"{block} run not read" if block in unread else f"no {block} run"
 
         grid_header, grid = _run_of(runs, "grid")
         container_header, container = _run_of(runs, "container")
@@ -1572,6 +1598,7 @@ def verdict_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR) -> int:
         bar, offenders = _combined_bar([
             grid_bar, (container_bar[0], tuple(f"container {r}" for r in container_bar[1]))])
         pair_header, pair_cells = pair if pair is not None else (None, [])
+        # The pair header's K is the sweep's whenever the sweep was read (`_unread_blocks`).
         locked_k = None if pair_header is None else pair_header["k"]
         # Judged for the sizes the campaign covered: the grid's, or all of them when it has none.
         covered = [s for s in SIZES if any(r["size"] == s for r in grid)] or list(SIZES)
@@ -1593,9 +1620,9 @@ def verdict_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR) -> int:
             for block in dict.fromkeys((*PASS_BLOCKS, *SECTIONS)) if block in headers))
         if missing:
             lines.append("- Blocks missing: " + ", ".join(missing))
-        if incomplete:
-            lines.append("- Blocks incomplete, not read: " + ", ".join(incomplete))
-            lines += [f"  - {block}: {gap}" for block, gaps in incomplete.items() for gap in gaps]
+        if unread:
+            lines.append("- Blocks not read: " + ", ".join(unread))
+            lines += [f"  - {block}: {gap}" for block, gaps in unread.items() for gap in gaps]
         estimator_line, estimator_established = _estimator_line(grid)
         unchecked, meshes = skipped_checks([*grid, *container])
         lines += ["", "### K", "", *_k_section(runs), "", "### Volume estimator", "",
@@ -1609,13 +1636,13 @@ def verdict_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR) -> int:
         for block, (title, build) in SECTIONS.items():
             lines += [title, "", *build(_run_of(runs, block)[1]), ""]
         lines += ["### Pair check (D-11 to D-14)", "",
-                  *(["pair: not read, its record is incomplete" if "pair" in incomplete
-                     else "pair: not recorded"] if locked_k is None
+                  *(["pair: not read" if "pair" in unread else "pair: not recorded"]
+                    if locked_k is None
                     else pair_section(pair_cells, locked_k)), ""]
     except ValueError as exc:
         print(f"refused: {exc}", file=sys.stderr)
         return 2
-    clean = (bar == "held" and not escaped and not missing and not incomplete
+    clean = (bar == "held" and not escaped and not missing and not unread
              and estimator_established)
     lines.append("**Verdict:** " + ("pass bar held, no escape fired" if clean
                                     else "not a pass: see the sections above"))
