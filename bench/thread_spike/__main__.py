@@ -1478,11 +1478,12 @@ def _k_section(runs: _Runs) -> list[str]:
     return lines
 
 
-def _estimator_line(grid_rows: list[RowRecord]) -> tuple[str, bool]:
+def _estimator_line(grid_rows: list[RowRecord], decisive: bool) -> tuple[str, bool]:
     """The estimator section's line and whether estimator and T_gate were both established. They
-    are one outcome: `select_estimator` returns the winner and its gate together, or raises."""
+    are one outcome: `select_estimator` returns the winner and its gate together, or raises.
+    `decisive` is the grid run's gate: a tie is broken by seconds only on a decisive one."""
     try:
-        name, err, gate = select_estimator(grid_rows)
+        name, err, gate = select_estimator(grid_rows, decisive)
     except ValueError as exc:
         return (f"estimator and T_gate: {_NOT_ESTABLISHED} ({exc}); no clean pass without them",
                 False)
@@ -1623,7 +1624,8 @@ def verdict_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR) -> int:
         if unread:
             lines.append("- Blocks not read: " + ", ".join(unread))
             lines += [f"  - {block}: {gap}" for block, gaps in unread.items() for gap in gaps]
-        estimator_line, estimator_established = _estimator_line(grid)
+        estimator_line, estimator_established = _estimator_line(
+            grid, grid_header is not None and grid_header["decisive"])
         unchecked, meshes = skipped_checks([*grid, *container])
         lines += ["", "### K", "", *_k_section(runs), "", "### Volume estimator", "",
                   estimator_line, "", "### Pass bar", "", f"pass bar: {bar}",

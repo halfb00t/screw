@@ -811,14 +811,16 @@ def gate_tolerance(max_abs_err: float) -> float:
     return float((scaled / step).to_integral_value(rounding=ROUND_CEILING) * step)
 
 
-def select_estimator(rows: list[RowRecord]) -> tuple[str, float, float]:
+def select_estimator(rows: list[RowRecord], decisive: bool) -> tuple[str, float, float]:
     """The volume estimator to ship (D-20): `precise` (`BRepGProp`, eps 1e-6) or `stl` (the
     preview mesh's signed volume), compared over the ok rod rows that have a checked preview
     mesh by the largest absolute error against the closed form. When the larger error is within
-    ESTIMATOR_TIE times the smaller the two tie and the cheaper by median seconds wins (then the
-    smaller error); otherwise the smaller error wins. Returns the name, its largest error and
-    `gate_tolerance` of it. The default `Volume()` is a reference column and not a candidate.
-    Written before any data."""
+    ESTIMATOR_TIE times the smaller the two tie and, on a decisive gate, the cheaper by median
+    seconds wins (then the smaller error); on a non-decisive gate the break is a timing claim
+    and is not made: the tie is not established and this raises (owner ruling R4). Otherwise the
+    smaller error wins, on any gate. Returns the name, its largest error and `gate_tolerance` of
+    it. The default `Volume()` is a reference column and not a candidate. Written before any
+    data."""
     precise_errs: list[float] = []
     stl_errs: list[float] = []
     precise_s: list[float] = []
@@ -843,6 +845,9 @@ def select_estimator(rows: list[RowRecord]) -> tuple[str, float, float]:
                   ("stl", max(stl_errs), statistics.median(stl_s))]
     smaller, larger = sorted(candidates, key=lambda c: c[1])
     if larger[1] <= ESTIMATOR_TIE * smaller[1]:
+        if not decisive:
+            raise ValueError(f"the estimators tie within {ESTIMATOR_TIE:g}x and the tie is "
+                             "broken by seconds, which a non-decisive gate cannot establish")
         name, err, _ = min(candidates, key=lambda c: (c[2], c[1]))
     else:
         name, err, _ = smaller

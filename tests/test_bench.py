@@ -1399,36 +1399,52 @@ def _estimator_rows(precise: float, stl: float, *, precise_s: float = 0.1,
             for turns in (5.0, 10.0, 20.0)]
 
 
+def _winner(precise: float, stl: float, *, precise_s: float = 0.1, stl_s: float = 0.1,
+            decisive: bool = True) -> str:
+    return select_estimator(_estimator_rows(precise, stl, precise_s=precise_s, stl_s=stl_s),
+                            decisive)[0]
+
+
 def test_the_estimator_with_the_smaller_max_error_wins_when_they_are_not_within_2x() -> None:
-    name, err, gate = select_estimator(_estimator_rows(1e-6, 1e-3))
+    name, err, gate = select_estimator(_estimator_rows(1e-6, 1e-3), True)
     assert name == "precise"
     assert err == pytest.approx(1e-6)
     assert gate == gate_tolerance(err) == pytest.approx(1e-5)
-    name, err, _ = select_estimator(_estimator_rows(8e-5, 1e-5, precise_s=0.01, stl_s=9.0))
-    assert name == "stl"  # accuracy beats cost outside the tie
-    assert err == pytest.approx(1e-5)
+    assert _winner(8e-5, 1e-5, precise_s=0.01, stl_s=9.0) == "stl"  # accuracy beats cost
 
 
 def test_estimators_within_2x_tie_and_the_cheaper_by_median_seconds_wins() -> None:
-    assert select_estimator(_estimator_rows(1.99e-5, 1e-5, precise_s=2.0, stl_s=0.5))[0] == "stl"
-    assert select_estimator(_estimator_rows(1.99e-5, 1e-5, precise_s=0.5, stl_s=2.0))[0] == (
-        "precise")
+    assert _winner(1.99e-5, 1e-5, precise_s=2.0, stl_s=0.5) == "stl"
+    assert _winner(1.99e-5, 1e-5, precise_s=0.5, stl_s=2.0) == "precise"
     # past 2x it is no tie: the smaller error wins however much it costs
-    assert select_estimator(_estimator_rows(2.01e-5, 1e-5, precise_s=0.5, stl_s=2.0))[0] == "stl"
-    assert select_estimator(_estimator_rows(1e-5, 2.01e-5, precise_s=2.0, stl_s=0.5))[0] == (
-        "precise")
+    assert _winner(2.01e-5, 1e-5, precise_s=0.5, stl_s=2.0) == "stl"
+    assert _winner(1e-5, 2.01e-5, precise_s=2.0, stl_s=0.5) == "precise"
 
 
 def test_a_tied_estimator_pair_with_equal_cost_goes_to_the_smaller_error() -> None:
-    assert select_estimator(_estimator_rows(1.5e-5, 1e-5))[0] == "stl"
-    assert select_estimator(_estimator_rows(1e-5, 1.5e-5))[0] == "precise"
+    assert _winner(1.5e-5, 1e-5) == "stl"
+    assert _winner(1e-5, 1.5e-5) == "precise"
+
+
+def test_a_tie_on_a_non_decisive_gate_is_not_established_whatever_the_seconds_say() -> None:
+    """The tie-break is a timing claim, and a loaded host's timings prove nothing (R4): changing
+    only the non-decisive seconds can neither pick an estimator nor change the outcome."""
+    for precise_s, stl_s in ((2.0, 0.5), (0.5, 2.0), (0.1, 0.1)):
+        with pytest.raises(ValueError, match="tie"):
+            _winner(1.5e-5, 1e-5, precise_s=precise_s, stl_s=stl_s, decisive=False)
+    assert _winner(1.5e-5, 1e-5, precise_s=0.5, stl_s=2.0, decisive=True) == "precise"
+
+
+def test_without_a_tie_the_gate_does_not_matter_because_no_seconds_are_read() -> None:
+    assert _winner(1e-6, 1e-3, precise_s=9.0, stl_s=0.01, decisive=False) == "precise"
+    assert _winner(1e-5, 2.01e-5, precise_s=9.0, stl_s=0.01, decisive=False) == "precise"
 
 
 def test_the_estimator_reads_only_ok_rod_rows_and_refuses_an_empty_set() -> None:
     rows = [*_estimator_rows(1e-6, 1e-3), _synth(cls="silent_wrong", err=0.5, stl_err=1e-9)]
-    assert select_estimator(rows)[0] == "precise"  # the wrong row's tiny stl error is not read
+    assert select_estimator(rows, True)[0] == "precise"  # the wrong row's tiny stl is not read
     with pytest.raises(ValueError, match="no"):
-        select_estimator([_synth(kind="void"), _synth(cls="failure")])
+        select_estimator([_synth(kind="void"), _synth(cls="failure")], True)
 
 
 @pytest.mark.parametrize(("err", "gate"), [(7.6e-6, 8e-5), (1e-5, 1e-4), (2.7e-5, 3e-4),
@@ -2464,6 +2480,19 @@ def test_a_campaign_whose_volume_estimator_is_not_established_never_passes(
     assert "escape clause: not fired" in out
     assert "estimator and T_gate: not established" in out
     assert "not a pass" in out
+
+
+def test_a_tied_estimator_pair_on_a_non_decisive_grid_never_passes(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Precise and mesh errors within 2x of each other: only the cost could pick one, and the
+    grid ran on a loaded host. The same rows on a decisive grid pick the cheaper one."""
+    _full_campaign(tmp_path, err=1e-5, stl_err=1.5e-5, grid_decisive=False)
+    assert _verdict("c1", tmp_path) == 1
+    out = capsys.readouterr().out
+    assert "estimator and T_gate: not established (the estimators tie within 2x" in out
+    assert "pass bar: held" in out
+    _full_campaign(tmp_path, prefix="c2", err=1e-5, stl_err=1.5e-5, grid_decisive=True)
+    assert _verdict("c2", tmp_path) == 0
 
 
 def test_a_campaign_whose_gate_tolerance_cannot_be_derived_never_passes(
