@@ -1039,9 +1039,16 @@ RowKey = tuple[str, str, bool, int, float]  # kind, size, left hand, K, length i
 _SHOWN = 4
 
 
+def _mm(value: float) -> str:
+    """A length or a clearance as a reader wants it (30, 0.15), unless that short form would
+    hide how it differs from a pre-registered value: then its full repr (30.000000000000004)."""
+    short = f"{value:.10g}"
+    return short if float(short) == value else repr(value)
+
+
 def _label(key: RowKey) -> str:
     kind, size, left, k, length = key
-    return f"{size} {'left' if left else 'right'} L={length:.10g} {kind} K={k}"
+    return f"{size} {'left' if left else 'right'} L={_mm(length)} {kind} K={k}"
 
 
 def _some(items: Sequence[str]) -> str:
@@ -1090,12 +1097,16 @@ def _row_key(r: RowRecord) -> RowKey:
     return (r["kind"], r["size"], r["left_hand"], r["k"], r["length"])
 
 
-def _counted_gaps(wanted: Counter[str], got: Counter[str], what: str) -> list[str]:
+def _counted_gaps[Key](wanted: Counter[Key], got: Counter[Key], what: str,
+                       label: Callable[[Key], str]) -> list[str]:
     """What a record lacks, adds or repeats against what was pre-registered, one line each. The
-    keys are labels, which name a row or cell uniquely."""
-    missing = sorted((wanted - got).elements())
-    unexpected = sorted(label for label in got if label not in wanted)
-    repeated = sorted(label for label in got if label in wanted and got[label] > wanted[label])
+    keys are the exact typed values the harness writes (a length as the float of its exact
+    fraction, a clearance as the pre-registered float), never a printed form: a row or cell at
+    any other value is not in the set, and the one it resembles stays missing. `label` is for
+    the reader only."""
+    missing = sorted(map(label, (wanted - got).elements()))
+    unexpected = sorted(label(key) for key in got if key not in wanted)
+    repeated = sorted(label(key) for key in got if key in wanted and got[key] > wanted[key])
     gaps: list[str] = []
     if missing:
         gaps.append(f"{len(missing)} of {wanted.total()} pre-registered {what} missing: "
@@ -1172,8 +1183,8 @@ def block_gaps(block: str, header: HeaderRecord, rows: Sequence[RowRecord], *,
     if block == "frontier":
         assert k is not None
         return frontier_gaps(rows, k, header["decisive"], sizes=sizes)
-    wanted = Counter(map(_label, expected_rows(block, k, sizes=sizes, sample_sizes=sample_sizes)))
-    return _counted_gaps(wanted, Counter(_label(_row_key(r)) for r in rows), "rows")
+    wanted = Counter(expected_rows(block, k, sizes=sizes, sample_sizes=sample_sizes))
+    return _counted_gaps(wanted, Counter(map(_row_key, rows)), "rows", _label)
 
 
 # --- Pair check (question 3, D-11 to D-14) ---
@@ -1606,7 +1617,7 @@ def _cell_label(key: PairKey) -> str:
     hands = ("left" if rod_left else "right") + ("" if rod_left == nut_left
                                                    else " rod, left nut" if nut_left
                                                    else " rod, right nut")
-    return f"{size} {hands} c={clearance:g} K={k}"
+    return f"{size} {hands} c={_mm(clearance)} K={k}"
 
 
 def pair_gaps(header: HeaderRecord, cells: Sequence[PairRecord], *, sizes: Sequence[str],
@@ -1616,8 +1627,7 @@ def pair_gaps(header: HeaderRecord, cells: Sequence[PairRecord], *, sizes: Seque
     k = header["k"]
     if k is None:
         return ["its header carries no K, so the cells it should hold cannot be named"]
-    wanted = Counter(map(_cell_label, expected_cells(k, sizes=sizes,
-                                                     reference_sizes=reference_sizes)))
-    got = Counter(_cell_label((c["size"], c["rod_left_hand"], c["nut_left_hand"], c["clearance"],
-                               c["k"])) for c in cells)
-    return _counted_gaps(wanted, got, "cells")
+    wanted = Counter(expected_cells(k, sizes=sizes, reference_sizes=reference_sizes))
+    got = Counter((c["size"], c["rod_left_hand"], c["nut_left_hand"], c["clearance"], c["k"])
+                  for c in cells)
+    return _counted_gaps(wanted, got, "cells", _cell_label)

@@ -2277,6 +2277,27 @@ def test_a_grid_recorded_at_another_k_than_its_header_names_is_incomplete() -> N
     assert any("240 rows not in the pre-registered set" in g for g in gaps)
 
 
+def test_completeness_holds_a_record_to_the_exact_values_the_harness_wrote_not_their_print(
+) -> None:
+    """c = 0.10000001 prints as 0.1 to six digits and a length one float step past 30 mm prints
+    as 30, yet neither is the pre-registered value: each is a stray, and the cell or row it
+    resembles stays missing."""
+    cells = [_pair(0.10000001, k=_LOCKED_K)
+             if (c["clearance"], c["rod_left_hand"], c["nut_left_hand"], c["k"])
+             == (0.10, False, False, _LOCKED_K) else c for c in _clean_pair_cells()]
+    assert verdict_module.pair_gaps(_m6_header("pair"), cells, sizes=("M6",),
+                                    reference_sizes=("M6",)) == [
+        "1 of 24 pre-registered cells missing: M6 right c=0.1 K=3",
+        "1 cells not in the pre-registered set: M6 right c=0.10000001 K=3"]
+    near = math.nextafter(30.0, math.inf)
+    rows: list[RowRecord] = [
+        {**r, "length": near} if (r["kind"], r["left_hand"], r["length"]) == ("void", True, 30.0)
+        else r for r in _m6_grid()]
+    assert verdict_module.block_gaps("grid", _m6_header("grid"), rows, **_M6) == [
+        "1 of 240 pre-registered rows missing: M6 left L=30 void K=3",
+        "1 rows not in the pre-registered set: M6 left L=30.000000000000004 void K=3"]
+
+
 def test_a_block_whose_header_names_no_k_cannot_be_held_against_its_rows() -> None:
     (gap,) = verdict_module.block_gaps("grid", _m6_header("grid", k=None), _m6_grid(), **_M6)
     assert "no K" in gap
