@@ -1586,6 +1586,24 @@ def test_a_timed_out_grid_row_sets_the_seconds_turn_cap_on_a_decisive_gate() -> 
     assert turn_caps(grid, [], True)["M6"].seconds_cap_length == 10.0
 
 
+def test_a_timed_out_void_caps_the_size_like_a_timed_out_rod_on_a_decisive_gate() -> None:
+    """The pass bar holds over a decisive void timeout because it is a cap; the cap must exist."""
+    grid = [_synth(turns=10.0), _synth(kind="void", turns=10.0), _synth(turns=20.0),
+            _synth(kind="void", turns=20.0, cls="timeout"), _synth(turns=30.0)]
+    assert pass_bar(grid, True) == ("held", ())
+    cap = turn_caps(grid, [], True)["M6"]
+    assert (cap.seconds_cap_length, cap.seconds_established) == (10.0, True)
+    loose = turn_caps(grid, [], False)["M6"]
+    assert (loose.seconds_cap_length, loose.seconds_established) == (None, False)
+
+
+def test_a_void_never_makes_a_bytes_cap_because_it_has_no_fine_mesh() -> None:
+    grid = [_synth(turns=10.0), _synth(kind="void", turns=10.0), _heavy(30.0),
+            _synth(kind="void", turns=30.0)]
+    cap = turn_caps(grid, [], True)["M6"]
+    assert (cap.bytes_cap_length, cap.seconds_cap_length) == (10.0, None)
+
+
 # --- The guarded campaign blocks (Phase 2, plan 02-03) ---
 
 
@@ -2424,6 +2442,15 @@ def test_with_no_k_selected_the_harness_default_is_the_locked_k(
     assert "  - ladder: run `c1-ladder` was recorded at K = 3, but the sweep's locked K is 5 " \
            "(no K qualified, so the harness's 5)" in out
     assert "Blocks not read: ladder" in out
+
+
+def test_a_decisive_void_timeout_holds_the_bar_and_the_turn_caps_name_it(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _full_campaign(tmp_path, grid_extra=[_synth(kind="void", turns=30.0, cls="timeout")])
+    assert _verdict("c1", tmp_path) == 0
+    caps = capsys.readouterr().out.split("### Turn caps")[1]
+    assert "| no row over budget | no row over budget | 29 |" in caps  # the cap: below L = 30
+    assert "- M6: first row over the seconds budget: M6 right L=30 void" in caps
 
 
 def test_a_campaign_whose_volume_estimator_is_not_established_never_passes(

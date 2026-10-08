@@ -971,7 +971,9 @@ def turn_caps(grid_rows: list[RowRecord], frontier_rows: list[RowRecord],
     caller reports them missing. Written before any data."""
     caps: dict[str, TurnCap] = {}
     for size, (_, pitch) in PITCH.items():
-        grid = [r for r in grid_rows if r["size"] == size and r["kind"] == "rod"]
+        # Rods and voids both: `pass_bar` lets a decisive void timeout hold the bar as a cap, so
+        # the cap must be taken from it. A void has no fine mesh, so only its timeout can be over.
+        grid = [r for r in grid_rows if r["size"] == size and r["kind"] in ("rod", "void")]
         frontier = [r for r in frontier_rows if r["size"] == size]
         if not grid and not frontier:
             continue

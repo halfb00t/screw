@@ -1455,8 +1455,8 @@ def _unread_blocks(runs: _Runs, pair: _PairRun | None) -> dict[str, list[str]]:
 
 
 def _first_over(rows: list[RowRecord], size: str, over: Callable[[RowRecord], bool]) -> str | None:
-    """The shortest row of `size` over a budget, as its label, or `None`."""
-    hits = [r for r in rows if r["size"] == size and r["kind"] == "rod" and over(r)]
+    """The shortest row of `size`, rod or void, over a budget, as its label, or `None`."""
+    hits = [r for r in rows if r["size"] == size and r["kind"] in ("rod", "void") and over(r)]
     return row_label(min(hits, key=lambda r: r["length"])) if hits else None
 
 
