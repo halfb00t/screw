@@ -1427,12 +1427,15 @@ def _k_section(runs: _Runs) -> list[str]:
     return lines
 
 
-def _estimator_line(grid_rows: list[RowRecord]) -> str:
+def _estimator_line(grid_rows: list[RowRecord]) -> tuple[str, bool]:
+    """The estimator section's line and whether estimator and T_gate were both established. They
+    are one outcome: `select_estimator` returns the winner and its gate together, or raises."""
     try:
         name, err, gate = select_estimator(grid_rows)
     except ValueError as exc:
-        return f"estimator: {_NOT_ESTABLISHED} ({exc})"
-    return f"estimator: {name}; max abs error {err:.3e}; T_gate {gate:g}"
+        return (f"estimator and T_gate: {_NOT_ESTABLISHED} ({exc}); no clean pass without them",
+                False)
+    return f"estimator: {name}; max abs error {err:.3e}; T_gate {gate:g}", True
 
 
 def _cap_cell(value: float | None, *, established: bool = True) -> str:
@@ -1495,9 +1498,10 @@ def verdict_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR) -> int:
     and print K and the rule's table, the estimator and T_gate, the pass bar with every
     offending row, the escape clause, and the turn cap per size with where each came from.
 
-    Exit 0 only when the pass bar held, no escape fired and all four rod blocks and the
-    container run were read; otherwise 1, "not established" and a missing block included: a
-    partial campaign never reads as a pass (D-15). 2 for a prefix or a record it cannot read.
+    Exit 0 only when the pass bar held, no escape fired, all four rod blocks, the pair run and
+    the container run were read, and the volume estimator and its T_gate were established;
+    otherwise 1, "not established" and a missing block included: a partial campaign never reads
+    as a pass (D-15, D-20). 2 for a prefix or a record it cannot read.
     The container rows count toward the pass bar and the escape clause beside the host grid's,
     pre-registered because production runs in that image (D-05), and are never decisive. The
     controls, trim and rss runs are evidence printed beside the verdict and never inputs to it.
@@ -1548,8 +1552,9 @@ def verdict_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR) -> int:
             for block in dict.fromkeys((*PASS_BLOCKS, *SECTIONS)) if block in headers))
         if missing:
             lines.append("- Blocks missing: " + ", ".join(missing))
+        estimator_line, estimator_established = _estimator_line(grid)
         lines += ["", "### K", "", *_k_section(runs), "", "### Volume estimator", "",
-                  _estimator_line(grid), "", "### Pass bar", "", f"pass bar: {bar}",
+                  estimator_line, "", "### Pass bar", "", f"pass bar: {bar}",
                   *(f"- {reason}" for reason in offenders), "", "### Escape clause", "",
                   "escape clause: " + ("FIRED" if escaped else "not fired"),
                   *(f"- {reason}" for reason in escaped), "", "### Turn caps", "",
@@ -1562,7 +1567,7 @@ def verdict_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR) -> int:
     except ValueError as exc:
         print(f"refused: {exc}", file=sys.stderr)
         return 2
-    clean = bar == "held" and not escaped and not missing
+    clean = bar == "held" and not escaped and not missing and estimator_established
     lines.append("**Verdict:** " + ("pass bar held, no escape fired" if clean
                                     else "not a pass: see the sections above"))
     print("\n".join(lines))

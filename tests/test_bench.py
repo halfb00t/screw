@@ -1979,11 +1979,13 @@ def test_the_escape_rows_are_the_failures_inside_the_standard_range_of_either_ha
 def _full_campaign(tmp_path: Path, *, prefix: str = "c1", grid_extra: list[RowRecord] | None = None,
                    grid_decisive: bool = True, skip: tuple[str, ...] = (),
                    container_extra: list[RowRecord] | None = None,
-                   pair_cells: list[PairRecord] | None = None) -> None:
+                   pair_cells: list[PairRecord] | None = None, err: float = 1.5e-6,
+                   stl_err: float | None = 1e-3) -> None:
     """A clean M6-only campaign of all four rod blocks, the pair run and the container run,
-    written the way a run writes it."""
+    written the way a run writes it. `err` and `stl_err` are the grid rod rows' precise and
+    preview-mesh errors, which the estimator rule reads (no `stl_err`: no checked preview)."""
     grid = [row for left in (False, True) for turns in (10.0, 20.0, 60.0)
-            for row in (_synth(left=left, turns=turns, k=3, err=1.5e-6, stl_err=1e-3),
+            for row in (_synth(left=left, turns=turns, k=3, err=err, stl_err=stl_err),
                         _synth(kind="void", left=left, turns=turns, k=3))]
     container = [row for left in (False, True) for turns in (10.0, 60.0)
                  for row in (_synth(left=left, turns=turns, k=3, preview=False, fine=None,
@@ -2071,6 +2073,30 @@ def test_a_sweep_in_which_no_k_qualified_fires_the_escape_clause_and_never_passe
     assert "pass bar: held" in out
     assert "escape clause: FIRED" in out
     assert "- K: no K qualified under the rule" in out
+
+
+def test_a_campaign_whose_volume_estimator_is_not_established_never_passes(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """No grid rod row has a checked preview mesh, so the two estimators cannot be compared:
+    everything else is clean, and the campaign still must not read as a pass."""
+    _full_campaign(tmp_path, stl_err=None)
+    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 1
+    out = capsys.readouterr().out
+    assert "pass bar: held" in out
+    assert "escape clause: not fired" in out
+    assert "estimator and T_gate: not established" in out
+    assert "not a pass" in out
+
+
+def test_a_campaign_whose_gate_tolerance_cannot_be_derived_never_passes(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Both estimators agree with the closed form exactly, so there is no error to scale into a
+    gate: T_gate is not established and the campaign is not a clean pass."""
+    _full_campaign(tmp_path, err=0.0, stl_err=0.0)
+    assert spike_cli.verdict_campaign("c1", results_dir=tmp_path) == 1
+    out = capsys.readouterr().out
+    assert "no gate can be derived" in out
+    assert "estimator and T_gate: not established" in out
 
 
 def test_a_timeout_on_a_non_decisive_grid_makes_the_bar_not_established_and_exit_1(
