@@ -1408,7 +1408,8 @@ def _read_runs(prefix: str, results_dir: Path) -> tuple[_Runs, _PairRun | None]:
 
 
 # The blocks whose record is held against the Method table's row set before it is read. The
-# controls, trim and rss runs are evidence beside the verdict, not inputs to it, and are not.
+# controls, trim and rss runs are evidence beside the verdict, no input to its outcome, and are
+# not (they are still held to the locked K by `_unread_blocks`).
 COMPLETE_BLOCKS = ("ksweep", "grid", "frontier", "ladder", "container")
 
 
@@ -1577,7 +1578,9 @@ def verdict_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR) -> int:
     2 for a prefix or a record it cannot read.
     The container rows count toward the pass bar and the escape clause beside the host grid's,
     pre-registered because production runs in that image (D-05), and are never decisive. The
-    controls, trim and rss runs are evidence printed beside the verdict and never inputs to it.
+    controls, trim and rss runs are evidence printed beside the verdict and never inputs to its
+    outcome (pass bar, escape, caps, K, estimator), but they are read only at the locked K like
+    every other run, so an evidence run at another K withholds the pass.
     Plan 02-05 extends it with the pair section."""
     if not RUN_ID.fullmatch(prefix):
         print(f"refused: prefix {prefix!r} must fullmatch [a-z0-9][a-z0-9-]{{0,63}}",
