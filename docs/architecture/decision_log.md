@@ -280,3 +280,131 @@ costs nothing at runtime.
 
 Reversibility: reversible. Four lines in `pyproject.toml`; bumping one is a deliberate re-vet,
 which is the point.
+
+## L11 — The thread is a sewn twist-section at K = 3, volumes are `BRepGProp` at eps 1e-6 gated at 9e-5, and the pair proof is not falsifiable at M18 (blocks Phase 5)
+
+Date: 2026-10-09. Decided by the owner at the Phase 2 verdict checkpoint on the
+pre-registered rules of `02-SPIKE.md`. Every value below names the
+`bench/RESULTS.md` entry (run id) that holds it; the rules that produced it are the ones in
+`02-SPIKE.md` (Rules), written before any run. A value the campaign could not establish is
+written "not established".
+
+**Profile.** ISO 68-1:2023 basic profile, flat crest and flat root, read by the owner on
+2026-10-06 and pinned at the D-01 checkpoint (`02-SPIKE.md`, Owner rulings): H = (sqrt(3)/2) P,
+crest flat P/8 at radius d/2, root flat P/4 at radius d/2 - 5H/8, flanks at 60 degrees. Every
+measured row builds this section; a profile change re-runs the whole campaign.
+
+**Construction.** The sewn twist-section, segment length K = 3 turns, selected by the K rule
+over `2026-10-08-a-ksweep` (`### 2026-10-08-a-verdict`, K section; all three K qualified and K = 3
+had the fewest fine triangles at the standard max). Sewing tolerance 1e-4 mm, `MAX_SEGMENTS` 500
+and 14 section samples per flank are protocol inputs labelled MEASURED-PRIOR (research probes),
+not campaign results; they ran unchanged in every row. Result: the host grid
+(`2026-10-08-a-grid`) and the container grid (`2026-10-08-a-container`), both hands, rod and
+void, read ok on every row, with 1025 of 7160 host meshes unchecked above the 1 000 000-triangle
+check ceiling (a skipped check is not a pass for its mesh). The frontier walk
+(`2026-10-08-a-frontier`) reached 250 turns with no stop for all 15 sizes and both hands; the
+run is non-decisive, so it applied no clock stop. Reference rows: the one-pipe twist reads
+inverted at the 160-turn step on 8 of the 8 sizes tried there (`2026-10-08-a-controls`) and the
+ruled-surface reference reads silent_wrong against the pinned closed form (its profile is not
+the pinned one); neither is a candidate.
+
+**Volume estimator.** `BRepGProp.VolumeProperties_s` at eps 1e-6 (`precise`), never the default
+`Volume()`. Rule `select_estimator` over `2026-10-08-a-grid`: largest absolute error 8.147e-06
+against the closed form; the shipped gate is `T_gate` = 9e-05 (`GATE_FACTOR` 10 times the winner's
+largest error, rounded up to one significant figure) (`### 2026-10-08-a-verdict`, Volume estimator
+section). Phase 3's postcondition compares the precise volume to the closed form inside `T_gate`,
+sign included.
+
+**Turn cap per size.** Phase 3's cap-and-warn input is the smallest of the three columns. The
+construction cap is from `2026-10-08-a-frontier`; the bytes cap is the largest length below the
+first grid row whose fine raw STL plus gzip-1 exceeds the INTERIM 64 MiB budget, from
+`2026-10-08-a-grid`; the seconds cap is not established for any size, because the grid run is
+non-decisive (owner ruling R4), and nothing was re-run toward a value.
+
+| Size | Construction cap (turns) and stop reason | Bytes cap (mm) | Bytes cap (turns) | First row over the bytes budget (`2026-10-08-a-grid`) | Seconds cap |
+|---|---|---|---|---|---|
+| M2 | 250, no stop up to 250 turns | no row over budget | no row over budget | none | not established |
+| M2.5 | 250, no stop up to 250 turns | no row over budget | no row over budget | none | not established |
+| M3 | 250, no stop up to 250 turns | no row over budget | no row over budget | none | not established |
+| M3.5 | 250, no stop up to 250 turns | no row over budget | no row over budget | none | not established |
+| M4 | 250, no stop up to 250 turns | no row over budget | no row over budget | none | not established |
+| M5 | 250, no stop up to 250 turns | no row over budget | no row over budget | none | not established |
+| M6 | 250, no stop up to 250 turns | no row over budget | no row over budget | none | not established |
+| M7 | 250, no stop up to 250 turns | no row over budget | no row over budget | none | not established |
+| M8 | 250, no stop up to 250 turns | 67.5 | 54 | M8 right L=68 rod | not established |
+| M10 | 250, no stop up to 250 turns | 56 | 37.3333 | M10 right L=57 rod | not established |
+| M12 | 250, no stop up to 250 turns | 60 | 34.2857 | M12 right L=61 rod | not established |
+| M14 | 250, no stop up to 250 turns | 58 | 29 | M14 right L=59 rod | not established |
+| M16 | 250, no stop up to 250 turns | 52 | 26 | M16 right L=53 rod | not established |
+| M18 | 250, no stop up to 250 turns | 65 | 26 | M18 right L=66 rod | not established |
+| M20 | 250, no stop up to 250 turns | 64 | 25.6 | M20 right L=65 rod | not established |
+
+"No row over budget" means no grid row up to min(10 d, 200 mm) exceeded the budget; it says
+nothing beyond the grid. The bytes budget is the INTERIM fine preset (0.01 mm, 0.1 rad) with
+gzip level 1. Phase 3 cannot read a seconds cap from this entry.
+
+**Pair check** (`2026-10-08-a-pair`, decisive, locked K = 3; nut heights UNVERIFIED). Falsifiable
+on both hands at every size except M18; M18 is **not falsifiable on either hand** (all four proof
+clearances 0.05, 0.1, 0.15, 0.2 mm excluded: one control reads empty at one pose in every cell).
+Excluded clearances (identical on both hands at every size): M2 0.1, 0.2; M2.5 0.1; M3 0.05,
+0.15; M3.5 none; M4 0.05; M5 0.05; M6 none; M7 0.05; M8 none; M10 0.05, 0.1; M12 0.05; M14 0.1;
+M16 none; M18 0.05, 0.1, 0.15, 0.2 (all); M20 none. Mixed-hand pair (right-hand rod, left-hand
+nut): read violated at every matched pose at every size (4 cells each). Sensitivity (c = -0.05
+reads near the closed form): ok at every size and hand. c = 0 is inconclusive by definition. No
+same-hand cell read violated. The variant rules and the reference-K rows (K = 5 and 10 at M2,
+M6, M10, M20) are reported in `### 2026-10-08-a-verdict` for Phase 5's revision and never
+changed the verdict (owner ruling R1).
+
+**Known-bad inputs for THRD-04** (naive `sweep` + `fuse`, one solid, `isValid()` true, precise
+volume below half the closed form; `naive_sweep_fuse(d, pitch, length)` in
+`bench/thread_spike/helical.py`; `### 2026-10-08-a-verdict`, Controls section;
+`2026-10-08-a-controls`): (d=2.0, pitch=0.4, length=4.0), (2.0, 0.4, 10.0), (2.0, 0.4, 20.0),
+(2.5, 0.45, 4.5), (2.5, 0.45, 10.0), (3.0, 0.5, 10.0), (6.0, 1.0, 10.0), (8.0, 1.25, 10.0),
+(8.0, 1.25, 80.0), (10.0, 1.5, 10.0), (10.0, 1.5, 100.0), (16.0, 2.0, 10.0), (20.0, 2.5, 10.0),
+(20.0, 2.5, 20.0), (20.0, 2.5, 200.0). Recipe: the naive row's builder as it stands in
+`helical.py` at the commit of this entry. The same control also produced failure rows
+(`Null TopoDS_Shape` and one `MakeSolid` error), which a positive-control gate refuses by
+raising; the silent rows above are the ones the gate must catch by volume.
+
+**Container.** `screw:latest` (sha256:7d992a89557b01bf2e35e0d368f8b68fd11e9c2774bbdfb45a26f1f7a31638f6) under linux/amd64: 7160 of 7160 rows ok
+(`2026-10-08-a-container`, `### 2026-10-08-a-verdict` Container validity); non-decisive by
+construction, timings are emulation and feed no bound (D-05); no row timed out.
+
+**Escape clause.** FIRED, by the rule "Phase 5 is not planned until the roadmap is revised
+(SC5)": size M18 is not falsifiable (right, left hand) in `2026-10-08-a-pair`. Not fired:
+Phase 3's two rules (no failure, worker_died or silent_wrong row inside the standard range in the
+host grid or the container; K qualified). The verdict reads "not a pass" (exit 1). Consequence
+chosen by the owner on 2026-10-09 ("revise: Phase 5"): Phase 5 is not planned until the roadmap
+is revised (via `/gsd-phase`); the owner named no direction for the revision, so the direction is
+to be named when Phase 5 is revised. Phase 3 stays plannable and is planned on this entry. No
+constant was tuned toward a pass and nothing was re-run to change the outcome.
+
+**Conditions of the record.** The campaign ran on a host other than the registered one (Apple M5
+Max, 18 CPUs, 64 GiB, macOS 27.0.1, Python 3.12.15 against the registered M2 Max, 12 CPUs,
+32 GiB, Python 3.12.13; kernel pair identical: cadquery 2.8.0, cadquery-ocp 7.9.3.1.1), under
+the owner's option A, and with owner ruling R4 overridden (launched from the orchestrating agent
+session with other applications open). `ksweep`, `grid`, `frontier` and `container` are
+non-decisive, so every seconds claim is not established; `ladder`, `trim`, `controls`, `rss` and
+`pair` are decisive. Source: `02-07-SUMMARY.md` Deviations; the head of the `## Thread spike
+(Phase 2)` section of `bench/RESULTS.md`.
+
+**Inputs still UNVERIFIED** (the standard unread; labelled so in the protocol and the records):
+the ISO 262 coarse pitches (secondary source), the ISO 4017 length cap (10 d, 200 mm), every ISO
+4032 nut height m, and the 30 degree tip-chamfer cone (ISO 4753). **INTERIM** (Phase 1 carries,
+Phase 7 re-measures): the 30 s build budget, the 64 MiB export budget, the preview (0.08 mm, 0.5
+rad) and fine (0.01 mm, 0.1 rad) presets, gzip level 1. Peak RSS figures are a fresh child's for
+one row each (`2026-10-08-a-rss`) and bound nothing.
+
+Reason: the sewn twist built every row of the whole grid, both hands, rod and void, in the host
+and the container, inside the pre-registered tolerance, and reached the 250-turn ceiling without
+a stop, while the comparison constructions failed or read silently wrong where it did not. The
+precise volume had the smaller error against the closed form and sets the gate by the
+pre-registered factor. The pair check, as pre-registered, cannot be falsified at M18; a Phase 5 planned on it
+would claim a proof that cannot fail. The seconds caps are left unestablished rather than filled with a
+plausible number (L02).
+
+Reversibility: costly. Phase 3's builder, its postcondition tolerance and its cap-and-warn input
+read this entry; changing the construction, K, the estimator or `T_gate` later needs a
+superseding entry and a re-run of the affected blocks. The profile pin is one-way (a change
+re-runs the whole campaign). The unestablished seconds caps and the INTERIM budgets are
+reversible by design: Phase 7 re-measures them.

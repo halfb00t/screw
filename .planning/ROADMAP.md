@@ -24,7 +24,7 @@ release and is not in this roadmap.
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Runtime Port and Walking Skeleton** - spur's runtime ported per L07, serving a plain skeleton bolt on UI, API and CLI with parity proven (completed 2026-10-06)
-- [ ] **Phase 2: Thread Spike** - a pre-registered measurement picks the thread construction, volume estimator and turn cap before any thread field exists
+- [x] **Phase 2: Thread Spike** - a pre-registered measurement picks the thread construction, volume estimator and turn cap before any thread field exists (completed 2026-10-09)
 - [ ] **Phase 3: Real Helical Thread** - the bolt kind carries a real ISO 68-1 helical thread, right- or left-hand, behind a postcondition gate
 - [ ] **Phase 4: ISO Hex Bolts and Screws** - ISO 4014 and 4017 presets from cited, tested table rows fill explicit mm fields; a traceable info panel for the bolt
 - [ ] **Phase 5: Hex Nut and Kernel Pair Proof** - ISO 4032 nut with a clearance field, matching-part derivation and a kernel pair proof that can fail
@@ -93,7 +93,7 @@ Plans:
   4. A new decision entry records the construction chosen, the volume estimator chosen, the turn cap per size, and the ISO 68-1:2023 profile (basic or design) pinned after the standard was read, and no field that builds a thread exists in `src/` when it is committed.
   5. If the pair check cannot be made falsifiable, or the worst case trips the escape clause, the spike says so and the roadmap is revised before Phase 5 is planned; no constant is tuned toward a pass.
 
-**Plans**: 5/8 plans executed (two PRs, D-19: plans 01-06 are PR 1 on `gsd/phase-02-thread-spike`; plans 07-08 are PR 2 on `gsd/phase-02-thread-spike-runs`, cut from `origin/main` after PR 1 lands)
+**Plans**: 8/8 plans complete (two PRs, D-19: plans 01-06 are PR 1 on `gsd/phase-02-thread-spike`; plans 07-08 are PR 2 on `gsd/phase-02-thread-spike-runs`, cut from `origin/main` after PR 1 lands)
 
 Plans:
 **Wave 1**
@@ -112,13 +112,13 @@ Plans:
 - [x] 02-05-PLAN.md — Pair check with half-pitch controls and closed-form oracle; one guarded campaign command
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [ ] 02-06-PLAN.md — Pre-register the protocol, other-CLI review, land PR 1 with make pr.land
+- [x] 02-06-PLAN.md — Pre-register the protocol, other-CLI review, land PR 1 with make pr.land
 
 **Wave 7** *(blocked on Wave 6 completion)*
-- [ ] 02-07-PLAN.md — Owner runs the campaign on a quiet host; every block recorded verbatim in bench/RESULTS.md
+- [x] 02-07-PLAN.md — Owner runs the campaign on a quiet host; every block recorded verbatim in bench/RESULTS.md
 
 **Wave 8** *(blocked on Wave 7 completion)*
-- [ ] 02-08-PLAN.md — Reproducible verdict, Results/Verdict by citation, owner decision, L11
+- [x] 02-08-PLAN.md — Reproducible verdict, Results/Verdict by citation, owner decision, L11
 
 ### Phase 3: Real Helical Thread
 
@@ -158,6 +158,7 @@ Plans:
 **Mode:** mvp
 **Depends on**: Phase 4
 **Precondition (owner checkpoint)**: owner holds purchased copies of ISO 4014:2022, 4017:2022, 4032:2023, 262:2023, 724:2023, 965-2:2024. The ISO 4032 and ISO 965-2 rows ship here (TABL-04).
+**Precondition (L11 escape clause)**: the roadmap is revised before this phase is planned — M18 not falsifiable (right, left hand) in `2026-10-08-a-pair`
 **Requirements**: TYPE-03, TYPE-04, THRD-05, PAIR-01, PAIR-03, PAIR-04, INFO-01, INFO-02, FRNT-06
 **Success Criteria** (what must be TRUE):
   1. A user can generate an ISO 4032 hex nut M2–M20 from a preset or mm fields on the UI, API and CLI (`s`, `e`, `m`, `mw`, `dw`, chamfers on both faces), with M2–M4 labelled "informative / historical" in the preset and on the panel; for any bolt the user gets the matching nut, and vice versa, from the same `d`, pitch, hand and clearance; the nut thread and the bolt tip carry lead-in chamfers; the parity test is green with both kinds.
@@ -207,7 +208,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 2 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Runtime Port and Walking Skeleton | 10/10 | Complete    | 2026-10-06 |
-| 2. Thread Spike | 5/8 | In Progress | - |
+| 2. Thread Spike | 8/8 | Complete    | 2026-10-09 |
 | 3. Real Helical Thread | 0/TBD | Not started | - |
 | 4. ISO Hex Bolts and Screws | 0/TBD | Not started | - |
 | 5. Hex Nut and Kernel Pair Proof | 0/TBD | Not started | - |
