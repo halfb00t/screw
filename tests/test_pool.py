@@ -189,6 +189,19 @@ def test_a_wedged_build_is_terminated_and_its_worker_replaced(
         manager.join(timeout=5)
         assert not manager.is_alive(), "executor manager thread did not finish shutdown"
         assert proc.exitcode == -signal.SIGTERM
+        # Released here, not at return. `manager` holds the killed executor's call and result
+        # queues -- five named semaphores -- and `asyncio.run` raising BuildTimeout through
+        # `pytest.raises` leaves this frame in a BuildTimeout -> traceback -> Task reference
+        # cycle, so a local still set at return keeps them for a later cyclic GC. One that
+        # lands inside multiprocessing's resource-tracker lock (the next test's semaphore
+        # `register` or worker spawn) runs their finalizers reentrantly (CPython 3.12,
+        # gh-109629), and `filterwarnings = ["error"]` turned that into a failure of the
+        # next test, test_a_dying_worker_surfaces_as_broken_pool_and_is_replaced: 3 gate
+        # runs 2026-10-06..09, 2 of 20 `-n 8` runs measured before this line. With one GC
+        # forced inside that lock at the start of every test, the full `-n 8` suite failed
+        # 2 of 2 runs before this line and 0 of 5 after (resolved debt record
+        # 2026-10-06-test-pool-dying-worker-flake.md).
+        del manager
         assert pool.replaced == replaced_before + 1
 
         replaced = _event_records(caplog, "worker.replaced")
