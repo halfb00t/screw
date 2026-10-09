@@ -158,6 +158,7 @@ Plans:
 **Mode:** mvp
 **Depends on**: Phase 4
 **Precondition (owner checkpoint)**: owner holds purchased copies of ISO 4014:2022, 4017:2022, 4032:2023, 262:2023, 724:2023, 965-2:2024. The ISO 4032 and ISO 965-2 rows ship here (TABL-04).
+**Precondition (L11 escape clause)**: the roadmap is revised before this phase is planned — M18 not falsifiable (right, left hand) in `2026-10-08-a-pair`
 **Requirements**: TYPE-03, TYPE-04, THRD-05, PAIR-01, PAIR-03, PAIR-04, INFO-01, INFO-02, FRNT-06
 **Success Criteria** (what must be TRUE):
   1. A user can generate an ISO 4032 hex nut M2–M20 from a preset or mm fields on the UI, API and CLI (`s`, `e`, `m`, `mw`, `dw`, chamfers on both faces), with M2–M4 labelled "informative / historical" in the preset and on the panel; for any bolt the user gets the matching nut, and vice versa, from the same `d`, pitch, hand and clearance; the nut thread and the bolt tip carry lead-in chamfers; the parity test is green with both kinds.

@@ -78,9 +78,10 @@ Progress: [█░░░░░░░░░] 14%
 
 ### Decisions
 
-Locked decisions live in `docs/architecture/decision_log.md` (L01–L10); owner choices and Phase 1 outcomes in PROJECT.md § Key Decisions; the full Phase 1 record is in its ten `01-xx-SUMMARY.md` files.
+Locked decisions live in `docs/architecture/decision_log.md` (L01–L11); owner choices and Phase 1 outcomes in PROJECT.md § Key Decisions; the full Phase 1 record is in its ten `01-xx-SUMMARY.md` files.
 Recent decisions affecting current work:
 
+- L11: the thread is a sewn twist-section at K = 3; volumes are `BRepGProp` at eps 1e-6 gated at `T_gate` 9e-05; turn caps per size (construction 250 turns for every size, bytes cap from M8 up, seconds "not established"); the pair proof is not falsifiable at M18, so the escape clause fired and Phase 5 is blocked until the roadmap is revised (owner chose "revise", 2026-10-09). Every value cites a `2026-10-08-a-*` run in `bench/RESULTS.md`.
 - L07: runtime forked from spur `ec195fb`; gear modules are never copied; the extraction trigger fired once (`pool.py` D-16 same-slot guard) and is recorded as debt (nice), not acted on.
 - L09: registry with a frozen default kind (`bolt`), per-kind URLs, `kind=` omitted from the hash at the default, `PartInfo` as the one info document; every runtime bound is INTERIM (16 knobs in the D-02 debt item, Severity must, Phase 7 trigger).
 - L08: `main` is walled — ruleset `default` id 24563199, required jobs test (3.12) / vendor-bundle / image, skip-token commit-msg hook; every phase lands through `make pr.land`.
@@ -119,7 +120,8 @@ None yet.
 - ISO 4753 (bolt ends, THRD-05) must be read but is not on TABL-04's purchase list. (ISO 68-1:2023 read by the owner on 2026-10-06; profile pinned basic — `02-SPIKE.md` § Owner rulings, D-01.)
 - ⚠️ [Phase 1] Every runtime bound is INTERIM (timeout, memory, gzip, workers, cache budget, container limits — 16 knobs in the D-02 tech-debt item, Severity must) until the Phase 7 linux/amd64 re-sweep; the Phase 1 memory sweep is an emulation figure with 4–12 samples per row (sampling limit filed as debt).
 - Coarse pitch only (TABL-05) vs contract 6 (`params` never imports `tables`): how an explicit non-coarse pitch is handled (refuse, or build and show row-dependent numbers as warnings) is a Phase 3/4 discussion question.
-- Pair-proof reliability on the full grid is unmeasured; if Phase 2 finds it cannot be made falsifiable, revise Phase 5 before planning it.
+- Pair-proof reliability on the full grid is measured (`2026-10-08-a-pair`, decisive): falsifiable on both hands at every size except M18, which is not falsifiable on either hand (all four proof clearances excluded) (L11).
+- Phase 5 not planned until the roadmap is revised (L11, SC5): M18 not falsifiable (right, left hand) in `2026-10-08-a-pair`; the owner chose "revise" on 2026-10-09 and named no direction yet. Phase 3 is plannable.
 - Printability threshold (INFO-04): a printed test over M6–M12 cannot locate a floor below M6; Phase 6 must widen the matrix or warn below the smallest size it proved.
 - Every research number is single-machine macOS arm64; linux/amd64 is unverified until Phase 7.
 
