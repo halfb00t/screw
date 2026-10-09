@@ -36,6 +36,12 @@ mating pair out.
 - ✓ CAD builds run in worker processes off the event loop; admission control (bounded
       queue, `503` + `Retry-After`) lives in the web layer only — Phase 1 (ported pool with
       the D-16 same-slot guard; every bound is INTERIM until the Phase 7 re-sweep).
+- ✓ Thread generation's cost is measured by a pre-registered spike before any field
+      exists — Phase 2 (campaign `2026-10-08-a`, L11: sewn twist-section at K = 3; precise
+      `BRepGProp` volumes gated at `T_gate` 9e-05; construction cap 250 turns at every size;
+      bytes caps M8–M20 under the INTERIM 64 MiB budget; seconds caps not established because
+      the grid run was non-decisive under owner ruling R4, and nothing was re-run toward a
+      value).
 
 ### Active
 
@@ -48,7 +54,9 @@ All hypotheses until shipped and validated. Grouped by the owner's decisions of
       is a requirements question; if it does, it defaults off.
 - [ ] A bolt and a nut from this tool, printed on an FDM printer at the chosen clearance,
       thread together by hand; a kernel-level interference check proves the pair before any
-      printer does.
+      printer does. Phase 2 measured the check falsifiable on both hands at every size except
+      M18, where every proof clearance is excluded (L11 escape clause); the roadmap is
+      revised before Phase 5 is planned.
 - [ ] One `clearance` field, carried by the **nut** (its thread grows inward); the bolt is
       built to nominal so it mates a bought nut. The default value comes from the thread
       spike and a printed test, never from a guess.
@@ -83,8 +91,8 @@ All hypotheses until shipped and validated. Grouped by the owner's decisions of
 
 **Operability (inherited shape)**
 - [ ] Every allowed configuration builds inside a measured per-build timeout, with the bound
-      that keeps it there recorded; thread generation's cost is measured by a spike before
-      any field exists.
+      that keeps it there recorded (the Phase 2 spike left every seconds cap "not
+      established"; Phase 3 caps on construction and bytes until a decisive run exists).
 
 ### Out of Scope
 
@@ -217,6 +225,7 @@ table cites it. `cq_warehouse.fastener` is likewise unverified.
 | Coverage floor 94 = floor(95.03 − max(0.25, 0.00)) on the 285-test skeleton suite; `PYTEST_WORKERS` 8 carried from spur | A floor is a measured number, never a round one or spur's 96 | Phase 1: enforced in `make verify`; re-measure before moving it |
 | Bench harness ported with its method and predicates, none of spur's numbers; no latency bar | A bar beside a screw figure would read as a bound (L07) | Phase 1: one labelled run per harness half in `bench/RESULTS.md`; Phase 7 re-sweeps on native linux/amd64 |
 | PR #1 landed as a merge commit (51 commits), not D-12's squash | Owner accepted the shape 2026-10-06; D-12 applies from the wall onward | Phase 1: `make pr.land` squashes every later PR |
+| Thread construction, volume estimator and turn caps come from the pre-registered Phase 2 campaign, never tuned toward a pass (L11) | Method, predictions and escape clause were committed before the first run (`02-SPIKE.md`, blob `4e1959ea`); every value cites a `2026-10-08-a-*` run | Phase 2: sewn twist-section at K = 3, `precise` volumes gated at 9e-05, construction cap 250 turns; the verdict is "not a pass" by its own rules — M18 pair proof not falsifiable on either hand — and the owner chose to revise the roadmap before Phase 5 (2026-10-09) |
 
 ## Evolution
 
@@ -236,4 +245,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-10-06 after Phase 1*
+*Last updated: 2026-10-09 after Phase 2*
