@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Thread Spike
 status: executing
-stopped_at: Completed 02-06-PLAN.md
-last_updated: "2026-10-08T10:44:50.506Z"
+stopped_at: Completed 02-07-PLAN.md
+last_updated: "2026-10-09T01:22:26.858Z"
 last_activity: 2026-10-08
 last_activity_desc: Phase 02 execution resumed (wave continue)
-state_head: fd40abc09947744b3e030446085e26a9e1a0c87f
+state_head: af790ea8615b8bee0ca6162d459a54792e9fe52d
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 18
-  completed_plans: 16
+  completed_plans: 17
   percent: 14
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 ## Current Position
 
 Phase: 02 (Thread Spike) — EXECUTING
-Plan: 7 of 8
+Plan: 8 of 8
 Status: Ready to execute
 Last activity: 2026-10-08 — Phase 02 execution resumed (wave continue)
 
@@ -72,6 +72,7 @@ Progress: [█░░░░░░░░░] 14%
 | Phase 02 P04 | 27 min | 3 tasks | 7 files |
 | Phase 02 P05 | 24 min | 3 tasks | 7 files |
 | Phase 02 P06 | 5 min | 3 tasks | 5 files |
+| Phase 02 P07 | 8 min | 3 tasks | 20 files |
 
 ## Accumulated Context
 
@@ -105,6 +106,8 @@ Recent decisions affecting current work:
 - [Phase 02]: 02-05: campaign skips a block whose K-sweep or frontier input did not complete rather than selecting K from half a sweep; refused and interrupted blocks are logged in PREFIX-campaign.md
 - [Phase 02]: 02-06: the PR 1 head and the squash commit on main have the identical git tree (059aa59 and fd40abc), so the protocol on main is exactly what was reviewed and verified — Verified 2026-10-08 with git rev-parse on both trees.
 - [Phase 02]: 02-06: the Task 2 cross-CLI review is recorded as satisfied out of band by the owner merging PR 5; the evidence is indirect (finding ids F4 and G6 in the protocol, fix commits after Task 1, no GitHub review object) and flagged for human acceptance — Reviewer identity and findings list are unverified from the repo; coverage D5 in 02-06-SUMMARY.md sets human_judgment true.
+- [Phase 02]: 02-07: campaign 2026-10-08-a ran on an Apple M5 Max (protocol registers M2 Max) without amending the protocol's Environment section; kernel pair identical, so no re-measure trigger — Owner chose option A on 2026-10-08.
+- [Phase 02]: 02-07: owner overrode ruling R4 (campaign ran with agent sessions and other apps open); ksweep, grid, frontier and container are recorded non-decisive and nothing was re-run toward a pass — Owner: 'No, I don't want to idle for the whole day. Run yourself as is, I won't exit any app'.
 
 ### Pending Todos
 
@@ -130,6 +133,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-08T10:44:43.221Z
-Stopped at: Completed 02-06-PLAN.md
+Last session: 2026-10-09T01:22:21.540Z
+Stopped at: Completed 02-07-PLAN.md
 Resume file: None
