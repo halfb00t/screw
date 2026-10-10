@@ -2,12 +2,11 @@
 gsd_state_version: "1.0"
 current_phase: 3
 current_phase_name: Real Helical Thread
-status: planning
-stopped_at: Phase 02 complete, ready to plan Phase 3
-last_updated: "2026-10-09T14:42:18.090Z"
-last_activity: 2026-10-09
-last_activity_desc: Phase 02 complete, transitioned to Phase 3
-state_head: c63f3ac2e355ff35b91bddb7280452c3ff67468a
+status: "Phase 02 shipped — PR #6 merged 7615de2, pool-flake fix PR #7 merged 69436fb"
+stopped_at: Phase 02 shipped (PR #6 7615de2, PR #7 69436fb), ready to plan Phase 3 from main
+last_updated: "2026-10-10T05:30:58Z"
+last_activity: 2026-10-10
+state_head: 5ec5af4d5a029bb51152d7b387d95830c66fde75
 progress:
   total_phases: 7
   completed_phases: 2
@@ -29,8 +28,8 @@ See: .planning/PROJECT.md (updated 2026-10-09)
 
 Phase: 3 — Real Helical Thread
 Plan: Not started
-Status: Ready to plan
-Last activity: 2026-10-09 — Phase 02 complete, transitioned to Phase 3
+Status: Phase 02 shipped — PR #6 merged 7615de2, pool-flake fix PR #7 merged 69436fb
+Last activity: 2026-10-10 — PR #6 and PR #7 landed on main
 
 Progress: [███░░░░░░░] 29%
 
@@ -124,7 +123,7 @@ None yet.
 - Coarse pitch only (TABL-05) vs contract 6 (`params` never imports `tables`): how an explicit non-coarse pitch is handled (refuse, or build and show row-dependent numbers as warnings) is a Phase 3/4 discussion question.
 - Pair-proof reliability on the full grid is measured (`2026-10-08-a-pair`, decisive): falsifiable on both hands at every size except M18, which is not falsifiable on either hand (all four proof clearances excluded) (L11).
 - Phase 5 not planned until the roadmap is revised (L11, SC5): M18 not falsifiable (right, left hand) in `2026-10-08-a-pair`; the owner chose "revise" on 2026-10-09 and named no direction yet. Phase 3 is plannable.
-- Phase 2 PR 2 (`gsd/phase-02-thread-spike-runs`, D-19) is verified (UAT 4/4 passed 2026-10-09) but not yet landed; the Phase 3 branch is cut from `origin/main` after `make pr.land`, so Phase 3 planning starts on `main`, not on this branch. The pool-test flake debt item (`docs/tech_debt/active/2026-10-06-test-pool-dying-worker-flake.md`) names "before PR 2 lands Phase 2" as its trigger.
+- Phase 3 starts on `main` at `69436fb`: Phase 2 PR 2 merged as `7615de2` (PR #6, 2026-10-09) and the pool-test flake it waited on is fixed in PR #7 (`docs/tech_debt/resolved/2026-10-06-test-pool-dying-worker-flake.md`). Still open from Phase 2: the harness review findings (`docs/tech_debt/active/2026-10-09-thread-spike-harness-review-findings.md`, must), due on the first PR that touches `bench/thread_spike/` or `bench/quiet.py`.
 - Printability threshold (INFO-04): a printed test over M6–M12 cannot locate a floor below M6; Phase 6 must widen the matrix or warn below the smallest size it proved.
 - Every research number is single-machine macOS arm64; linux/amd64 is unverified until Phase 7.
 
@@ -138,6 +137,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-09T14:42:58Z
-Stopped at: Phase 02 complete, ready to plan Phase 3
+Last session: 2026-10-10T05:30:58Z
+Stopped at: Phase 02 shipped (PR #6 7615de2, PR #7 69436fb), ready to plan Phase 3 from main
 Resume file: None
