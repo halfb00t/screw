@@ -2,7 +2,8 @@
 
 The default `Shape.Volume()` is a reference column, never a verdict input: it read +6.3 % on a
 `cq_warehouse` thread and -1.0024 of the closed form on an inverted one-pipe solid, while
-`isValid()` stayed True (RESEARCH Pattern 2). The verdict estimator is the precise one below.
+`isValid()` stayed True (RESEARCH Pattern 2). The verdict estimator is the precise one, which
+moved to `screw.solid` in Phase 3 and is imported back here (`PRECISE_EPS`, `precise_volume`).
 """
 
 from __future__ import annotations
@@ -17,15 +18,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import cadquery as cq
-from OCP.BRepGProp import BRepGProp
-from OCP.GProp import GProp_GProps
 
 from bench.build_time import stl_size
+from screw.solid import PRECISE_EPS as PRECISE_EPS
+from screw.solid import precise_volume as precise_volume
 
-# Relative error bound of `BRepGProp.VolumeProperties_s`, per face. Read from the OCP
-# docstring: above 0.001 the integration is non-adaptive. 1e-7 cost 2x (0.4-2.0 s against
-# 0.2-1.0 s per row) for no gain: 1.53e-6 against 1.62e-6 at M6 L20 (RESEARCH Code Example 4).
-PRECISE_EPS = 1e-6
 # Vertices of the STL are welded by rounding each coordinate to this many mm before edges are
 # paired, so the two sides of a seam compare equal.
 WELD_MM = 1e-5
@@ -33,13 +30,6 @@ WELD_MM = 1e-5
 # raw + gzip at the level that ships. Levels 6 and 9 gave 4.9 % smaller on an M6 L60 STL, under
 # L19's 10 % bar, so 1 stays (RESEARCH Pattern 7); Phase 7 re-measures.
 GZIP_LEVEL = 1
-
-
-def precise_volume(shape: cq.Shape) -> float:
-    """Volume to `PRECISE_EPS`, signed: an inverted solid reads about -1 times its closed form."""
-    props = GProp_GProps()
-    BRepGProp.VolumeProperties_s(shape.wrapped, props, PRECISE_EPS, False, False)
-    return float(props.Mass())
 
 
 def default_volume(shape: cq.Shape) -> float:

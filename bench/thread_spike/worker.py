@@ -113,7 +113,11 @@ def _build(request: RowRequest) -> tuple[cq.Shape, float, float | None]:
     elif kind == "ruled":
         shape = helical.ruled_reference(d, pitch, request["length"])
     else:
-        shape = helical.thread(d, pitch, request["turns"], clearance=request["clearance"],
+        # The shipped builder takes the length the grid computed exactly (`float(Fraction)`) and
+        # folds a sub-`MIN_TAIL_MM` tail (Phase 3 Pattern 1); at integer turns it agrees with
+        # the measured exact-turns builder to 7e-13 relative volume on the drift rows and
+        # exactly elsewhere (03-RESEARCH Pattern 1).
+        shape = helical.thread(d, pitch, request["length"], clearance=request["clearance"],
                                left_hand=request["left_hand"], k=request["k"])
     build_s = time.perf_counter() - t0
     if kind != "trim":
