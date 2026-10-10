@@ -408,3 +408,112 @@ read this entry; changing the construction, K, the estimator or `T_gate` later n
 superseding entry and a re-run of the affected blocks. The profile pin is one-way (a change
 re-runs the whole campaign). The unestablished seconds caps and the INTERIM budgets are
 reversible by design: Phase 7 re-measures them.
+
+## L12 — The bolt is the L11 thread behind a gate in screw.solid; turns, root radius and the over-budget fine STL are refused, never trimmed; left_hand is on every kind
+
+Date: 2026-10-10. Decided by the owner in the Phase 3 discussion (D-01 to D-16) and in the
+planning rulings D-17 to D-19, both on 2026-10-10. Where a value comes from L11 it names the
+`bench/RESULTS.md` run id that holds it; every other figure names its source, and those are
+single runs on macOS arm64 under variable load (the "research probe 2026-10-10" and the "planner
+probe 2026-10-10"), which bound nothing. This entry measures nothing new (D-15): the cap and gate
+values are L11's, restated where the code carries them.
+
+**Builder.** `screw.solid.helical.thread(d, pitch, length, *, clearance, left_hand, k)` is the one
+builder, for the rod and for the void (the clearance-grown section Phase 5's nut subtracts). It is
+L11's sewn twist-section at K = 3 (`2026-10-08-a-ksweep`, `### 2026-10-08-a-verdict`), moved out of
+`bench/thread_spike/` without change of construction; the spike imports it back (D-13, 02 D-18), so
+what was measured is what ships. It takes the length in mm and not a turn count, because 130 of 3750
+integer-turn rows leave a float tail below 1e-3 mm and `pitch=0.6, length=5.4` leaves 8.9e-16 mm,
+which crashes the kernel (research probe 2026-10-10). A tail shorter than `MIN_TAIL_MM` = 1e-3 mm is
+folded into the previous segment, so the end face still sits at `z = length`, and a `length` below
+`MIN_TAIL_MM`, or NaN, is a `BuildError` before any kernel call (D-17, the "doorway guard"). On the
+rows whose float tail drifts, the folded builder agrees with the measured exact-turns builder to
+7e-13 relative volume (research probe 2026-10-10, one run). `MIN_TAIL_MM` is INTERIM: the research
+probe at `d=6, pitch=1` found `length <= 1e-8` mm kills the process, 3e-8 to 1e-6 mm raises and 1e-5
+mm builds, and 1e-3 sits 100 times above the last failing tail; Phase 7 re-measures (OPER-03). Both
+ends are plain planar cuts at `z = 0` and `z = length`, as every measured row was (D-16). The
+kernel-free maths (the ISO 68-1:2023 basic profile, the closed form, `T_GATE`) lives in
+`screw.calc.thread`.
+
+**Gate (THRD-04, D-08).** `check_solid` runs inside the function `lru_cache` wraps, so a refused
+build is an exception and is never stored, and the bytes cache only ever puts a returned export;
+there is one gate and none in `app.py`. In this order: exactly one solid, `isValid()`, and the
+`precise` volume (`BRepGProp.VolumeProperties_s` at eps 1e-6, never the default `Volume()`) within
+`T_GATE` = 9e-05 of the closed form, sign kept in the message (L11, `### 2026-10-08-a-verdict`
+Volume estimator). The comparison is written `not abs(rel) <= T_GATE` so NaN is refused. The
+positive controls are L11's known-bad inputs (`2026-10-08-a-controls`): the naive sweep that the
+kernel calls valid, and the inverted one-pipe twist, caught by volume and by sign. The export
+checks belong to the same change: `exportStl()` returning False, a STEP status other than
+`IFSelect_RetDone` and an STL header that disagrees with its byte length are each a `BuildError`,
+which closes the collapsed-solid blocker.
+
+**Caps (D-01 to D-03).** A `length / pitch` above 250, compared as the exact decimals the user typed,
+is a 422 naming `length` and `pitch` (L11's construction cap, `2026-10-08-a-frontier`: no stop up to
+250 turns at any size, both hands, rod and void; nothing above is measured). The fine STL is refused
+above L11's bytes cap, on the seven measured `(d, pitch)` rows only (M8 67.5 mm, M10 56, M12 60,
+M14 58, M16 52, M18 65, M20 64; `2026-10-08-a-grid`, measured against the INTERIM 64 MiB budget and
+the INTERIM fine preset): a 422 on the API before the cache, the admission slot and the pool, exit 2
+on the CLI before the kernel import, and a warning on the info document. The preview STL and the
+STEP are not capped. An off-row `(d, pitch)` gets the 250-turn cap alone, because a cap from an
+unmeasured mapping to the nearest row is the plausible number L02 forbids. L11 says Phase 3's
+"cap-and-warn input is the smallest of the three columns"; this entry reads that as the input, and
+narrows "cap-and-warn" to a refusal for these two artefacts, because `length` is an explicit choice
+and trimming it builds a part the user did not ask for (L02). It is a reading recorded here and not
+a superseding entry. The seconds cap is still not established; the INTERIM 30 s timeout stays the
+backstop below the 250-turn cap.
+
+**Pitch (D-04).** The only new `(d, pitch)` refusal is geometric: a root radius `d/2 - 5H/8` at or
+below zero (`H = (sqrt(3)/2) * pitch`, zero at `pitch` about `0.9238 d`) is a 422 naming `d` and
+`pitch`. There is no ISO 262 coarse check before Phase 4 (contract 6 keeps `params` away from
+`tables`) and no lower bound on `length` or `d` in `params`: a collapsed solid is refused by the
+gate's volume, and a length the kernel cannot model by the doorway guard above. This closes 01 D-07's
+open `pitch >= d` question.
+
+**Hand (D-09).** `left_hand: bool = False` is on `FastenerParams`, the base, not on `BoltParams`:
+THRD-01 threads every part and the nut derives from the same `d`, pitch and hand. The default is
+frozen (L02) and the hash writes `left_hand=true` only when it is set, so an omitted key means
+right-hand forever. The download file name carries `left_hand0` or `left_hand1`. A left-hand rod
+passes the same gate as a right-hand one and is proved left-handed by an `isInside` probe on the
+helix, because the volume cannot see the hand. A left-hand pair proven by the pair check is
+Phase 5's (PAIR-03).
+
+**Links and keys (D-10, D-12).** A repeated query key is a 422 of type `duplicate` before any value
+is judged (one app-level dependency), a repeated CLI flag exits 2 naming the option, and the page
+refuses a link with a repeated, foreign or unreadable key exactly as it refuses an unknown kind,
+naming the key and building nothing. That `#d=abc` is unreadable relies on a browser turning it into
+an empty number input, which no test has run (the item's assumption, 03-05).
+
+**Standing warning (D-06) and the info document (D-05).** The skeleton warning is gone. Every bolt
+info document starts with `threaded rod: no head, plain-cut thread ends; not a product build`,
+asserted on the API, the CLI and the parity test; Phase 4 rewrites it when the head lands and Phase 6
+removes it at release. The rows add `turns`, `volume` (the closed form, never the kernel's
+`Volume()`), `thread_depth` and `minor_diameter` (labelled "ISO 68-1:2023 basic profile"); a row that
+is not a finite number is left out and explained in the warnings. The pitch diameter waits for
+Phase 5 (INFO-01).
+
+**Slow tier (D-14).** `tests/test_grid.py` runs L11's corpus (15 sizes, every integer-mm and
+integer-turn length up to `min(10 d, 200 mm)`, both hands, rod and void: 7160 rows in 60 cells,
+marker `grid`) through `helical.thread` and `check_solid`. It is outside `make verify`
+(`addopts` has `-m 'not grid'`), runs by `make grid [SIZE=M6]`, and in `.github/workflows/grid.yml`
+on `workflow_dispatch` and a weekly schedule only, with read-only permissions, one job per size. The
+workflow is not in `ci.yml` and not in `required-jobs.txt`, so L08's "every job in `ci.yml` is
+required" stays true. The corpus is the measured one and is never re-picked. The M3.5 and M4 shards
+were run locally as a harness check (`bench/RESULTS.md`, Thread grid tier): every row ok, 131.89 s
+and 148.15 s, which are not bounds. The first run on a GitHub runner is not made; the 120 minute job
+timeout and the 15 shards are a guess until it is.
+
+**Open, filed.** The in-cap off-row cost is accepted as built (D-18) and recorded, with its
+figures, in `docs/tech_debt/active/2026-10-05-interim-runtime-bounds.md` (must, Phase 7, OPER-03).
+
+Reason: every later kind's builder runs through one gate, so a valid-but-wrong solid cannot reach a
+cache, a preview or a download by any front end, and the numbers the tool prints are numbers someone
+will cut metal to (L02). Refusing where the user made an explicit choice, and only where L11 measured
+a limit, keeps the caps honest: nothing is capped at a value no run produced, and nothing is trimmed
+silently. Putting `left_hand` on the base and writing it to the hash only when set keeps every link
+made before and after this phase meaning the same part.
+
+Reversibility: costly overall. Every later kind's builder runs through the gate, and loosening
+`T_GATE` or changing the construction needs a superseding entry and a re-run of the grid block (L11).
+One-way for the `left_hand` field on the base, its default and its hash spelling, which are part of
+every shareable link from this phase on. Reversible for the caps and `MIN_TAIL_MM`: one constant and
+one validator each, which Phase 7 replaces with measured per-size values (OPER-01, OPER-03).

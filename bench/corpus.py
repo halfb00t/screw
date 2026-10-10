@@ -1,4 +1,4 @@
-"""The walking skeleton's corpus: 12 plain cylinders on a d x length grid.
+"""The Phase 1 corpus: 12 parts on a d x length grid, threaded since Phase 3.
 
 This exercises the harness. It sets no bound (L07: the harness is ported, the numbers are not).
 It stays far below the D-14 corner (`d`, `length` up to 1e5 mm) on purpose, so nothing
@@ -18,8 +18,9 @@ LENGTHS = (5.0, 20.0, 200.0)
 def corpus() -> list[dict[str, object]]:
     """The 12 parts, diameter outermost, as query-parameter dictionaries.
 
-    `pitch` is left at its default: the skeleton builds no thread (D-04), so it does not change
-    the solid. The heaviest part is the last, d=100 length=200.
+    `pitch` is left at its default of 1 mm, so since Phase 3 each entry builds the L11 thread
+    at that pitch (up to 200 turns for the heaviest part, which is the last, d=100 length=200).
+    The grid was chosen for the cylinders it first described and is still not a bound.
     """
     return [{"d": d, "length": length} for d in DIAMETERS for length in LENGTHS]
 

@@ -1,8 +1,10 @@
 """screw: parametric thread and fastener generator.
 
-This package holds the walking skeleton (Phase 1): one registered `bolt` kind that builds a
-plain unthreaded cylinder, served by the runtime ported from spur. `AGENTS.md` and
-`docs/architecture/overview.md` say what the finished product looks like.
+This package holds one registered `bolt` kind that builds a threaded rod (Phase 3): the
+ISO 68-1:2023 basic profile, right- or left-hand, with no head, table or nut yet. The thread
+maths is `calc/thread.py`, the one builder is `solid/helical.py`, and every build passes the
+`solid` postcondition before it is cached or served, by the runtime ported from spur.
+`AGENTS.md` and `docs/architecture/overview.md` say what the finished product looks like.
 """
 
 import os

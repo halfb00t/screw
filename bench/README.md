@@ -5,8 +5,8 @@ harness, not as numbers"): committed and rerunnable, so a number stays falsifiab
 doubts it later instead of being quoted from a session that has ended.
 
 What it prints is a measurement of one machine on one day, not a bound. `RESULTS.md` records
-every run with its machine, load and date; the Phase 1 entries are harness checks on the
-walking skeleton. Phase 7 re-sweeps on threaded parts under linux/amd64 (OPER-02) and is what
+every run with its machine, load and date; the Phase 1 entries are harness checks made on the
+cylinder the bolt was then. Phase 7 re-sweeps on threaded parts under linux/amd64 (OPER-02) and is what
 turns a measurement into a limit.
 
 ## What each half measures
@@ -73,9 +73,10 @@ over too few samples) are tested in `tests/test_bench.py`, which is part of the 
 
 ## The corpus
 
-`bench/corpus.py` is 12 plain cylinders on a d x length grid. The skeleton corpus exercises the
-harness and sets no bound: it stays far below the D-14 corner (`d`, `length` up to 1e5 mm), so
-nothing measured against it says anything about the interim `mem_limit` or
+`bench/corpus.py` is 12 parts on a d x length grid. Since Phase 3 each entry builds the L11
+thread at the default 1 mm pitch (the grid was chosen for the cylinders the bolt was in Phase 1).
+It exercises the harness and sets no bound: it stays far below the D-14 corner (`d`, `length` up
+to 1e5 mm), so nothing measured against it says anything about the interim `mem_limit` or
 `SCREW_BUILD_TIMEOUT`. Phase 7 replaces it with the threaded grid and keeps that one fixed from
 then on: narrowing, shortening or re-picking a corpus to make a ceiling look better produces a
 number that cannot be compared with the one already on record, which defeats the point of
