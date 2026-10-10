@@ -3802,6 +3802,16 @@ def test_a_mixed_hand_cell_read_with_controls_is_inconclusive_not_violated() -> 
     assert cell_verdict(cell)[0] == "inconclusive"
 
 
+def test_a_mixed_hand_cell_on_a_nut_whose_body_misses_the_closed_form_is_not_a_violation() -> None:
+    cell = _mixed(0.10, (6.5, 6.9, 6.7))
+    assert cell["nut_volume"] is not None
+    cell["nut_volume"] *= 1.001
+    verdict, reasons = cell_verdict(cell)
+    assert verdict == "inconclusive"
+    assert any("nut" in r for r in reasons)
+    assert not mixed_hand_violated([cell])
+
+
 def test_one_mixed_cell_at_the_wrong_poses_stops_a_size_from_reading_violated() -> None:
     good = [_mixed(0.05, (6.5, 6.9, 6.7)), _mixed(0.10, (6.5, 6.9, 6.7))]
     assert mixed_hand_violated(good)

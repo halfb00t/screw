@@ -1571,20 +1571,28 @@ def cell_verdict(record: PairRecord) -> tuple[PairVerdict, tuple[str, ...]]:
     """The pre-registered rule for one cell, and why (D-12, D-14; owner ruling R1 left D-14
     exactly as written).
 
-    A cell that did not finish is inconclusive. A mixed-hand cell whose poses are exactly
-    `MATCHED_POSES` and nothing else is `violated` when every matched pose reads non-empty, else
-    inconclusive: an empty read at a pair that cannot thread proves nothing either way, and one
-    reading at a pose chosen after the fact proves nothing at all. For a same-hand cell: c <= 0
-    is inconclusive by definition (D-11); poses other than the pre-registered ones are refused;
-    a nut body whose precise volume misses
-    pi d^2 m - A(c) m by more than `T_PASS` is not believed (not even a violation); any matched
-    pose non-empty is `violated`; otherwise `proven` only when every matched pose is empty AND
-    every control is non-empty within `PAIR_BAND` of the closed form. Anything else is
-    inconclusive, with every reason. The diagnostic columns are never read.
+    A cell that did not finish is inconclusive. So is a built cell, of either hand pairing,
+    whose nut body (precise volume) misses pi d^2 m - A(c) m by more than `T_PASS`: a nut whose
+    void cut failed reads non-empty at every pose, so no reading is believed, a violation
+    included. A mixed-hand cell whose poses are exactly `MATCHED_POSES` and nothing else is
+    `violated` when every matched pose reads non-empty, else inconclusive: an empty read at a
+    pair that cannot thread proves nothing either way, and one reading at a pose chosen after the
+    fact proves nothing at all. For a same-hand cell: c <= 0 is inconclusive by definition
+    (D-11); poses other than the pre-registered ones are refused; any matched pose non-empty is
+    `violated`; otherwise `proven` only when every matched pose is empty AND every control is
+    non-empty within `PAIR_BAND` of the closed form. Anything else is inconclusive, with every
+    reason. The diagnostic columns are never read.
     """
     outcome = record["outcome"]
     if outcome != "built":
         return "inconclusive", (f"cell {outcome}: {record['error']}",)
+    nut_volume = record["nut_volume"]
+    if nut_volume is None:
+        raise ValueError("a built pair record must carry its nut_volume")
+    body = _nut_body(record)
+    if abs(nut_volume / body - 1.0) > T_PASS:
+        return "inconclusive", (f"the nut body is {nut_volume:.6g} mm3, not the closed form "
+                                f"{body:.6g} mm3 within {T_PASS:g}: no reading is believed",)
     matched, controls = _matched(record), _controls(record)
     if _is_mixed(record):
         if controls or not _poses_ok(matched):
@@ -1601,13 +1609,6 @@ def cell_verdict(record: PairRecord) -> tuple[PairVerdict, tuple[str, ...]]:
     if not (_poses_ok(matched) and _poses_ok(controls)):
         return "inconclusive", ("the poses are not the pre-registered ones: no verdict is "
                                 "drawn from poses chosen after the fact (D-12)",)
-    nut_volume = record["nut_volume"]
-    if nut_volume is None:
-        raise ValueError("a built pair record must carry its nut_volume")
-    body = _nut_body(record)
-    if abs(nut_volume / body - 1.0) > T_PASS:
-        return "inconclusive", (f"the nut body is {nut_volume:.6g} mm3, not the closed form "
-                                f"{body:.6g} mm3 within {T_PASS:g}: no reading is believed",)
     reads = [r for r in matched if not _is_empty(r)]
     if reads:
         return "violated", tuple(f"matched pose theta {r['theta']:+.4f} reads {r['volume']:.6g} mm3"
@@ -1648,9 +1649,10 @@ def excluded_clearances(cells: list[PairRecord]) -> tuple[float, ...]:
 
 def mixed_hand_violated(cells: list[PairRecord]) -> bool:
     """True only when there is at least one mixed-hand cell and `cell_verdict` reads every one
-    violated (D-14: a mixed-hand pair must read violated): it finished, it was read at exactly
-    the pre-registered matched poses and every matched reading is non-empty. No cell, a cell
-    that did not finish, an empty reading or a pose chosen after the fact is not a violation."""
+    violated (D-14: a mixed-hand pair must read violated): it finished, its nut body matches the
+    closed form, it was read at exactly the pre-registered matched poses and every matched
+    reading is non-empty. No cell, a cell that did not finish, a nut that is not the closed form,
+    an empty reading or a pose chosen after the fact is not a violation."""
     mixed = [c for c in cells if _is_mixed(c)]
     return bool(mixed) and all(cell_verdict(c)[0] == "violated" for c in mixed)
 
