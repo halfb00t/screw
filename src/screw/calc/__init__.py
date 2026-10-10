@@ -13,7 +13,7 @@ from collections.abc import Callable
 
 from pydantic import BaseModel, ConfigDict
 
-from screw.calc.thread import closed_volume, thread_depth, turns_of
+from screw.calc.thread import closed_volume, fine_stl_refusal, thread_depth, turns_of
 from screw.params import BoltParams, FastenerParams
 
 PROFILE = "ISO 68-1:2023 basic profile"
@@ -91,3 +91,19 @@ def derive(p: FastenerParams) -> PartInfo:
     if isinstance(p, BoltParams):
         return _bolt(p)
     raise TypeError(f"no info document for kind {p.kind!r}")
+
+
+def download_refusal(p: FastenerParams, fmt: str, quality: str) -> str | None:
+    """The reason a download of `p` is refused before any build, or None.
+
+    The one rule `app._serve` and `screw export` share (FRNT-05 parity). Kernel-free, so a
+    refused request never reaches the cache, the admission slot or the pool. Only the fine
+    STL is ever refused (D-02): the preview STL and the STEP of the same part are served.
+    Dispatches with `isinstance` like `derive`: a registered kind without an entry raises
+    TypeError, whatever `fmt` and `quality` say, so the registry test catches it.
+    """
+    if isinstance(p, BoltParams):
+        if fmt == "stl" and quality == "fine":
+            return fine_stl_refusal(p.d, p.pitch, p.length)
+        return None
+    raise TypeError(f"no download rule for kind {p.kind!r}")

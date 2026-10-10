@@ -6,8 +6,8 @@ import math
 
 import pytest
 
-from screw.calc import STANDING_WARNING, derive
-from screw.calc.thread import closed_volume
+from screw.calc import STANDING_WARNING, derive, download_refusal
+from screw.calc.thread import closed_volume, fine_stl_refusal
 from screw.params import KINDS, BoltParams, FastenerParams
 
 WARNING = "threaded rod: no head, plain-cut thread ends; not a product build"
@@ -95,3 +95,27 @@ def test_every_registered_kind_derives_a_document() -> None:
     assert len(KINDS) >= 1
     for model in KINDS.values():
         assert derive(model()).kind == model.kind
+
+
+def test_only_the_fine_stl_of_a_capped_part_is_refused() -> None:
+    capped = BoltParams(d=8.0, pitch=1.25, length=67.6)
+    refusal = download_refusal(capped, "stl", "fine")
+    assert refusal == fine_stl_refusal(8.0, 1.25, 67.6)
+    assert refusal is not None
+    assert download_refusal(capped, "stl", "preview") is None
+    assert download_refusal(capped, "step", "fine") is None
+    assert download_refusal(capped, "step", "preview") is None
+    assert download_refusal(BoltParams(d=8.0, pitch=1.25, length=67.5), "stl", "fine") is None
+
+
+def test_a_kind_without_a_download_rule_is_a_bug_not_a_user_error() -> None:
+    class Orphan(FastenerParams):
+        kind = "orphan"
+
+    with pytest.raises(TypeError, match="orphan"):
+        download_refusal(Orphan(), "step", "preview")
+
+
+def test_every_registered_kind_has_a_download_rule() -> None:
+    for model in KINDS.values():
+        assert download_refusal(model(), "stl", "fine") is None

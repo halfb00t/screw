@@ -9,9 +9,11 @@ import pytest
 
 from bench.thread_spike.maths import PITCH
 from screw.calc.thread import (
+    FINE_STL_ROWS,
     MAX_TURNS,
     T_GATE,
     closed_volume,
+    fine_stl_refusal,
     fundamental_height,
     root_radius_refusal,
     section_area,
@@ -154,3 +156,48 @@ def test_the_exact_decimal_reading_accepts_what_float_division_would_refuse() ->
     assert turn_cap_refusal(175.0, 0.7) is None
     assert 5.4 / 0.6 != 9.0
     assert turns_of(5.4, 0.6) == 9.0
+
+
+# Typed from L11's "Turn cap per size" table, not read back from the code under test: the seven
+# measured rows (d, pitch) -> bytes cap in mm, and the table's printed turns column.
+L11_ROWS = {
+    (8.0, 1.25): (67.5, "54"), (10.0, 1.5): (56.0, "37.3333"), (12.0, 1.75): (60.0, "34.2857"),
+    (14.0, 2.0): (58.0, "29"), (16.0, 2.0): (52.0, "26"), (18.0, 2.5): (65.0, "26"),
+    (20.0, 2.5): (64.0, "25.6"),
+}
+
+
+def test_the_fine_stl_table_is_exactly_the_seven_rows_l11_measured() -> None:
+    assert {key: cap for key, (cap, _) in L11_ROWS.items()} == FINE_STL_ROWS
+
+
+@pytest.mark.parametrize(("key", "row"), list(L11_ROWS.items()))
+def test_each_cap_is_accepted_and_the_next_float_above_is_refused(
+        key: tuple[float, float], row: tuple[float, str]) -> None:
+    (d, pitch), (cap, turns) = key, row
+    assert fine_stl_refusal(d, pitch, cap) is None
+    refusal = fine_stl_refusal(d, pitch, math.nextafter(cap, math.inf))
+    assert refusal is not None
+    assert refusal.startswith("length: ")
+    assert f"{cap:g} mm ({turns} turns)" in refusal
+    assert "2026-10-08-a-grid" in refusal
+    assert "preview STL" in refusal
+    assert "{" not in refusal
+    assert "}" not in refusal
+
+
+def test_the_refusal_names_the_cap_the_run_and_the_length_asked() -> None:
+    refusal = fine_stl_refusal(8.0, 1.25, 67.6)
+    assert refusal is not None
+    assert "length" in refusal
+    assert "67.5" in refusal
+    assert "54" in refusal
+    assert "2026-10-08-a-grid" in refusal
+    assert "67.6" in refusal
+
+
+def test_an_off_row_part_has_no_bytes_cap_not_the_nearest_rows() -> None:
+    # An unmeasured mapping to the nearest row is the plausible number L02 forbids (D-03).
+    assert fine_stl_refusal(8.0, 1.0, 250.0) is None
+    assert fine_stl_refusal(8.1, 1.25, 100.0) is None
+    assert fine_stl_refusal(6.0, 1.0, 250.0) is None

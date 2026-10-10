@@ -725,3 +725,51 @@ def test_a_failed_export_is_a_422_and_never_enters_the_bytes_cache(
     assert client.get("/api/bolt/model.stl", params={"d": 7.77, "quality": "preview"}
                       ).status_code == 200
     assert app_module._EXPORTS.get(key) is not None
+
+
+CAPPED: Params = {"d": 8, "pitch": 1.25, "length": 67.6}
+
+
+def test_a_fine_stl_l11_measured_over_budget_is_a_422_and_never_reaches_the_backend() -> None:
+    """D-02: refused before the bytes cache, the admission slot and the pool."""
+    calls = 0
+
+    async def counting_backend(p: FastenerParams, fmt: str, quality: str) -> bytes:
+        nonlocal calls
+        calls += 1
+        return b"never served"
+
+    with _backend(counting_backend):
+        r = client.get("/api/bolt/model.stl", params=CAPPED)    # quality defaults to fine
+    assert r.status_code == 422
+    (detail,) = r.json()["detail"]
+    assert detail["type"] == "fine_stl_cap"
+    assert detail["loc"] == ["query"]
+    for fragment in ("length", "67.5", "54", "2026-10-08-a-grid"):
+        assert fragment in detail["msg"]
+    assert calls == 0
+
+
+def test_the_same_part_is_served_on_the_preview_stl_the_step_and_the_info_route() -> None:
+    preview = client.get("/api/bolt/model.stl", params={**CAPPED, "quality": "preview"})
+    assert preview.status_code == 200
+    step = client.get("/api/bolt/model.step", params=CAPPED)
+    assert step.status_code == 200
+    assert step.content.startswith(b"ISO-10303-21;")
+    assert client.get("/api/bolt/info", params=CAPPED).status_code == 200
+
+
+def test_the_cap_itself_and_an_off_row_part_reach_the_backend_as_asked() -> None:
+    seen: list[FastenerParams] = []
+
+    async def stub(p: FastenerParams, fmt: str, quality: str) -> bytes:
+        seen.append(p)
+        return b"stub"
+
+    with _backend(stub):
+        at_cap = client.get("/api/bolt/model.stl", params={**CAPPED, "length": 67.5})
+        off_row = client.get("/api/bolt/model.stl", params={"d": 8, "pitch": 1, "length": 100})
+    assert at_cap.status_code == off_row.status_code == 200
+    bolts = [p for p in seen if isinstance(p, BoltParams)]
+    assert [(p.d, p.pitch, p.length) for p in bolts] == [(8.0, 1.25, 67.5), (8.0, 1.0, 100.0)]
+    assert len(bolts) == len(seen)

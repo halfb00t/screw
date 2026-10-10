@@ -35,7 +35,7 @@ from starlette.concurrency import run_in_threadpool
 
 from . import __version__, int_env
 from .build_errors import BuildError, BuildTimeout
-from .calc import PartInfo, derive
+from .calc import PartInfo, derive, download_refusal
 from .params import DEFAULT_KIND, KINDS, BoltParams, FastenerParams
 from .pool import BuildPool
 from .records import build_failed, build_started, configure, export_served, queue_refused
@@ -84,9 +84,11 @@ class _BlobCache:
 # the same budget.
 #
 # INTERIM (D-01): 64 MB, carried from spur's export-cache default (same knob, renamed),
-# where it sized the cache against 160-199 tooth gears (~9 MB raw STL each). Not measured
-# for screw; the skeleton cylinder's STL is under 1.5 MB at the largest admitted size.
-# Phase 7 re-sweeps (OPER-02).
+# where it sized the cache against 160-199 tooth gears (~9 MB raw STL each). Not a screw
+# sizing, but L11 measured fine STLs over it from M8 L=68 up (`2026-10-08-a-grid`); `put`
+# drops an over-budget blob without caching it, so such a part would be served but rebuilt
+# on every repeat request, which is why D-02 refuses the fine STL on the measured rows
+# (`download_refusal`, called first in `_serve`). Phase 7 re-sweeps (OPER-02).
 _EXPORTS = _BlobCache(int_env("SCREW_EXPORT_CACHE_MB", 64) * 1024 * 1024)
 
 
@@ -146,8 +148,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # INTERIM (D-01): 30 s per build, carried from spur. spur's worst observed single
         # build was 7.39 s (a 200-tooth fine gear, ten concurrent requests, host under
         # contention), so 30 s is ~4x spur's observation -- a margin chosen for slower
-        # hardware on spur's corpus. It is not a measurement of screw: the skeleton cylinder
-        # builds in well under a second (INTERIM_MAX_MM's comment). Phase 7 re-sweeps
+        # hardware on spur's corpus. It is not a measurement of screw: M6 x 20 builds in
+        # 0.09 s (planner probe 2026-10-10), while an in-cap off-row part can need minutes
+        # (03-RESEARCH Pitfall 5: d=100, pitch=5, length=1250, fine STL 152.6 s and 7875 MiB
+        # peak RSS, single run, macOS arm64, not a bound). So this is the backstop below the
+        # 250-turn cap (D-01, D-18), not a figure for the threads. Phase 7 re-sweeps
         # (OPER-02).
         int_env("SCREW_BUILD_TIMEOUT", 30),
     )
@@ -382,6 +387,13 @@ async def _serve(params: FastenerParams, fmt: Literal["stl", "step"], quality: s
     # record this request emits, so two concurrent requests for the same part (the one
     # case params + time cannot disambiguate: same-slot affinity) are still
     # distinguishable in the log.
+    # First, before the cache, the admission slot and the pool: a fine STL L11 measured over
+    # the export budget is refused on the parameters alone, so it never occupies a worker
+    # (D-02). Reads no field by name, so every kind gets its own rule through the one call.
+    refusal = download_refusal(params, fmt, quality)
+    if refusal is not None:
+        raise HTTPException(422, detail=[{"loc": ["query"], "type": "fine_stl_cap",
+                                          "msg": refusal}])
     request_id = uuid.uuid4().hex[:8]
     # Same test GZipMiddleware itself makes (starlette's middleware/gzip.py,
     # `"gzip" in headers.get("Accept-Encoding", "")`) -- endpoint and middleware must
