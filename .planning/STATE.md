@@ -3,7 +3,7 @@ gsd_state_version: "1.0"
 current_phase: 3
 current_phase_name: Real Helical Thread
 status: "Phase 02 shipped — PR #6 merged 7615de2, pool-flake fix PR #7 merged 69436fb"
-stopped_at: Phase 02 shipped (PR #6 7615de2, PR #7 69436fb), ready to plan Phase 3 from main
+stopped_at: "Phase 02 shipped (PR #6 7615de2, PR #7 69436fb), ready to plan Phase 3 from main"
 last_updated: "2026-10-10T05:30:58Z"
 last_activity: 2026-10-10
 state_head: 5ec5af4d5a029bb51152d7b387d95830c66fde75
