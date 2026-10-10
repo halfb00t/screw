@@ -253,8 +253,10 @@ def test_the_interim_bound_is_inclusive_and_the_next_value_is_refused() -> None:
         seen.append(p)
         return export(BoltParams(), "stl", "preview")
 
-    for field in ("d", "length"):
-        at_bound: Params = {field: bound}
+    # A length at the bound is 250 turns only at a coarse pitch (D-01); d = 1000 keeps its root
+    # radius above 0 there (research built d=1e5, pitch=400 at 1e5 mm in 1.74 s).
+    for field, extra in (("d", {}), ("length", {"pitch": 400.0, "d": 1000.0})):
+        at_bound: Params = {**extra, field: bound}
         assert client.get("/api/bolt/info", params=at_bound).status_code == 200
         with _backend(stub):
             r = client.get("/api/bolt/model.stl", params={**at_bound, "quality": "preview"})
@@ -262,7 +264,7 @@ def test_the_interim_bound_is_inclusive_and_the_next_value_is_refused() -> None:
         assert len(r.content) > 84
         assert getattr(seen[-1], field) == bound
 
-        over: Params = {field: just_over}
+        over: Params = {**extra, field: just_over}
         for route in ("/api/bolt/info", "/api/bolt/model.stl"):
             refused = client.get(route, params=over)
             assert refused.status_code == 422
@@ -272,6 +274,26 @@ def test_the_interim_bound_is_inclusive_and_the_next_value_is_refused() -> None:
     huge = client.get("/api/bolt/info", params={"d": 1e200})
     assert huge.status_code == 422
     assert huge.json()["detail"][0]["loc"] == ["query", "d"]
+
+
+@pytest.mark.parametrize("route", ["/api/bolt/info", "/api/bolt/model.stl"])
+@pytest.mark.parametrize(("query", "kind", "fields"), [
+    ({"pitch": 6}, "pitch_too_coarse", ["d", "pitch"]),
+    ({"pitch": 1e300}, "pitch_too_coarse", ["d", "pitch"]),
+    ({"length": 300}, "turn_cap", ["length", "pitch"]),
+])
+def test_a_thread_that_cannot_be_made_or_was_never_measured_is_a_422_naming_both_fields(
+        route: str, query: Params, kind: str, fields: list[str]) -> None:
+    # `ctx.fields` is what app.js problems() highlights; the bolt routes refuse before any build.
+    if route.endswith(".stl"):
+        query = {**query, "quality": "preview"}
+    r = client.get(route, params=query)
+    assert r.status_code == 422
+    [detail] = r.json()["detail"]
+    assert detail["type"] == kind
+    assert detail["loc"] == ["query"]
+    assert detail["ctx"]["fields"] == fields
+    assert detail["msg"].startswith(" and ".join(fields) + ": ")
 
 
 def test_a_solid_the_kernel_gets_wrong_is_a_422_build_error() -> None:

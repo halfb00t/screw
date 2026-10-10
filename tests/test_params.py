@@ -54,21 +54,59 @@ def test_a_foreign_field_is_refused_as_extra_forbidden_naming_it() -> None:
     assert err["loc"] == ("m",)
 
 
-@pytest.mark.parametrize("field", ["d", "length"])
+@pytest.mark.parametrize(("field", "extra"), [
+    ("d", {}),
+    # 250 turns at pitch 400, root radius above 0 at d = 1000: the corner the bound admits
+    # (research built d=1e5, pitch=400 at 1e5 mm in 1.74 s).
+    ("length", {"pitch": 400.0, "d": 1000.0}),
+])
 def test_d_and_length_are_accepted_at_the_interim_bound_and_refused_above_it(
-        field: str) -> None:
+        field: str, extra: dict[str, float]) -> None:
     assert INTERIM_MAX_MM == 1e5
-    assert getattr(BoltParams.model_validate({field: 1e5}), field) == 1e5
+    assert getattr(BoltParams.model_validate({**extra, field: 1e5}), field) == 1e5
     with pytest.raises(ValidationError) as caught:
-        BoltParams.model_validate({field: math.nextafter(1e5, math.inf)})
+        BoltParams.model_validate({**extra, field: math.nextafter(1e5, math.inf)})
     [err] = caught.value.errors()
     assert err["loc"] == (field,)
     assert err["type"] == "less_than_equal"
 
 
-def test_pitch_has_no_upper_bound() -> None:
-    # D-14 names d and length only; pitch against d is a Phase 3 question (D-07).
-    assert BoltParams.model_validate({"pitch": 1e300}).pitch == 1e300
+def test_a_pitch_with_no_root_radius_is_refused_naming_d_and_pitch() -> None:
+    # d = 6 gives a root radius of 0 at pitch 5.5426 (D-04); the refusal is on the model.
+    assert BoltParams.model_validate({"pitch": 5.5}).pitch == 5.5
+    for pitch in (5.6, 1e300):
+        with pytest.raises(ValidationError) as caught:
+            BoltParams.model_validate({"pitch": pitch})
+        [err] = caught.value.errors()
+        assert err["type"] == "pitch_too_coarse"
+        assert err["loc"] == ()
+        assert err["ctx"]["fields"] == ["d", "pitch"]
+        assert err["msg"].startswith("d and pitch: ")
+
+
+def test_a_length_past_250_turns_is_refused_naming_length_and_pitch() -> None:
+    assert BoltParams.model_validate({"length": 250.0}).length == 250.0
+    with pytest.raises(ValidationError) as caught:
+        BoltParams.model_validate({"length": 250.5})
+    [err] = caught.value.errors()
+    assert err["type"] == "turn_cap"
+    assert err["loc"] == ()
+    assert err["ctx"]["fields"] == ["length", "pitch"]
+    assert err["msg"].startswith("length and pitch: ")
+
+
+def test_the_measured_m4_250_turn_row_is_accepted() -> None:
+    # 175 / 0.7 is a float above 250; the user typed exactly 250 turns (Pitfall 2).
+    p = BoltParams.model_validate({"d": 4.0, "pitch": 0.7, "length": 175.0})
+    assert (p.d, p.pitch, p.length) == (4.0, 0.7, 175.0)
+
+
+def test_a_field_error_hides_the_model_rules_that_need_every_field() -> None:
+    # After-validators run only when every field validated: d = 0 reports d alone, not a
+    # pitch_too_coarse computed from a d that was never accepted.
+    with pytest.raises(ValidationError) as caught:
+        BoltParams.model_validate({"d": 0, "pitch": 1e300})
+    assert [e["loc"] for e in caught.value.errors()] == [("d",)]
 
 
 def test_the_schema_lists_d_pitch_length_with_ui_metadata() -> None:
@@ -87,7 +125,11 @@ def test_the_slug_of_the_default_bolt_is_stable() -> None:
     assert BoltParams().slug() == "bolt_d6_pitch1_length20"
 
 
-@pytest.mark.parametrize("values", [{"d": 1e-9}, {"pitch": 1e300}, {"d": 1e5}])
+@pytest.mark.parametrize("values", [
+    {"d": 1e5},
+    {"d": 0.001, "pitch": 0.0001, "length": 0.01},
+    {"length": 1e5, "pitch": 400.0, "d": 1000.0},
+])
 def test_the_slug_is_filename_safe_for_extreme_values(values: dict[str, float]) -> None:
     # It becomes a Content-Disposition filename and a temp file name (T-01-06).
     assert re.fullmatch(r"[A-Za-z0-9_.+-]+", BoltParams.model_validate(values).slug())

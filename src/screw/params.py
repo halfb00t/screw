@@ -9,27 +9,25 @@ and one registry entry, never an edit to the form or the flag generator.
 
 from __future__ import annotations
 
-from typing import ClassVar
+from typing import ClassVar, Self
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.config import JsonDict
+from pydantic_core import PydanticCustomError
 
 # INTERIM (D-01, D-14): the largest diameter or length a request may ask for, in mm. Not a
-# physical limit and not measured for screw's finished parts: it is the corner of the
-# 01-RESEARCH.md F1 table below which a plain cylinder stays cheap, taken so one valid-looking
-# request cannot outgrow compose's interim `mem_limit: 4g` (D-03) before the 30 s timeout
+# physical limit and not measured for screw's finished parts: it was taken from the
+# 01-RESEARCH.md F1 table, measured on the skeleton's plain cylinder, so one valid-looking
+# request could not outgrow compose's interim `mem_limit: 4g` (D-03) before the 30 s timeout
 # fires. F1 (macOS arm64, Apple M2 Max, one run per row, preview tessellation 0.08/0.5):
 #   d=1e5  9,932 triangles  0.10 s   553 MiB
 #   d=1e6  31,412 triangles 1.2 s  1,159 MiB
 #   d=1e7  99,344 triangles 25.1 s 6,036 MiB   <- above the interim 4g
-# The corner this bound admits, measured 2026-10-06 on the same host with `uptime` read
-# first (load averages 3.73 2.89 3.37): a cylinder with d=1e5 and length=1e5, exported
-# under `/usr/bin/time -l`: preview STL 0.107 s, 576,585,728 B (550 MiB) max RSS, 9,932
-# triangles; fine STL 0.934 s, 1,103,183,872 B (1,052 MiB), 28,096 triangles; STEP 0.017 s,
-# 472,973,312 B (451 MiB). Each run includes the interpreter and cadquery import, so the
-# floor is ~450 MiB. All under 30 s and 2 GiB, the thresholds chosen before measuring.
-# macOS, not linux/container (A9). A value above the bound is a 422 naming the field, never a clamp
-# (L02). Phase 7 re-sweeps (OPER-02) and sets the real cap (OPER-03).
+# Those numbers do not carry over to a thread, whose cost is set by turns and size and is
+# unmeasured at this corner: planner probe 2026-10-10, d=1e5, pitch=1, length=1 builds in
+# 0.01 s and its preview STL did not finish in 120 s. The 250-turn cap (MAX_TURNS) bounds the
+# turns; this bound stays as the INTERIM ceiling on size, and Phase 7 re-sweeps (OPER-02) and
+# sets the real cap (OPER-03). A value above it is a 422 naming the field, never a clamp (L02).
 INTERIM_MAX_MM = 1e5
 
 
@@ -63,8 +61,18 @@ class FastenerParams(BaseModel):
     d: float = _f(6.0, gt=0, le=INTERIM_MAX_MM, title="Diameter", group="Size", unit="mm",
                   step=0.1, help="Nominal (major) diameter of the shank.")
     pitch: float = _f(1.0, gt=0, title="Pitch", group="Size", unit="mm", step=0.05,
-                      help="Thread pitch. The walking skeleton builds no thread, so pitch "
-                           "does not change the solid (D-04).")
+                      help="Thread pitch: the axial distance from one crest to the next.")
+
+    @model_validator(mode="after")
+    def _root_radius(self) -> Self:
+        # Imported here: `screw/calc/__init__.py` imports this module, so a top-level import of
+        # anything under `screw.calc` is circular (the 01 pattern). The message names both
+        # fields because the CLI prints no loc for a model-level error (D-04).
+        from screw.calc.thread import root_radius_refusal
+
+        if (msg := root_radius_refusal(self.d, self.pitch)) is not None:
+            raise PydanticCustomError("pitch_too_coarse", msg, {"fields": ["d", "pitch"]})
+        return self
 
     def slug(self) -> str:
         """Short, filename-safe identifier: the kind plus every field as name and %g value.
@@ -77,12 +85,21 @@ class FastenerParams(BaseModel):
 
 
 class BoltParams(FastenerParams):
-    """The walking-skeleton bolt: a plain unthreaded cylinder of diameter d and length."""
+    """The bolt: a threaded rod of diameter d, pitch and length; no head until Phase 4."""
 
     kind: ClassVar[str] = "bolt"
 
     length: float = _f(20.0, gt=0, le=INTERIM_MAX_MM, title="Length", group="Size", unit="mm",
-                       step=0.5, help="Length of the cylinder along its axis.")
+                       step=0.5, help="Length of the threaded rod along its axis.")
+
+    @model_validator(mode="after")
+    def _turn_cap(self) -> Self:
+        # Needs `length`, which only the bolt has (D-01).
+        from screw.calc.thread import turn_cap_refusal
+
+        if (msg := turn_cap_refusal(self.length, self.pitch)) is not None:
+            raise PydanticCustomError("turn_cap", msg, {"fields": ["length", "pitch"]})
+        return self
 
 
 KINDS: dict[str, type[FastenerParams]] = {BoltParams.kind: BoltParams}

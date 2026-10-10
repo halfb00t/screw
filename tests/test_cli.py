@@ -93,6 +93,24 @@ def test_a_bad_value_exits_2_naming_the_field(
     assert f"error: {field}:" in capsys.readouterr().err
 
 
+@pytest.mark.parametrize(("argv", "prefix"), [
+    (["info", "bolt", "--pitch", "6"], "error: d and pitch:"),
+    (["info", "bolt", "--length", "300"], "error: length and pitch:"),
+    (["export", "bolt", "-o", "unused.stl", "--pitch", "1e300"], "error: d and pitch:"),
+])
+def test_a_thread_that_cannot_be_made_exits_2_naming_both_fields(
+        argv: list[str], prefix: str, capsys: pytest.CaptureFixture[str]) -> None:
+    # The CLI prints no loc for a model-level error, so the message text names the fields.
+    assert _exit_code(argv) == 2
+    assert prefix in capsys.readouterr().err
+
+
+def test_the_measured_m4_250_turn_row_is_accepted_on_the_command_line(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    cli.main(["info", "bolt", "--d", "4", "--pitch", "0.7", "--length", "175"])
+    assert json.loads(capsys.readouterr().out)["kind"] == "bolt"
+
+
 @pytest.mark.parametrize("argv", [
     ["info", "nut"],
     ["export", "nut", "-o", "unused.stl"],

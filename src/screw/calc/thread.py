@@ -12,12 +12,20 @@ imports no kernel, no logger and no `screw.records` (import-linter contracts 2 a
 from __future__ import annotations
 
 import math
+from fractions import Fraction
 
 # The THRD-04 gate: the largest |measured / closed - 1| a thread build may show (L11). Ten times
 # the winning estimator's largest error over `2026-10-08-a-grid` (8.147e-06, `GATE_FACTOR` 10),
 # rounded up to one significant figure (`### 2026-10-08-a-verdict`, Volume estimator).
 # Loosening it needs a superseding entry and a re-run of the grid block.
 T_GATE = 9e-05
+
+# The most turns a bolt may ask for (D-01): L11's construction cap. The frontier walk
+# `2026-10-08-a-frontier` reached 250 turns with no stop at every size, both hands, rod and
+# void, and nothing above 250 is measured. A refusal and not a trim, because `length` is an
+# explicit choice (L02); the INTERIM 30 s build timeout is the backstop below it. Phase 7
+# replaces it with measured per-size caps (OPER-03).
+MAX_TURNS = 250
 
 
 def fundamental_height(pitch: float) -> float:
@@ -86,3 +94,42 @@ def volume_check(measured: float, closed: float) -> str | None:
         return (f"the precise volume {measured:.6g} mm3 differs from the closed form "
                 f"{closed:.6g} mm3 by relative error {rel:+.3e}, allowed {T_GATE:.0e} (L11)")
     return None
+
+
+def _exact(x: float) -> Fraction:
+    """The decimal the user typed: `repr` is the shortest string that round-trips the float.
+
+    Float division is wrong at the cap: 175 / 0.7 is a float above 250 although 175 mm at pitch
+    0.7 (M4) is exactly 250 turns and is measured, while the exact binary value of 0.6 would
+    refuse M3.5 at 150 mm (03-RESEARCH Pitfall 2). `Fraction(repr(inf))` raises ValueError,
+    which `derive` reports as an absent row.
+    """
+    return Fraction(repr(x))
+
+
+def turns_of(length: float, pitch: float) -> float:
+    """length / pitch as the exact decimal quotient: 5.4 / 0.6 reads 9.0, not 9.000000000000002."""
+    return float(_exact(length) / _exact(pitch))
+
+
+def root_radius_refusal(d: float, pitch: float) -> str | None:
+    """None when the root radius d/2 - 5H/8 is above 0; otherwise the refusal text (D-04).
+
+    At 0 or below the root flat crosses the axis and the section is not a simple outline the
+    kernel can sweep. No braces in the text: pydantic formats a custom error from its context.
+    """
+    root = d / 2 - thread_depth(pitch)
+    if root > 0:
+        return None
+    largest = d / (2 * thread_depth(1.0))
+    return (f"d and pitch: the root radius d/2 - 5H/8 of the ISO 68-1:2023 basic profile is "
+            f"{root:g} mm at d {d:g} and pitch {pitch:g}, and must be above 0; "
+            f"the largest pitch for this d is {largest:g}")
+
+
+def turn_cap_refusal(length: float, pitch: float) -> str | None:
+    """None when length / pitch is at most `MAX_TURNS` as exact decimals; else the text (D-01)."""
+    if _exact(length) <= MAX_TURNS * _exact(pitch):
+        return None
+    return (f"length and pitch: {turns_of(length, pitch):g} turns is past the {MAX_TURNS}-turn "
+            f"cap, the most measured (run 2026-10-08-a-frontier); shorten length or raise pitch")
