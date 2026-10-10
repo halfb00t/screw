@@ -29,7 +29,7 @@ from fastapi.testclient import TestClient
 from screw import app as app_module
 from screw.app import app, build_backend
 from screw.build_errors import BuildError, BuildTimeout
-from screw.calc import SKELETON_WARNING
+from screw.calc import STANDING_WARNING
 from screw.calc.thread import T_GATE, closed_volume
 from screw.params import DEFAULT_KIND, INTERIM_MAX_MM, KINDS, BoltParams, FastenerParams
 from screw.solid import Format, Quality, export, precise_volume
@@ -192,16 +192,15 @@ def test_the_default_info_document() -> None:
     assert r.status_code == 200
     body = r.json()
     assert body["kind"] == "bolt"
-    assert [row["key"] for row in body["rows"]] == ["d", "pitch", "length", "volume"]
+    assert [row["key"] for row in body["rows"]] == [
+        "d", "pitch", "length", "turns", "volume", "thread_depth", "minor_diameter"]
     values = {row["key"]: row["value"] for row in body["rows"]}
     assert values["d"] == 6.0
     assert values["pitch"] == 1.0
     assert values["length"] == 20.0
-    assert values["volume"] == pytest.approx(math.pi * 3.0**2 * 20.0)
-    assert body["warnings"][0] == SKELETON_WARNING
-    # The skeleton builds no thread, so no row may claim a turn count (D-06).
-    assert not any("turn" in row["key"] or "turn" in row["label"].lower()
-                   for row in body["rows"])
+    assert values["turns"] == 20.0
+    assert values["volume"] == closed_volume(6.0, 1.0, 20.0)
+    assert body["warnings"][0] == STANDING_WARNING
 
 
 @pytest.mark.parametrize("route", ["/api/bolt/info", "/api/bolt/model.stl"])

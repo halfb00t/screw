@@ -17,7 +17,7 @@ from screw import __version__, cli
 from screw.calc import derive
 from screw.params import KINDS, BoltParams
 
-SKELETON = "warning: walking skeleton: plain unthreaded cylinder, not a product build"
+WARNING = "warning: threaded rod: no head, plain-cut thread ends; not a product build"
 
 
 def _exit_code(argv: list[str]) -> str | int | None:
@@ -45,12 +45,12 @@ def test_export_writes_stl_and_step_and_warns_on_stderr(
     (triangles,) = struct.unpack("<I", data[80:84])
     assert triangles > 0
     assert len(data) == 84 + 50 * triangles
-    assert SKELETON in capsys.readouterr().err
+    assert WARNING in capsys.readouterr().err
 
     step = tmp_path / "b.step"
     cli.main(["export", "bolt", "-o", str(step)])
     assert step.read_bytes().startswith(b"ISO-10303-21;")
-    assert SKELETON in capsys.readouterr().err
+    assert WARNING in capsys.readouterr().err
 
 
 def test_the_format_flag_overrides_the_extension(tmp_path: Path) -> None:

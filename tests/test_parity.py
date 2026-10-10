@@ -22,7 +22,7 @@ from fastapi.testclient import TestClient
 
 from screw import cli
 from screw.app import STATIC, app, build_backend
-from screw.calc import SKELETON_WARNING, derive
+from screw.calc import STANDING_WARNING, derive
 from screw.params import DEFAULT_KIND, KINDS, FastenerParams
 from screw.solid import Format, Quality, export
 
@@ -180,8 +180,8 @@ def test_the_cli_and_the_api_print_the_same_document(
         cli_doc = json.loads(capsys.readouterr().out)
         api_doc = client.get(f"/api/{kind}/info", params=values).json()
         assert cli_doc == api_doc, values
-        assert SKELETON_WARNING in cli_doc["warnings"]
-        assert SKELETON_WARNING in api_doc["warnings"]
+        assert cli_doc["warnings"][0] == STANDING_WARNING
+        assert api_doc["warnings"][0] == STANDING_WARNING
 
 
 @pytest.mark.parametrize("kind", list(KINDS))
