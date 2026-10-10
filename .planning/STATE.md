@@ -2,11 +2,11 @@
 gsd_state_version: "1.0"
 current_phase: 3
 current_phase_name: Real Helical Thread
-status: "Phase 02 shipped — PR #6 merged 7615de2, pool-flake fix PR #7 merged 69436fb"
+status: "Phase 02 shipped — PR #6 merged 7615de2, PR #7 merged 69436fb, harness review fixes PR #9 merged e772716"
 stopped_at: Phase 3 context gathered
 last_updated: "2026-10-10T10:15:05.984Z"
 last_activity: 2026-10-10
-last_activity_desc: "Completed quick task 261010-lgv: fix Phase 2 harness review findings WR-01/02/04/05, close the review ledger, resolve the debt item"
+last_activity_desc: "PR #9 (harness review fixes, quick task 261010-lgv) merged as e772716; Phase 3 branch rebased onto main"
 state_head: e079ef243f08cf639a9194687c8e3f2229140cb5
 progress:
   total_phases: 7
@@ -29,8 +29,8 @@ See: .planning/PROJECT.md (updated 2026-10-09)
 
 Phase: 3 (Real Helical Thread) — READY TO EXECUTE
 Plan: Not started
-Status: Phase 02 shipped — PR #6 merged 7615de2, pool-flake fix PR #7 merged 69436fb; harness review fixes shipped — PR #9 open (quick task 261010-lgv; Codex review REVISE, 3 findings fixed in 6994573, 0efbe35, cfcc776)
-Last activity: 2026-10-10 - PR #9 (harness review fixes) reviewed by Codex: REVISE, C1/C2 must and C3 nice, all fixed and pushed; awaiting CI and landing via make pr.land
+Status: Phase 02 shipped — PR #6 merged 7615de2, PR #7 merged 69436fb; harness review fixes (quick task 261010-lgv, Codex-reviewed) merged — PR #9 squash e772716
+Last activity: 2026-10-10 - PR #9 merged as e772716; gsd/phase-03-real-helical-thread rebased onto main (7 commits, STATE.md frontmatter resolved by hand)
 
 Progress: [███░░░░░░░] 29%
 
@@ -124,7 +124,7 @@ None yet.
 - Coarse pitch only (TABL-05) vs contract 6 (`params` never imports `tables`): how an explicit non-coarse pitch is handled (refuse, or build and show row-dependent numbers as warnings) is a Phase 3/4 discussion question.
 - Pair-proof reliability on the full grid is measured (`2026-10-08-a-pair`, decisive): falsifiable on both hands at every size except M18, which is not falsifiable on either hand (all four proof clearances excluded) (L11).
 - Phase 5 not planned until the roadmap is revised (L11, SC5): M18 not falsifiable (right, left hand) in `2026-10-08-a-pair`; the owner chose "revise" on 2026-10-09 and named no direction yet. Phase 3 is plannable.
-- Phase 3 starts on `main` at `69436fb`: Phase 2 PR 2 merged as `7615de2` (PR #6, 2026-10-09) and the pool-test flake it waited on is fixed in PR #7 (`docs/tech_debt/resolved/2026-10-06-test-pool-dying-worker-flake.md`). The Phase 2 harness review findings are closed on branch `fix/phase-2-harness-review`, PR #9 (quick task 261010-lgv, `docs/tech_debt/resolved/2026-10-09-thread-spike-harness-review-findings.md`); WR-03 and IN-02 wait for the owner in `docs/tech_debt/active/2026-10-10-spike-protocol-amendments-before-next-campaign.md` (must, before the next campaign). Phase 3 waits for that branch to land on `main`.
+- Phase 3 starts on `main` at `e772716`: Phase 2 PR 2 merged as `7615de2` (PR #6, 2026-10-09), the pool-test flake fixed in PR #7 (`69436fb`), and the Phase 2 harness review findings closed in PR #9 (`e772716`, quick task 261010-lgv, `docs/tech_debt/resolved/2026-10-09-thread-spike-harness-review-findings.md`). WR-03 and IN-02 wait for the owner in `docs/tech_debt/active/2026-10-10-spike-protocol-amendments-before-next-campaign.md` (must, before the next campaign). Plan 03-01 Task 1's precondition (no WR-01/02/04/05 row open) is met on `main`.
 - Printability threshold (INFO-04): a printed test over M6–M12 cannot locate a floor below M6; Phase 6 must widen the matrix or warn below the smallest size it proved.
 - Every research number is single-machine macOS arm64; linux/amd64 is unverified until Phase 7.
 
