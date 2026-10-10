@@ -134,6 +134,28 @@ def test_a_kernel_failure_stops_the_export_and_writes_nothing(tmp_path: Path) ->
     assert not out.exists()
 
 
+def test_a_length_too_short_to_model_ends_with_an_error_naming_it_and_writes_nothing(
+        tmp_path: Path) -> None:
+    out = tmp_path / "b.stl"
+    code = _exit_code(["export", "bolt", "-o", str(out), "--length", "1e-9"])
+    assert isinstance(code, str)
+    assert code.startswith("error: ")
+    assert "length" in code
+    assert not out.exists()
+
+
+def test_a_length_too_short_to_model_exits_1_from_the_real_process(tmp_path: Path) -> None:
+    """Not a worker death: the process says why and returns 1 instead of dying on a signal."""
+    out = tmp_path / "b.stl"
+    result = subprocess.run(
+        [sys.executable, "-m", "screw.cli", "export", "bolt", "-o", str(out), "--length", "1e-9"],
+        capture_output=True, text=True, check=False)
+    assert result.returncode == 1
+    assert "error: " in result.stderr
+    assert "length" in result.stderr
+    assert not out.exists()
+
+
 @pytest.mark.parametrize("command", ["info", "export"])
 @pytest.mark.parametrize("kind", list(KINDS))
 def test_the_flags_follow_the_model_fields_in_order(

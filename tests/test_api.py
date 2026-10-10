@@ -667,3 +667,40 @@ def test_an_unclassified_exception_still_emits_build_failed_and_is_not_swallowed
     assert _field(failed[0], "duration_ms") is not None
 
     assert not _event_records(caplog, "export.served")
+
+
+@pytest.mark.parametrize(("route", "query"), [
+    ("model.stl", {"length": 1e-8, "quality": "preview"}),
+    ("model.stl", {"length": 1e-9, "quality": "preview"}),
+    ("model.step", {"length": 1e-8}),
+    ("model.stl", {"d": 100000, "length": 1e-7, "quality": "preview"}),
+])
+def test_a_length_too_short_to_model_is_a_422_build_error_not_a_served_file(
+        route: str, query: Params) -> None:
+    # The collapsed-solid blocker's own reproductions. They used to be a 134-byte STL as a 200,
+    # a non-watertight mesh, a one-face STEP and a 500; the builder's doorway now refuses them
+    # (D-17) before the kernel runs, so no worker dies on them either.
+    r = client.get(f"/api/bolt/{route}", params=query)
+    assert r.status_code == 422
+    detail = r.json()["detail"][0]
+    assert detail["type"] == "build_error"
+    assert "length" in detail["msg"]
+
+
+def test_a_failed_export_is_a_422_and_never_enters_the_bytes_cache(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    # 7.77 is a diameter no other test downloads (the byte cache is session-wide). The
+    # control request after the refusal proves the key below is the one a success is stored
+    # under, so the absence above it is not vacuous.
+    key = (BoltParams(d=7.77), "stl", "preview", "identity")
+    assert app_module._EXPORTS.get(key) is None
+    with monkeypatch.context() as patched:
+        patched.setattr(cq.Shape, "exportStl", lambda *_args, **_kwargs: False)
+        r = client.get("/api/bolt/model.stl", params={"d": 7.77, "quality": "preview"})
+    assert r.status_code == 422
+    assert r.json()["detail"][0]["type"] == "build_error"
+    assert app_module._EXPORTS.get(key) is None
+
+    assert client.get("/api/bolt/model.stl", params={"d": 7.77, "quality": "preview"}
+                      ).status_code == 200
+    assert app_module._EXPORTS.get(key) is not None

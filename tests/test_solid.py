@@ -5,9 +5,11 @@ from __future__ import annotations
 import math
 import re
 import struct
+from pathlib import Path
 
 import cadquery as cq
 import pytest
+from OCP.IFSelect import IFSelect_ReturnStatus
 
 from bench.thread_spike.helical import naive_sweep_fuse, one_pipe
 from bench.thread_spike.maths import VOID_CLEARANCE
@@ -218,3 +220,40 @@ def test_the_void_a_nut_will_subtract_passes_the_gate() -> None:
     void = helical.thread(6.0, 1.0, 20.0, clearance=VOID_CLEARANCE)
     check_solid(void, closed_volume(6.0, 1.0, 20.0, VOID_CLEARANCE))
     assert void.BoundingBox().xlen == pytest.approx(6.0 + 2 * VOID_CLEARANCE, abs=1e-4)
+
+
+def _stl_writing(data: bytes) -> object:
+    """A stand-in for `Shape.exportStl` that writes `data` and reports success."""
+    def export_stl(_shape: cq.Shape, file_name: str, *_args: object, **_kwargs: object) -> bool:
+        Path(file_name).write_bytes(data)
+        return True
+    return export_stl
+
+
+def test_an_stl_export_that_wrote_no_file_is_a_build_error_not_a_missing_file(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    # exportStl returns False and writes nothing for an empty compound; reading the path then
+    # raised FileNotFoundError, the 500 the collapsed-solid blocker recorded.
+    monkeypatch.setattr(cq.Shape, "exportStl", lambda *_args, **_kwargs: False)
+    with pytest.raises(BuildError, match="STL"):
+        export(BoltParams(), "stl", "preview")
+
+
+def test_a_step_export_the_kernel_did_not_finish_is_a_build_error(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(cq.Shape, "exportStep",
+                        lambda *_args, **_kwargs: IFSelect_ReturnStatus.IFSelect_RetFail)
+    with pytest.raises(BuildError, match="STEP"):
+        export(BoltParams(), "step")
+
+
+@pytest.mark.parametrize("data", [
+    pytest.param(bytes(80) + struct.pack("<I", 10), id="header-claims-10-facets-no-body"),
+    pytest.param(bytes(80) + struct.pack("<I", 2) + bytes(100), id="well-formed-2-facets"),
+    pytest.param(bytes(40), id="shorter-than-a-header"),
+])
+def test_an_stl_that_is_not_a_closed_solids_mesh_is_a_build_error(
+        data: bytes, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(cq.Shape, "exportStl", _stl_writing(data))
+    with pytest.raises(BuildError, match="STL"):
+        export(BoltParams(), "stl", "preview")

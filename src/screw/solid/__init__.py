@@ -17,6 +17,7 @@ refuses is neither cached nor exported.
 from __future__ import annotations
 
 import ctypes
+import struct
 import tempfile
 import threading
 from functools import lru_cache
@@ -26,6 +27,7 @@ from typing import TYPE_CHECKING, Literal
 import cadquery as cq
 from OCP.BRepGProp import BRepGProp
 from OCP.GProp import GProp_GProps
+from OCP.IFSelect import IFSelect_ReturnStatus
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -150,6 +152,15 @@ def clear_cache() -> None:
         _build_cached.cache_clear()
 
 
+def _check_stl(data: bytes) -> None:
+    """Refuse an STL whose header count disagrees with its byte length or has fewer than 4
+    facets (the fewest a closed solid has): a mesh that is not the part must not be served."""
+    count = struct.unpack("<I", data[80:84])[0] if len(data) >= 84 else 0
+    if len(data) != 84 + 50 * count or count < 4:
+        raise BuildError(f"STL export failed: the kernel wrote {len(data)} bytes claiming "
+                         f"{count} facets for these parameters.")
+
+
 def _write_export(shape: cq.Solid, p: FastenerParams, fmt: Format, quality: Quality) -> bytes:
     with tempfile.TemporaryDirectory(prefix="screw-") as d:
         path = Path(d) / f"{p.slug()}.{fmt}"
@@ -164,11 +175,20 @@ def _write_export(shape: cq.Solid, p: FastenerParams, fmt: Format, quality: Qual
             # cached solid mesh-free for its whole life, at 1.4-17.6 ms per export on
             # spur's gears (not measured for screw). No positional argument to copy(): its
             # one parameter is mesh, default False, and copy(mesh=True) would carry a mesh.
-            shape.copy().exportStl(str(path), tolerance=tol, angularTolerance=ang,
-                                   ascii=False, relative=False)
-        else:
-            # STEP export attaches no mesh, so the cached solid stays exact and needs no copy.
-            shape.exportStep(str(path))
+            written = shape.copy().exportStl(str(path), tolerance=tol, angularTolerance=ang,
+                                             ascii=False, relative=False)
+            # False means no file was written; reading it would be a FileNotFoundError.
+            if not written:
+                raise BuildError("STL export failed: the kernel wrote no file for these "
+                                 "parameters.")
+            data = path.read_bytes()
+            _check_stl(data)
+            return data
+        # STEP export attaches no mesh, so the cached solid stays exact and needs no copy.
+        # cadquery discards the status of the transfer; only the write's is observable.
+        status = shape.exportStep(str(path))
+        if status != IFSelect_ReturnStatus.IFSelect_RetDone:
+            raise BuildError(f"STEP export failed: the kernel reported {status}.")
         return path.read_bytes()
 
 
