@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: Real Helical Thread
 status: executing
-stopped_at: Completed 03-05-PLAN.md
-last_updated: "2026-10-10T14:43:54.117Z"
+stopped_at: Completed 03-06-PLAN.md
+last_updated: "2026-10-10T16:36:48.401Z"
 last_activity: 2026-10-10
 last_activity_desc: Phase 03 execution started
-state_head: d7f5727d82997679d2f1bb99c3288b4e08f9c001
+state_head: 23f9d7a7f0165d9781b1f632508734d4cdc08fd0
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 25
-  completed_plans: 23
+  completed_plans: 24
   percent: 29
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-09)
 ## Current Position
 
 Phase: 03 (Real Helical Thread) — EXECUTING
-Plan: 6 of 7
+Plan: 7 of 7
 Status: Ready to execute
 Last activity: 2026-10-10 — Phase 03 execution started
 
@@ -80,6 +80,7 @@ Progress: [███░░░░░░░] 29%
 | Phase 03 P03 | 7min | 2 tasks | 8 files |
 | Phase 03 P04 | 7 min | 2 tasks | 11 files |
 | Phase 03 P05 | 8 min | 3 tasks | 7 files |
+| Phase 03 P06 | 21min | 2 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -128,6 +129,9 @@ Recent decisions affecting current work:
 - [Phase 03]: Plan 03-04: handedness is proved by an isInside probe on the helix at z = 2.25 P asserted for both hands in one test, because the volume gate cannot see the hand
 - [Phase 03]: 03-05: a refused link keeps the warnings of the mesh on screen but still clears the status (refuseLink setStatus('') unchanged from the unknown-kind branch); flagged as a human check
 - [Phase 03]: 03-05: warnings are per mesh (pendingWarnings -> meshWarnings in showModel); every error path shows mesh ? meshWarnings : [], the startup failure shows none
+- [Phase 03]: bench imports the shipped maths, builder and estimator back from src/; worker passes the exact grid length and pair._span replaces _turns
+- [Phase 03]: The slow grid tier is a grid pytest marker deselected by addopts, run by make grid [SIZE=] and grid.yml (dispatch + weekly schedule, contents: read, one job per size), outside ci.yml and required-jobs.txt
+- [Phase 03]: Local M3.5 and M4 shards passed every row (131.89 s, 148.15 s); GitHub-runner wall time stays unmeasured until the first workflow_dispatch
 
 ### Pending Todos
 
@@ -162,6 +166,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-10T14:43:54.081Z
-Stopped at: Completed 03-05-PLAN.md
+Last session: 2026-10-10T16:36:48.365Z
+Stopped at: Completed 03-06-PLAN.md
 Resume file: None
