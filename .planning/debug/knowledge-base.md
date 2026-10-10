@@ -15,4 +15,3 @@ Resolved debug sessions. Used by `gsd-debugger` to surface known-pattern hypothe
 - **Why not caught:** no gate existed for this class: `make verify` sees the symptom only when GC timing lines up, and nothing checks that a test leaves no named semaphores to the cyclic GC; the failure is charged to the wrong test, so the first suspicion went to host CPU load.
 - **Recurrence guard:** the comment at the `del manager` in tests/test_pool.py (test_a_wedged_build_is_terminated_and_its_worker_replaced) names the mechanism; the forced-GC procedure in the resolved debt record reproduces the class on demand; this entry. Hint for a new match: an unraisable finalizer warning charged to a test usually comes from garbage an EARLIER test in the same xdist worker left behind -- trace where the objects were created, not where they were freed. No automated regression test, deliberately (reason in the debt record).
 ---
-

@@ -3,7 +3,7 @@
 Severity: must
 Status: resolved
 Date: 2026-10-06
-Resolved in: test(pool): free the wedged test's dead-worker semaphores before it returns
+Resolved in: ef37f23 (PR #7) — test(pool): free the wedged test's dead-worker semaphores before it returns
 Source: Phase 2, plan 02-02 executor (deferred-items.md), carried to the owner by the 02-06 orchestrator; owner sign-off 2026-10-06
 Related files:
 - tests/test_pool.py (`test_a_dying_worker_surfaces_as_broken_pool_and_is_replaced`, the

@@ -197,9 +197,10 @@ def test_a_wedged_build_is_terminated_and_its_worker_replaced(
         # `register` or worker spawn) runs their finalizers reentrantly (CPython 3.12,
         # gh-109629), and `filterwarnings = ["error"]` turned that into a failure of the
         # next test, test_a_dying_worker_surfaces_as_broken_pool_and_is_replaced: 3 gate
-        # runs 2026-10-06..09, 2 of 20 `-n 8` runs measured before this line. With one GC
-        # forced inside that lock at the start of every test, the full `-n 8` suite failed
-        # 2 of 2 runs before this line and 0 of 5 after (resolved debt record
+        # runs 2026-10-06..09 (the first recorded by name only, the later two with this
+        # traceback), 2 of 20 `-n 8` runs measured before this line. With one GC forced
+        # inside that lock at the start of every test, the full `-n 8` suite failed 2 of 2
+        # runs before this line and 0 of 5 after (resolved debt record
         # 2026-10-06-test-pool-dying-worker-flake.md).
         del manager
         assert pool.replaced == replaced_before + 1

@@ -31,4 +31,4 @@ Severity (grep-able `Severity:` field):
 
 | Item | Resolved in |
 |---|---|
-| [The pool's dying-worker test failed once under host load](resolved/2026-10-06-test-pool-dying-worker-flake.md) | test(pool): free the wedged test's dead-worker semaphores before it returns — see the file's own `Resolved in:` field |
+| [The pool's dying-worker test failed once under host load](resolved/2026-10-06-test-pool-dying-worker-flake.md) | ef37f23 (PR #7) — test(pool): free the wedged test's dead-worker semaphores before it returns |
