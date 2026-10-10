@@ -77,13 +77,21 @@ def cmd_export(ns: argparse.Namespace) -> None:
     fmt = ns.format or out.suffix.lower().lstrip(".").replace("stp", "step")
     if fmt not in ("stl", "step"):
         raise SystemExit("error: output must end in .stl or .step (or pass --format)")
-    # Imported after the extension check so a typo costs milliseconds, not the ~2 s it takes
-    # to load the CAD kernel.
-    from .build_errors import BuildError
-    from .calc import derive
-    from .solid import Format, export
+    from .calc import derive, download_refusal
 
     p = _params(ns.kind, ns)
+    # The same kernel-free rule the API's `_serve` applies (D-02, FRNT-05 parity). Exit 2 like
+    # `_params`, the CLI analogue of the 422: a parameter choice is refused, nothing failed
+    # to build (a BuildError below keeps exit 1; 03-RESEARCH Open Question 5).
+    refusal = download_refusal(p, fmt, ns.quality)
+    if refusal is not None:
+        print(f"error: {refusal}", file=sys.stderr)
+        raise SystemExit(2)
+    # Imported after the extension check and the refusals, so a typo or a refused export
+    # costs milliseconds, not the ~2 s it takes to load the CAD kernel.
+    from .build_errors import BuildError
+    from .solid import Format, export
+
     try:
         data = export(p, cast("Format", fmt), ns.quality)   # the check above is the proof
     except BuildError as exc:

@@ -221,3 +221,36 @@ def test_readme_cli_examples_run(tmp_path: Path, capsys: pytest.CaptureFixture[s
         else:
             cli.main(args)
             assert json.loads(capsys.readouterr().out)["kind"] == "bolt"
+
+
+CAPPED = ["--d", "8", "--pitch", "1.25", "--length", "67.6"]
+
+
+def test_a_fine_stl_l11_measured_over_budget_exits_2_and_writes_nothing(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    out = tmp_path / "x.stl"
+    assert _exit_code(["export", "bolt", *CAPPED, "-o", str(out)]) == 2
+    err = capsys.readouterr().err
+    assert "error: length:" in err
+    assert "2026-10-08-a-grid" in err
+    assert not out.exists()
+
+
+def test_the_same_part_is_exported_as_a_step_and_as_a_preview_stl(tmp_path: Path) -> None:
+    step = tmp_path / "x.step"
+    cli.main(["export", "bolt", *CAPPED, "-o", str(step)])
+    assert step.read_bytes().startswith(b"ISO-10303-21;")
+    stl = tmp_path / "x.stl"
+    cli.main(["export", "bolt", *CAPPED, "-o", str(stl), "--quality", "preview"])
+    assert len(stl.read_bytes()) > 84
+
+
+def test_the_over_budget_fine_stl_exits_2_from_the_real_process(tmp_path: Path) -> None:
+    """Like a bad parameter, not a build failure (exit 1): the shell sees the same code."""
+    out = tmp_path / "x.stl"
+    result = subprocess.run(
+        [sys.executable, "-m", "screw.cli", "export", "bolt", *CAPPED, "-o", str(out)],
+        capture_output=True, text=True, check=False)
+    assert result.returncode == 2
+    assert "error: length:" in result.stderr
+    assert not out.exists()

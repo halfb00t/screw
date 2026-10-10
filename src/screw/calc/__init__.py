@@ -77,6 +77,11 @@ def _bolt(p: BoltParams) -> PartInfo:
         else:
             warnings.append(f"{key} not reported: {formula} is not a finite number "
                             "for these parameters")
+    # The page's Download STL link asks for the fine default, so without this a click on a
+    # capped part opens raw JSON with no notice. Same text the API and the CLI refuse with.
+    fine = fine_stl_refusal(p.d, p.pitch, p.length)
+    if fine is not None:
+        warnings.append(fine)
     return PartInfo(kind=p.kind, rows=rows, warnings=warnings)
 
 

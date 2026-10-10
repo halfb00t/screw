@@ -119,3 +119,15 @@ def test_a_kind_without_a_download_rule_is_a_bug_not_a_user_error() -> None:
 def test_every_registered_kind_has_a_download_rule() -> None:
     for model in KINDS.values():
         assert download_refusal(model(), "stl", "fine") is None
+
+
+def test_a_capped_part_warns_about_its_fine_stl_after_the_standing_warning() -> None:
+    # The page's Download STL link asks for the fine default, so the page says so first.
+    capped = derive(BoltParams(d=8.0, pitch=1.25, length=67.6))
+    assert capped.warnings == [STANDING_WARNING, fine_stl_refusal(8.0, 1.25, 67.6)]
+
+
+def test_no_fine_stl_warning_at_the_cap_or_off_the_measured_rows() -> None:
+    for p in (BoltParams(d=8.0, pitch=1.25, length=67.5),
+              BoltParams(d=8.0, pitch=1.0, length=67.6)):
+        assert derive(p).warnings == [STANDING_WARNING]
