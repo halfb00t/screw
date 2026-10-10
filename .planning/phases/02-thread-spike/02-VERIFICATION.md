@@ -44,7 +44,7 @@ human_verification:
   - test: "Accept or reject the indirect evidence that PR 5 (the harness and pre-registered protocol) had a cross-CLI review (02-06 D5)"
     expected: "The owner confirms the review the repo cannot show (no GitHub review object; findings F4 and G6 cited in the protocol; 23 fix commits; owner merged the PR) satisfies the D-19 / AGENTS.md rule that whoever wrote the diff does not review it. If rejected, the remedy is a review on the existing record, not a protocol edit."
     why_human: "gh pr view 5 returns empty reviews and comments. Which CLI reviewed, and what it said, cannot be established from any artifact."
-  - test: "Judgment-tier prohibition P1 (02-08): the escape-clause outcome, the non-falsifiable size and the failed pass bar are not softened or reworded away"
+  - test: "Judgment-tier prohibition P1 (02-08): the escape-clause outcome, the non-falsifiable size and the non-pass verdict (pass bar held, escape clause fired) are not softened or reworded away"
     expected: "Owner reads 02-SPIKE.md '## Verdict' and L11 'Escape clause' beside the verdict output and agrees the wording is the rules' output. Verifier LLM-judge: no softening found. NON-AUTHORITATIVE. unverified-prohibition, human review recommended."
     why_human: "Judgment-tier prohibition (ADR-550 D4); an LLM verdict is never authoritative for it."
   - test: "Judgment-tier prohibition P2 (02-08): no thread-building field or builder exists in src/ before or with the decision entry"
@@ -139,7 +139,7 @@ REQUIREMENTS.md maps only INFR-03 to Phase 2 (line 158): no orphaned requirement
 | `bench/thread_spike/__main__.py` | 1142 | WR-02 `--k-from`/`--frontier-from` accept incomplete records | Warning | Campaign path is guarded by `_NEEDS`; verdict refuses incomplete ksweep. No effect on recorded result. |
 | `bench/quiet.py` | 52 | WR-03 `decisive` fixed at block start | Warning | Could over-label a block decisive. The decisive blocks (ladder, trim, controls, rss, pair) feed no timing claim in the verdict; pair outcomes count on any gate; the pair block had no timeout cell. No effect on any verdict claim. |
 | `bench/thread_spike/verdict.py` | 1589 | WR-04 mixed-hand cell does not check nut body | Warning | Could read a garbage cell as violated. The mixed-hand criterion did not drive the escape (M18 fired on same-hand cells); the identical left-hand nut is checked in the guarded left/left cells. No effect on the outcome. |
-| `bench/thread_spike/__main__.py` | 183 | WR-05 dirty working tree not detected | Warning | Header HEAD could mask uncommitted edits. Independently shown clean here: harness diff vs the protocol commit is empty and the blob matches. |
+| `bench/thread_spike/__main__.py` | 183 | WR-05 dirty working tree not detected | Warning | Header HEAD could mask uncommitted edits. The committed harness equals the protocol commit's (diff empty) and the guard checked the on-disk protocol file against `origin/main` at each run; whether `bench/thread_spike/` on disk matched HEAD while the campaign ran is not recorded (that is WR-05) and is unverified. |
 | harness (IN-01 to IN-07) | various | Info items | Info | Open, filed in `docs/tech_debt/active/2026-10-09-thread-spike-harness-review-findings.md`. D-19 freezes the harness on this branch. |
 
 No `TBD`/`FIXME`/`XXX` marker was introduced by the phase (`make verify` runs the unfinished-work scan and exits 0). No code in `src/` changed.

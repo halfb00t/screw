@@ -16,7 +16,7 @@ updated: 2026-10-09T14:40:22.006Z
 expected: The owner confirms the review the repo cannot show (no GitHub review object; findings F4 and G6 cited in the protocol; 23 fix commits; owner merged the PR) satisfies the D-19 / AGENTS.md rule that whoever wrote the diff does not review it. If rejected, the remedy is a review on the existing record, not a protocol edit.
 result: pass
 
-### 2. Judgment-tier prohibition P1 (02-08): the escape-clause outcome, the non-falsifiable size and the failed pass bar are not softened or reworded away
+### 2. Judgment-tier prohibition P1 (02-08): the escape-clause outcome, the non-falsifiable size and the non-pass verdict (pass bar held, escape clause fired) are not softened or reworded away
 expected: Owner reads 02-SPIKE.md '## Verdict' and L11 'Escape clause' beside the verdict output and agrees the wording is the rules' output. Verifier LLM-judge: no softening found. NON-AUTHORITATIVE. unverified-prohibition, human review recommended.
 result: pass
 
