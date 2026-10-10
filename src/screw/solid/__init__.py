@@ -9,7 +9,9 @@ here, per worker (`SCREW_SOLID_CACHE`, entries), because rebuilding it needs the
 that only a worker has. The exported-bytes cache lives one level up, in the serving
 process (`app.py`'s `_BlobCache`): a repeat download never wakes a worker at all.
 
-No `cadquery` object leaves this package: callers get `bytes`, or `BuildError`.
+No `cadquery` object leaves this package: callers get `bytes`, or `BuildError`. Every build
+passes `check_solid` (THRD-04) inside the function `lru_cache` wraps, so a build the gate
+refuses is neither cached nor exported.
 """
 
 from __future__ import annotations
@@ -22,12 +24,15 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 import cadquery as cq
+from OCP.BRepGProp import BRepGProp
+from OCP.GProp import GProp_GProps
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
 from screw import int_env
 from screw.build_errors import BuildError
+from screw.calc.thread import closed_volume, volume_check
 from screw.params import BoltParams, FastenerParams
 from screw.solid import bolt
 
@@ -70,14 +75,48 @@ def _release_arenas() -> None:
         _MALLOC_TRIM(0)
 
 
+# Relative error bound of `BRepGProp.VolumeProperties_s`, per face. Read from the OCP
+# docstring: above 0.001 the integration is non-adaptive. 1e-7 cost 2x (0.4-2.0 s against
+# 0.2-1.0 s per row) for no gain: 1.53e-6 against 1.62e-6 at M6 L20 (RESEARCH Code Example 4).
+PRECISE_EPS = 1e-6
+
+
+def precise_volume(shape: cq.Shape) -> float:
+    """Volume to `PRECISE_EPS`, signed: an inverted solid reads about -1 times its closed form.
+
+    L11's estimator, never the default `Volume()`, which reads -1.001 of the closed form on an
+    inverted solid and +6.3 % on a ruled-surface thread while `isValid()` stays True.
+    """
+    props = GProp_GProps()
+    BRepGProp.VolumeProperties_s(shape.wrapped, props, PRECISE_EPS, False, False)
+    return float(props.Mass())
+
+
+def check_solid(shape: cq.Shape, closed: float) -> None:
+    """The THRD-04 postcondition (D-08, L11): exactly one solid, valid, and the right volume.
+
+    `_build` runs it inside the function `lru_cache` wraps, so a refusal is never cached or
+    exported; tests and `bench/` call it on shapes no parameter set builds (the positive
+    controls, the void). The checks run in this order and the first failure is the one named.
+    """
+    count = len(shape.Solids())
+    if count != 1:
+        raise BuildError(f"Geometry kernel produced {count} solids for these parameters, "
+                         "expected exactly 1.")
+    if not shape.isValid():
+        raise BuildError("Geometry kernel produced an invalid solid for these parameters.")
+    refusal = volume_check(precise_volume(shape), closed)
+    if refusal is not None:
+        raise BuildError(f"Geometry kernel produced the wrong solid: {refusal}.")
+
+
 def _build(p: FastenerParams) -> cq.Solid:
     if isinstance(p, BoltParams):
-        solid = bolt.cylinder(p)
+        solid = bolt.rod(p)
+        closed = closed_volume(p.d, p.pitch, p.length)
     else:
         raise TypeError(f"no solid builder for kind {p.kind!r}")
-    # An invariant a type cannot express is asserted positively: exactly one valid solid.
-    if len(solid.Solids()) != 1 or not solid.isValid():
-        raise BuildError("Geometry kernel produced an invalid solid for these parameters.")
+    check_solid(solid, closed)
     return solid
 
 
@@ -90,7 +129,7 @@ def _build_checked(p: FastenerParams) -> cq.Solid:
         raise
     except Exception as exc:  # OCCT raises assorted Standard_Failure subclasses
         raise BuildError(f"Geometry kernel failed ({type(exc).__name__}); "
-                         "check d and length.") from exc
+                         "check d, pitch and length.") from exc
 
 
 # INTERIM (D-01): 4 solids per worker, carried from spur model.py:561 where it sized a

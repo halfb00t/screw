@@ -19,8 +19,10 @@ import time
 from collections.abc import Iterator
 from concurrent.futures.process import BrokenProcessPool
 from contextlib import contextmanager
+from pathlib import Path
 from typing import cast
 
+import cadquery as cq
 import pytest
 from fastapi.testclient import TestClient
 
@@ -28,8 +30,9 @@ from screw import app as app_module
 from screw.app import app, build_backend
 from screw.build_errors import BuildError, BuildTimeout
 from screw.calc import SKELETON_WARNING
-from screw.params import DEFAULT_KIND, INTERIM_MAX_MM, KINDS, FastenerParams
-from screw.solid import Format, Quality, export
+from screw.calc.thread import T_GATE, closed_volume
+from screw.params import DEFAULT_KIND, INTERIM_MAX_MM, KINDS, BoltParams, FastenerParams
+from screw.solid import Format, Quality, export, precise_volume
 
 client = TestClient(app)
 
@@ -241,12 +244,23 @@ def test_the_interim_bound_is_inclusive_and_the_next_value_is_refused() -> None:
     just_over = math.nextafter(bound, math.inf)
     assert just_over > bound
 
+    seen: list[FastenerParams] = []
+
+    async def stub(p: FastenerParams, fmt: str, quality: str) -> bytes:
+        # A thread at d=1e5 does not mesh in 120 s (planner probe 2026-10-10), so the model
+        # route is exercised with a backend that records what it was asked for and returns
+        # the default part's preview.
+        seen.append(p)
+        return export(BoltParams(), "stl", "preview")
+
     for field in ("d", "length"):
         at_bound: Params = {field: bound}
         assert client.get("/api/bolt/info", params=at_bound).status_code == 200
-        r = client.get("/api/bolt/model.stl", params={**at_bound, "quality": "preview"})
+        with _backend(stub):
+            r = client.get("/api/bolt/model.stl", params={**at_bound, "quality": "preview"})
         assert r.status_code == 200
         assert len(r.content) > 84
+        assert getattr(seen[-1], field) == bound
 
         over: Params = {field: just_over}
         for route in ("/api/bolt/info", "/api/bolt/model.stl"):
@@ -260,19 +274,35 @@ def test_the_interim_bound_is_inclusive_and_the_next_value_is_refused() -> None:
     assert huge.json()["detail"][0]["loc"] == ["query", "d"]
 
 
-def test_a_diameter_the_kernel_cannot_build_is_a_422_build_error() -> None:
-    """d=1e-9 passes validation (it is positive and finite) but the kernel returns a solid
-    that is not valid; the doorway turns that into a BuildError, not a served file."""
-    r = client.get("/api/bolt/model.stl", params={"d": 1e-9, "quality": "preview"})
+def test_a_solid_the_kernel_gets_wrong_is_a_422_build_error() -> None:
+    """These parameters pass validation (positive, finite) and build one valid solid whose
+    volume is off the closed form (+9.59e-03 in the research probe); the gate turns that
+    into a BuildError, not a served file."""
+    r = client.get("/api/bolt/model.stl", params={
+        "d": 0.001, "pitch": 0.0001, "length": 0.01, "quality": "preview"})
     assert r.status_code == 422
     detail = r.json()["detail"][0]
     assert detail["type"] == "build_error"
     assert detail["loc"] == ["query"]
-    assert "invalid solid" in detail["msg"]
+    assert "relative error" in detail["msg"]
 
 
-def test_the_download_filename_is_safe_for_extreme_values() -> None:
-    r = client.get("/api/bolt/model.stl", params={"pitch": 1e300, "quality": "preview"})
+def test_the_default_part_served_is_the_gated_thread(tmp_path: Path) -> None:
+    r = client.get("/api/bolt/model.step")
+    assert r.status_code == 200
+    path = tmp_path / "default.step"
+    path.write_bytes(r.content)
+    shape = cq.importers.importStep(str(path)).val()
+    assert isinstance(shape, cq.Shape)
+    assert len(shape.Solids()) == 1
+    assert precise_volume(shape) == pytest.approx(closed_volume(6.0, 1.0, 20.0), rel=T_GATE)
+
+
+def test_the_download_filename_is_safe_for_many_digit_values() -> None:
+    # pitch=1e300 used to be the extreme case here; a thread of that pitch has a negative root
+    # radius, so many digits stand in for it (plan 03-02 makes the extreme a 422).
+    r = client.get("/api/bolt/model.stl", params={
+        "d": 6.123456789, "pitch": 0.987654321, "length": 9.87654321, "quality": "preview"})
     assert r.status_code == 200
     match = re.fullmatch(r'attachment; filename="([^"]*)"', r.headers["content-disposition"])
     assert match, r.headers["content-disposition"]

@@ -198,11 +198,16 @@ name = "Only the solid package imports the CAD kernel"
 # import it (contract 2 only covers the maths; this covers everything else, present and
 # future). screw.solid's own edges to the kernel are the point, so they are ignored; both
 # forms are listed because `screw.solid.**` does not match `screw.solid` itself, and an
-# ignore that matches nothing is itself an error in import-linter.
+# ignore that matches nothing is itself an error in import-linter. helical.py and the
+# THRD-04 gate's BRepGProp in __init__.py are the package's own OCP edges, and both OCP forms
+# must match something for the same reason.
 type = "forbidden"
 source_modules = ["screw"]
 forbidden_modules = ["cadquery", "OCP"]
-ignore_imports = ["screw.solid -> cadquery", "screw.solid.** -> cadquery"]
+ignore_imports = [
+    "screw.solid -> cadquery", "screw.solid.** -> cadquery",
+    "screw.solid -> OCP", "screw.solid.** -> OCP",
+]
 
 [[tool.importlinter.contracts]]
 name = "The spike's oracle, verdict and parent process stay free of the CAD kernel"

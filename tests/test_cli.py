@@ -124,9 +124,11 @@ def test_an_unknown_output_extension_exits_1_from_the_real_process(tmp_path: Pat
 
 
 def test_a_kernel_failure_stops_the_export_and_writes_nothing(tmp_path: Path) -> None:
-    # d=1e-9 passes the model (d > 0) and the kernel cannot make a valid solid of it.
+    # These pass the model (all positive) and the kernel builds one valid solid of them whose
+    # volume is off the closed form (+9.59e-03 in the research probe): the gate refuses it.
     out = tmp_path / "b.stl"
-    code = _exit_code(["export", "bolt", "-o", str(out), "--d", "1e-9"])
+    code = _exit_code(["export", "bolt", "-o", str(out), "--d", "0.001", "--pitch", "0.0001",
+                       "--length", "0.01"])
     assert isinstance(code, str)
     assert code.startswith("error: ")
     assert not out.exists()
