@@ -867,6 +867,21 @@ def test_a_number_that_is_not_finite_or_not_a_number_is_refused_at_the_boundary(
         parse_request("[1, 2]")
 
 
+def test_an_integer_too_large_for_a_float_is_refused_at_the_boundary(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(ValueError, match="precise_volume"):
+        parse_record(json.dumps(_built(10**400)))
+    huge = {**_HEADER, "readings": [["2026-10-08T09:00:00+00:00", 10**400]]}
+    with pytest.raises(ValueError, match="load1"):
+        parse_header(json.dumps(huge))
+    _full_campaign(tmp_path)
+    grid = tmp_path / "c1-grid.jsonl"
+    rest = grid.read_text().split("\n", 1)[1]
+    grid.write_text(json.dumps({**huge, "block": "grid", "k": _LOCKED_K}) + "\n" + rest)
+    assert _verdict("c1", tmp_path) == 2
+    assert "load1" in capsys.readouterr().err
+
+
 def test_a_built_record_missing_a_measurement_or_a_failed_one_carrying_one_is_refused() -> None:
     wire = dict(_built(1.0))
     wire["build_s"] = None

@@ -196,8 +196,16 @@ def _str(obj: dict[str, object], key: str) -> str:
 def _num(obj: dict[str, object], key: str) -> float:
     value = obj[key]
     # `json.loads` accepts NaN and Infinity; a NaN volume would compare as "not outside the
-    # tolerance" and read as a pass, so a non-finite number is refused at the boundary (L02).
-    if isinstance(value, bool) or not isinstance(value, int | float) or not math.isfinite(value):
+    # tolerance" and read as a pass, so a non-finite number is refused at the boundary (L02). An
+    # integer past the float range raises OverflowError in `isfinite` itself: it is the same
+    # refusal, not a traceback.
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        _refuse(f"{key!r} must be a finite number, got {value!r}")
+    try:
+        finite = math.isfinite(value)
+    except OverflowError:
+        finite = False
+    if not finite:
         _refuse(f"{key!r} must be a finite number, got {value!r}")
     return float(value)
 
