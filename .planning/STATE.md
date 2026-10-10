@@ -4,9 +4,10 @@ current_phase: 3
 current_phase_name: Real Helical Thread
 status: "Phase 02 shipped — PR #6 merged 7615de2, pool-flake fix PR #7 merged 69436fb"
 stopped_at: "Phase 02 shipped (PR #6 7615de2, PR #7 69436fb), ready to plan Phase 3 from main"
-last_updated: "2026-10-10T05:30:58Z"
+last_updated: "2026-10-10T10:15:05.984Z"
 last_activity: 2026-10-10
-state_head: 5ec5af4d5a029bb51152d7b387d95830c66fde75
+last_activity_desc: "Completed quick task 261010-lgv: fix Phase 2 harness review findings WR-01/02/04/05, close the review ledger, resolve the debt item"
+state_head: e079ef243f08cf639a9194687c8e3f2229140cb5
 progress:
   total_phases: 7
   completed_phases: 2
@@ -29,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-09)
 Phase: 3 — Real Helical Thread
 Plan: Not started
 Status: Phase 02 shipped — PR #6 merged 7615de2, pool-flake fix PR #7 merged 69436fb
-Last activity: 2026-10-10 — PR #6 and PR #7 landed on main
+Last activity: 2026-10-10 - Completed quick task 261010-lgv: fix Phase 2 harness review findings WR-01/02/04/05, close the review ledger, resolve the debt item
 
 Progress: [███░░░░░░░] 29%
 
@@ -123,9 +124,15 @@ None yet.
 - Coarse pitch only (TABL-05) vs contract 6 (`params` never imports `tables`): how an explicit non-coarse pitch is handled (refuse, or build and show row-dependent numbers as warnings) is a Phase 3/4 discussion question.
 - Pair-proof reliability on the full grid is measured (`2026-10-08-a-pair`, decisive): falsifiable on both hands at every size except M18, which is not falsifiable on either hand (all four proof clearances excluded) (L11).
 - Phase 5 not planned until the roadmap is revised (L11, SC5): M18 not falsifiable (right, left hand) in `2026-10-08-a-pair`; the owner chose "revise" on 2026-10-09 and named no direction yet. Phase 3 is plannable.
-- Phase 3 starts on `main` at `69436fb`: Phase 2 PR 2 merged as `7615de2` (PR #6, 2026-10-09) and the pool-test flake it waited on is fixed in PR #7 (`docs/tech_debt/resolved/2026-10-06-test-pool-dying-worker-flake.md`). Still open from Phase 2: the harness review findings (`docs/tech_debt/active/2026-10-09-thread-spike-harness-review-findings.md`, must), due on the first PR that touches `bench/thread_spike/` or `bench/quiet.py`.
+- Phase 3 starts on `main` at `69436fb`: Phase 2 PR 2 merged as `7615de2` (PR #6, 2026-10-09) and the pool-test flake it waited on is fixed in PR #7 (`docs/tech_debt/resolved/2026-10-06-test-pool-dying-worker-flake.md`). The Phase 2 harness review findings are closed on branch `fix/phase-2-harness-review` (quick task 261010-lgv, `docs/tech_debt/resolved/2026-10-09-thread-spike-harness-review-findings.md`); WR-03 and IN-02 wait for the owner in `docs/tech_debt/active/2026-10-10-spike-protocol-amendments-before-next-campaign.md` (must, before the next campaign). Phase 3 waits for that branch to land on `main`.
 - Printability threshold (INFO-04): a printed test over M6–M12 cannot locate a floor below M6; Phase 6 must widen the matrix or warn below the smallest size it proved.
 - Every research number is single-machine macOS arm64; linux/amd64 is unverified until Phase 7.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 261010-lgv | Fix Phase 2 harness review findings WR-01, WR-02, WR-04, WR-05; close 02-REVIEW-DISPOSITION.md (0 open); resolve the debt item; defer WR-03 and IN-02 to a new must item | 2026-10-10 | e079ef2 | [261010-lgv-fix-the-phase-2-harness-review-findings-](./quick/261010-lgv-fix-the-phase-2-harness-review-findings-/) |
 
 ## Deferred Items
 
