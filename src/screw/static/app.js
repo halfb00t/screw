@@ -106,6 +106,23 @@ async function buildForm(kind) {
 }
 
 /**
+ * A link the page cannot honour is refused whole, the same way for an unknown kind, a key
+ * given twice, a key the kind does not define and a value its control cannot hold: the form,
+ * the panel and the downloads go, nothing builds, and the message names what was wrong.
+ * Opening any other part than the one the link names would be a silent change (L02, D-10);
+ * the API answers the same input with a 422 and the CLI with exit 2.
+ */
+function refuseLink(message) {
+  clearForm();
+  currentKind = null;
+  kindSelect.selectedIndex = -1;
+  $('#dims').replaceChildren();
+  setDownloads(null);
+  setStatus('');
+  showMessages([message]);
+}
+
+/**
  * Startup, hashchange and the kind selector all land here: read the kind and the field
  * values off the hash, rebuild the form when the kind changed, then build the part.
  * An omitted kind= means the registry's default kind, for good: a link already shared
@@ -117,27 +134,43 @@ async function navigate() {
   ++seq;
   ++formSeq;
   const h = new URLSearchParams(location.hash.slice(1));
+  // First, before the kind lookup: get() would answer for the first of two values and the
+  // link would open a part it does not name (`#kind=bolt&kind=x`). The API refuses a
+  // repeated key the same way (D-12).
+  const seen = new Set();
+  for (const k of h.keys()) {
+    if (seen.has(k)) return refuseLink(`The link names "${k}" more than once.`);
+    seen.add(k);
+  }
   const kind = h.get('kind') ?? kinds.default;
 
   if (!kinds.kinds.includes(kind)) {
-    // Showing a different part than the one the link names would be a silent change of
-    // the part (L02): say so, and build nothing.
-    clearForm();
-    currentKind = null;
-    kindSelect.selectedIndex = -1;
-    $('#dims').replaceChildren();
-    setDownloads(null);
-    setStatus('');
-    showMessages([`Unknown kind "${kind}". Known kinds: ${kinds.kinds.join(', ')}.`]);
-    return;
+    return refuseLink(`Unknown kind "${kind}". Known kinds: ${kinds.kinds.join(', ')}.`);
   }
 
   if (kind !== currentKind) {
     if (!(await buildForm(kind))) return;
     currentKind = kind;
   }
+  // `kind` is the only key that is not a field, and the only one the page writes besides them.
+  const foreign = [...seen].filter((k) => k !== 'kind' && !fields.has(k));
+  if (foreign.length > 0) {
+    const names = foreign.map((k) => `"${k}"`).join(', ');
+    const unknown = foreign.length === 1 ? `Unknown field ${names}` : `Unknown fields ${names}`;
+    return refuseLink(`${unknown} for kind "${kind}". Known fields: ${[...fields.keys()].join(', ')}.`);
+  }
   kindSelect.value = kind;
   for (const [name, { input }] of fields) write(input, h.get(name) ?? defaults[name]);
+  // A checkbox holds only true or false. Any other control hands back '' for a value it
+  // cannot hold (a number input given "abc"), and partQuery() would skip it and open the
+  // default part under a link that said otherwise.
+  for (const [name, { input }] of fields) {
+    const given = h.get(name);
+    const unreadable = input.type === 'checkbox'
+      ? given !== null && given !== 'true' && given !== 'false'
+      : given !== null && given !== '' && read(input) === '';
+    if (unreadable) return refuseLink(`Unreadable value for "${name}": "${given}".`);
+  }
   await update();
 }
 

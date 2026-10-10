@@ -296,6 +296,35 @@ def test_the_form_has_a_size_fieldset_then_a_thread_one(kind: str) -> None:
     assert properties["left_hand"]["default"] is False
 
 
+def test_the_ui_refuses_a_link_it_cannot_honour() -> None:
+    # D-10 (01-UI-SPEC rule 10): a repeated, foreign or unreadable hash key is refused like an
+    # unknown kind -- same clearing, a message naming it, nothing builds -- never dropped,
+    # defaulted or rewritten away. Source assertions, since no browser is in the gate (L01).
+    source = _squash(APP_JS)
+    repeated = _squash(
+        "if (seen.has(k)) return refuseLink(`The link names \"${k}\" more than once.`);")
+    for statement in (
+        repeated,
+        _squash("k !== 'kind' && !fields.has(k)"),
+        _squash("given !== 'true' && given !== 'false'"),
+        _squash("given !== '' && read(input) === ''"),
+        _squash("`Unreadable value for \"${name}\": \"${given}\".`"),
+    ):
+        assert statement in source, statement
+    assert "Unknown field " in APP_JS
+    assert "Unknown fields " in APP_JS
+    # The repeat check runs first: `#kind=bolt&kind=x` must be refused, not read as bolt.
+    kind_lookup = _squash("const kind = h.get('kind') ?? kinds.default;")
+    assert source.index(repeated) < source.index(kind_lookup)
+    # One helper serves the unknown kind and the three new cases, and it clears everything.
+    helper = re.search(r"function refuseLink\(message\) \{(.*?)\n\}", APP_JS, re.DOTALL)
+    assert helper is not None
+    for statement in ("clearForm();", "currentKind = null;", "kindSelect.selectedIndex = -1;",
+                      "$('#dims').replaceChildren();", "setDownloads(null);"):
+        assert statement in helper.group(1), statement
+    assert APP_JS.count("refuseLink(") >= 5  # the definition and the four refusals
+
+
 def test_the_ui_builds_nodes_from_text_only() -> None:
     assert "textContent" in APP_JS
     for sink in ("innerHTML", "outerHTML", "insertAdjacentHTML"):
