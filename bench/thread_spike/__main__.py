@@ -30,8 +30,8 @@ importable there: the reference package is never on the default worker's path (D
 
 `campaign --run-id PREFIX` is the whole spike as one guarded command: every block in protocol
 order as run id PREFIX-<block>, K taken from PREFIX-ksweep by the rule, then the verdict over
-PREFIX-*; a block that refuses to start or crashes is logged in PREFIX-campaign.md and the rest
-still run.
+the files PREFIX-<block>.jsonl; a block that refuses to start or crashes is logged in
+PREFIX-campaign.md and the rest still run.
 
 The parent never imports the kernel (an import-linter contract keeps it so): the kernel versions
 are read from package metadata, and every build happens in the child.
@@ -1367,22 +1367,23 @@ _PairRun = tuple[HeaderRecord, list[PairRecord]]
 
 
 def _read_runs(prefix: str, results_dir: Path) -> tuple[_Runs, _PairRun | None]:
-    """Every `<prefix>-*.jsonl` as (header, rows) by block, the pair run apart because its rows
-    are cells. Two runs of one block under a prefix are ambiguous and refused: which one is the
-    record?"""
+    """Exactly `<prefix>-<block>.jsonl` for each block of `CAMPAIGN_BLOCKS`, as (header, rows) by
+    block, the pair run apart because its rows are cells. No other file is read: a glob on
+    `<prefix>-*` also takes in the campaign `<prefix>-x`. A file whose header names another block
+    than its name is refused."""
     runs: _Runs = {}
     pair: _PairRun | None = None
-    for path in sorted(results_dir.glob(f"{prefix}-*.jsonl")):
+    for named in CAMPAIGN_BLOCKS:
+        path = results_dir / f"{prefix}-{named}.jsonl"
+        if not path.exists():
+            continue
         lines = path.read_text().splitlines()
         if not lines:
             raise ValueError(f"{path.name} is empty")
         header = parse_header(lines[0])
         block = header["block"]
-        taken = pair[0] if block == "pair" and pair is not None else (
-            runs[block][0] if block in runs else None)
-        if taken is not None:
-            raise ValueError(f"two runs of block {block} under prefix {prefix!r}: "
-                             f"{taken['run_id']!r} and {header['run_id']!r}")
+        if block != named:
+            raise ValueError(f"{path.name} holds a {block} run, not a {named} run")
         if block == "pair":
             pair = (header, [parse_pair_result_row(line) for line in lines[1:]])
         else:
@@ -1578,8 +1579,8 @@ def _combined_bar(parts: list[tuple[str, tuple[str, ...]]]) -> tuple[str, tuple[
 
 
 def verdict_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR) -> int:
-    """Judge a recorded rod campaign: read every `<prefix>-*.jsonl`, recompute every row's class
-    from its raw record (a stored class is never trusted: the file could be edited, T-02-09),
+    """Judge a recorded rod campaign: read each `<prefix>-<block>.jsonl`, recompute every row's
+    class from its raw record (a stored class is never trusted: the file could be edited, T-02-09),
     and print K and the rule's table, the estimator and T_gate, the pass bar with every
     offending row, the escape clause, and the turn cap per size with where each came from.
 
@@ -1817,7 +1818,7 @@ def main(argv: list[str] | None = None) -> int:
     verdict_parser = commands.add_parser(
         "verdict", help="judge the recorded runs under a prefix; exit 0 only on a clean pass")
     verdict_parser.add_argument("--campaign", required=True, metavar="PREFIX",
-                                help="read every bench/results/thread-spike/PREFIX-*.jsonl")
+                                help="read bench/results/thread-spike/PREFIX-<block>.jsonl")
     run_parser = commands.add_parser(
         "run", help="one guarded campaign block, streamed to bench/results/thread-spike/")
     run_parser.add_argument("block", choices=tuple(_BLOCKS))

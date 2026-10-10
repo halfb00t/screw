@@ -2797,12 +2797,40 @@ def test_a_bad_prefix_or_an_empty_one_is_refused_not_passed(
     assert wanted in captured.out + captured.err
 
 
-def test_two_runs_of_one_block_under_a_prefix_are_ambiguous_and_refused(
+def test_the_verdict_never_reads_a_campaign_whose_prefix_extends_its_own(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     _full_campaign(tmp_path)
-    _write_run(tmp_path / "c1-grid-again.jsonl", "grid", [_synth()])
+    _full_campaign(tmp_path, prefix="c1-x", grid_extra=[_synth(turns=30.0, cls="failure")])
+    assert _verdict("c1", tmp_path) == 0
+    assert "c1-x-" not in capsys.readouterr().out
+    alone = tmp_path / "alone"
+    alone.mkdir()
+    _full_campaign(alone, skip=("pair",))
+    _write_pair_run(alone / "c1-x-pair.jsonl", _clean_pair_cells())
+    assert _verdict("c1", alone) == 1
+    captured = capsys.readouterr()
+    assert "pair: not recorded" in captured.out
+    assert "c1-x-pair" not in captured.out + captured.err
+
+
+def test_a_run_file_whose_header_names_another_block_is_refused(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _full_campaign(tmp_path)
+    _write_run(tmp_path / "c1-grid.jsonl", "ksweep", [])
     assert _verdict("c1", tmp_path) == 2
-    assert "two runs of block grid" in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert "c1-grid.jsonl" in err
+    assert "holds a ksweep run" in err
+
+
+def test_a_file_that_is_not_a_campaign_run_name_is_never_read(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _full_campaign(tmp_path)
+    _write_run(tmp_path / "c1-grid-again.jsonl", "grid", [_synth(turns=30.0, cls="failure")])
+    _write_pair_run(tmp_path / "c1-pair-again.jsonl", _clean_pair_cells())
+    assert _verdict("c1", tmp_path) == 0
+    captured = capsys.readouterr()
+    assert "again" not in captured.out + captured.err
 
 
 # --- The comparison rows and the tip trim (Phase 2, plan 02-04) ---
@@ -4342,14 +4370,6 @@ def test_a_reference_k_cell_is_printed_beside_the_verdict_and_never_changes_it(
     out = capsys.readouterr().out
     assert "| M6 | 5 | proven | proven | inconclusive | proven |" in out
     assert "| M6 | 10 | proven | proven | proven | proven |" in out
-
-
-def test_two_pair_runs_under_a_prefix_are_ambiguous_and_refused(
-        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    _full_campaign(tmp_path)
-    _write_pair_run(tmp_path / "c1-pair-again.jsonl", _clean_pair_cells())
-    assert _verdict("c1", tmp_path) == 2
-    assert "two runs of block pair" in capsys.readouterr().err
 
 
 def test_a_pair_run_whose_header_has_no_k_is_reported_not_read_and_never_passes(
