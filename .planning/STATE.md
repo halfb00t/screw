@@ -135,6 +135,7 @@ None yet.
 
 ### Blockers/Concerns
 
+- Phase 3 wave 5 (plan 03-05): the GSD `ui.safety-gate` (blocking) halted on "no UI-SPEC.md exists for Phase 03". Owner ruling 2026-10-10: honor D-19 — `01-UI-SPEC.md` amended in place (`9570adb`, `05fb4ed`, `909dec3`) is the UI contract; no `03-UI-SPEC.md` is written; the gate's block is overridden for this phase and execution continues at wave 6. `workflow.ui_safety_gate` stays on.
 - Phase 4/5 precondition (TABL-04): owner holds purchased copies of ISO 4014:2022, 4017:2022, 4032:2023, 262:2023, 724:2023, 965-2:2024.
 - ISO 4753 (bolt ends, THRD-05) must be read but is not on TABL-04's purchase list. (ISO 68-1:2023 read by the owner on 2026-10-06; profile pinned basic — `02-SPIKE.md` § Owner rulings, D-01.)
 - ⚠️ [Phase 1] Every runtime bound is INTERIM (timeout, memory, gzip, workers, cache budget, container limits — 16 knobs in the D-02 tech-debt item, Severity must) until the Phase 7 linux/amd64 re-sweep; the Phase 1 memory sweep is an emulation figure with 4–12 samples per row (sampling limit filed as debt).
