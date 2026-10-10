@@ -1241,6 +1241,27 @@ def test_the_guard_reads_real_git_and_refuses_an_uncommitted_harness_change_but_
     assert "src/screw/x.py" in capsys.readouterr().err
 
 
+@pytest.mark.parametrize("unread", ["HEAD", "origin/main's protocol blob"])
+def test_the_guard_refuses_when_git_cannot_read_the_provenance_a_header_would_print(
+        unread: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    _repo_with_protocol(tmp_path, monkeypatch, landed=True)
+    failing = (("rev-parse", "HEAD") if unread == "HEAD"
+               else ("rev-parse", f"origin/main:{PROTOCOL_PATH}"))
+    real = spike_cli._git
+
+    def git(*args: str) -> subprocess.CompletedProcess[str]:
+        if args == failing:
+            return subprocess.CompletedProcess(["git", *args], 128, "", "fatal: bad revision")
+        return real(*args)
+
+    monkeypatch.setattr(spike_cli, "_git", git)
+    assert spike_cli.check_protocol() == 2
+    out, err = capsys.readouterr()
+    assert f"git could not read {unread}" in err
+    assert out == ""  # never "HEAD: `unknown`" under a held guard
+
+
 # --- Pre-registered rod verdict rules (Phase 2, plan 02-03): synthetic records, no kernel ---
 
 _Fine = tuple[int, int, float, int | None]  # triangles, bytes, mesh seconds, gzip-1 bytes

@@ -209,9 +209,17 @@ def read_guard(fetch: bool) -> GuardFacts:
     status = _git("status", "--porcelain", "--untracked-files=all", "--", *_HARNESS_PATHS)
     uncommitted = (tuple(line.strip() for line in status.stdout.splitlines())
                    if status.returncode == 0 else (f"git status failed: {status.stderr.strip()}",))
+    result = protocol_guard(local_text, main_text, fetched=fetched, landed_is_ancestor=is_ancestor,
+                            uncommitted=uncommitted)
+    # The header prints the blob and HEAD as the run's provenance, so a read that failed refuses:
+    # a held guard must never print a sentinel in their place.
+    unread = [name for name, read in (("HEAD", head), ("origin/main's protocol blob", blob))
+              if read.returncode != 0]
+    if unread:
+        result = GuardResult(False, (*result.reasons, f"git could not read {' or '.join(unread)}, "
+                                     f"so the run's provenance is unknown"))
     return GuardFacts(
-        protocol_guard(local_text, main_text, fetched=fetched, landed_is_ancestor=is_ancestor,
-                       uncommitted=uncommitted),
+        result,
         blob.stdout.strip() if blob.returncode == 0 else "none",
         main_commit or "none",
         head.stdout.strip() if head.returncode == 0 else "unknown",
