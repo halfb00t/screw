@@ -196,8 +196,16 @@ def _str(obj: dict[str, object], key: str) -> str:
 def _num(obj: dict[str, object], key: str) -> float:
     value = obj[key]
     # `json.loads` accepts NaN and Infinity; a NaN volume would compare as "not outside the
-    # tolerance" and read as a pass, so a non-finite number is refused at the boundary (L02).
-    if isinstance(value, bool) or not isinstance(value, int | float) or not math.isfinite(value):
+    # tolerance" and read as a pass, so a non-finite number is refused at the boundary (L02). An
+    # integer past the float range raises OverflowError in `isfinite` itself: it is the same
+    # refusal, not a traceback.
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        _refuse(f"{key!r} must be a finite number, got {value!r}")
+    try:
+        finite = math.isfinite(value)
+    except OverflowError:
+        finite = False
+    if not finite:
         _refuse(f"{key!r} must be a finite number, got {value!r}")
     return float(value)
 
@@ -597,7 +605,7 @@ class GuardResult:
 
 
 def protocol_guard(local_text: str | None, main_text: str | None, *, fetched: bool,
-                   landed_is_ancestor: bool) -> GuardResult:
+                   landed_is_ancestor: bool, uncommitted: tuple[str, ...]) -> GuardResult:
     """Whether the pre-registered protocol is on `origin/main`, as a pure predicate over what
     git said (the caller reads git; this decides). Every failed check is named, not only the
     first.
@@ -609,6 +617,10 @@ def protocol_guard(local_text: str | None, main_text: str | None, *, fetched: bo
     be an ancestor of HEAD, or the branch was cut before the squash and its run would post-date
     nothing (RESEARCH Pattern 6, Pitfall 10). Text after `## Results` may differ freely: PR 2
     writes the Results and the Verdict there.
+
+    The HEAD a run header records is its provenance, so the tree must be HEAD: `uncommitted` are
+    the `git status --porcelain` lines for the harness (the caller picks the paths), and any one
+    refuses. Otherwise an edit to T_PASS or the builder would run under a clean-looking sha.
     """
     reasons: list[str] = []
     if not fetched:
@@ -628,6 +640,9 @@ def protocol_guard(local_text: str | None, main_text: str | None, *, fetched: bo
     if not landed_is_ancestor:
         reasons.append("origin/main's protocol commit is not an ancestor of HEAD "
                        "(a branch cut before the squash?)")
+    if uncommitted:
+        reasons.append(f"uncommitted changes to the harness, so HEAD is not the tree that would "
+                       f"run: {_some(uncommitted)}")
     return GuardResult(held=not reasons, reasons=tuple(reasons))
 
 
@@ -1571,20 +1586,28 @@ def cell_verdict(record: PairRecord) -> tuple[PairVerdict, tuple[str, ...]]:
     """The pre-registered rule for one cell, and why (D-12, D-14; owner ruling R1 left D-14
     exactly as written).
 
-    A cell that did not finish is inconclusive. A mixed-hand cell whose poses are exactly
-    `MATCHED_POSES` and nothing else is `violated` when every matched pose reads non-empty, else
-    inconclusive: an empty read at a pair that cannot thread proves nothing either way, and one
-    reading at a pose chosen after the fact proves nothing at all. For a same-hand cell: c <= 0
-    is inconclusive by definition (D-11); poses other than the pre-registered ones are refused;
-    a nut body whose precise volume misses
-    pi d^2 m - A(c) m by more than `T_PASS` is not believed (not even a violation); any matched
-    pose non-empty is `violated`; otherwise `proven` only when every matched pose is empty AND
-    every control is non-empty within `PAIR_BAND` of the closed form. Anything else is
-    inconclusive, with every reason. The diagnostic columns are never read.
+    A cell that did not finish is inconclusive. So is a built cell, of either hand pairing,
+    whose nut body (precise volume) misses pi d^2 m - A(c) m by more than `T_PASS`: a nut whose
+    void cut failed reads non-empty at every pose, so no reading is believed, a violation
+    included. A mixed-hand cell whose poses are exactly `MATCHED_POSES` and nothing else is
+    `violated` when every matched pose reads non-empty, else inconclusive: an empty read at a
+    pair that cannot thread proves nothing either way, and one reading at a pose chosen after the
+    fact proves nothing at all. For a same-hand cell: c <= 0 is inconclusive by definition
+    (D-11); poses other than the pre-registered ones are refused; any matched pose non-empty is
+    `violated`; otherwise `proven` only when every matched pose is empty AND every control is
+    non-empty within `PAIR_BAND` of the closed form. Anything else is inconclusive, with every
+    reason. The diagnostic columns are never read.
     """
     outcome = record["outcome"]
     if outcome != "built":
         return "inconclusive", (f"cell {outcome}: {record['error']}",)
+    nut_volume = record["nut_volume"]
+    if nut_volume is None:
+        raise ValueError("a built pair record must carry its nut_volume")
+    body = _nut_body(record)
+    if abs(nut_volume / body - 1.0) > T_PASS:
+        return "inconclusive", (f"the nut body is {nut_volume:.6g} mm3, not the closed form "
+                                f"{body:.6g} mm3 within {T_PASS:g}: no reading is believed",)
     matched, controls = _matched(record), _controls(record)
     if _is_mixed(record):
         if controls or not _poses_ok(matched):
@@ -1601,13 +1624,6 @@ def cell_verdict(record: PairRecord) -> tuple[PairVerdict, tuple[str, ...]]:
     if not (_poses_ok(matched) and _poses_ok(controls)):
         return "inconclusive", ("the poses are not the pre-registered ones: no verdict is "
                                 "drawn from poses chosen after the fact (D-12)",)
-    nut_volume = record["nut_volume"]
-    if nut_volume is None:
-        raise ValueError("a built pair record must carry its nut_volume")
-    body = _nut_body(record)
-    if abs(nut_volume / body - 1.0) > T_PASS:
-        return "inconclusive", (f"the nut body is {nut_volume:.6g} mm3, not the closed form "
-                                f"{body:.6g} mm3 within {T_PASS:g}: no reading is believed",)
     reads = [r for r in matched if not _is_empty(r)]
     if reads:
         return "violated", tuple(f"matched pose theta {r['theta']:+.4f} reads {r['volume']:.6g} mm3"
@@ -1648,9 +1664,10 @@ def excluded_clearances(cells: list[PairRecord]) -> tuple[float, ...]:
 
 def mixed_hand_violated(cells: list[PairRecord]) -> bool:
     """True only when there is at least one mixed-hand cell and `cell_verdict` reads every one
-    violated (D-14: a mixed-hand pair must read violated): it finished, it was read at exactly
-    the pre-registered matched poses and every matched reading is non-empty. No cell, a cell
-    that did not finish, an empty reading or a pose chosen after the fact is not a violation."""
+    violated (D-14: a mixed-hand pair must read violated): it finished, its nut body matches the
+    closed form, it was read at exactly the pre-registered matched poses and every matched
+    reading is non-empty. No cell, a cell that did not finish, a nut that is not the closed form,
+    an empty reading or a pose chosen after the fact is not a violation."""
     mixed = [c for c in cells if _is_mixed(c)]
     return bool(mixed) and all(cell_verdict(c)[0] == "violated" for c in mixed)
 

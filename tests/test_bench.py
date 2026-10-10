@@ -867,6 +867,21 @@ def test_a_number_that_is_not_finite_or_not_a_number_is_refused_at_the_boundary(
         parse_request("[1, 2]")
 
 
+def test_an_integer_too_large_for_a_float_is_refused_at_the_boundary(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(ValueError, match="precise_volume"):
+        parse_record(json.dumps(_built(10**400)))
+    huge = {**_HEADER, "readings": [["2026-10-08T09:00:00+00:00", 10**400]]}
+    with pytest.raises(ValueError, match="load1"):
+        parse_header(json.dumps(huge))
+    _full_campaign(tmp_path)
+    grid = tmp_path / "c1-grid.jsonl"
+    rest = grid.read_text().split("\n", 1)[1]
+    grid.write_text(json.dumps({**huge, "block": "grid", "k": _LOCKED_K}) + "\n" + rest)
+    assert _verdict("c1", tmp_path) == 2
+    assert "load1" in capsys.readouterr().err
+
+
 def test_a_built_record_missing_a_measurement_or_a_failed_one_carrying_one_is_refused() -> None:
     wire = dict(_built(1.0))
     wire["build_s"] = None
@@ -1013,8 +1028,10 @@ _PROTOCOL = "# Phase 2\n\n## Question\nWhich construction?\n\n## Results\n\nNo r
 
 
 def _guard(local: str | None = _PROTOCOL, main: str | None = _PROTOCOL, *,
-           fetched: bool = True, ancestor: bool = True) -> tuple[bool, tuple[str, ...]]:
-    result = protocol_guard(local, main, fetched=fetched, landed_is_ancestor=ancestor)
+           fetched: bool = True, ancestor: bool = True,
+           uncommitted: tuple[str, ...] = ()) -> tuple[bool, tuple[str, ...]]:
+    result = protocol_guard(local, main, fetched=fetched, landed_is_ancestor=ancestor,
+                            uncommitted=uncommitted)
     return result.held, result.reasons
 
 
@@ -1072,6 +1089,15 @@ def test_the_guard_refuses_when_the_protocol_commit_is_not_an_ancestor_of_head()
     assert not held
     assert len(reasons) == 1
     assert "ancestor" in reasons[0]
+
+
+def test_the_guard_refuses_while_the_harness_has_uncommitted_changes_naming_them() -> None:
+    held, reasons = _guard(uncommitted=("M bench/thread_spike/verdict.py",))
+    assert not held
+    assert len(reasons) == 1
+    assert "uncommitted changes to the harness" in reasons[0]
+    assert "bench/thread_spike/verdict.py" in reasons[0]
+    assert _guard(uncommitted=()) == (True, ())
 
 
 def test_the_guard_names_every_reason_not_only_the_first() -> None:
@@ -1181,7 +1207,59 @@ def test_the_guard_refuses_an_edit_before_results_and_allows_one_after_it(
     assert spike_cli.check_protocol() == 2
     assert "differs" in capsys.readouterr().err
     path.write_text(_PROTOCOL.replace("No run yet.", "Run 1: see bench/RESULTS.md."))
+    assert spike_cli.check_protocol() == 2  # allowed text, but the tree is no longer HEAD
+    err = capsys.readouterr().err
+    assert "uncommitted changes to the harness" in err
+    assert "differs" not in err
+    _git(work, "commit", "-am", "results")
+    assert spike_cli.check_protocol() == 0  # committed: HEAD is the tree, and it differs from main
+
+
+def test_the_guard_reads_real_git_and_refuses_an_uncommitted_harness_change_but_not_campaign_output(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    work, _ = _repo_with_protocol(tmp_path, monkeypatch, landed=True)
+    verdict = work / "bench" / "thread_spike" / "verdict.py"
+    verdict.parent.mkdir(parents=True)
+    verdict.write_text("T_PASS = 1e-4\n")
+    _git(work, "add", "bench")
+    _git(work, "commit", "-m", "harness")
+    # What a campaign writes before the next block asks the guard: it must never refuse.
+    campaign = work / "bench" / "results" / "thread-spike" / "c1-campaign.md"
+    campaign.parent.mkdir(parents=True)
+    campaign.write_text("## Thread spike campaign c1\n")
     assert spike_cli.check_protocol() == 0
+    capsys.readouterr()
+    verdict.write_text("T_PASS = 1e-2\n")
+    assert spike_cli.check_protocol() == 2
+    assert "bench/thread_spike/verdict.py" in capsys.readouterr().err
+    _git(work, "checkout", "--", "bench/thread_spike/verdict.py")
+    stray = work / "src" / "screw" / "x.py"
+    stray.parent.mkdir(parents=True)
+    stray.write_text("x = 1\n")
+    assert spike_cli.check_protocol() == 2
+    assert "src/screw/x.py" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("unread", ["HEAD", "origin/main's protocol blob"])
+def test_the_guard_refuses_when_git_cannot_read_the_provenance_a_header_would_print(
+        unread: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    _repo_with_protocol(tmp_path, monkeypatch, landed=True)
+    failing = (("rev-parse", "HEAD") if unread == "HEAD"
+               else ("rev-parse", f"origin/main:{PROTOCOL_PATH}"))
+    real = spike_cli._git
+
+    def git(*args: str) -> subprocess.CompletedProcess[str]:
+        if args == failing:
+            return subprocess.CompletedProcess(["git", *args], 128, "", "fatal: bad revision")
+        return real(*args)
+
+    monkeypatch.setattr(spike_cli, "_git", git)
+    assert spike_cli.check_protocol() == 2
+    out, err = capsys.readouterr()
+    assert f"git could not read {unread}" in err
+    assert out == ""  # never "HEAD: `unknown`" under a held guard
 
 
 # --- Pre-registered rod verdict rules (Phase 2, plan 02-03): synthetic records, no kernel ---
@@ -1766,6 +1844,13 @@ def _held(monkeypatch: pytest.MonkeyPatch, *, decisive: bool = True) -> None:
     monkeypatch.setattr(spike_cli, "Worker", _FakeWorker)
 
 
+def _m6_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The run inputs (a K sweep, a frontier walk) are held to the pre-registered row set of the
+    sizes the harness covers; `_m6_ksweep` and `_full_walk` are complete for M6 alone."""
+    for name in ("SIZES", "SAMPLE_SIZES"):
+        monkeypatch.setattr(spike_cli, name, ("M6",))
+
+
 def _one_row_block(c: spike_cli.Campaign, k: int, smoke: bool) -> None:
     assert not smoke
     c.measure({**_REQUEST, "k": k, "turns": 3.0, "length": 3.0})
@@ -1776,7 +1861,8 @@ def test_a_run_writes_its_header_first_then_one_row_per_line_and_never_overwrite
         capsys: pytest.CaptureFixture[str]) -> None:
     _held(monkeypatch)
     monkeypatch.setitem(spike_cli._BLOCKS, "grid", _one_row_block)
-    ksweep = [r for k in (3, 5, 10) for r in _ksweep(k, triangles=1000 + k)]
+    _m6_only(monkeypatch)
+    ksweep = _m6_ksweep()
     _write_run(tmp_path / "2026-10-08-a-ksweep.jsonl", "ksweep", ksweep)
     assert spike_cli.run_block("grid", "2026-10-08-a-grid", "2026-10-08-a-ksweep",
                                results_dir=tmp_path) == 0
@@ -1798,6 +1884,7 @@ def test_a_run_writes_its_header_first_then_one_row_per_line_and_never_overwrite
     assert parse_result_row(lines[1])["kind"] == "rod"
     text = capsys.readouterr().out
     assert text == (tmp_path / "2026-10-08-a-grid.md").read_text()
+    assert "- HEAD: `" + "a" * 40 + "`" in text  # the guard's start-of-run head, not a fresh read
     assert "release: decisive at 2026-10-08T09:00:30+00:00" in text
     assert "load1 1.20 read 2026-10-08T09:00:00+00:00" in text
     assert "includes this run's own load" in text
@@ -1823,8 +1910,8 @@ def test_k_is_5_and_says_why_when_no_k_qualified_under_the_rule(
         tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _held(monkeypatch)
     monkeypatch.setitem(spike_cli._BLOCKS, "frontier", _one_row_block)
-    _write_run(tmp_path / "sweep.jsonl", "ksweep",
-               [r for k in (3, 5, 10) for r in _ksweep(k, cls="silent_wrong")])
+    _m6_only(monkeypatch)
+    _write_run(tmp_path / "sweep.jsonl", "ksweep", _m6_ksweep(cls="silent_wrong"))
     assert spike_cli.run_block("frontier", "front", "sweep", results_dir=tmp_path) == 0
     header = parse_header((tmp_path / "front.jsonl").read_text().splitlines()[0])
     assert header["k"] == 5
@@ -2797,12 +2884,40 @@ def test_a_bad_prefix_or_an_empty_one_is_refused_not_passed(
     assert wanted in captured.out + captured.err
 
 
-def test_two_runs_of_one_block_under_a_prefix_are_ambiguous_and_refused(
+def test_the_verdict_never_reads_a_campaign_whose_prefix_extends_its_own(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     _full_campaign(tmp_path)
-    _write_run(tmp_path / "c1-grid-again.jsonl", "grid", [_synth()])
+    _full_campaign(tmp_path, prefix="c1-x", grid_extra=[_synth(turns=30.0, cls="failure")])
+    assert _verdict("c1", tmp_path) == 0
+    assert "c1-x-" not in capsys.readouterr().out
+    alone = tmp_path / "alone"
+    alone.mkdir()
+    _full_campaign(alone, skip=("pair",))
+    _write_pair_run(alone / "c1-x-pair.jsonl", _clean_pair_cells())
+    assert _verdict("c1", alone) == 1
+    captured = capsys.readouterr()
+    assert "pair: not recorded" in captured.out
+    assert "c1-x-pair" not in captured.out + captured.err
+
+
+def test_a_run_file_whose_header_names_another_block_is_refused(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _full_campaign(tmp_path)
+    _write_run(tmp_path / "c1-grid.jsonl", "ksweep", [])
     assert _verdict("c1", tmp_path) == 2
-    assert "two runs of block grid" in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert "c1-grid.jsonl" in err
+    assert "holds a ksweep run" in err
+
+
+def test_a_file_that_is_not_a_campaign_run_name_is_never_read(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _full_campaign(tmp_path)
+    _write_run(tmp_path / "c1-grid-again.jsonl", "grid", [_synth(turns=30.0, cls="failure")])
+    _write_pair_run(tmp_path / "c1-pair-again.jsonl", _clean_pair_cells())
+    assert _verdict("c1", tmp_path) == 0
+    captured = capsys.readouterr()
+    assert "again" not in captured.out + captured.err
 
 
 # --- The comparison rows and the tip trim (Phase 2, plan 02-04) ---
@@ -3057,7 +3172,8 @@ def test_a_controls_run_streams_the_comparison_rows_and_prints_their_section(
         capsys: pytest.CaptureFixture[str]) -> None:
     _held(monkeypatch)
     scratch = _stub_package(tmp_path)
-    ksweep = [r for k in (3, 5, 10) for r in _ksweep(k, triangles=1000 + k)]
+    _m6_only(monkeypatch)
+    ksweep = _m6_ksweep()
     _write_run(tmp_path / "sweep.jsonl", "ksweep", ksweep)
     env = {spike_cli.CQW_ENV: str(scratch)}
     assert spike_cli.run_block("controls", "ctl", "sweep", results_dir=tmp_path, env=env) == 0
@@ -3456,7 +3572,8 @@ def test_a_container_run_is_never_decisive_and_says_which_image_and_that_timings
         c.measure({**_REQUEST, "k": k, "presets": []}, via="container")
 
     monkeypatch.setitem(spike_cli._BLOCKS, "container", one_container_row)
-    ksweep = [r for k in (3, 5, 10) for r in _ksweep(k, triangles=1000 + k)]
+    _m6_only(monkeypatch)
+    ksweep = _m6_ksweep()
     _write_run(tmp_path / "sweep.jsonl", "ksweep", ksweep)
     assert spike_cli.run_block("container", "box", "sweep", results_dir=tmp_path) == 0
     header = parse_header((tmp_path / "box.jsonl").read_text().splitlines()[0])
@@ -3488,14 +3605,83 @@ def test_a_frontier_from_run_that_is_missing_or_not_a_frontier_run_is_refused(
         which: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
         capsys: pytest.CaptureFixture[str]) -> None:
     _held(monkeypatch)
-    ksweep = [r for k in (3, 5, 10) for r in _ksweep(k, triangles=1000 + k)]
+    _m6_only(monkeypatch)
+    ksweep = _m6_ksweep()
     _write_run(tmp_path / "sweep.jsonl", "ksweep", ksweep)
     if which == "wrong block":
         _write_run(tmp_path / "front.jsonl", "grid", [_synth()])
     assert spike_cli.run_block("rss", "a-rss", "sweep", results_dir=tmp_path,
                                frontier_from="front") == 2
-    assert "refused" in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert "refused" in err
+    assert "frontier" in err
     assert not (tmp_path / "a-rss.jsonl").exists()
+
+
+@pytest.mark.parametrize("cut", ["header only", "one row short"])
+def test_a_k_from_sweep_that_is_incomplete_is_refused_before_anything_is_written(
+        cut: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    _held(monkeypatch)
+    _m6_only(monkeypatch)
+    monkeypatch.setitem(spike_cli._BLOCKS, "grid", _one_row_block)
+    _write_run(tmp_path / "sweep.jsonl", "ksweep", [] if cut == "header only"
+               else _m6_ksweep()[:-1])
+    assert spike_cli.run_block("grid", "a-grid", "sweep", results_dir=tmp_path) == 2
+    assert "incomplete" in capsys.readouterr().err
+    assert not (tmp_path / "a-grid.jsonl").exists()
+
+
+@pytest.mark.parametrize("fault", ["cut short", "foreign size", "another K"])
+def test_a_frontier_from_walk_that_is_incomplete_foreign_or_at_another_k_is_refused(
+        fault: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    _held(monkeypatch)
+    _m6_only(monkeypatch)
+    monkeypatch.setitem(spike_cli._BLOCKS, "rss", _one_row_block)
+    _write_run(tmp_path / "sweep.jsonl", "ksweep", _m6_ksweep())
+    walk = _full_walk("M6", None, k=_LOCKED_K)
+    walk_k = _LOCKED_K
+    if fault == "cut short":
+        walk = _walk("M6", False, None, end=100, k=_LOCKED_K) + _walk("M6", True, None,
+                                                                     k=_LOCKED_K)
+    elif fault == "foreign size":
+        walk = [*walk, _synth("M8", turns=60.0, k=_LOCKED_K)]
+    else:
+        walk_k = 5
+        walk = _full_walk("M6", None, k=walk_k)
+    _write_run(tmp_path / "front.jsonl", "frontier", walk, k=walk_k)
+    assert spike_cli.run_block("rss", "a-rss", "sweep", results_dir=tmp_path,
+                               frontier_from="front") == 2
+    err = capsys.readouterr().err
+    assert ("K 5" in err and "K 3" in err) if fault == "another K" else "incomplete" in err
+    assert not (tmp_path / "a-rss.jsonl").exists()
+
+
+def test_a_complete_sweep_and_walk_at_the_locked_k_run_the_rss_block_on_the_walk_terminals(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    _held(monkeypatch)
+    _m6_only(monkeypatch)
+    seen: list[tuple[str, bool, int]] = []
+
+    def rss(c: spike_cli.Campaign, k: int, smoke: bool) -> None:
+        assert c.frontier_rows is not None
+        seen.extend(spike_cli._frontier_terminals(c.frontier_rows))
+        _one_row_block(c, k, smoke)
+
+    monkeypatch.setitem(spike_cli._BLOCKS, "rss", rss)
+    _write_run(tmp_path / "sweep.jsonl", "ksweep", _m6_ksweep())
+    _write_run(tmp_path / "front.jsonl", "frontier", _full_walk("M6", None, k=_LOCKED_K),
+               k=_LOCKED_K)
+    assert spike_cli.run_block("rss", "a-rss", "sweep", results_dir=tmp_path,
+                               frontier_from="front") == 0
+    lines = (tmp_path / "a-rss.jsonl").read_text().splitlines()
+    header = json.loads(lines[0])
+    assert (header["block"], header["k"]) == ("rss", _LOCKED_K)
+    assert len(lines) == 2  # the header, then the stub's one row
+    assert seen == [("M6", False, 250), ("M6", True, 250)]
+    assert f"- K: {_LOCKED_K}" in capsys.readouterr().out
 
 
 def test_smoke_rss_runs_one_real_fresh_child_and_prints_its_peak_and_the_table(
@@ -3719,6 +3905,16 @@ def test_a_mixed_hand_cell_read_with_controls_is_inconclusive_not_violated() -> 
     cell = _mixed_at(_POSES)
     cell["readings"] += [_reading(t, maths.CONTROL_OFFSET_PITCHES, 6.5) for t in _POSES]
     assert cell_verdict(cell)[0] == "inconclusive"
+
+
+def test_a_mixed_hand_cell_on_a_nut_whose_body_misses_the_closed_form_is_not_a_violation() -> None:
+    cell = _mixed(0.10, (6.5, 6.9, 6.7))
+    assert cell["nut_volume"] is not None
+    cell["nut_volume"] *= 1.001
+    verdict, reasons = cell_verdict(cell)
+    assert verdict == "inconclusive"
+    assert any("nut" in r for r in reasons)
+    assert not mixed_hand_violated([cell])
 
 
 def test_one_mixed_cell_at_the_wrong_poses_stops_a_size_from_reading_violated() -> None:
@@ -4267,7 +4463,8 @@ def test_a_pair_run_streams_its_header_then_one_cell_per_line_and_reports_the_se
         capsys: pytest.CaptureFixture[str]) -> None:
     _held(monkeypatch)
     monkeypatch.setattr(spike_cli, "Worker", _FakePairWorker)
-    ksweep = [r for k in (3, 5, 10) for r in _ksweep(k, triangles=1000 + k)]
+    _m6_only(monkeypatch)
+    ksweep = _m6_ksweep()
     _write_run(tmp_path / "sweep.jsonl", "ksweep", ksweep)
 
     def one_cell(c: spike_cli.Campaign, k: int, smoke: bool) -> None:
@@ -4342,14 +4539,6 @@ def test_a_reference_k_cell_is_printed_beside_the_verdict_and_never_changes_it(
     out = capsys.readouterr().out
     assert "| M6 | 5 | proven | proven | inconclusive | proven |" in out
     assert "| M6 | 10 | proven | proven | proven | proven |" in out
-
-
-def test_two_pair_runs_under_a_prefix_are_ambiguous_and_refused(
-        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    _full_campaign(tmp_path)
-    _write_pair_run(tmp_path / "c1-pair-again.jsonl", _clean_pair_cells())
-    assert _verdict("c1", tmp_path) == 2
-    assert "two runs of block pair" in capsys.readouterr().err
 
 
 def test_a_pair_run_whose_header_has_no_k_is_reported_not_read_and_never_passes(
@@ -4461,8 +4650,7 @@ class _BlockLog:
             print(f"refused: {self.refuse[block]}", file=sys.stderr)
             return 2
         if block == "ksweep":
-            ksweep = [r for k in (3, 5, 10) for r in _ksweep(k, triangles=1000 + k)]
-            _write_run(self.dir / f"{run_id}.jsonl", "ksweep", ksweep)
+            _write_run(self.dir / f"{run_id}.jsonl", "ksweep", _m6_ksweep())
         else:
             assert k_from is not None
             self.k[block] = spike_cli._locked_k(k_from, self.dir)[0]
@@ -4477,6 +4665,7 @@ def _campaign_goes(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, verdict_code
                    refuse: dict[str, str] | None = None, crash: tuple[str, ...] = ()) -> _BlockLog:
     facts = spike_cli.GuardFacts(GuardResult(True, ()), "b" * 40, "c" * 40, "a" * 40)
     _guard_says(monkeypatch, facts)
+    _m6_only(monkeypatch)
     log = _BlockLog(tmp_path, refuse=refuse, crash=crash)
     monkeypatch.setattr(spike_cli, "run_block", log)
 

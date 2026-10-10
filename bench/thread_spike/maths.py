@@ -1,8 +1,11 @@
 """The thread spike's oracle: the pinned profile's section and its closed-form volume.
 
 Pure maths, free of the CAD kernel: the closed form is what the kernel is judged against, so it
-must share no code path with it (an import-linter contract enforces that). Shaped like the
-future `screw/calc/thread.py` (D-18).
+imports no kernel code (an import-linter contract enforces that). It does share the pinned
+profile parameters with the builder, which imports `thread_depth` from here;
+`test_the_basic_profile_has_the_coefficients_the_owner_confirmed` pins `thread_depth(1.0)` to
+the independently written ISO value 0.541265877. Shaped like the future `screw/calc/thread.py`
+(D-18).
 
 Profile: ISO 68-1:2023 basic profile, flat crest and flat root, pinned by the owner on
 2026-10-06 (02-SPIKE.md, Owner rulings). One-way door: a different profile re-runs the campaign.

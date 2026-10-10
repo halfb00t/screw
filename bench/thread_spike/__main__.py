@@ -1,7 +1,8 @@
 """The spike's command line (kernel-free parent): `python -m bench.thread_spike <command>`.
 
-`check-protocol` refuses (exit 2) until the pre-registered protocol is on `origin/main`: no
-campaign run may start before that (SC1, D-16, D-19).
+`check-protocol` refuses (exit 2) until the pre-registered protocol is on `origin/main` and the
+harness tree (bench except bench/results, src, pyproject.toml, the protocol) is committed, so the
+HEAD a run records is the code that ran: no campaign run may start before that (SC1, D-16, D-19).
 
 `smoke` builds one M6 right-hand 5-turn rod in a worker subprocess, checks it against the
 closed form and prints a Markdown report. It is not a campaign run: no run id, never recorded in
@@ -30,8 +31,8 @@ importable there: the reference package is never on the default worker's path (D
 
 `campaign --run-id PREFIX` is the whole spike as one guarded command: every block in protocol
 order as run id PREFIX-<block>, K taken from PREFIX-ksweep by the rule, then the verdict over
-PREFIX-*; a block that refuses to start or crashes is logged in PREFIX-campaign.md and the rest
-still run.
+the files PREFIX-<block>.jsonl; a block that refuses to start or crashes is logged in
+PREFIX-campaign.md and the rest still run.
 
 The parent never imports the kernel (an import-linter contract keeps it so): the kernel versions
 are read from package metadata, and every build happens in the child.
@@ -170,6 +171,13 @@ def _git(*args: str) -> subprocess.CompletedProcess[str]:
                           cwd=_REPO_ROOT)
 
 
+# The tree a run's header names by HEAD: the harness, the package its worker imports (via
+# bench/build_time.py and bench/export_cost.py) and the protocol. bench/results is excluded
+# because `run_campaign` writes <prefix>-campaign.md there, and every block its JSONL, before the
+# next block asks the guard: counting them would refuse every block after the first.
+_HARNESS_PATHS = ("bench", ":(exclude)bench/results", "src", "pyproject.toml", PROTOCOL_PATH)
+
+
 @dataclass(frozen=True)
 class GuardFacts:
     """The guard's verdict and the facts a run header prints beside it."""
@@ -197,8 +205,21 @@ def read_guard(fetch: bool) -> GuardFacts:
         "merge-base", "--is-ancestor", main_commit, "HEAD").returncode == 0
     blob = _git("rev-parse", f"origin/main:{PROTOCOL_PATH}")
     head = _git("rev-parse", "HEAD")
+    # -uall so an untracked file is named, not its directory.
+    status = _git("status", "--porcelain", "--untracked-files=all", "--", *_HARNESS_PATHS)
+    uncommitted = (tuple(line.strip() for line in status.stdout.splitlines())
+                   if status.returncode == 0 else (f"git status failed: {status.stderr.strip()}",))
+    result = protocol_guard(local_text, main_text, fetched=fetched, landed_is_ancestor=is_ancestor,
+                            uncommitted=uncommitted)
+    # The header prints the blob and HEAD as the run's provenance, so a read that failed refuses:
+    # a held guard must never print a sentinel in their place.
+    unread = [name for name, read in (("HEAD", head), ("origin/main's protocol blob", blob))
+              if read.returncode != 0]
+    if unread:
+        result = GuardResult(False, (*result.reasons, f"git could not read {' or '.join(unread)}, "
+                                     f"so the run's provenance is unknown"))
     return GuardFacts(
-        protocol_guard(local_text, main_text, fetched=fetched, landed_is_ancestor=is_ancestor),
+        result,
         blob.stdout.strip() if blob.returncode == 0 else "none",
         main_commit or "none",
         head.stdout.strip() if head.returncode == 0 else "unknown",
@@ -221,13 +242,6 @@ def check_protocol() -> int:
 
 def _reading_line(reading: Reading, note: str = "") -> str:
     return f"- load1 {reading.load1:.2f} read {reading.utc}{note}"
-
-
-def _head() -> str:
-    return subprocess.run(
-        ["git", "rev-parse", "--short", "HEAD"],
-        capture_output=True, text=True, check=True,
-    ).stdout.strip()
 
 
 def _smoke_request() -> RowRequest:
@@ -280,14 +294,15 @@ def _table_row(record: RowRecord, row_class: str, closed: float) -> str:
 def smoke() -> int:
     """One rod row end to end. Exit 0 only when the row classifies ok."""
     quiet = wait_quiet(cap=0.0)  # one reading; non-decisive by construction
+    facts = read_guard(fetch=False)
     print("## Thread spike smoke")
     print()
-    for line in _environment_lines():
+    for line in _environment_lines(facts.head):
         print(line)
     for reading in quiet.readings:
         print(_reading_line(reading, " (at start)"))
     print("- Quiet gate: smoke: quiet gate not waited")
-    guard = read_guard(fetch=False).result
+    guard = facts.result
     state = "held" if guard.held else "refused -- " + "; ".join(guard.reasons)
     print(f"- Protocol guard (informational in smoke (not fetched); never enforced here): {state}")
     print()
@@ -1115,22 +1130,34 @@ def _make_campaign(block: str, decisive: bool, sink: IO[str] | None, *,
         frontier_rows=frontier_rows)
 
 
-def _frontier_rows(frontier_from: str, results_dir: Path) -> list[RowRecord]:
-    """The rows of a recorded frontier run, for the rss block's terminal rows."""
+def _frontier_rows(frontier_from: str, results_dir: Path, k: int) -> list[RowRecord]:
+    """The rows of a recorded frontier run, for the rss block's terminal rows. The run must be a
+    whole walk at the locked K `k`: a half walk would make a mid-walk row a "terminal", and a walk
+    at another K is another construction."""
     path = results_dir / f"{frontier_from}.jsonl"
     if not path.is_file():
         raise ValueError(f"frontier run {frontier_from!r} is not recorded under {results_dir}")
     lines = path.read_text().splitlines()
-    if not lines or parse_header(lines[0])["block"] != "frontier":
+    if not lines:
         raise ValueError(f"run {frontier_from!r} is not a frontier run")
-    return [parse_result_row(line) for line in lines[1:]]
+    header = parse_header(lines[0])
+    if header["block"] != "frontier":
+        raise ValueError(f"run {frontier_from!r} is not a frontier run")
+    if header["k"] != k:
+        raise ValueError(f"frontier run {frontier_from!r} was recorded at K {header['k']}, not at "
+                         f"the locked K {k}")
+    rows = [parse_result_row(line) for line in lines[1:]]
+    gaps = block_gaps("frontier", header, rows, sizes=SIZES, sample_sizes=SAMPLE_SIZES)
+    if gaps:
+        raise ValueError(f"frontier run {frontier_from!r} is incomplete: {'; '.join(gaps)}")
+    return rows
 
 
-def _environment_lines() -> list[str]:
+def _environment_lines(head: str) -> list[str]:
     versions = ", ".join(f"{dist} {metadata.version(dist)}"
                          for dist in ("cadquery", "cadquery-ocp"))
     return [f"- Machine: {machine_facts()}", f"- Python: {platform.python_version()}",
-            f"- Kernel: {versions}", f"- HEAD: `{_head()}`"]
+            f"- Kernel: {versions}", f"- HEAD: `{head}`"]
 
 
 def _release_line(quiet: QuietResult) -> str:
@@ -1141,14 +1168,23 @@ def _release_line(quiet: QuietResult) -> str:
 
 def _locked_k(k_from: str, results_dir: Path) -> tuple[int, str]:
     """K from the K-sweep run's own record through `select_k`; there is no way to type one.
-    `None` from the rule means K = 5, the research reference value, and says so."""
+    The sweep must be whole, as the verdict reads it: K from half a sweep is not the K the
+    verdict would select. `None` from the rule means K = 5, the research reference value, and
+    says so."""
     path = results_dir / f"{k_from}.jsonl"
     if not path.is_file():
         raise ValueError(f"K-sweep run {k_from!r} is not recorded under {results_dir}")
     lines = path.read_text().splitlines()
-    if not lines or parse_header(lines[0])["block"] != "ksweep":
+    if not lines:
         raise ValueError(f"run {k_from!r} is not a ksweep run")
-    k = select_k([parse_result_row(line) for line in lines[1:]])
+    header = parse_header(lines[0])
+    if header["block"] != "ksweep":
+        raise ValueError(f"run {k_from!r} is not a ksweep run")
+    rows = [parse_result_row(line) for line in lines[1:]]
+    gaps = block_gaps("ksweep", header, rows, sizes=SIZES, sample_sizes=SAMPLE_SIZES)
+    if gaps:
+        raise ValueError(f"K-sweep run {k_from!r} is incomplete: {'; '.join(gaps)}")
+    k = select_k(rows)
     if k is None:
         return DEFAULT_K, NO_K_SOURCE
     return k, f"selected by select_k from run {k_from}"
@@ -1159,7 +1195,8 @@ def run_block(block: str, run_id: str, k_from: str | None, *,
               frontier_from: str | None = None) -> int:
     """One guarded campaign block. Refusals, all exit 2 with nothing written: a run id that is
     not `RUN_ID`; a run id already recorded (a run is never overwritten or retried in place); a
-    `--k-from` missing, malformed or given to the K sweep; the protocol guard. Then: the quiet
+    `--k-from` missing, malformed or given to the K sweep; a `--k-from` sweep or `--frontier-from`
+    walk that is incomplete (or the walk at another K); the protocol guard. Then: the quiet
     gate, the header as the first JSONL line, rows streamed, the end reading, the Markdown.
     The controls block also refuses, before the guard and with nothing written, when
     SCREW_SPIKE_CQW (read from `env`, default the process environment) does not name a
@@ -1211,7 +1248,8 @@ def run_block(block: str, run_id: str, k_from: str | None, *,
     frontier_rows: list[RowRecord] | None = None
     if frontier_from is not None:
         try:
-            frontier_rows = _frontier_rows(frontier_from, results_dir)
+            frontier_rows = _frontier_rows(frontier_from, results_dir,
+                                           DEFAULT_K if k is None else k)
         except ValueError as exc:
             print(f"refused: {exc}", file=sys.stderr)
             return 2
@@ -1241,7 +1279,7 @@ def run_block(block: str, run_id: str, k_from: str | None, *,
         campaign.close()
         sink.close()
     head_lines = [
-        f"## Thread spike run {run_id}", "", *_environment_lines(),
+        f"## Thread spike run {run_id}", "", *_environment_lines(facts.head),
         f"- Protocol blob: `{facts.main_blob}`", f"- Protocol commit: `{facts.main_commit}`",
         f"- Block: {block}", f"- K: {'swept' if k is None else k} ({k_source})",
         *(_reading_line(r) for r in quiet.readings),
@@ -1273,9 +1311,10 @@ def smoke_block(block: str) -> int:
             print(f"refused: {why}", file=sys.stderr)
             return 2
     quiet = wait_quiet(cap=0.0)
+    facts = read_guard(fetch=False)
     print(f"## Thread spike smoke: {block}")
     print()
-    for line in _environment_lines():
+    for line in _environment_lines(facts.head):
         print(line)
     if image is not None:
         for line in _container_lines(image):
@@ -1283,7 +1322,7 @@ def smoke_block(block: str) -> int:
     for reading in quiet.readings:
         print(_reading_line(reading, " (at start)"))
     print("- Quiet gate: smoke: quiet gate not waited")
-    guard = read_guard(fetch=False).result
+    guard = facts.result
     state = "held" if guard.held else "refused -- " + "; ".join(guard.reasons)
     print(f"- Protocol guard (informational in smoke (not fetched); never enforced here): {state}")
     print()
@@ -1315,14 +1354,15 @@ def smoke_pair() -> int:
     the cell ran, whatever the verdict (a false-empty control is a measured outcome, not a defect
     of the harness), 1 when it failed, timed out or its worker died."""
     quiet = wait_quiet(cap=0.0)
+    facts = read_guard(fetch=False)
     print("## Thread spike smoke: pair")
     print()
-    for line in _environment_lines():
+    for line in _environment_lines(facts.head):
         print(line)
     for reading in quiet.readings:
         print(_reading_line(reading, " (at start)"))
     print("- Quiet gate: smoke: quiet gate not waited")
-    guard = read_guard(fetch=False).result
+    guard = facts.result
     state = "held" if guard.held else "refused -- " + "; ".join(guard.reasons)
     print(f"- Protocol guard (informational in smoke (not fetched); never enforced here): {state}")
     print()
@@ -1367,22 +1407,23 @@ _PairRun = tuple[HeaderRecord, list[PairRecord]]
 
 
 def _read_runs(prefix: str, results_dir: Path) -> tuple[_Runs, _PairRun | None]:
-    """Every `<prefix>-*.jsonl` as (header, rows) by block, the pair run apart because its rows
-    are cells. Two runs of one block under a prefix are ambiguous and refused: which one is the
-    record?"""
+    """Exactly `<prefix>-<block>.jsonl` for each block of `CAMPAIGN_BLOCKS`, as (header, rows) by
+    block, the pair run apart because its rows are cells. No other file is read: a glob on
+    `<prefix>-*` also takes in the campaign `<prefix>-x`. A file whose header names another block
+    than its name is refused."""
     runs: _Runs = {}
     pair: _PairRun | None = None
-    for path in sorted(results_dir.glob(f"{prefix}-*.jsonl")):
+    for named in CAMPAIGN_BLOCKS:
+        path = results_dir / f"{prefix}-{named}.jsonl"
+        if not path.exists():
+            continue
         lines = path.read_text().splitlines()
         if not lines:
             raise ValueError(f"{path.name} is empty")
         header = parse_header(lines[0])
         block = header["block"]
-        taken = pair[0] if block == "pair" and pair is not None else (
-            runs[block][0] if block in runs else None)
-        if taken is not None:
-            raise ValueError(f"two runs of block {block} under prefix {prefix!r}: "
-                             f"{taken['run_id']!r} and {header['run_id']!r}")
+        if block != named:
+            raise ValueError(f"{path.name} holds a {block} run, not a {named} run")
         if block == "pair":
             pair = (header, [parse_pair_result_row(line) for line in lines[1:]])
         else:
@@ -1578,8 +1619,8 @@ def _combined_bar(parts: list[tuple[str, tuple[str, ...]]]) -> tuple[str, tuple[
 
 
 def verdict_campaign(prefix: str, *, results_dir: Path = RESULTS_DIR) -> int:
-    """Judge a recorded rod campaign: read every `<prefix>-*.jsonl`, recompute every row's class
-    from its raw record (a stored class is never trusted: the file could be edited, T-02-09),
+    """Judge a recorded rod campaign: read each `<prefix>-<block>.jsonl`, recompute every row's
+    class from its raw record (a stored class is never trusted: the file could be edited, T-02-09),
     and print K and the rule's table, the estimator and T_gate, the pass bar with every
     offending row, the escape clause, and the turn cap per size with where each came from.
 
@@ -1817,7 +1858,7 @@ def main(argv: list[str] | None = None) -> int:
     verdict_parser = commands.add_parser(
         "verdict", help="judge the recorded runs under a prefix; exit 0 only on a clean pass")
     verdict_parser.add_argument("--campaign", required=True, metavar="PREFIX",
-                                help="read every bench/results/thread-spike/PREFIX-*.jsonl")
+                                help="read bench/results/thread-spike/PREFIX-<block>.jsonl")
     run_parser = commands.add_parser(
         "run", help="one guarded campaign block, streamed to bench/results/thread-spike/")
     run_parser.add_argument("block", choices=tuple(_BLOCKS))
