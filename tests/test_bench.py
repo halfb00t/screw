@@ -1766,6 +1766,13 @@ def _held(monkeypatch: pytest.MonkeyPatch, *, decisive: bool = True) -> None:
     monkeypatch.setattr(spike_cli, "Worker", _FakeWorker)
 
 
+def _m6_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The run inputs (a K sweep, a frontier walk) are held to the pre-registered row set of the
+    sizes the harness covers; `_m6_ksweep` and `_full_walk` are complete for M6 alone."""
+    for name in ("SIZES", "SAMPLE_SIZES"):
+        monkeypatch.setattr(spike_cli, name, ("M6",))
+
+
 def _one_row_block(c: spike_cli.Campaign, k: int, smoke: bool) -> None:
     assert not smoke
     c.measure({**_REQUEST, "k": k, "turns": 3.0, "length": 3.0})
@@ -1776,7 +1783,8 @@ def test_a_run_writes_its_header_first_then_one_row_per_line_and_never_overwrite
         capsys: pytest.CaptureFixture[str]) -> None:
     _held(monkeypatch)
     monkeypatch.setitem(spike_cli._BLOCKS, "grid", _one_row_block)
-    ksweep = [r for k in (3, 5, 10) for r in _ksweep(k, triangles=1000 + k)]
+    _m6_only(monkeypatch)
+    ksweep = _m6_ksweep()
     _write_run(tmp_path / "2026-10-08-a-ksweep.jsonl", "ksweep", ksweep)
     assert spike_cli.run_block("grid", "2026-10-08-a-grid", "2026-10-08-a-ksweep",
                                results_dir=tmp_path) == 0
@@ -1823,8 +1831,8 @@ def test_k_is_5_and_says_why_when_no_k_qualified_under_the_rule(
         tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _held(monkeypatch)
     monkeypatch.setitem(spike_cli._BLOCKS, "frontier", _one_row_block)
-    _write_run(tmp_path / "sweep.jsonl", "ksweep",
-               [r for k in (3, 5, 10) for r in _ksweep(k, cls="silent_wrong")])
+    _m6_only(monkeypatch)
+    _write_run(tmp_path / "sweep.jsonl", "ksweep", _m6_ksweep(cls="silent_wrong"))
     assert spike_cli.run_block("frontier", "front", "sweep", results_dir=tmp_path) == 0
     header = parse_header((tmp_path / "front.jsonl").read_text().splitlines()[0])
     assert header["k"] == 5
@@ -3085,7 +3093,8 @@ def test_a_controls_run_streams_the_comparison_rows_and_prints_their_section(
         capsys: pytest.CaptureFixture[str]) -> None:
     _held(monkeypatch)
     scratch = _stub_package(tmp_path)
-    ksweep = [r for k in (3, 5, 10) for r in _ksweep(k, triangles=1000 + k)]
+    _m6_only(monkeypatch)
+    ksweep = _m6_ksweep()
     _write_run(tmp_path / "sweep.jsonl", "ksweep", ksweep)
     env = {spike_cli.CQW_ENV: str(scratch)}
     assert spike_cli.run_block("controls", "ctl", "sweep", results_dir=tmp_path, env=env) == 0
@@ -3484,7 +3493,8 @@ def test_a_container_run_is_never_decisive_and_says_which_image_and_that_timings
         c.measure({**_REQUEST, "k": k, "presets": []}, via="container")
 
     monkeypatch.setitem(spike_cli._BLOCKS, "container", one_container_row)
-    ksweep = [r for k in (3, 5, 10) for r in _ksweep(k, triangles=1000 + k)]
+    _m6_only(monkeypatch)
+    ksweep = _m6_ksweep()
     _write_run(tmp_path / "sweep.jsonl", "ksweep", ksweep)
     assert spike_cli.run_block("container", "box", "sweep", results_dir=tmp_path) == 0
     header = parse_header((tmp_path / "box.jsonl").read_text().splitlines()[0])
@@ -3516,13 +3526,56 @@ def test_a_frontier_from_run_that_is_missing_or_not_a_frontier_run_is_refused(
         which: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
         capsys: pytest.CaptureFixture[str]) -> None:
     _held(monkeypatch)
-    ksweep = [r for k in (3, 5, 10) for r in _ksweep(k, triangles=1000 + k)]
+    _m6_only(monkeypatch)
+    ksweep = _m6_ksweep()
     _write_run(tmp_path / "sweep.jsonl", "ksweep", ksweep)
     if which == "wrong block":
         _write_run(tmp_path / "front.jsonl", "grid", [_synth()])
     assert spike_cli.run_block("rss", "a-rss", "sweep", results_dir=tmp_path,
                                frontier_from="front") == 2
-    assert "refused" in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert "refused" in err
+    assert "frontier" in err
+    assert not (tmp_path / "a-rss.jsonl").exists()
+
+
+@pytest.mark.parametrize("cut", ["header only", "one row short"])
+def test_a_k_from_sweep_that_is_incomplete_is_refused_before_anything_is_written(
+        cut: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    _held(monkeypatch)
+    _m6_only(monkeypatch)
+    monkeypatch.setitem(spike_cli._BLOCKS, "grid", _one_row_block)
+    _write_run(tmp_path / "sweep.jsonl", "ksweep", [] if cut == "header only"
+               else _m6_ksweep()[:-1])
+    assert spike_cli.run_block("grid", "a-grid", "sweep", results_dir=tmp_path) == 2
+    assert "incomplete" in capsys.readouterr().err
+    assert not (tmp_path / "a-grid.jsonl").exists()
+
+
+@pytest.mark.parametrize("fault", ["cut short", "foreign size", "another K"])
+def test_a_frontier_from_walk_that_is_incomplete_foreign_or_at_another_k_is_refused(
+        fault: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    _held(monkeypatch)
+    _m6_only(monkeypatch)
+    monkeypatch.setitem(spike_cli._BLOCKS, "rss", _one_row_block)
+    _write_run(tmp_path / "sweep.jsonl", "ksweep", _m6_ksweep())
+    walk = _full_walk("M6", None, k=_LOCKED_K)
+    walk_k = _LOCKED_K
+    if fault == "cut short":
+        walk = _walk("M6", False, None, end=100, k=_LOCKED_K) + _walk("M6", True, None,
+                                                                     k=_LOCKED_K)
+    elif fault == "foreign size":
+        walk = [*walk, _synth("M8", turns=60.0, k=_LOCKED_K)]
+    else:
+        walk_k = 5
+        walk = _full_walk("M6", None, k=walk_k)
+    _write_run(tmp_path / "front.jsonl", "frontier", walk, k=walk_k)
+    assert spike_cli.run_block("rss", "a-rss", "sweep", results_dir=tmp_path,
+                               frontier_from="front") == 2
+    err = capsys.readouterr().err
+    assert ("K 5" in err and "K 3" in err) if fault == "another K" else "incomplete" in err
     assert not (tmp_path / "a-rss.jsonl").exists()
 
 
@@ -4295,7 +4348,8 @@ def test_a_pair_run_streams_its_header_then_one_cell_per_line_and_reports_the_se
         capsys: pytest.CaptureFixture[str]) -> None:
     _held(monkeypatch)
     monkeypatch.setattr(spike_cli, "Worker", _FakePairWorker)
-    ksweep = [r for k in (3, 5, 10) for r in _ksweep(k, triangles=1000 + k)]
+    _m6_only(monkeypatch)
+    ksweep = _m6_ksweep()
     _write_run(tmp_path / "sweep.jsonl", "ksweep", ksweep)
 
     def one_cell(c: spike_cli.Campaign, k: int, smoke: bool) -> None:
@@ -4481,8 +4535,7 @@ class _BlockLog:
             print(f"refused: {self.refuse[block]}", file=sys.stderr)
             return 2
         if block == "ksweep":
-            ksweep = [r for k in (3, 5, 10) for r in _ksweep(k, triangles=1000 + k)]
-            _write_run(self.dir / f"{run_id}.jsonl", "ksweep", ksweep)
+            _write_run(self.dir / f"{run_id}.jsonl", "ksweep", _m6_ksweep())
         else:
             assert k_from is not None
             self.k[block] = spike_cli._locked_k(k_from, self.dir)[0]
@@ -4497,6 +4550,7 @@ def _campaign_goes(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, verdict_code
                    refuse: dict[str, str] | None = None, crash: tuple[str, ...] = ()) -> _BlockLog:
     facts = spike_cli.GuardFacts(GuardResult(True, ()), "b" * 40, "c" * 40, "a" * 40)
     _guard_says(monkeypatch, facts)
+    _m6_only(monkeypatch)
     log = _BlockLog(tmp_path, refuse=refuse, crash=crash)
     monkeypatch.setattr(spike_cli, "run_block", log)
 

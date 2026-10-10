@@ -1115,15 +1115,27 @@ def _make_campaign(block: str, decisive: bool, sink: IO[str] | None, *,
         frontier_rows=frontier_rows)
 
 
-def _frontier_rows(frontier_from: str, results_dir: Path) -> list[RowRecord]:
-    """The rows of a recorded frontier run, for the rss block's terminal rows."""
+def _frontier_rows(frontier_from: str, results_dir: Path, k: int) -> list[RowRecord]:
+    """The rows of a recorded frontier run, for the rss block's terminal rows. The run must be a
+    whole walk at the locked K `k`: a half walk would make a mid-walk row a "terminal", and a walk
+    at another K is another construction."""
     path = results_dir / f"{frontier_from}.jsonl"
     if not path.is_file():
         raise ValueError(f"frontier run {frontier_from!r} is not recorded under {results_dir}")
     lines = path.read_text().splitlines()
-    if not lines or parse_header(lines[0])["block"] != "frontier":
+    if not lines:
         raise ValueError(f"run {frontier_from!r} is not a frontier run")
-    return [parse_result_row(line) for line in lines[1:]]
+    header = parse_header(lines[0])
+    if header["block"] != "frontier":
+        raise ValueError(f"run {frontier_from!r} is not a frontier run")
+    if header["k"] != k:
+        raise ValueError(f"frontier run {frontier_from!r} was recorded at K {header['k']}, not at "
+                         f"the locked K {k}")
+    rows = [parse_result_row(line) for line in lines[1:]]
+    gaps = block_gaps("frontier", header, rows, sizes=SIZES, sample_sizes=SAMPLE_SIZES)
+    if gaps:
+        raise ValueError(f"frontier run {frontier_from!r} is incomplete: {'; '.join(gaps)}")
+    return rows
 
 
 def _environment_lines() -> list[str]:
@@ -1141,14 +1153,23 @@ def _release_line(quiet: QuietResult) -> str:
 
 def _locked_k(k_from: str, results_dir: Path) -> tuple[int, str]:
     """K from the K-sweep run's own record through `select_k`; there is no way to type one.
-    `None` from the rule means K = 5, the research reference value, and says so."""
+    The sweep must be whole, as the verdict reads it: K from half a sweep is not the K the
+    verdict would select. `None` from the rule means K = 5, the research reference value, and
+    says so."""
     path = results_dir / f"{k_from}.jsonl"
     if not path.is_file():
         raise ValueError(f"K-sweep run {k_from!r} is not recorded under {results_dir}")
     lines = path.read_text().splitlines()
-    if not lines or parse_header(lines[0])["block"] != "ksweep":
+    if not lines:
         raise ValueError(f"run {k_from!r} is not a ksweep run")
-    k = select_k([parse_result_row(line) for line in lines[1:]])
+    header = parse_header(lines[0])
+    if header["block"] != "ksweep":
+        raise ValueError(f"run {k_from!r} is not a ksweep run")
+    rows = [parse_result_row(line) for line in lines[1:]]
+    gaps = block_gaps("ksweep", header, rows, sizes=SIZES, sample_sizes=SAMPLE_SIZES)
+    if gaps:
+        raise ValueError(f"K-sweep run {k_from!r} is incomplete: {'; '.join(gaps)}")
+    k = select_k(rows)
     if k is None:
         return DEFAULT_K, NO_K_SOURCE
     return k, f"selected by select_k from run {k_from}"
@@ -1159,7 +1180,8 @@ def run_block(block: str, run_id: str, k_from: str | None, *,
               frontier_from: str | None = None) -> int:
     """One guarded campaign block. Refusals, all exit 2 with nothing written: a run id that is
     not `RUN_ID`; a run id already recorded (a run is never overwritten or retried in place); a
-    `--k-from` missing, malformed or given to the K sweep; the protocol guard. Then: the quiet
+    `--k-from` missing, malformed or given to the K sweep; a `--k-from` sweep or `--frontier-from`
+    walk that is incomplete (or the walk at another K); the protocol guard. Then: the quiet
     gate, the header as the first JSONL line, rows streamed, the end reading, the Markdown.
     The controls block also refuses, before the guard and with nothing written, when
     SCREW_SPIKE_CQW (read from `env`, default the process environment) does not name a
@@ -1211,7 +1233,8 @@ def run_block(block: str, run_id: str, k_from: str | None, *,
     frontier_rows: list[RowRecord] | None = None
     if frontier_from is not None:
         try:
-            frontier_rows = _frontier_rows(frontier_from, results_dir)
+            frontier_rows = _frontier_rows(frontier_from, results_dir,
+                                           DEFAULT_K if k is None else k)
         except ValueError as exc:
             print(f"refused: {exc}", file=sys.stderr)
             return 2
