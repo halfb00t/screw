@@ -15,7 +15,7 @@ from bench.thread_spike.helical import naive_sweep_fuse, one_pipe
 from bench.thread_spike.maths import VOID_CLEARANCE
 from screw.build_errors import BuildError
 from screw.calc import derive
-from screw.calc.thread import T_GATE, closed_volume
+from screw.calc.thread import T_GATE, closed_volume, thread_depth
 from screw.params import KINDS, BoltParams, FastenerParams
 from screw.solid import (
     _build_cached,
@@ -212,6 +212,46 @@ def test_a_length_off_the_whole_turns_builds_through_the_gate_and_ends_at_its_le
     box = solid.BoundingBox()
     assert box.zmin == pytest.approx(0.0, abs=TOL)
     assert box.zmax == pytest.approx(length, abs=TOL)
+
+
+def _inside_at(solid: cq.Solid, d: float, pitch: float, sign: int) -> bool:
+    """Is the point 80 % of the way from the root to the crest, on the thread's own helix
+    at z = 2.25 pitch (a quarter turn past two whole turns), inside the solid?
+
+    The tooth stands on the helix theta = 2 pi z / pitch for a right-hand thread, so the
+    probe reads inside at +theta and outside at -theta; a left-hand thread reads the
+    reverse. z = 2.5 pitch would read inside for both (half a turn is the symmetric
+    point), which is why the quarter turn: 03-RESEARCH Pitfall 9, reproduced 2026-10-10.
+    """
+    ro = d / 2
+    rr = ro - thread_depth(pitch)
+    r = rr + 0.8 * (ro - rr)
+    z = 2.25 * pitch
+    theta = sign * 2 * math.pi * z / pitch
+    return bool(solid.isInside(cq.Vector(r * math.cos(theta), r * math.sin(theta), z)))
+
+
+def test_the_hand_decides_which_way_the_thread_climbs_and_both_pass_the_same_gate() -> None:
+    # The volume gate cannot see the hand: a mirrored thread has the same volume. Only a
+    # probe on the helix does, and both hands are asserted here so it cannot pass vacuously.
+    right = build(BoltParams(left_hand=False))
+    left = build(BoltParams(left_hand=True))
+    assert (_inside_at(right, 6.0, 1.0, +1), _inside_at(right, 6.0, 1.0, -1)) == (True, False)
+    assert (_inside_at(left, 6.0, 1.0, +1), _inside_at(left, 6.0, 1.0, -1)) == (False, True)
+    closed = closed_volume(6.0, 1.0, 20.0)
+    for solid in (right, left):
+        assert len(solid.Solids()) == 1
+        assert solid.isValid()
+        assert precise_volume(solid) == pytest.approx(closed, rel=T_GATE)
+
+
+def test_a_left_hand_rod_exports_as_a_preview_stl_and_a_step() -> None:
+    p = BoltParams(left_hand=True)
+    assert _triangles(export(p, "stl", "preview")) > 0
+    assert export(p, "step", "fine").startswith(b"ISO-10303-21;")
+    # The mirror image of the right-hand rod, so not the same mesh.
+    mirror = export(BoltParams(), "stl", "preview")
+    assert export(p, "stl", "preview") != mirror
 
 
 def test_the_void_a_nut_will_subtract_passes_the_gate() -> None:

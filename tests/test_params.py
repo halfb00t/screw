@@ -12,7 +12,7 @@ import re
 import pytest
 from pydantic import ValidationError
 
-from screw.params import DEFAULT_KIND, INTERIM_MAX_MM, KINDS, BoltParams
+from screw.params import DEFAULT_KIND, INTERIM_MAX_MM, KINDS, BoltParams, FastenerParams
 
 FIELDS = ("d", "pitch", "length")
 
@@ -109,10 +109,14 @@ def test_a_field_error_hides_the_model_rules_that_need_every_field() -> None:
     assert [e["loc"] for e in caught.value.errors()] == [("d",)]
 
 
-def test_the_schema_lists_d_pitch_length_with_ui_metadata() -> None:
+def test_the_schema_lists_d_pitch_left_hand_length_with_ui_metadata() -> None:
     props = BoltParams.model_json_schema()["properties"]
-    assert list(props) == ["d", "pitch", "length"]
+    assert list(props) == ["d", "pitch", "left_hand", "length"]
     for name, prop in props.items():
+        assert "title" in prop, name
+        assert "unit" in prop, name
+        if name == "left_hand":
+            continue
         assert prop["group"] == "Size", name
         assert prop["unit"] == "mm", name
         assert "step" in prop, name
@@ -121,8 +125,36 @@ def test_the_schema_lists_d_pitch_length_with_ui_metadata() -> None:
         assert "minimum" not in prop, name
 
 
+def test_the_hand_is_a_boolean_in_the_thread_group_with_no_numeric_bounds() -> None:
+    hand = BoltParams.model_json_schema()["properties"]["left_hand"]
+    assert hand["type"] == "boolean"
+    assert hand["default"] is False
+    assert hand["group"] == "Thread"
+    assert hand["unit"] == ""
+    assert hand["title"]
+    assert not {"exclusiveMinimum", "minimum", "maximum", "step"} & set(hand)
+
+
+def test_the_default_hand_is_right_and_frozen() -> None:
+    # A link that omits left_hand means right-hand, forever (D-09, L02).
+    assert BoltParams().left_hand is False
+    assert FastenerParams.model_fields["left_hand"].default is False
+
+
+def test_left_hand_parses_a_boolean_and_refuses_anything_else() -> None:
+    assert BoltParams.model_validate({"left_hand": "true"}).left_hand is True
+    assert BoltParams.model_validate({"left_hand": "false"}).left_hand is False
+    with pytest.raises(ValidationError) as caught:
+        BoltParams.model_validate({"left_hand": "banana"})
+    assert [e["loc"] for e in caught.value.errors()] == [("left_hand",)]
+
+
 def test_the_slug_of_the_default_bolt_is_stable() -> None:
-    assert BoltParams().slug() == "bolt_d6_pitch1_length20"
+    assert BoltParams().slug() == "bolt_d6_pitch1_left_hand0_length20"
+
+
+def test_the_slug_tells_the_hands_apart() -> None:
+    assert BoltParams(left_hand=True).slug() == "bolt_d6_pitch1_left_hand1_length20"
 
 
 @pytest.mark.parametrize("values", [

@@ -13,5 +13,6 @@ from screw.solid import helical
 
 
 def rod(p: BoltParams) -> cq.Solid:
-    """The ISO 68-1:2023 basic-profile thread of major diameter d, axis +Z from z=0 to length."""
-    return helical.thread(p.d, p.pitch, p.length)
+    """The ISO 68-1:2023 basic-profile thread of major diameter d, axis +Z from z=0 to length,
+    right- or left-hand as asked."""
+    return helical.thread(p.d, p.pitch, p.length, left_hand=p.left_hand)

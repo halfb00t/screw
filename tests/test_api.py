@@ -130,7 +130,7 @@ def test_schema_requires_a_kind_and_knows_only_registered_kinds() -> None:
     r = client.get("/api/schema", params={"kind": "bolt"})
     assert r.status_code == 200
     props = r.json()["properties"]
-    assert list(props) == ["d", "pitch", "length"]
+    assert list(props) == ["d", "pitch", "left_hand", "length"]
     assert props["d"]["group"] == "Size"
     assert props["d"]["unit"] == "mm"
     assert props["length"]["unit"] == "mm"
@@ -171,11 +171,11 @@ def test_openapi_documents_the_typed_contracts() -> None:
 
     model_route = schema["paths"]["/api/bolt/model.{fmt}"]["get"]
     query_names = {p["name"] for p in model_route["parameters"] if p["in"] == "query"}
-    assert query_names == {"d", "pitch", "length", "quality"}
+    assert query_names == {"d", "pitch", "left_hand", "length", "quality"}
     # `quality` belongs to the model route only: it is a foreign field on the info route.
     info_route = schema["paths"]["/api/bolt/info"]["get"]
     info_names = {p["name"] for p in info_route["parameters"] if p["in"] == "query"}
-    assert info_names == {"d", "pitch", "length"}
+    assert info_names == {"d", "pitch", "left_hand", "length"}
 
     health_response = schema["paths"]["/api/health"]["get"]["responses"]["200"]
     assert health_response["content"]["application/json"]["schema"] == {
@@ -339,7 +339,7 @@ def test_model_download(fmt: str, ctype: str, magic: bytes | None) -> None:
     assert r.status_code == 200
     assert r.headers["content-type"] == ctype
     assert r.headers["content-disposition"] == (
-        f'attachment; filename="bolt_d8_pitch1_length20.{fmt}"')
+        f'attachment; filename="bolt_d8_pitch1_left_hand0_length20.{fmt}"')
     if magic:
         assert r.content.startswith(magic)
 
@@ -352,6 +352,26 @@ def test_bad_type_is_422_on_the_field() -> None:
     r = client.get("/api/bolt/info", params={"d": "wide"})
     assert r.status_code == 422
     assert r.json()["detail"][0]["loc"] == ["query", "d"]
+
+
+def test_a_left_hand_bolt_downloads_under_its_own_filename_and_is_not_the_right_hand_mesh() -> None:
+    left = client.get("/api/bolt/model.stl", params={"left_hand": "true", "quality": "preview"})
+    assert left.status_code == 200
+    assert left.headers["content-disposition"] == (
+        'attachment; filename="bolt_d6_pitch1_left_hand1_length20.stl"')
+    right = client.get("/api/bolt/model.stl", params={"quality": "preview"})
+    assert right.headers["content-disposition"].endswith('left_hand0_length20.stl"')
+    # The bytes of the left-hand solid the handedness probe proves left-handed
+    # (tests/test_solid.py), and not of the right-hand one.
+    assert left.content == export(BoltParams(left_hand=True), "stl", "preview")
+    assert left.content != right.content
+
+
+def test_left_hand_that_is_not_a_boolean_is_a_422_on_the_field() -> None:
+    for route in ("/api/bolt/info", "/api/bolt/model.stl"):
+        r = client.get(route, params={"left_hand": "banana"})
+        assert r.status_code == 422, route
+        assert r.json()["detail"][0]["loc"] == ["query", "left_hand"], route
 
 
 def test_a_saturated_service_refuses_instead_of_queueing() -> None:
@@ -385,7 +405,7 @@ def test_a_saturated_service_emits_queue_refused_naming_the_part_and_the_ceiling
     assert refused[0].levelno == logging.WARNING
     assert _field(refused[0], "request")
     assert _field(refused[0], "kind") == "bolt"
-    assert _field(refused[0], "slug") == "bolt_d7.3_pitch1_length20"
+    assert _field(refused[0], "slug") == "bolt_d7.3_pitch1_left_hand0_length20"
     assert _field(refused[0], "in_flight") == in_flight_before
     assert _field(refused[0], "max_queued") == app_module.MAX_QUEUED_BUILDS
 
@@ -531,7 +551,7 @@ def test_a_fresh_build_emits_build_started_then_export_served_with_source_built(
     # Every per-request record names the kind, the slug and only the non-default params.
     for record in (started[0], served[0]):
         assert _field(record, "kind") == "bolt"
-        assert _field(record, "slug") == "bolt_d7.1_pitch1_length20"
+        assert _field(record, "slug") == "bolt_d7.1_pitch1_left_hand0_length20"
         assert _field(record, "params") == {"d": 7.1}
 
 
@@ -598,7 +618,7 @@ def test_an_all_default_part_logs_params_as_an_empty_object_not_omitted(
     assert len(served) == 1
     assert _field(served[0], "params") == {}
     assert _field(served[0], "kind") == "bolt"
-    assert _field(served[0], "slug") == "bolt_d6_pitch1_length20"
+    assert _field(served[0], "slug") == "bolt_d6_pitch1_left_hand0_length20"
 
 
 def test_two_requests_for_one_part_get_two_different_request_ids(
@@ -654,7 +674,7 @@ def test_a_failed_build_emits_build_failed_naming_the_class_and_the_level(
     assert _field(failed[0], "exception") == want_exception
     assert _field(failed[0], "request")
     assert _field(failed[0], "kind") == "bolt"
-    assert _field(failed[0], "slug") == "bolt_d8.3_pitch1_length20"
+    assert _field(failed[0], "slug") == "bolt_d8.3_pitch1_left_hand0_length20"
     assert _field(failed[0], "params") == {"d": 8.3}
     assert _field(failed[0], "duration_ms") is not None
 

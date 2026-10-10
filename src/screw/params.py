@@ -43,8 +43,15 @@ def _f[T](default: T, *, gt: float, le: float | None = None, title: str, group: 
                  json_schema_extra=extra)
 
 
+def _b(default: bool, *, title: str, group: str, help: str = "") -> bool:
+    # The sibling of `_f` for a yes/no field: no bound, no step, no unit. The schema still
+    # carries `unit` (empty) because the parity test and the form read it on every property.
+    return Field(default, title=title, description=help,
+                 json_schema_extra={"group": group, "unit": ""})
+
+
 class FastenerParams(BaseModel):
-    """What every fastener kind shares: a nominal diameter and a pitch.
+    """What every fastener kind shares: a nominal diameter, a pitch and a hand.
 
     `extra="forbid"` is what makes a field the kind does not define a 422 naming it
     (FRNT-01) instead of a silently ignored one (L02).
@@ -62,6 +69,11 @@ class FastenerParams(BaseModel):
                   step=0.1, help="Nominal (major) diameter of the shank.")
     pitch: float = _f(1.0, gt=0, title="Pitch", group="Size", unit="mm", step=0.05,
                       help="Thread pitch: the axial distance from one crest to the next.")
+    # D-09: on the base, not on BoltParams, because the thread is every part's (THRD-01) and a
+    # nut's hand derives from the same d, pitch and hand (TYPE-04). Frozen like d and pitch:
+    # a link that omits it means right-hand on every front end, forever (L02).
+    left_hand: bool = _b(False, title="Left-hand thread", group="Thread",
+                         help="Cut the thread left-handed. Off: right-hand.")
 
     @model_validator(mode="after")
     def _root_radius(self) -> Self:

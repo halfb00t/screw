@@ -59,6 +59,30 @@ def test_the_format_flag_overrides_the_extension(tmp_path: Path) -> None:
     assert out.read_bytes().startswith(b"ISO-10303-21;")
 
 
+def test_the_hand_flags_build_the_hand_they_name(tmp_path: Path) -> None:
+    # The solid under `left_hand=True` is proven left-handed by the probe in tests/test_solid.py;
+    # here the flag must reach it, and `--no-left-hand` must reach the default.
+    from screw.solid import export
+
+    def stl(*flags: str) -> bytes:
+        out = tmp_path / "x.stl"
+        cli.main(["export", "bolt", "-o", str(out), "--quality", "preview", *flags])
+        return out.read_bytes()
+
+    left = export(BoltParams(left_hand=True), "stl", "preview")
+    right = export(BoltParams(), "stl", "preview")
+    assert left != right
+    assert stl("--left-hand") == left
+    assert stl("--no-left-hand") == right
+    assert stl() == right
+
+
+def test_a_value_after_the_hand_flag_is_refused_not_read_as_true(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    assert _exit_code(["info", "bolt", "--left-hand", "false"]) == 2
+    assert "false" in capsys.readouterr().err
+
+
 @pytest.mark.parametrize("argv", [
     ["info", "bolt", "--m", "5"],
     ["info", "bolt", "--lenght", "5"],

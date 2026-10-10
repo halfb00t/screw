@@ -51,6 +51,20 @@ def _flag(name: str) -> str:
     return "--" + name.replace("_", "-")
 
 
+def _is_bool(kind: str, name: str) -> bool:
+    return KINDS[kind].model_fields[name].annotation is bool
+
+
+def _expected_flags(kind: str) -> list[str]:
+    """The flags the model's fields generate: a boolean field is a pair, `--x` then `--no-x`."""
+    flags: list[str] = []
+    for name in KINDS[kind].model_fields:
+        flags.append(_flag(name))
+        if _is_bool(kind, name):
+            flags.append("--no-" + name.replace("_", "-"))
+    return flags
+
+
 def _cli_flags(kind: str, command: str, capsys: pytest.CaptureFixture[str]) -> list[str]:
     """Every long flag `<command> <kind> --help` lists, in the order it lists them.
 
@@ -140,7 +154,7 @@ def test_a_foreign_field_is_refused_on_every_route(kind: str) -> None:
 
 @pytest.mark.parametrize("kind", list(KINDS))
 def test_the_cli_flags_are_the_model(kind: str, capsys: pytest.CaptureFixture[str]) -> None:
-    fields = [_flag(name) for name in KINDS[kind].model_fields]
+    fields = _expected_flags(kind)
     assert _cli_flags(kind, "info", capsys) == ["--help", *fields]
     # export's own three options come first; everything after them is the model.
     assert _cli_flags(kind, "export", capsys) == ["--help", "--output", "--format",
@@ -171,17 +185,39 @@ def test_the_cli_and_the_api_print_the_same_document(
     model = KINDS[kind]
     cases: list[Params] = [{}]
     for name, field in model.model_fields.items():
-        if isinstance(field.default, float):
+        if isinstance(field.default, bool):
+            cases.append({name: not field.default})
+        elif isinstance(field.default, float):
             cases.append({name: field.default * 1.5})
     assert len(cases) > 1, "no float field to move off its default"
 
+    def argv(values: Params) -> list[str]:
+        out: list[str] = []
+        for k, v in values.items():
+            if isinstance(v, bool):
+                # A boolean flag takes no value: `--x` or `--no-x`, never `--x false`.
+                out.append(_flag(k) if v else "--no-" + k.replace("_", "-"))
+            else:
+                out += [_flag(k), repr(v)]
+        return out
+
     for values in cases:
-        cli.main(["info", kind, *(a for k, v in values.items() for a in (_flag(k), repr(v)))])
+        cli.main(["info", kind, *argv(values)])
         cli_doc = json.loads(capsys.readouterr().out)
         api_doc = client.get(f"/api/{kind}/info", params=values).json()
         assert cli_doc == api_doc, values
         assert cli_doc["warnings"][0] == STANDING_WARNING
         assert api_doc["warnings"][0] == STANDING_WARNING
+
+
+@pytest.mark.parametrize("kind", list(KINDS))
+def test_the_no_flag_is_a_value_and_agrees_with_the_omitted_default(
+        kind: str, capsys: pytest.CaptureFixture[str]) -> None:
+    # `--no-x` is a real value (False), not "not given", and agrees with the omitted default.
+    cli.main(["info", kind])
+    default_doc = capsys.readouterr().out
+    cli.main(["info", kind, "--no-left-hand"])
+    assert capsys.readouterr().out == default_doc
 
 
 @pytest.mark.parametrize("kind", list(KINDS))
@@ -243,3 +279,31 @@ def test_the_ui_builds_nodes_from_text_only() -> None:
     assert "textContent" in APP_JS
     for sink in ("innerHTML", "outerHTML", "insertAdjacentHTML"):
         assert sink not in APP_JS, sink
+
+
+def _repeat_argvs(kind: str, name: str) -> list[list[str]]:
+    """Every way to give one field's flag twice (the CLI keeps the last silently, D-12)."""
+    flag = _flag(name)
+    if _is_bool(kind, name):
+        no = "--no-" + name.replace("_", "-")
+        return [[flag, no], [flag, flag], [no, no]]
+    return [[flag, "5", flag, "6"]]
+
+
+@pytest.mark.parametrize("kind", list(KINDS))
+def test_a_repeated_parameter_is_refused_naming_it(
+        kind: str, capsys: pytest.CaptureFixture[str]) -> None:
+    for name in KINDS[kind].model_fields:
+        for given in _repeat_argvs(kind, name):
+            with pytest.raises(SystemExit) as stop:
+                cli.main(["info", kind, *given])
+            assert stop.value.code == 2, given
+            assert _flag(name) in capsys.readouterr().err, given
+    # export's own options are refused the same way.
+    for given in (["--quality", "fine", "--quality", "preview"],
+                  ["--format", "stl", "--format", "step"],
+                  ["-o", "a.stl", "-o", "b.stl"]):
+        with pytest.raises(SystemExit) as stop:
+            cli.main(["export", kind, "-o", "x.stl", *given])
+        assert stop.value.code == 2, given
+        assert given[0] in capsys.readouterr().err, given
