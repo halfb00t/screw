@@ -87,7 +87,7 @@ no-fake-done:  ## refuse unfinished work dressed up as finished
 	fi
 
 # --cov gates every run on [tool.coverage.report] fail_under (bench/RESULTS.md, "Coverage
-# floor (Phase 1)"). A run over part of the suite reads a low total and fails it: pass
+# floor (Phase 3)"). A run over part of the suite reads a low total and fails it: pass
 # --no-cov, e.g. make test PYTEST_ARGS="tests/test_calc.py -q -n0 --no-cov" (-n0 also runs
 # it serially, which -x and --pdb need). PYTEST_ARGS comes last so the caller's flags win.
 # --cov-report=term is the default report, spelt out because --cov takes an optional value:

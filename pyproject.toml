@@ -133,11 +133,11 @@ sigterm = true
 
 [tool.coverage.report]
 # The floor, read by `make test`'s --cov and nowhere else (pytest-cov copies this value
-# when --cov-fail-under is absent): 94 = floor(L - max(0.25, S)) with L = 95.03 (the
-# serial run, the lowest of four totals) and S = 0.00 (the spread of three -n 8 totals,
-# all 95.56) -- bench/RESULTS.md "Coverage floor (Phase 1)", measured 2026-10-06 on the
-# 285-test skeleton suite, spur L34's rule. Re-measure the same way before moving it.
-fail_under = 94
+# when --cov-fail-under is absent): 96 = floor(L - max(0.25, S)) with L = 96.66 (the
+# serial run, the lowest of four totals) and S = 0.36 (the spread of three -n 8 totals,
+# 96.66 to 97.02) -- bench/RESULTS.md "Coverage floor (Phase 3)", measured 2026-10-10 on
+# the 843-test suite, spur L34's rule. Re-measure the same way before moving it.
+fail_under = 96
 # fail_under compares the total rounded to `precision`; the default 0 let spur's 45.93 %
 # total pass a floor of 46.
 precision = 2

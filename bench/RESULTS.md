@@ -240,6 +240,59 @@ the lowest total, so nothing was chased. Every other module reads the same seria
 `PYTEST_WORKERS` is 8, spur L34's knee, not re-measured for screw. `make test` runs
 `-n 8 --cov`: the 16.9 s above is pytest's own time with coverage on, against 34.3 s serial.
 
+## Coverage floor (Phase 3)
+
+Measured on the Phase 3 suite (843 tests collected, 60 `grid` cells deselected by `addopts`:
+`test_bench` 449, `test_api` 88, `test_pr_land` 58, `test_thread_maths` 50, `test_cli` 37,
+`test_params` 35, `test_solid` 31, `test_skip_tokens` 27, `test_pool` 17, `test_parity` 17,
+`test_calc` 15, `test_records` 13, `test_grid` 6), 2026-10-10, by spur L34's rule as Phase 1
+recorded it: one serial run and three `-n 8` runs, the floor being `floor(L - max(0.25, S))` with
+L the lowest of the four totals and S the spread (max minus min) of the three `-n 8` totals. This
+is a floor on what the suite covers today, not a statement that the code is correct to that
+fraction.
+
+Host: Apple M5 Max, 18 CPUs, 64 GiB RAM, macOS 27.0.1 (Darwin 27.0.0), Python 3.12.15,
+pytest-cov 7.1.0, pytest-xdist 3.8.0, native arm64 (no container). It is not the host of the
+Phase 1 entry (an M2 Max). Other applications were running on it, so it was not idle; `uptime`
+immediately before each run read:
+
+| Run | Command | Load averages (1, 5, 15 min) | TOTAL | Wall |
+|---|---|---|---|---|
+| serial | `.venv/bin/python -m pytest -n0 --cov --cov-report=term --cov-fail-under=0` | 6.59, 4.94, 4.72 | 96.66 % | 108.15 s |
+| -n 8 (1) | `.venv/bin/python -m pytest -n 8 --cov --cov-report=term --cov-fail-under=0` | 3.71, 4.26, 4.47 | 97.02 % | 35.96 s |
+| -n 8 (2) | same | 5.27, 4.62, 4.59 | 96.66 % | 36.77 s |
+| -n 8 (3) | same | 6.92, 5.11, 4.77 | 97.02 % | 35.87 s |
+
+L = 96.66 (the serial run and `-n 8` run 2, equal). S = 0.36 (97.02 - 96.66). Floor =
+floor(96.66 - max(0.25, 0.36)) = floor(96.30) = **96**, set as `fail_under` in `pyproject.toml`
+(it was 94, from the Phase 1 entry above).
+
+The 0.36 between runs is `pool.py` again, as in Phase 1: the serial run and `-n 8` run 2 missed 3
+of its 56 lines (95.31 %), runs 1 and 3 covered it fully (100.00 %). In Phase 1 all three `-n 8`
+runs covered it, so this time the loss was not limited to the serial run; the cause was not
+isolated here (spur's Pitfall 13), and the rule already takes the lowest total. Every other
+module reads the same in all four runs:
+
+| Module | Cover |
+|---|---|
+| `__init__.py` | 71.43 % |
+| `__main__.py` | 0.00 % |
+| `app.py` | 97.07 % |
+| `build_errors.py` | 100.00 % |
+| `calc/__init__.py` | 100.00 % |
+| `calc/thread.py` | 100.00 % |
+| `cli.py` | 96.75 % |
+| `params.py` | 97.78 % |
+| `pool.py` | 95.31 % in the serial run and `-n 8` run 2, 100.00 % in `-n 8` runs 1 and 3 |
+| `records.py` | 94.03 % |
+| `solid/__init__.py` | 94.50 % |
+| `solid/bolt.py` | 100.00 % |
+| `solid/helical.py` | 100.00 % |
+
+`PYTEST_WORKERS` is 8, spur L34's knee, not re-measured for screw. `make test` runs
+`-n 8 --cov`: the 36 s above is pytest's own time with coverage on, against 108 s serial.
+The `grid` cells are not in these totals; `make grid` runs them with `--no-cov`.
+
 ## Thread spike (Phase 2)
 
 This section records the pre-registered thread spike campaign of
