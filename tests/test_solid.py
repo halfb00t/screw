@@ -3,16 +3,28 @@
 from __future__ import annotations
 
 import math
+import re
 import struct
 
 import cadquery as cq
 import pytest
 
+from bench.thread_spike.helical import naive_sweep_fuse, one_pipe
+from bench.thread_spike.maths import VOID_CLEARANCE
 from screw.build_errors import BuildError
 from screw.calc import derive
 from screw.calc.thread import T_GATE, closed_volume
 from screw.params import KINDS, BoltParams, FastenerParams
-from screw.solid import build, check_solid, clear_cache, export, helical, precise_volume
+from screw.solid import (
+    _build_cached,
+    bolt,
+    build,
+    check_solid,
+    clear_cache,
+    export,
+    helical,
+    precise_volume,
+)
 
 TOL = 1e-6  # mm
 
@@ -132,3 +144,77 @@ def test_every_registered_kind_builds_and_derives() -> None:
         p = model()
         assert len(build(p).Solids()) == 1
         assert derive(p).kind == model.kind
+
+
+def _relative_error(text: str) -> float:
+    match = re.search(r"relative error ([+-]\d\.\d+e[+-]\d+)", text)
+    assert match, text
+    return float(match.group(1))
+
+
+def _assert_refused_and_not_cached(
+        monkeypatch: pytest.MonkeyPatch, shape: cq.Shape, p: BoltParams) -> float:
+    """Feed `shape` to the gate as if the bolt builder had made it: refused twice (a refusal
+    is never cached, so the second call rebuilds and is refused again), cache size unchanged."""
+    monkeypatch.setattr(bolt, "rod", lambda _p: shape)
+    clear_cache()
+    size = _build_cached.cache_info().currsize
+    errors = []
+    for _ in range(2):
+        with pytest.raises(BuildError) as raised:
+            build(p)
+        errors.append(_relative_error(str(raised.value)))
+    assert _build_cached.cache_info().currsize == size
+    return errors[0]
+
+
+@pytest.mark.parametrize(("d", "pitch", "length"), [
+    (2.0, 0.4, 4.0), (6.0, 1.0, 10.0), (20.0, 2.5, 10.0),
+])
+def test_the_gate_refuses_the_naive_sweep_the_kernel_calls_valid(
+        d: float, pitch: float, length: float, monkeypatch: pytest.MonkeyPatch) -> None:
+    # L11 known-bad rows (`2026-10-08-a-controls`): one solid, isValid() True, a volume below
+    # half the closed form. Only the volume check catches them.
+    naive = naive_sweep_fuse(d, pitch, length)
+    assert len(naive.Solids()) == 1
+    assert naive.isValid()
+    error = _assert_refused_and_not_cached(
+        monkeypatch, naive, BoltParams(d=d, pitch=pitch, length=length))
+    assert error < -0.5
+
+
+def test_the_gate_refuses_the_inverted_one_pipe_twist_by_its_sign(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    # The one-pipe twist reads inverted at 160 turns while isValid() stays True: its precise
+    # volume is about -1 times the closed form, a relative error near -2 (L11). The naive
+    # sweep above is positive and does not exercise the sign.
+    inverted = one_pipe(6.0, 1.0, 160.0)
+    assert inverted.isValid()
+    error = _assert_refused_and_not_cached(
+        monkeypatch, inverted, BoltParams(d=6.0, pitch=1.0, length=160.0))
+    assert error < -1.5
+
+
+@pytest.mark.parametrize(("d", "pitch", "length"), [
+    pytest.param(6.0, 1.0, 0.8, id="sub-turn-0.8"),
+    pytest.param(6.0, 1.0, 20.5, id="non-integer-20.5"),
+    pytest.param(3.5, 0.6, 10.8, id="float-drift-18-turns"),
+    pytest.param(3.5, 0.6, 30.6, id="float-drift-51-turns"),
+    pytest.param(2.5, 0.45, 9.0, id="float-drift-20-turns"),
+])
+def test_a_length_off_the_whole_turns_builds_through_the_gate_and_ends_at_its_length(
+        d: float, pitch: float, length: float) -> None:
+    solid = build(BoltParams(d=d, pitch=pitch, length=length))
+    assert len(solid.Solids()) == 1
+    assert solid.isValid()
+    box = solid.BoundingBox()
+    assert box.zmin == pytest.approx(0.0, abs=TOL)
+    assert box.zmax == pytest.approx(length, abs=TOL)
+
+
+def test_the_void_a_nut_will_subtract_passes_the_gate() -> None:
+    # The same builder with the clearance-grown section Phase 5 subtracts; 0.20 mm is the
+    # clearance every grid void row was built at.
+    void = helical.thread(6.0, 1.0, 20.0, clearance=VOID_CLEARANCE)
+    check_solid(void, closed_volume(6.0, 1.0, 20.0, VOID_CLEARANCE))
+    assert void.BoundingBox().xlen == pytest.approx(6.0 + 2 * VOID_CLEARANCE, abs=1e-4)
