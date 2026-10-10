@@ -107,6 +107,9 @@ legend {
   border: 1px solid var(--line);
   border-radius: 6px;
 }
+/* The shared rule above stretches inputs to 100%, which would blow a checkbox up to the
+   control column; it keeps its natural width beside its label. */
+.field input[type=checkbox] { width: auto; }
 .field .unit { min-width: 1.7rem; color: var(--muted); font-size: .85rem; }
 .field small { grid-column: 1 / -1; color: var(--muted); font-size: .78rem; }
 .field.invalid input, .field.invalid select {

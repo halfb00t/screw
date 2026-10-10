@@ -251,16 +251,24 @@ def test_the_ui_reads_no_field_by_name(kind: str) -> None:
 # schema, the hash read and written without a field name, the default kind taken from
 # /api/kinds, the info panel built from whatever rows arrive. Rewording one is not a style
 # edit: it means the page may have stopped being generic.
+#
+# Plan 03-05 replaced three `.value` spellings with the helper forms (rule 29 names the same
+# list): a checkbox's `.value` is the constant "on", so a control is read and written only
+# through read() and write(), and the boolean branch of buildForm is what builds one (D-09).
 PINNED_STATEMENTS = [
     "fetch('api/kinds')",
     "for (const [name, prop] of Object.entries(schema.properties)) {",
     "fields.set(name, { input, wrap, title });",
-    "for (const [name, { input }] of fields) input.value = h.get(name) ?? defaults[name];",
-    "q.set(name, input.value)",
+    "for (const [name, { input }] of fields) write(input, h.get(name) ?? defaults[name]);",
+    "q.set(name, value)",
     "const kind = h.get('kind') ?? kinds.default;",
     "if (currentKind !== kinds.default) hashQ.set('kind', currentKind);",
     "for (const row of info.rows) {",
-    "Number(input.value) !== Number(defaults[name])",
+    "Number(value) !== Number(defaults[name])",
+    "prop.type === 'boolean'",
+    "input.type = 'checkbox'",
+    "String(input.checked)",
+    "input.checked = String(v) === 'true'",
     # Not the whole handler: 01-04 shipped `() => navigate().catch(reportLoadError)` where
     # its plan quoted `navigate`; the property that matters is that the hash drives navigate().
     "window.addEventListener('hashchange'",
@@ -275,6 +283,17 @@ def test_the_ui_round_trips_every_field_through_generic_code() -> None:
     # The default comes from /api/kinds, never from where a kind sits in the list (D-09).
     assert "kinds.default" in source
     assert "kinds.kinds[0]" not in source
+
+
+@pytest.mark.parametrize("kind", list(KINDS))
+def test_the_form_has_a_size_fieldset_then_a_thread_one(kind: str) -> None:
+    # Rule 1: one fieldset per group in first-seen order, so `left_hand` (declared between
+    # pitch and length) opens a `Thread` fieldset after `Size` and `length` stays in `Size`.
+    properties = client.get("/api/schema", params={"kind": kind}).json()["properties"]
+    groups = list(dict.fromkeys(prop["group"] for prop in properties.values()))
+    assert groups == ["Size", "Thread"]
+    assert properties["left_hand"]["type"] == "boolean"
+    assert properties["left_hand"]["default"] is False
 
 
 def test_the_ui_builds_nodes_from_text_only() -> None:

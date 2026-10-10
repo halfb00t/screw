@@ -16,6 +16,14 @@ let defaults = {};
 // info panel and the download links are all read off what the API sends, so a new
 // registered kind needs no edit in this file (D-10; tests/test_parity.py pins it).
 const fmt = (v) => Number(v).toFixed(3).replace(/\.?0+$/, '');
+// A checkbox's .value is the constant "on", so every read and write of a control goes through
+// these two: a checkbox reads as 'true' or 'false' and is written from either, any other
+// control by its value (D-09). The link then carries `left_hand=true` and nothing else.
+const read = (input) => (input.type === 'checkbox' ? String(input.checked) : input.value);
+function write(input, v) {
+  if (input.type === 'checkbox') input.checked = String(v) === 'true';
+  else input.value = v;
+}
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
 // ---------------------------------------------------------------- kinds and form
@@ -63,6 +71,9 @@ async function buildForm(kind) {
     if (prop.enum) {
       input = document.createElement('select');
       for (const v of prop.enum) input.add(new Option(v, v));
+    } else if (prop.type === 'boolean') {
+      input = document.createElement('input');
+      input.type = 'checkbox';
     } else {
       input = document.createElement('input');
       input.type = 'number';
@@ -126,7 +137,7 @@ async function navigate() {
     currentKind = kind;
   }
   kindSelect.value = kind;
-  for (const [name, { input }] of fields) input.value = h.get(name) ?? defaults[name];
+  for (const [name, { input }] of fields) write(input, h.get(name) ?? defaults[name]);
   await update();
 }
 
@@ -134,12 +145,14 @@ async function navigate() {
 function partQuery() {
   const q = new URLSearchParams();
   for (const [name, { input }] of fields) {
-    if (input.value === '') continue;
+    const value = read(input);
+    if (value === '') continue;
     // 6.0 and 6 are the same default; a string compare would put the first in the link.
+    // A checkbox compares as a string against 'false', so only a checked box is written.
     const changed = input.type === 'number'
-      ? Number(input.value) !== Number(defaults[name])
-      : input.value !== String(defaults[name]);
-    if (changed) q.set(name, input.value);
+      ? Number(value) !== Number(defaults[name])
+      : value !== String(defaults[name]);
+    if (changed) q.set(name, value);
   }
   return q;
 }
@@ -393,7 +406,7 @@ new ResizeObserver(resize).observe(canvas.parentElement);
 
 $('#fit').addEventListener('click', fit);
 $('#reset').addEventListener('click', () => {
-  for (const [name, { input }] of fields) input.value = defaults[name];
+  for (const [name, { input }] of fields) write(input, defaults[name]);
   update();
 });
 $('#copy-link').addEventListener('click', async (e) => {
