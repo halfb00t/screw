@@ -2,7 +2,7 @@
 
 Severity: must
 Status: resolved
-Resolved in: fix(ui): keep the warnings of the mesh on screen when an update fails (this commit; plan 03-07 names its sha)
+Resolved in: 909dec3 — fix(ui): keep the warnings of the mesh on screen when an update fails (plan 03-05)
 Date: 2026-10-06
 Source: Phase 1 UI design contract (01-UI-SPEC.md, OI-3), written after plan 01-04 landed
 Related files:

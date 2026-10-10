@@ -2,7 +2,7 @@
 
 Severity: must
 Status: resolved
-Resolved in: fix(ui): refuse a link with a foreign, repeated or unreadable key (this commit; plan 03-07 names its sha)
+Resolved in: 05fb4ed — fix(ui): refuse a link with a foreign, repeated or unreadable key (plan 03-05)
 Date: 2026-10-06
 Source: Phase 1 UI design contract (01-UI-SPEC.md, OI-2), written after plan 01-04 landed
 Related files:

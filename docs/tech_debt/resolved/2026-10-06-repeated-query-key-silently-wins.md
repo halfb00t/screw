@@ -2,7 +2,7 @@
 
 Severity: must
 Status: resolved
-Resolved in: fix(app): refuse a repeated query key before validation (this commit; the CLI half is d849557, feat(params): add left_hand ...; plan 03-07 names this commit's sha)
+Resolved in: eaaac85 (API) and d849557 (CLI) — fix(app): refuse a repeated query key before validation, feat(params): add left_hand to every kind and build left-hand threads from the API and CLI (plan 03-04)
 Date: 2026-10-06
 Source: Phase 1 code review (01-REVIEW.md WR-01). Owner sign-off 2026-10-06: fix in the
 `/gsd-quick` PR that follows the Phase 1 close PR, together with CR-01.

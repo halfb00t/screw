@@ -3,7 +3,7 @@
 Severity: blocker
 Status: resolved
 Date: 2026-10-06
-Resolved in: fix(solid): refuse a broken export and close the collapsed-solid blocker (this commit; plan 03-07 names its sha)
+Resolved in: de9304e — fix(solid): refuse a broken export and close the collapsed-solid blocker (plan 03-01)
 Source: Phase 1 code review (01-REVIEW.md CR-01). Owner sign-off 2026-10-06: file now, fix in the
 `/gsd-quick` PR that follows the Phase 1 close PR — not deferred to a phase.
 Related files:
