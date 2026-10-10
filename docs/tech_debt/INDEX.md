@@ -19,7 +19,6 @@ Severity (grep-able `Severity:` field):
 | must | [Two thread spike protocol amendments wait for the owner before the next campaign](active/2026-10-10-spike-protocol-amendments-before-next-campaign.md) | before the next thread-spike campaign runs |
 | must | [Interim runtime bounds are spur's figures, not screw's measurements](active/2026-10-05-interim-runtime-bounds.md) | Phase 7 operability re-sweep (OPER-02) |
 | must | [The web page rounds every displayed number in the browser](active/2026-10-06-ui-rounds-displayed-numbers.md) | before the Phase 4 plan that puts cited ISO rows on the info panel |
-| must | [A failed update hides the standing warnings while the last mesh stays on screen](active/2026-10-06-ui-hides-warnings-on-failed-update.md) | before the first warning other than the skeleton's ships (Phase 3 limits or Phase 6 printability) |
 | must | [bench.memory samples too coarsely to read a peak off a corpus that runs in seconds](active/2026-10-06-bench-memory-sampling-is-too-coarse-for-short-corpora.md) | before the Phase 7 memory sweep (OPER-02, OPER-03) |
 | nice | [The infrastructure forked from spur is not a shared package](active/2026-10-05-shared-infra-extraction.md) | fired: the pool.py race guard (L09) — owner decides extract vs fix twice |
 | nice | [Enji Guard not connected](active/2026-10-05-enji-guard-not-connected.md) | first product code on `main`, or the owner decides they want continuous AI audit |
@@ -28,6 +27,7 @@ Severity (grep-able `Severity:` field):
 
 | Item | Resolved in |
 |---|---|
+| [A failed update hides the standing warnings while the last mesh stays on screen](resolved/2026-10-06-ui-hides-warnings-on-failed-update.md) | fix(ui): keep the warnings of the mesh on screen when an update fails (plan 03-05) |
 | [The web page drops a foreign or unparseable hash key silently](resolved/2026-10-06-ui-drops-foreign-hash-keys.md) | fix(ui): refuse a link with a foreign, repeated or unreadable key (plan 03-05) |
 | [A repeated query key or CLI flag silently drops one of two explicit values](resolved/2026-10-06-repeated-query-key-silently-wins.md) | fix(app): refuse a repeated query key before validation (plan 03-04; CLI half d849557) |
 | [The pool's dying-worker test failed once under host load](resolved/2026-10-06-test-pool-dying-worker-flake.md) | ef37f23 (PR #7) — test(pool): free the wedged test's dead-worker semaphores before it returns |

@@ -325,6 +325,27 @@ def test_the_ui_refuses_a_link_it_cannot_honour() -> None:
     assert APP_JS.count("refuseLink(") >= 5  # the definition and the four refusals
 
 
+def test_the_ui_keeps_the_warnings_of_the_mesh_on_screen() -> None:
+    # D-11 (01-UI-SPEC rules 15 and 24): the warning is the honest label on the part the user
+    # is still looking at, so it outlives a failed update and a refused link. Warnings belong
+    # to a mesh, not to the last info fetch: that document may describe a part whose STL then
+    # failed, so it only becomes the mesh's warnings where the mesh is replaced.
+    source = _squash(APP_JS)
+    assert "pendingWarnings = info.warnings ?? [];" in source
+    assert source.count("meshWarnings = pendingWarnings") == 1
+    show = re.search(r"function showModel\(buffer\) \{(.*?)\n\}", APP_JS, re.DOTALL)
+    assert show is not None
+    assert "meshWarnings = pendingWarnings;" in show.group(1)
+    assert source.count("mesh ? meshWarnings : []") >= 3
+    # Every call that shows an error names the warnings with it; the startup failure has no
+    # mesh and is the only one that shows none.
+    bare = [line for line in APP_JS.splitlines()
+            if "showMessages(" in line and "function showMessages" not in line
+            and "meshWarnings" not in line and "pendingWarnings" not in line]
+    assert len(bare) == 1
+    assert "Could not load the part kinds and schema" in bare[0]
+
+
 def test_the_ui_builds_nodes_from_text_only() -> None:
     assert "textContent" in APP_JS
     for sink in ("innerHTML", "outerHTML", "insertAdjacentHTML"):

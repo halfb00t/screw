@@ -11,6 +11,14 @@ let kinds = { default: null, kinds: [] }; // the /api/kinds body
 let currentKind = null; // the kind the form below was built for; null while none is valid
 const fields = new Map(); // name -> { input, wrap, title }
 let defaults = {};
+// Warnings belong to a mesh, not to the last info fetch (D-11). update() fetches info first,
+// so by the time a model.stl request fails the newest info document describes the part that
+// did not build while the mesh on screen is an older one. A rendered info document waits in
+// pendingWarnings and becomes the mesh's warnings only where showModel replaces the mesh;
+// every error shows meshWarnings below it, because the warning is the honest label on the
+// part the user is still looking at (the threaded-rod warning, D-06).
+let pendingWarnings = [];
+let meshWarnings = [];
 
 // Nothing here knows a field name, a row key or a kind's label: the form, the hash, the
 // info panel and the download links are all read off what the API sends, so a new
@@ -119,7 +127,7 @@ function refuseLink(message) {
   $('#dims').replaceChildren();
   setDownloads(null);
   setStatus('');
-  showMessages([message]);
+  showMessages([message], mesh ? meshWarnings : []);
 }
 
 /**
@@ -233,7 +241,8 @@ function renderInfo(info) {
     rows.push(line);
   }
   $('#dims').replaceChildren(...rows);
-  showMessages([], info.warnings ?? []);
+  pendingWarnings = info.warnings ?? [];
+  showMessages([], pendingWarnings);
 }
 
 function setDownloads(q) {
@@ -277,7 +286,7 @@ async function update() {
 
   const fail = (errors) => {
     if (mine !== seq) return;
-    showMessages(errors);
+    showMessages(errors, mesh ? meshWarnings : []);
     $('#dims').replaceChildren();
     setStatus(mesh ? 'Showing the last valid part' : '');
   };
@@ -398,6 +407,7 @@ function showModel(buffer) {
     edges.geometry.dispose();
   }
   mesh = new Mesh(geometry, material);
+  meshWarnings = pendingWarnings;
   edges = new LineSegments(new EdgesGeometry(geometry, 40), edgeMaterial);
   scene.add(mesh, edges);
   const previous = box;
@@ -423,7 +433,7 @@ function resize() {
 
 // ---------------------------------------------------------------- wiring
 
-const reportLoadError = (err) => showMessages([`Could not load the part: ${err.message}`]);
+const reportLoadError = (err) => showMessages([`Could not load the part: ${err.message}`], mesh ? meshWarnings : []);
 
 form.addEventListener('submit', (e) => e.preventDefault());
 form.addEventListener('input', scheduleUpdate);
