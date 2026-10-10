@@ -9,7 +9,8 @@
     GET /api/bolt/model.step?...     STEP AP214 solid
 
 Every parameter is a query string field, so a model URL is shareable and curl-able. Unset
-fields take their defaults; a field the kind does not define is a 422 naming it.
+fields take their defaults; a field the kind does not define, or a key given twice, is a 422
+naming it.
 """
 
 from __future__ import annotations
@@ -169,11 +170,32 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         del app.state.pool
 
 
+def refuse_repeated_keys(request: Request) -> None:
+    """Refuse a query string that names a key twice, before anything judges its values.
+
+    D-12, L02: the query model keeps the last of two values, so `?d=0&d=5` was a 200 for d=5
+    and `?d=5&d=100000` a 200 for the larger part; a shared link with a duplicated key built a
+    part its author did not see. An app-level dependency runs before each route's query model
+    is validated (verified on fastapi 0.142.2, 03-RESEARCH Pattern 5), so the repeat is refused
+    as a duplicate instead of one of its values being judged, and it covers every route,
+    `/api/schema` included. Keys are listed in first-seen order.
+    """
+    seen: dict[str, int] = {}
+    for key, _ in request.query_params.multi_items():
+        seen[key] = seen.get(key, 0) + 1
+    repeated = [key for key, n in seen.items() if n > 1]
+    if repeated:
+        raise HTTPException(422, detail=[
+            {"loc": ["query", key], "type": "duplicate", "msg": f"{key} was given more than once."}
+            for key in repeated])
+
+
 app = FastAPI(
     title="screw",
     version=__version__,
     summary="Parametric thread and fastener generator with STL/STEP export.",
     lifespan=lifespan,
+    dependencies=[Depends(refuse_repeated_keys)],
 )
 
 # spur L19 measured the real 9,062,784-byte STL of a 199-tooth fine gear at gzip levels 1/6/9

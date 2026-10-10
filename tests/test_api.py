@@ -374,6 +374,41 @@ def test_left_hand_that_is_not_a_boolean_is_a_422_on_the_field() -> None:
         assert r.json()["detail"][0]["loc"] == ["query", "left_hand"], route
 
 
+@pytest.mark.parametrize("query", [
+    "d=0&d=5",                  # the first value alone would be a 422, the last alone a 200
+    "d=5&d=100000",             # both pass on their own; the part is the last one
+    "d=5&d=0",                  # the last value alone would be a 422
+])
+def test_a_repeated_key_is_a_422_duplicate_not_a_judgement_of_either_value(query: str) -> None:
+    r = client.get(f"/api/bolt/info?{query}")
+    assert r.status_code == 422
+    assert r.json()["detail"][0] == {
+        "loc": ["query", "d"], "type": "duplicate", "msg": "d was given more than once."}
+
+
+def test_a_repeated_key_on_the_schema_route_is_a_duplicate_not_a_404() -> None:
+    r = client.get("/api/schema?kind=bolt&kind=x")
+    assert r.status_code == 422
+    assert r.json()["detail"][0]["loc"] == ["query", "kind"]
+    assert r.json()["detail"][0]["type"] == "duplicate"
+
+
+def test_a_repeated_left_hand_and_a_repeated_foreign_key_are_duplicates_too() -> None:
+    r = client.get("/api/bolt/model.stl?left_hand=true&left_hand=false&quality=preview")
+    assert r.status_code == 422
+    assert r.json()["detail"][0]["loc"] == ["query", "left_hand"]
+    assert r.json()["detail"][0]["type"] == "duplicate"
+    r = client.get("/api/bolt/info?zz=1&zz=2")
+    assert r.status_code == 422
+    assert r.json()["detail"][0]["loc"] == ["query", "zz"]
+    assert r.json()["detail"][0]["type"] == "duplicate"
+
+
+def test_every_repeated_key_is_named_in_first_seen_order() -> None:
+    r = client.get("/api/bolt/info?pitch=1&d=5&pitch=2&d=6&length=3")
+    assert [e["loc"] for e in r.json()["detail"]] == [["query", "pitch"], ["query", "d"]]
+
+
 def test_a_saturated_service_refuses_instead_of_queueing() -> None:
     """A queue deeper than the pool can drain is latency with no payoff."""
     with _saturated():

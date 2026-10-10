@@ -1,7 +1,8 @@
 # A repeated query key or CLI flag silently drops one of two explicit values
 
 Severity: must
-Status: active
+Status: resolved
+Resolved in: fix(app): refuse a repeated query key before validation (this commit; the CLI half is d849557, feat(params): add left_hand ...; plan 03-07 names this commit's sha)
 Date: 2026-10-06
 Source: Phase 1 code review (01-REVIEW.md WR-01). Owner sign-off 2026-10-06: fix in the
 `/gsd-quick` PR that follows the Phase 1 close PR, together with CR-01.
@@ -25,3 +26,19 @@ In the app, refuse a repeated key before validation (compare
 `len(request.query_params.multi_items())` with `len(request.query_params)` and raise a 422
 `{"loc": ["query", name], "type": "duplicate"}`); in the CLI, an `argparse.Action` that exits
 2 when its dest was already set. One parametrised test over the registry on both front ends.
+
+## Resolution
+Closed by Phase 3 plan 03-04 (D-12), in two commits, one per front end.
+
+- API: `refuse_repeated_keys` is an app-level dependency (`FastAPI(dependencies=[...])`), so it
+  runs before each route's query model and covers every route, `/api/schema` included. A key
+  given twice is a 422 `{"loc": ["query", key], "type": "duplicate"}` listing every repeated key
+  in first-seen order; neither value is judged. The check this item suggested (comparing the
+  lengths of `multi_items()` and `query_params`) was replaced by counting per key, which names
+  the key.
+- CLI: `_Once` and `_OnceBool` (`--x` / `--no-x`, once between them) exit 2 naming the flag when
+  the parameter is already set; export's `-o`, `--format` and `--quality` use the same action
+  (`--quality` now defaults to `None` and `cmd_export` reads `ns.quality or "fine"`).
+- One parametrised test over the registry, `test_a_repeated_parameter_is_refused_naming_it` in
+  `tests/test_parity.py`, covers both front ends; the four reproductions in this item are tests
+  in `tests/test_api.py`.

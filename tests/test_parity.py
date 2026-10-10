@@ -30,6 +30,8 @@ client = TestClient(app)
 
 # `params=` is typed by starlette as exactly this union (Pitfall 1).
 Params = dict[str, str | int | float | bool | None]
+# A repeated key needs the list-of-pairs form, which is invariant in its element type.
+Pairs = list[tuple[str, str | int | float | bool | None]]
 
 APP_JS = (STATIC / "app.js").read_text()
 FOREIGN = "zz_not_a_field"
@@ -290,9 +292,23 @@ def _repeat_argvs(kind: str, name: str) -> list[list[str]]:
     return [[flag, "5", flag, "6"]]
 
 
+def _duplicate(name: str) -> dict[str, object]:
+    return {"loc": ["query", name], "type": "duplicate", "msg": f"{name} was given more than once."}
+
+
 @pytest.mark.parametrize("kind", list(KINDS))
 def test_a_repeated_parameter_is_refused_naming_it(
         kind: str, capsys: pytest.CaptureFixture[str]) -> None:
+    # API side (D-12): the repeat is refused before the query model judges either value, on
+    # every route of the kind, and the 422 names the key.
+    for name in KINDS[kind].model_fields:
+        twice: Pairs = ([(name, "true"), (name, "false")] if _is_bool(kind, name)
+                        else [(name, "5"), (name, "6")])
+        for path in (f"/api/{kind}/info", f"/api/{kind}/model.stl"):
+            res = client.get(path, params=twice)
+            assert res.status_code == 422, (path, name)
+            assert res.json()["detail"] == [_duplicate(name)], (path, name)
+    # CLI side: the same refusal, exit 2 naming the flag.
     for name in KINDS[kind].model_fields:
         for given in _repeat_argvs(kind, name):
             with pytest.raises(SystemExit) as stop:
