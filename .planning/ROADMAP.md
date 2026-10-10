@@ -134,7 +134,7 @@ Plans:
 
 **Precondition (owner, 2026-10-10, D-13)**: the harness-review `/gsd-quick` PR (`docs/tech_debt/active/2026-10-09-thread-spike-harness-review-findings.md`) is merged on `main` and `gsd/phase-03-real-helical-thread` is rebased on it before plan 03-01 starts; it is a separate PR, not folded into this phase.
 
-**Plans**: 3/7 plans executed (one PR, through `make pr.land`)
+**Plans**: 4/7 plans executed (one PR, through `make pr.land`)
 
 Plans:
 **Wave 1**
@@ -147,7 +147,7 @@ Plans:
 - [x] 03-03-PLAN.md — The fine STL L11 measured over budget is refused on the API and the CLI and warned about on the info document
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 03-04-PLAN.md — `left_hand` on every kind, built and probed left-handed from the API and the CLI; repeated keys and flags refused
+- [x] 03-04-PLAN.md — `left_hand` on every kind, built and probed left-handed from the API and the CLI; repeated keys and flags refused
 
 **Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 03-05-PLAN.md — The page: the checkbox and its link round trip, foreign/repeated/unreadable hash keys refused, warnings kept per mesh; 01-UI-SPEC amended
@@ -234,7 +234,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 2 
 |-------|----------------|--------|-----------|
 | 1. Runtime Port and Walking Skeleton | 10/10 | Complete    | 2026-10-06 |
 | 2. Thread Spike | 8/8 | Complete    | 2026-10-09 |
-| 3. Real Helical Thread | 3/7 | In Progress | - |
+| 3. Real Helical Thread | 4/7 | In Progress | - |
 | 4. ISO Hex Bolts and Screws | 0/TBD | Not started | - |
 | 5. Hex Nut and Kernel Pair Proof | 0/TBD | Not started | - |
 | 6. Printed Pair Acceptance | 0/TBD | Not started | - |
