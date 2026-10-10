@@ -29,8 +29,8 @@ See: .planning/PROJECT.md (updated 2026-10-09)
 
 Phase: 3 — Real Helical Thread
 Plan: Not started
-Status: Phase 02 shipped — PR #6 merged 7615de2, pool-flake fix PR #7 merged 69436fb; harness review fixes shipped — PR #9 open (quick task 261010-lgv, Codex review pending)
-Last activity: 2026-10-10 - Shipped quick task 261010-lgv as PR #9 (Phase 2 harness review fixes); Codex cross-CLI review running
+Status: Phase 02 shipped — PR #6 merged 7615de2, pool-flake fix PR #7 merged 69436fb; harness review fixes shipped — PR #9 open (quick task 261010-lgv; Codex review REVISE, 3 findings fixed in 6994573, 0efbe35, cfcc776)
+Last activity: 2026-10-10 - PR #9 (harness review fixes) reviewed by Codex: REVISE, C1/C2 must and C3 nice, all fixed and pushed; awaiting CI and landing via make pr.land
 
 Progress: [███░░░░░░░] 29%
 
