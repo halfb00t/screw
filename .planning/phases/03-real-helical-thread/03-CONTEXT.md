@@ -179,6 +179,28 @@ Roadmap wording resolved by this discussion (planner: build to this, not to the 
   row was (`2026-10-08-a-grid`). No fade, no chamfer: ISO 4753 is unread (THRD-05, Phase 5) and
   an invented end is the plausible number L02 forbids. The bounding box is `d × d × length`.
 
+### Owner rulings on research open questions (planning session, 2026-10-10)
+- **D-17:** A `length` the kernel cannot model is refused at the builder doorway, not at the
+  params boundary: `helical.thread` raises `BuildError` when `not length >= MIN_TAIL_MM`
+  (1e-3 mm, INTERIM — research probe 2026-10-10 at `d=6, pitch=1`: `length <= 1e-8` mm SIGSEGVs
+  the worker before the THRD-04 gate can run, 3e-8…1e-6 mm raises, 1e-5 mm builds; Phase 7
+  re-measures). The same constant folds a sub-1e-3 mm remainder segment into the previous one so
+  the end face still sits at `z = length`. The existing `BuildError` path answers (`422
+  build_error` on the API naming `length`, exit 1 on the CLI); no `503 pool_broken` and no
+  silent exit 139 for a deterministic input. D-04's "no lower bound at the params boundary"
+  stands as written. Resolves 03-RESEARCH Open Question 1.
+  — **Reversibility:** reversible — one constant in the kernel module and its tests.
+- **D-18:** In-cap off-row cost (03-RESEARCH Pitfall 5: `d=100, pitch=5, length=1250` → fine STL
+  36.9M triangles, 7.9 GiB peak RSS, 153 s; preview 308 MiB; container limit 4 GiB, timeout 30 s)
+  is built as decided under D-01/D-03. No unmeasured guard is added (L02). The plan records the
+  figures in `docs/tech_debt/active/2026-10-05-interim-runtime-bounds.md` (Severity must,
+  Phase 7 trigger OPER-03). Resolves Open Question 2.
+- **D-19:** No `03-UI-SPEC.md`. The plan amends
+  `.planning/phases/01-runtime-port-and-walking-skeleton/01-UI-SPEC.md` in place (rules 2, 10,
+  15, 24, 29 per 03-RESEARCH) for the checkbox branch, the boolean hash round-trip, the
+  foreign-key refusal (D-10) and warnings kept on failure (D-11), each pinned by a test in the
+  same change. Resolves Open Question 7.
+
 ### Claude's Discretion
 - Exact turns from float fields: the spike's `thread()` takes an exact `turns` and never
   re-derives it from `length / pitch` (RESEARCH Pitfall 1: 168 of 3000 float `k·P` products
