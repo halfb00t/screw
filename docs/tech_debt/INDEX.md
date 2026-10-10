@@ -17,6 +17,7 @@ Severity (grep-able `Severity:` field):
 | Severity | Item | Trigger to revisit |
 |---|---|---|
 | must | [Two thread spike protocol amendments wait for the owner before the next campaign](active/2026-10-10-spike-protocol-amendments-before-next-campaign.md) | before the next thread-spike campaign runs |
+| must | [The in-process pair tests in tests/test_bench.py end the pytest process with exit 139](active/2026-10-10-bench-pair-tests-segfault-at-exit-when-run-serially.md) | a serial run of the bench tests is wanted in a script or CI |
 | must | [Interim runtime bounds are spur's figures, not screw's measurements](active/2026-10-05-interim-runtime-bounds.md) | Phase 7 operability re-sweep (OPER-02) |
 | must | [The web page rounds every displayed number in the browser](active/2026-10-06-ui-rounds-displayed-numbers.md) | before the Phase 4 plan that puts cited ISO rows on the info panel |
 | must | [bench.memory samples too coarsely to read a peak off a corpus that runs in seconds](active/2026-10-06-bench-memory-sampling-is-too-coarse-for-short-corpora.md) | before the Phase 7 memory sweep (OPER-02, OPER-03) |
