@@ -274,7 +274,7 @@ Nothing is tuned toward a pass: no constant, rule, tolerance, pose, block or sam
 
 ## Results
 
-Rule D-16 for this section: it cites, it does not transcribe. Every figure lives in the `## Thread spike (Phase 2)` section of `bench/RESULTS.md`, in the entry named here, and in the matching files under `bench/results/thread-spike/`. A reader who wants a number opens the entry; nothing below repeats one.
+Rule D-16 for this section: it cites, it does not transcribe. Every figure lives in the `## Thread spike (Phase 2)` section of `bench/RESULTS.md`, in the entry named here, and in the matching files under `bench/results/thread-spike/`. A reader who wants a measured value opens the entry; nothing below repeats one. The selected K, the grid's step names (turns) and the rules' outcomes are named below only to point at the entry: they are coordinates and verdicts, not measurements.
 
 ### Which runs, and how they were assembled
 
