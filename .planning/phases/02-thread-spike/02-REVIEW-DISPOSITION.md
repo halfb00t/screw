@@ -64,8 +64,8 @@ recorded: 2026-10-09T02:43:53.790Z
 | WR-02 | warning | fixed | 9a5a5c5: a --k-from sweep and a --frontier-from walk go through block_gaps, the walk at the locked K |
 | WR-03 | warning | deferred | owner ruling 2026-10-10 (Task 1): a D-17 protocol amendment (load readings and a downgrade rule), put off to before the next campaign; see docs/tech_debt/active/2026-10-10-spike-protocol-amendments-before-next-campaign.md |
 | WR-04 | warning | fixed | cc05a38: the nut-body check runs ahead of the mixed-hand branch |
-| WR-05 | warning | fixed | fix(bench): refuse a run while the harness has uncommitted changes and report the HEAD it started at; bench/results excluded so campaign output never refuses the next block; src added because the worker imports screw |
-| IN-01 | info | fixed | fix(bench): refuse a run while the harness has uncommitted changes and report the HEAD it started at: the report prints the HEAD the guard read at the start of the run |
+| WR-05 | warning | fixed | 0e2f437: the guard refuses on uncommitted harness changes; bench/results excluded so campaign output never refuses the next block; src added because the worker imports screw |
+| IN-01 | info | fixed | 0e2f437: the report prints the HEAD the guard read at the start of the run |
 | IN-02 | info | deferred | the 600 s is pre-registered (Protocol inputs, owner: they stand); 2026-10-08-a-pair recorded no timeout cell; changing it is an amendment for the owner before the next campaign; see docs/tech_debt/active/2026-10-10-spike-protocol-amendments-before-next-campaign.md |
 | IN-03 | info | skipped | unreachable: the parent builds every request line; if reached, worker_died fails the pass bar loudly |
 | IN-04 | info | skipped | both failure modes are caught downstream: a shell reads solids=0 and so silent_wrong; the nut-body check; a non-converged volume misses the closed form by more than T_PASS; a status check would only relabel a failing row |

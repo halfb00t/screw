@@ -3,7 +3,7 @@
 Severity: must
 Status: resolved
 Date: 2026-10-09
-Resolved in: fix(bench): refuse a run while the harness has uncommitted changes and report the HEAD it started at
+Resolved in: 0e2f437 (WR-05, IN-01, ledger and debt close), after be82c06 (WR-01), 9a5a5c5 (WR-02), cc05a38 (WR-04), a8bc769 (IN-06) and 2bf9a90 (IN-05) -- fix(bench): refuse a run while the harness has uncommitted changes and report the HEAD it started at
 Source: execute-phase code-review hook on Phase 2 (`.planning/phases/02-thread-spike/02-REVIEW.md`, ledger `02-REVIEW-DISPOSITION.md`); all twelve findings open
 Related files:
 - bench/thread_spike/__main__.py:1375 (WR-01: `verdict --campaign PREFIX` globs `PREFIX-*.jsonl`, so a prefix that extends another is read too, and the header's `block` is trusted over the file name)
@@ -64,7 +64,7 @@ One commit per finding; every code fix has the test that would have caught it.
   both hand pairings. Test:
   `test_a_mixed_hand_cell_on_a_nut_whose_body_misses_the_closed_form_is_not_a_violation`.
   02-SPIKE.md Rules (the pair cell, falsifiability) carry dated amendment notes.
-- WR-05 fixed, fix(bench): refuse a run while the harness has uncommitted changes and report the HEAD it started at. `read_guard` runs `git status --porcelain` over the harness and
+- WR-05 fixed, 0e2f437. `read_guard` runs `git status --porcelain` over the harness and
   `protocol_guard(..., uncommitted=...)` refuses, naming the paths. Tests:
   `test_the_guard_refuses_while_the_harness_has_uncommitted_changes_naming_them`,
   `test_the_guard_reads_real_git_and_refuses_an_uncommitted_harness_change_but_not_campaign_output`,
@@ -75,7 +75,7 @@ One commit per finding; every code fix has the test that would have caught it.
   under `bench/results/thread-spike/` before the next block asks the guard, so the literal
   command would refuse every block after the first; the worker imports `screw` through
   `bench/build_time.py` and `bench/export_cost.py`, so a change under `src` changes the run.
-- IN-01 fixed, fix(bench): refuse a run while the harness has uncommitted changes and report the HEAD it started at. `_head()` is gone; the report prints the HEAD the guard read at the
+- IN-01 fixed, 0e2f437. `_head()` is gone; the report prints the HEAD the guard read at the
   start of the run, and every git call goes through `_git` with `cwd=_REPO_ROOT`. Test: the
   HEAD line in `test_a_run_writes_its_header_first_then_one_row_per_line_and_never_overwrites_itself`.
 - IN-02 deferred, owner ruling 2026-10-10 (Task 1), same new item as WR-03.

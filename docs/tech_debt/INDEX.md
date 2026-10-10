@@ -32,4 +32,4 @@ Severity (grep-able `Severity:` field):
 | Item | Resolved in |
 |---|---|
 | [The pool's dying-worker test failed once under host load](resolved/2026-10-06-test-pool-dying-worker-flake.md) | ef37f23 (PR #7) — test(pool): free the wedged test's dead-worker semaphores before it returns |
-| [The thread spike harness carries five open review warnings that PR 2 may not fix](resolved/2026-10-09-thread-spike-harness-review-findings.md) | fix(bench): refuse a run while the harness has uncommitted changes and report the HEAD it started at |
+| [The thread spike harness carries five open review warnings that PR 2 may not fix](resolved/2026-10-09-thread-spike-harness-review-findings.md) | 0e2f437 -- fix(bench): refuse a run while the harness has uncommitted changes and report the HEAD it started at |
