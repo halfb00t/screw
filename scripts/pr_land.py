@@ -50,8 +50,9 @@ from pathlib import Path
 
 from scripts.skip_tokens import find_skip_tokens
 
-# The one workflow this repository has (RESEARCH.md "Verified Live State": confirmed
-# live there is no second workflow whose runs could be confused with this one's).
+# The one workflow whose runs gate a merge (L08). `grid.yml`, the slow thread tier (D-14), is
+# a second workflow that is never required and whose runs this script never reads: every
+# query below names this file, so a grid run cannot stand in for the gate.
 WORKFLOW = "ci.yml"
 
 # Next to ci.yml (D-05): GitHub treats only .yml/.yaml files in that directory as
