@@ -11,7 +11,7 @@ state_head: e079ef243f08cf639a9194687c8e3f2229140cb5
 progress:
   total_phases: 7
   completed_phases: 2
-  total_plans: 18
+  total_plans: 25
   completed_plans: 18
   percent: 29
 ---
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-10-09)
 
 ## Current Position
 
-Phase: 3 — Real Helical Thread
+Phase: 3 (Real Helical Thread) — READY TO EXECUTE
 Plan: Not started
 Status: Phase 02 shipped — PR #6 merged 7615de2, pool-flake fix PR #7 merged 69436fb; harness review fixes shipped — PR #9 open (quick task 261010-lgv; Codex review REVISE, 3 findings fixed in 6994573, 0efbe35, cfcc776)
 Last activity: 2026-10-10 - PR #9 (harness review fixes) reviewed by Codex: REVISE, C1/C2 must and C3 nice, all fixed and pushed; awaiting CI and landing via make pr.land

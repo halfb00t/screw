@@ -16,7 +16,7 @@
     {
       "number": "3",
       "name": "Real Helical Thread",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "number": "4",
@@ -40,9 +40,9 @@
     }
   ],
   "next": {
-    "command": "/gsd:progress --next",
-    "label": "Advance to the next step (plan phase 3)",
-    "reason": "Phase 3 of 7 — needs a plan"
+    "command": "/gsd:progress",
+    "label": "Show progress",
+    "reason": "Unsure of state — showing progress"
   },
-  "updated_at": "2026-10-09T14:42:18.099Z"
+  "updated_at": "2026-10-10T08:56:50.664Z"
 }
