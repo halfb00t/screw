@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: Real Helical Thread
 status: executing
-stopped_at: Completed 03-02-PLAN.md
-last_updated: "2026-10-10T14:11:27.140Z"
+stopped_at: Completed 03-03-PLAN.md
+last_updated: "2026-10-10T14:20:10.818Z"
 last_activity: 2026-10-10
 last_activity_desc: Phase 03 execution started
-state_head: 471d9885f0dc062532ffc4d37fb150a61f27e5ad
+state_head: 515f030be663c07868a6baa8f58a34b31e45d504
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 25
-  completed_plans: 20
+  completed_plans: 21
   percent: 29
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-09)
 ## Current Position
 
 Phase: 03 (Real Helical Thread) — EXECUTING
-Plan: 3 of 7
+Plan: 4 of 7
 Status: Ready to execute
 Last activity: 2026-10-10 — Phase 03 execution started
 
@@ -77,6 +77,7 @@ Progress: [███░░░░░░░] 29%
 | Phase 02 P08 | 61 min | 3 tasks | 5 files |
 | Phase 03 P01 | 11 min | 3 tasks | 11 files |
 | Phase 03 P02 | 6 min | 2 tasks | 9 files |
+| Phase 03 P03 | 7min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -117,6 +118,9 @@ Recent decisions affecting current work:
 - [Phase 03]: 03-01: helical.thread takes the length in mm, folds a tail below MIN_TAIL_MM (1e-3, INTERIM) into the previous segment, and refuses a shorter or NaN length with a BuildError before the kernel runs (D-17)
 - [Phase 03]: 03-02: root-radius (pitch_too_coarse) and 250-turn (turn_cap) refusals are 422s naming both fields; the cap reads length and pitch as exact decimals (Fraction(repr(x))) — Accepts all 15 measured 250-turn rows incl. M4 175 mm at 0.7; a trim would silently change the part (L02)
 - [Phase 03]: 03-02: STANDING_WARNING 'threaded rod: no head, plain-cut thread ends; not a product build' replaces the skeleton warning; computed info rows are finite-or-warned — D-05, D-06
+- [Phase 03]: download_refusal dispatches on the kind before fmt and quality, so an unregistered kind is a TypeError on every call
+- [Phase 03]: CLI over-budget fine STL refusal exits 2 (parameter choice refused); BuildError keeps exit 1
+- [Phase 03]: FINE_STL_ROWS caps apply unconditionally and only to the seven measured (d, pitch) rows; an off-row part gets no cap (L02)
 
 ### Pending Todos
 
@@ -150,6 +154,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-10T14:11:27.103Z
-Stopped at: Completed 03-02-PLAN.md
+Last session: 2026-10-10T14:20:10.770Z
+Stopped at: Completed 03-03-PLAN.md
 Resume file: None
