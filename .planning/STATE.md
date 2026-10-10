@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: Real Helical Thread
 status: executing
-stopped_at: Phase 3 context gathered
-last_updated: "2026-10-10T13:40:47.557Z"
+stopped_at: Completed 03-01-PLAN.md
+last_updated: "2026-10-10T13:55:54.052Z"
 last_activity: 2026-10-10
 last_activity_desc: Phase 03 execution started
-state_head: 8d3816786d130af7cd9ea87a033fde992816149e
+state_head: de9304ede0c8c02e712b658b60d19a0762bf7db6
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 25
-  completed_plans: 18
+  completed_plans: 19
   percent: 29
 ---
 
@@ -28,8 +28,8 @@ See: .planning/PROJECT.md (updated 2026-10-09)
 ## Current Position
 
 Phase: 03 (Real Helical Thread) — EXECUTING
-Plan: 1 of 7
-Status: Executing Phase 03
+Plan: 2 of 7
+Status: Ready to execute
 Last activity: 2026-10-10 — Phase 03 execution started
 
 Progress: [███░░░░░░░] 29%
@@ -75,6 +75,7 @@ Progress: [███░░░░░░░] 29%
 | Phase 02 P06 | 5 min | 3 tasks | 5 files |
 | Phase 02 P07 | 8 min | 3 tasks | 20 files |
 | Phase 02 P08 | 61 min | 3 tasks | 5 files |
+| Phase 03 P01 | 11 min | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -111,6 +112,8 @@ Recent decisions affecting current work:
 - [Phase 02]: 02-06: the Task 2 cross-CLI review is recorded as satisfied out of band by the owner merging PR 5; the evidence is indirect (finding ids F4 and G6 in the protocol, fix commits after Task 1, no GitHub review object) and flagged for human acceptance — Reviewer identity and findings list are unverified from the repo; coverage D5 in 02-06-SUMMARY.md sets human_judgment true.
 - [Phase 02]: 02-07: campaign 2026-10-08-a ran on an Apple M5 Max (protocol registers M2 Max) without amending the protocol's Environment section; kernel pair identical, so no re-measure trigger — Owner chose option A on 2026-10-08.
 - [Phase 02]: 02-07: owner overrode ruling R4 (campaign ran with agent sessions and other apps open); ksweep, grid, frontier and container are recorded non-decisive and nothing was re-run toward a pass — Owner: 'No, I don't want to idle for the whole day. Run yourself as is, I won't exit any app'.
+- [Phase 03]: 03-01: the THRD-04 gate reads the signed precise-volume error and refuses on 'not abs(rel) <= T_GATE' inside the function lru_cache wraps, so a refused build is never cached or exported
+- [Phase 03]: 03-01: helical.thread takes the length in mm, folds a tail below MIN_TAIL_MM (1e-3, INTERIM) into the previous segment, and refuses a shorter or NaN length with a BuildError before the kernel runs (D-17)
 
 ### Pending Todos
 
@@ -144,6 +147,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-10T06:31:00.170Z
-Stopped at: Phase 3 context gathered
-Resume file: .planning/phases/03-real-helical-thread/03-CONTEXT.md
+Last session: 2026-10-10T13:55:54.012Z
+Stopped at: Completed 03-01-PLAN.md
+Resume file: None

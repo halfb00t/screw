@@ -134,11 +134,11 @@ Plans:
 
 **Precondition (owner, 2026-10-10, D-13)**: the harness-review `/gsd-quick` PR (`docs/tech_debt/active/2026-10-09-thread-spike-harness-review-findings.md`) is merged on `main` and `gsd/phase-03-real-helical-thread` is rebased on it before plan 03-01 starts; it is a separate PR, not folded into this phase.
 
-**Plans**: 7 plans (one PR, through `make pr.land`)
+**Plans**: 1/7 plans executed (one PR, through `make pr.land`)
 
 Plans:
 **Wave 1**
-- [ ] 03-01-PLAN.md — Tracer: the default bolt is the gated L11 thread on API, CLI and pool; positive controls and the make-verify sample; broken exports refused, collapsed-solid blocker retired
+- [x] 03-01-PLAN.md — Tracer: the default bolt is the gated L11 thread on API, CLI and pool; positive controls and the make-verify sample; broken exports refused, collapsed-solid blocker retired
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 03-02-PLAN.md — Root-radius and 250-turn 422s at the params boundary; the info document describes the thread with the threaded-rod warning
@@ -234,7 +234,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 2 
 |-------|----------------|--------|-----------|
 | 1. Runtime Port and Walking Skeleton | 10/10 | Complete    | 2026-10-06 |
 | 2. Thread Spike | 8/8 | Complete    | 2026-10-09 |
-| 3. Real Helical Thread | 0/7 | Planned | - |
+| 3. Real Helical Thread | 1/7 | In Progress | - |
 | 4. ISO Hex Bolts and Screws | 0/TBD | Not started | - |
 | 5. Hex Nut and Kernel Pair Proof | 0/TBD | Not started | - |
 | 6. Printed Pair Acceptance | 0/TBD | Not started | - |
