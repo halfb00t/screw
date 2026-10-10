@@ -1,7 +1,8 @@
 """The spike's command line (kernel-free parent): `python -m bench.thread_spike <command>`.
 
-`check-protocol` refuses (exit 2) until the pre-registered protocol is on `origin/main`: no
-campaign run may start before that (SC1, D-16, D-19).
+`check-protocol` refuses (exit 2) until the pre-registered protocol is on `origin/main` and the
+harness tree (bench except bench/results, src, pyproject.toml, the protocol) is committed, so the
+HEAD a run records is the code that ran: no campaign run may start before that (SC1, D-16, D-19).
 
 `smoke` builds one M6 right-hand 5-turn rod in a worker subprocess, checks it against the
 closed form and prints a Markdown report. It is not a campaign run: no run id, never recorded in
@@ -170,6 +171,13 @@ def _git(*args: str) -> subprocess.CompletedProcess[str]:
                           cwd=_REPO_ROOT)
 
 
+# The tree a run's header names by HEAD: the harness, the package its worker imports (via
+# bench/build_time.py and bench/export_cost.py) and the protocol. bench/results is excluded
+# because `run_campaign` writes <prefix>-campaign.md there, and every block its JSONL, before the
+# next block asks the guard: counting them would refuse every block after the first.
+_HARNESS_PATHS = ("bench", ":(exclude)bench/results", "src", "pyproject.toml", PROTOCOL_PATH)
+
+
 @dataclass(frozen=True)
 class GuardFacts:
     """The guard's verdict and the facts a run header prints beside it."""
@@ -197,8 +205,13 @@ def read_guard(fetch: bool) -> GuardFacts:
         "merge-base", "--is-ancestor", main_commit, "HEAD").returncode == 0
     blob = _git("rev-parse", f"origin/main:{PROTOCOL_PATH}")
     head = _git("rev-parse", "HEAD")
+    # -uall so an untracked file is named, not its directory.
+    status = _git("status", "--porcelain", "--untracked-files=all", "--", *_HARNESS_PATHS)
+    uncommitted = (tuple(line.strip() for line in status.stdout.splitlines())
+                   if status.returncode == 0 else (f"git status failed: {status.stderr.strip()}",))
     return GuardFacts(
-        protocol_guard(local_text, main_text, fetched=fetched, landed_is_ancestor=is_ancestor),
+        protocol_guard(local_text, main_text, fetched=fetched, landed_is_ancestor=is_ancestor,
+                       uncommitted=uncommitted),
         blob.stdout.strip() if blob.returncode == 0 else "none",
         main_commit or "none",
         head.stdout.strip() if head.returncode == 0 else "unknown",
@@ -221,13 +234,6 @@ def check_protocol() -> int:
 
 def _reading_line(reading: Reading, note: str = "") -> str:
     return f"- load1 {reading.load1:.2f} read {reading.utc}{note}"
-
-
-def _head() -> str:
-    return subprocess.run(
-        ["git", "rev-parse", "--short", "HEAD"],
-        capture_output=True, text=True, check=True,
-    ).stdout.strip()
 
 
 def _smoke_request() -> RowRequest:
@@ -280,14 +286,15 @@ def _table_row(record: RowRecord, row_class: str, closed: float) -> str:
 def smoke() -> int:
     """One rod row end to end. Exit 0 only when the row classifies ok."""
     quiet = wait_quiet(cap=0.0)  # one reading; non-decisive by construction
+    facts = read_guard(fetch=False)
     print("## Thread spike smoke")
     print()
-    for line in _environment_lines():
+    for line in _environment_lines(facts.head):
         print(line)
     for reading in quiet.readings:
         print(_reading_line(reading, " (at start)"))
     print("- Quiet gate: smoke: quiet gate not waited")
-    guard = read_guard(fetch=False).result
+    guard = facts.result
     state = "held" if guard.held else "refused -- " + "; ".join(guard.reasons)
     print(f"- Protocol guard (informational in smoke (not fetched); never enforced here): {state}")
     print()
@@ -1138,11 +1145,11 @@ def _frontier_rows(frontier_from: str, results_dir: Path, k: int) -> list[RowRec
     return rows
 
 
-def _environment_lines() -> list[str]:
+def _environment_lines(head: str) -> list[str]:
     versions = ", ".join(f"{dist} {metadata.version(dist)}"
                          for dist in ("cadquery", "cadquery-ocp"))
     return [f"- Machine: {machine_facts()}", f"- Python: {platform.python_version()}",
-            f"- Kernel: {versions}", f"- HEAD: `{_head()}`"]
+            f"- Kernel: {versions}", f"- HEAD: `{head}`"]
 
 
 def _release_line(quiet: QuietResult) -> str:
@@ -1264,7 +1271,7 @@ def run_block(block: str, run_id: str, k_from: str | None, *,
         campaign.close()
         sink.close()
     head_lines = [
-        f"## Thread spike run {run_id}", "", *_environment_lines(),
+        f"## Thread spike run {run_id}", "", *_environment_lines(facts.head),
         f"- Protocol blob: `{facts.main_blob}`", f"- Protocol commit: `{facts.main_commit}`",
         f"- Block: {block}", f"- K: {'swept' if k is None else k} ({k_source})",
         *(_reading_line(r) for r in quiet.readings),
@@ -1296,9 +1303,10 @@ def smoke_block(block: str) -> int:
             print(f"refused: {why}", file=sys.stderr)
             return 2
     quiet = wait_quiet(cap=0.0)
+    facts = read_guard(fetch=False)
     print(f"## Thread spike smoke: {block}")
     print()
-    for line in _environment_lines():
+    for line in _environment_lines(facts.head):
         print(line)
     if image is not None:
         for line in _container_lines(image):
@@ -1306,7 +1314,7 @@ def smoke_block(block: str) -> int:
     for reading in quiet.readings:
         print(_reading_line(reading, " (at start)"))
     print("- Quiet gate: smoke: quiet gate not waited")
-    guard = read_guard(fetch=False).result
+    guard = facts.result
     state = "held" if guard.held else "refused -- " + "; ".join(guard.reasons)
     print(f"- Protocol guard (informational in smoke (not fetched); never enforced here): {state}")
     print()
@@ -1338,14 +1346,15 @@ def smoke_pair() -> int:
     the cell ran, whatever the verdict (a false-empty control is a measured outcome, not a defect
     of the harness), 1 when it failed, timed out or its worker died."""
     quiet = wait_quiet(cap=0.0)
+    facts = read_guard(fetch=False)
     print("## Thread spike smoke: pair")
     print()
-    for line in _environment_lines():
+    for line in _environment_lines(facts.head):
         print(line)
     for reading in quiet.readings:
         print(_reading_line(reading, " (at start)"))
     print("- Quiet gate: smoke: quiet gate not waited")
-    guard = read_guard(fetch=False).result
+    guard = facts.result
     state = "held" if guard.held else "refused -- " + "; ".join(guard.reasons)
     print(f"- Protocol guard (informational in smoke (not fetched); never enforced here): {state}")
     print()

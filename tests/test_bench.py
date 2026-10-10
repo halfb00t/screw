@@ -1028,8 +1028,10 @@ _PROTOCOL = "# Phase 2\n\n## Question\nWhich construction?\n\n## Results\n\nNo r
 
 
 def _guard(local: str | None = _PROTOCOL, main: str | None = _PROTOCOL, *,
-           fetched: bool = True, ancestor: bool = True) -> tuple[bool, tuple[str, ...]]:
-    result = protocol_guard(local, main, fetched=fetched, landed_is_ancestor=ancestor)
+           fetched: bool = True, ancestor: bool = True,
+           uncommitted: tuple[str, ...] = ()) -> tuple[bool, tuple[str, ...]]:
+    result = protocol_guard(local, main, fetched=fetched, landed_is_ancestor=ancestor,
+                            uncommitted=uncommitted)
     return result.held, result.reasons
 
 
@@ -1087,6 +1089,15 @@ def test_the_guard_refuses_when_the_protocol_commit_is_not_an_ancestor_of_head()
     assert not held
     assert len(reasons) == 1
     assert "ancestor" in reasons[0]
+
+
+def test_the_guard_refuses_while_the_harness_has_uncommitted_changes_naming_them() -> None:
+    held, reasons = _guard(uncommitted=("M bench/thread_spike/verdict.py",))
+    assert not held
+    assert len(reasons) == 1
+    assert "uncommitted changes to the harness" in reasons[0]
+    assert "bench/thread_spike/verdict.py" in reasons[0]
+    assert _guard(uncommitted=()) == (True, ())
 
 
 def test_the_guard_names_every_reason_not_only_the_first() -> None:
@@ -1196,7 +1207,38 @@ def test_the_guard_refuses_an_edit_before_results_and_allows_one_after_it(
     assert spike_cli.check_protocol() == 2
     assert "differs" in capsys.readouterr().err
     path.write_text(_PROTOCOL.replace("No run yet.", "Run 1: see bench/RESULTS.md."))
+    assert spike_cli.check_protocol() == 2  # allowed text, but the tree is no longer HEAD
+    err = capsys.readouterr().err
+    assert "uncommitted changes to the harness" in err
+    assert "differs" not in err
+    _git(work, "commit", "-am", "results")
+    assert spike_cli.check_protocol() == 0  # committed: HEAD is the tree, and it differs from main
+
+
+def test_the_guard_reads_real_git_and_refuses_an_uncommitted_harness_change_but_not_campaign_output(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    work, _ = _repo_with_protocol(tmp_path, monkeypatch, landed=True)
+    verdict = work / "bench" / "thread_spike" / "verdict.py"
+    verdict.parent.mkdir(parents=True)
+    verdict.write_text("T_PASS = 1e-4\n")
+    _git(work, "add", "bench")
+    _git(work, "commit", "-m", "harness")
+    # What a campaign writes before the next block asks the guard: it must never refuse.
+    campaign = work / "bench" / "results" / "thread-spike" / "c1-campaign.md"
+    campaign.parent.mkdir(parents=True)
+    campaign.write_text("## Thread spike campaign c1\n")
     assert spike_cli.check_protocol() == 0
+    capsys.readouterr()
+    verdict.write_text("T_PASS = 1e-2\n")
+    assert spike_cli.check_protocol() == 2
+    assert "bench/thread_spike/verdict.py" in capsys.readouterr().err
+    _git(work, "checkout", "--", "bench/thread_spike/verdict.py")
+    stray = work / "src" / "screw" / "x.py"
+    stray.parent.mkdir(parents=True)
+    stray.write_text("x = 1\n")
+    assert spike_cli.check_protocol() == 2
+    assert "src/screw/x.py" in capsys.readouterr().err
 
 
 # --- Pre-registered rod verdict rules (Phase 2, plan 02-03): synthetic records, no kernel ---
@@ -1821,6 +1863,7 @@ def test_a_run_writes_its_header_first_then_one_row_per_line_and_never_overwrite
     assert parse_result_row(lines[1])["kind"] == "rod"
     text = capsys.readouterr().out
     assert text == (tmp_path / "2026-10-08-a-grid.md").read_text()
+    assert "- HEAD: `" + "a" * 40 + "`" in text  # the guard's start-of-run head, not a fresh read
     assert "release: decisive at 2026-10-08T09:00:30+00:00" in text
     assert "load1 1.20 read 2026-10-08T09:00:00+00:00" in text
     assert "includes this run's own load" in text

@@ -605,7 +605,7 @@ class GuardResult:
 
 
 def protocol_guard(local_text: str | None, main_text: str | None, *, fetched: bool,
-                   landed_is_ancestor: bool) -> GuardResult:
+                   landed_is_ancestor: bool, uncommitted: tuple[str, ...]) -> GuardResult:
     """Whether the pre-registered protocol is on `origin/main`, as a pure predicate over what
     git said (the caller reads git; this decides). Every failed check is named, not only the
     first.
@@ -617,6 +617,10 @@ def protocol_guard(local_text: str | None, main_text: str | None, *, fetched: bo
     be an ancestor of HEAD, or the branch was cut before the squash and its run would post-date
     nothing (RESEARCH Pattern 6, Pitfall 10). Text after `## Results` may differ freely: PR 2
     writes the Results and the Verdict there.
+
+    The HEAD a run header records is its provenance, so the tree must be HEAD: `uncommitted` are
+    the `git status --porcelain` lines for the harness (the caller picks the paths), and any one
+    refuses. Otherwise an edit to T_PASS or the builder would run under a clean-looking sha.
     """
     reasons: list[str] = []
     if not fetched:
@@ -636,6 +640,9 @@ def protocol_guard(local_text: str | None, main_text: str | None, *, fetched: bo
     if not landed_is_ancestor:
         reasons.append("origin/main's protocol commit is not an ancestor of HEAD "
                        "(a branch cut before the squash?)")
+    if uncommitted:
+        reasons.append(f"uncommitted changes to the harness, so HEAD is not the tree that would "
+                       f"run: {_some(uncommitted)}")
     return GuardResult(held=not reasons, reasons=tuple(reasons))
 
 
