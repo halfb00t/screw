@@ -3658,6 +3658,32 @@ def test_a_frontier_from_walk_that_is_incomplete_foreign_or_at_another_k_is_refu
     assert not (tmp_path / "a-rss.jsonl").exists()
 
 
+def test_a_complete_sweep_and_walk_at_the_locked_k_run_the_rss_block_on_the_walk_terminals(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    _held(monkeypatch)
+    _m6_only(monkeypatch)
+    seen: list[tuple[str, bool, int]] = []
+
+    def rss(c: spike_cli.Campaign, k: int, smoke: bool) -> None:
+        assert c.frontier_rows is not None
+        seen.extend(spike_cli._frontier_terminals(c.frontier_rows))
+        _one_row_block(c, k, smoke)
+
+    monkeypatch.setitem(spike_cli._BLOCKS, "rss", rss)
+    _write_run(tmp_path / "sweep.jsonl", "ksweep", _m6_ksweep())
+    _write_run(tmp_path / "front.jsonl", "frontier", _full_walk("M6", None, k=_LOCKED_K),
+               k=_LOCKED_K)
+    assert spike_cli.run_block("rss", "a-rss", "sweep", results_dir=tmp_path,
+                               frontier_from="front") == 0
+    lines = (tmp_path / "a-rss.jsonl").read_text().splitlines()
+    header = json.loads(lines[0])
+    assert (header["block"], header["k"]) == ("rss", _LOCKED_K)
+    assert len(lines) == 2  # the header, then the stub's one row
+    assert seen == [("M6", False, 250), ("M6", True, 250)]
+    assert f"- K: {_LOCKED_K}" in capsys.readouterr().out
+
+
 def test_smoke_rss_runs_one_real_fresh_child_and_prints_its_peak_and_the_table(
         capsys: pytest.CaptureFixture[str]) -> None:
     assert spike_cli.smoke_block("rss") == 0
