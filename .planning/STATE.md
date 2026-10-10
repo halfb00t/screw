@@ -29,8 +29,8 @@ See: .planning/PROJECT.md (updated 2026-10-09)
 
 Phase: 3 — Real Helical Thread
 Plan: Not started
-Status: Phase 02 shipped — PR #6 merged 7615de2, pool-flake fix PR #7 merged 69436fb
-Last activity: 2026-10-10 - Completed quick task 261010-lgv: fix Phase 2 harness review findings WR-01/02/04/05, close the review ledger, resolve the debt item
+Status: Phase 02 shipped — PR #6 merged 7615de2, pool-flake fix PR #7 merged 69436fb; harness review fixes shipped — PR #9 open (quick task 261010-lgv, Codex review pending)
+Last activity: 2026-10-10 - Shipped quick task 261010-lgv as PR #9 (Phase 2 harness review fixes); Codex cross-CLI review running
 
 Progress: [███░░░░░░░] 29%
 
@@ -124,7 +124,7 @@ None yet.
 - Coarse pitch only (TABL-05) vs contract 6 (`params` never imports `tables`): how an explicit non-coarse pitch is handled (refuse, or build and show row-dependent numbers as warnings) is a Phase 3/4 discussion question.
 - Pair-proof reliability on the full grid is measured (`2026-10-08-a-pair`, decisive): falsifiable on both hands at every size except M18, which is not falsifiable on either hand (all four proof clearances excluded) (L11).
 - Phase 5 not planned until the roadmap is revised (L11, SC5): M18 not falsifiable (right, left hand) in `2026-10-08-a-pair`; the owner chose "revise" on 2026-10-09 and named no direction yet. Phase 3 is plannable.
-- Phase 3 starts on `main` at `69436fb`: Phase 2 PR 2 merged as `7615de2` (PR #6, 2026-10-09) and the pool-test flake it waited on is fixed in PR #7 (`docs/tech_debt/resolved/2026-10-06-test-pool-dying-worker-flake.md`). The Phase 2 harness review findings are closed on branch `fix/phase-2-harness-review` (quick task 261010-lgv, `docs/tech_debt/resolved/2026-10-09-thread-spike-harness-review-findings.md`); WR-03 and IN-02 wait for the owner in `docs/tech_debt/active/2026-10-10-spike-protocol-amendments-before-next-campaign.md` (must, before the next campaign). Phase 3 waits for that branch to land on `main`.
+- Phase 3 starts on `main` at `69436fb`: Phase 2 PR 2 merged as `7615de2` (PR #6, 2026-10-09) and the pool-test flake it waited on is fixed in PR #7 (`docs/tech_debt/resolved/2026-10-06-test-pool-dying-worker-flake.md`). The Phase 2 harness review findings are closed on branch `fix/phase-2-harness-review`, PR #9 (quick task 261010-lgv, `docs/tech_debt/resolved/2026-10-09-thread-spike-harness-review-findings.md`); WR-03 and IN-02 wait for the owner in `docs/tech_debt/active/2026-10-10-spike-protocol-amendments-before-next-campaign.md` (must, before the next campaign). Phase 3 waits for that branch to land on `main`.
 - Printability threshold (INFO-04): a printed test over M6–M12 cannot locate a floor below M6; Phase 6 must widen the matrix or warn below the smallest size it proved.
 - Every research number is single-machine macOS arm64; linux/amd64 is unverified until Phase 7.
 
