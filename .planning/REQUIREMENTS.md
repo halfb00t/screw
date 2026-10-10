@@ -11,10 +11,10 @@ Requirements for the first release: the mating-pair cut (infra port, thread spik
 
 ### Thread Geometry
 
-- [ ] **THRD-01**: Every threaded part carries a real helical ISO metric coarse-pitch thread (ISO 68-1:2023 profile; basic vs design profile pinned by the thread spike's decision entry after the standard is read). There is no cosmetic or unthreaded option in v1.
-- [ ] **THRD-02**: User can choose a left-hand thread via a boolean `left_hand` field (default right-hand); a left-hand pair is proven by the same checks as a right-hand pair.
+- [x] **THRD-01**: Every threaded part carries a real helical ISO metric coarse-pitch thread (ISO 68-1:2023 profile; basic vs design profile pinned by the thread spike's decision entry after the standard is read). There is no cosmetic or unthreaded option in v1.
+- [x] **THRD-02**: User can choose a left-hand thread via a boolean `left_hand` field (default right-hand); a left-hand pair is proven by the same checks as a right-hand pair.
 - [ ] **THRD-03**: User sets `thread_length` on a bolt as explicit millimetres; the ISO 4017 preset fills it with the full length, the ISO 4014 preset fills `b` from the table by length band; the user may edit it afterwards.
-- [ ] **THRD-04**: Every thread build is gated by a postcondition — valid shape, exactly one solid, volume within a stated tolerance of the closed-form value (sign included) — and a failed gate is a `BuildError` naming what failed, never a cached or served solid. `isValid()` alone is never the gate; the gate has a positive-control test fed a known-bad build.
+- [x] **THRD-04**: Every thread build is gated by a postcondition — valid shape, exactly one solid, volume within a stated tolerance of the closed-form value (sign included) — and a failed gate is a `BuildError` naming what failed, never a cached or served solid. `isValid()` alone is never the gate; the gate has a positive-control test fed a known-bad build.
 - [ ] **THRD-05**: Nut thread and bolt tip carry lead-in chamfers (bolt ends per ISO 4753 — clause UNVERIFIED until the standard is read) so a printed pair can start.
 
 ### Mating Pair
@@ -117,10 +117,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| THRD-01 | Phase 3 | Pending |
-| THRD-02 | Phase 3 | Pending |
+| THRD-01 | Phase 3 | Complete |
+| THRD-02 | Phase 3 | Complete |
 | THRD-03 | Phase 4 | Pending |
-| THRD-04 | Phase 3 | Pending |
+| THRD-04 | Phase 3 | Complete |
 | THRD-05 | Phase 5 | Pending |
 | PAIR-01 | Phase 5 | Pending |
 | PAIR-02 | Phase 6 | Pending |

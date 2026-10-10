@@ -134,7 +134,7 @@ Plans:
 
 **Precondition (owner, 2026-10-10, D-13)**: the harness-review `/gsd-quick` PR (`docs/tech_debt/active/2026-10-09-thread-spike-harness-review-findings.md`) is merged on `main` and `gsd/phase-03-real-helical-thread` is rebased on it before plan 03-01 starts; it is a separate PR, not folded into this phase.
 
-**Plans**: 6/7 plans executed (one PR, through `make pr.land`)
+**Plans**: 7/7 plans executed (one PR, through `make pr.land`)
 
 Plans:
 **Wave 1**
@@ -156,7 +156,7 @@ Plans:
 - [x] 03-06-PLAN.md — The spike imports the shipped maths, builder and estimator back; the full measured grid in `grid.yml` outside the required jobs
 
 **Wave 7** *(blocked on Wave 6 completion)*
-- [ ] 03-07-PLAN.md — L12, the docs, the INTERIM register and the fix shas; coverage floor re-measured
+- [x] 03-07-PLAN.md — L12, the docs, the INTERIM register and the fix shas; coverage floor re-measured
 
 **UI hint**: yes
 
@@ -234,7 +234,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 2 
 |-------|----------------|--------|-----------|
 | 1. Runtime Port and Walking Skeleton | 10/10 | Complete    | 2026-10-06 |
 | 2. Thread Spike | 8/8 | Complete    | 2026-10-09 |
-| 3. Real Helical Thread | 6/7 | In Progress | - |
+| 3. Real Helical Thread | 7/7 | In Progress | - |
 | 4. ISO Hex Bolts and Screws | 0/TBD | Not started | - |
 | 5. Hex Nut and Kernel Pair Proof | 0/TBD | Not started | - |
 | 6. Printed Pair Acceptance | 0/TBD | Not started | - |

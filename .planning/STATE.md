@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: Real Helical Thread
-status: executing
-stopped_at: Completed 03-06-PLAN.md
-last_updated: "2026-10-10T16:36:48.401Z"
+status: verifying
+stopped_at: Completed 03-07-PLAN.md
+last_updated: "2026-10-10T16:53:17.136Z"
 last_activity: 2026-10-10
 last_activity_desc: Phase 03 execution started
-state_head: 23f9d7a7f0165d9781b1f632508734d4cdc08fd0
+state_head: 669586de875ee4413df3b652d7cb2c2170f71a53
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 25
-  completed_plans: 24
+  completed_plans: 25
   percent: 29
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-10-09)
 
 Phase: 03 (Real Helical Thread) — EXECUTING
 Plan: 7 of 7
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-10-10 — Phase 03 execution started
 
 Progress: [███░░░░░░░] 29%
@@ -81,6 +81,7 @@ Progress: [███░░░░░░░] 29%
 | Phase 03 P04 | 7 min | 2 tasks | 11 files |
 | Phase 03 P05 | 8 min | 3 tasks | 7 files |
 | Phase 03 P06 | 21min | 2 tasks | 14 files |
+| Phase 03 P07 | 12 min | 3 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -132,6 +133,8 @@ Recent decisions affecting current work:
 - [Phase 03]: bench imports the shipped maths, builder and estimator back from src/; worker passes the exact grid length and pair._span replaces _turns
 - [Phase 03]: The slow grid tier is a grid pytest marker deselected by addopts, run by make grid [SIZE=] and grid.yml (dispatch + weekly schedule, contents: read, one job per size), outside ci.yml and required-jobs.txt
 - [Phase 03]: Local M3.5 and M4 shards passed every row (131.89 s, 148.15 s); GitHub-runner wall time stays unmeasured until the first workflow_dispatch
+- [Phase 03]: 03-07: L12 reads L11's cap-and-warn input as a refusal for the 250-turn and fine-STL artefacts (explicit length, L02), recorded in the entry and not as a superseding entry — D-15; length is an explicit choice, trimming builds a part the user did not ask for
+- [Phase 03]: 03-07: coverage floor re-measured by spur L34 (serial 96.66, -n 8 97.02/96.66/97.02; L 96.66, S 0.36): fail_under 94 to 96 — bench/RESULTS.md Coverage floor (Phase 3); a floor on what the suite covers, not a correctness fraction
 
 ### Pending Todos
 
@@ -166,6 +169,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-10T16:36:48.365Z
-Stopped at: Completed 03-06-PLAN.md
+Last session: 2026-10-10T16:53:17.100Z
+Stopped at: Completed 03-07-PLAN.md
 Resume file: None

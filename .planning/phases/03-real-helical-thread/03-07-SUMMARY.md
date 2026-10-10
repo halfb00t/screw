@@ -216,6 +216,10 @@ None. The plan adds no endpoint, file access or schema; T-3-16 is mitigated as p
 
 Phase 3's records are complete: the next step is the end-of-phase verifier (the human checks listed in the 03-05 SUMMARY are still to be run in a browser), then the phase PR. The first `workflow_dispatch` of `grid.yml` after merge measures the GitHub-runner wall time per size and its result goes into `bench/RESULTS.md`; until then the 120-minute timeout is a guess (03-06). Phase 4 starts from L12 and rewrites the standing warning when the head lands.
 
+## Flag for the verifier
+
+`requirements mark-complete` ticked THRD-01, THRD-02 and THRD-04 from this plan's `requirements` field, once every plan declaring them had a SUMMARY. THRD-02's text also says "a left-hand pair is proven by the same checks as a right-hand pair"; plan 03-04 did not claim that clause (it is Phase 5's PAIR-03 pair proof; 03-04 proves a left-hand rod passes the same THRD-04 gate and is left-handed by an `isInside` probe). Whether the box stays ticked is the verifier's call.
+
 ## Self-Check: PASSED
 
 All 16 modified files exist on disk; commits `8fd6a4e`, `1144bca` and `bbee027` are ancestors of HEAD; the plan commit ledger measures 3 commits from `50394ad`; the working tree holds only untracked `.DS_Store` and `.planning/ui-reviews/` files that predate this plan.
