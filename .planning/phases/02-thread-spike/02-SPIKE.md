@@ -274,4 +274,79 @@ Nothing is tuned toward a pass: no constant, rule, tolerance, pose, block or sam
 
 ## Results
 
-No run yet.
+Rule D-16 for this section: it cites, it does not transcribe. Every figure lives in the `## Thread spike (Phase 2)` section of `bench/RESULTS.md`, in the entry named here, and in the matching files under `bench/results/thread-spike/`. A reader who wants a number opens the entry; nothing below repeats one.
+
+### Which runs, and how they were assembled
+
+One campaign command ran once, under the run id prefix `2026-10-08-a`. It holds one run per block, `2026-10-08-a-<block>` for `ksweep`, `grid`, `frontier`, `ladder`, `trim`, `controls`, `rss`, `pair` and `container`, so no assembly was needed: nothing was restarted, interrupted, refused or re-run, and the choice of prefix was not made on any outcome. The campaign log is `### 2026-10-08-a-campaign` in `bench/RESULTS.md`. The verdict was re-run on the committed records and is `### 2026-10-08-a-verdict`; it is byte-identical to the verdict section of the campaign log and exits 1, the designed exit for a verdict that is not a pass.
+
+### Conditions that differ from the registered ones
+
+Two departures from the Environment section are facts of the record. They are stated at the head of the `## Thread spike (Phase 2)` section of `bench/RESULTS.md` and in the Deviations of `02-07-SUMMARY.md`; nothing here repeats their detail.
+
+- **Host.** The host that ran is not the registered one (a different machine class, core count, memory size and Python patch version). The kernel pair is the registered one, so the re-measure trigger of the Environment section did not fire. The owner chose to run without amending the protocol (option A), so the Environment section above this line is unchanged.
+- **Owner ruling R4 overridden by the owner.** The campaign was launched from the orchestrating agent session with other applications open, not from a plain terminal with every agent session closed.
+
+The quiet gate did what it is built to do. Decisive: `ladder`, `trim`, `controls`, `rss`, `pair`. Non-decisive: `ksweep`, `grid` and `frontier` (each released non-decisive at the cap) and `container` (non-decisive by construction, under emulation). By the Decisiveness rule, a non-decisive run's validity, solid-count, volume and pair outcomes count, and its timing claims read "not established" and are not re-run. No seconds claim below rests on a non-decisive run.
+
+### Construction and frontier
+
+Answered by `2026-10-08-a-ksweep`, `2026-10-08-a-grid`, `2026-10-08-a-frontier`, `2026-10-08-a-container` and, for the comparison constructions, `2026-10-08-a-controls`; the entries of the same names in `bench/RESULTS.md` and the K, Pass bar and Turn caps sections of `### 2026-10-08-a-verdict`.
+
+- **Construction prediction: held.** The sewn twist built the whole host grid and the whole container grid, both hands, rod and void, with no failure and no silent_wrong row, and every precise volume inside `T_PASS` (`### 2026-10-08-a-grid`, `### 2026-10-08-a-container`). One qualification belongs to the record: the verdict counts meshes whose check was skipped above `FINE_CHECK_CEILING`, and a skipped check is not a pass for its mesh (Pass bar section of `### 2026-10-08-a-verdict`).
+- **K prediction: held.** K = 3 is the K the rule selected, over `2026-10-08-a-ksweep`; the K table is in the K section of `### 2026-10-08-a-verdict`.
+- **Negative control: held.** The naive `sweep` + `fuse` produced silent_wrong rows and failures; the failures are `Null TopoDS_Shape` exceptions at longer lengths as predicted, and one failure carries a different kernel error text (`### 2026-10-08-a-controls`, Controls section of `### 2026-10-08-a-verdict`). The control controlled: none of its rows read ok that should not have.
+- **One-pipe prediction: held at its onset, not above it.** Inverted solids (silent_wrong with a negative ratio) appear at the 160-turn step on several sizes. The 200- and 250-turn steps of the same sizes read ok. The prediction said inversions appear "above about 160 turns on some sizes" and did not predict a finer onset; the record shows 160 and does not show a range above it (`### 2026-10-08-a-controls`).
+- **Ruled-surface prediction: failed.** The default `Volume()` of the ruled-surface rows does not read near the predicted offset from the closed form; the reference rows are classed silent_wrong against the pinned closed form because their profile is not the pinned one, which the Rules already say is no accuracy claim (`### 2026-10-08-a-controls`).
+- **Frontier prediction: held, with its condition unmeasured.** Every size and hand walked to 250 turns with no stop (`### 2026-10-08-a-frontier`). The prediction made an exception for the 30 s stop on the largest sizes; the frontier run is non-decisive, so that stop was never applied and no seconds claim about it is made.
+
+### Mesh budget
+
+Answered by `2026-10-08-a-grid` and `2026-10-08-a-ksweep` for bytes, `2026-10-08-a-ladder` (decisive) for the presets, `2026-10-08-a-rss` (decisive) for peak RSS and the gzip table, `2026-10-08-a-trim` (decisive) for the Phase 4 cost evidence; the Turn caps, Tip trim cost and Peak RSS sections of `### 2026-10-08-a-verdict`.
+
+- **Budget prediction: held in direction, not in the M20 position.** Bytes, not construction, set the caps: the sizes at and above M8 have a bytes cap below the standard max and the smaller sizes have none, and M6 stays inside the budget as predicted. The extrapolated M20 position (near L = 53 mm) is not what the record shows; the bytes cap rows of the Turn caps section give the measured positions.
+- **Seconds are not established.** The seconds cap column reads "not established (non-decisive gate)" for every size, because the grid run is non-decisive (Decisiveness rule). The decisive runs carry timing only as evidence beside the verdict (`trim`, `rss`, `ladder`) and are inputs to no cap.
+- **Peak RSS** is a fresh child's figure for one row and is labelled so in the entry; it enters no verdict.
+- **Gzip level.** The L19 rule selected the same level for every size in the Peak RSS section of the verdict; it is evidence for Phase 7, INTERIM.
+
+### Pair-check falsifiability
+
+Answered by `2026-10-08-a-pair` (decisive); the entry of that name and the Pair check section of `### 2026-10-08-a-verdict` (per-cell tables, Falsifiability, Reference K, Variant rules).
+
+- **"Likely to read not falsifiable for several sizes": failed in count, and the escape clause fired anyway.** Exactly one size, M18, is not falsifiable on either hand. Every other size is falsifiable on both hands. Many sizes carry excluded clearances; each is listed per size and hand in the Falsifiability section.
+- **"The controls are the weak half": held.** The inconclusive same-hand cells at c above 0 are cells where a control read empty at one pose, and the M18 cells are all of that kind (the cell reasons in the pair section).
+- **"Matched poses read empty at every c above 0": held.** No same-hand cell read violated.
+- **Mixed-hand pair "expected to read violated": held.** At every size the mixed-hand pair read violated at every matched pose.
+- **c = 0 inconclusive and c = -0.05 near the closed form: held.** c = 0 is inconclusive by definition; the sensitivity check is ok for every size and hand.
+- **Reference K rows** are reported beside the verdict and are not verdict inputs (Reference K section). The variant rules are reported, never the verdict (Variant rules section; owner ruling R1).
+
+### Volume estimator
+
+Answered by `2026-10-08-a-grid` (and the same rod rows in `2026-10-08-a-ksweep`, `2026-10-08-a-ladder` and `2026-10-08-a-container`); the Volume estimator section of `### 2026-10-08-a-verdict`.
+
+- **Estimator prediction: held.** `precise` won the estimator rule on the smaller error, so no tie-break by seconds was needed and the rule did not depend on the non-decisive grid's timings. The shipped gate is `GATE_FACTOR` times the winner's largest error rounded up to one significant figure, printed in the Volume estimator section.
+- **Default `Volume()`:** a reference column, never an input. On the sewn rods it does not read the 15 to 21 % off that D-20 recorded for other constructions; the large offsets are on the comparison rows of `### 2026-10-08-a-controls`. The part of the prediction about the preview mesh's signed volume is not printed by the verdict and is not claimed here.
+
+### Container
+
+Answered by `2026-10-08-a-container` (non-decisive by construction); the Container validity section of `### 2026-10-08-a-verdict`.
+
+- **Validity and volume outcomes: held.** `screw:latest` under linux/amd64 read ok on every row of the grid, the same outcome as the host. Timings are emulation and feed no bound (D-05).
+- **"The largest void rows may time out": did not occur.** No container row timed out, so the container bar is neither failed nor "not established" for that reason.
+
+## Verdict
+
+All of it is the pre-registered rules' output in `### 2026-10-08-a-verdict` of `bench/RESULTS.md` (exit code 1; identical to the verdict section of `### 2026-10-08-a-campaign`). Nothing is added or softened here.
+
+- **Overall: not a pass.** The verdict line reads "not a pass: see the sections above".
+- **Pass bar: held**, over the host grid and the container rows, with the unchecked-mesh count printed beside it: a skipped check is not a pass for its mesh (Pass bar section; Rules, "The pass bar").
+- **Escape clause: FIRED**, by the rule "Phase 5 is not planned until the roadmap is revised (SC5)" of the Escape clause section: size **M18 is not falsifiable (right and left hand)** (Escape clause and Falsifiability sections of the verdict; `2026-10-08-a-pair`, decisive). The other two rules did not fire: the Escape clause section lists no failure, worker_died or silent_wrong row inside the standard range in the host grid or the container run, and K qualified. The mixed-hand pair read violated at every size, so the second Phase 5 rule did not fire.
+- **K: 3**, by `select_k` over `2026-10-08-a-ksweep` (K section; run non-decisive, its validity and volume outcomes count).
+- **Volume estimator: `precise`, with the `T_gate` printed in the Volume estimator section**, by `select_estimator` and `gate_tolerance` over `2026-10-08-a-grid`.
+- **Turn caps:** per size from the Turn caps section. Construction cap from `2026-10-08-a-frontier`; bytes cap from `2026-10-08-a-grid`, established on any gate; **seconds cap not established (non-decisive gate)** for every size, and it is not re-run toward a value.
+- **Pair falsifiability per size:** falsifiable on both hands for every size except M18, which is not falsifiable on either hand (all four proof clearances excluded for both hands). Excluded clearances, mixed-hand, sensitivity and the variant rules are per size in the Falsifiability and Variant rules sections.
+- **Container:** every row ok under linux/amd64; non-decisive by construction; timings feed no bound.
+- **Decisiveness of each block:** `ksweep` non-decisive; `grid` non-decisive; `frontier` non-decisive; `ladder` decisive; `trim` decisive; `controls` decisive; `rss` decisive; `pair` decisive; `container` non-decisive by construction (the verdict's "Blocks read" line).
+- **Conditions:** run on a host other than the registered one and with owner ruling R4 overridden, both by the owner (`02-07-SUMMARY.md`, Deviations; head of the `## Thread spike (Phase 2)` section of `bench/RESULTS.md`). The escape outcome rests on the `pair` run, which is decisive.
+
+Per the Escape clause section above, the rule that fired blocks planning of Phase 5 until the roadmap is revised; the owner's choice about that, and the values that Phase 3 and Phase 5 build on, are recorded in the decision entry that cites this verdict.
