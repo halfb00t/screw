@@ -68,7 +68,7 @@ recorded: 2026-10-09T02:43:53.790Z
 | IN-01 | info | fixed | 0e2f437: the report prints the HEAD the guard read at the start of the run |
 | IN-02 | info | deferred | the 600 s is pre-registered (Protocol inputs, owner: they stand); 2026-10-08-a-pair recorded no timeout cell; changing it is an amendment for the owner before the next campaign; see docs/tech_debt/active/2026-10-10-spike-protocol-amendments-before-next-campaign.md |
 | IN-03 | info | skipped | unreachable: the parent builds every request line; if reached, worker_died fails the pass bar loudly |
-| IN-04 | info | skipped | both failure modes are caught downstream: a shell reads solids=0 and so silent_wrong; the nut-body check; a non-converged volume misses the closed form by more than T_PASS; a status check would only relabel a failing row |
+| IN-04 | info | skipped | the recorded volume is checked against the closed form within T_PASS and a shell reads solids=0 (silent_wrong); convergence itself is not recorded, precise_volume discards the kernel's error estimate, so a non-converged volume that lands inside T_PASS passes unflagged: a stated limit, not a guarantee (Codex PR #9 review C2) |
 | IN-05 | info | fixed | 2bf9a90: the oracle docstring says it imports no kernel code and shares the pinned profile parameters |
 | IN-06 | info | fixed | a8bc769: an integer too large for a float is refused as ValueError |
 | IN-07 | info | skipped | the ruled rows are evidence only, never a verdict input, and the reference package was installed --no-deps (STATE.md, Phase 02), so the scratch directory carries no kernel to shadow |

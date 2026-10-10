@@ -80,8 +80,10 @@ One commit per finding; every code fix has the test that would have caught it.
   HEAD line in `test_a_run_writes_its_header_first_then_one_row_per_line_and_never_overwrites_itself`.
 - IN-02 deferred, owner ruling 2026-10-10 (Task 1), same new item as WR-03.
 - IN-03 skipped: unreachable, the parent builds every request line.
-- IN-04 skipped: both failure modes are caught downstream (solids=0, the nut-body check, a
-  non-converged volume missing the closed form by more than T_PASS).
+- IN-04 skipped: the recorded volume is checked against the closed form within T_PASS and a
+  shell reads solids=0 (silent_wrong). Convergence itself is not recorded: `precise_volume`
+  discards the kernel's error estimate, so a non-converged volume that lands inside T_PASS passes
+  unflagged. A stated limit, not a guarantee (Codex PR #9 review, C2).
 - IN-05 fixed, 2bf9a90 (docstring; the `thread_depth(1.0)` pin already existed).
 - IN-06 fixed, a8bc769. Test: `test_an_integer_too_large_for_a_float_is_refused_at_the_boundary`.
 - IN-07 skipped: the ruled rows are evidence only and the reference package is installed
