@@ -56,13 +56,11 @@ def test_every_row_of_a_cell_passes_the_gate_and_ends_at_its_length(
     clearance = maths.VOID_CLEARANCE if kind == "void" else 0.0
     lengths = maths.lengths(*maths.PITCH[size])
     failures: list[str] = []
-    built = 0
     for exact in lengths:
         length = float(exact)
         where = f"{size} {'left' if left_hand else 'right'} {kind} length {length:g}"
         try:
             shape = thread(d, pitch, length, clearance=clearance, left_hand=left_hand)
-            built += 1
             check_solid(shape, closed_volume(d, pitch, length, clearance))
             box = shape.BoundingBox()
             if abs(box.zmin) > END_FACE_MM or abs(box.zmax - length) > END_FACE_MM:
@@ -70,7 +68,6 @@ def test_every_row_of_a_cell_passes_the_gate_and_ends_at_its_length(
         except Exception as exc:  # any failure is that row's finding, listed with the rest
             failures.append(f"{where}: {type(exc).__name__}: {exc}")
     assert not failures, f"{len(failures)} of {len(lengths)} rows failed:\n" + "\n".join(failures)
-    assert built == len(lengths)
 
 
 def test_a_size_selects_exactly_its_four_cells_by_id() -> None:
