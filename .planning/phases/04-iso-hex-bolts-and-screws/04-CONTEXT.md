@@ -227,6 +227,37 @@ loose text):
   input (D-21, D-22) and the `s > d` rule (D-23). It cites L11's run ids for every cap value and
   measures nothing new except the pre-plan fuse probe, which it cites as a probe.
 
+### Plan-phase rulings (owner, 2026-10-11, after 04-RESEARCH.md Planner Alerts)
+- **D-25 (amends D-08's mechanism, Alert 1):** `model_fields_set` cannot carry the rule — FastAPI
+  0.142.2 copies every field default into the query model before validation
+  (`fastapi/dependencies/utils.py:768-776`, runtime probe), and `app.py` `strip()` rebuilds the
+  model route's params with every field. The 422 lives at the request boundary instead: one pure
+  `thread_length_conflict(length, thread_length) -> str | None` in `calc/thread.py` (the shape of
+  `download_refusal`); an app-level dependency next to `refuse_repeated_keys` raises the 422 only
+  when both keys are present in the raw query and both parse as floats (`ctx.fields` names both);
+  the CLI calls the same function in `_params` after `--preset` expansion, exit 2. The model
+  carries no `model_fields_set` logic; `derive` warns on value. Direct Python construction
+  `BoltParams(length=10, thread_length=30)` is accepted (build and info use `t = min(...)` and
+  warn). D-08's observable behaviour on the page, the API and the CLI is unchanged. Pinned text
+  for an explicit `thread_length` above a default `length` (Alert 6):
+  `thread_length <T> exceeds length <L>: thread built to the full length`.
+- **D-26 (restates D-23's reason, Alert 4):** `s <= d` stays a `422` `head_too_small`. The rule
+  is product policy (a head no wider than the shank is not a hex head), not a kernel necessity:
+  the probe shows `s < d` and `s == d` fuse into one valid solid inside the gate (head stacks on
+  the shank, no overlap). The message names `s` and `d` and says `s` must exceed `d`; L13 records
+  the reason as policy.
+- **D-27 (shank sliver, Alert 6):** a shank shorter than `MIN_TAIL_MM` (1e-3 mm, the builder's
+  own thread-tail rule in `solid/helical.py`) is folded into the thread, through one
+  `built_thread_length` function so the builder, the closed form, the caps and `derive` agree.
+  Not a refusal.
+- **D-28 (bracketed sizes, TABL-05):** second-choice sizes carry their brackets everywhere —
+  picker, catalogue `choice`, badge and `display`: `ISO 4017 (M7) × 20`.
+- **D-21 clarification (Alert 2):** the debt item's left-hand numbers (73, 78, 79, 76, 92, 92)
+  are the *first over-budget* grid lengths, not caps; the caps re-derived from
+  `2026-10-08-a-grid.jsonl` by the code's own convention ("largest measured length that fits")
+  are M10 72, M12 77, M14 78, M16 75, M18 91, M20 91, and no cap for M8 left-hand. The
+  right-hand column of the same derivation reproduces today's `FINE_STL_ROWS` (the control).
+
 ### Claude's Discretion
 - Where the head sits on the z axis (thread tip at `z = 0` and head above `length`, or head
   below 0): a viewer-only choice; the grid sits at the bounding box's `min.z`.
