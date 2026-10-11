@@ -21,7 +21,7 @@
     {
       "number": "4",
       "name": "ISO Hex Bolts and Screws",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "number": "5",
@@ -44,5 +44,5 @@
     "label": "Advance to the next step",
     "reason": "Phase 04 of 7 · 43% · executing"
   },
-  "updated_at": "2026-10-11T14:42:53.339Z"
+  "updated_at": "2026-10-11T15:56:17.671Z"
 }

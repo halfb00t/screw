@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: ISO Hex Bolts and Screws
 status: executing
-stopped_at: Completed 04-02-PLAN.md
-last_updated: "2026-10-11T14:42:54.195Z"
+stopped_at: Completed 04-01-PLAN.md
+last_updated: "2026-10-11T15:56:18.794Z"
 last_activity: 2026-10-11
 last_activity_desc: Phase 04 execution started
-state_head: 404186dbd8d2c679418217a7d6149d0b5886126e
+state_head: e473551eab86069cf3ac261205590db378226a3e
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 39
-  completed_plans: 26
+  completed_plans: 27
   percent: 43
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-11)
 ## Current Position
 
 Phase: 04 (ISO Hex Bolts and Screws) — EXECUTING
-Plan: 2 of 14
+Plan: 3 of 14
 Status: Ready to execute
 Last activity: 2026-10-11 — Phase 04 execution started
 
@@ -84,6 +84,7 @@ Progress: [████░░░░░░] 43%
 | Phase 03 P06 | 21min | 2 tasks | 14 files |
 | Phase 03 P07 | 12 min | 3 tasks | 16 files |
 | Phase 04 P02 | 15 min | 1 tasks | 9 files |
+| Phase 04 P01 | 80 min wall (15 active) | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -141,6 +142,8 @@ Recent decisions affecting current work:
 - [Phase 03]: code review (1 blocker, 6 warnings, 4 info): CR-01 and the mechanical warnings fixed in-phase (c28de09, e48b8ac, 78cc346, 7799d2b); five findings needing a measurement or a rule change deferred into docs/tech_debt/active/2026-10-11-*.md rather than guessed
 - [Phase 03]: `ui.safety-gate` overridden per D-19 — `01-UI-SPEC.md` amended in place is the UI contract; no `03-UI-SPEC.md`
 - [Phase 04]: 04-02: fine-STL left-hand caps are the longest measured length below the first over-budget row (M10 72, M12 77, M14 78, M16 75, M18 91, M20 91 mm); M8 left-hand uncapped (D-21)
+- [Phase 04]: D-07 defaults confirmed by the owner from the purchased copies (d 6.0, pitch 1.0, s 10.0, k 4.0, length 20 in the M6 series) and permanent: accepted
+- [Phase 04]: Owner ruling 2026-10-11: on-disk preview PDFs may serve as the independent second copy for the tables they contain; rendering route a (poppler pdftoppm), renders outside the repo
 
 ### Pending Todos
 
@@ -179,6 +182,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-11T14:42:54.119Z
-Stopped at: Completed 04-02-PLAN.md
+Last session: 2026-10-11T15:56:18.719Z
+Stopped at: Completed 04-01-PLAN.md
 Resume file: None
