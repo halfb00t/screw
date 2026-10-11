@@ -25,7 +25,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Runtime Port and Walking Skeleton** - spur's runtime ported per L07, serving a plain skeleton bolt on UI, API and CLI with parity proven (completed 2026-10-06)
 - [x] **Phase 2: Thread Spike** - a pre-registered measurement picks the thread construction, volume estimator and turn cap before any thread field exists (completed 2026-10-09)
-- [ ] **Phase 3: Real Helical Thread** - the bolt kind carries a real ISO 68-1 helical thread, right- or left-hand, behind a postcondition gate
+- [x] **Phase 3: Real Helical Thread** - the bolt kind carries a real ISO 68-1 helical thread, right- or left-hand, behind a postcondition gate (completed 2026-10-11)
 - [ ] **Phase 4: ISO Hex Bolts and Screws** - ISO 4014 and 4017 presets from cited, tested table rows fill explicit mm fields; a traceable info panel for the bolt
 - [ ] **Phase 5: Hex Nut and Kernel Pair Proof** - ISO 4032 nut with a clearance field, matching-part derivation and a kernel pair proof that can fail
 - [ ] **Phase 6: Printed Pair Acceptance** - the owner's printed test sets the clearance default and the printability threshold; a printed pair threads together by hand
@@ -134,7 +134,7 @@ Plans:
 
 **Precondition (owner, 2026-10-10, D-13)**: the harness-review `/gsd-quick` PR (`docs/tech_debt/active/2026-10-09-thread-spike-harness-review-findings.md`) is merged on `main` and `gsd/phase-03-real-helical-thread` is rebased on it before plan 03-01 starts; it is a separate PR, not folded into this phase.
 
-**Plans**: 7/7 plans executed (one PR, through `make pr.land`)
+**Plans**: 7/7 plans complete (one PR, through `make pr.land`)
 
 Plans:
 **Wave 1**
@@ -234,7 +234,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 2 
 |-------|----------------|--------|-----------|
 | 1. Runtime Port and Walking Skeleton | 10/10 | Complete    | 2026-10-06 |
 | 2. Thread Spike | 8/8 | Complete    | 2026-10-09 |
-| 3. Real Helical Thread | 7/7 | In Progress | - |
+| 3. Real Helical Thread | 7/7 | Complete    | 2026-10-11 |
 | 4. ISO Hex Bolts and Screws | 0/TBD | Not started | - |
 | 5. Hex Nut and Kernel Pair Proof | 0/TBD | Not started | - |
 | 6. Printed Pair Acceptance | 0/TBD | Not started | - |
