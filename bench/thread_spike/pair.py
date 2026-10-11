@@ -26,6 +26,7 @@ from bench.thread_spike import helical, measure
 # The boolean and its filler are kept for the life of the process: freeing them segfaulted at
 # teardown (exit 139, RESEARCH Pitfall 4, provoked once), which is also why the worker ends with
 # `os._exit(0)` after flushing.
+# For the same reason tests call `common` only in a child process, never in pytest's own.
 _KEEP: list[object] = []
 
 
