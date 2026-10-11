@@ -214,31 +214,45 @@ def test_a_length_off_the_whole_turns_builds_through_the_gate_and_ends_at_its_le
     assert box.zmax == pytest.approx(length, abs=TOL)
 
 
-def _inside_at(solid: cq.Solid, d: float, pitch: float, sign: int) -> bool:
+def _inside_at(solid: cq.Solid, d: float, pitch: float, sign: int, z: float) -> bool:
     """Is the point 80 % of the way from the root to the crest, on the thread's own helix
-    at z = 2.25 pitch (a quarter turn past two whole turns), inside the solid?
+    at height `z`, inside the solid?
 
     The tooth stands on the helix theta = 2 pi z / pitch for a right-hand thread, so the
     probe reads inside at +theta and outside at -theta; a left-hand thread reads the
-    reverse. z = 2.5 pitch would read inside for both (half a turn is the symmetric
-    point), which is why the quarter turn: 03-RESEARCH Pitfall 9, reproduced 2026-10-10.
+    reverse. Pass `z` a quarter turn past a whole number of turns: a half turn would read
+    inside for both (the symmetric point), 03-RESEARCH Pitfall 9, reproduced 2026-10-10.
     """
     ro = d / 2
     rr = ro - thread_depth(pitch)
     r = rr + 0.8 * (ro - rr)
-    z = 2.25 * pitch
     theta = sign * 2 * math.pi * z / pitch
     return bool(solid.isInside(cq.Vector(r * math.cos(theta), r * math.sin(theta), z)))
 
 
-def test_the_hand_decides_which_way_the_thread_climbs_and_both_pass_the_same_gate() -> None:
+@pytest.mark.parametrize(("d", "pitch", "length", "heights"), [
+    # M6x20: the first 3-turn base segment, the second (a translated copy of the first) and the
+    # 2 mm tail, which is a separate twist() call (WR-06: a tail built with the wrong hand left
+    # the old single probe at z = 2.25 pitch reading correctly).
+    pytest.param(6.0, 1.0, 20.0, (2.25, 3 + 2.25, 18 + 0.25), id="M6x20-base-copy-tail"),
+    # 5.4 mm at pitch 0.6 leaves a 8.9e-16 mm tail that is folded into the previous segment, so
+    # the last twist() is a full 3 turns from z = 3.6 and the tail takes the other branch.
+    pytest.param(3.5, 0.6, 5.4, (2.25 * 0.6, 3 * 0.6 + 2.25 * 0.6, 3.6 + 0.25 * 0.6),
+                 id="folded-tail"),
+])
+def test_the_hand_decides_which_way_the_thread_climbs_and_both_pass_the_same_gate(
+        d: float, pitch: float, length: float, heights: tuple[float, ...]) -> None:
     # The volume gate cannot see the hand: a mirrored thread has the same volume. Only a
     # probe on the helix does, and both hands are asserted here so it cannot pass vacuously.
-    right = build(BoltParams(left_hand=False))
-    left = build(BoltParams(left_hand=True))
-    assert (_inside_at(right, 6.0, 1.0, +1), _inside_at(right, 6.0, 1.0, -1)) == (True, False)
-    assert (_inside_at(left, 6.0, 1.0, +1), _inside_at(left, 6.0, 1.0, -1)) == (False, True)
-    closed = closed_volume(6.0, 1.0, 20.0)
+    # It is read in every segment: each segment is a separate twist() that gets its own hand.
+    right = build(BoltParams(d=d, pitch=pitch, length=length, left_hand=False))
+    left = build(BoltParams(d=d, pitch=pitch, length=length, left_hand=True))
+    for z in heights:
+        assert (_inside_at(right, d, pitch, +1, z), _inside_at(right, d, pitch, -1, z)) == (
+            True, False), z
+        assert (_inside_at(left, d, pitch, +1, z), _inside_at(left, d, pitch, -1, z)) == (
+            False, True), z
+    closed = closed_volume(d, pitch, length)
     for solid in (right, left):
         assert len(solid.Solids()) == 1
         assert solid.isValid()
