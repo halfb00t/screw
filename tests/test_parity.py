@@ -399,3 +399,19 @@ def test_a_repeated_parameter_is_refused_naming_it(
             cli.main(["export", kind, "-o", "x.stl", *given])
         assert stop.value.code == 2, given
         assert given[0] in capsys.readouterr().err, given
+
+
+def test_a_thread_length_conflict_is_the_same_words_on_the_api_and_the_cli(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    """D-25, FRNT-05: one rule, so the 422 `msg` and the CLI `error:` line are the same text."""
+    for length, thread_length in ((10, 30), (10, 10.00001), (0.5, 0.75)):
+        res = client.get("/api/bolt/info", params={"length": length,
+                                                   "thread_length": thread_length})
+        assert res.status_code == 422, (length, thread_length)
+        [detail] = res.json()["detail"]
+        assert detail["type"] == "thread_length_conflict"
+        with pytest.raises(SystemExit) as stop:
+            cli.main(["info", "bolt", "--length", str(length),
+                      "--thread-length", str(thread_length)])
+        assert stop.value.code == 2
+        assert capsys.readouterr().err == f"error: {detail['msg']}\n"

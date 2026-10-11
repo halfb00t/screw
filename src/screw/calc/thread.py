@@ -136,6 +136,33 @@ def head_too_small_refusal(s: float, d: float) -> str | None:
             f"a head no wider than the shank is not a hex head")
 
 
+def _plain(x: float) -> str:
+    """`repr` without a trailing `.0`: 30.0 reads 30, 10.00001 reads 10.00001.
+
+    `:g` keeps 6 significant figures and prints 10.00001 as 10, which would make the conflict
+    text below say "10 mm is longer than 10 mm" (L02: a number the tool prints is one someone acts
+    on).
+    """
+    return repr(x).removesuffix(".0")
+
+
+def thread_length_conflict(length: float, thread_length: float) -> str | None:
+    """None unless an explicit `thread_length` is longer than an explicit `length`; else the text.
+
+    D-25: the one rule the API dependency and the CLI share, the shape of `download_refusal`.
+    The model carries no such rule because it cannot tell an explicit value from a default
+    (D-08: a default `thread_length` above a short `length` builds to the full length and warns).
+    A value that is not finite or not above 0 gives None, so the model's own 422 keeps naming
+    the bad field. Equal values are no conflict. No braces in the text: pydantic formats a custom
+    error from its context.
+    """
+    if not (math.isfinite(length) and math.isfinite(thread_length)
+            and length > 0 and thread_length > 0 and thread_length > length):
+        return None
+    return (f"thread_length and length: thread_length {_plain(thread_length)} mm is longer than "
+            f"length {_plain(length)} mm; shorten thread_length or lengthen length")
+
+
 def volume_check(measured: float, closed: float) -> str | None:
     """None when `measured` is inside `T_GATE` of `closed`; otherwise the refusal text.
 

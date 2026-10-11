@@ -349,3 +349,37 @@ def test_the_left_hand_part_l11_measured_inside_the_budget_is_not_refused(
     assert _exit_code(["export", "bolt", *mirror, "-o", str(out)]) == 2
     assert "error: thread_length and length:" in capsys.readouterr().err
     assert not out.exists()
+
+
+def test_an_explicit_thread_length_above_an_explicit_length_exits_2_naming_both(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    assert _exit_code(["info", "bolt", "--length", "10", "--thread-length", "30"]) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == (
+        "error: thread_length and length: thread_length 30 mm is longer than length 10 mm; "
+        "shorten thread_length or lengthen length\n")
+
+
+def test_the_same_conflict_stops_an_export_before_it_writes_a_file(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    out = tmp_path / "x.stl"
+    given = ["export", "bolt", "--length", "10", "--thread-length", "30", "-o", str(out)]
+    assert _exit_code(given) == 2
+    assert "error: thread_length and length: " in capsys.readouterr().err
+    assert not out.exists()
+
+
+def test_a_thread_length_equal_to_the_length_or_a_default_beside_a_short_length_is_built(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    cli.main(["info", "bolt", "--length", "10", "--thread-length", "10.0"])
+    assert json.loads(capsys.readouterr().out)["kind"] == "bolt"
+    cli.main(["info", "bolt", "--length", "10"])
+    assert json.loads(capsys.readouterr().out)["warnings"][1].startswith(
+        "thread_length 20 (default) exceeds length 10")
+
+
+def test_a_bad_length_beside_a_thread_length_is_the_field_error_not_the_conflict(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    assert _exit_code(["info", "bolt", "--length", "-5", "--thread-length", "10"]) == 2
+    assert "error: length: " in capsys.readouterr().err

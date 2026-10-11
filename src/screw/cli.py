@@ -15,6 +15,7 @@ from typing import Literal, cast, get_args, get_origin
 from pydantic import ValidationError
 
 from . import __version__, int_env
+from .calc.thread import thread_length_conflict
 from .params import KINDS, FastenerParams
 from .records import configure
 
@@ -74,6 +75,13 @@ def _add_args(ap: argparse.ArgumentParser, kind: str, model: type[FastenerParams
 def _params(kind: str, ns: argparse.Namespace) -> FastenerParams:
     model = KINDS[kind]
     values = {k: v for k in model.model_fields if (v := getattr(ns, k)) is not None}
+    # D-25: only the explicit flags are in `values`, so this is the request-boundary rule the API
+    # applies to the raw query. The model cannot tell an explicit value from its default.
+    length, thread_length = values.get("length"), values.get("thread_length")
+    if isinstance(length, float) and isinstance(thread_length, float) and (
+            msg := thread_length_conflict(length, thread_length)) is not None:
+        print(f"error: {msg}", file=sys.stderr)
+        raise SystemExit(2)
     try:
         return model(**values)
     except ValidationError as exc:

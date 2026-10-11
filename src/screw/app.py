@@ -10,7 +10,7 @@
 
 Every parameter is a query string field, so a model URL is shareable and curl-able. Unset
 fields take their defaults; a field the kind does not define, or a key given twice, is a 422
-naming it.
+naming it, and so is an explicit `thread_length` longer than an explicit `length`.
 """
 
 from __future__ import annotations
@@ -37,6 +37,7 @@ from starlette.concurrency import run_in_threadpool
 from . import __version__, int_env
 from .build_errors import BuildError, BuildTimeout
 from .calc import PartInfo, derive, download_refusal
+from .calc.thread import thread_length_conflict
 from .params import DEFAULT_KIND, KINDS, BoltParams, FastenerParams
 from .pool import BuildPool
 from .records import build_failed, build_started, configure, export_served, queue_refused
@@ -192,12 +193,37 @@ def refuse_repeated_keys(request: Request) -> None:
             for key in repeated])
 
 
+def refuse_thread_length_conflict(request: Request) -> None:
+    """Refuse an explicit `thread_length` longer than an explicit `length` on the bolt routes.
+
+    D-25: D-08's 422 for two explicit values lives at the request boundary because FastAPI
+    0.142.2 copies every field default into the query model before validation
+    (`fastapi/dependencies/utils.py:768-776`) and `strip()` rebuilds the model route's params
+    with every field, so pydantic's `model_fields_set` cannot tell an explicit value from a
+    default (04-RESEARCH Alert 1). The raw query can: the rule runs only when both keys are in
+    it. The owner accepted that direct Python construction is not refused (D-25). A value
+    `float()` cannot read is left to the query model, whose 422 names it.
+    """
+    query = request.query_params
+    if not request.url.path.startswith("/api/bolt/") or not (
+            "length" in query and "thread_length" in query):
+        return
+    try:
+        length, thread_length = float(query["length"]), float(query["thread_length"])
+    except ValueError:
+        return
+    if (msg := thread_length_conflict(length, thread_length)) is not None:
+        raise HTTPException(422, detail=[{
+            "loc": ["query"], "type": "thread_length_conflict", "msg": msg,
+            "ctx": {"fields": ["thread_length", "length"]}}])
+
+
 app = FastAPI(
     title="screw",
     version=__version__,
     summary="Parametric thread and fastener generator with STL/STEP export.",
     lifespan=lifespan,
-    dependencies=[Depends(refuse_repeated_keys)],
+    dependencies=[Depends(refuse_repeated_keys), Depends(refuse_thread_length_conflict)],
 )
 
 # spur L19 measured the real 9,062,784-byte STL of a 199-tooth fine gear at gzip levels 1/6/9

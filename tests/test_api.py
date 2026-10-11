@@ -298,11 +298,13 @@ def test_the_interim_bound_is_inclusive_and_the_next_value_is_refused() -> None:
         assert refused.json()["detail"][0]["loc"] == ["query", "length"]
 
     # thread_length shares the bound (D-23): a 250-turn thread of 1e5 mm is served, one float
-    # above names the field.
+    # above names the field. `length` is left out of the refused request: an explicit length at
+    # the bound with a thread_length past it is also the D-25 conflict, which is checked first.
     thread_at_bound: Params = {**at_bound, "thread_length": bound}
     assert client.get("/api/bolt/info", params=thread_at_bound).status_code == 200
+    no_length: Params = {k: v for k, v in thread_at_bound.items() if k != "length"}
     for route in ("/api/bolt/info", "/api/bolt/model.stl"):
-        refused = client.get(route, params={**thread_at_bound, "thread_length": just_over})
+        refused = client.get(route, params={**no_length, "thread_length": just_over})
         assert refused.status_code == 422
         assert refused.json()["detail"][0]["loc"] == ["query", "thread_length"]
 
@@ -940,3 +942,67 @@ def test_the_left_hand_part_l11_measured_inside_the_budget_reaches_the_backend()
     assert right.status_code == 422
     assert right.json()["detail"][0]["type"] == "fine_stl_cap"
     assert "right-hand" in right.json()["detail"][0]["msg"]
+
+
+CONFLICT_MSG = ("thread_length and length: thread_length 30 mm is longer than length 10 mm; "
+                "shorten thread_length or lengthen length")
+
+
+@pytest.mark.parametrize("route", ["/api/bolt/info", "/api/bolt/model.stl"])
+def test_an_explicit_thread_length_above_an_explicit_length_is_a_422_naming_both(
+        route: str) -> None:
+    # D-25: refused at the request boundary, before any build and on both routes.
+    params: Params = {"length": 10, "thread_length": 30}
+    if route.endswith(".stl"):
+        params = {**params, "quality": "preview"}
+    r = client.get(route, params=params)
+    assert r.status_code == 422
+    assert r.json()["detail"] == [{
+        "loc": ["query"], "type": "thread_length_conflict", "msg": CONFLICT_MSG,
+        "ctx": {"fields": ["thread_length", "length"]}}]
+
+
+def test_the_conflict_compares_parsed_floats() -> None:
+    assert client.get("/api/bolt/info", params={"length": 10, "thread_length": "10.0"}
+                      ).status_code == 200
+    r = client.get("/api/bolt/info", params={"length": 10, "thread_length": "10.00001"})
+    assert r.status_code == 422
+    [detail] = r.json()["detail"]
+    assert detail["type"] == "thread_length_conflict"
+    assert detail["msg"] == (
+        "thread_length and length: thread_length 10.00001 mm is longer than length 10 mm; "
+        "shorten thread_length or lengthen length")
+
+
+def test_a_default_thread_length_above_an_explicit_length_is_still_a_200_with_the_warning() -> None:
+    r = client.get("/api/bolt/info", params={"length": 10})
+    assert r.status_code == 200
+    assert r.json()["warnings"][1] == (
+        "thread_length 20 (default) exceeds length 10: thread built to the full length")
+
+
+@pytest.mark.parametrize("query", [
+    {"length": "-5", "thread_length": "10"},
+    {"length": "abc", "thread_length": "10"},
+    {"length": "nan", "thread_length": "10"},
+    {"length": "10", "thread_length": "abc"},
+])
+def test_a_bad_value_beside_a_thread_length_stays_a_field_422_naming_the_bad_field(
+        query: dict[str, str]) -> None:
+    r = client.get("/api/bolt/info", params=query)
+    assert r.status_code == 422
+    [detail] = r.json()["detail"]
+    assert detail["type"] != "thread_length_conflict"
+    assert detail["loc"] == ["query", "length" if query["length"] != "10" else "thread_length"]
+
+
+def test_a_repeated_length_beside_a_thread_length_is_the_duplicate_422_not_the_conflict() -> None:
+    r = client.get("/api/bolt/info", params=[("length", "10"), ("length", "11"),
+                                              ("thread_length", "30")])
+    assert r.status_code == 422
+    assert [d["type"] for d in r.json()["detail"]] == ["duplicate"]
+
+
+def test_the_conflict_rule_does_not_reach_the_schema_route() -> None:
+    r = client.get("/api/schema", params={"kind": "bolt", "length": 10, "thread_length": 30})
+    assert r.status_code == 200

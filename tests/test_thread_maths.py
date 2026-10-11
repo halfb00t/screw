@@ -26,6 +26,7 @@ from screw.calc.thread import (
     section_area,
     section_radius,
     thread_depth,
+    thread_length_conflict,
     turn_cap_refusal,
     turns_of,
     volume_check,
@@ -354,3 +355,27 @@ def test_a_head_no_wider_than_the_shank_is_refused_naming_both_fields(s: float, 
 def test_a_head_one_ulp_wider_than_the_shank_is_accepted() -> None:
     assert head_too_small_refusal(math.nextafter(6.0, math.inf), 6.0) is None
     assert head_too_small_refusal(10.0, 6.0) is None
+
+
+def test_a_thread_length_above_the_length_is_a_conflict_with_the_pinned_text() -> None:
+    # D-25. 10.00001 is the case `:g` would print as 10: the text must still tell the two apart.
+    assert thread_length_conflict(10.0, 10.00001) == (
+        "thread_length and length: thread_length 10.00001 mm is longer than length 10 mm; "
+        "shorten thread_length or lengthen length")
+    text = thread_length_conflict(10.0, 30.0)
+    assert text is not None
+    assert text.startswith("thread_length and length: ")
+    assert "thread_length 30 mm is longer than length 10 mm" in text
+    assert "{" not in text
+    assert "}" not in text
+
+
+@pytest.mark.parametrize(("length", "thread_length"), [
+    (10.0, 10.0), (10.0, 9.99999), (30.0, 18.0),
+    # not finite, or not above 0: left to the model's own 422, which names the bad field
+    (math.inf, 5.0), (10.0, math.inf), (math.nan, 5.0), (10.0, math.nan),
+    (0.0, 5.0), (-5.0, 10.0), (10.0, 0.0), (10.0, -1.0), (-math.inf, 5.0),
+])
+def test_equal_shorter_and_unusable_values_are_no_conflict(
+        length: float, thread_length: float) -> None:
+    assert thread_length_conflict(length, thread_length) is None
