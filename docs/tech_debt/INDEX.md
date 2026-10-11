@@ -16,6 +16,11 @@ Severity (grep-able `Severity:` field):
 
 | Severity | Item | Trigger to revisit |
 |---|---|---|
+| must | [The fine-STL refusal applies the right-hand caps to left-hand parts and misstates what L11 measured](active/2026-10-11-fine-stl-cap-applies-right-hand-rows-to-left-hand-parts.md) | owner ruling: key rows by hand or reword; before the next change to the caps |
+| must | [Root radii down to about 3e-5 mm pass validation and then fail in the kernel with a generic message](active/2026-10-11-root-radius-floor-is-not-the-kernel-boundary.md) | measure the floor; before L12's boundary claim is relied on |
+| must | [A valid in-cap request (d=100, length=200, default pitch) exceeds both interim backstops and is unrecorded](active/2026-10-11-default-pitch-d100-length200-exceeds-both-interim-backstops.md) | owner severity ruling; measure at the 30 s kill point |
+| nice | [derive() prints turns and volume for a length below MIN_TAIL_MM, which the builder refuses](active/2026-10-11-info-document-prints-numbers-for-a-length-the-builder-refuses.md) | when the info document next changes |
+| nice | [check_solid discards the volume estimator's own error estimate](active/2026-10-11-check-solid-ignores-the-volume-error-estimate.md) | when the gate or T_GATE next changes |
 | must | [Two thread spike protocol amendments wait for the owner before the next campaign](active/2026-10-10-spike-protocol-amendments-before-next-campaign.md) | before the next thread-spike campaign runs |
 | must | [The in-process pair tests in tests/test_bench.py end the pytest process with exit 139](active/2026-10-10-bench-pair-tests-segfault-at-exit-when-run-serially.md) | a serial run of the bench tests is wanted in a script or CI |
 | must | [Interim runtime bounds are spur's figures, not screw's measurements](active/2026-10-05-interim-runtime-bounds.md) | Phase 7 operability re-sweep (OPER-02) |
