@@ -8,7 +8,7 @@ the same commit as the file.
 
 | Date | Item | Why it is not now |
 |---|---|---|
-| | none open | |
+| 2026-10-11 | [Phase 7's linux/amd64 re-sweep runs the known-bad controls, not only the builder](2026-10-11-oper-02-resweep-runs-the-controls.md) | Phase 7 (OPER-02) owns the first native linux/amd64 sweep. |
 
 ## Done
 

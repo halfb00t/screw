@@ -366,6 +366,22 @@ volume below half the closed form; `naive_sweep_fuse(d, pitch, length)` in
 (`Null TopoDS_Shape` and one `MakeSolid` error), which a positive-control gate refuses by
 raising; the silent rows above are the ones the gate must catch by volume.
 
+**Known-bad inputs, platform note** (added 2026-10-11, quick 261011-fbb). The list above was
+measured on macOS arm64 only (`2026-10-08-a-controls`); the container block ran the shipped
+builder, not this control. The naive fuse depends on the platform with identical pins
+(cadquery 2.8.0, cadquery-ocp 7.9.3.1.1): CI's ubuntu-latest x86_64 runner (runs 38111898740
+and 38112071431) raises `Null TopoDS_Shape` on (6.0, 1.0, 10.0). An ad-hoc re-run of all 15 rows on
+2026-10-11, under `screw:latest` (image id 8d0261837661) as linux/amd64 in qemu emulation on an
+arm64 host, found ten rows still one solid with `isValid()` true. Five rows differ:
+(2.5, 0.45, 4.5), (2.5, 0.45, 10.0), (6.0, 1.0, 10.0) and (8.0, 1.25, 80.0) raise
+`Null TopoDS_Shape`, and (20.0, 2.5, 200.0) is two solids. That re-run is an emulation figure,
+ad hoc and not a `bench/RESULTS.md` entry, and it agrees with CI on the test's three rows. So a
+row is known-bad for a test only on a platform where it was measured silent: THRD-04's test uses
+(2.0, 0.4, 4.0), (8.0, 1.25, 10.0) and (20.0, 2.5, 10.0), which are silent on both platforms.
+The decision above is unchanged and the shipped builder is not implicated (container 7160 of
+7160 ok). Phase 7's native linux/amd64 re-sweep (OPER-02) is where the controls get measured per
+platform: `docs/ideas/2026-10-11-oper-02-resweep-runs-the-controls.md`.
+
 **Container.** `screw:latest` (sha256:7d992a89557b01bf2e35e0d368f8b68fd11e9c2774bbdfb45a26f1f7a31638f6) under linux/amd64: 7160 of 7160 rows ok
 (`2026-10-08-a-container`, `### 2026-10-08-a-verdict` Container validity); non-decisive by
 construction, timings are emulation and feed no bound (D-05); no row timed out.
