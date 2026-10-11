@@ -23,8 +23,12 @@ def corpus() -> list[dict[str, object]]:
     The grid was chosen for the cylinders it first described and is still not a bound. Since
     Phase 4 each entry also pins a head, `s = 2 * d` and `k = d / 2`: harness inputs chosen so
     every entry passes `s > d` and keeps the grid's shape, not ISO rows and not bounds (04-03).
+    It pins `thread_length = length` too: the default is a 20 mm thread under a plain shank, which
+    would quietly turn the 200-turn part into a cheap one, so each entry builds the full-length
+    thread it built in Phase 3 and later runs stay comparable (OPER-02, 04-06). The grid itself
+    is unchanged.
     """
-    return [{"d": d, "length": length, "s": 2 * d, "k": d / 2}
+    return [{"d": d, "length": length, "s": 2 * d, "k": d / 2, "thread_length": length}
             for d in DIAMETERS for length in LENGTHS]
 
 
