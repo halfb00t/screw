@@ -233,3 +233,32 @@ def test_a_left_hand_part_is_judged_by_its_own_measured_cap() -> None:
     assert refusal is not None
     assert "right-hand" in refusal
     assert derive(right).warnings == [STANDING_WARNING, refusal]
+
+
+SHORT_THREAD_WARNING = (
+    "thread_length and length: a thread of {t} mm is shorter than the 0.001 mm the builder can "
+    "model, so this part is not built; turns and volume not reported")
+
+
+@pytest.mark.parametrize(("params", "t"), [
+    (BoltParams(length=0.0005), "0.0005"),                  # the whole length is the thread
+    (BoltParams(length=30.0, thread_length=0.0005), "0.0005"),   # a short thread on a long shank
+])
+def test_a_thread_too_short_to_build_gets_a_warning_and_no_turns_or_volume(
+        params: BoltParams, t: str) -> None:
+    # IN-01, L02: the builder refuses this part, so the document prints no number derived from it.
+    info = derive(params)
+    assert SHORT_THREAD_WARNING.format(t=t) in info.warnings
+    keys = [r.key for r in info.rows]
+    assert "turns" not in keys
+    assert "volume" not in keys
+    assert "thread_length" in keys
+
+
+def test_a_thread_of_exactly_the_floor_is_built_and_reports_turns_and_volume() -> None:
+    info = derive(BoltParams(length=0.001))
+    assert not any("shorter than the 0.001 mm the builder can model, so this part" in w
+                   for w in info.warnings)
+    keys = [r.key for r in info.rows]
+    assert "turns" in keys
+    assert "volume" in keys

@@ -1006,3 +1006,20 @@ def test_a_repeated_length_beside_a_thread_length_is_the_duplicate_422_not_the_c
 def test_the_conflict_rule_does_not_reach_the_schema_route() -> None:
     r = client.get("/api/schema", params={"kind": "bolt", "length": 10, "thread_length": 30})
     assert r.status_code == 200
+
+
+def test_a_length_below_the_floor_is_a_warned_info_document_and_a_422_build_error() -> None:
+    # IN-01: the info document and the build agree on what is a part. The info document says so
+    # with a warning and no turns or volume; the build names thread_length and length.
+    info = client.get("/api/bolt/info", params={"length": 0.0005})
+    assert info.status_code == 200
+    body = info.json()
+    assert any(w.startswith("thread_length and length: a thread of 0.0005 mm is shorter")
+               for w in body["warnings"])
+    assert {"turns", "volume"}.isdisjoint(row["key"] for row in body["rows"])
+
+    r = client.get("/api/bolt/model.stl", params={"length": 0.0005, "quality": "preview"})
+    assert r.status_code == 422
+    detail = r.json()["detail"][0]
+    assert detail["type"] == "build_error"
+    assert detail["msg"].startswith("thread_length and length: ")

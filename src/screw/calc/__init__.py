@@ -106,7 +106,13 @@ def _bolt(p: BoltParams) -> PartInfo:
          "+ pi * (d / 2)^2 * shank_length + (sqrt(3) / 2) * s^2 * k",
          lambda: bolt_closed_volume(p.d, p.pitch, p.length, p.s, p.k, t)),
     ]
+    # IN-01, L02: below `MIN_TAIL_MM` of built thread the builder refuses the part, so a turns or
+    # volume row would be a number for a bolt nobody can make. They are left out and the warning
+    # below says why; every other row is an exact reading of the user's own fields.
+    buildable = t >= MIN_TAIL_MM
     for key, label, unit, formula, compute in computed:
+        if not buildable and key in ("turns", "volume"):
+            continue
         try:
             value = compute()
         except (OverflowError, ValueError):
@@ -120,6 +126,10 @@ def _bolt(p: BoltParams) -> PartInfo:
     # capped part opens raw JSON with no notice. Same text the API and the CLI refuse with.
     if (short := _thread_length_warning(p, t)) is not None:
         warnings.append(short)
+    if not buildable:
+        warnings.append(f"thread_length and length: a thread of {t:g} mm is shorter than the "
+                        f"{MIN_TAIL_MM:g} mm the builder can model, so this part is not built; "
+                        "turns and volume not reported")
     fine = fine_stl_refusal(p.d, p.pitch, t, p.left_hand)
     if fine is not None:
         warnings.append(fine)
