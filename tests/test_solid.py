@@ -171,12 +171,16 @@ def _assert_refused_and_not_cached(
 
 
 @pytest.mark.parametrize(("d", "pitch", "length"), [
-    (2.0, 0.4, 4.0), (6.0, 1.0, 10.0), (20.0, 2.5, 10.0),
+    (2.0, 0.4, 4.0), (8.0, 1.25, 10.0), (20.0, 2.5, 10.0),
 ])
 def test_the_gate_refuses_the_naive_sweep_the_kernel_calls_valid(
         d: float, pitch: float, length: float, monkeypatch: pytest.MonkeyPatch) -> None:
     # L11 known-bad rows (`2026-10-08-a-controls`): one solid, isValid() True, a volume below
     # half the closed form. Only the volume check catches them.
+    # (8.0, 1.25, 10.0), not L11's (6.0, 1.0, 10.0): the naive fuse depends on the platform, and
+    # with the same pins that row raises `Null TopoDS_Shape` on linux/amd64 (CI ubuntu-latest;
+    # the emulated `screw:latest` image agrees) but is one valid solid at 0.238 of the closed
+    # form on macOS arm64. All three rows here are one valid solid on both. L11, platform note.
     naive = naive_sweep_fuse(d, pitch, length)
     assert len(naive.Solids()) == 1
     assert naive.isValid()

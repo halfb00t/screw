@@ -32,6 +32,9 @@ def naive_sweep_fuse(d: float, pitch: float, length: float) -> cq.Shape:
     a candidate. Reproduced from RESEARCH Pitfall 9, which measured it: M6 L10 gave one valid
     solid at 0.238 of the closed-form volume, M2 L6 0.274, and M6 L20 and L40 raised
     `Null TopoDS_Shape`. Re-run here, the same recipe gave 0.238, 0.274 and the two exceptions.
+    Those figures are macOS arm64. The fuse depends on the platform: on linux/amd64 with the
+    same pins, M6 L10 also raises `Null TopoDS_Shape` (CI ubuntu-latest and the emulated image,
+    2026-10-11). L11's known-bad platform note names the five rows that differ.
 
     The tooth: crest half-width P/16 at d/2, flanks 30 degrees from the radial, root embedded
     0.05 P inside the core so the fuse has an overlap to bite on. The helix has radius d/2 and
