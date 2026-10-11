@@ -325,6 +325,24 @@ def test_a_thread_that_cannot_be_made_or_was_never_measured_is_a_422_naming_both
     assert detail["msg"].startswith(" and ".join(fields) + ": ")
 
 
+@pytest.mark.parametrize("route", ["/api/bolt/info", "/api/bolt/model.stl"])
+def test_a_head_no_wider_than_the_shank_is_a_422_naming_s_and_d(route: str) -> None:
+    for s in (6.0, 5.0):
+        r = client.get(route, params={"s": s, "quality": "preview"} if route.endswith(".stl")
+                       else {"s": s})
+        assert r.status_code == 422, (route, s)
+        [detail] = r.json()["detail"]
+        assert detail["type"] == "head_too_small"
+        assert detail["loc"] == ["query"]
+        assert detail["ctx"]["fields"] == ["s", "d"]
+        assert detail["msg"].startswith("s and d: ")
+
+
+def test_a_head_one_ulp_wider_than_the_shank_is_served() -> None:
+    s = math.nextafter(6.0, math.inf)
+    assert client.get("/api/bolt/info", params={"s": s}).status_code == 200
+
+
 def test_a_solid_the_kernel_gets_wrong_is_a_422_build_error() -> None:
     """These parameters pass validation (positive, finite) and build one valid solid whose
     volume is off the closed form (+9.59e-03 in the research probe); the gate turns that

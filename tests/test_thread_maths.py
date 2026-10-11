@@ -14,9 +14,12 @@ from screw.calc.thread import (
     FINE_STL_ROWS,
     MAX_TURNS,
     T_GATE,
+    bolt_closed_volume,
     closed_volume,
     fine_stl_refusal,
     fundamental_height,
+    head_too_small_refusal,
+    hex_prism_volume,
     root_radius_refusal,
     section_area,
     section_radius,
@@ -297,3 +300,37 @@ def test_an_off_row_part_has_no_bytes_cap_not_the_nearest_rows() -> None:
     assert fine_stl_refusal(8.1, 1.25, 100.0, False) is None
     assert fine_stl_refusal(6.0, 1.0, 250.0, False) is None
     assert fine_stl_refusal(8.0, 1.0, 250.0, True) is None
+
+
+def test_a_hex_prism_is_the_hexagon_area_times_the_height() -> None:
+    # 200 * sqrt(3) typed independently of the code's (sqrt(3) / 2) * s * s * k: the hexagon of
+    # across-flats 10 has area 50 * sqrt(3) mm2, times the head height 4.
+    assert hex_prism_volume(10.0, 4.0) == pytest.approx(200 * math.sqrt(3), abs=1e-9)
+
+
+def test_the_whole_bolt_is_the_thread_plus_the_head() -> None:
+    thread = closed_volume(6.0, 1.0, 20.0)
+    assert bolt_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0) == pytest.approx(
+        thread + hex_prism_volume(10.0, 4.0), abs=1e-9)
+
+
+def test_a_shorter_thread_leaves_a_plain_cylinder_for_the_rest_of_the_length() -> None:
+    # Plan 04-04 passes a thread length t below the length: the shank t..length is a cylinder of
+    # the major diameter, pi * (d / 2)^2 * (length - t), here typed out for d 6 and 8 mm of it.
+    shank = math.pi * 9.0 * 8.0
+    assert bolt_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 12.0) == pytest.approx(
+        section_area(6.0, 1.0) * 12.0 + shank + hex_prism_volume(10.0, 4.0), abs=1e-9)
+
+
+@pytest.mark.parametrize(("s", "d"), [(6.0, 6.0), (5.0, 6.0), (1e-3, 1e5)])
+def test_a_head_no_wider_than_the_shank_is_refused_naming_both_fields(s: float, d: float) -> None:
+    text = head_too_small_refusal(s, d)
+    assert text is not None
+    assert text.startswith("s and d: ")
+    assert "must exceed" in text
+    assert "{" not in text  # pydantic formats a custom error from its context
+
+
+def test_a_head_one_ulp_wider_than_the_shank_is_accepted() -> None:
+    assert head_too_small_refusal(math.nextafter(6.0, math.inf), 6.0) is None
+    assert head_too_small_refusal(10.0, 6.0) is None

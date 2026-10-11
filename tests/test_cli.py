@@ -4,6 +4,7 @@ and the exit codes a script depends on."""
 from __future__ import annotations
 
 import json
+import math
 import re
 import shlex
 import struct
@@ -120,6 +121,13 @@ def test_a_bad_value_exits_2_naming_the_field(
     assert f"error: {field}:" in capsys.readouterr().err
 
 
+def test_a_head_one_ulp_wider_than_the_shank_is_accepted(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    cli.main(["info", "bolt", "--s", repr(math.nextafter(6.0, math.inf))])
+    rows = {r["key"]: r["value"] for r in json.loads(capsys.readouterr().out)["rows"]}
+    assert rows["s"] == math.nextafter(6.0, math.inf)
+
+
 @pytest.mark.parametrize("field", ["s", "k"])
 def test_a_head_value_that_is_text_exits_2_naming_the_flag(
         field: str, capsys: pytest.CaptureFixture[str]) -> None:
@@ -131,6 +139,7 @@ def test_a_head_value_that_is_text_exits_2_naming_the_flag(
 @pytest.mark.parametrize(("argv", "prefix"), [
     (["info", "bolt", "--pitch", "6"], "error: d and pitch:"),
     (["info", "bolt", "--length", "300"], "error: length and pitch:"),
+    # head_too_small (D-23): the CLI prints no type, so the text names both fields.
     (["info", "bolt", "--s", "6"], "error: s and d: "),
     (["export", "bolt", "-o", "unused.stl", "--s", "5"], "error: s and d: "),
     # length / pitch is past the float range: exit 2, not the OverflowError traceback (CR-01)

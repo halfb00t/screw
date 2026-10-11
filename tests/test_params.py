@@ -91,6 +91,21 @@ def test_d_at_the_interim_bound_is_head_too_small_and_the_next_float_names_d() -
     assert (err["loc"], err["type"]) == (("d",), "less_than_equal")
 
 
+def test_a_head_no_wider_than_the_shank_is_refused_naming_s_and_d() -> None:
+    # D-23: product policy. s one float above d is a hex head and is accepted; s equal to d or
+    # below is the model-level error, whose message starts `s and d: ` for the CLI (no loc).
+    assert BoltParams.model_validate({"s": math.nextafter(6.0, math.inf)}).s > 6.0
+    for s in (6.0, 5.0):
+        with pytest.raises(ValidationError) as caught:
+            BoltParams.model_validate({"s": s})
+        [err] = caught.value.errors()
+        assert err["type"] == "head_too_small"
+        assert err["loc"] == ()
+        assert err["ctx"]["fields"] == ["s", "d"]
+        assert err["msg"].startswith("s and d: ")
+        assert "must exceed" in err["msg"]
+
+
 def test_a_pitch_with_no_root_radius_is_refused_naming_d_and_pitch() -> None:
     # d = 6 gives a root radius of 0 at pitch 5.5426 (D-04); the refusal is on the model.
     assert BoltParams.model_validate({"pitch": 5.5}).pitch == 5.5

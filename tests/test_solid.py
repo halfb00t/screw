@@ -15,7 +15,14 @@ from bench.thread_spike.helical import naive_sweep_fuse, one_pipe
 from bench.thread_spike.maths import VOID_CLEARANCE
 from screw.build_errors import BuildError
 from screw.calc import derive
-from screw.calc.thread import T_GATE, bolt_closed_volume, closed_volume, thread_depth
+from screw.calc.thread import (
+    T_GATE,
+    bolt_closed_volume,
+    closed_volume,
+    section_area,
+    thread_depth,
+    volume_check,
+)
 from screw.params import KINDS, BoltParams, FastenerParams
 from screw.solid import (
     _build_cached,
@@ -62,6 +69,68 @@ def test_the_default_bolt_is_one_valid_hex_head_screw_threaded_to_the_head() -> 
 def test_the_stl_is_binary_and_the_step_is_iso_10303() -> None:
     assert _triangles(export(BoltParams(), "stl", "preview")) > 0
     assert export(BoltParams(), "step").startswith(b"ISO-10303-21;")
+
+
+def test_a_left_hand_screw_builds_through_both_gates_with_the_same_head() -> None:
+    # The hand is the thread's; the head is a prism that does not know it (D-09).
+    solid = build(BoltParams(left_hand=True))
+    assert len(solid.Solids()) == 1
+    assert solid.isValid()
+    assert solid.BoundingBox().xlen == pytest.approx(10.0, abs=1e-4)
+
+
+@pytest.mark.parametrize(("d", "pitch", "length", "s", "k"), [
+    (8.0, 1.25, 12.0, 13.0, 5.3),
+    (6.0, 1.0, 20.0, 6.0 * 1.0000001, 0.5),   # a head barely wider than the shank
+])
+def test_the_head_is_a_sharp_hex_prism_of_across_flats_s_in_x_and_s_over_cos_30_in_y(
+        d: float, pitch: float, length: float, s: float, k: float) -> None:
+    box = build(BoltParams(d=d, pitch=pitch, length=length, s=s, k=k)).BoundingBox()
+    # No chamfer, washer face or fillet (D-01, D-02): the corners are sharp, so the box is exact.
+    assert box.zmax == pytest.approx(length + k, abs=TOL)
+    # The head is the widest part only when s is above the crest's 1e-4 box tolerance.
+    assert box.xlen == pytest.approx(max(s, d), abs=1e-4)
+    assert box.ylen == pytest.approx(max(s / math.cos(math.pi / 6), d), abs=1e-4)
+
+
+def _eps_diluted_below_the_gate_for_a_whole_part(d: float, pitch: float) -> float:
+    """A relative growth of the diameter that moves the thread's section area by 1.1e-4 to
+    1.4e-4 of itself: above T_GATE (9e-5) on the bare thread, and once the thread's share of the
+    whole volume (0.57 at M6 x 20) multiplies it, 6.3e-5 to 8.0e-5, below T_GATE on the part."""
+    eps = 4e-5
+    while True:
+        error = section_area(d * (1 + eps), pitch) / section_area(d, pitch) - 1
+        if 1.1e-4 <= error <= 1.4e-4:
+            return eps
+        assert error < 1.4e-4, "the scan stepped over the band"
+        eps += 5e-6
+
+
+def test_a_thread_wrong_by_a_part_in_ten_thousand_is_refused_on_the_thread_not_the_whole(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    # RESEARCH Alert 5: the head dilutes a thread error. The thread is 0.57 of the volume at
+    # M6 x 20, so a thread wrong by 1.1e-4 to 1.4e-4 reads 6.3e-5 to 8.0e-5 on the whole part,
+    # inside T_GATE, and only the bare-thread gate sees it.
+    p = BoltParams()
+    eps = _eps_diluted_below_the_gate_for_a_whole_part(p.d, p.pitch)
+    bad = helical.thread(p.d * (1 + eps), p.pitch, p.length)
+    whole = bolt_closed_volume(p.d, p.pitch, p.length, p.s, p.k, p.length)
+    share = closed_volume(p.d, p.pitch, p.length) / whole
+    assert 0.5 < share < 0.6  # the measured thread share this control relies on
+    # The control is real: the whole-part check alone would pass this very thread.
+    assert volume_check(precise_volume(bolt.assemble(p, bad)), whole) is None
+    monkeypatch.setattr(bolt, "thread", lambda _p: bad)
+    clear_cache()
+    size = _build_cached.cache_info().currsize
+    with pytest.raises(BuildError, match="wrong thread") as raised:
+        build(p)
+    assert 1.1e-4 <= abs(_relative_error(str(raised.value))) <= 1.4e-4
+    assert _build_cached.cache_info().currsize == size  # a refusal is never cached
+
+
+def test_the_good_thread_of_the_same_screw_passes_both_gates() -> None:
+    # The negative of the control above: the unpatched build of the same part is served.
+    assert len(build(BoltParams()).Solids()) == 1
 
 
 def test_a_preview_export_leaves_the_cached_solid_unmeshed() -> None:
