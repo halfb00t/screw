@@ -31,3 +31,8 @@ web/node_modules/
 
 # gsd per-session runtime lock (session id + pid), never shared
 /.planning/milestone.lock
+
+# purchased standards and their page renders never enter git (D-16, L13); renders go to the
+# session scratch directory, /.standards/ is a local directory name the owner may use in the tree
+*.pdf
+/.standards/
