@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: ISO Hex Bolts and Screws
 status: executing
-stopped_at: Completed 04-07-PLAN.md
-last_updated: "2026-10-11T17:08:41.869Z"
+stopped_at: Completed 04-08-PLAN.md
+last_updated: "2026-10-11T17:19:12.557Z"
 last_activity: 2026-10-11
 last_activity_desc: Phase 04 execution started
-state_head: 1ae2625484cafd983255066005cfbf89615eb35b
+state_head: 710d1f5c92832461e0ec688d559520cf3fcd41b0
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 39
-  completed_plans: 32
+  completed_plans: 33
   percent: 43
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-11)
 ## Current Position
 
 Phase: 04 (ISO Hex Bolts and Screws) — EXECUTING
-Plan: 8 of 14
+Plan: 9 of 14
 Status: Ready to execute
 Last activity: 2026-10-11 — Phase 04 execution started
 
@@ -90,6 +90,7 @@ Progress: [████░░░░░░] 43%
 | Phase 04 P05 | 35 min | 2 tasks | 11 files |
 | Phase 04 P06 | 8 min | 1 tasks | 4 files |
 | Phase 04 P07 | 10 min | 1 tasks | 13 files |
+| Phase 04 P08 | 15 min | 1 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -158,6 +159,8 @@ Recent decisions affecting current work:
 - [Phase 04]: 04-06: bench corpus pins s, k and thread_length = length on every entry; grid unchanged (OPER-02)
 - [Phase 04]: 04-07: Source.table and column use the printed spellings (Table 1, M6, Coarse); the owner copy agrees, so the double-entry diff compares them verbatim
 - [Phase 04]: 04-07: preset ids keep the printed capital M (iso4017:M6x20) per the plan's id grammar and regex; designation prints ASCII - and x, a decimal comma in the size, no brackets and no property class
+- [Phase 04]: 04-08: a left-hand part matches its row but its designation is null (Clause 7 gives no left-hand form); match is exact float equality, no nearest row
+- [Phase 04]: 04-08: calc/presets.py is the only calc module importing screw.tables; _bolt imports it inside the function, proved by the derive converse in tests/test_import_boundaries.py
 
 ### Pending Todos
 
@@ -196,6 +199,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-11T17:08:41.797Z
-Stopped at: Completed 04-07-PLAN.md
+Last session: 2026-10-11T17:19:12.485Z
+Stopped at: Completed 04-08-PLAN.md
 Resume file: None
