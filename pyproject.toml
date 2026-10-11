@@ -159,7 +159,7 @@ name = "The thread maths stays free of the CAD kernel"
 # The solid package is the only code allowed to touch the kernel (contract 8 below says so
 # for the whole tree).
 type = "forbidden"
-source_modules = ["screw.calc", "screw.params", "screw.cli"]
+source_modules = ["screw.calc", "screw.params", "screw.cli", "screw.tables"]
 forbidden_modules = ["cadquery", "OCP"]
 # Reaching the kernel *through* the solid package is the whole point of lazy imports in the
 # CLI; only a direct import here is the violation.
@@ -230,3 +230,26 @@ source_modules = [
     "bench.quiet",
 ]
 forbidden_modules = ["cadquery", "OCP"]
+
+[[tool.importlinter.contracts]]
+name = "The parameters never consult a table"
+# SC2: opening a link rebuilds the same part without consulting a table, so neither the
+# parameter model nor the thread maths may reach `screw.tables`, directly or through another
+# module (no allow_indirect_imports key: indirect imports are checked). grimp does not model the
+# package `__init__` edge -- `screw.calc.__init__` importing a table passes this contract -- so
+# tests/test_import_boundaries.py is the runtime control that `BoltParams()` and `screw.solid`
+# leave `screw.tables` out of `sys.modules` (RESEARCH Alert 3).
+type = "forbidden"
+source_modules = ["screw.params", "screw.calc.thread"]
+forbidden_modules = ["screw.tables"]
+
+[[tool.importlinter.contracts]]
+name = "Tables are a leaf"
+# The cited rows are data: they depend on nothing of ours, on no kernel and on no web or logging
+# stack, so a row can be read, diffed and tested without importing the app (D-16).
+type = "forbidden"
+source_modules = ["screw.tables"]
+forbidden_modules = [
+    "screw.params", "screw.calc", "screw.solid", "screw.app", "screw.cli", "screw.records",
+    "cadquery", "OCP", "fastapi", "pydantic", "logging",
+]
