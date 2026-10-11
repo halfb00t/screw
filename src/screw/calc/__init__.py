@@ -10,8 +10,9 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from screw.calc.thread import (
     MIN_TAIL_MM,
@@ -42,6 +43,17 @@ class InfoRow(BaseModel):
     unit: str
 
 
+class PresetMatch(BaseModel):
+    """Whether the part is a catalogue row; the page composes its badge from these keys (D-09)."""
+
+    model_config = ConfigDict(frozen=True)
+
+    status: Literal["exact", "custom"] = Field(
+        description="exact while every field a catalogue row defines equals that row, else custom")
+    id: str | None = Field(description="the matching row's id, null when custom")
+    display: str | None = Field(description="the matching row's display text, null when custom")
+
+
 class PartInfo(BaseModel):
     """The info document: identical on `/api/<kind>/info` and `screw info <kind>` (D-15)."""
 
@@ -50,6 +62,11 @@ class PartInfo(BaseModel):
     kind: str
     rows: list[InfoRow]
     warnings: list[str]
+    designation: str | None = Field(
+        description="the standard's designation of the part, null when it matches no row or is "
+                    "left-hand (the standards give no left-hand form); never a property class")
+    preset: PresetMatch | None = Field(
+        description="whether the part is a catalogue row; null for a kind without a catalogue")
 
 
 def _thread_length_warning(p: BoltParams, t: float) -> str | None:
@@ -133,7 +150,20 @@ def _bolt(p: BoltParams) -> PartInfo:
     fine = fine_stl_refusal(p.d, p.pitch, t, p.left_hand)
     if fine is not None:
         warnings.append(fine)
-    return PartInfo(kind=p.kind, rows=rows, warnings=warnings)
+    # Imported here, never at module top: importing `screw.calc.thread` runs this file, and a
+    # table import above would load the tables behind every rebuilt link (contract 6,
+    # tests/test_import_boundaries.py).
+    from screw.calc.presets import designation_for, match
+
+    row = match(p)
+    if row is None:
+        preset = PresetMatch(status="custom", id=None, display=None)
+        designation = None
+    else:
+        preset = PresetMatch(status="exact", id=row.id, display=row.display)
+        designation = designation_for(p, row)
+    return PartInfo(kind=p.kind, rows=rows, warnings=warnings, designation=designation,
+                    preset=preset)
 
 
 def derive(p: FastenerParams) -> PartInfo:

@@ -61,10 +61,10 @@ class FastenerParams(BaseModel):
 
     kind: ClassVar[str]
 
-    # ASSUMPTION (D-05): 1.0 mm is the ISO 262 coarse pitch for M6. Phase 4's ISO 262 row
-    # test must assert the default (d, pitch) equals a row; Phase 5's `defaults mate` test
-    # guards the pair. These defaults are frozen: every shareable link omits fields at
-    # default, so moving one silently rebuilds a different part from an old link (L02).
+    # The defaults are the ISO 4017 M6 x 20 row, asserted by
+    # tests/test_params.py::test_the_frozen_defaults_are_the_iso_4017_m6_x_20_row (D-07). They
+    # are frozen all the same: every shareable link omits fields at default, so moving one
+    # silently rebuilds a different part from an old link (L02).
     d: float = _f(6.0, gt=0, le=INTERIM_MAX_MM, title="Diameter", group="Size", unit="mm",
                   step=0.1, help="Nominal (major) diameter of the shank.")
     pitch: float = _f(1.0, gt=0, title="Pitch", group="Size", unit="mm", step=0.05,

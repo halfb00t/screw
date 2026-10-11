@@ -34,5 +34,17 @@ def test_a_part_is_rebuilt_from_its_fields_without_loading_a_table(code: str) ->
 
 def test_the_probe_sees_the_tables_once_they_are_imported() -> None:
     # The control: without it a probe that always prints False would pass the test above.
-    # Plan 04-08 adds the converse through `derive`, when `_bolt` starts reading the catalogue.
     assert _loads_tables("import screw.tables.presets") is True
+
+
+def test_deriving_the_info_document_loads_the_tables_it_matches_against() -> None:
+    # The converse (04-08): `_bolt` reads the catalogue to report the matching row, so a probe
+    # that stayed False here would mean the match never ran. `derive` is the only way in.
+    assert _loads_tables("from screw.calc import derive; from screw.params import BoltParams;"
+                         " derive(BoltParams())") is True
+
+
+def test_importing_the_calc_package_alone_does_not_load_the_tables() -> None:
+    # `screw.calc.thread` runs `screw/calc/__init__.py`, so a top-of-module import of
+    # `screw.calc.presets` there would put the tables behind every rebuilt link.
+    assert _loads_tables("import screw.calc") is False

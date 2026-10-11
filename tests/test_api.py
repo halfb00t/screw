@@ -166,8 +166,12 @@ def test_openapi_documents_the_typed_contracts() -> None:
         "$ref": "#/components/schemas/PartInfo"}
 
     part_info = schema["components"]["schemas"]["PartInfo"]
-    assert set(part_info["properties"]) == {"kind", "rows", "warnings"}
-    assert set(part_info["required"]) == {"kind", "rows", "warnings"}
+    keys = {"kind", "rows", "warnings", "designation", "preset"}
+    assert set(part_info["properties"]) == keys
+    assert set(part_info["required"]) == keys
+    preset = schema["components"]["schemas"]["PresetMatch"]
+    assert set(preset["properties"]) == {"status", "id", "display"}
+    assert set(preset["required"]) == {"status", "id", "display"}
     info_row = schema["components"]["schemas"]["InfoRow"]
     assert set(info_row["properties"]) == {"key", "label", "value", "unit"}
     assert set(info_row["required"]) == {"key", "label", "value", "unit"}
@@ -209,6 +213,15 @@ def test_the_default_info_document() -> None:
     assert values["across_corners"] == 10.0 / math.cos(math.pi / 6)
     assert values["volume"] == bolt_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0)
     assert body["warnings"][0] == STANDING_WARNING
+    assert body["preset"] == {"status": "exact", "id": "iso4017:M6x20",
+                              "display": "ISO 4017 M6 \u00d7 20"}
+    assert body["designation"] == "Hexagon head screw ISO 4017 - M6 x 20"
+
+
+def test_a_part_matching_no_row_is_custom_on_the_wire() -> None:
+    body = client.get("/api/bolt/info", params={"s": 10.5}).json()
+    assert body["preset"] == {"status": "custom", "id": None, "display": None}
+    assert body["designation"] is None
 
 
 def test_a_length_below_the_default_thread_is_a_200_with_the_default_warning_never_a_422() -> None:

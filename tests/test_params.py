@@ -13,6 +13,7 @@ import pytest
 from pydantic import ValidationError
 
 from screw.params import DEFAULT_KIND, INTERIM_MAX_MM, KINDS, BoltParams, FastenerParams
+from screw.tables.presets import expand
 
 FIELDS = ("d", "pitch", "length", "s", "k", "thread_length")
 
@@ -35,6 +36,16 @@ def test_the_frozen_defaults_are_the_iso_4017_m6_row_the_owner_confirmed() -> No
     # ISO 4017:2022 M6 and typed `permanent: accepted`. The literals, so moving one fails here.
     p = BoltParams()
     assert (p.d, p.pitch, p.length, p.s, p.k) == (6.0, 1.0, 20.0, 10.0, 4.0)
+
+
+def test_the_frozen_defaults_are_the_iso_4017_m6_x_20_row() -> None:
+    # D-07: closes 01 D-05's ASSUMPTION. The defaults are absolute millimetres (L02) and must
+    # also be a cited table row, so a table edit that moves M6 x 20 fails here instead of leaving
+    # the default link describing a part no standard has.
+    row = expand("iso4017:M6x20")
+    assert row is not None
+    p = BoltParams()
+    assert {name: getattr(p, name) for name in row} == row
 
 
 def test_the_default_thread_length_is_the_frozen_20_and_never_follows_the_length() -> None:

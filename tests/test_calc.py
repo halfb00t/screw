@@ -6,9 +6,11 @@ import math
 
 import pytest
 
-from screw.calc import STANDING_WARNING, derive, download_refusal
+from screw.calc import STANDING_WARNING, PresetMatch, derive, download_refusal
+from screw.calc.presets import designation_for, match
 from screw.calc.thread import bolt_closed_volume, fine_stl_refusal
 from screw.params import KINDS, BoltParams, FastenerParams
+from screw.tables.presets import catalogue
 
 WARNING = "plain-cut thread ends, no tip chamfer or under-head fillet; not a product build"
 PROFILE = "ISO 68-1:2023 basic profile"
@@ -262,3 +264,74 @@ def test_a_thread_of_exactly_the_floor_is_built_and_reports_turns_and_volume() -
     keys = [r.key for r in info.rows]
     assert "turns" in keys
     assert "volume" in keys
+
+
+# --- the preset match and the designation (TABL-06, TABL-07, D-09, D-17) -----------------------
+
+
+def test_the_default_part_matches_the_iso_4017_m6_x_20_row() -> None:
+    info = derive(BoltParams())
+    assert info.preset == PresetMatch(
+        status="exact", id="iso4017:M6x20", display="ISO 4017 M6 \u00d7 20")
+    # The owner's Clause 7 form: ASCII hyphen and x, no property class (04-OWNER-READS.md).
+    assert info.designation == "Hexagon head screw ISO 4017 - M6 x 20"
+
+
+def test_the_designation_never_carries_a_property_class() -> None:
+    # TABL-07: printed plastic has no strength grade, so no grade can appear in the text.
+    for row in catalogue():
+        assert "8.8" not in row.designation
+        assert "property" not in row.designation.lower()
+
+
+def test_a_part_matching_no_row_is_custom_with_no_designation() -> None:
+    info = derive(BoltParams(d=8.0, pitch=1.25, s=13.0, k=5.3))
+    assert info.preset == PresetMatch(status="custom", id=None, display=None)
+    assert info.designation is None
+
+
+@pytest.mark.parametrize(
+    "change",
+    [{"s": 10.5}, {"k": 4.5}, {"pitch": 0.75}, {"thread_length": 18.0}, {"length": 22.0}],
+    ids=lambda c: next(iter(c)),
+)
+def test_one_field_off_its_row_reads_custom_and_never_the_nearest_row(
+        change: dict[str, float]) -> None:
+    # D-09, L02: exact float equality over every field a row defines; a part one field off a
+    # row is custom, never snapped to the closest one.
+    info = derive(BoltParams.model_validate(change))
+    assert info.preset == PresetMatch(status="custom", id=None, display=None)
+    assert info.designation is None
+
+
+def test_another_catalogue_length_matches_its_own_row() -> None:
+    info = derive(BoltParams(length=25.0, thread_length=25.0))
+    assert info.preset is not None
+    assert (info.preset.status, info.preset.id) == ("exact", "iso4017:M6x25")
+    assert info.designation == "Hexagon head screw ISO 4017 - M6 x 25"
+
+
+def test_a_left_hand_part_matches_its_row_but_withholds_the_designation() -> None:
+    # left_hand is not a row field, so the part still matches; Clause 7 of both standards gives
+    # no left-hand form, so the designation is withheld rather than invented (04-OWNER-READS.md).
+    info = derive(BoltParams(left_hand=True))
+    assert info.preset == PresetMatch(
+        status="exact", id="iso4017:M6x20", display="ISO 4017 M6 \u00d7 20")
+    assert info.designation is None
+
+
+def test_match_and_designation_for_read_the_catalogue_directly() -> None:
+    row = match(BoltParams())
+    assert row is not None
+    assert row.id == "iso4017:M6x20"
+    assert designation_for(BoltParams(), row) == row.designation
+    assert designation_for(BoltParams(left_hand=True), row) is None
+    assert match(BoltParams(s=10.1)) is None
+
+
+def test_every_catalogue_row_matches_itself_exactly() -> None:
+    for row in catalogue():
+        part = BoltParams.model_validate(dict(row.fields))
+        found = match(part)
+        assert found is not None
+        assert found.id == row.id
