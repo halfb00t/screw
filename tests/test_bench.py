@@ -44,6 +44,8 @@ from bench import quiet as quiet_module
 from bench.build_time import Timing, load_sweep, report, stl_size
 from bench.corpus import corpus
 from bench.export_cost import GzipRow, find_set, maxrss_bytes, select_gzip_level
+from bench.head_fuse import CASES as HEAD_FUSE_CASES
+from bench.head_fuse import probe as head_fuse_probe
 from bench.latency import (
     DEFAULT_SCENARIOS,
     MIN_SAMPLES,
@@ -4875,3 +4877,20 @@ def test_the_protocol_text_above_results_carries_every_pre_registered_section() 
     headings = [line for line in _protocol_head().split("\n") if line.startswith("## ")]
     names = [h.removeprefix("## ") for h in headings]
     assert [n for n in names if n in _PROTOCOL_HEADINGS] == list(_PROTOCOL_HEADINGS)
+
+
+def test_the_head_fuse_probe_of_the_smallest_case_is_one_valid_solid_inside_the_gate() -> None:
+    """The D-03 probe's own harness, on M2 x 4 only (about 0.1 s): a probe whose assembly was
+    never run against the kernel would be a claim, not a record."""
+    case = HEAD_FUSE_CASES[0]
+    result = head_fuse_probe(case)
+    assert result["solids"] == 1
+    assert result["valid"] is True
+    for key in ("volume_error", "thread_error"):
+        error = result[key]
+        assert isinstance(error, float)
+        assert abs(error) <= screw_thread.T_GATE
+    zmax = result["zmax"]
+    assert isinstance(zmax, float)
+    assert abs(zmax - (case.length + case.k)) < 1e-6
+    assert result["preview_open_edges"] == 0
