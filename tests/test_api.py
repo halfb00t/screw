@@ -130,9 +130,11 @@ def test_schema_requires_a_kind_and_knows_only_registered_kinds() -> None:
     r = client.get("/api/schema", params={"kind": "bolt"})
     assert r.status_code == 200
     props = r.json()["properties"]
-    assert list(props) == ["d", "pitch", "left_hand", "length", "s", "k"]
+    assert list(props) == ["d", "pitch", "left_hand", "length", "s", "k", "thread_length"]
     assert props["d"]["group"] == "Size"
     assert props["s"]["group"] == props["k"]["group"] == "Head"
+    assert props["thread_length"]["group"] == "Thread"
+    assert props["thread_length"]["default"] == 20.0
     assert props["d"]["unit"] == "mm"
     assert props["length"]["unit"] == "mm"
 
@@ -172,11 +174,12 @@ def test_openapi_documents_the_typed_contracts() -> None:
 
     model_route = schema["paths"]["/api/bolt/model.{fmt}"]["get"]
     query_names = {p["name"] for p in model_route["parameters"] if p["in"] == "query"}
-    assert query_names == {"d", "pitch", "left_hand", "length", "s", "k", "quality"}
+    assert query_names == {"d", "pitch", "left_hand", "length", "s", "k", "thread_length",
+                           "quality"}
     # `quality` belongs to the model route only: it is a foreign field on the info route.
     info_route = schema["paths"]["/api/bolt/info"]["get"]
     info_names = {p["name"] for p in info_route["parameters"] if p["in"] == "query"}
-    assert info_names == {"d", "pitch", "left_hand", "length", "s", "k"}
+    assert info_names == {"d", "pitch", "left_hand", "length", "s", "k", "thread_length"}
 
     health_response = schema["paths"]["/api/health"]["get"]["responses"]["200"]
     assert health_response["content"]["application/json"]["schema"] == {
@@ -194,21 +197,42 @@ def test_the_default_info_document() -> None:
     body = r.json()
     assert body["kind"] == "bolt"
     assert [row["key"] for row in body["rows"]] == [
-        "d", "pitch", "length", "turns", "thread_depth", "minor_diameter", "s", "across_corners",
-        "k", "volume"]
+        "d", "pitch", "length", "thread_length", "shank_length", "turns", "thread_depth",
+        "minor_diameter", "s", "across_corners", "k", "volume"]
     values = {row["key"]: row["value"] for row in body["rows"]}
     assert values["d"] == 6.0
     assert values["pitch"] == 1.0
     assert values["length"] == 20.0
     assert values["turns"] == 20.0
+    assert (values["thread_length"], values["shank_length"]) == (20.0, 0.0)
     assert (values["s"], values["k"]) == (10.0, 4.0)
     assert values["across_corners"] == 10.0 / math.cos(math.pi / 6)
     assert values["volume"] == bolt_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0)
     assert body["warnings"][0] == STANDING_WARNING
 
 
+def test_a_length_below_the_default_thread_is_a_200_with_the_default_warning_never_a_422() -> None:
+    # D-08: `?length=10` is a 10 mm full-thread screw and the page says why.
+    r = client.get("/api/bolt/info", params={"length": 10})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["warnings"][1] == (
+        "thread_length 20 (default) exceeds length 10: thread built to the full length")
+    values = {row["key"]: row["value"] for row in body["rows"]}
+    assert (values["thread_length"], values["shank_length"]) == (10.0, 0.0)
+
+
+def test_an_iso_4014_shaped_bolt_reports_its_thread_and_its_shank() -> None:
+    r = client.get("/api/bolt/info", params={"length": 30, "thread_length": 18})
+    assert r.status_code == 200
+    values = {row["key"]: row["value"] for row in r.json()["rows"]}
+    assert (values["thread_length"], values["shank_length"]) == (18.0, 12.0)
+    assert values["turns"] == 18.0
+    assert values["volume"] == bolt_closed_volume(6.0, 1.0, 30.0, 10.0, 4.0, 18.0)
+
+
 @pytest.mark.parametrize("route", ["/api/bolt/info", "/api/bolt/model.stl"])
-@pytest.mark.parametrize("field", ["d", "pitch", "length", "s", "k"])
+@pytest.mark.parametrize("field", ["d", "pitch", "length", "s", "k", "thread_length"])
 @pytest.mark.parametrize("value", ["0", "-1", "inf", "nan", "text"])
 def test_each_field_refuses_zero_negative_infinite_nan_and_text(
         route: str, field: str, value: str) -> None:
@@ -273,6 +297,15 @@ def test_the_interim_bound_is_inclusive_and_the_next_value_is_refused() -> None:
         assert refused.status_code == 422
         assert refused.json()["detail"][0]["loc"] == ["query", "length"]
 
+    # thread_length shares the bound (D-23): a 250-turn thread of 1e5 mm is served, one float
+    # above names the field.
+    thread_at_bound: Params = {**at_bound, "thread_length": bound}
+    assert client.get("/api/bolt/info", params=thread_at_bound).status_code == 200
+    for route in ("/api/bolt/info", "/api/bolt/model.stl"):
+        refused = client.get(route, params={**thread_at_bound, "thread_length": just_over})
+        assert refused.status_code == 422
+        assert refused.json()["detail"][0]["loc"] == ["query", "thread_length"]
+
     # d at the bound is refused outright: s cannot exceed the same bound, so no head is wider
     # than d there (D-23). One float above is the bound itself, named on the field.
     for route in ("/api/bolt/info", "/api/bolt/model.stl"):
@@ -306,10 +339,10 @@ def test_the_interim_bound_is_inclusive_and_the_next_value_is_refused() -> None:
 @pytest.mark.parametrize(("query", "kind", "fields"), [
     ({"pitch": 6}, "pitch_too_coarse", ["d", "pitch"]),
     ({"pitch": 1e300}, "pitch_too_coarse", ["d", "pitch"]),
-    ({"length": 300}, "turn_cap", ["length", "pitch"]),
+    ({"length": 300, "thread_length": 300}, "turn_cap", ["thread_length", "length", "pitch"]),
     # length / pitch is past the float range: a 422, not the 500 an OverflowError gave (CR-01)
-    ({"pitch": 5e-324}, "turn_cap", ["length", "pitch"]),
-    ({"pitch": 1e-310, "length": 1e5}, "turn_cap", ["length", "pitch"]),
+    ({"pitch": 5e-324}, "turn_cap", ["thread_length", "length", "pitch"]),
+    ({"pitch": 1e-310, "length": 1e5}, "turn_cap", ["thread_length", "length", "pitch"]),
 ])
 def test_a_thread_that_cannot_be_made_or_was_never_measured_is_a_422_naming_both_fields(
         route: str, query: Params, kind: str, fields: list[str]) -> None:
@@ -322,7 +355,8 @@ def test_a_thread_that_cannot_be_made_or_was_never_measured_is_a_422_naming_both
     assert detail["type"] == kind
     assert detail["loc"] == ["query"]
     assert detail["ctx"]["fields"] == fields
-    assert detail["msg"].startswith(" and ".join(fields) + ": ")
+    named = ", ".join(fields[:-1]) + " and " + fields[-1]
+    assert detail["msg"].startswith(named + ": ")
 
 
 @pytest.mark.parametrize("route", ["/api/bolt/info", "/api/bolt/model.stl"])
@@ -388,7 +422,7 @@ def test_model_download(fmt: str, ctype: str, magic: bytes | None) -> None:
     assert r.status_code == 200
     assert r.headers["content-type"] == ctype
     assert r.headers["content-disposition"] == (
-        f'attachment; filename="bolt_d8_pitch1_left_hand0_length20_s10_k4.{fmt}"')
+        f'attachment; filename="bolt_d8_pitch1_left_hand0_length20_s10_k4_thread_length20.{fmt}"')
     if magic:
         assert r.content.startswith(magic)
 
@@ -407,9 +441,10 @@ def test_a_left_hand_bolt_downloads_under_its_own_filename_and_is_not_the_right_
     left = client.get("/api/bolt/model.stl", params={"left_hand": "true", "quality": "preview"})
     assert left.status_code == 200
     assert left.headers["content-disposition"] == (
-        'attachment; filename="bolt_d6_pitch1_left_hand1_length20_s10_k4.stl"')
+        'attachment; filename="bolt_d6_pitch1_left_hand1_length20_s10_k4_thread_length20.stl"')
     right = client.get("/api/bolt/model.stl", params={"quality": "preview"})
-    assert right.headers["content-disposition"].endswith('left_hand0_length20_s10_k4.stl"')
+    assert right.headers["content-disposition"].endswith(
+        'left_hand0_length20_s10_k4_thread_length20.stl"')
     # The bytes of the left-hand solid the handedness probe proves left-handed
     # (tests/test_solid.py), and not of the right-hand one.
     assert left.content == export(BoltParams(left_hand=True), "stl", "preview")
@@ -489,7 +524,8 @@ def test_a_saturated_service_emits_queue_refused_naming_the_part_and_the_ceiling
     assert refused[0].levelno == logging.WARNING
     assert _field(refused[0], "request")
     assert _field(refused[0], "kind") == "bolt"
-    assert _field(refused[0], "slug") == "bolt_d7.3_pitch1_left_hand0_length20_s10_k4"
+    assert _field(refused[0], "slug") == (
+        "bolt_d7.3_pitch1_left_hand0_length20_s10_k4_thread_length20")
     assert _field(refused[0], "in_flight") == in_flight_before
     assert _field(refused[0], "max_queued") == app_module.MAX_QUEUED_BUILDS
 
@@ -635,7 +671,8 @@ def test_a_fresh_build_emits_build_started_then_export_served_with_source_built(
     # Every per-request record names the kind, the slug and only the non-default params.
     for record in (started[0], served[0]):
         assert _field(record, "kind") == "bolt"
-        assert _field(record, "slug") == "bolt_d7.1_pitch1_left_hand0_length20_s10_k4"
+        assert _field(record, "slug") == (
+            "bolt_d7.1_pitch1_left_hand0_length20_s10_k4_thread_length20")
         assert _field(record, "params") == {"d": 7.1}
 
 
@@ -702,7 +739,7 @@ def test_an_all_default_part_logs_params_as_an_empty_object_not_omitted(
     assert len(served) == 1
     assert _field(served[0], "params") == {}
     assert _field(served[0], "kind") == "bolt"
-    assert _field(served[0], "slug") == "bolt_d6_pitch1_left_hand0_length20_s10_k4"
+    assert _field(served[0], "slug") == "bolt_d6_pitch1_left_hand0_length20_s10_k4_thread_length20"
 
 
 def test_two_requests_for_one_part_get_two_different_request_ids(
@@ -758,7 +795,8 @@ def test_a_failed_build_emits_build_failed_naming_the_class_and_the_level(
     assert _field(failed[0], "exception") == want_exception
     assert _field(failed[0], "request")
     assert _field(failed[0], "kind") == "bolt"
-    assert _field(failed[0], "slug") == "bolt_d8.3_pitch1_left_hand0_length20_s10_k4"
+    assert _field(failed[0], "slug") == (
+        "bolt_d8.3_pitch1_left_hand0_length20_s10_k4_thread_length20")
     assert _field(failed[0], "params") == {"d": 8.3}
     assert _field(failed[0], "duration_ms") is not None
 
@@ -830,7 +868,7 @@ def test_a_failed_export_is_a_422_and_never_enters_the_bytes_cache(
     assert app_module._EXPORTS.get(key) is not None
 
 
-CAPPED: Params = {"d": 8, "pitch": 1.25, "length": 67.6}
+CAPPED: Params = {"d": 8, "pitch": 1.25, "length": 67.6, "thread_length": 67.6}
 
 
 def test_a_fine_stl_l11_measured_over_budget_is_a_422_and_never_reaches_the_backend() -> None:
@@ -848,8 +886,8 @@ def test_a_fine_stl_l11_measured_over_budget_is_a_422_and_never_reaches_the_back
     (detail,) = r.json()["detail"]
     assert detail["type"] == "fine_stl_cap"
     assert detail["loc"] == ["query"]
-    for fragment in ("length", "right-hand", "67.5", "54", "fine STL plus its gzip copy",
-                     "64 MiB export budget", "2026-10-08-a-grid"):
+    for fragment in ("thread_length and length", "right-hand", "67.5", "54",
+                     "fine STL plus its gzip copy", "64 MiB export budget", "2026-10-08-a-grid"):
         assert fragment in detail["msg"]
     assert calls == 0
 
@@ -871,11 +909,16 @@ def test_the_cap_itself_and_an_off_row_part_reach_the_backend_as_asked() -> None
         return b"stub"
 
     with _backend(stub):
-        at_cap = client.get("/api/bolt/model.stl", params={**CAPPED, "length": 67.5})
+        at_cap = client.get("/api/bolt/model.stl", params={
+            **CAPPED, "length": 67.5, "thread_length": 67.5})
         off_row = client.get("/api/bolt/model.stl", params={"d": 8, "pitch": 1, "length": 100})
-    assert at_cap.status_code == off_row.status_code == 200
+        # D-22: the cap reads the thread; 100 mm of bolt with 60 mm of it is inside 67.5.
+        short_thread = client.get("/api/bolt/model.stl", params={
+            "d": 8, "pitch": 1.25, "length": 100, "thread_length": 60})
+    assert at_cap.status_code == off_row.status_code == short_thread.status_code == 200
     bolts = [p for p in seen if isinstance(p, BoltParams)]
-    assert [(p.d, p.pitch, p.length) for p in bolts] == [(8.0, 1.25, 67.5), (8.0, 1.0, 100.0)]
+    assert [(p.d, p.pitch, p.length, p.thread_length) for p in bolts] == [
+        (8.0, 1.25, 67.5, 67.5), (8.0, 1.0, 100.0, 20.0), (8.0, 1.25, 100.0, 60.0)]
     assert len(bolts) == len(seen)
 
 
@@ -887,7 +930,8 @@ def test_the_left_hand_part_l11_measured_inside_the_budget_reaches_the_backend()
         seen.append(p)
         return b"stub"
 
-    mirror: Params = {"d": 10, "pitch": 1.5, "length": 60, "s": 16, "k": 6.4}
+    mirror: Params = {"d": 10, "pitch": 1.5, "length": 60, "thread_length": 60, "s": 16,
+                      "k": 6.4}
     with _backend(stub):
         left = client.get("/api/bolt/model.stl", params={**mirror, "left_hand": "true"})
         right = client.get("/api/bolt/model.stl", params=mirror)

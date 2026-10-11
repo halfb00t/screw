@@ -112,14 +112,28 @@ class BoltParams(FastenerParams):
                   step=0.1, help="Width across flats of the hexagon head (ISO symbol s).")
     k: float = _f(4.0, gt=0, le=INTERIM_MAX_MM, title="Head height", group="Head", unit="mm",
                   step=0.1, help="Height of the hexagon head along the axis (ISO symbol k).")
+    # D-07, L02: the ISO 4017 M6 x 20 row fills this with the full length, and the default 20.0 is
+    # frozen: every shareable link that omits it means 20 forever. Measured from the tip (D-08)
+    # and never rewritten: `built_thread_length` derives the thread the builder makes, so a
+    # length below this default builds a full-thread screw and the info document says so.
+    thread_length: float = _f(20.0, gt=0, le=INTERIM_MAX_MM, title="Thread length",
+                              group="Thread", unit="mm", step=0.5,
+                              help="Length of the thread from the tip (ISO 4014: b; ISO 4017: "
+                                   "the whole length); the rest of the length is a plain shank "
+                                   "of diameter d.")
 
     @model_validator(mode="after")
     def _turn_cap(self) -> Self:
-        # Needs `length`, which only the bolt has (D-01).
-        from screw.calc.thread import turn_cap_refusal
+        # Needs the built thread, which only the bolt has (D-01, D-22). No `thread_length` is
+        # refused against `length` here: the owner's D-25 ruling accepts a direct
+        # BoltParams(length=10, thread_length=30), built to the length and warned by `derive`,
+        # and puts the 422 for two explicit values at the request boundary (plan 04-05).
+        from screw.calc.thread import built_thread_length, turn_cap_refusal
 
-        if (msg := turn_cap_refusal(self.length, self.pitch)) is not None:
-            raise PydanticCustomError("turn_cap", msg, {"fields": ["length", "pitch"]})
+        t = built_thread_length(self.thread_length, self.length)
+        if (msg := turn_cap_refusal(t, self.pitch)) is not None:
+            raise PydanticCustomError(
+                "turn_cap", msg, {"fields": ["thread_length", "length", "pitch"]})
         return self
 
     @model_validator(mode="after")

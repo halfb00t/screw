@@ -13,8 +13,10 @@ from bench.thread_spike.maths import PITCH
 from screw.calc.thread import (
     FINE_STL_ROWS,
     MAX_TURNS,
+    MIN_TAIL_MM,
     T_GATE,
     bolt_closed_volume,
+    built_thread_length,
     closed_volume,
     fine_stl_refusal,
     fundamental_height,
@@ -176,7 +178,8 @@ def test_the_turn_cap_is_250_and_the_cap_row_is_accepted() -> None:
 def test_one_ulp_past_250_turns_is_refused_naming_both_fields_and_the_run() -> None:
     refusal = turn_cap_refusal(math.nextafter(250.0, math.inf), 1.0)
     assert refusal is not None
-    assert refusal.startswith("length and pitch: ")
+    assert refusal.startswith("thread_length, length and pitch: ")
+    assert "turns of built thread is past the 250-turn cap" in refusal
     assert "250" in refusal
     assert "2026-10-08-a-frontier" in refusal
     assert "{" not in refusal
@@ -185,12 +188,12 @@ def test_one_ulp_past_250_turns_is_refused_naming_both_fields_and_the_run() -> N
 
 def test_turns_past_the_float_range_read_as_infinite_and_are_refused_in_words() -> None:
     # float(Fraction) raises OverflowError above about 1.8e308; the quotient has no finite
-    # reading, and "inf turns is past the 250-turn cap" is true.
+    # reading, and "inf turns of built thread is past the 250-turn cap" is true.
     assert turns_of(1e5, 1e-310) == math.inf
     assert turns_of(20.0, 5e-324) == math.inf
     refusal = turn_cap_refusal(20.0, 5e-324)
     assert refusal is not None
-    assert "inf turns is past the 250-turn cap" in refusal
+    assert "inf turns of built thread is past the 250-turn cap" in refusal
 
 
 @pytest.mark.parametrize("size", list(PITCH))
@@ -264,9 +267,9 @@ def test_each_cap_is_accepted_and_the_next_float_above_is_refused(
     assert fine_stl_refusal(d, pitch, cap, left_hand) is None
     refusal = fine_stl_refusal(d, pitch, math.nextafter(cap, math.inf), left_hand)
     assert refusal is not None
-    assert refusal.startswith("length: ")
+    assert refusal.startswith("thread_length and length: ")
     assert ("left-hand" if left_hand else "right-hand") in refusal
-    assert f"{cap:g} mm ({turns} turns)" in refusal
+    assert f"{cap:g} mm of thread ({turns} turns)" in refusal
     assert "fine STL plus its gzip copy" in refusal
     assert "64 MiB export budget" in refusal
     assert "2026-10-08-a-grid" in refusal
@@ -278,7 +281,8 @@ def test_each_cap_is_accepted_and_the_next_float_above_is_refused(
 def test_the_refusal_names_the_cap_the_run_and_the_length_asked() -> None:
     refusal = fine_stl_refusal(8.0, 1.25, 67.6, False)
     assert refusal is not None
-    assert "length" in refusal
+    assert refusal.startswith("thread_length and length: ")
+    assert "the thread built here is 67.6 mm" in refusal
     assert "67.5" in refusal
     assert "54" in refusal
     assert "2026-10-08-a-grid" in refusal
@@ -300,6 +304,22 @@ def test_an_off_row_part_has_no_bytes_cap_not_the_nearest_rows() -> None:
     assert fine_stl_refusal(8.1, 1.25, 100.0, False) is None
     assert fine_stl_refusal(6.0, 1.0, 250.0, False) is None
     assert fine_stl_refusal(8.0, 1.0, 250.0, True) is None
+
+
+@pytest.mark.parametrize(("thread_length", "length", "built"), [
+    (20.0, 10.0, 10.0),            # the default 20 below an explicit length: built to the length
+    (18.0, 30.0, 18.0),            # a shank of 12 mm
+    (30.0, 30.0, 30.0),            # no shank
+    (19.9995, 20.0, 20.0),         # a 0.0005 mm shank is folded into the thread (D-27)
+    (19.999, 20.0, 19.999),        # a 0.001 mm shank is kept: the fold is strictly below the floor
+])
+def test_the_built_thread_is_the_thread_length_capped_at_the_length_and_a_sliver_is_folded(
+        thread_length: float, length: float, built: float) -> None:
+    assert built_thread_length(thread_length, length) == built
+
+
+def test_the_shank_floor_is_a_thousandth_of_a_millimetre() -> None:
+    assert MIN_TAIL_MM == 1e-3
 
 
 def test_a_hex_prism_is_the_hexagon_area_times_the_height() -> None:

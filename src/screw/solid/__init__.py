@@ -34,7 +34,12 @@ if TYPE_CHECKING:
 
 from screw import int_env
 from screw.build_errors import BuildError
-from screw.calc.thread import bolt_closed_volume, closed_volume, volume_check
+from screw.calc.thread import (
+    bolt_closed_volume,
+    built_thread_length,
+    closed_volume,
+    volume_check,
+)
 from screw.params import BoltParams, FastenerParams
 from screw.solid import bolt
 
@@ -117,7 +122,7 @@ def check_solid(shape: cq.Shape, closed: float, part: str = "solid") -> None:
 def _build(p: FastenerParams) -> cq.Solid:
     if not isinstance(p, BoltParams):
         raise TypeError(f"no solid builder for kind {p.kind!r}")
-    t = p.length  # the threaded length; plan 04-04 replaces it with the built thread length
+    t = built_thread_length(p.thread_length, p.length)
     thread = bolt.thread(p)
     # Gate the bare thread first (RESEARCH Alert 5): it is 0.19 to 0.57 of the whole volume, so a
     # thread error the whole-part gate dilutes below T_GATE (1.1e-4 to 1.4e-4 at M6 x 20 is
@@ -138,7 +143,7 @@ def _build_checked(p: FastenerParams) -> cq.Solid:
         raise
     except Exception as exc:  # OCCT raises assorted Standard_Failure subclasses
         raise BuildError(f"Geometry kernel failed ({type(exc).__name__}); "
-                         "check d, pitch, length, s and k.") from exc
+                         "check d, pitch, length, thread_length, s and k.") from exc
 
 
 # INTERIM (D-01): 4 solids per worker, carried from spur model.py:561 where it sized a

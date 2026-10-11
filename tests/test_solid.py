@@ -66,6 +66,76 @@ def test_the_default_bolt_is_one_valid_hex_head_screw_threaded_to_the_head() -> 
     assert abs(volume - closed_volume(6.0, 1.0, 20.0)) > 0.01 * closed_volume(6.0, 1.0, 20.0)
 
 
+def test_an_iso_4014_shaped_bolt_has_a_thread_a_plain_shank_and_a_head_in_one_valid_solid() -> None:
+    # THRD-03, TYPE-01: M6 x 30 with 18 mm of thread from the tip, a plain shank of d from 18 to
+    # 30 and the head on top. build() runs both gates against the closed form on t = 18.
+    p = BoltParams(length=30.0, thread_length=18.0)
+    solid = build(p)
+    assert len(solid.Solids()) == 1
+    assert solid.isValid()
+    box = solid.BoundingBox()
+    assert box.zmin == pytest.approx(0.0, abs=TOL)
+    assert box.zmax == pytest.approx(34.0, abs=TOL)
+    volume = precise_volume(solid)
+    assert volume == pytest.approx(bolt_closed_volume(6.0, 1.0, 30.0, 10.0, 4.0, 18.0), rel=T_GATE)
+    # The shank is a plain cylinder of the major diameter: at mid shank a point 2.9 mm from the
+    # axis, outside the thread's root radius (2.46) at some angles, is inside at every angle, and
+    # one 3.1 mm out is outside.
+    for angle in (0.0, math.pi / 3, math.pi):
+        x, y = 2.9 * math.cos(angle), 2.9 * math.sin(angle)
+        assert solid.isInside(cq.Vector(x, y, 24.0))
+        assert not solid.isInside(cq.Vector(3.1 * math.cos(angle), 3.1 * math.sin(angle), 24.0))
+
+
+def test_a_left_hand_iso_4014_shaped_bolt_builds_through_both_gates() -> None:
+    solid = build(BoltParams(length=30.0, thread_length=18.0, left_hand=True))
+    assert len(solid.Solids()) == 1
+    assert solid.isValid()
+
+
+def test_a_screw_shorter_than_the_default_thread_builds_to_its_length() -> None:
+    # D-08: BoltParams(length=10) keeps thread_length 20 and builds a 10 mm full-thread screw.
+    solid = build(BoltParams(length=10.0))
+    assert solid.BoundingBox().zmax == pytest.approx(10.0 + 4.0, abs=TOL)
+    assert precise_volume(solid) == pytest.approx(
+        bolt_closed_volume(6.0, 1.0, 10.0, 10.0, 4.0, 10.0), rel=T_GATE)
+
+
+def test_a_thread_length_above_the_length_builds_to_the_full_length() -> None:
+    # D-25: the model accepts it, the builder derives t and the info warns.
+    solid = build(BoltParams(length=10.0, thread_length=30.0))
+    assert len(solid.Solids()) == 1
+    assert solid.BoundingBox().zmax == pytest.approx(10.0 + 4.0, abs=TOL)
+
+
+def test_a_shank_sliver_below_the_floor_is_folded_and_one_at_the_floor_is_built() -> None:
+    # D-27, T-04-08: 0.0005 mm folds into the thread; exactly 0.001 mm keeps a shank. Both are
+    # one valid solid inside both gates (the kernel path that crashed on a sliver, Alert 6).
+    folded = build(BoltParams(thread_length=19.9995))
+    assert len(folded.Solids()) == 1
+    assert folded.isValid()
+    assert precise_volume(folded) == pytest.approx(
+        bolt_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0), rel=T_GATE)
+    kept = build(BoltParams(thread_length=19.999))
+    assert len(kept.Solids()) == 1
+    assert kept.isValid()
+    assert precise_volume(kept) == pytest.approx(
+        bolt_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 19.999), rel=T_GATE)
+
+
+def test_a_thread_below_the_floor_is_refused_naming_both_fields_before_the_kernel(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    # Alert 6: helical's own guard names only `length`, so the bolt builder names the pair.
+    def unreachable(*_args: float, **_kwargs: float) -> None:
+        pytest.fail("the builder reached the kernel")
+
+    monkeypatch.setattr(helical, "twist", unreachable)
+    with pytest.raises(BuildError) as raised:
+        build(BoltParams(length=0.0005))
+    assert str(raised.value).startswith("thread_length and length: ")
+    assert "0.0005" in str(raised.value)
+
+
 def test_the_stl_is_binary_and_the_step_is_iso_10303() -> None:
     assert _triangles(export(BoltParams(), "stl", "preview")) > 0
     assert export(BoltParams(), "step").startswith(b"ISO-10303-21;")
@@ -270,7 +340,7 @@ def test_the_gate_refuses_the_inverted_one_pipe_twist_by_its_sign(
     inverted = one_pipe(6.0, 1.0, 160.0)
     assert inverted.isValid()
     error = _assert_refused_and_not_cached(
-        monkeypatch, inverted, BoltParams(d=6.0, pitch=1.0, length=160.0))
+        monkeypatch, inverted, BoltParams(d=6.0, pitch=1.0, length=160.0, thread_length=160.0))
     assert error < -1.5
 
 
@@ -283,7 +353,7 @@ def test_the_gate_refuses_the_inverted_one_pipe_twist_by_its_sign(
 ])
 def test_a_length_off_the_whole_turns_builds_through_the_gate_and_ends_at_its_length(
         d: float, pitch: float, length: float) -> None:
-    solid = build(BoltParams(d=d, pitch=pitch, length=length))
+    solid = build(BoltParams(d=d, pitch=pitch, length=length, thread_length=length))
     assert len(solid.Solids()) == 1
     assert solid.isValid()
     box = solid.BoundingBox()

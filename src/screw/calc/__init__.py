@@ -13,7 +13,14 @@ from collections.abc import Callable
 
 from pydantic import BaseModel, ConfigDict
 
-from screw.calc.thread import bolt_closed_volume, fine_stl_refusal, thread_depth, turns_of
+from screw.calc.thread import (
+    MIN_TAIL_MM,
+    bolt_closed_volume,
+    built_thread_length,
+    fine_stl_refusal,
+    thread_depth,
+    turns_of,
+)
 from screw.params import BoltParams, FastenerParams
 
 PROFILE = "ISO 68-1:2023 basic profile"
@@ -45,7 +52,29 @@ class PartInfo(BaseModel):
     warnings: list[str]
 
 
+def _thread_length_warning(p: BoltParams, t: float) -> str | None:
+    """Why the thread built is not the thread asked for, or None when it is (D-08, D-25, D-27).
+
+    The text says `(default)` when the value equals the field's frozen default: that is the only
+    thing a model can test, so an explicit `thread_length` equal to the default reads `(default)`
+    only on direct Python construction; the API and the CLI refuse two explicit values with
+    plan 04-05's 422 first.
+    """
+    if p.thread_length > p.length:
+        default = BoltParams.model_fields["thread_length"].default
+        mark = " (default)" if p.thread_length == default else ""
+        return (f"thread_length {p.thread_length:g}{mark} exceeds length {p.length:g}: "
+                "thread built to the full length")
+    if p.thread_length < p.length and t == p.length:
+        return (f"thread_length {p.thread_length:g} leaves a plain shank of "
+                f"{p.length - p.thread_length:g} mm, shorter than the {MIN_TAIL_MM:g} mm the "
+                "builder can model: thread built to the full length")
+    return None
+
+
 def _bolt(p: BoltParams) -> PartInfo:
+    # One built thread for every row, warning and cap below (D-27): never recomputed.
+    t = built_thread_length(p.thread_length, p.length)
     rows = [
         InfoRow(key="d", label="Diameter", value=p.d, unit="mm"),
         InfoRow(key="pitch", label="Pitch", value=p.pitch, unit="mm"),
@@ -59,7 +88,11 @@ def _bolt(p: BoltParams) -> PartInfo:
     # overflows a float on the way (F2) and `Fraction(repr(inf))` raises. The rows are in the
     # order the page shows them: the shank's, then the head's, the volume last (D-18).
     computed: list[tuple[str, str, str, str, Callable[[], float]]] = [
-        ("turns", "Turns", "", "length / pitch", lambda: turns_of(p.length, p.pitch)),
+        ("thread_length", "Thread length (built)", "mm", "min(thread_length, length)",
+         lambda: t),
+        ("shank_length", "Plain shank length", "mm", "length - thread_length (built)",
+         lambda: p.length - t),
+        ("turns", "Turns", "", "thread_length (built) / pitch", lambda: turns_of(t, p.pitch)),
         ("thread_depth", f"Thread depth ({PROFILE})", "mm", "5H/8 with H = (sqrt(3) / 2) * pitch",
          lambda: thread_depth(p.pitch)),
         ("minor_diameter", f"Minor diameter ({PROFILE})", "mm", "d - 2 * (5H/8)",
@@ -69,8 +102,9 @@ def _bolt(p: BoltParams) -> PartInfo:
          lambda: p.s / math.cos(math.pi / 6)),
         ("k", "Head height", "mm", "k", lambda: p.k),
         ("volume", "Volume (closed form)", "mm³",
-         "the closed form section_area(d, pitch) * length + (sqrt(3) / 2) * s^2 * k",
-         lambda: bolt_closed_volume(p.d, p.pitch, p.length, p.s, p.k, p.length)),
+         "the closed form section_area(d, pitch) * thread_length (built) "
+         "+ pi * (d / 2)^2 * shank_length + (sqrt(3) / 2) * s^2 * k",
+         lambda: bolt_closed_volume(p.d, p.pitch, p.length, p.s, p.k, t)),
     ]
     for key, label, unit, formula, compute in computed:
         try:
@@ -84,7 +118,9 @@ def _bolt(p: BoltParams) -> PartInfo:
                             "for these parameters")
     # The page's Download STL link asks for the fine default, so without this a click on a
     # capped part opens raw JSON with no notice. Same text the API and the CLI refuse with.
-    fine = fine_stl_refusal(p.d, p.pitch, p.length, p.left_hand)
+    if (short := _thread_length_warning(p, t)) is not None:
+        warnings.append(short)
+    fine = fine_stl_refusal(p.d, p.pitch, t, p.left_hand)
     if fine is not None:
         warnings.append(fine)
     return PartInfo(kind=p.kind, rows=rows, warnings=warnings)
@@ -114,6 +150,7 @@ def download_refusal(p: FastenerParams, fmt: str, quality: str) -> str | None:
     """
     if isinstance(p, BoltParams):
         if fmt == "stl" and quality == "fine":
-            return fine_stl_refusal(p.d, p.pitch, p.length, p.left_hand)
+            return fine_stl_refusal(
+                p.d, p.pitch, built_thread_length(p.thread_length, p.length), p.left_hand)
         return None
     raise TypeError(f"no download rule for kind {p.kind!r}")

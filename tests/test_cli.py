@@ -34,9 +34,22 @@ def test_info_prints_the_part_info_document(capsys: pytest.CaptureFixture[str]) 
 
 
 def test_info_reads_every_field_flag(capsys: pytest.CaptureFixture[str]) -> None:
-    cli.main(["info", "bolt", "--d", "8", "--pitch", "1.25", "--length", "30"])
+    cli.main(["info", "bolt", "--d", "8", "--pitch", "1.25", "--length", "30",
+              "--thread-length", "18"])
     rows = {r["key"]: r["value"] for r in json.loads(capsys.readouterr().out)["rows"]}
     assert (rows["d"], rows["pitch"], rows["length"]) == (8.0, 1.25, 30.0)
+    assert (rows["thread_length"], rows["shank_length"]) == (18.0, 12.0)
+
+
+def test_a_length_below_the_default_thread_is_built_to_the_length_and_warned_not_refused(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    # D-08: the default 20 is frozen; `--length 10` is a 10 mm full-thread screw, never a 422.
+    cli.main(["info", "bolt", "--length", "10"])
+    doc = json.loads(capsys.readouterr().out)
+    assert doc["warnings"][1] == (
+        "thread_length 20 (default) exceeds length 10: thread built to the full length")
+    rows = {r["key"]: r["value"] for r in doc["rows"]}
+    assert (rows["thread_length"], rows["shank_length"]) == (10.0, 0.0)
 
 
 def test_export_writes_stl_and_step_and_warns_on_stderr(
@@ -112,13 +125,15 @@ def test_a_prefix_of_a_real_flag_is_refused(
 
 @pytest.mark.parametrize(("field", "value"), [
     ("d", "0"), ("d", "inf"), ("d", "nan"), ("d", "100001"), ("length", "-1"),
+    ("thread-length", "0"), ("thread-length", "-1"), ("thread-length", "inf"),
+    ("thread-length", "nan"), ("thread-length", "100001"),
     ("s", "0"), ("s", "-1"), ("s", "inf"), ("s", "nan"), ("s", "100001"),
     ("k", "0"), ("k", "-1"), ("k", "inf"), ("k", "nan"), ("k", "100001"),
 ])
 def test_a_bad_value_exits_2_naming_the_field(
         field: str, value: str, capsys: pytest.CaptureFixture[str]) -> None:
     assert _exit_code(["info", "bolt", f"--{field}", value]) == 2
-    assert f"error: {field}:" in capsys.readouterr().err
+    assert f"error: {field.replace('-', '_')}:" in capsys.readouterr().err
 
 
 def test_a_head_one_ulp_wider_than_the_shank_is_accepted(
@@ -138,14 +153,15 @@ def test_a_head_value_that_is_text_exits_2_naming_the_flag(
 
 @pytest.mark.parametrize(("argv", "prefix"), [
     (["info", "bolt", "--pitch", "6"], "error: d and pitch:"),
-    (["info", "bolt", "--length", "300"], "error: length and pitch:"),
+    (["info", "bolt", "--length", "300", "--thread-length", "300"],
+     "error: thread_length, length and pitch:"),
     # head_too_small (D-23): the CLI prints no type, so the text names both fields.
     (["info", "bolt", "--s", "6"], "error: s and d: "),
     (["export", "bolt", "-o", "unused.stl", "--s", "5"], "error: s and d: "),
     # length / pitch is past the float range: exit 2, not the OverflowError traceback (CR-01)
-    (["info", "bolt", "--pitch", "5e-324"], "error: length and pitch: inf turns"),
+    (["info", "bolt", "--pitch", "5e-324"], "error: thread_length, length and pitch: inf turns"),
     (["info", "bolt", "--pitch", "1e-310", "--length", "1e5"],
-     "error: length and pitch: inf turns"),
+     "error: thread_length, length and pitch: inf turns"),
     (["export", "bolt", "-o", "unused.stl", "--pitch", "1e300"], "error: d and pitch:"),
 ])
 def test_a_thread_that_cannot_be_made_exits_2_naming_both_fields(
@@ -275,7 +291,7 @@ def test_readme_cli_examples_run(tmp_path: Path, capsys: pytest.CaptureFixture[s
             assert json.loads(capsys.readouterr().out)["kind"] == "bolt"
 
 
-CAPPED = ["--d", "8", "--pitch", "1.25", "--length", "67.6"]
+CAPPED = ["--d", "8", "--pitch", "1.25", "--length", "67.6", "--thread-length", "67.6"]
 
 
 def test_a_fine_stl_l11_measured_over_budget_exits_2_and_writes_nothing(
@@ -283,7 +299,7 @@ def test_a_fine_stl_l11_measured_over_budget_exits_2_and_writes_nothing(
     out = tmp_path / "x.stl"
     assert _exit_code(["export", "bolt", *CAPPED, "-o", str(out)]) == 2
     err = capsys.readouterr().err
-    assert "error: length:" in err
+    assert "error: thread_length and length:" in err
     assert "2026-10-08-a-grid" in err
     assert not out.exists()
 
@@ -304,7 +320,7 @@ def test_the_over_budget_fine_stl_exits_2_from_the_real_process(tmp_path: Path) 
         [sys.executable, "-m", "screw.cli", "export", "bolt", *CAPPED, "-o", str(out)],
         capture_output=True, text=True, check=False)
     assert result.returncode == 2
-    assert "error: length:" in result.stderr
+    assert "error: thread_length and length:" in result.stderr
     assert not out.exists()
 
 
@@ -315,8 +331,10 @@ def test_the_left_hand_part_l11_measured_inside_the_budget_is_not_refused(
     A real fine export of the left-hand part would write a large STL, so its side is asked of the
     rule `screw export` shares with the API; the right-hand side is the real command.
     """
-    mirror = ["--d", "10", "--pitch", "1.5", "--length", "60", "--s", "16", "--k", "6.4"]
-    left = BoltParams(d=10.0, pitch=1.5, length=60.0, left_hand=True, s=16.0, k=6.4)
+    mirror = ["--d", "10", "--pitch", "1.5", "--length", "60", "--thread-length", "60", "--s", "16",
+              "--k", "6.4"]
+    left = BoltParams(d=10.0, pitch=1.5, length=60.0, thread_length=60.0, left_hand=True, s=16.0,
+                      k=6.4)
     assert download_refusal(left, "stl", "fine") is None
     cli.main(["info", "bolt", *mirror, "--left-hand"])
     assert json.loads(capsys.readouterr().out)["warnings"] == [derive(left).warnings[0]]
@@ -324,10 +342,10 @@ def test_the_left_hand_part_l11_measured_inside_the_budget_is_not_refused(
     cli.main(["info", "bolt", *mirror])
     warnings = json.loads(capsys.readouterr().out)["warnings"]
     assert len(warnings) == 2
-    assert warnings[1].startswith("length: ")
+    assert warnings[1].startswith("thread_length and length: ")
     assert "right-hand" in warnings[1]
 
     out = tmp_path / "x.stl"
     assert _exit_code(["export", "bolt", *mirror, "-o", str(out)]) == 2
-    assert "error: length:" in capsys.readouterr().err
+    assert "error: thread_length and length:" in capsys.readouterr().err
     assert not out.exists()
