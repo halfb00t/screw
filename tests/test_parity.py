@@ -307,12 +307,15 @@ def test_the_ui_refuses_a_link_it_cannot_honour() -> None:
         repeated,
         _squash("k !== 'kind' && !fields.has(k)"),
         _squash("given !== 'true' && given !== 'false'"),
-        _squash("given !== '' && read(input) === ''"),
+        _squash("given !== null && read(input) === ''"),
         _squash("`Unreadable value for \"${name}\": \"${given}\".`"),
     ):
         assert statement in source, statement
     assert "Unknown field " in APP_JS
     assert "Unknown fields " in APP_JS
+    # `#d=` names a field with an empty value; the API answers `?d=` with a 422, so the page may
+    # not exempt it and open the default part (WR-01).
+    assert "given !== ''" not in source
     # The repeat check runs first: `#kind=bolt&kind=x` must be refused, not read as bolt.
     kind_lookup = _squash("const kind = h.get('kind') ?? kinds.default;")
     assert source.index(repeated) < source.index(kind_lookup)

@@ -46,7 +46,10 @@ second option this item offered: building with the rest would open a part the li
   after the values are written, a key whose control cannot hold its value (a checkbox given
   anything but `true` or `false`, or a non-empty value that a number or select reads back as `''`:
   `Unreadable value for "d": "abc".`). The unparseable-value half of this item is closed with the
-  foreign-key half.
+  foreign-key half. An empty value is refused too (`#d=` names the field and reads back as `''`, so
+  it is `Unreadable value for "d": "".`): the first cut exempted it and opened the default part under
+  a link that named `d`, which the API answers with a 422, and the code review (WR-01) removed the
+  exemption, so "non-empty" above no longer limits the rule.
 - Pinned as source text by `test_the_ui_refuses_a_link_it_cannot_honour` in
   `tests/test_parity.py`; `01-UI-SPEC.md` rule 10 and rule 21 state it and OI-2 is marked resolved.
 - Not verified here: the `#d=abc` case still rests on the HTML number-input sanitisation turning

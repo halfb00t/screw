@@ -170,13 +170,14 @@ async function navigate() {
   kindSelect.value = kind;
   for (const [name, { input }] of fields) write(input, h.get(name) ?? defaults[name]);
   // A checkbox holds only true or false. Any other control hands back '' for a value it
-  // cannot hold (a number input given "abc"), and partQuery() would skip it and open the
-  // default part under a link that said otherwise.
+  // cannot hold (a number input given "abc") or was given empty (`#d=`), and partQuery() would
+  // skip it and open the default part under a link that named the field. The API answers `?d=`
+  // with a 422, so a present key that reads back empty is refused, not exempted.
   for (const [name, { input }] of fields) {
     const given = h.get(name);
     const unreadable = input.type === 'checkbox'
       ? given !== null && given !== 'true' && given !== 'false'
-      : given !== null && given !== '' && read(input) === '';
+      : given !== null && read(input) === '';
     if (unreadable) return refuseLink(`Unreadable value for "${name}": "${given}".`);
   }
   await update();
