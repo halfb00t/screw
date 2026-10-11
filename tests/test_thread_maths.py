@@ -121,6 +121,42 @@ def test_a_pitch_one_part_in_a_billion_inside_the_root_bound_is_accepted_and_out
     assert "}" not in refusal
 
 
+def _printed_largest_pitch(refusal: str) -> float:
+    marker = ", to 6 significant figures, is "
+    assert marker in refusal, refusal
+    return float(refusal.rsplit(marker, 1)[1])
+
+
+def test_the_largest_pitch_the_refusal_prints_is_one_the_same_rule_accepts() -> None:
+    # `:g` of the supremum rounded to nearest and was refused again for 993 of these 1999
+    # diameters (d 1.1 printed 1.01614 against a limit of 1.016136). Feed each printed number back.
+    for tenths in range(1, 2000):
+        d = tenths / 10
+        refusal = root_radius_refusal(d, 1e6)
+        assert refusal is not None
+        printed = _printed_largest_pitch(refusal)
+        assert root_radius_refusal(d, printed) is None, (d, printed)
+        # still "the largest": within 6-figure truncation of the supremum, not a timid number
+        supremum = d / (2 * thread_depth(1.0))
+        assert printed >= supremum * (1 - 1e-5), (d, printed, supremum)
+
+
+@pytest.mark.parametrize("d", [1e-300, 0.0001, 1.1, 6.0, 1e5])
+def test_the_largest_pitch_is_accepted_across_the_range_of_d(d: float) -> None:
+    refusal = root_radius_refusal(d, 1e300)
+    assert refusal is not None
+    assert root_radius_refusal(d, _printed_largest_pitch(refusal)) is None
+
+
+def test_a_d_with_no_representable_accepted_pitch_prints_no_number() -> None:
+    # d = 5e-324: d / 2 underflows to 0 and every pitch has a root radius of 0 or below, so any
+    # pitch printed would be a plausible number the rule refuses (L02). The refusal stands alone.
+    refusal = root_radius_refusal(5e-324, 1.0)
+    assert refusal is not None
+    assert "largest pitch" not in refusal
+    assert refusal.startswith("d and pitch: ")
+
+
 def test_a_root_radius_of_exactly_zero_is_refused() -> None:
     # `> 0`, not `>= 0`: a zero root radius is a section pinched to a point on the axis.
     pitch = 1.0

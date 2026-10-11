@@ -12,6 +12,7 @@ imports no kernel, no logger and no `screw.records` (import-linter contracts 2 a
 from __future__ import annotations
 
 import math
+from decimal import ROUND_DOWN, Decimal
 from fractions import Fraction
 
 # The THRD-04 gate: the largest |measured / closed - 1| a thread build may show (L11). Ten times
@@ -119,6 +120,28 @@ def turns_of(length: float, pitch: float) -> float:
         return math.inf
 
 
+def _largest_accepted_pitch(d: float) -> float | None:
+    """The largest pitch of at most 6 significant figures whose root radius is above 0, or None.
+
+    `d / (2 * thread_depth(1.0))` is the supremum, where the root radius is exactly 0 and is
+    refused; `:g` rounds to nearest, so printing it sent back a pitch the same rule refused for
+    993 of the 1999 diameters 0.1 .. 199.9 (d 1.1 printed 1.01614 against a limit of 1.016136).
+    Truncating toward zero and re-checking with the very test the refusal uses makes the printed
+    number one the user can type. Fewer digits are tried when 6 still land on the boundary, and
+    None (no number) is the answer when none does (a subnormal d), never a plausible one (L02).
+    """
+    supremum = d / (2 * thread_depth(1.0))
+    if not (math.isfinite(supremum) and supremum > 0):
+        return None
+    exact = Decimal(repr(supremum))
+    for figures in range(6, 0, -1):
+        candidate = float(exact.quantize(Decimal(1).scaleb(exact.adjusted() - figures + 1),
+                                         rounding=ROUND_DOWN))
+        if candidate > 0 and d / 2 - thread_depth(candidate) > 0:
+            return candidate
+    return None
+
+
 def root_radius_refusal(d: float, pitch: float) -> str | None:
     """None when the root radius d/2 - 5H/8 is above 0; otherwise the refusal text (D-04).
 
@@ -128,10 +151,12 @@ def root_radius_refusal(d: float, pitch: float) -> str | None:
     root = d / 2 - thread_depth(pitch)
     if root > 0:
         return None
-    largest = d / (2 * thread_depth(1.0))
-    return (f"d and pitch: the root radius d/2 - 5H/8 of the ISO 68-1:2023 basic profile is "
-            f"{root:g} mm at d {d:g} and pitch {pitch:g}, and must be above 0; "
-            f"the largest pitch for this d is {largest:g}")
+    text = (f"d and pitch: the root radius d/2 - 5H/8 of the ISO 68-1:2023 basic profile is "
+            f"{root:g} mm at d {d:g} and pitch {pitch:g}, and must be above 0")
+    largest = _largest_accepted_pitch(d)
+    if largest is None:
+        return text
+    return f"{text}; the largest pitch for this d, to 6 significant figures, is {largest:g}"
 
 
 def turn_cap_refusal(length: float, pitch: float) -> str | None:
