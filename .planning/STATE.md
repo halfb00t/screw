@@ -4,10 +4,10 @@ current_phase: 4
 current_phase_name: ISO Hex Bolts and Screws
 status: "Phase 03 shipped — PR #10"
 stopped_at: Phase 03 complete, ready to plan Phase 4
-last_updated: "2026-10-11T05:45:18.909Z"
+last_updated: "2026-10-11T06:16:08.211Z"
 last_activity: 2026-10-11
 last_activity_desc: "Completed quick task 261011-fbb: swapped the platform-dependent THRD-04 control row and qualified L11's known-bad rows by platform"
-state_head: 5be6a1569f4ddf43ed25520f2e472d3b3e4ea6de
+state_head: 4a9999b234d35fd8b438a76c7e79caaa7ba971c6
 progress:
   total_phases: 7
   completed_phases: 3
@@ -165,6 +165,7 @@ None yet.
 | 261010-lgv | Fix Phase 2 harness review findings WR-01, WR-02, WR-04, WR-05; close 02-REVIEW-DISPOSITION.md (0 open); resolve the debt item; defer WR-03 and IN-02 to a new must item | 2026-10-10 | e079ef2 | [261010-lgv-fix-the-phase-2-harness-review-findings-](./quick/261010-lgv-fix-the-phase-2-harness-review-findings-/) |
 | 261011-fbb | Fix the PR 10 CI failure: swap the THRD-04 naive-sweep control row (6.0, 1.0, 10.0), which raises Null TopoDS_Shape on linux/amd64, for (8.0, 1.25, 10.0); qualify L11's known-bad rows by platform; file the OPER-02 controls idea | 2026-10-11 | ff6f1d5 | [261011-fbb-fix-the-pr-10-ci-failure-tests-test-soli](./quick/261011-fbb-fix-the-pr-10-ci-failure-tests-test-soli/) |
 | 261011-fzb | Stop the pytest worker segfault at exit: read pair.common only in a child process (the in-process test parked BRepAlgoAPI_Common builders in pair._KEEP, freed at teardown with SIGSEGV); resolve the 2026-10-10 bench pair-tests debt item | 2026-10-11 | 5be6a15 | [261011-fzb-stop-the-pytest-worker-segfault-at-exit-](./quick/261011-fzb-stop-the-pytest-worker-segfault-at-exit-/) |
+| 4 | fast: kill the signal-death bench worker test with SIGTERM instead of a self-inflicted SIGSEGV so make verify leaves no macOS crash report | 2026-10-11 | 4a9999b | — |
 
 ## Deferred Items
 
