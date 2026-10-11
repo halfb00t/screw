@@ -20,9 +20,12 @@ def corpus() -> list[dict[str, object]]:
 
     `pitch` is left at its default of 1 mm, so since Phase 3 each entry builds the L11 thread
     at that pitch (up to 200 turns for the heaviest part, which is the last, d=100 length=200).
-    The grid was chosen for the cylinders it first described and is still not a bound.
+    The grid was chosen for the cylinders it first described and is still not a bound. Since
+    Phase 4 each entry also pins a head, `s = 2 * d` and `k = d / 2`: harness inputs chosen so
+    every entry passes `s > d` and keeps the grid's shape, not ISO rows and not bounds (04-03).
     """
-    return [{"d": d, "length": length} for d in DIAMETERS for length in LENGTHS]
+    return [{"d": d, "length": length, "s": 2 * d, "k": d / 2}
+            for d in DIAMETERS for length in LENGTHS]
 
 
 def label(entry: dict[str, object]) -> str:

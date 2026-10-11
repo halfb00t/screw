@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 
 from screw import int_env
 from screw.build_errors import BuildError
-from screw.calc.thread import closed_volume, volume_check
+from screw.calc.thread import bolt_closed_volume, closed_volume, volume_check
 from screw.params import BoltParams, FastenerParams
 from screw.solid import bolt
 
@@ -94,8 +94,10 @@ def precise_volume(shape: cq.Shape) -> float:
     return float(props.Mass())
 
 
-def check_solid(shape: cq.Shape, closed: float) -> None:
+def check_solid(shape: cq.Shape, closed: float, part: str = "solid") -> None:
     """The THRD-04 postcondition (D-08, L11): exactly one solid, valid, and the right volume.
+
+    `part` names what was judged in the volume message (`thread` for the bare thread gate).
 
     `_build` runs it inside the function `lru_cache` wraps, so a refusal is never cached or
     exported; tests and `bench/` call it on shapes no parameter set builds (the positive
@@ -109,17 +111,22 @@ def check_solid(shape: cq.Shape, closed: float) -> None:
         raise BuildError("Geometry kernel produced an invalid solid for these parameters.")
     refusal = volume_check(precise_volume(shape), closed)
     if refusal is not None:
-        raise BuildError(f"Geometry kernel produced the wrong solid: {refusal}.")
+        raise BuildError(f"Geometry kernel produced the wrong {part}: {refusal}.")
 
 
 def _build(p: FastenerParams) -> cq.Solid:
-    if isinstance(p, BoltParams):
-        solid = bolt.rod(p)
-        closed = closed_volume(p.d, p.pitch, p.length)
-    else:
+    if not isinstance(p, BoltParams):
         raise TypeError(f"no solid builder for kind {p.kind!r}")
-    check_solid(solid, closed)
-    return solid
+    t = p.length  # the threaded length; plan 04-04 replaces it with the built thread length
+    thread = bolt.thread(p)
+    # Gate the bare thread first (RESEARCH Alert 5): it is 0.19 to 0.57 of the whole volume, so a
+    # thread error the whole-part gate dilutes below T_GATE (1.1e-4 to 1.4e-4 at M6 x 20 is
+    # passed by the fused check alone) is caught here. Cost: one more precise volume, at most
+    # 0.82 s over the grid (`2026-10-08-a-grid` volume_s).
+    check_solid(thread, closed_volume(p.d, p.pitch, t), part="thread")
+    fused = bolt.assemble(p, thread)
+    check_solid(fused, bolt_closed_volume(p.d, p.pitch, p.length, p.s, p.k, t))
+    return fused.Solids()[0]
 
 
 def _build_checked(p: FastenerParams) -> cq.Solid:
@@ -131,7 +138,7 @@ def _build_checked(p: FastenerParams) -> cq.Solid:
         raise
     except Exception as exc:  # OCCT raises assorted Standard_Failure subclasses
         raise BuildError(f"Geometry kernel failed ({type(exc).__name__}); "
-                         "check d, pitch and length.") from exc
+                         "check d, pitch, length, s and k.") from exc
 
 
 # INTERIM (D-01): 4 solids per worker, carried from spur model.py:561 where it sized a

@@ -13,15 +13,15 @@ from collections.abc import Callable
 
 from pydantic import BaseModel, ConfigDict
 
-from screw.calc.thread import closed_volume, fine_stl_refusal, thread_depth, turns_of
+from screw.calc.thread import bolt_closed_volume, fine_stl_refusal, thread_depth, turns_of
 from screw.params import BoltParams, FastenerParams
 
 PROFILE = "ISO 68-1:2023 basic profile"
 
-# The standing entry on every info document (D-06): while the bolt is a bare threaded rod it is
-# not a product, and nobody should cut metal to it. Phase 4 rewrites it when the head lands;
-# Phase 6 removes it at release.
-STANDING_WARNING = "threaded rod: no head, plain-cut thread ends; not a product build"
+# The standing entry on every info document (D-04, D-18): the thread ends are plain planar cuts
+# and the head has no under-head fillet, so nobody should cut metal to it as a product. Phase 5
+# rewrites it when the ends land; Phase 6 removes the last clause at release.
+STANDING_WARNING = "plain-cut thread ends, no tip chamfer or under-head fillet; not a product build"
 
 
 class InfoRow(BaseModel):
@@ -56,16 +56,21 @@ def _bolt(p: BoltParams) -> PartInfo:
     # never the kernel's Volume() (D-05). The bounds keep validated input finite, so a row is
     # left out only for an instance that skipped validation (model_construct); but "no
     # non-finite number leaves derive()" is this function's own contract (D-15): d=1e200
-    # overflows a float on the way (F2) and `Fraction(repr(inf))` raises.
+    # overflows a float on the way (F2) and `Fraction(repr(inf))` raises. The rows are in the
+    # order the page shows them: the shank's, then the head's, the volume last (D-18).
     computed: list[tuple[str, str, str, str, Callable[[], float]]] = [
         ("turns", "Turns", "", "length / pitch", lambda: turns_of(p.length, p.pitch)),
-        ("volume", "Volume (closed form)", "mm³",
-         "the closed form section_area(d, pitch) * length",
-         lambda: closed_volume(p.d, p.pitch, p.length)),
         ("thread_depth", f"Thread depth ({PROFILE})", "mm", "5H/8 with H = (sqrt(3) / 2) * pitch",
          lambda: thread_depth(p.pitch)),
         ("minor_diameter", f"Minor diameter ({PROFILE})", "mm", "d - 2 * (5H/8)",
          lambda: p.d - 2 * thread_depth(p.pitch)),
+        ("s", "Across flats", "mm", "s", lambda: p.s),
+        ("across_corners", "Across corners, geometric (s / cos 30°)", "mm", "s / cos 30°",
+         lambda: p.s / math.cos(math.pi / 6)),
+        ("k", "Head height", "mm", "k", lambda: p.k),
+        ("volume", "Volume (closed form)", "mm³",
+         "the closed form section_area(d, pitch) * length + (sqrt(3) / 2) * s^2 * k",
+         lambda: bolt_closed_volume(p.d, p.pitch, p.length, p.s, p.k, p.length)),
     ]
     for key, label, unit, formula, compute in computed:
         try:

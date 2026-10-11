@@ -139,8 +139,10 @@ def test_the_skeleton_corpus_is_the_d_by_length_grid() -> None:
     """12 parts, d outermost: the grid is pinned so a later edit cannot quietly change the
     workload under figures that someone compares with an earlier run. It exercises the
     harness and sets no bound (L07); Phase 7 replaces it with the threaded grid."""
+    # Each entry pins a head, s = 2 d and k = d / 2: harness inputs so every entry passes
+    # `s > d`, not ISO rows and not bounds (04-03, RESEARCH Alert 4).
     assert corpus() == [
-        {"d": d, "length": length}
+        {"d": d, "length": length, "s": 2 * d, "k": d / 2}
         for d in (2.0, 6.0, 20.0, 100.0)
         for length in (5.0, 20.0, 200.0)
     ]
@@ -153,10 +155,11 @@ def test_every_corpus_entry_is_a_valid_bolt() -> None:
         BoltParams.model_validate(entry)
 
 
-def test_the_default_sweep_is_the_corpus_labelled_by_its_two_numbers() -> None:
+def test_the_default_sweep_is_the_corpus_labelled_by_its_four_numbers() -> None:
     sets = load_sweep()
-    assert [label for label, _ in sets][:2] == ["d=2 length=5", "d=2 length=20"]
-    assert sets[-1] == ("d=100 length=200", BoltParams(d=100.0, length=200.0))
+    assert [label for label, _ in sets][:2] == ["d=2 length=5 s=4 k=1", "d=2 length=20 s=4 k=1"]
+    assert sets[-1] == ("d=100 length=200 s=200 k=50",
+                        BoltParams(d=100.0, length=200.0, s=200.0, k=50.0))
     assert len(sets) == 12
 
 
@@ -172,7 +175,8 @@ def test_a_sweep_file_set_that_is_not_a_bolt_is_refused_naming_it(tmp_path: Path
 
 
 def test_a_set_is_found_by_the_label_the_sweep_prints() -> None:
-    assert find_set(None, "d=100 length=200") == BoltParams(d=100.0, length=200.0)
+    assert find_set(None, "d=100 length=200 s=200 k=50") == BoltParams(
+        d=100.0, length=200.0, s=200.0, k=50.0)
 
 
 def test_an_unknown_set_label_exits_2_and_lists_the_labels(
@@ -180,7 +184,7 @@ def test_an_unknown_set_label_exits_2_and_lists_the_labels(
     with pytest.raises(SystemExit) as raised:
         find_set(None, "d=7 length=7")
     assert raised.value.code == 2
-    assert "d=2 length=5" in capsys.readouterr().err
+    assert "d=2 length=5 s=4 k=1" in capsys.readouterr().err
 
 
 def test_a_binary_stl_is_sized_by_its_length_and_the_triangle_count_its_header_names() -> None:
@@ -337,7 +341,7 @@ def test_the_concurrent_scenario_never_builds_the_single_scenarios_part() -> Non
     """The default run is concurrent then single; a part built first would make the second a
     cache hit that puts no load on the server."""
     heaviest = corpus()[-1]
-    assert heaviest == {"d": 100.0, "length": 200.0}
+    assert heaviest == {"d": 100.0, "length": 200.0, "s": 200.0, "k": 50.0}
     assert heaviest not in corpus()[:10]
 
 

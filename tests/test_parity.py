@@ -210,6 +210,9 @@ def test_the_cli_and_the_api_print_the_same_document(
         assert cli_doc == api_doc, values
         assert cli_doc["warnings"][0] == STANDING_WARNING
         assert api_doc["warnings"][0] == STANDING_WARNING
+        # The literal too, so rewording the constant fails here and not only in test_calc (D-04).
+        assert api_doc["warnings"][0] == (
+            "plain-cut thread ends, no tip chamfer or under-head fillet; not a product build")
 
 
 @pytest.mark.parametrize("kind", list(KINDS))
@@ -286,12 +289,13 @@ def test_the_ui_round_trips_every_field_through_generic_code() -> None:
 
 
 @pytest.mark.parametrize("kind", list(KINDS))
-def test_the_form_has_a_size_fieldset_then_a_thread_one(kind: str) -> None:
+def test_the_form_has_a_size_fieldset_then_a_thread_one_then_a_head_one(kind: str) -> None:
     # Rule 1: one fieldset per group in first-seen order, so `left_hand` (declared between
-    # pitch and length) opens a `Thread` fieldset after `Size` and `length` stays in `Size`.
+    # pitch and length) opens a `Thread` fieldset after `Size` and `length` stays in `Size`; `s`
+    # and `k` open a `Head` fieldset last (04-03).
     properties = client.get("/api/schema", params={"kind": kind}).json()["properties"]
     groups = list(dict.fromkeys(prop["group"] for prop in properties.values()))
-    assert groups == ["Size", "Thread"]
+    assert groups == ["Size", "Thread", "Head"]
     assert properties["left_hand"]["type"] == "boolean"
     assert properties["left_hand"]["default"] is False
 

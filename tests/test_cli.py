@@ -17,7 +17,8 @@ from screw import __version__, cli
 from screw.calc import derive, download_refusal
 from screw.params import KINDS, BoltParams
 
-WARNING = "warning: threaded rod: no head, plain-cut thread ends; not a product build"
+WARNING = ("warning: plain-cut thread ends, no tip chamfer or under-head fillet; "
+           "not a product build")
 
 
 def _exit_code(argv: list[str]) -> str | int | None:
@@ -110,6 +111,8 @@ def test_a_prefix_of_a_real_flag_is_refused(
 
 @pytest.mark.parametrize(("field", "value"), [
     ("d", "0"), ("d", "inf"), ("d", "nan"), ("d", "100001"), ("length", "-1"),
+    ("s", "0"), ("s", "-1"), ("s", "inf"), ("s", "nan"), ("s", "100001"),
+    ("k", "0"), ("k", "-1"), ("k", "inf"), ("k", "nan"), ("k", "100001"),
 ])
 def test_a_bad_value_exits_2_naming_the_field(
         field: str, value: str, capsys: pytest.CaptureFixture[str]) -> None:
@@ -117,9 +120,19 @@ def test_a_bad_value_exits_2_naming_the_field(
     assert f"error: {field}:" in capsys.readouterr().err
 
 
+@pytest.mark.parametrize("field", ["s", "k"])
+def test_a_head_value_that_is_text_exits_2_naming_the_flag(
+        field: str, capsys: pytest.CaptureFixture[str]) -> None:
+    # argparse refuses text before the model sees it, and names the flag.
+    assert _exit_code(["info", "bolt", f"--{field}", "text"]) == 2
+    assert f"argument --{field}: invalid float value: 'text'" in capsys.readouterr().err
+
+
 @pytest.mark.parametrize(("argv", "prefix"), [
     (["info", "bolt", "--pitch", "6"], "error: d and pitch:"),
     (["info", "bolt", "--length", "300"], "error: length and pitch:"),
+    (["info", "bolt", "--s", "6"], "error: s and d: "),
+    (["export", "bolt", "-o", "unused.stl", "--s", "5"], "error: s and d: "),
     # length / pitch is past the float range: exit 2, not the OverflowError traceback (CR-01)
     (["info", "bolt", "--pitch", "5e-324"], "error: length and pitch: inf turns"),
     (["info", "bolt", "--pitch", "1e-310", "--length", "1e5"],
@@ -293,8 +306,8 @@ def test_the_left_hand_part_l11_measured_inside_the_budget_is_not_refused(
     A real fine export of the left-hand part would write a large STL, so its side is asked of the
     rule `screw export` shares with the API; the right-hand side is the real command.
     """
-    mirror = ["--d", "10", "--pitch", "1.5", "--length", "60"]
-    left = BoltParams(d=10.0, pitch=1.5, length=60.0, left_hand=True)
+    mirror = ["--d", "10", "--pitch", "1.5", "--length", "60", "--s", "16", "--k", "6.4"]
+    left = BoltParams(d=10.0, pitch=1.5, length=60.0, left_hand=True, s=16.0, k=6.4)
     assert download_refusal(left, "stl", "fine") is None
     cli.main(["info", "bolt", *mirror, "--left-hand"])
     assert json.loads(capsys.readouterr().out)["warnings"] == [derive(left).warnings[0]]

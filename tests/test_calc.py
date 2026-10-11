@@ -7,32 +7,47 @@ import math
 import pytest
 
 from screw.calc import STANDING_WARNING, derive, download_refusal
-from screw.calc.thread import closed_volume, fine_stl_refusal
+from screw.calc.thread import bolt_closed_volume, fine_stl_refusal
 from screw.params import KINDS, BoltParams, FastenerParams
 
-WARNING = "threaded rod: no head, plain-cut thread ends; not a product build"
+WARNING = "plain-cut thread ends, no tip chamfer or under-head fillet; not a product build"
 PROFILE = "ISO 68-1:2023 basic profile"
-KEYS = ["d", "pitch", "length", "turns", "volume", "thread_depth", "minor_diameter"]
+KEYS = ["d", "pitch", "length", "turns", "thread_depth", "minor_diameter", "s", "across_corners",
+        "k", "volume"]
 
 
 def _rows(p: BoltParams) -> dict[str, float]:
     return {r.key: r.value for r in derive(p).rows}
 
 
-def test_the_default_document_lists_the_inputs_then_the_thread_in_a_fixed_order() -> None:
+def test_the_default_document_lists_the_inputs_the_thread_the_head_then_the_volume() -> None:
     info = derive(BoltParams())
     assert info.kind == "bolt"
     assert [r.key for r in info.rows] == KEYS
-    assert [r.unit for r in info.rows] == ["mm", "mm", "mm", "", "mm³", "mm", "mm"]
+    assert [r.unit for r in info.rows] == [
+        "mm", "mm", "mm", "", "mm", "mm", "mm", "mm", "mm", "mm³"]
 
 
 def test_the_default_thread_numbers_come_from_the_pinned_profile() -> None:
     rows = _rows(BoltParams())
     assert rows["turns"] == 20.0
-    assert rows["volume"] == closed_volume(6.0, 1.0, 20.0)
+    # The whole-part closed form, never the kernel's Volume() (L02, INFO-03): the section area
+    # times the thread plus the sharp-cornered hexagonal prism, (sqrt(3) / 2) * s^2 * k.
+    assert rows["volume"] == bolt_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0)
+    assert rows["volume"] == pytest.approx(459.14408096158724 + 200 * math.sqrt(3), abs=1e-9)
     # An independently typed 5/8 * sqrt(3)/2 for P = 1.
     assert rows["thread_depth"] == pytest.approx(0.541265877, abs=1e-9)
     assert rows["minor_diameter"] == pytest.approx(6 - 2 * 0.541265877, abs=1e-9)
+
+
+def test_the_head_rows_are_the_fields_and_the_geometric_across_corners() -> None:
+    rows = _rows(BoltParams())
+    assert (rows["s"], rows["k"]) == (10.0, 4.0)
+    # A float, never rounded by the server: the same expression the row is computed from.
+    assert rows["across_corners"] == 10.0 / math.cos(math.pi / 6)
+    assert rows["across_corners"] == pytest.approx(11.547005383792516, abs=1e-12)
+    labels = {r.key: r.label for r in derive(BoltParams()).rows}
+    assert "geometric" in labels["across_corners"]
 
 
 def test_the_derived_rows_name_the_profile_and_the_hand_is_not_a_row() -> None:
@@ -56,16 +71,17 @@ def test_a_volume_that_overflows_is_absent_and_explained_not_a_500() -> None:
     # model_construct skips validation: the bounds keep validated input finite, but derive()
     # promises no non-finite number on its own account (D-15, F2). d = 1e200 squares past a
     # float; its minor diameter, 1e200 - 1.08, is finite and stays.
-    info = derive(BoltParams.model_construct(d=1e200, pitch=1.0, length=20.0))
+    info = derive(BoltParams.model_construct(d=1e200, pitch=1.0, length=20.0, s=10.0, k=4.0))
     keys = [r.key for r in info.rows]
     assert "volume" not in keys
     assert "minor_diameter" in keys
+    assert {"s", "across_corners", "k"} <= set(keys)  # the head rows do not depend on d
     assert any("volume" in w for w in info.warnings)
     assert info.warnings[0] == WARNING
 
 
 def test_an_infinite_diameter_leaves_out_every_row_it_would_make_infinite() -> None:
-    info = derive(BoltParams.model_construct(d=math.inf, pitch=1.0, length=20.0))
+    info = derive(BoltParams.model_construct(d=math.inf, pitch=1.0, length=20.0, s=10.0, k=4.0))
     keys = [r.key for r in info.rows]
     assert "volume" not in keys
     assert "minor_diameter" not in keys
@@ -73,6 +89,7 @@ def test_an_infinite_diameter_leaves_out_every_row_it_would_make_infinite() -> N
     assert any("minor_diameter" in w for w in info.warnings)
     assert info.warnings[0] == WARNING
     computed = [r for r in info.rows if r.key not in ("d", "pitch", "length")]
+    assert computed  # an empty list would pass the loop below vacuously
     assert all(math.isfinite(r.value) for r in computed)
 
 
@@ -136,8 +153,8 @@ def test_no_fine_stl_warning_at_the_cap_or_off_the_measured_rows() -> None:
 def test_a_left_hand_part_is_judged_by_its_own_measured_cap() -> None:
     # L11 measured the left-hand M10 x 60 inside the budget and the right-hand one over it, so
     # the same millimetres are served on one hand and refused on the other (D-21).
-    left = BoltParams(d=10.0, pitch=1.5, length=60.0, left_hand=True)
-    right = BoltParams(d=10.0, pitch=1.5, length=60.0)
+    left = BoltParams(d=10.0, pitch=1.5, length=60.0, left_hand=True, s=16.0, k=6.4)
+    right = BoltParams(d=10.0, pitch=1.5, length=60.0, s=16.0, k=6.4)
     assert download_refusal(left, "stl", "fine") is None
     assert derive(left).warnings == [STANDING_WARNING]
     refusal = download_refusal(right, "stl", "fine")

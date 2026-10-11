@@ -14,7 +14,7 @@ from pydantic import ValidationError
 
 from screw.params import DEFAULT_KIND, INTERIM_MAX_MM, KINDS, BoltParams, FastenerParams
 
-FIELDS = ("d", "pitch", "length")
+FIELDS = ("d", "pitch", "length", "s", "k")
 
 
 def test_the_default_kind_is_the_literal_bolt_and_is_registered() -> None:
@@ -30,9 +30,11 @@ def test_every_registry_key_equals_its_class_kind() -> None:
         assert key == model.kind
 
 
-def test_the_frozen_defaults_are_6_1_20_millimetres() -> None:
+def test_the_frozen_defaults_are_the_iso_4017_m6_row_the_owner_confirmed() -> None:
+    # D-07, L02: the owner's opening read (04-OWNER-READS.md) confirmed s 10.0 and k 4.0 for
+    # ISO 4017:2022 M6 and typed `permanent: accepted`. The literals, so moving one fails here.
     p = BoltParams()
-    assert (p.d, p.pitch, p.length) == (6.0, 1.0, 20.0)
+    assert (p.d, p.pitch, p.length, p.s, p.k) == (6.0, 1.0, 20.0, 10.0, 4.0)
 
 
 @pytest.mark.parametrize("field", FIELDS)
@@ -55,12 +57,15 @@ def test_a_foreign_field_is_refused_as_extra_forbidden_naming_it() -> None:
 
 
 @pytest.mark.parametrize(("field", "extra"), [
-    ("d", {}),
-    # 250 turns at pitch 400, root radius above 0 at d = 1000: the corner the bound admits
-    # (research built d=1e5, pitch=400 at 1e5 mm in 1.74 s).
-    ("length", {"pitch": 400.0, "d": 1000.0}),
+    # d at the bound needs s above it, which s's own bound forbids: the whole value is refused by
+    # head_too_small, so d is tested at the bound below.
+    # 250 turns at pitch 400, root radius above 0 at d = 1000, a head wider than d (D-23): the
+    # corner the bound admits (research built d=1e5, pitch=400 at 1e5 mm in 1.74 s).
+    ("length", {"pitch": 400.0, "d": 1000.0, "s": 1500.0, "k": 600.0}),
+    ("s", {}),
+    ("k", {}),
 ])
-def test_d_and_length_are_accepted_at_the_interim_bound_and_refused_above_it(
+def test_length_s_and_k_are_accepted_at_the_interim_bound_and_refused_above_it(
         field: str, extra: dict[str, float]) -> None:
     assert INTERIM_MAX_MM == 1e5
     assert getattr(BoltParams.model_validate({**extra, field: 1e5}), field) == 1e5
@@ -69,6 +74,21 @@ def test_d_and_length_are_accepted_at_the_interim_bound_and_refused_above_it(
     [err] = caught.value.errors()
     assert err["loc"] == (field,)
     assert err["type"] == "less_than_equal"
+
+
+def test_d_at_the_interim_bound_is_head_too_small_and_the_next_float_names_d() -> None:
+    # s cannot exceed INTERIM_MAX_MM, so d = INTERIM_MAX_MM can never have a head wider than it
+    # (D-23); one float above is the bound itself, caught on the field before any model rule.
+    with pytest.raises(ValidationError) as caught:
+        BoltParams.model_validate({"d": 1e5, "s": 1e5})
+    [err] = caught.value.errors()
+    assert err["type"] == "head_too_small"
+    assert err["loc"] == ()
+    assert err["ctx"]["fields"] == ["s", "d"]
+    with pytest.raises(ValidationError) as caught:
+        BoltParams.model_validate({"d": math.nextafter(1e5, math.inf)})
+    [err] = caught.value.errors()
+    assert (err["loc"], err["type"]) == (("d",), "less_than_equal")
 
 
 def test_a_pitch_with_no_root_radius_is_refused_naming_d_and_pitch() -> None:
@@ -122,15 +142,15 @@ def test_a_field_error_hides_the_model_rules_that_need_every_field() -> None:
     assert [e["loc"] for e in caught.value.errors()] == [("d",)]
 
 
-def test_the_schema_lists_d_pitch_left_hand_length_with_ui_metadata() -> None:
+def test_the_schema_lists_d_pitch_left_hand_length_s_k_with_ui_metadata() -> None:
     props = BoltParams.model_json_schema()["properties"]
-    assert list(props) == ["d", "pitch", "left_hand", "length"]
+    assert list(props) == ["d", "pitch", "left_hand", "length", "s", "k"]
     for name, prop in props.items():
         assert "title" in prop, name
         assert "unit" in prop, name
         if name == "left_hand":
             continue
-        assert prop["group"] == "Size", name
+        assert prop["group"] == ("Head" if name in ("s", "k") else "Size"), name
         assert prop["unit"] == "mm", name
         assert "step" in prop, name
         # exclusiveMinimum, not minimum: gt=0 must not read as an inclusive HTML min.
@@ -163,17 +183,17 @@ def test_left_hand_parses_a_boolean_and_refuses_anything_else() -> None:
 
 
 def test_the_slug_of_the_default_bolt_is_stable() -> None:
-    assert BoltParams().slug() == "bolt_d6_pitch1_left_hand0_length20"
+    assert BoltParams().slug() == "bolt_d6_pitch1_left_hand0_length20_s10_k4"
 
 
 def test_the_slug_tells_the_hands_apart() -> None:
-    assert BoltParams(left_hand=True).slug() == "bolt_d6_pitch1_left_hand1_length20"
+    assert BoltParams(left_hand=True).slug() == "bolt_d6_pitch1_left_hand1_length20_s10_k4"
 
 
 @pytest.mark.parametrize("values", [
-    {"d": 1e5},
-    {"d": 0.001, "pitch": 0.0001, "length": 0.01},
-    {"length": 1e5, "pitch": 400.0, "d": 1000.0},
+    {"d": 99999.0, "s": 1e5, "k": 1e5},
+    {"d": 0.001, "pitch": 0.0001, "length": 0.01, "s": 0.002, "k": 0.001},
+    {"length": 1e5, "pitch": 400.0, "d": 1000.0, "s": 1500.0, "k": 600.0},
 ])
 def test_the_slug_is_filename_safe_for_extreme_values(values: dict[str, float]) -> None:
     # It becomes a Content-Disposition filename and a temp file name (T-01-06).

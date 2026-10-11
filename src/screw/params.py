@@ -97,12 +97,21 @@ class FastenerParams(BaseModel):
 
 
 class BoltParams(FastenerParams):
-    """The bolt: a threaded rod of diameter d, pitch and length; no head until Phase 4."""
+    """The bolt: a hex head bolt or screw of diameter d, pitch, nominal length, across flats s
+    and head height k."""
 
     kind: ClassVar[str] = "bolt"
 
     length: float = _f(20.0, gt=0, le=INTERIM_MAX_MM, title="Length", group="Size", unit="mm",
-                       step=0.5, help="Length of the threaded rod along its axis.")
+                       step=0.5, help="Nominal length l: from the tip of the thread to the "
+                                      "underside of the head.")
+    # D-07, L02: the ISO 4017:2022 M6 row (grade A) as the owner read it on 2026-10-11 from the
+    # purchased copy and confirmed in 04-OWNER-READS.md. Frozen: every shareable link that omits
+    # s or k means these values forever. Plan 04-08's row test asserts them against the cited row.
+    s: float = _f(10.0, gt=0, le=INTERIM_MAX_MM, title="Across flats", group="Head", unit="mm",
+                  step=0.1, help="Width across flats of the hexagon head (ISO symbol s).")
+    k: float = _f(4.0, gt=0, le=INTERIM_MAX_MM, title="Head height", group="Head", unit="mm",
+                  step=0.1, help="Height of the hexagon head along the axis (ISO symbol k).")
 
     @model_validator(mode="after")
     def _turn_cap(self) -> Self:
@@ -111,6 +120,17 @@ class BoltParams(FastenerParams):
 
         if (msg := turn_cap_refusal(self.length, self.pitch)) is not None:
             raise PydanticCustomError("turn_cap", msg, {"fields": ["length", "pitch"]})
+        return self
+
+    @model_validator(mode="after")
+    def _head_too_small(self) -> Self:
+        # Product policy, not a kernel necessity (D-26): the research probe fused s < d and
+        # s == d into one valid solid inside the gate. A head no wider than the shank is not a
+        # hex head, so it is a 422 naming both fields rather than a silently different part (L02).
+        from screw.calc.thread import head_too_small_refusal
+
+        if (msg := head_too_small_refusal(self.s, self.d)) is not None:
+            raise PydanticCustomError("head_too_small", msg, {"fields": ["s", "d"]})
         return self
 
 

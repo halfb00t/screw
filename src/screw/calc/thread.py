@@ -81,6 +81,39 @@ def closed_volume(d: float, pitch: float, length: float, clearance: float = 0.0)
     return section_area(d, pitch, clearance) * length
 
 
+def hex_prism_volume(s: float, k: float) -> float:
+    """Volume of a regular hexagonal prism of across-flats `s` and height `k`.
+
+    The hexagon area is (sqrt(3) / 2) s^2, a sharp-cornered plain prism with no chamfer or
+    washer face (D-01, D-02).
+    """
+    return math.sqrt(3) / 2 * s * s * k
+
+
+def bolt_closed_volume(d: float, pitch: float, length: float, s: float, k: float,
+                       t: float) -> float:
+    """Volume of the whole bolt (D-03): thread on z 0..t, plain shank t..length, head on
+    length..length + k.
+
+    The thread is the section area times t, the shank a cylinder of the major diameter, the head
+    a hexagonal prism. Plan 04-04 passes a `t` below `length`; until then t equals length.
+    """
+    return (section_area(d, pitch) * t + math.pi * (d / 2) ** 2 * (length - t)
+            + hex_prism_volume(s, k))
+
+
+def head_too_small_refusal(s: float, d: float) -> str | None:
+    """None when the across-flats width `s` exceeds the diameter `d`; otherwise the text (D-23).
+
+    The text begins `s and d: ` so the CLI, which prints no `loc` for a model-level error, still
+    names both fields. No braces in the text: pydantic formats a custom error from its context.
+    """
+    if s > d:
+        return None
+    return (f"s and d: the across-flats width s {s:g} mm must exceed the diameter d {d:g} mm; "
+            f"a head no wider than the shank is not a hex head")
+
+
 def volume_check(measured: float, closed: float) -> str | None:
     """None when `measured` is inside `T_GATE` of `closed`; otherwise the refusal text.
 
