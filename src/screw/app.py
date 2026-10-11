@@ -405,10 +405,6 @@ async def _serve(params: FastenerParams, fmt: Literal["stl", "step"], quality: s
     """The one model-serving path every kind's route delegates to: cache, admission
     control, build, compress, log, respond.
     """
-    # A plain local, not middleware or contextvars -- minted once here and passed to every
-    # record this request emits, so two concurrent requests for the same part (the one
-    # case params + time cannot disambiguate: same-slot affinity) are still
-    # distinguishable in the log.
     # First, before the cache, the admission slot and the pool: a fine STL L11 measured over
     # the export budget is refused on the parameters alone, so it never occupies a worker
     # (D-02). Reads no field by name, so every kind gets its own rule through the one call.
@@ -416,6 +412,10 @@ async def _serve(params: FastenerParams, fmt: Literal["stl", "step"], quality: s
     if refusal is not None:
         raise HTTPException(422, detail=[{"loc": ["query"], "type": "fine_stl_cap",
                                           "msg": refusal}])
+    # A plain local, not middleware or contextvars -- minted once here and passed to every
+    # record this request emits, so two concurrent requests for the same part (the one
+    # case params + time cannot disambiguate: same-slot affinity) are still
+    # distinguishable in the log.
     request_id = uuid.uuid4().hex[:8]
     # Same test GZipMiddleware itself makes (starlette's middleware/gzip.py,
     # `"gzip" in headers.get("Accept-Encoding", "")`) -- endpoint and middleware must
