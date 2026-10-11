@@ -16,4 +16,4 @@ Related files:
 One unauthenticated GET holds a worker for the full timeout and drives the container toward OOM. The owner accepted the exposure in D-18, but the recorded example understates it, and the `params.py` comment's premise is now false. CLAUDE.md's "paid-API drain" rubric is the nearest blocker category.
 
 ## Next step
-Owner ruling on severity (re-tag blocker, or keep must under D-18). Add the d=100/length=200 row with host and load to the interim-bounds item and the corpus docstring; measure RSS at the 30 s kill point so the item can say which backstop fires first; correct the `params.py` comment.
+Owner ruling 2026-10-11 (UAT test 6): stays Severity must under D-18; trigger is the Phase 7 linux/amd64 re-sweep. Add the d=100/length=200 row with host and load to the interim-bounds item and the corpus docstring; measure RSS at the 30 s kill point so the item can say which backstop fires first; correct the `params.py` comment.
