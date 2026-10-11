@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 
 from screw import __version__, cli
-from screw.calc import derive
+from screw.calc import derive, download_refusal
 from screw.params import KINDS, BoltParams
 
 WARNING = "warning: threaded rod: no head, plain-cut thread ends; not a product build"
@@ -283,4 +283,29 @@ def test_the_over_budget_fine_stl_exits_2_from_the_real_process(tmp_path: Path) 
         capture_output=True, text=True, check=False)
     assert result.returncode == 2
     assert "error: length:" in result.stderr
+    assert not out.exists()
+
+
+def test_the_left_hand_part_l11_measured_inside_the_budget_is_not_refused(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """D-21: M10 x 60 is over the budget right-hand and inside it left-hand.
+
+    A real fine export of the left-hand part would write a large STL, so its side is asked of the
+    rule `screw export` shares with the API; the right-hand side is the real command.
+    """
+    mirror = ["--d", "10", "--pitch", "1.5", "--length", "60"]
+    left = BoltParams(d=10.0, pitch=1.5, length=60.0, left_hand=True)
+    assert download_refusal(left, "stl", "fine") is None
+    cli.main(["info", "bolt", *mirror, "--left-hand"])
+    assert json.loads(capsys.readouterr().out)["warnings"] == [derive(left).warnings[0]]
+
+    cli.main(["info", "bolt", *mirror])
+    warnings = json.loads(capsys.readouterr().out)["warnings"]
+    assert len(warnings) == 2
+    assert warnings[1].startswith("length: ")
+    assert "right-hand" in warnings[1]
+
+    out = tmp_path / "x.stl"
+    assert _exit_code(["export", "bolt", *mirror, "-o", str(out)]) == 2
+    assert "error: length:" in capsys.readouterr().err
     assert not out.exists()

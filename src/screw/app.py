@@ -86,10 +86,12 @@ class _BlobCache:
 #
 # INTERIM (D-01): 64 MB, carried from spur's export-cache default (same knob, renamed),
 # where it sized the cache against 160-199 tooth gears (~9 MB raw STL each). Not a screw
-# sizing, but L11 measured fine STLs over it from M8 L=68 up (`2026-10-08-a-grid`); `put`
-# drops an over-budget blob without caching it, so such a part would be served but rebuilt
-# on every repeat request, which is why D-02 refuses the fine STL on the measured rows
-# (`download_refusal`, called first in `_serve`). Phase 7 re-sweeps (OPER-02).
+# sizing, but L11 measured the fine STL plus its gzip-1 copy over it from M8 L=68
+# right-hand up (`2026-10-08-a-grid`). At that row the raw fine STL alone is 45,659,684
+# bytes, under the budget, so `put` keeps both blobs and they evict each other: such a part
+# is served but rebuilt on every repeat request. That is why D-02 and D-21 refuse the fine
+# STL on the measured rows, with the caps keyed by hand because the left-hand rods fit
+# longer (`download_refusal`, called first in `_serve`). Phase 7 re-sweeps (OPER-02).
 _EXPORTS = _BlobCache(int_env("SCREW_EXPORT_CACHE_MB", 64) * 1024 * 1024)
 
 
@@ -405,9 +407,10 @@ async def _serve(params: FastenerParams, fmt: Literal["stl", "step"], quality: s
     """The one model-serving path every kind's route delegates to: cache, admission
     control, build, compress, log, respond.
     """
-    # First, before the cache, the admission slot and the pool: a fine STL L11 measured over
-    # the export budget is refused on the parameters alone, so it never occupies a worker
-    # (D-02). Reads no field by name, so every kind gets its own rule through the one call.
+    # First, before the cache, the admission slot and the pool: a fine STL whose fine STL plus
+    # gzip copy L11 measured over the export budget is refused on the parameters alone, so it
+    # never occupies a worker (D-02). Reads no field by name, so every kind gets its own rule
+    # through the one call.
     refusal = download_refusal(params, fmt, quality)
     if refusal is not None:
         raise HTTPException(422, detail=[{"loc": ["query"], "type": "fine_stl_cap",

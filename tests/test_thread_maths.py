@@ -3,7 +3,9 @@ tested without the kernel."""
 
 from __future__ import annotations
 
+import json
 import math
+from pathlib import Path
 
 import pytest
 
@@ -204,28 +206,66 @@ def test_the_exact_decimal_reading_accepts_what_float_division_would_refuse() ->
     assert turns_of(5.4, 0.6) == 9.0
 
 
-# Typed from L11's "Turn cap per size" table, not read back from the code under test: the seven
-# measured rows (d, pitch) -> bytes cap in mm, and the table's printed turns column.
+# Typed, not read back from the code under test: the seven right-hand rows from L11's "Turn cap
+# per size" table and the six left-hand rows from the D-21 clarification (the cap is the longest
+# measured length below the first over-budget one), with the printed turns column. M8 left-hand
+# has no row: `2026-10-08-a-grid` measured no length over budget up to 80 mm.
 L11_ROWS = {
-    (8.0, 1.25): (67.5, "54"), (10.0, 1.5): (56.0, "37.3333"), (12.0, 1.75): (60.0, "34.2857"),
-    (14.0, 2.0): (58.0, "29"), (16.0, 2.0): (52.0, "26"), (18.0, 2.5): (65.0, "26"),
-    (20.0, 2.5): (64.0, "25.6"),
+    (8.0, 1.25, False): (67.5, "54"), (10.0, 1.5, False): (56.0, "37.3333"),
+    (12.0, 1.75, False): (60.0, "34.2857"), (14.0, 2.0, False): (58.0, "29"),
+    (16.0, 2.0, False): (52.0, "26"), (18.0, 2.5, False): (65.0, "26"),
+    (20.0, 2.5, False): (64.0, "25.6"),
+    (10.0, 1.5, True): (72.0, "48"), (12.0, 1.75, True): (77.0, "44"),
+    (14.0, 2.0, True): (78.0, "39"), (16.0, 2.0, True): (75.0, "37.5"),
+    (18.0, 2.5, True): (91.0, "36.4"), (20.0, 2.5, True): (91.0, "36.4"),
 }
 
+GRID = Path(__file__).parents[1] / "bench" / "results" / "thread-spike" / "2026-10-08-a-grid.jsonl"
+EXPORT_BUDGET = 64 * 1024 * 1024
 
-def test_the_fine_stl_table_is_exactly_the_seven_rows_l11_measured() -> None:
+
+def test_the_fine_stl_table_is_exactly_the_thirteen_rows_l11_measured() -> None:
     assert {key: cap for key, (cap, _) in L11_ROWS.items()} == FINE_STL_ROWS
+    assert len(FINE_STL_ROWS) == 13
+
+
+def test_every_cap_is_the_longest_measured_length_that_fits_in_the_grid_records() -> None:
+    """Recompute each cap from the committed records, so a typed cap they do not hold fails.
+
+    A key exists only for a (d, pitch, left_hand) with at least one built rod row whose fine raw
+    STL plus its gzip level-1 copy is over 64 MiB; its cap is the longest measured length below
+    the first such row. The grid's sizes and hands with none (M2 to M7 on both hands and M8
+    left-hand, planner check 2026-10-11) produce no key, so they are uncapped.
+    """
+    built: dict[tuple[float, float, bool], list[tuple[float, int]]] = {}
+    for line in GRID.read_text().splitlines():
+        record = json.loads(line)
+        if record.get("kind") != "rod" or record["outcome"] != "built":
+            continue
+        (fine,) = [m for m in record["meshes"] if m["preset"] == "fine"]
+        key = (record["d"], record["pitch"], record["left_hand"])
+        built.setdefault(key, []).append(
+            (record["length"], fine["bytes"] + fine["gzip1_bytes"]))
+    recomputed: dict[tuple[float, float, bool], float] = {}
+    for key, measured in built.items():
+        over = [length for length, size in measured if size > EXPORT_BUDGET]
+        if over:
+            recomputed[key] = max(length for length, _ in measured if length < min(over))
+    assert recomputed == FINE_STL_ROWS
 
 
 @pytest.mark.parametrize(("key", "row"), list(L11_ROWS.items()))
 def test_each_cap_is_accepted_and_the_next_float_above_is_refused(
-        key: tuple[float, float], row: tuple[float, str]) -> None:
-    (d, pitch), (cap, turns) = key, row
-    assert fine_stl_refusal(d, pitch, cap) is None
-    refusal = fine_stl_refusal(d, pitch, math.nextafter(cap, math.inf))
+        key: tuple[float, float, bool], row: tuple[float, str]) -> None:
+    (d, pitch, left_hand), (cap, turns) = key, row
+    assert fine_stl_refusal(d, pitch, cap, left_hand) is None
+    refusal = fine_stl_refusal(d, pitch, math.nextafter(cap, math.inf), left_hand)
     assert refusal is not None
     assert refusal.startswith("length: ")
+    assert ("left-hand" if left_hand else "right-hand") in refusal
     assert f"{cap:g} mm ({turns} turns)" in refusal
+    assert "fine STL plus its gzip copy" in refusal
+    assert "64 MiB export budget" in refusal
     assert "2026-10-08-a-grid" in refusal
     assert "preview STL" in refusal
     assert "{" not in refusal
@@ -233,7 +273,7 @@ def test_each_cap_is_accepted_and_the_next_float_above_is_refused(
 
 
 def test_the_refusal_names_the_cap_the_run_and_the_length_asked() -> None:
-    refusal = fine_stl_refusal(8.0, 1.25, 67.6)
+    refusal = fine_stl_refusal(8.0, 1.25, 67.6, False)
     assert refusal is not None
     assert "length" in refusal
     assert "67.5" in refusal
@@ -242,8 +282,18 @@ def test_the_refusal_names_the_cap_the_run_and_the_length_asked() -> None:
     assert "67.6" in refusal
 
 
+def test_a_left_hand_part_is_refused_by_the_left_hand_cap_not_the_right_hand_one() -> None:
+    # L11 measured the left-hand M10 x 60 inside the budget and the right-hand one over it.
+    assert fine_stl_refusal(10.0, 1.5, 60.0, True) is None
+    assert fine_stl_refusal(10.0, 1.5, 60.0, False) is not None
+    # M8 left-hand fits to 80 mm in the records: no measured stop, so no cap (L02).
+    assert fine_stl_refusal(8.0, 1.25, 80.0, True) is None
+    assert fine_stl_refusal(8.0, 1.25, 67.6, False) is not None
+
+
 def test_an_off_row_part_has_no_bytes_cap_not_the_nearest_rows() -> None:
     # An unmeasured mapping to the nearest row is the plausible number L02 forbids (D-03).
-    assert fine_stl_refusal(8.0, 1.0, 250.0) is None
-    assert fine_stl_refusal(8.1, 1.25, 100.0) is None
-    assert fine_stl_refusal(6.0, 1.0, 250.0) is None
+    assert fine_stl_refusal(8.0, 1.0, 250.0, False) is None
+    assert fine_stl_refusal(8.1, 1.25, 100.0, False) is None
+    assert fine_stl_refusal(6.0, 1.0, 250.0, False) is None
+    assert fine_stl_refusal(8.0, 1.0, 250.0, True) is None

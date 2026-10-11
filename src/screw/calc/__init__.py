@@ -79,7 +79,7 @@ def _bolt(p: BoltParams) -> PartInfo:
                             "for these parameters")
     # The page's Download STL link asks for the fine default, so without this a click on a
     # capped part opens raw JSON with no notice. Same text the API and the CLI refuse with.
-    fine = fine_stl_refusal(p.d, p.pitch, p.length)
+    fine = fine_stl_refusal(p.d, p.pitch, p.length, p.left_hand)
     if fine is not None:
         warnings.append(fine)
     return PartInfo(kind=p.kind, rows=rows, warnings=warnings)
@@ -109,6 +109,6 @@ def download_refusal(p: FastenerParams, fmt: str, quality: str) -> str | None:
     """
     if isinstance(p, BoltParams):
         if fmt == "stl" and quality == "fine":
-            return fine_stl_refusal(p.d, p.pitch, p.length)
+            return fine_stl_refusal(p.d, p.pitch, p.length, p.left_hand)
         return None
     raise TypeError(f"no download rule for kind {p.kind!r}")

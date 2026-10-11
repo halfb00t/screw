@@ -100,7 +100,7 @@ def test_every_registered_kind_derives_a_document() -> None:
 def test_only_the_fine_stl_of_a_capped_part_is_refused() -> None:
     capped = BoltParams(d=8.0, pitch=1.25, length=67.6)
     refusal = download_refusal(capped, "stl", "fine")
-    assert refusal == fine_stl_refusal(8.0, 1.25, 67.6)
+    assert refusal == fine_stl_refusal(8.0, 1.25, 67.6, False)
     assert refusal is not None
     assert download_refusal(capped, "stl", "preview") is None
     assert download_refusal(capped, "step", "fine") is None
@@ -124,10 +124,24 @@ def test_every_registered_kind_has_a_download_rule() -> None:
 def test_a_capped_part_warns_about_its_fine_stl_after_the_standing_warning() -> None:
     # The page's Download STL link asks for the fine default, so the page says so first.
     capped = derive(BoltParams(d=8.0, pitch=1.25, length=67.6))
-    assert capped.warnings == [STANDING_WARNING, fine_stl_refusal(8.0, 1.25, 67.6)]
+    assert capped.warnings == [STANDING_WARNING, fine_stl_refusal(8.0, 1.25, 67.6, False)]
 
 
 def test_no_fine_stl_warning_at_the_cap_or_off_the_measured_rows() -> None:
     for p in (BoltParams(d=8.0, pitch=1.25, length=67.5),
               BoltParams(d=8.0, pitch=1.0, length=67.6)):
         assert derive(p).warnings == [STANDING_WARNING]
+
+
+def test_a_left_hand_part_is_judged_by_its_own_measured_cap() -> None:
+    # L11 measured the left-hand M10 x 60 inside the budget and the right-hand one over it, so
+    # the same millimetres are served on one hand and refused on the other (D-21).
+    left = BoltParams(d=10.0, pitch=1.5, length=60.0, left_hand=True)
+    right = BoltParams(d=10.0, pitch=1.5, length=60.0)
+    assert download_refusal(left, "stl", "fine") is None
+    assert derive(left).warnings == [STANDING_WARNING]
+    refusal = download_refusal(right, "stl", "fine")
+    assert refusal == fine_stl_refusal(10.0, 1.5, 60.0, False)
+    assert refusal is not None
+    assert "right-hand" in refusal
+    assert derive(right).warnings == [STANDING_WARNING, refusal]

@@ -167,39 +167,52 @@ def turn_cap_refusal(length: float, pitch: float) -> str | None:
             f"cap, the most measured (run 2026-10-08-a-frontier); shorten length or raise pitch")
 
 
-# The fine-STL bytes caps of the seven (d, pitch) rows L11 measured (D-03): (d, pitch) -> the
-# largest length in mm whose fine STL still fits the export budget. L11 measured rows
-# (`2026-10-08-a-grid`), not ISO rows: each cap is the largest length below the first grid row
-# whose fine raw STL plus gzip level 1 exceeded the INTERIM 64 MiB export budget, at the INTERIM
-# fine preset (0.01 mm, 0.1 rad). The keys are the campaign's run keys (ISO 262 preview pitches,
-# UNVERIFIED as table truth, exact as run keys and exactly representable floats). This is bench
-# evidence, not a `tables` module, so it does not pre-empt contract 6. It was measured against
-# the 64 MiB budget only and applies unconditionally, even if a deployer changes
-# SCREW_EXPORT_CACHE_MB (03-RESEARCH Open Question 4). An off-row (d, pitch) gets no bytes cap:
-# a cap from an unmeasured mapping to the nearest row is the plausible number L02 forbids.
-# Phase 7 re-measures the budget and the caps (OPER-02, OPER-03). Turns are derived from the
-# millimetres by `turns_of`, never stored.
-FINE_STL_ROWS: dict[tuple[float, float], float] = {
-    (8.0, 1.25): 67.5,    # first row over budget: M8 right L=68 rod
-    (10.0, 1.5): 56.0,    # M10 right L=57 rod
-    (12.0, 1.75): 60.0,   # M12 right L=61 rod
-    (14.0, 2.0): 58.0,    # M14 right L=59 rod
-    (16.0, 2.0): 52.0,    # M16 right L=53 rod
-    (18.0, 2.5): 65.0,    # M18 right L=66 rod
-    (20.0, 2.5): 64.0,    # M20 right L=65 rod
+# The fine-STL caps of the thirteen (d, pitch, left_hand) rod runs L11 measured (D-03, D-21):
+# (d, pitch, left_hand) -> the largest length in mm whose fine STL plus its gzip level-1 copy
+# still fits the INTERIM 64 MiB export budget. L11 measured rows (`2026-10-08-a-grid`), not ISO
+# rows: each cap is the longest measured length below the first grid rod row whose fine raw STL
+# plus its gzip copy exceeded that budget, at the INTERIM fine preset (0.01 mm, 0.1 rad). The
+# criterion is the sum of the two blobs, not the STL alone: at M8 right L=68 the raw fine STL is
+# 45,659,684 bytes, under the budget. The caps are keyed by hand because the left-hand rods
+# measured smaller files and fit longer (first over-budget length M10 right 57, left 73; the
+# right-hand caps applied to a left-hand part refused lengths L11 had measured inside). The keys
+# are the campaign's run keys (ISO 262 preview pitches, UNVERIFIED as table truth, exact as run
+# keys and exactly representable floats), not ISO rows. This is bench evidence, not a `tables`
+# module, so it does not pre-empt contract 6. It was measured against the 64 MiB budget only and
+# applies unconditionally, even if a deployer changes SCREW_EXPORT_CACHE_MB (03-RESEARCH Open
+# Question 4). A part off these keys gets no cap: a cap from an unmeasured mapping to the
+# nearest row is the plausible number L02 forbids. Phase 7 re-measures the budget and the caps
+# (OPER-02, OPER-03). Turns are derived from the millimetres by `turns_of`, never stored.
+FINE_STL_ROWS: dict[tuple[float, float, bool], float] = {
+    (8.0, 1.25, False): 67.5,    # first row over budget: M8 right L=68 rod
+    (10.0, 1.5, False): 56.0,    # M10 right L=57 rod
+    (12.0, 1.75, False): 60.0,   # M12 right L=61 rod
+    (14.0, 2.0, False): 58.0,    # M14 right L=59 rod
+    (16.0, 2.0, False): 52.0,    # M16 right L=53 rod
+    (18.0, 2.5, False): 65.0,    # M18 right L=66 rod
+    (20.0, 2.5, False): 64.0,    # M20 right L=65 rod
+    # M8 left-hand: no row over budget up to 80 mm, so no cap (no measured stop).
+    (10.0, 1.5, True): 72.0,     # M10 left L=73 rod
+    (12.0, 1.75, True): 77.0,    # M12 left L=78 rod
+    (14.0, 2.0, True): 78.0,     # M14 left L=79 rod
+    (16.0, 2.0, True): 75.0,     # M16 left L=76 rod
+    (18.0, 2.5, True): 91.0,     # M18 left L=92 rod
+    (20.0, 2.5, True): 91.0,     # M20 left L=92 rod
 }
 
 
-def fine_stl_refusal(d: float, pitch: float, length: float) -> str | None:
-    """None unless (d, pitch) is a measured row and `length` is past its fine-STL bytes cap.
+def fine_stl_refusal(d: float, pitch: float, length: float, left_hand: bool) -> str | None:
+    """None unless (d, pitch, left_hand) is a measured run and `length` is past its fine-STL cap.
 
     The text begins `length: ` so the CLI, which prints no `loc` for a model-level error, still
     names the field. No braces in the text: pydantic formats a custom error from its context.
     """
-    cap = FINE_STL_ROWS.get((d, pitch))
+    cap = FINE_STL_ROWS.get((d, pitch, left_hand))
     if cap is None or length <= cap:
         return None
-    return (f"length: the fine STL of the rod with d {d:g} and pitch {pitch:g} is refused above "
-            f"{cap:g} mm ({turns_of(cap, pitch):g} turns), where L11 measured it over the "
-            f"export budget (run 2026-10-08-a-grid); this length is {length:g} mm. Shorten "
-            f"length, or ask for the preview STL or the STEP, which are not capped")
+    hand = "left-hand" if left_hand else "right-hand"
+    return (f"length: the fine STL of the {hand} rod with d {d:g} and pitch {pitch:g} is refused "
+            f"above {cap:g} mm ({turns_of(cap, pitch):g} turns), the longest length L11 measured "
+            f"whose fine STL plus its gzip copy fit the 64 MiB export budget (run "
+            f"2026-10-08-a-grid); this length is {length:g} mm. Shorten length, or ask for the "
+            f"preview STL or the STEP, which are not capped")

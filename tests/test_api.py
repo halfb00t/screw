@@ -803,7 +803,8 @@ def test_a_fine_stl_l11_measured_over_budget_is_a_422_and_never_reaches_the_back
     (detail,) = r.json()["detail"]
     assert detail["type"] == "fine_stl_cap"
     assert detail["loc"] == ["query"]
-    for fragment in ("length", "67.5", "54", "2026-10-08-a-grid"):
+    for fragment in ("length", "right-hand", "67.5", "54", "fine STL plus its gzip copy",
+                     "64 MiB export budget", "2026-10-08-a-grid"):
         assert fragment in detail["msg"]
     assert calls == 0
 
@@ -831,3 +832,22 @@ def test_the_cap_itself_and_an_off_row_part_reach_the_backend_as_asked() -> None
     bolts = [p for p in seen if isinstance(p, BoltParams)]
     assert [(p.d, p.pitch, p.length) for p in bolts] == [(8.0, 1.25, 67.5), (8.0, 1.0, 100.0)]
     assert len(bolts) == len(seen)
+
+
+def test_the_left_hand_part_l11_measured_inside_the_budget_reaches_the_backend() -> None:
+    """D-21: the right-hand M10 x 60 is a 422, the left-hand one the same size is served."""
+    seen: list[FastenerParams] = []
+
+    async def stub(p: FastenerParams, fmt: str, quality: str) -> bytes:
+        seen.append(p)
+        return b"stub"
+
+    mirror: Params = {"d": 10, "pitch": 1.5, "length": 60}
+    with _backend(stub):
+        left = client.get("/api/bolt/model.stl", params={**mirror, "left_hand": "true"})
+        right = client.get("/api/bolt/model.stl", params=mirror)
+    assert left.status_code == 200
+    assert [p.left_hand for p in seen if isinstance(p, BoltParams)] == [True]
+    assert right.status_code == 422
+    assert right.json()["detail"][0]["type"] == "fine_stl_cap"
+    assert "right-hand" in right.json()["detail"][0]["msg"]
