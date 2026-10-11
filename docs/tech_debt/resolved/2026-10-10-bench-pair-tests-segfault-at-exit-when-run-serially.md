@@ -3,7 +3,7 @@
 Severity: must
 Status: resolved
 Date: 2026-10-10
-Resolved in: test(bench): read pair.common only in a child so the pytest worker exits clean (this commit; the next commit names its sha)
+Resolved in: cfe00a4 — test(bench): read pair.common only in a child so the pytest worker exits clean
 Source: plan 03-06 Task 1 verification (`make test PYTEST_ARGS="tests/test_bench.py -q -n0 --no-cov"`)
 Related files:
 - bench/thread_spike/pair.py (`_KEEP`, `common`)
