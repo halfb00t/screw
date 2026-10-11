@@ -993,7 +993,11 @@ def test_a_worker_that_dies_is_one_worker_died_row_with_its_return_code() -> Non
 
 
 def test_a_worker_killed_by_a_signal_reports_the_negative_return_code() -> None:
-    script = "import os, signal; os.kill(os.getpid(), signal.SIGSEGV)"
+    # SIGTERM, not SIGSEGV: macOS writes a crash report for every SIGSEGV'd process, so the
+    # self-inflicted segfault left one report per `make verify` run (ten on 2026-10-11 alone).
+    # SIGTERM takes the same worker_died path unreported, and -15 stays distinct from the -9
+    # the harness's own timeout kill produces.
+    script = "import os, signal; os.kill(os.getpid(), signal.SIGTERM)"
     worker = Worker(argv=[sys.executable, "-c", script])
     try:
         record = worker.run(_REQUEST, 30.0)
@@ -1001,7 +1005,7 @@ def test_a_worker_killed_by_a_signal_reports_the_negative_return_code() -> None:
         worker.close()
     assert record["outcome"] == "worker_died"
     assert record["error"] is not None
-    assert "return code -11" in record["error"]
+    assert "return code -15" in record["error"]
 
 
 def test_a_worker_that_does_not_answer_in_time_is_killed_and_recorded_as_a_timeout() -> None:
