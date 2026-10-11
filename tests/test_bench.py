@@ -993,7 +993,11 @@ def test_a_worker_that_dies_is_one_worker_died_row_with_its_return_code() -> Non
 
 
 def test_a_worker_killed_by_a_signal_reports_the_negative_return_code() -> None:
-    script = "import os, signal; os.kill(os.getpid(), signal.SIGSEGV)"
+    # SIGTERM, not SIGSEGV: macOS writes a crash report for every SIGSEGV'd process, so the
+    # self-inflicted segfault left one report per `make verify` run (ten on 2026-10-11 alone).
+    # SIGTERM takes the same worker_died path unreported, and -15 stays distinct from the -9
+    # the harness's own timeout kill produces.
+    script = "import os, signal; os.kill(os.getpid(), signal.SIGTERM)"
     worker = Worker(argv=[sys.executable, "-c", script])
     try:
         record = worker.run(_REQUEST, 30.0)
@@ -1001,7 +1005,7 @@ def test_a_worker_killed_by_a_signal_reports_the_negative_return_code() -> None:
         worker.close()
     assert record["outcome"] == "worker_died"
     assert record["error"] is not None
-    assert "return code -11" in record["error"]
+    assert "return code -15" in record["error"]
 
 
 def test_a_worker_that_does_not_answer_in_time_is_killed_and_recorded_as_a_timeout() -> None:
@@ -4144,26 +4148,19 @@ def test_the_nut_is_a_plain_blank_less_the_void_and_its_volume_is_the_closed_for
     assert box.xmax == pytest.approx(d, abs=1e-6)  # radius d: the hex adds nothing (D-13)
 
 
-def test_common_reads_the_volume_of_an_overlap_and_zero_solids_for_a_disjoint_pair() -> None:
-    one = cq.Solid.makeBox(2, 2, 2)
-    volume, solids, errors, warnings, seconds = pair.common(
-        one, cq.Solid.makeBox(2, 2, 2).translate(cq.Vector(1, 1, 1)))
-    assert volume == pytest.approx(1.0)
-    assert (solids, errors, warnings) == (1, False, False)
-    assert seconds > 0
-    apart = pair.common(one, cq.Solid.makeBox(1, 1, 1).translate(cq.Vector(5, 5, 5)))
-    assert apart[:2] == (0.0, 0)
-
-
 def test_a_child_that_read_a_pose_comes_back_with_exit_0_the_way_the_worker_ends() -> None:
     """The boolean and its filler must outlive `common`: freed with it, the process dies with a
     segfault (RESEARCH Pitfall 4), which the worker meets after answering and before its
     `os._exit(0)`. Read as the worker reads, in a fresh process, and the exit code is the
-    behaviour: with the hold dropped this child dies on signal 11 (checked when it was written)."""
+    behaviour: with the hold dropped this child dies on signal 11 (checked when it was written).
+    The overlap's whole reading is checked here because nothing reads `common` in the pytest
+    process any more: a call there parks its boolean in `pair._KEEP`, and freeing that at
+    interpreter exit killed the xdist worker with SIGSEGV after it had reported green (crash
+    frame `~BRepAlgoAPI_BuilderAlgo` under `_PyModule_ClearDict`, 2026-10-11)."""
     code = "\n".join([
         "import gc, os", "import cadquery as cq", "from bench.thread_spike import pair",
         "box = cq.Solid.makeBox(2, 2, 2)",
-        "print(pair.common(box, cq.Solid.makeBox(2, 2, 2).translate(cq.Vector(1, 1, 1)))[:2],"
+        "print(pair.common(box, cq.Solid.makeBox(2, 2, 2).translate(cq.Vector(1, 1, 1))),"
         " flush=True)",
         "print(pair.common(box, cq.Solid.makeBox(1, 1, 1).translate(cq.Vector(5, 5, 5)))[:2],"
         " flush=True)",
@@ -4172,8 +4169,12 @@ def test_a_child_that_read_a_pose_comes_back_with_exit_0_the_way_the_worker_ends
                           capture_output=True, text=True, timeout=120, check=False)
     assert done.returncode == 0, done.stderr
     overlap, apart = done.stdout.splitlines()
-    assert overlap.startswith("(1.0")
-    assert overlap.endswith(", 1)")
+    volume, solids, errors, warnings, seconds = ast.literal_eval(overlap)
+    assert volume == pytest.approx(1.0)
+    assert solids == 1
+    assert errors is False
+    assert warnings is False
+    assert seconds > 0
     assert apart == "(0.0, 0)"
 
 

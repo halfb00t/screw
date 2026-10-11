@@ -22,7 +22,6 @@ Severity (grep-able `Severity:` field):
 | nice | [derive() prints turns and volume for a length below MIN_TAIL_MM, which the builder refuses](active/2026-10-11-info-document-prints-numbers-for-a-length-the-builder-refuses.md) | when the info document next changes |
 | nice | [check_solid discards the volume estimator's own error estimate](active/2026-10-11-check-solid-ignores-the-volume-error-estimate.md) | when the gate or T_GATE next changes |
 | must | [Two thread spike protocol amendments wait for the owner before the next campaign](active/2026-10-10-spike-protocol-amendments-before-next-campaign.md) | before the next thread-spike campaign runs |
-| must | [The in-process pair tests in tests/test_bench.py end the pytest process with exit 139](active/2026-10-10-bench-pair-tests-segfault-at-exit-when-run-serially.md) | a serial run of the bench tests is wanted in a script or CI |
 | must | [Interim runtime bounds are spur's figures, not screw's measurements](active/2026-10-05-interim-runtime-bounds.md) | Phase 7 operability re-sweep (OPER-02) |
 | must | [The web page rounds every displayed number in the browser](active/2026-10-06-ui-rounds-displayed-numbers.md) | before the Phase 4 plan that puts cited ISO rows on the info panel |
 | must | [bench.memory samples too coarsely to read a peak off a corpus that runs in seconds](active/2026-10-06-bench-memory-sampling-is-too-coarse-for-short-corpora.md) | before the Phase 7 memory sweep (OPER-02, OPER-03) |
@@ -39,3 +38,4 @@ Severity (grep-able `Severity:` field):
 | [The pool's dying-worker test failed once under host load](resolved/2026-10-06-test-pool-dying-worker-flake.md) | ef37f23 (PR #7) — test(pool): free the wedged test's dead-worker semaphores before it returns |
 | [The thread spike harness carries five open review warnings that PR 2 may not fix](resolved/2026-10-09-thread-spike-harness-review-findings.md) | 0e2f437 -- fix(bench): refuse a run while the harness has uncommitted changes and report the HEAD it started at |
 | [A collapsed thin solid passes the validity check and is served as a 200](resolved/2026-10-06-collapsed-thin-solid-served-as-200.md) | de9304e — fix(solid): refuse a broken export and close the collapsed-solid blocker (plan 03-01) |
+| [The in-process pair tests in tests/test_bench.py end the pytest process with exit 139](resolved/2026-10-10-bench-pair-tests-segfault-at-exit-when-run-serially.md) | cfe00a4 — test(bench): read pair.common only in a child so the pytest worker exits clean |
