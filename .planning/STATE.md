@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: ISO Hex Bolts and Screws
 status: executing
-stopped_at: Completed 04-05-PLAN.md
-last_updated: "2026-10-11T16:47:20.748Z"
+stopped_at: Completed 04-06-PLAN.md
+last_updated: "2026-10-11T16:56:42.670Z"
 last_activity: 2026-10-11
 last_activity_desc: Phase 04 execution started
-state_head: 27430bb9d0afa78474d74628d64574e3ba13f333
+state_head: 7d4e6417c5f0c85a1197c0e028179d005e4fbc4c
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 39
-  completed_plans: 30
+  completed_plans: 31
   percent: 43
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-11)
 ## Current Position
 
 Phase: 04 (ISO Hex Bolts and Screws) — EXECUTING
-Plan: 6 of 14
+Plan: 7 of 14
 Status: Ready to execute
 Last activity: 2026-10-11 — Phase 04 execution started
 
@@ -88,6 +88,7 @@ Progress: [████░░░░░░] 43%
 | Phase 04 P03 | 55 min | 2 tasks | 14 files |
 | Phase 04 P04 | 9 min | 1 tasks | 12 files |
 | Phase 04 P05 | 35 min | 2 tasks | 11 files |
+| Phase 04 P06 | 8 min | 1 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -153,6 +154,7 @@ Recent decisions affecting current work:
 - [Phase 04]: 04-04: the model builds and warns on thread_length above length; the 422 for two explicit values is plan 04-05's request-boundary rule (D-25)
 - [Phase 04]: Conflict text prints thread_length and length with repr minus a trailing .0, not :g, so 10.00001 is not shown as 10
 - [Phase 04]: The thread_length conflict dependency acts only on /api/bolt/ paths; /api/schema with both keys stays a 200
+- [Phase 04]: 04-06: bench corpus pins s, k and thread_length = length on every entry; grid unchanged (OPER-02)
 
 ### Pending Todos
 
@@ -191,6 +193,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-11T16:47:20.674Z
-Stopped at: Completed 04-05-PLAN.md
+Last session: 2026-10-11T16:56:42.599Z
+Stopped at: Completed 04-06-PLAN.md
 Resume file: None
