@@ -775,19 +775,27 @@ Not a rename or migration phase. The one runtime-state concern is shareable link
 | A9 | Kernel behaviour on linux/amd64 equals macOS arm64 for the fuse | Code Examples 2 | CI could differ (STATE records an earlier linux-only kernel failure in a different construction); the CI `test` job is the check, and Phase 7 re-sweeps |
 | A10 | The 4014 `b` for l above 200 (2d + 25) never applies to M2 to M20 | THRD-03 | The 4014 greatest length for M20 is 200, so no row reaches it |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Confirm the D-08 mechanism (Alert 1).**
    - What we know: `model_fields_set` cannot carry the rule; a request-boundary function can.
    - What's unclear: whether the owner accepts "direct Python construction is not refused, the build and info use `t = min(...)` and warn".
    - Recommendation: the design in Alert 1; record it in L13 as the D-08 mechanism, leaving D-08's observable behaviour unchanged.
+   - **RESOLVED (D-25, owner 2026-10-11):** the owner accepted the model-level exception: `BoltParams(length=10, thread_length=30)` built in Python is accepted, built to `t = min(...)` and warned; the 422 for two explicit values lives at the request boundary (API dependency, CLI `_params`). Plan 04-05 builds it; plan 04-14 records the acceptance in L13.
 2. **Pin the warning text for an explicit `thread_length` above a default `length` (Alert 6).** Recommendation: `thread_length <T> exceeds length <L>: thread built to the full length` for any non-default `thread_length`.
+   - **RESOLVED (D-25):** pinned as recommended, `thread_length <T> exceeds length <L>: thread built to the full length` (plan 04-04).
 3. **D-23: keep the 422 or build and warn (Alert 4).** Recommendation: keep it (locked), restate the reason, write the message so it tells the user `s` must exceed `d`.
+   - **RESOLVED (D-26):** the 422 `head_too_small` stays; the reason is product policy, not a kernel necessity; the message names `s` and `d` and says `s` must exceed `d` (plan 04-03).
 4. **Badge and display copy for bracketed sizes.** `ISO 4017 (M7) × 20` or `ISO 4017 M7 × 20`? Recommendation: brackets in the picker and the catalogue `choice`, and in the badge and `display` too, so the copy matches the standards (TABL-05); pin it in UI-SPEC Copywriting.
+   - **RESOLVED (D-28):** brackets everywhere: picker, catalogue `choice`, badge and `display` (`ISO 4017 (M7) × 20`); the designation stays unbracketed (plans 04-07, 04-09, 04-13).
 5. **Left-hand designation.** Clause 7 is not in either public preview (the 4017 contents list "7 Designation" on page 8 of the standard, the preview ends at Table 4). The owner reads it at the checkpoint; withhold the designation for left-hand parts if no form exists.
+   - **RESOLVED (procedure, CONTEXT Claude's Discretion):** the owner reads Clause 7 of ISO 4017:2022 and ISO 4014:2022 at plan 04-01 Task 2 and gives the left-hand form or `none`, recorded in `04-OWNER-READS.md`; if the clause gives no form, the designation is withheld (null) for left-hand parts rather than invented (plan 04-08).
 6. **Shank sliver rule (Alert 6): fold or refuse?** Recommendation: fold below `MIN_TAIL_MM` into the thread, applied through `built_thread_length` so every consumer agrees.
+   - **RESOLVED (D-27):** fold, not refuse, through one `built_thread_length` (plan 04-04).
 7. **Add the thread-only gate (Alert 5)?** Recommendation: yes, one extra precise volume on the bare thread.
+   - **RESOLVED (planned):** the bare-thread gate runs before the fuse in `_build`, with a positive control for a thread error the whole-part gate dilutes (plan 04-03 Tasks 1 and 2).
 8. **Where the D-03 pre-plan probe is recorded.** The researcher probe above is not durable (scratch scripts) and must not be cited as the D-03 entry; the plan's first task re-runs it and writes `bench/RESULTS.md`. Optional: reuse `bench/thread_spike` helpers for the fuse and `bench/quiet.py` for the load reading (labelled non-decisive).
+   - **RESOLVED (planned):** plan 04-01 Task 1 re-runs it as `bench/head_fuse.py` and records `## Head fuse probe (Phase 4, D-03)` in `bench/RESULTS.md`, labelled a probe and not a bound.
 
 ## Sources
 

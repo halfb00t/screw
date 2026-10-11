@@ -174,7 +174,43 @@ Plans:
   4. Every table row carries a typed `Source` (standard, edition, table, column), so a row without one fails mypy, and exactly one pure-data verification test generated from the table; a row marked UNVERIFIED (entered from a preview) is refused by the gate in a release build.
   5. The bolt's info panel numbers (head, shank and thread) come from the kernel-free maths, each traceable to a mm field or a cited, tested row; a value that cannot be computed honestly is a warning and no number; any volume shown is the closed form; where the ISO wrench size differs from the withdrawn DIN equivalent the panel adds a one-line note.
 
-**Plans**: TBD
+**Plans**: 14 plans (one PR, through `make pr.land`)
+
+Plans:
+**Wave 1**
+- [ ] 04-01-PLAN.md — Owner opening read (ISO 4017 M6 × 20, ISO 262 M6, Clause 7, rendering route, permanence of the defaults acknowledged); the D-03 head-fuse probe; purchased material kept out of git
+- [ ] 04-02-PLAN.md — Fine-STL caps keyed by hand from the grid records, reworded to what was measured, WR-02 retired in the fixing commit (D-21)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 04-03-PLAN.md — Tracer (defaults from the 04-01 acknowledgement): the empty link builds a gated hex head screw (s, k) on every front end; head_too_small; the bare-thread gate
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 04-04-PLAN.md — thread_length and the plain shank (ISO 4014 shape); built_thread_length and the sliver fold; caps on the built thread
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 04-05-PLAN.md — The explicit-conflict 422 at the request boundary on API and CLI (D-25); the short-thread warning, IN-01 retired
+- [ ] 04-06-PLAN.md — The bench corpus pins thread_length and keeps its Phase 3 meaning; its README and the d100 repro
+- [ ] 04-07-PLAN.md — First cited rows (ISO 262 and ISO 4017 M6) double-entered behind the gates and contracts 6 and 7
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 04-08-PLAN.md — The info document reports the exact match and the designation; the frozen defaults equal the ISO 4017 M6 × 20 row
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 04-09-PLAN.md — Owner's full copy; every ISO 262 size and every ISO 4017 head and length
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 04-10-PLAN.md — ISO 4014 heads, b bands and shank cells; ISO 4014 presets filling b; the 4017-first tie rule
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [ ] 04-11-PLAN.md — Info document: groups, the matched row's cited values, the no-row warning, grade and DIN wrench notes
+
+**Wave 9** *(blocked on Wave 8 completion)*
+- [ ] 04-12-PLAN.md — Preset catalogue on API and CLI (`/api/presets`, `screw presets`, `--preset`); parity rule; refused fine-STL count
+
+**Wave 10** *(blocked on Wave 9 completion)*
+- [ ] 04-13-PLAN.md — Page: picker, badge, designation, groups, notes, unrounded numbers; 01-UI-SPEC amended
+- [ ] 04-14-PLAN.md — L13 (supersedes L12's cap list; D-25 acceptance) and L12's pointer, overview, README status; TYPE-01/THRD-05/SC1 amendments; STATE blockers; interim-bounds rows
+
 **UI hint**: yes
 
 ### Phase 5: Hex Nut and Kernel Pair Proof

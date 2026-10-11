@@ -1,17 +1,17 @@
 ---
 gsd_state_version: "1.0"
 current_phase: 4
-current_phase_name: ISO Hex Bolts and Screws
+current_phase_name: iso-hex-bolts-and-screws
 status: "Phase 03 shipped — PR #10"
 stopped_at: Phase 4 context gathered
-last_updated: "2026-10-11T09:35:12.317Z"
+last_updated: "2026-10-11T13:48:14.903Z"
 last_activity: 2026-10-11
 last_activity_desc: "Completed quick task 261011-fbb: swapped the platform-dependent THRD-04 control row and qualified L11's known-bad rows by platform"
-state_head: 722a42a59590cca7c50c5ca62671593e32431259
+state_head: 6e3a70c91fce86dedb4f84285aba00257e3b1d9e
 progress:
   total_phases: 7
   completed_phases: 3
-  total_plans: 25
+  total_plans: 39
   completed_plans: 25
   percent: 43
 ---
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-10-11)
 
 ## Current Position
 
-Phase: 4 — ISO Hex Bolts and Screws
+Phase: 4 (iso-hex-bolts-and-screws) — READY TO EXECUTE
 Plan: Not started
 Status: Phase 03 shipped — PR #10
 Last activity: 2026-10-11 - Completed quick task 261011-fzb: read pair.common only in a child process so the pytest worker exits clean; resolved the bench pair-tests exit-139 debt item
