@@ -17,26 +17,27 @@ GitHub Actions. Why → `L01`. The viewer is vanilla JS + a vendored three.js bu
 
 ## Main pieces
 
-The walking skeleton (Phase 1): the `bolt` kind is a plain unthreaded cylinder, served by
-the web UI, the HTTP API and the CLI from one registered model. No thread, head, table or
-nut yet. Each real subsystem gets its own `architecture/<subsystem>/` once a single file
-stops holding it.
+The `bolt` kind is a threaded rod (Phase 3): the ISO 68-1:2023 basic profile, right- or
+left-hand, built by the one construction L11 chose and served by the web UI, the HTTP API and
+the CLI from one registered model. No head, table or nut yet. Every thread build passes the
+THRD-04 postcondition before it reaches a cache, a preview or a download (L12). Each real
+subsystem gets its own `architecture/<subsystem>/` once a single file stops holding it.
 
 | Module | What it is |
 |---|---|
 | `params` | The one validated, frozen, hashable model: `FastenerParams`, `BoltParams`, the `KINDS` registry and `DEFAULT_KIND`. Its JSON schema builds the web form and the CLI flags; validated once at the boundary, trusted afterwards. |
-| `calc` | `PartInfo` and `derive`: the numbers you would measure on the part. Pure arithmetic, no CAD kernel and no logging, because it runs on every keystroke. |
-| `solid` | The only doorway to `cadquery`/`OCP`: `build`, `export`, `clear_cache`. Vendor types stop here. |
+| `calc` | `PartInfo` and `derive`: the numbers you would measure on the part. Pure arithmetic, no CAD kernel and no logging, because it runs on every keystroke. `calc/thread.py` is the thread oracle (the ISO 68-1:2023 profile, the closed-form volume, `T_GATE`) and the kernel-free rules (the root-radius bound, the 250-turn cap, the fine-STL rows). |
+| `solid` | The only doorway to `cadquery`/`OCP`: `build`, `export`, `clear_cache`. Vendor types stop here. `solid/helical.py` is the one helical builder, for the rod and for the void; the THRD-04 gate (`check_solid`) and the export checks sit in `solid/__init__.py`, inside the function the solid cache wraps. |
 | `pool` | Worker processes that run builds outside the serving process: affinity by parameter hash, per-build timeout, replacement of a dead or overrun worker, the D-16 same-slot guard. |
 | `records` | The JSON-lines log vocabulary: one formatter, one level knob, one function per event. |
 | `build_errors` | The build exception types, kernel-free so the CLI and the app can share them. |
 | `app` | The FastAPI app: per-kind routes, admission control (a bounded build queue), the bytes cache, gzip, the static files. Never imports the kernel. |
 | `cli` | `serve`, `info`, `export` over the same model, with no web-serving policy. |
 | `static/` | The schema-driven form and the viewer (vanilla JS, a vendored three.js bundle built from `web/`). |
-| `docker/`, `bench/`, `scripts/` | The image smoke driver and lock refresh; the measurement harness (`bench/RESULTS.md`, never a gate); the PR-landing and commit-message guards. |
+| `docker/`, `bench/`, `scripts/` | The image smoke driver and lock refresh; the measurement harness (`bench/RESULTS.md`, never a gate), including the slow thread grid tier (`make grid`, `.github/workflows/grid.yml`: outside `make verify` and the required jobs); the PR-landing and commit-message guards. |
 
 The dependency direction is enforced, not hoped for: `pyproject.toml` carries the
-import-linter contracts and `make verify` fails on a violation. Six are in force, by their
+import-linter contracts and `make verify` fails on a violation. Seven are in force, by their
 names there, under the numbers the code comments cite (`contract 5`, `contract 8`):
 
 - 1: The app never imports its own tests
@@ -45,6 +46,9 @@ names there, under the numbers the code comments cite (`contract 5`, `contract 8
 - 4: The thread maths stays free of the logger
 - 5: The serving process never imports the CAD kernel
 - 8: Only the solid package imports the CAD kernel
+- The spike's oracle, verdict and parent process stay free of the CAD kernel (unnumbered). It now
+  also covers `screw.calc.thread`, which the spike imports back, so the oracle the gate uses is
+  the one the spike measured.
 
 The gaps are planned: contracts 6 and 7 (the tables) land in Phase 4 and contract 9 (the
 pair proof) in Phase 5, each in the commit that adds the module it guards.

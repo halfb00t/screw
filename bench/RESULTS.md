@@ -240,6 +240,59 @@ the lowest total, so nothing was chased. Every other module reads the same seria
 `PYTEST_WORKERS` is 8, spur L34's knee, not re-measured for screw. `make test` runs
 `-n 8 --cov`: the 16.9 s above is pytest's own time with coverage on, against 34.3 s serial.
 
+## Coverage floor (Phase 3)
+
+Measured on the Phase 3 suite (843 tests collected, 60 `grid` cells deselected by `addopts`:
+`test_bench` 449, `test_api` 88, `test_pr_land` 58, `test_thread_maths` 50, `test_cli` 37,
+`test_params` 35, `test_solid` 31, `test_skip_tokens` 27, `test_pool` 17, `test_parity` 17,
+`test_calc` 15, `test_records` 13, `test_grid` 6), 2026-10-10, by spur L34's rule as Phase 1
+recorded it: one serial run and three `-n 8` runs, the floor being `floor(L - max(0.25, S))` with
+L the lowest of the four totals and S the spread (max minus min) of the three `-n 8` totals. This
+is a floor on what the suite covers today, not a statement that the code is correct to that
+fraction.
+
+Host: Apple M5 Max, 18 CPUs, 64 GiB RAM, macOS 27.0.1 (Darwin 27.0.0), Python 3.12.15,
+pytest-cov 7.1.0, pytest-xdist 3.8.0, native arm64 (no container). It is not the host of the
+Phase 1 entry (an M2 Max). Other applications were running on it, so it was not idle; `uptime`
+immediately before each run read:
+
+| Run | Command | Load averages (1, 5, 15 min) | TOTAL | Wall |
+|---|---|---|---|---|
+| serial | `.venv/bin/python -m pytest -n0 --cov --cov-report=term --cov-fail-under=0` | 6.59, 4.94, 4.72 | 96.66 % | 108.15 s |
+| -n 8 (1) | `.venv/bin/python -m pytest -n 8 --cov --cov-report=term --cov-fail-under=0` | 3.71, 4.26, 4.47 | 97.02 % | 35.96 s |
+| -n 8 (2) | same | 5.27, 4.62, 4.59 | 96.66 % | 36.77 s |
+| -n 8 (3) | same | 6.92, 5.11, 4.77 | 97.02 % | 35.87 s |
+
+L = 96.66 (the serial run and `-n 8` run 2, equal). S = 0.36 (97.02 - 96.66). Floor =
+floor(96.66 - max(0.25, 0.36)) = floor(96.30) = **96**, set as `fail_under` in `pyproject.toml`
+(it was 94, from the Phase 1 entry above).
+
+The 0.36 between runs is `pool.py` again, as in Phase 1: the serial run and `-n 8` run 2 missed 3
+of its 56 lines (95.31 %), runs 1 and 3 covered it fully (100.00 %). In Phase 1 all three `-n 8`
+runs covered it, so this time the loss was not limited to the serial run; the cause was not
+isolated here (spur's Pitfall 13), and the rule already takes the lowest total. Every other
+module reads the same in all four runs:
+
+| Module | Cover |
+|---|---|
+| `__init__.py` | 71.43 % |
+| `__main__.py` | 0.00 % |
+| `app.py` | 97.07 % |
+| `build_errors.py` | 100.00 % |
+| `calc/__init__.py` | 100.00 % |
+| `calc/thread.py` | 100.00 % |
+| `cli.py` | 96.75 % |
+| `params.py` | 97.78 % |
+| `pool.py` | 95.31 % in the serial run and `-n 8` run 2, 100.00 % in `-n 8` runs 1 and 3 |
+| `records.py` | 94.03 % |
+| `solid/__init__.py` | 94.50 % |
+| `solid/bolt.py` | 100.00 % |
+| `solid/helical.py` | 100.00 % |
+
+`PYTEST_WORKERS` is 8, spur L34's knee, not re-measured for screw. `make test` runs
+`-n 8 --cov`: the 36 s above is pytest's own time with coverage on, against 108 s serial.
+The `grid` cells are not in these totals; `make grid` runs them with `--no-cov`.
+
 ## Thread spike (Phase 2)
 
 This section records the pre-registered thread spike campaign of
@@ -6236,3 +6289,34 @@ Computed from the same recorded readings. The D-14 column is the verdict; the ot
 ```
 
 **What this shows / what it does not.** The verdict is a deterministic function of the committed records, and re-running it reproduces the campaign log's verdict exactly. It interprets nothing: the rules that produced it are the pre-registered ones in `02-SPIKE.md` (Rules, Escape clause). Reading of the verdict is in `02-SPIKE.md` (Results, Verdict), by citation.
+
+
+## Thread grid tier (Phase 3)
+
+The slow tier of SC4 (D-14): `tests/test_grid.py` builds every row of the 02 D-03 corpus (15
+sizes, both hands, rod and void at `VOID_CLEARANCE` 0.20 mm, every integer-mm and integer-turn
+length up to min(10 d, 200 mm), 7160 rows in all) with `screw.solid.helical.thread` at K = 3 and
+judges it with `check_solid` against the closed form, and checks that the end faces sit at
+z = 0 and z = length to 1e-6 mm. `make grid [SIZE=M6]` runs it locally and
+`.github/workflows/grid.yml` runs one job per size; neither is in `make verify` or the required
+jobs. This is a harness check of the slow tier, not a bound; macOS arm64, not linux/amd64; the
+first CI dispatch after merge is recorded here the same way.
+
+Two shards ran before the PR, the two sizes where the sub-`MIN_TAIL_MM` tail fold fires
+(03-RESEARCH: 14 of 82 and 17 of 92 lengths). Run on HEAD `08776d30045b88e873fb8cbcecdea077df5049b5`
+plus the uncommitted grid files, 2026-10-10 (UTC). Host: Apple M5 Max, 18 CPUs, arm64, 64.0 GiB
+RAM, macOS 27.0.1 (`bench.machine_facts()`: `18 CPUs, arm64, 64.0 GiB RAM`), Python 3.12.15,
+cadquery 2.8.0, cadquery-ocp 7.9.3.1.1, pytest-xdist 3.8.0. Other work was running on the host,
+so it was not idle; `uptime` immediately before and after each run:
+
+| Shard | Command | Load before (1, 5, 15 min) | Load after | Rows built | Failures | Wall (pytest) |
+|---|---|---|---|---|---|---|
+| M3.5 | `make grid SIZE=M3.5` (`pytest -m grid -n 8 --no-cov -k 'M3.5-'`) | 2.56, 5.31, 4.08 | 4.42, 5.13, 4.18 | 4 cells x 82 = 328 | none | 131.89 s |
+| M4 | `make grid SIZE=M4` (`pytest -m grid -n 8 --no-cov -k 'M4-'`) | 4.06, 5.04, 4.15 | 4.79, 4.92, 4.24 | 4 cells x 92 = 368 | none | 148.15 s |
+
+Both reported `4 passed`: every row of the four cells was one valid solid inside `T_GATE` of the
+closed form, and ended at its length. The shard is four cells, so four of the eight workers
+carried a cell each and the wall time is that of the longest cell: arithmetic on the table, 131.89
+s for 82 rows is 1.6 s a row and 148.15 s for 92 rows 1.6 s a row, against the 2 s a row the
+research assumed for the CI sizing (A2). That is this host and this load, not a GitHub runner.
+The corpus was not re-picked and no row was skipped.

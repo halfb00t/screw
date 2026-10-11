@@ -126,8 +126,11 @@ from bench.thread_spike.verdict import (
     turn_caps,
     variant_rules,
 )
+from screw import solid as screw_solid
+from screw.calc import thread as screw_thread
 from screw.params import BoltParams
 from screw.solid import TESSELLATION
+from screw.solid import helical as screw_helical
 
 
 def test_the_skeleton_corpus_is_the_d_by_length_grid() -> None:
@@ -945,7 +948,7 @@ def test_a_real_m6_right_hand_five_turn_rod_passes_the_row_verdict() -> None:
     precise volume within T_PASS. The precise volume is what this verdict reads; the default
     Volume() is only a reference column."""
     d, pitch, turns = 6.0, 1.0, 5.0
-    shape = helical.thread(d, pitch, turns, k=5)
+    shape = helical.thread(d, pitch, turns * pitch, k=5)
     precise = measure.precise_volume(shape)
     record = _built(precise)
     record["solids"] = len(shape.Solids())
@@ -4083,11 +4086,19 @@ def test_a_failed_pair_record_echoes_the_request_and_has_no_number_in_it() -> No
 # --- The pair builder, the pair block and smoke --pair (Phase 2, plan 02-05) ---
 
 
-def test_the_turn_count_of_the_rod_piece_is_exact_where_a_float_division_drifts() -> None:
-    """M2: (1.6 + 2 * 0.4) / 0.4 is 6 turns, and the float quotient is 6.000000000000001."""
-    assert (1.6 + 2 * 0.4) / 0.4 != 6.0
-    assert pair._turns(0.4, 1.6) == 6.0
-    assert pair._turns(1.0, 5.2) == pytest.approx(7.2)
+def test_the_span_of_the_rod_piece_is_exact_where_float_arithmetic_drifts() -> None:
+    """M2: 1.6 + 2 * 0.4 is 2.4000000000000004 in floats, and the decimals say 2.4."""
+    assert (1.6 + 2 * 0.4) != 2.4
+    assert pair._span(0.4, 1.6) == 2.4
+    assert pair._span(1.0, 5.2) == pytest.approx(7.2)
+
+
+def test_the_spike_imports_the_shipped_builder_oracle_and_estimator_back() -> None:
+    """02 D-18, D-13: one copy of each lives in src/, and the spike measures that copy."""
+    assert helical.thread is screw_helical.thread
+    assert maths.closed_volume is screw_thread.closed_volume
+    assert measure.precise_volume is screw_solid.precise_volume
+    assert measure.PRECISE_EPS == 1e-6
 
 
 @pytest.mark.parametrize("size", ["M2", "M20"])

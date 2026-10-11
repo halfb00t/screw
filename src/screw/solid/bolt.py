@@ -1,17 +1,18 @@
-"""The walking-skeleton bolt: a plain unthreaded cylinder (D-04)."""
+"""The bolt kind's solid: a threaded rod over its whole length.
+
+No head yet (Phase 4). Both ends are plain planar cuts at z = 0 and z = length: an end treatment
+waits for ISO 4753, which is unread (D-16, L02).
+"""
 
 from __future__ import annotations
 
 import cadquery as cq
 
 from screw.params import BoltParams
+from screw.solid import helical
 
 
-def cylinder(p: BoltParams) -> cq.Solid:
-    """Diameter d, length `length`, axis +Z from z=0.
-
-    Typed `Solid` (unlike `Workplane.val()`, which is a bare `Shape`). Measured at
-    planning: d=1e-9 builds with `isValid()` False, which the doorway's validity check
-    turns into a `BuildError`.
-    """
-    return cq.Solid.makeCylinder(p.d / 2, p.length)
+def rod(p: BoltParams) -> cq.Solid:
+    """The ISO 68-1:2023 basic-profile thread of major diameter d, axis +Z from z=0 to length,
+    right- or left-hand as asked."""
+    return helical.thread(p.d, p.pitch, p.length, left_hand=p.left_hand)

@@ -29,17 +29,17 @@ from bench.thread_spike import helical, measure
 _KEEP: list[object] = []
 
 
-def _turns(pitch: float, m: float) -> float:
-    """Turns in the m + 2P span, exactly: a float division of floats drifts (168 of 3000 products
-    fail (k * P) / P == k, RESEARCH Pitfall 1), and `str` of a float is its shortest round trip."""
-    p = Fraction(str(pitch))
-    return float((Fraction(str(m)) + 2 * p) / p)
+def _span(pitch: float, m: float) -> float:
+    """The m + 2P span in mm, exactly: float arithmetic on the decimals drifts ((1.6 + 2 * 0.4)
+    is not 2.4), and `str` of a float is its shortest round trip, so the sum is taken on the
+    decimals the protocol wrote."""
+    return float(Fraction(str(m)) + 2 * Fraction(str(pitch)))
 
 
 def rod_piece(d: float, pitch: float, m: float, left_hand: bool, k: int) -> cq.Solid:
     """The rod over z in [-P, m + P]: a pad of one pitch each side covers every placed nut as
     long as a pose slides it by no more than P (RESEARCH Pitfall 2)."""
-    rod = helical.thread(d, pitch, _turns(pitch, m), clearance=0.0, left_hand=left_hand, k=k)
+    rod = helical.thread(d, pitch, _span(pitch, m), clearance=0.0, left_hand=left_hand, k=k)
     return rod.translate(cq.Vector(0, 0, -pitch))
 
 
@@ -48,7 +48,7 @@ def nut(d: float, pitch: float, m: float, clearance: float, left_hand: bool,
     """A plain blank of radius d and height m over z in [0, m], less the void thread of this
     clearance through all of it. One solid or a raised error: a nut body in pieces is a defect of
     the build, and its volume would not be the closed form's."""
-    void = helical.thread(d, pitch, _turns(pitch, m), clearance=clearance, left_hand=left_hand,
+    void = helical.thread(d, pitch, _span(pitch, m), clearance=clearance, left_hand=left_hand,
                           k=k).translate(cq.Vector(0, 0, -pitch))
     solids = cq.Solid.makeCylinder(d, m).cut(void).Solids()
     if len(solids) != 1:

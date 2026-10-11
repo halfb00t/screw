@@ -1,8 +1,9 @@
 # A collapsed thin solid passes the validity check and is served as a 200
 
 Severity: blocker
-Status: active
+Status: resolved
 Date: 2026-10-06
+Resolved in: de9304e — fix(solid): refuse a broken export and close the collapsed-solid blocker (plan 03-01)
 Source: Phase 1 code review (01-REVIEW.md CR-01). Owner sign-off 2026-10-06: file now, fix in the
 `/gsd-quick` PR that follows the Phase 1 close PR — not deferred to a phase.
 Related files:
@@ -35,3 +36,18 @@ and `length` a physical lower bound in `params.py` as a 422 naming the field (ne
 L02), labelled INTERIM and listed in the D-02 item until the Phase 2 spike measures one. Tests
 with `length=1e-8` and `1e-9` on the API and the CLI. Fix together with
 `2026-10-06-repeated-query-key-silently-wins.md` in one `/gsd-quick` PR through the wall.
+
+## Resolution
+Closed by Phase 3 plan 03-01, in two parts.
+
+- The precise-volume gate (L11, D-08) replaced the `Volume() > 0` check this item suggested:
+  `check_solid` refuses a build that is not exactly one valid solid, or whose `BRepGProp` volume
+  is outside `T_GATE` of the closed form, so a collapsed solid reads relative error -1 and is
+  refused by its volume, inside the function `lru_cache` wraps. `_write_export` treats `False`
+  from `exportStl` and a STEP status other than `IFSelect_RetDone` as `BuildError`, and checks
+  the STL header count against the byte length and a floor of 4 facets before anything is served.
+- The `params` lower bound this item suggested was not added. D-04 keeps the params boundary
+  free of an unmeasured minimum, and D-17's doorway guard (`MIN_TAIL_MM`, INTERIM) refuses the
+  lengths that crash the kernel: `length=1e-8` and `1e-9` are now a 422 `build_error` on the
+  API and an `error:` exit 1 on the CLI, never a worker SIGSEGV. The reproductions are tests in
+  `tests/test_api.py`, `tests/test_cli.py` and `tests/test_solid.py`.

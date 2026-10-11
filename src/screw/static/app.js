@@ -11,11 +11,27 @@ let kinds = { default: null, kinds: [] }; // the /api/kinds body
 let currentKind = null; // the kind the form below was built for; null while none is valid
 const fields = new Map(); // name -> { input, wrap, title }
 let defaults = {};
+// Warnings belong to a mesh, not to the last info fetch (D-11). update() fetches info first,
+// so by the time a model.stl request fails the newest info document describes the part that
+// did not build while the mesh on screen is an older one. A rendered info document waits in
+// pendingWarnings and becomes the mesh's warnings only where showModel replaces the mesh;
+// every error shows meshWarnings below it, because the warning is the honest label on the
+// part the user is still looking at (the threaded-rod warning, D-06).
+let pendingWarnings = [];
+let meshWarnings = [];
 
 // Nothing here knows a field name, a row key or a kind's label: the form, the hash, the
 // info panel and the download links are all read off what the API sends, so a new
 // registered kind needs no edit in this file (D-10; tests/test_parity.py pins it).
 const fmt = (v) => Number(v).toFixed(3).replace(/\.?0+$/, '');
+// A checkbox's .value is the constant "on", so every read and write of a control goes through
+// these two: a checkbox reads as 'true' or 'false' and is written from either, any other
+// control by its value (D-09). The link then carries `left_hand=true` and nothing else.
+const read = (input) => (input.type === 'checkbox' ? String(input.checked) : input.value);
+function write(input, v) {
+  if (input.type === 'checkbox') input.checked = String(v) === 'true';
+  else input.value = v;
+}
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
 // ---------------------------------------------------------------- kinds and form
@@ -63,6 +79,9 @@ async function buildForm(kind) {
     if (prop.enum) {
       input = document.createElement('select');
       for (const v of prop.enum) input.add(new Option(v, v));
+    } else if (prop.type === 'boolean') {
+      input = document.createElement('input');
+      input.type = 'checkbox';
     } else {
       input = document.createElement('input');
       input.type = 'number';
@@ -95,6 +114,23 @@ async function buildForm(kind) {
 }
 
 /**
+ * A link the page cannot honour is refused whole, the same way for an unknown kind, a key
+ * given twice, a key the kind does not define and a value its control cannot hold: the form,
+ * the panel and the downloads go, nothing builds, and the message names what was wrong.
+ * Opening any other part than the one the link names would be a silent change (L02, D-10);
+ * the API answers the same input with a 422 and the CLI with exit 2.
+ */
+function refuseLink(message) {
+  clearForm();
+  currentKind = null;
+  kindSelect.selectedIndex = -1;
+  $('#dims').replaceChildren();
+  setDownloads(null);
+  setStatus('');
+  showMessages([message], mesh ? meshWarnings : []);
+}
+
+/**
  * Startup, hashchange and the kind selector all land here: read the kind and the field
  * values off the hash, rebuild the form when the kind changed, then build the part.
  * An omitted kind= means the registry's default kind, for good: a link already shared
@@ -106,27 +142,44 @@ async function navigate() {
   ++seq;
   ++formSeq;
   const h = new URLSearchParams(location.hash.slice(1));
+  // First, before the kind lookup: get() would answer for the first of two values and the
+  // link would open a part it does not name (`#kind=bolt&kind=x`). The API refuses a
+  // repeated key the same way (D-12).
+  const seen = new Set();
+  for (const k of h.keys()) {
+    if (seen.has(k)) return refuseLink(`The link names "${k}" more than once.`);
+    seen.add(k);
+  }
   const kind = h.get('kind') ?? kinds.default;
 
   if (!kinds.kinds.includes(kind)) {
-    // Showing a different part than the one the link names would be a silent change of
-    // the part (L02): say so, and build nothing.
-    clearForm();
-    currentKind = null;
-    kindSelect.selectedIndex = -1;
-    $('#dims').replaceChildren();
-    setDownloads(null);
-    setStatus('');
-    showMessages([`Unknown kind "${kind}". Known kinds: ${kinds.kinds.join(', ')}.`]);
-    return;
+    return refuseLink(`Unknown kind "${kind}". Known kinds: ${kinds.kinds.join(', ')}.`);
   }
 
   if (kind !== currentKind) {
     if (!(await buildForm(kind))) return;
     currentKind = kind;
   }
+  // `kind` is the only key that is not a field, and the only one the page writes besides them.
+  const foreign = [...seen].filter((k) => k !== 'kind' && !fields.has(k));
+  if (foreign.length > 0) {
+    const names = foreign.map((k) => `"${k}"`).join(', ');
+    const unknown = foreign.length === 1 ? `Unknown field ${names}` : `Unknown fields ${names}`;
+    return refuseLink(`${unknown} for kind "${kind}". Known fields: ${[...fields.keys()].join(', ')}.`);
+  }
   kindSelect.value = kind;
-  for (const [name, { input }] of fields) input.value = h.get(name) ?? defaults[name];
+  for (const [name, { input }] of fields) write(input, h.get(name) ?? defaults[name]);
+  // A checkbox holds only true or false. Any other control hands back '' for a value it
+  // cannot hold (a number input given "abc") or was given empty (`#d=`), and partQuery() would
+  // skip it and open the default part under a link that named the field. The API answers `?d=`
+  // with a 422, so a present key that reads back empty is refused, not exempted.
+  for (const [name, { input }] of fields) {
+    const given = h.get(name);
+    const unreadable = input.type === 'checkbox'
+      ? given !== null && given !== 'true' && given !== 'false'
+      : given !== null && read(input) === '';
+    if (unreadable) return refuseLink(`Unreadable value for "${name}": "${given}".`);
+  }
   await update();
 }
 
@@ -134,12 +187,14 @@ async function navigate() {
 function partQuery() {
   const q = new URLSearchParams();
   for (const [name, { input }] of fields) {
-    if (input.value === '') continue;
+    const value = read(input);
+    if (value === '') continue;
     // 6.0 and 6 are the same default; a string compare would put the first in the link.
+    // A checkbox compares as a string against 'false', so only a checked box is written.
     const changed = input.type === 'number'
-      ? Number(input.value) !== Number(defaults[name])
-      : input.value !== String(defaults[name]);
-    if (changed) q.set(name, input.value);
+      ? Number(value) !== Number(defaults[name])
+      : value !== String(defaults[name]);
+    if (changed) q.set(name, value);
   }
   return q;
 }
@@ -187,7 +242,8 @@ function renderInfo(info) {
     rows.push(line);
   }
   $('#dims').replaceChildren(...rows);
-  showMessages([], info.warnings ?? []);
+  pendingWarnings = info.warnings ?? [];
+  showMessages([], pendingWarnings);
 }
 
 function setDownloads(q) {
@@ -231,7 +287,7 @@ async function update() {
 
   const fail = (errors) => {
     if (mine !== seq) return;
-    showMessages(errors);
+    showMessages(errors, mesh ? meshWarnings : []);
     $('#dims').replaceChildren();
     setStatus(mesh ? 'Showing the last valid part' : '');
   };
@@ -352,6 +408,7 @@ function showModel(buffer) {
     edges.geometry.dispose();
   }
   mesh = new Mesh(geometry, material);
+  meshWarnings = pendingWarnings;
   edges = new LineSegments(new EdgesGeometry(geometry, 40), edgeMaterial);
   scene.add(mesh, edges);
   const previous = box;
@@ -377,7 +434,7 @@ function resize() {
 
 // ---------------------------------------------------------------- wiring
 
-const reportLoadError = (err) => showMessages([`Could not load the part: ${err.message}`]);
+const reportLoadError = (err) => showMessages([`Could not load the part: ${err.message}`], mesh ? meshWarnings : []);
 
 form.addEventListener('submit', (e) => e.preventDefault());
 form.addEventListener('input', scheduleUpdate);
@@ -393,7 +450,7 @@ new ResizeObserver(resize).observe(canvas.parentElement);
 
 $('#fit').addEventListener('click', fit);
 $('#reset').addEventListener('click', () => {
-  for (const [name, { input }] of fields) input.value = defaults[name];
+  for (const [name, { input }] of fields) write(input, defaults[name]);
   update();
 });
 $('#copy-link').addEventListener('click', async (e) => {

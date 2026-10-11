@@ -42,6 +42,16 @@ mating pair out.
       bytes caps M8–M20 under the INTERIM 64 MiB budget; seconds caps not established because
       the grid run was non-decisive under owner ruling R4, and nothing was re-run toward a
       value).
+- ✓ Real helical ISO metric threads (ISO 68-1:2023 basic profile) on the `bolt` kind — Phase 3
+      (L12): the L11 sewn twist-section builder behind the THRD-04 volume gate inside `_build`,
+      served unchanged by UI, API and CLI; a refused build never reaches a cache, a preview or a
+      download; root-radius and 250-turn limits and the over-budget fine STL are 422s, never
+      trimmed. Cosmetic or unthreaded bodies: none, no flag.
+- ✓ Left-hand threads via the boolean `left_hand` field, default right-hand, on every kind —
+      Phase 3 (hand proven by an `isInside` probe at base and tail, both hands through the same
+      gate). The pair clause of THRD-02 — a left-hand pair proven like a right-hand pair — is
+      Phase 5 PAIR-03 (owner ruling 2026-10-11).
+
 
 ### Active
 
@@ -49,9 +59,6 @@ All hypotheses until shipped and validated. Grouped by the owner's decisions of
 2026-10-05; the first release is the mating-pair cut.
 
 **Threads and mating (the product)**
-- [ ] Real helical ISO metric threads (ISO 68-1 profile) on every threaded part; cosmetic
-      or unthreaded bodies are not the product. Whether an `unthreaded` flag exists at all
-      is a requirements question; if it does, it defaults off.
 - [ ] A bolt and a nut from this tool, printed on an FDM printer at the chosen clearance,
       thread together by hand; a kernel-level interference check proves the pair before any
       printer does. Phase 2 measured the check falsifiable on both hands at every size except
@@ -60,7 +67,6 @@ All hypotheses until shipped and validated. Grouped by the owner's decisions of
 - [ ] One `clearance` field, carried by the **nut** (its thread grows inward); the bolt is
       built to nominal so it mates a bought nut. The default value comes from the thread
       spike and a printed test, never from a guess.
-- [ ] Left-hand threads via a boolean field, default right-hand.
 - [ ] Thread length on bolts via one `thread_length` field: the ISO 4017 preset sets it to
       the full length, the ISO 4014 preset sets `b` from the table; the user may edit it.
 
@@ -208,14 +214,14 @@ table cites it. `cq_warehouse.fastener` is likewise unverified.
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
 | Separate repo and product from spur; same stack and rules (L01) | spur stays a gear generator; a "parts generator" was rejected 2026-10-05 | Phase 1: runtime ported, skeleton `bolt` on UI, API and CLI, `make verify` green |
-| Real helical threads; mating pairs are the product | A cosmetic thread cannot be proven to mate; the core value is a pair that threads together | — Pending |
+| Real helical threads; mating pairs are the product | A cosmetic thread cannot be proven to mate; the core value is a pair that threads together | Phase 3: the L11 thread ships on `bolt` behind the THRD-04 gate (L12); the mating proof is Phase 5 |
 | ISO tables as presets, explicit mm as truth | A looked-up number is still a number someone cuts metal to; the link must rebuild the part without the table | — Pending |
 | Every table row cites its standard and clause and has a test | Table liability: a row without a source is a claim nobody checked | — Pending |
 | `clearance` lives on the nut | The bolt stays nominal and mates a bought nut; FDM practice opens the hole, not the shaft | — Pending |
 | ISO metric only in v1 (68-1 profile, 261/262 sizes) | One thread form to prove; UNC/UNF adds tables without adding proof | — Pending |
 | M2–M20 range for every v1 table | What makers print and assemble; every row is a test | — Pending |
 | `thread_length` field serves both ISO 4014 and 4017 | One field, two presets; the user edits either | — Pending |
-| Left-hand thread as a boolean field in v1 | Cheap in the kernel now; adding it later changes the model and the fixture | — Pending |
+| Left-hand thread as a boolean field in v1 | Cheap in the kernel now; adding it later changes the model and the fixture | Phase 3: `left_hand` on every kind, API/CLI/page, hand proven by probe; pair proof Phase 5 |
 | Tolerance classes 6g/6H as info-panel numbers only | Geometry is nominal plus clearance; modelling a tolerance would contradict explicit-mm truth | — Pending |
 | First release = infra port + thread spike + hex bolt + hex nut as a proven mating pair; socket cap 4762 second | Fewer tables before the first print; the thread, the risk, is shared | — Pending |
 | Self-tapping screws and head markings out of scope | Different thread form with no mating proof; fonts in the kernel | — Pending |
@@ -226,6 +232,7 @@ table cites it. `cq_warehouse.fastener` is likewise unverified.
 | Bench harness ported with its method and predicates, none of spur's numbers; no latency bar | A bar beside a screw figure would read as a bound (L07) | Phase 1: one labelled run per harness half in `bench/RESULTS.md`; Phase 7 re-sweeps on native linux/amd64 |
 | PR #1 landed as a merge commit (51 commits), not D-12's squash | Owner accepted the shape 2026-10-06; D-12 applies from the wall onward | Phase 1: `make pr.land` squashes every later PR |
 | Thread construction, volume estimator and turn caps come from the pre-registered Phase 2 campaign, never tuned toward a pass (L11) | Method, predictions and escape clause were committed before the first run (`02-SPIKE.md`, blob `4e1959ea`); every value cites a `2026-10-08-a-*` run | Phase 2: sewn twist-section at K = 3, `precise` volumes gated at 9e-05, construction cap 250 turns; the verdict is "not a pass" by its own rules — M18 pair proof not falsifiable on either hand — and the owner chose to revise the roadmap before Phase 5 (2026-10-09) |
+| Limits are refusals, never trims (L12): root radius at or below zero, more than 250 turns, and the fine STL L11 measured over the export budget are 422s naming the fields; a repeated parameter is a 422/exit 2 naming it | L02: a parameter the user set is never silently changed; a number printed is one someone cuts metal to | Phase 3: on API, CLI and page; five review findings deferred into tech-debt items with owner rulings (2026-10-11) |
 
 ## Evolution
 
@@ -245,4 +252,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-10-09 after Phase 2*
+*Last updated: 2026-10-11 after Phase 3*

@@ -7,8 +7,8 @@ actually does something (`_release_arenas`, `src/screw/solid/__init__.py`).
 `sweep` brings the service up at each N, drives the corpus (`bench/corpus.py`) through
 `/api/bolt/model.stl?quality=fine`, and records the peak. `confirm` re-runs the same corpus at a
 candidate `mem_limit` and reports the failure count. Neither is a bound: the Phase 1 corpus is
-12 plain cylinders far below the D-14 corner, and the interim `mem_limit: 4g` in
-`compose.yaml` is spur's figure that Phase 7 re-sweeps (OPER-02).
+12 parts (threaded at the default 1 mm pitch since Phase 3) far below the D-14 corner, and the
+interim `mem_limit: 4g` in `compose.yaml` is spur's figure that Phase 7 re-sweeps (OPER-02).
 
 Not part of `make verify`: it needs a running Docker daemon and minutes. Run it with
 `make bench.memory`. The service is published on the host port of `--base-url` (default 8000,

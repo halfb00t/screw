@@ -19,17 +19,20 @@ import time
 from collections.abc import Iterator
 from concurrent.futures.process import BrokenProcessPool
 from contextlib import contextmanager
+from pathlib import Path
 from typing import cast
 
+import cadquery as cq
 import pytest
 from fastapi.testclient import TestClient
 
 from screw import app as app_module
 from screw.app import app, build_backend
 from screw.build_errors import BuildError, BuildTimeout
-from screw.calc import SKELETON_WARNING
-from screw.params import DEFAULT_KIND, INTERIM_MAX_MM, KINDS, FastenerParams
-from screw.solid import Format, Quality, export
+from screw.calc import STANDING_WARNING
+from screw.calc.thread import T_GATE, closed_volume
+from screw.params import DEFAULT_KIND, INTERIM_MAX_MM, KINDS, BoltParams, FastenerParams
+from screw.solid import Format, Quality, export, precise_volume
 
 client = TestClient(app)
 
@@ -127,7 +130,7 @@ def test_schema_requires_a_kind_and_knows_only_registered_kinds() -> None:
     r = client.get("/api/schema", params={"kind": "bolt"})
     assert r.status_code == 200
     props = r.json()["properties"]
-    assert list(props) == ["d", "pitch", "length"]
+    assert list(props) == ["d", "pitch", "left_hand", "length"]
     assert props["d"]["group"] == "Size"
     assert props["d"]["unit"] == "mm"
     assert props["length"]["unit"] == "mm"
@@ -168,11 +171,11 @@ def test_openapi_documents_the_typed_contracts() -> None:
 
     model_route = schema["paths"]["/api/bolt/model.{fmt}"]["get"]
     query_names = {p["name"] for p in model_route["parameters"] if p["in"] == "query"}
-    assert query_names == {"d", "pitch", "length", "quality"}
+    assert query_names == {"d", "pitch", "left_hand", "length", "quality"}
     # `quality` belongs to the model route only: it is a foreign field on the info route.
     info_route = schema["paths"]["/api/bolt/info"]["get"]
     info_names = {p["name"] for p in info_route["parameters"] if p["in"] == "query"}
-    assert info_names == {"d", "pitch", "length"}
+    assert info_names == {"d", "pitch", "left_hand", "length"}
 
     health_response = schema["paths"]["/api/health"]["get"]["responses"]["200"]
     assert health_response["content"]["application/json"]["schema"] == {
@@ -189,16 +192,15 @@ def test_the_default_info_document() -> None:
     assert r.status_code == 200
     body = r.json()
     assert body["kind"] == "bolt"
-    assert [row["key"] for row in body["rows"]] == ["d", "pitch", "length", "volume"]
+    assert [row["key"] for row in body["rows"]] == [
+        "d", "pitch", "length", "turns", "volume", "thread_depth", "minor_diameter"]
     values = {row["key"]: row["value"] for row in body["rows"]}
     assert values["d"] == 6.0
     assert values["pitch"] == 1.0
     assert values["length"] == 20.0
-    assert values["volume"] == pytest.approx(math.pi * 3.0**2 * 20.0)
-    assert body["warnings"][0] == SKELETON_WARNING
-    # The skeleton builds no thread, so no row may claim a turn count (D-06).
-    assert not any("turn" in row["key"] or "turn" in row["label"].lower()
-                   for row in body["rows"])
+    assert values["turns"] == 20.0
+    assert values["volume"] == closed_volume(6.0, 1.0, 20.0)
+    assert body["warnings"][0] == STANDING_WARNING
 
 
 @pytest.mark.parametrize("route", ["/api/bolt/info", "/api/bolt/model.stl"])
@@ -241,14 +243,27 @@ def test_the_interim_bound_is_inclusive_and_the_next_value_is_refused() -> None:
     just_over = math.nextafter(bound, math.inf)
     assert just_over > bound
 
-    for field in ("d", "length"):
-        at_bound: Params = {field: bound}
+    seen: list[FastenerParams] = []
+
+    async def stub(p: FastenerParams, fmt: str, quality: str) -> bytes:
+        # A thread at d=1e5 does not mesh in 120 s (planner probe 2026-10-10), so the model
+        # route is exercised with a backend that records what it was asked for and returns
+        # the default part's preview.
+        seen.append(p)
+        return export(BoltParams(), "stl", "preview")
+
+    # A length at the bound is 250 turns only at a coarse pitch (D-01); d = 1000 keeps its root
+    # radius above 0 there (research built d=1e5, pitch=400 at 1e5 mm in 1.74 s).
+    for field, extra in (("d", {}), ("length", {"pitch": 400.0, "d": 1000.0})):
+        at_bound: Params = {**extra, field: bound}
         assert client.get("/api/bolt/info", params=at_bound).status_code == 200
-        r = client.get("/api/bolt/model.stl", params={**at_bound, "quality": "preview"})
+        with _backend(stub):
+            r = client.get("/api/bolt/model.stl", params={**at_bound, "quality": "preview"})
         assert r.status_code == 200
         assert len(r.content) > 84
+        assert getattr(seen[-1], field) == bound
 
-        over: Params = {field: just_over}
+        over: Params = {**extra, field: just_over}
         for route in ("/api/bolt/info", "/api/bolt/model.stl"):
             refused = client.get(route, params=over)
             assert refused.status_code == 422
@@ -260,19 +275,58 @@ def test_the_interim_bound_is_inclusive_and_the_next_value_is_refused() -> None:
     assert huge.json()["detail"][0]["loc"] == ["query", "d"]
 
 
-def test_a_diameter_the_kernel_cannot_build_is_a_422_build_error() -> None:
-    """d=1e-9 passes validation (it is positive and finite) but the kernel returns a solid
-    that is not valid; the doorway turns that into a BuildError, not a served file."""
-    r = client.get("/api/bolt/model.stl", params={"d": 1e-9, "quality": "preview"})
+@pytest.mark.parametrize("route", ["/api/bolt/info", "/api/bolt/model.stl"])
+@pytest.mark.parametrize(("query", "kind", "fields"), [
+    ({"pitch": 6}, "pitch_too_coarse", ["d", "pitch"]),
+    ({"pitch": 1e300}, "pitch_too_coarse", ["d", "pitch"]),
+    ({"length": 300}, "turn_cap", ["length", "pitch"]),
+    # length / pitch is past the float range: a 422, not the 500 an OverflowError gave (CR-01)
+    ({"pitch": 5e-324}, "turn_cap", ["length", "pitch"]),
+    ({"pitch": 1e-310, "length": 1e5}, "turn_cap", ["length", "pitch"]),
+])
+def test_a_thread_that_cannot_be_made_or_was_never_measured_is_a_422_naming_both_fields(
+        route: str, query: Params, kind: str, fields: list[str]) -> None:
+    # `ctx.fields` is what app.js problems() highlights; the bolt routes refuse before any build.
+    if route.endswith(".stl"):
+        query = {**query, "quality": "preview"}
+    r = client.get(route, params=query)
+    assert r.status_code == 422
+    [detail] = r.json()["detail"]
+    assert detail["type"] == kind
+    assert detail["loc"] == ["query"]
+    assert detail["ctx"]["fields"] == fields
+    assert detail["msg"].startswith(" and ".join(fields) + ": ")
+
+
+def test_a_solid_the_kernel_gets_wrong_is_a_422_build_error() -> None:
+    """These parameters pass validation (positive, finite) and build one valid solid whose
+    volume is off the closed form (+9.59e-03 in the research probe); the gate turns that
+    into a BuildError, not a served file."""
+    r = client.get("/api/bolt/model.stl", params={
+        "d": 0.001, "pitch": 0.0001, "length": 0.01, "quality": "preview"})
     assert r.status_code == 422
     detail = r.json()["detail"][0]
     assert detail["type"] == "build_error"
     assert detail["loc"] == ["query"]
-    assert "invalid solid" in detail["msg"]
+    assert "relative error" in detail["msg"]
 
 
-def test_the_download_filename_is_safe_for_extreme_values() -> None:
-    r = client.get("/api/bolt/model.stl", params={"pitch": 1e300, "quality": "preview"})
+def test_the_default_part_served_is_the_gated_thread(tmp_path: Path) -> None:
+    r = client.get("/api/bolt/model.step")
+    assert r.status_code == 200
+    path = tmp_path / "default.step"
+    path.write_bytes(r.content)
+    shape = cq.importers.importStep(str(path)).val()
+    assert isinstance(shape, cq.Shape)
+    assert len(shape.Solids()) == 1
+    assert precise_volume(shape) == pytest.approx(closed_volume(6.0, 1.0, 20.0), rel=T_GATE)
+
+
+def test_the_download_filename_is_safe_for_many_digit_values() -> None:
+    # pitch=1e300 used to be the extreme case here; a thread of that pitch has a negative root
+    # radius, so many digits stand in for it (plan 03-02 makes the extreme a 422).
+    r = client.get("/api/bolt/model.stl", params={
+        "d": 6.123456789, "pitch": 0.987654321, "length": 9.87654321, "quality": "preview"})
     assert r.status_code == 200
     match = re.fullmatch(r'attachment; filename="([^"]*)"', r.headers["content-disposition"])
     assert match, r.headers["content-disposition"]
@@ -288,7 +342,7 @@ def test_model_download(fmt: str, ctype: str, magic: bytes | None) -> None:
     assert r.status_code == 200
     assert r.headers["content-type"] == ctype
     assert r.headers["content-disposition"] == (
-        f'attachment; filename="bolt_d8_pitch1_length20.{fmt}"')
+        f'attachment; filename="bolt_d8_pitch1_left_hand0_length20.{fmt}"')
     if magic:
         assert r.content.startswith(magic)
 
@@ -301,6 +355,61 @@ def test_bad_type_is_422_on_the_field() -> None:
     r = client.get("/api/bolt/info", params={"d": "wide"})
     assert r.status_code == 422
     assert r.json()["detail"][0]["loc"] == ["query", "d"]
+
+
+def test_a_left_hand_bolt_downloads_under_its_own_filename_and_is_not_the_right_hand_mesh() -> None:
+    left = client.get("/api/bolt/model.stl", params={"left_hand": "true", "quality": "preview"})
+    assert left.status_code == 200
+    assert left.headers["content-disposition"] == (
+        'attachment; filename="bolt_d6_pitch1_left_hand1_length20.stl"')
+    right = client.get("/api/bolt/model.stl", params={"quality": "preview"})
+    assert right.headers["content-disposition"].endswith('left_hand0_length20.stl"')
+    # The bytes of the left-hand solid the handedness probe proves left-handed
+    # (tests/test_solid.py), and not of the right-hand one.
+    assert left.content == export(BoltParams(left_hand=True), "stl", "preview")
+    assert left.content != right.content
+
+
+def test_left_hand_that_is_not_a_boolean_is_a_422_on_the_field() -> None:
+    for route in ("/api/bolt/info", "/api/bolt/model.stl"):
+        r = client.get(route, params={"left_hand": "banana"})
+        assert r.status_code == 422, route
+        assert r.json()["detail"][0]["loc"] == ["query", "left_hand"], route
+
+
+@pytest.mark.parametrize("query", [
+    "d=0&d=5",                  # the first value alone would be a 422, the last alone a 200
+    "d=5&d=100000",             # both pass on their own; the part is the last one
+    "d=5&d=0",                  # the last value alone would be a 422
+])
+def test_a_repeated_key_is_a_422_duplicate_not_a_judgement_of_either_value(query: str) -> None:
+    r = client.get(f"/api/bolt/info?{query}")
+    assert r.status_code == 422
+    assert r.json()["detail"][0] == {
+        "loc": ["query", "d"], "type": "duplicate", "msg": "d was given more than once."}
+
+
+def test_a_repeated_key_on_the_schema_route_is_a_duplicate_not_a_404() -> None:
+    r = client.get("/api/schema?kind=bolt&kind=x")
+    assert r.status_code == 422
+    assert r.json()["detail"][0]["loc"] == ["query", "kind"]
+    assert r.json()["detail"][0]["type"] == "duplicate"
+
+
+def test_a_repeated_left_hand_and_a_repeated_foreign_key_are_duplicates_too() -> None:
+    r = client.get("/api/bolt/model.stl?left_hand=true&left_hand=false&quality=preview")
+    assert r.status_code == 422
+    assert r.json()["detail"][0]["loc"] == ["query", "left_hand"]
+    assert r.json()["detail"][0]["type"] == "duplicate"
+    r = client.get("/api/bolt/info?zz=1&zz=2")
+    assert r.status_code == 422
+    assert r.json()["detail"][0]["loc"] == ["query", "zz"]
+    assert r.json()["detail"][0]["type"] == "duplicate"
+
+
+def test_every_repeated_key_is_named_in_first_seen_order() -> None:
+    r = client.get("/api/bolt/info?pitch=1&d=5&pitch=2&d=6&length=3")
+    assert [e["loc"] for e in r.json()["detail"]] == [["query", "pitch"], ["query", "d"]]
 
 
 def test_a_saturated_service_refuses_instead_of_queueing() -> None:
@@ -334,7 +443,7 @@ def test_a_saturated_service_emits_queue_refused_naming_the_part_and_the_ceiling
     assert refused[0].levelno == logging.WARNING
     assert _field(refused[0], "request")
     assert _field(refused[0], "kind") == "bolt"
-    assert _field(refused[0], "slug") == "bolt_d7.3_pitch1_length20"
+    assert _field(refused[0], "slug") == "bolt_d7.3_pitch1_left_hand0_length20"
     assert _field(refused[0], "in_flight") == in_flight_before
     assert _field(refused[0], "max_queued") == app_module.MAX_QUEUED_BUILDS
 
@@ -480,7 +589,7 @@ def test_a_fresh_build_emits_build_started_then_export_served_with_source_built(
     # Every per-request record names the kind, the slug and only the non-default params.
     for record in (started[0], served[0]):
         assert _field(record, "kind") == "bolt"
-        assert _field(record, "slug") == "bolt_d7.1_pitch1_length20"
+        assert _field(record, "slug") == "bolt_d7.1_pitch1_left_hand0_length20"
         assert _field(record, "params") == {"d": 7.1}
 
 
@@ -547,7 +656,7 @@ def test_an_all_default_part_logs_params_as_an_empty_object_not_omitted(
     assert len(served) == 1
     assert _field(served[0], "params") == {}
     assert _field(served[0], "kind") == "bolt"
-    assert _field(served[0], "slug") == "bolt_d6_pitch1_length20"
+    assert _field(served[0], "slug") == "bolt_d6_pitch1_left_hand0_length20"
 
 
 def test_two_requests_for_one_part_get_two_different_request_ids(
@@ -603,7 +712,7 @@ def test_a_failed_build_emits_build_failed_naming_the_class_and_the_level(
     assert _field(failed[0], "exception") == want_exception
     assert _field(failed[0], "request")
     assert _field(failed[0], "kind") == "bolt"
-    assert _field(failed[0], "slug") == "bolt_d8.3_pitch1_length20"
+    assert _field(failed[0], "slug") == "bolt_d8.3_pitch1_left_hand0_length20"
     assert _field(failed[0], "params") == {"d": 8.3}
     assert _field(failed[0], "duration_ms") is not None
 
@@ -637,3 +746,88 @@ def test_an_unclassified_exception_still_emits_build_failed_and_is_not_swallowed
     assert _field(failed[0], "duration_ms") is not None
 
     assert not _event_records(caplog, "export.served")
+
+
+@pytest.mark.parametrize(("route", "query"), [
+    ("model.stl", {"length": 1e-8, "quality": "preview"}),
+    ("model.stl", {"length": 1e-9, "quality": "preview"}),
+    ("model.step", {"length": 1e-8}),
+    ("model.stl", {"d": 100000, "length": 1e-7, "quality": "preview"}),
+])
+def test_a_length_too_short_to_model_is_a_422_build_error_not_a_served_file(
+        route: str, query: Params) -> None:
+    # The collapsed-solid blocker's own reproductions. They used to be a 134-byte STL as a 200,
+    # a non-watertight mesh, a one-face STEP and a 500; the builder's doorway now refuses them
+    # (D-17) before the kernel runs, so no worker dies on them either.
+    r = client.get(f"/api/bolt/{route}", params=query)
+    assert r.status_code == 422
+    detail = r.json()["detail"][0]
+    assert detail["type"] == "build_error"
+    assert "length" in detail["msg"]
+
+
+def test_a_failed_export_is_a_422_and_never_enters_the_bytes_cache(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    # 7.77 is a diameter no other test downloads (the byte cache is session-wide). The
+    # control request after the refusal proves the key below is the one a success is stored
+    # under, so the absence above it is not vacuous.
+    key = (BoltParams(d=7.77), "stl", "preview", "identity")
+    assert app_module._EXPORTS.get(key) is None
+    with monkeypatch.context() as patched:
+        patched.setattr(cq.Shape, "exportStl", lambda *_args, **_kwargs: False)
+        r = client.get("/api/bolt/model.stl", params={"d": 7.77, "quality": "preview"})
+    assert r.status_code == 422
+    assert r.json()["detail"][0]["type"] == "build_error"
+    assert app_module._EXPORTS.get(key) is None
+
+    assert client.get("/api/bolt/model.stl", params={"d": 7.77, "quality": "preview"}
+                      ).status_code == 200
+    assert app_module._EXPORTS.get(key) is not None
+
+
+CAPPED: Params = {"d": 8, "pitch": 1.25, "length": 67.6}
+
+
+def test_a_fine_stl_l11_measured_over_budget_is_a_422_and_never_reaches_the_backend() -> None:
+    """D-02: refused before the bytes cache, the admission slot and the pool."""
+    calls = 0
+
+    async def counting_backend(p: FastenerParams, fmt: str, quality: str) -> bytes:
+        nonlocal calls
+        calls += 1
+        return b"never served"
+
+    with _backend(counting_backend):
+        r = client.get("/api/bolt/model.stl", params=CAPPED)    # quality defaults to fine
+    assert r.status_code == 422
+    (detail,) = r.json()["detail"]
+    assert detail["type"] == "fine_stl_cap"
+    assert detail["loc"] == ["query"]
+    for fragment in ("length", "67.5", "54", "2026-10-08-a-grid"):
+        assert fragment in detail["msg"]
+    assert calls == 0
+
+
+def test_the_same_part_is_served_on_the_preview_stl_the_step_and_the_info_route() -> None:
+    preview = client.get("/api/bolt/model.stl", params={**CAPPED, "quality": "preview"})
+    assert preview.status_code == 200
+    step = client.get("/api/bolt/model.step", params=CAPPED)
+    assert step.status_code == 200
+    assert step.content.startswith(b"ISO-10303-21;")
+    assert client.get("/api/bolt/info", params=CAPPED).status_code == 200
+
+
+def test_the_cap_itself_and_an_off_row_part_reach_the_backend_as_asked() -> None:
+    seen: list[FastenerParams] = []
+
+    async def stub(p: FastenerParams, fmt: str, quality: str) -> bytes:
+        seen.append(p)
+        return b"stub"
+
+    with _backend(stub):
+        at_cap = client.get("/api/bolt/model.stl", params={**CAPPED, "length": 67.5})
+        off_row = client.get("/api/bolt/model.stl", params={"d": 8, "pitch": 1, "length": 100})
+    assert at_cap.status_code == off_row.status_code == 200
+    bolts = [p for p in seen if isinstance(p, BoltParams)]
+    assert [(p.d, p.pitch, p.length) for p in bolts] == [(8.0, 1.25, 67.5), (8.0, 1.0, 100.0)]
+    assert len(bolts) == len(seen)

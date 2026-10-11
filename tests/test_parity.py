@@ -22,7 +22,7 @@ from fastapi.testclient import TestClient
 
 from screw import cli
 from screw.app import STATIC, app, build_backend
-from screw.calc import SKELETON_WARNING, derive
+from screw.calc import STANDING_WARNING, derive
 from screw.params import DEFAULT_KIND, KINDS, FastenerParams
 from screw.solid import Format, Quality, export
 
@@ -30,6 +30,8 @@ client = TestClient(app)
 
 # `params=` is typed by starlette as exactly this union (Pitfall 1).
 Params = dict[str, str | int | float | bool | None]
+# A repeated key needs the list-of-pairs form, which is invariant in its element type.
+Pairs = list[tuple[str, str | int | float | bool | None]]
 
 APP_JS = (STATIC / "app.js").read_text()
 FOREIGN = "zz_not_a_field"
@@ -49,6 +51,20 @@ def _inline_build_backend() -> Iterator[None]:
 
 def _flag(name: str) -> str:
     return "--" + name.replace("_", "-")
+
+
+def _is_bool(kind: str, name: str) -> bool:
+    return KINDS[kind].model_fields[name].annotation is bool
+
+
+def _expected_flags(kind: str) -> list[str]:
+    """The flags the model's fields generate: a boolean field is a pair, `--x` then `--no-x`."""
+    flags: list[str] = []
+    for name in KINDS[kind].model_fields:
+        flags.append(_flag(name))
+        if _is_bool(kind, name):
+            flags.append("--no-" + name.replace("_", "-"))
+    return flags
 
 
 def _cli_flags(kind: str, command: str, capsys: pytest.CaptureFixture[str]) -> list[str]:
@@ -140,7 +156,7 @@ def test_a_foreign_field_is_refused_on_every_route(kind: str) -> None:
 
 @pytest.mark.parametrize("kind", list(KINDS))
 def test_the_cli_flags_are_the_model(kind: str, capsys: pytest.CaptureFixture[str]) -> None:
-    fields = [_flag(name) for name in KINDS[kind].model_fields]
+    fields = _expected_flags(kind)
     assert _cli_flags(kind, "info", capsys) == ["--help", *fields]
     # export's own three options come first; everything after them is the model.
     assert _cli_flags(kind, "export", capsys) == ["--help", "--output", "--format",
@@ -171,17 +187,39 @@ def test_the_cli_and_the_api_print_the_same_document(
     model = KINDS[kind]
     cases: list[Params] = [{}]
     for name, field in model.model_fields.items():
-        if isinstance(field.default, float):
+        if isinstance(field.default, bool):
+            cases.append({name: not field.default})
+        elif isinstance(field.default, float):
             cases.append({name: field.default * 1.5})
     assert len(cases) > 1, "no float field to move off its default"
 
+    def argv(values: Params) -> list[str]:
+        out: list[str] = []
+        for k, v in values.items():
+            if isinstance(v, bool):
+                # A boolean flag takes no value: `--x` or `--no-x`, never `--x false`.
+                out.append(_flag(k) if v else "--no-" + k.replace("_", "-"))
+            else:
+                out += [_flag(k), repr(v)]
+        return out
+
     for values in cases:
-        cli.main(["info", kind, *(a for k, v in values.items() for a in (_flag(k), repr(v)))])
+        cli.main(["info", kind, *argv(values)])
         cli_doc = json.loads(capsys.readouterr().out)
         api_doc = client.get(f"/api/{kind}/info", params=values).json()
         assert cli_doc == api_doc, values
-        assert SKELETON_WARNING in cli_doc["warnings"]
-        assert SKELETON_WARNING in api_doc["warnings"]
+        assert cli_doc["warnings"][0] == STANDING_WARNING
+        assert api_doc["warnings"][0] == STANDING_WARNING
+
+
+@pytest.mark.parametrize("kind", list(KINDS))
+def test_the_no_flag_is_a_value_and_agrees_with_the_omitted_default(
+        kind: str, capsys: pytest.CaptureFixture[str]) -> None:
+    # `--no-x` is a real value (False), not "not given", and agrees with the omitted default.
+    cli.main(["info", kind])
+    default_doc = capsys.readouterr().out
+    cli.main(["info", kind, "--no-left-hand"])
+    assert capsys.readouterr().out == default_doc
 
 
 @pytest.mark.parametrize("kind", list(KINDS))
@@ -213,16 +251,24 @@ def test_the_ui_reads_no_field_by_name(kind: str) -> None:
 # schema, the hash read and written without a field name, the default kind taken from
 # /api/kinds, the info panel built from whatever rows arrive. Rewording one is not a style
 # edit: it means the page may have stopped being generic.
+#
+# Plan 03-05 replaced three `.value` spellings with the helper forms (rule 29 names the same
+# list): a checkbox's `.value` is the constant "on", so a control is read and written only
+# through read() and write(), and the boolean branch of buildForm is what builds one (D-09).
 PINNED_STATEMENTS = [
     "fetch('api/kinds')",
     "for (const [name, prop] of Object.entries(schema.properties)) {",
     "fields.set(name, { input, wrap, title });",
-    "for (const [name, { input }] of fields) input.value = h.get(name) ?? defaults[name];",
-    "q.set(name, input.value)",
+    "for (const [name, { input }] of fields) write(input, h.get(name) ?? defaults[name]);",
+    "q.set(name, value)",
     "const kind = h.get('kind') ?? kinds.default;",
     "if (currentKind !== kinds.default) hashQ.set('kind', currentKind);",
     "for (const row of info.rows) {",
-    "Number(input.value) !== Number(defaults[name])",
+    "Number(value) !== Number(defaults[name])",
+    "prop.type === 'boolean'",
+    "input.type = 'checkbox'",
+    "String(input.checked)",
+    "input.checked = String(v) === 'true'",
     # Not the whole handler: 01-04 shipped `() => navigate().catch(reportLoadError)` where
     # its plan quoted `navigate`; the property that matters is that the hash drives navigate().
     "window.addEventListener('hashchange'",
@@ -239,7 +285,113 @@ def test_the_ui_round_trips_every_field_through_generic_code() -> None:
     assert "kinds.kinds[0]" not in source
 
 
+@pytest.mark.parametrize("kind", list(KINDS))
+def test_the_form_has_a_size_fieldset_then_a_thread_one(kind: str) -> None:
+    # Rule 1: one fieldset per group in first-seen order, so `left_hand` (declared between
+    # pitch and length) opens a `Thread` fieldset after `Size` and `length` stays in `Size`.
+    properties = client.get("/api/schema", params={"kind": kind}).json()["properties"]
+    groups = list(dict.fromkeys(prop["group"] for prop in properties.values()))
+    assert groups == ["Size", "Thread"]
+    assert properties["left_hand"]["type"] == "boolean"
+    assert properties["left_hand"]["default"] is False
+
+
+def test_the_ui_refuses_a_link_it_cannot_honour() -> None:
+    # D-10 (01-UI-SPEC rule 10): a repeated, foreign or unreadable hash key is refused like an
+    # unknown kind -- same clearing, a message naming it, nothing builds -- never dropped,
+    # defaulted or rewritten away. Source assertions, since no browser is in the gate (L01).
+    source = _squash(APP_JS)
+    repeated = _squash(
+        "if (seen.has(k)) return refuseLink(`The link names \"${k}\" more than once.`);")
+    for statement in (
+        repeated,
+        _squash("k !== 'kind' && !fields.has(k)"),
+        _squash("given !== 'true' && given !== 'false'"),
+        _squash("given !== null && read(input) === ''"),
+        _squash("`Unreadable value for \"${name}\": \"${given}\".`"),
+    ):
+        assert statement in source, statement
+    assert "Unknown field " in APP_JS
+    assert "Unknown fields " in APP_JS
+    # `#d=` names a field with an empty value; the API answers `?d=` with a 422, so the page may
+    # not exempt it and open the default part (WR-01).
+    assert "given !== ''" not in source
+    # The repeat check runs first: `#kind=bolt&kind=x` must be refused, not read as bolt.
+    kind_lookup = _squash("const kind = h.get('kind') ?? kinds.default;")
+    assert source.index(repeated) < source.index(kind_lookup)
+    # One helper serves the unknown kind and the three new cases, and it clears everything.
+    helper = re.search(r"function refuseLink\(message\) \{(.*?)\n\}", APP_JS, re.DOTALL)
+    assert helper is not None
+    for statement in ("clearForm();", "currentKind = null;", "kindSelect.selectedIndex = -1;",
+                      "$('#dims').replaceChildren();", "setDownloads(null);"):
+        assert statement in helper.group(1), statement
+    assert APP_JS.count("refuseLink(") >= 5  # the definition and the four refusals
+
+
+def test_the_ui_keeps_the_warnings_of_the_mesh_on_screen() -> None:
+    # D-11 (01-UI-SPEC rules 15 and 24): the warning is the honest label on the part the user
+    # is still looking at, so it outlives a failed update and a refused link. Warnings belong
+    # to a mesh, not to the last info fetch: that document may describe a part whose STL then
+    # failed, so it only becomes the mesh's warnings where the mesh is replaced.
+    source = _squash(APP_JS)
+    assert "pendingWarnings = info.warnings ?? [];" in source
+    assert source.count("meshWarnings = pendingWarnings") == 1
+    show = re.search(r"function showModel\(buffer\) \{(.*?)\n\}", APP_JS, re.DOTALL)
+    assert show is not None
+    assert "meshWarnings = pendingWarnings;" in show.group(1)
+    assert source.count("mesh ? meshWarnings : []") >= 3
+    # Every call that shows an error names the warnings with it; the startup failure has no
+    # mesh and is the only one that shows none.
+    bare = [line for line in APP_JS.splitlines()
+            if "showMessages(" in line and "function showMessages" not in line
+            and "meshWarnings" not in line and "pendingWarnings" not in line]
+    assert len(bare) == 1
+    assert "Could not load the part kinds and schema" in bare[0]
+
+
 def test_the_ui_builds_nodes_from_text_only() -> None:
     assert "textContent" in APP_JS
     for sink in ("innerHTML", "outerHTML", "insertAdjacentHTML"):
         assert sink not in APP_JS, sink
+
+
+def _repeat_argvs(kind: str, name: str) -> list[list[str]]:
+    """Every way to give one field's flag twice (the CLI keeps the last silently, D-12)."""
+    flag = _flag(name)
+    if _is_bool(kind, name):
+        no = "--no-" + name.replace("_", "-")
+        return [[flag, no], [flag, flag], [no, no]]
+    return [[flag, "5", flag, "6"]]
+
+
+def _duplicate(name: str) -> dict[str, object]:
+    return {"loc": ["query", name], "type": "duplicate", "msg": f"{name} was given more than once."}
+
+
+@pytest.mark.parametrize("kind", list(KINDS))
+def test_a_repeated_parameter_is_refused_naming_it(
+        kind: str, capsys: pytest.CaptureFixture[str]) -> None:
+    # API side (D-12): the repeat is refused before the query model judges either value, on
+    # every route of the kind, and the 422 names the key.
+    for name in KINDS[kind].model_fields:
+        twice: Pairs = ([(name, "true"), (name, "false")] if _is_bool(kind, name)
+                        else [(name, "5"), (name, "6")])
+        for path in (f"/api/{kind}/info", f"/api/{kind}/model.stl"):
+            res = client.get(path, params=twice)
+            assert res.status_code == 422, (path, name)
+            assert res.json()["detail"] == [_duplicate(name)], (path, name)
+    # CLI side: the same refusal, exit 2 naming the flag.
+    for name in KINDS[kind].model_fields:
+        for given in _repeat_argvs(kind, name):
+            with pytest.raises(SystemExit) as stop:
+                cli.main(["info", kind, *given])
+            assert stop.value.code == 2, given
+            assert _flag(name) in capsys.readouterr().err, given
+    # export's own options are refused the same way.
+    for given in (["--quality", "fine", "--quality", "preview"],
+                  ["--format", "stl", "--format", "step"],
+                  ["-o", "a.stl", "-o", "b.stl"]):
+        with pytest.raises(SystemExit) as stop:
+            cli.main(["export", kind, "-o", "x.stl", *given])
+        assert stop.value.code == 2, given
+        assert given[0] in capsys.readouterr().err, given

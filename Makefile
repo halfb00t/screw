@@ -5,6 +5,7 @@ IMAGE       ?= screw:latest
 PLATFORM    ?=
 PYTEST_ARGS ?=
 SWEEP       ?=
+SIZE        ?=
 SET         ?=
 ARGS        ?=
 
@@ -28,7 +29,7 @@ CONSTRAINT := $(if $(wildcard requirements.txt),PIP_CONSTRAINT=requirements.txt,
 .PHONY: help venv verify lint typecheck lint-imports no-fake-done test serve lock \
 	    check image smoke up down logs vendor vendor-check \
 	    worktree.bootstrap worktree.new worktree.land pr.land clean clean-docker \
-	    bench bench.build bench.export bench.latency bench.memory bench.thread
+	    bench bench.build bench.export bench.latency bench.memory bench.thread grid
 
 help:  ## list the targets
 	@grep -hE '^[a-z][a-z.-]*:.*##' $(MAKEFILE_LIST) | sed 's/:[^#]*##/\t/' | expand -t18
@@ -86,7 +87,7 @@ no-fake-done:  ## refuse unfinished work dressed up as finished
 	fi
 
 # --cov gates every run on [tool.coverage.report] fail_under (bench/RESULTS.md, "Coverage
-# floor (Phase 1)"). A run over part of the suite reads a low total and fails it: pass
+# floor (Phase 3)"). A run over part of the suite reads a low total and fails it: pass
 # --no-cov, e.g. make test PYTEST_ARGS="tests/test_calc.py -q -n0 --no-cov" (-n0 also runs
 # it serially, which -x and --pdb need). PYTEST_ARGS comes last so the caller's flags win.
 # --cov-report=term is the default report, spelt out because --cov takes an optional value:
@@ -104,6 +105,12 @@ PYTEST_WORKERS ?= $(shell w=8; n=$$(getconf _NPROCESSORS_ONLN 2>/dev/null); \
 
 test: $(STAMP)  ## run the test suite under the coverage floor
 	$(PY) -m pytest -n $(PYTEST_WORKERS) --cov --cov-report=term $(PYTEST_ARGS)
+
+# The slow thread tier (D-14): outside the gate like the bench family, so nothing here is
+# in `make verify`. --no-cov because a partial run reads a low total against the floor.
+# SIZE=M6 runs one size's four cells: `-k 'M6-'` aliases nothing (tests/test_grid.py pins it).
+grid: $(STAMP)  ## the full thread grid through the THRD-04 gate (slow; D-14); SIZE=M6 runs one size
+	$(PY) -m pytest -m grid -n $(PYTEST_WORKERS) --no-cov $(if $(SIZE),-k '$(SIZE)-',) $(PYTEST_ARGS)
 
 serve: $(STAMP)  ## run the dev server on http://127.0.0.1:8000
 	$(VENV)/bin/screw serve

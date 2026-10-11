@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Literal, cast, get_args, get_origin
 
@@ -18,21 +19,56 @@ from .params import KINDS, FastenerParams
 from .records import configure
 
 
+# argparse keeps the last of two values for one option without a word, so `--d 5 --d 6` would
+# build a d=6 part the command line also says is d=5 (D-12, L02: a direct conflict between two
+# things the user asked for is refused, never guessed). A parameter is `None` until given, so
+# "already set" is `is not None`; the same rule refuses the repeated query key on the API.
+# `Sequence[object]`, not `Sequence[Any]`: L04 writes no `Any`, and the wider parameter type
+# is still a valid override (mypy --strict with disallow_any_explicit).
+def _refuse_repeat(action: argparse.Action, parser: argparse.ArgumentParser,
+                   namespace: argparse.Namespace, option_string: str | None) -> None:
+    if getattr(namespace, action.dest) is not None:
+        parser.error(f"{'/'.join(action.option_strings)} was given more than once "
+                     f"(again as {option_string})")
+
+
+class _Once(argparse.Action):
+    def __call__(self, parser: argparse.ArgumentParser, namespace: argparse.Namespace,
+                 values: str | Sequence[object] | None, option_string: str | None = None) -> None:
+        _refuse_repeat(self, parser, namespace, option_string)
+        setattr(namespace, self.dest, values)
+
+
+class _OnceBool(argparse.BooleanOptionalAction):
+    """`--x` / `--no-x`, each at most once between them: `--x --no-x` is a contradiction."""
+
+    def __call__(self, parser: argparse.ArgumentParser, namespace: argparse.Namespace,
+                 values: str | Sequence[object] | None, option_string: str | None = None) -> None:
+        _refuse_repeat(self, parser, namespace, option_string)
+        super().__call__(parser, namespace, values, option_string)
+
+
 def _add_args(ap: argparse.ArgumentParser, kind: str, model: type[FastenerParams]) -> None:
     g = ap.add_argument_group(f"{kind} parameters (defaults in brackets)")
     for name, field in model.model_fields.items():
         flag = "--" + name.replace("_", "-")
         help_text = f"{field.description} [{field.default}]".replace("%", "%%")
-        if get_origin(field.annotation) is Literal:
-            g.add_argument(flag, dest=name, default=None, help=help_text,
-                           choices=list(get_args(field.annotation)))
+        # pydantic gives every declared field an annotation; this check exists only to narrow
+        # `field.annotation`'s `type | None` to a real type for argparse's `type=`, not because
+        # a field can actually lack one. Before the `is bool` test: mypy otherwise narrows the
+        # else branch to `None` and calls the numeric branch unreachable.
+        annotation = field.annotation
+        assert annotation is not None
+        if annotation is bool:
+            # A flag that takes no value (`--left-hand` / `--no-left-hand`), never a bool-typed
+            # one: bool("false") is True, which would build the hand the user did not ask for.
+            g.add_argument(flag, dest=name, default=None, help=help_text, action=_OnceBool)
+        elif get_origin(annotation) is Literal:
+            g.add_argument(flag, dest=name, default=None, help=help_text, action=_Once,
+                           choices=list(get_args(annotation)))
         else:
-            # pydantic gives every declared field an annotation; this check exists
-            # only to narrow `field.annotation`'s `type | None` to a real type for
-            # argparse's `type=`, not because a field can actually lack one.
-            assert field.annotation is not None
-            g.add_argument(flag, dest=name, default=None, help=help_text,
-                           metavar="V", type=field.annotation)
+            g.add_argument(flag, dest=name, default=None, help=help_text, action=_Once,
+                           metavar="V", type=annotation)
 
 
 def _params(kind: str, ns: argparse.Namespace) -> FastenerParams:
@@ -77,15 +113,24 @@ def cmd_export(ns: argparse.Namespace) -> None:
     fmt = ns.format or out.suffix.lower().lstrip(".").replace("stp", "step")
     if fmt not in ("stl", "step"):
         raise SystemExit("error: output must end in .stl or .step (or pass --format)")
-    # Imported after the extension check so a typo costs milliseconds, not the ~2 s it takes
-    # to load the CAD kernel.
-    from .build_errors import BuildError
-    from .calc import derive
-    from .solid import Format, export
+    from .calc import derive, download_refusal
 
     p = _params(ns.kind, ns)
+    # The same kernel-free rule the API's `_serve` applies (D-02, FRNT-05 parity). Exit 2 like
+    # `_params`, the CLI analogue of the 422: a parameter choice is refused, nothing failed
+    # to build (a BuildError below keeps exit 1; 03-RESEARCH Open Question 5).
+    quality: str = ns.quality or "fine"
+    refusal = download_refusal(p, fmt, quality)
+    if refusal is not None:
+        print(f"error: {refusal}", file=sys.stderr)
+        raise SystemExit(2)
+    # Imported after the extension check and the refusals, so a typo or a refused export
+    # costs milliseconds, not the ~2 s it takes to load the CAD kernel.
+    from .build_errors import BuildError
+    from .solid import Format, Quality, export
+
     try:
-        data = export(p, cast("Format", fmt), ns.quality)   # the check above is the proof
+        data = export(p, cast("Format", fmt), cast("Quality", quality))   # checked above
     except BuildError as exc:
         raise SystemExit(f"error: {exc}") from None
     out.write_bytes(data)
@@ -127,9 +172,12 @@ def main(argv: list[str] | None = None) -> None:
         _add_args(kp, kind, model)
 
         kp = ek.add_parser(kind, allow_abbrev=False)
-        kp.add_argument("-o", "--output", type=Path, required=True, help="file.stl or file.step")
-        kp.add_argument("--format", choices=["stl", "step"], help="override the file extension")
-        kp.add_argument("--quality", choices=["preview", "fine"], default="fine",
+        kp.add_argument("-o", "--output", type=Path, required=True, action=_Once,
+                        help="file.stl or file.step")
+        kp.add_argument("--format", choices=["stl", "step"], action=_Once,
+                        help="override the file extension")
+        # default=None so a repeat is detectable; cmd_export reads `ns.quality or "fine"`.
+        kp.add_argument("--quality", choices=["preview", "fine"], default=None, action=_Once,
                         help="STL tessellation [fine]")
         _add_args(kp, kind, model)
 

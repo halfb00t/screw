@@ -9,12 +9,15 @@ here, per worker (`SCREW_SOLID_CACHE`, entries), because rebuilding it needs the
 that only a worker has. The exported-bytes cache lives one level up, in the serving
 process (`app.py`'s `_BlobCache`): a repeat download never wakes a worker at all.
 
-No `cadquery` object leaves this package: callers get `bytes`, or `BuildError`.
+No `cadquery` object leaves this package: callers get `bytes`, or `BuildError`. Every build
+passes `check_solid` (THRD-04) inside the function `lru_cache` wraps, so a build the gate
+refuses is neither cached nor exported.
 """
 
 from __future__ import annotations
 
 import ctypes
+import struct
 import tempfile
 import threading
 from functools import lru_cache
@@ -22,12 +25,16 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 import cadquery as cq
+from OCP.BRepGProp import BRepGProp
+from OCP.GProp import GProp_GProps
+from OCP.IFSelect import IFSelect_ReturnStatus
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
 from screw import int_env
 from screw.build_errors import BuildError
+from screw.calc.thread import closed_volume, volume_check
 from screw.params import BoltParams, FastenerParams
 from screw.solid import bolt
 
@@ -70,14 +77,48 @@ def _release_arenas() -> None:
         _MALLOC_TRIM(0)
 
 
+# Relative error bound of `BRepGProp.VolumeProperties_s`, per face. Read from the OCP
+# docstring: above 0.001 the integration is non-adaptive. 1e-7 cost 2x (0.4-2.0 s against
+# 0.2-1.0 s per row) for no gain: 1.53e-6 against 1.62e-6 at M6 L20 (RESEARCH Code Example 4).
+PRECISE_EPS = 1e-6
+
+
+def precise_volume(shape: cq.Shape) -> float:
+    """Volume to `PRECISE_EPS`, signed: an inverted solid reads about -1 times its closed form.
+
+    L11's estimator, never the default `Volume()`, which reads -1.001 of the closed form on an
+    inverted solid and +6.3 % on a ruled-surface thread while `isValid()` stays True.
+    """
+    props = GProp_GProps()
+    BRepGProp.VolumeProperties_s(shape.wrapped, props, PRECISE_EPS, False, False)
+    return float(props.Mass())
+
+
+def check_solid(shape: cq.Shape, closed: float) -> None:
+    """The THRD-04 postcondition (D-08, L11): exactly one solid, valid, and the right volume.
+
+    `_build` runs it inside the function `lru_cache` wraps, so a refusal is never cached or
+    exported; tests and `bench/` call it on shapes no parameter set builds (the positive
+    controls, the void). The checks run in this order and the first failure is the one named.
+    """
+    count = len(shape.Solids())
+    if count != 1:
+        raise BuildError(f"Geometry kernel produced {count} solids for these parameters, "
+                         "expected exactly 1.")
+    if not shape.isValid():
+        raise BuildError("Geometry kernel produced an invalid solid for these parameters.")
+    refusal = volume_check(precise_volume(shape), closed)
+    if refusal is not None:
+        raise BuildError(f"Geometry kernel produced the wrong solid: {refusal}.")
+
+
 def _build(p: FastenerParams) -> cq.Solid:
     if isinstance(p, BoltParams):
-        solid = bolt.cylinder(p)
+        solid = bolt.rod(p)
+        closed = closed_volume(p.d, p.pitch, p.length)
     else:
         raise TypeError(f"no solid builder for kind {p.kind!r}")
-    # An invariant a type cannot express is asserted positively: exactly one valid solid.
-    if len(solid.Solids()) != 1 or not solid.isValid():
-        raise BuildError("Geometry kernel produced an invalid solid for these parameters.")
+    check_solid(solid, closed)
     return solid
 
 
@@ -90,7 +131,7 @@ def _build_checked(p: FastenerParams) -> cq.Solid:
         raise
     except Exception as exc:  # OCCT raises assorted Standard_Failure subclasses
         raise BuildError(f"Geometry kernel failed ({type(exc).__name__}); "
-                         "check d and length.") from exc
+                         "check d, pitch and length.") from exc
 
 
 # INTERIM (D-01): 4 solids per worker, carried from spur model.py:561 where it sized a
@@ -111,6 +152,15 @@ def clear_cache() -> None:
         _build_cached.cache_clear()
 
 
+def _check_stl(data: bytes) -> None:
+    """Refuse an STL whose header count disagrees with its byte length or has fewer than 4
+    facets (the fewest a closed solid has): a mesh that is not the part must not be served."""
+    count = struct.unpack("<I", data[80:84])[0] if len(data) >= 84 else 0
+    if len(data) != 84 + 50 * count or count < 4:
+        raise BuildError(f"STL export failed: the kernel wrote {len(data)} bytes claiming "
+                         f"{count} facets for these parameters.")
+
+
 def _write_export(shape: cq.Solid, p: FastenerParams, fmt: Format, quality: Quality) -> bytes:
     with tempfile.TemporaryDirectory(prefix="screw-") as d:
         path = Path(d) / f"{p.slug()}.{fmt}"
@@ -125,11 +175,20 @@ def _write_export(shape: cq.Solid, p: FastenerParams, fmt: Format, quality: Qual
             # cached solid mesh-free for its whole life, at 1.4-17.6 ms per export on
             # spur's gears (not measured for screw). No positional argument to copy(): its
             # one parameter is mesh, default False, and copy(mesh=True) would carry a mesh.
-            shape.copy().exportStl(str(path), tolerance=tol, angularTolerance=ang,
-                                   ascii=False, relative=False)
-        else:
-            # STEP export attaches no mesh, so the cached solid stays exact and needs no copy.
-            shape.exportStep(str(path))
+            written = shape.copy().exportStl(str(path), tolerance=tol, angularTolerance=ang,
+                                             ascii=False, relative=False)
+            # False means no file was written; reading it would be a FileNotFoundError.
+            if not written:
+                raise BuildError("STL export failed: the kernel wrote no file for these "
+                                 "parameters.")
+            data = path.read_bytes()
+            _check_stl(data)
+            return data
+        # STEP export attaches no mesh, so the cached solid stays exact and needs no copy.
+        # cadquery discards the status of the transfer; only the write's is observable.
+        status = shape.exportStep(str(path))
+        if status != IFSelect_ReturnStatus.IFSelect_RetDone:
+            raise BuildError(f"STEP export failed: the kernel reported {status}.")
         return path.read_bytes()
 
 

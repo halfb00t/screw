@@ -9,7 +9,8 @@
     GET /api/bolt/model.step?...     STEP AP214 solid
 
 Every parameter is a query string field, so a model URL is shareable and curl-able. Unset
-fields take their defaults; a field the kind does not define is a 422 naming it.
+fields take their defaults; a field the kind does not define, or a key given twice, is a 422
+naming it.
 """
 
 from __future__ import annotations
@@ -35,7 +36,7 @@ from starlette.concurrency import run_in_threadpool
 
 from . import __version__, int_env
 from .build_errors import BuildError, BuildTimeout
-from .calc import PartInfo, derive
+from .calc import PartInfo, derive, download_refusal
 from .params import DEFAULT_KIND, KINDS, BoltParams, FastenerParams
 from .pool import BuildPool
 from .records import build_failed, build_started, configure, export_served, queue_refused
@@ -84,9 +85,11 @@ class _BlobCache:
 # the same budget.
 #
 # INTERIM (D-01): 64 MB, carried from spur's export-cache default (same knob, renamed),
-# where it sized the cache against 160-199 tooth gears (~9 MB raw STL each). Not measured
-# for screw; the skeleton cylinder's STL is under 1.5 MB at the largest admitted size.
-# Phase 7 re-sweeps (OPER-02).
+# where it sized the cache against 160-199 tooth gears (~9 MB raw STL each). Not a screw
+# sizing, but L11 measured fine STLs over it from M8 L=68 up (`2026-10-08-a-grid`); `put`
+# drops an over-budget blob without caching it, so such a part would be served but rebuilt
+# on every repeat request, which is why D-02 refuses the fine STL on the measured rows
+# (`download_refusal`, called first in `_serve`). Phase 7 re-sweeps (OPER-02).
 _EXPORTS = _BlobCache(int_env("SCREW_EXPORT_CACHE_MB", 64) * 1024 * 1024)
 
 
@@ -146,8 +149,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # INTERIM (D-01): 30 s per build, carried from spur. spur's worst observed single
         # build was 7.39 s (a 200-tooth fine gear, ten concurrent requests, host under
         # contention), so 30 s is ~4x spur's observation -- a margin chosen for slower
-        # hardware on spur's corpus. It is not a measurement of screw: the skeleton cylinder
-        # builds in well under a second (INTERIM_MAX_MM's comment). Phase 7 re-sweeps
+        # hardware on spur's corpus. It is not a measurement of screw: M6 x 20 builds in
+        # 0.09 s (planner probe 2026-10-10), while an in-cap off-row part can need minutes
+        # (03-RESEARCH Pitfall 5: d=100, pitch=5, length=1250, fine STL 152.6 s and 7875 MiB
+        # peak RSS, single run, macOS arm64, not a bound). So this is the backstop below the
+        # 250-turn cap (D-01, D-18), not a figure for the threads. Phase 7 re-sweeps
         # (OPER-02).
         int_env("SCREW_BUILD_TIMEOUT", 30),
     )
@@ -164,11 +170,32 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         del app.state.pool
 
 
+def refuse_repeated_keys(request: Request) -> None:
+    """Refuse a query string that names a key twice, before anything judges its values.
+
+    D-12, L02: the query model keeps the last of two values, so `?d=0&d=5` was a 200 for d=5
+    and `?d=5&d=100000` a 200 for the larger part; a shared link with a duplicated key built a
+    part its author did not see. An app-level dependency runs before each route's query model
+    is validated (verified on fastapi 0.142.2, 03-RESEARCH Pattern 5), so the repeat is refused
+    as a duplicate instead of one of its values being judged, and it covers every route,
+    `/api/schema` included. Keys are listed in first-seen order.
+    """
+    seen: dict[str, int] = {}
+    for key, _ in request.query_params.multi_items():
+        seen[key] = seen.get(key, 0) + 1
+    repeated = [key for key, n in seen.items() if n > 1]
+    if repeated:
+        raise HTTPException(422, detail=[
+            {"loc": ["query", key], "type": "duplicate", "msg": f"{key} was given more than once."}
+            for key in repeated])
+
+
 app = FastAPI(
     title="screw",
     version=__version__,
     summary="Parametric thread and fastener generator with STL/STEP export.",
     lifespan=lifespan,
+    dependencies=[Depends(refuse_repeated_keys)],
 )
 
 # spur L19 measured the real 9,062,784-byte STL of a 199-tooth fine gear at gzip levels 1/6/9
@@ -378,6 +405,13 @@ async def _serve(params: FastenerParams, fmt: Literal["stl", "step"], quality: s
     """The one model-serving path every kind's route delegates to: cache, admission
     control, build, compress, log, respond.
     """
+    # First, before the cache, the admission slot and the pool: a fine STL L11 measured over
+    # the export budget is refused on the parameters alone, so it never occupies a worker
+    # (D-02). Reads no field by name, so every kind gets its own rule through the one call.
+    refusal = download_refusal(params, fmt, quality)
+    if refusal is not None:
+        raise HTTPException(422, detail=[{"loc": ["query"], "type": "fine_stl_cap",
+                                          "msg": refusal}])
     # A plain local, not middleware or contextvars -- minted once here and passed to every
     # record this request emits, so two concurrent requests for the same part (the one
     # case params + time cannot disambiguate: same-slot affinity) are still

@@ -1,0 +1,249 @@
+"""The thread maths: the closed form the kernel is judged against and the gate's comparison,
+tested without the kernel."""
+
+from __future__ import annotations
+
+import math
+
+import pytest
+
+from bench.thread_spike.maths import PITCH
+from screw.calc.thread import (
+    FINE_STL_ROWS,
+    MAX_TURNS,
+    T_GATE,
+    closed_volume,
+    fine_stl_refusal,
+    fundamental_height,
+    root_radius_refusal,
+    section_area,
+    section_radius,
+    thread_depth,
+    turn_cap_refusal,
+    turns_of,
+    volume_check,
+)
+
+
+def test_the_basic_profile_has_the_coefficients_the_owner_confirmed() -> None:
+    # An independently typed value: 5/8 * sqrt(3)/2 for P = 1, not the code's own expression.
+    assert fundamental_height(1.0) == pytest.approx(0.866025403784439, abs=1e-12)
+    assert thread_depth(1.0) == pytest.approx(0.541265877365274, abs=1e-12)
+
+
+def test_the_section_is_a_crest_flat_a_root_flat_and_two_linear_flanks() -> None:
+    d, pitch = 6.0, 1.0
+    ro, rr = d / 2, d / 2 - thread_depth(pitch)
+    assert section_radius(d, pitch, 0.0, 0.0) == ro
+    assert section_radius(d, pitch, 0.0, math.pi / 8) == pytest.approx(ro)
+    assert section_radius(d, pitch, 0.0, math.pi) == rr
+    assert section_radius(d, pitch, 0.0, 3 * math.pi / 4) == pytest.approx(rr)
+    assert section_radius(d, pitch, 0.0, (math.pi / 8 + 3 * math.pi / 4) / 2) == (
+        pytest.approx((ro + rr) / 2))
+    assert section_radius(d, pitch, 0.0, 2 * math.pi) == ro  # taken modulo 2 pi
+    # The back flank climbs from rr at 5pi/4 to ro at 15pi/8: four fifths of the way at 7pi/4.
+    assert section_radius(d, pitch, 0.0, 7 * math.pi / 4) == pytest.approx(rr + 0.8 * (ro - rr))
+    assert section_radius(d, pitch, 0.2, 0.0) == pytest.approx(ro + 0.2)
+
+
+@pytest.mark.parametrize("clearance", [0.0, 0.2])
+def test_the_section_area_is_half_the_integral_of_the_radius_squared(clearance: float) -> None:
+    """A 400 000-point midpoint rule over one turn: the radius is piecewise linear in angle
+    with its breaks on multiples of pi/8, which 400 000 points divide exactly, so the rule's
+    only error is the second-order one on each quadratic piece."""
+    d, pitch = 6.0, 1.0
+    points = 400_000
+    step = 2 * math.pi / points
+    integral = sum(section_radius(d, pitch, clearance, (i + 0.5) * step) ** 2
+                   for i in range(points)) * step / 2
+    assert section_area(d, pitch, clearance) == pytest.approx(integral, rel=1e-9)
+
+
+def test_the_closed_volume_is_the_section_area_times_the_length() -> None:
+    assert closed_volume(6.0, 1.0, 5.0) == section_area(6.0, 1.0) * 5.0
+
+
+# `1.0 + 9e-05` itself reads 9.0000000000000674e-05, which is outside the bound, so the
+# boundary pairs sit a relative 1e-9 either side of it instead of on it.
+INSIDE = T_GATE * (1 - 1e-9)
+OUTSIDE = T_GATE * (1 + 1e-9)
+
+
+@pytest.mark.parametrize("sign", [1.0, -1.0])
+def test_a_volume_just_inside_the_gate_passes_on_both_signs(sign: float) -> None:
+    assert volume_check(1.0 + sign * INSIDE, 1.0) is None
+
+
+@pytest.mark.parametrize("sign", [1.0, -1.0])
+def test_a_volume_just_outside_the_gate_is_refused_on_both_signs(sign: float) -> None:
+    refusal = volume_check(1.0 + sign * OUTSIDE, 1.0)
+    assert refusal is not None
+    assert "relative error" in refusal
+    assert f"{sign * OUTSIDE:+.3e}" in refusal
+
+
+@pytest.mark.parametrize("measured", [math.nan, math.inf, -math.inf, -1.0, 0.0])
+def test_a_volume_that_cannot_be_the_part_is_refused(measured: float) -> None:
+    # -1.0 is the inverted solid (reads -2), 0.0 the collapsed one (reads -1), and a NaN would
+    # pass a positively written `abs(rel) > T_GATE` test.
+    refusal = volume_check(measured, 1.0)
+    assert refusal is not None
+    assert "relative error" in refusal
+
+
+@pytest.mark.parametrize("closed", [0.0, -1.0, math.nan, math.inf, -math.inf])
+def test_a_closed_form_that_is_not_a_positive_number_is_refused(closed: float) -> None:
+    refusal = volume_check(1.0, closed)
+    assert refusal is not None
+    assert "closed form" in refusal
+
+
+def test_the_refusal_names_both_volumes_and_the_bound() -> None:
+    refusal = volume_check(0.5, 1.0)
+    assert refusal is not None
+    assert "0.5 mm3" in refusal
+    assert "1 mm3" in refusal
+    assert "-5.000e-01" in refusal
+    assert "9e-05" in refusal
+
+
+def test_a_pitch_one_part_in_a_billion_inside_the_root_bound_is_accepted_and_outside_refused(
+) -> None:
+    # The largest pitch with a root radius above 0 for d = 6: d / 2 = 5H/8 at P = 5.5426.
+    largest = 6.0 / (2 * thread_depth(1.0))
+    assert root_radius_refusal(6.0, largest * (1 - 1e-9)) is None
+    refusal = root_radius_refusal(6.0, largest * (1 + 1e-9))
+    assert refusal is not None
+    assert refusal.startswith("d and pitch: ")
+    assert "ISO 68-1:2023" in refusal
+    assert "5.54" in refusal   # the largest pitch for d = 6 is 5.5426 mm, named in the text
+    assert "{" not in refusal
+    assert "}" not in refusal
+
+
+def _printed_largest_pitch(refusal: str) -> float:
+    marker = ", to 6 significant figures, is "
+    assert marker in refusal, refusal
+    return float(refusal.rsplit(marker, 1)[1])
+
+
+def test_the_largest_pitch_the_refusal_prints_is_one_the_same_rule_accepts() -> None:
+    # `:g` of the supremum rounded to nearest and was refused again for 993 of these 1999
+    # diameters (d 1.1 printed 1.01614 against a limit of 1.016136). Feed each printed number back.
+    for tenths in range(1, 2000):
+        d = tenths / 10
+        refusal = root_radius_refusal(d, 1e6)
+        assert refusal is not None
+        printed = _printed_largest_pitch(refusal)
+        assert root_radius_refusal(d, printed) is None, (d, printed)
+        # still "the largest": within 6-figure truncation of the supremum, not a timid number
+        supremum = d / (2 * thread_depth(1.0))
+        assert printed >= supremum * (1 - 1e-5), (d, printed, supremum)
+
+
+@pytest.mark.parametrize("d", [1e-300, 0.0001, 1.1, 6.0, 1e5])
+def test_the_largest_pitch_is_accepted_across_the_range_of_d(d: float) -> None:
+    refusal = root_radius_refusal(d, 1e300)
+    assert refusal is not None
+    assert root_radius_refusal(d, _printed_largest_pitch(refusal)) is None
+
+
+def test_a_d_with_no_representable_accepted_pitch_prints_no_number() -> None:
+    # d = 5e-324: d / 2 underflows to 0 and every pitch has a root radius of 0 or below, so any
+    # pitch printed would be a plausible number the rule refuses (L02). The refusal stands alone.
+    refusal = root_radius_refusal(5e-324, 1.0)
+    assert refusal is not None
+    assert "largest pitch" not in refusal
+    assert refusal.startswith("d and pitch: ")
+
+
+def test_a_root_radius_of_exactly_zero_is_refused() -> None:
+    # `> 0`, not `>= 0`: a zero root radius is a section pinched to a point on the axis.
+    pitch = 1.0
+    assert root_radius_refusal(2 * thread_depth(pitch), pitch) is not None
+
+
+def test_the_turn_cap_is_250_and_the_cap_row_is_accepted() -> None:
+    assert MAX_TURNS == 250
+    assert turn_cap_refusal(250.0, 1.0) is None
+
+
+def test_one_ulp_past_250_turns_is_refused_naming_both_fields_and_the_run() -> None:
+    refusal = turn_cap_refusal(math.nextafter(250.0, math.inf), 1.0)
+    assert refusal is not None
+    assert refusal.startswith("length and pitch: ")
+    assert "250" in refusal
+    assert "2026-10-08-a-frontier" in refusal
+    assert "{" not in refusal
+    assert "}" not in refusal
+
+
+def test_turns_past_the_float_range_read_as_infinite_and_are_refused_in_words() -> None:
+    # float(Fraction) raises OverflowError above about 1.8e308; the quotient has no finite
+    # reading, and "inf turns is past the 250-turn cap" is true.
+    assert turns_of(1e5, 1e-310) == math.inf
+    assert turns_of(20.0, 5e-324) == math.inf
+    refusal = turn_cap_refusal(20.0, 5e-324)
+    assert refusal is not None
+    assert "inf turns is past the 250-turn cap" in refusal
+
+
+@pytest.mark.parametrize("size", list(PITCH))
+def test_every_measured_250_turn_row_is_accepted(size: str) -> None:
+    _, pitch = PITCH[size]
+    assert turn_cap_refusal(float(250 * pitch), float(pitch)) is None
+
+
+def test_the_exact_decimal_reading_accepts_what_float_division_would_refuse() -> None:
+    # Pitfall 2: 175 / 0.7 is a float above 250 although the user typed exactly 250 turns,
+    # and the exact binary value of 0.6 would refuse M3.5 at 150 mm.
+    assert 175.0 / 0.7 > 250
+    assert turns_of(175.0, 0.7) == 250.0
+    assert turn_cap_refusal(175.0, 0.7) is None
+    assert 5.4 / 0.6 != 9.0
+    assert turns_of(5.4, 0.6) == 9.0
+
+
+# Typed from L11's "Turn cap per size" table, not read back from the code under test: the seven
+# measured rows (d, pitch) -> bytes cap in mm, and the table's printed turns column.
+L11_ROWS = {
+    (8.0, 1.25): (67.5, "54"), (10.0, 1.5): (56.0, "37.3333"), (12.0, 1.75): (60.0, "34.2857"),
+    (14.0, 2.0): (58.0, "29"), (16.0, 2.0): (52.0, "26"), (18.0, 2.5): (65.0, "26"),
+    (20.0, 2.5): (64.0, "25.6"),
+}
+
+
+def test_the_fine_stl_table_is_exactly_the_seven_rows_l11_measured() -> None:
+    assert {key: cap for key, (cap, _) in L11_ROWS.items()} == FINE_STL_ROWS
+
+
+@pytest.mark.parametrize(("key", "row"), list(L11_ROWS.items()))
+def test_each_cap_is_accepted_and_the_next_float_above_is_refused(
+        key: tuple[float, float], row: tuple[float, str]) -> None:
+    (d, pitch), (cap, turns) = key, row
+    assert fine_stl_refusal(d, pitch, cap) is None
+    refusal = fine_stl_refusal(d, pitch, math.nextafter(cap, math.inf))
+    assert refusal is not None
+    assert refusal.startswith("length: ")
+    assert f"{cap:g} mm ({turns} turns)" in refusal
+    assert "2026-10-08-a-grid" in refusal
+    assert "preview STL" in refusal
+    assert "{" not in refusal
+    assert "}" not in refusal
+
+
+def test_the_refusal_names_the_cap_the_run_and_the_length_asked() -> None:
+    refusal = fine_stl_refusal(8.0, 1.25, 67.6)
+    assert refusal is not None
+    assert "length" in refusal
+    assert "67.5" in refusal
+    assert "54" in refusal
+    assert "2026-10-08-a-grid" in refusal
+    assert "67.6" in refusal
+
+
+def test_an_off_row_part_has_no_bytes_cap_not_the_nearest_rows() -> None:
+    # An unmeasured mapping to the nearest row is the plausible number L02 forbids (D-03).
+    assert fine_stl_refusal(8.0, 1.0, 250.0) is None
+    assert fine_stl_refusal(8.1, 1.25, 100.0) is None
+    assert fine_stl_refusal(6.0, 1.0, 250.0) is None
