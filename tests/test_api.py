@@ -280,6 +280,9 @@ def test_the_interim_bound_is_inclusive_and_the_next_value_is_refused() -> None:
     ({"pitch": 6}, "pitch_too_coarse", ["d", "pitch"]),
     ({"pitch": 1e300}, "pitch_too_coarse", ["d", "pitch"]),
     ({"length": 300}, "turn_cap", ["length", "pitch"]),
+    # length / pitch is past the float range: a 422, not the 500 an OverflowError gave (CR-01)
+    ({"pitch": 5e-324}, "turn_cap", ["length", "pitch"]),
+    ({"pitch": 1e-310, "length": 1e5}, "turn_cap", ["length", "pitch"]),
 ])
 def test_a_thread_that_cannot_be_made_or_was_never_measured_is_a_422_naming_both_fields(
         route: str, query: Params, kind: str, fields: list[str]) -> None:

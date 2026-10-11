@@ -95,6 +95,19 @@ def test_a_length_past_250_turns_is_refused_naming_length_and_pitch() -> None:
     assert err["msg"].startswith("length and pitch: ")
 
 
+@pytest.mark.parametrize(("pitch", "length"), [(5e-324, 20.0), (1e-310, 1e5)])
+def test_a_pitch_past_the_float_range_of_turns_is_a_turn_cap_error_not_an_overflow(
+        pitch: float, length: float) -> None:
+    # length / pitch is above 1.8e308 here; float() of that quotient used to raise OverflowError,
+    # which pydantic does not convert, so the API answered 500 (CR-01).
+    with pytest.raises(ValidationError) as caught:
+        BoltParams.model_validate({"pitch": pitch, "length": length})
+    [err] = caught.value.errors()
+    assert err["type"] == "turn_cap"
+    assert err["ctx"]["fields"] == ["length", "pitch"]
+    assert err["msg"].startswith("length and pitch: inf turns is past the 250-turn cap")
+
+
 def test_the_measured_m4_250_turn_row_is_accepted() -> None:
     # 175 / 0.7 is a float above 250; the user typed exactly 250 turns (Pitfall 2).
     p = BoltParams.model_validate({"d": 4.0, "pitch": 0.7, "length": 175.0})

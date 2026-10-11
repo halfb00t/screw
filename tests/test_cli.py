@@ -120,13 +120,19 @@ def test_a_bad_value_exits_2_naming_the_field(
 @pytest.mark.parametrize(("argv", "prefix"), [
     (["info", "bolt", "--pitch", "6"], "error: d and pitch:"),
     (["info", "bolt", "--length", "300"], "error: length and pitch:"),
+    # length / pitch is past the float range: exit 2, not the OverflowError traceback (CR-01)
+    (["info", "bolt", "--pitch", "5e-324"], "error: length and pitch: inf turns"),
+    (["info", "bolt", "--pitch", "1e-310", "--length", "1e5"],
+     "error: length and pitch: inf turns"),
     (["export", "bolt", "-o", "unused.stl", "--pitch", "1e300"], "error: d and pitch:"),
 ])
 def test_a_thread_that_cannot_be_made_exits_2_naming_both_fields(
         argv: list[str], prefix: str, capsys: pytest.CaptureFixture[str]) -> None:
     # The CLI prints no loc for a model-level error, so the message text names the fields.
     assert _exit_code(argv) == 2
-    assert prefix in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert prefix in err
+    assert "Traceback" not in err
 
 
 def test_the_measured_m4_250_turn_row_is_accepted_on_the_command_line(

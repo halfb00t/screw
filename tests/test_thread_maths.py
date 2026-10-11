@@ -142,6 +142,16 @@ def test_one_ulp_past_250_turns_is_refused_naming_both_fields_and_the_run() -> N
     assert "}" not in refusal
 
 
+def test_turns_past_the_float_range_read_as_infinite_and_are_refused_in_words() -> None:
+    # float(Fraction) raises OverflowError above about 1.8e308; the quotient has no finite
+    # reading, and "inf turns is past the 250-turn cap" is true.
+    assert turns_of(1e5, 1e-310) == math.inf
+    assert turns_of(20.0, 5e-324) == math.inf
+    refusal = turn_cap_refusal(20.0, 5e-324)
+    assert refusal is not None
+    assert "inf turns is past the 250-turn cap" in refusal
+
+
 @pytest.mark.parametrize("size", list(PITCH))
 def test_every_measured_250_turn_row_is_accepted(size: str) -> None:
     _, pitch = PITCH[size]

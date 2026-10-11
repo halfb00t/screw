@@ -109,7 +109,14 @@ def _exact(x: float) -> Fraction:
 
 def turns_of(length: float, pitch: float) -> float:
     """length / pitch as the exact decimal quotient: 5.4 / 0.6 reads 9.0, not 9.000000000000002."""
-    return float(_exact(length) / _exact(pitch))
+    try:
+        return float(_exact(length) / _exact(pitch))
+    except OverflowError:
+        # The quotient is past the float range (pitch below about length / 1.8e308, every
+        # subnormal pitch): pydantic turns only ValueError into a 422, so an OverflowError here
+        # was a 500 on the API and a traceback on the CLI. `derive` already drops a non-finite
+        # row with a warning, and the refusal text reads "inf turns", which is true.
+        return math.inf
 
 
 def root_radius_refusal(d: float, pitch: float) -> str | None:
