@@ -4,9 +4,10 @@ current_phase: 4
 current_phase_name: ISO Hex Bolts and Screws
 status: "Phase 03 shipped — PR #10"
 stopped_at: Phase 03 complete, ready to plan Phase 4
-last_updated: "2026-10-11T05:15:36.610Z"
+last_updated: "2026-10-11T05:45:18.909Z"
 last_activity: 2026-10-11
-state_head: ff6f1d5567671ddb9c2b2455940d9661535b7707
+last_activity_desc: "Completed quick task 261011-fbb: swapped the platform-dependent THRD-04 control row and qualified L11's known-bad rows by platform"
+state_head: 5be6a1569f4ddf43ed25520f2e472d3b3e4ea6de
 progress:
   total_phases: 7
   completed_phases: 3
@@ -29,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-11)
 Phase: 4 — ISO Hex Bolts and Screws
 Plan: Not started
 Status: Phase 03 shipped — PR #10
-Last activity: 2026-10-11 - Completed quick task 261011-fbb: swapped the platform-dependent THRD-04 control row and qualified L11's known-bad rows by platform
+Last activity: 2026-10-11 - Completed quick task 261011-fzb: read pair.common only in a child process so the pytest worker exits clean; resolved the bench pair-tests exit-139 debt item
 
 Progress: [████░░░░░░] 43%
 
@@ -163,6 +164,7 @@ None yet.
 |---|-------------|------|--------|-----------|
 | 261010-lgv | Fix Phase 2 harness review findings WR-01, WR-02, WR-04, WR-05; close 02-REVIEW-DISPOSITION.md (0 open); resolve the debt item; defer WR-03 and IN-02 to a new must item | 2026-10-10 | e079ef2 | [261010-lgv-fix-the-phase-2-harness-review-findings-](./quick/261010-lgv-fix-the-phase-2-harness-review-findings-/) |
 | 261011-fbb | Fix the PR 10 CI failure: swap the THRD-04 naive-sweep control row (6.0, 1.0, 10.0), which raises Null TopoDS_Shape on linux/amd64, for (8.0, 1.25, 10.0); qualify L11's known-bad rows by platform; file the OPER-02 controls idea | 2026-10-11 | ff6f1d5 | [261011-fbb-fix-the-pr-10-ci-failure-tests-test-soli](./quick/261011-fbb-fix-the-pr-10-ci-failure-tests-test-soli/) |
+| 261011-fzb | Stop the pytest worker segfault at exit: read pair.common only in a child process (the in-process test parked BRepAlgoAPI_Common builders in pair._KEEP, freed at teardown with SIGSEGV); resolve the 2026-10-10 bench pair-tests debt item | 2026-10-11 | 5be6a15 | [261011-fzb-stop-the-pytest-worker-segfault-at-exit-](./quick/261011-fzb-stop-the-pytest-worker-segfault-at-exit-/) |
 
 ## Deferred Items
 
