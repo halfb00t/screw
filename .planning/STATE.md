@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: ISO Hex Bolts and Screws
 status: executing
-stopped_at: Completed 04-09-PLAN.md
-last_updated: "2026-10-12T03:00:01.538Z"
+stopped_at: Completed 04-10-PLAN.md
+last_updated: "2026-10-12T03:16:06.381Z"
 last_activity: 2026-10-11
 last_activity_desc: Phase 04 execution started
-state_head: 9102fe14d0255c7ffc8d75593ba7ad268a593457
+state_head: 03e75c80395c09fb70bb14eabdd76066c5f8f560
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 39
-  completed_plans: 34
+  completed_plans: 35
   percent: 43
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-11)
 ## Current Position
 
 Phase: 04 (ISO Hex Bolts and Screws) — EXECUTING
-Plan: 10 of 14
+Plan: 11 of 14
 Status: Ready to execute
 Last activity: 2026-10-11 — Phase 04 execution started
 
@@ -92,6 +92,7 @@ Progress: [████░░░░░░] 43%
 | Phase 04 P07 | 10 min | 1 tasks | 13 files |
 | Phase 04 P08 | 15 min | 1 tasks | 8 files |
 | Phase 04 P09 | about 1 h | 3 tasks | 9 files |
+| Phase 04 P10 | 1h | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -164,6 +165,7 @@ Recent decisions affecting current work:
 - [Phase 04]: 04-08: calc/presets.py is the only calc module importing screw.tables; _bolt imports it inside the function, proved by the derive converse in tests/test_import_boundaries.py
 - [Phase 04]: 04-09: ISO 4017 catalogue pinned at 186 rows (ISO 4017 only, so 04-10's ISO 4014 rows do not move the pin); STANDARD_LENGTHS is the owner's A1 confirmation, not a formula
 - [Phase 04]: 04-09: owner ruling B (2026-10-12) supersedes D-14's 'owner types one copy' for this phase: the owner copy is generated from the PDFs' text layer with pixel-sampled stepped lines; the agent's image transcription stays the independent second entry
+- [Phase 04]: 04-10: the catalogue order is the tie rule; all ISO 4017 rows precede the ISO 4014 rows so match reports ISO 4017 for a part equal to both (latent: 4017 is threaded to the head, 4014 only b)
 
 ### Pending Todos
 
@@ -202,6 +204,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-12T03:00:01.460Z
-Stopped at: Completed 04-09-PLAN.md
+Last session: 2026-10-12T03:16:06.308Z
+Stopped at: Completed 04-10-PLAN.md
 Resume file: None
