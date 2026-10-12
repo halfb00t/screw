@@ -731,6 +731,12 @@ wording, 04-11) and, for M10, M12 and M14 only, `wrench size 16 mm (ISO 4017:202
 DIN 933 used 17 mm`. The ISO figure is the row's own `s`; the DIN figures (17, 19 and 22 mm) are a
 constant read from two web pages that agree (Eurolink FSS and Wermac, `04-RESEARCH.md` Sources),
 MEDIUM confidence and not from a purchased text; it is the only DIN text in v1.
+`PartInfo` also carries `downloads` (the owner's IN-02 ruling a, UAT 2026-10-12, gap G-04-3), one
+entry per format and quality the model route serves, per format the route's default quality first,
+each with `refusal`, the sentence of `download_refusal` or null; the route, `screw export` and the
+document read that one rule, and the page links per format the first entry not refused, so a long
+ISO 4017 screw whose fine STL the INTERIM cap refuses is offered as `Download STL (preview)`, and the
+fine-STL warning stays.
 
 **Caps (D-21, D-22).** This paragraph supersedes L12's cap list. The measured quantity is the fine
 raw STL plus its gzip level-1 copy over the INTERIM 64 MiB export budget, at the INTERIM fine preset
