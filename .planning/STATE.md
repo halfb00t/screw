@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: ISO Hex Bolts and Screws
 status: executing
-stopped_at: Completed 04-16-PLAN.md
-last_updated: "2026-10-12T10:10:00.419Z"
+stopped_at: Completed 04-17-PLAN.md
+last_updated: "2026-10-12T14:57:41.003Z"
 last_activity: 2026-10-12
 last_activity_desc: Phase 04 execution started
-state_head: ac912495f321af777145bdc830b21191b970b261
+state_head: 740756304058da141cc3a4faa916706da9097448
 progress:
   total_phases: 7
   completed_phases: 3
-  total_plans: 41
-  completed_plans: 41
+  total_plans: 42
+  completed_plans: 42
   percent: 43
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-11)
 ## Current Position
 
 Phase: 04 (ISO Hex Bolts and Screws) — EXECUTING
-Plan: 3 of 16
+Plan: 2 of 17
 Status: Ready to execute
 Last activity: 2026-10-12 — Phase 04 execution started
 
@@ -99,6 +99,7 @@ Progress: [████░░░░░░] 43%
 | Phase 04 P14 | 15 min | 2 tasks | 7 files |
 | Phase 04 P15 | 8 min | 2 tasks | 5 files |
 | Phase 04 P16 | 13 min | 2 tasks | 7 files |
+| Phase 04 P17 | 6 min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -179,6 +180,7 @@ Recent decisions affecting current work:
 - [Phase 04]: 04-14: L13 supersedes L12's cap list and records the owner's D-25 exception; the full tables are told as generated from the PDFs' text layer (ruling B), not owner-typed
 - [Phase 04]: 04-15: fine-STL warning is appended from the refused downloads (distinct, entry order) at its old place; the info document's downloads member is built by calling download_refusal, the call the route and screw export make (G-04-3, L02)
 - [Phase 04]: 04-16: the downgraded Download STL (preview) link carries the refusal sentence as its title; the STEP link carries quality=fine explicitly (same bytes and cache key); the saved preview STL keeps the fine STL's file name, filed as an idea for the owner
+- [Phase 04]: 04-17: info row wraps; label basis is the proportion 50% (no new length, UI-SPEC extension rule 4); overflow-wrap anywhere on dd is only the last resort inside the wrapping row; pinned by a style.css source test with teeth (G-04-5)
 
 ### Pending Todos
 
@@ -217,6 +219,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-12T10:10:00.327Z
-Stopped at: Completed 04-16-PLAN.md
+Last session: 2026-10-12T14:57:40.909Z
+Stopped at: Completed 04-17-PLAN.md
 Resume file: None

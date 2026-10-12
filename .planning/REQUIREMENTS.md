@@ -47,7 +47,7 @@ Requirements for the first release: the mating-pair cut (infra port, thread spik
 
 - [ ] **INFO-01**: The info panel shows, from the pure-maths module without touching the kernel: head (`s` nominal/max/min, across-corners geometric and `e,min` labelled separately, `k`, `dw,min`, wrench size), shank/thread (`l`, `b`, `ls`, `lg`, `d`, `P`, `d2`, `D1`, thread depth), nut (`s`, `e`, `m`, `mw`, `dw`, `D1`, `D2`), pair (clearance radial and diametral, resulting nut diameters, engagement in turns).
 - [ ] **INFO-02**: 6g (bolt) and 6H (nut) min/max limits from ISO 965-2:2024 are shown with the explicit label "limits for a bought part; this model is nominal and not toleranced".
-- [ ] **INFO-03**: Every number on the panel is traceable to an explicit mm field or to a cited row with a test; a value that cannot be computed honestly is a warning and no number. Any volume shown comes from the closed form, never from the kernel's default `Volume()`.
+- [x] **INFO-03**: Every number on the panel is traceable to an explicit mm field or to a cited row with a test; a value that cannot be computed honestly is a warning and no number. Any volume shown comes from the closed form, never from the kernel's default `Volume()`.
 - [ ] **INFO-04**: Sizes and pitches below the printable threshold get a cap-and-warn printability warning citing its source; the threshold is a constant set from the owner's printed test, not from vendor guides.
 - [ ] **INFO-05**: Where the wrench size differs from the withdrawn DIN equivalent (M10, M12 and M14 only, D-20) the panel shows the ISO value with a one-line note.
 
@@ -141,7 +141,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TABL-07 | Phase 4 | Pending |
 | INFO-01 | Phase 5 | Pending |
 | INFO-02 | Phase 5 | Pending |
-| INFO-03 | Phase 4 | Pending |
+| INFO-03 | Phase 4 | Complete |
 | INFO-04 | Phase 6 | Pending |
 | INFO-05 | Phase 4 | Pending |
 | FRNT-01 | Phase 1 | Complete |
