@@ -30,7 +30,6 @@ from typing import Annotated, Literal
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, Response
-from fastapi.routing import APIRoute
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.json_schema import JsonSchemaValue
@@ -38,9 +37,8 @@ from starlette.concurrency import run_in_threadpool
 
 from . import __version__, int_env
 from .build_errors import BuildError, BuildTimeout
-from .calc import PartInfo, derive, download_refusal
+from .calc import PartInfo, derive, download_refusal, explicit_conflict
 from .calc.presets import PresetCatalogue, catalogue_document
-from .calc.thread import thread_length_conflict
 from .params import DEFAULT_KIND, KINDS, BoltParams, FastenerParams
 from .pool import BuildPool
 from .records import build_failed, build_started, configure, export_served, queue_refused
@@ -196,35 +194,33 @@ def refuse_repeated_keys(request: Request) -> None:
             for key in repeated])
 
 
-def refuse_thread_length_conflict(request: Request) -> None:
-    """Refuse an explicit `thread_length` longer than an explicit `length` on the bolt routes.
+def refuse_explicit_conflict(kind: str) -> Callable[[Request], None]:
+    """A route dependency: the kind's rule between two explicit query values is a 422 naming both.
 
     D-25: D-08's 422 for two explicit values lives at the request boundary because FastAPI
     0.142.2 copies every field default into the query model before validation
     (`fastapi/dependencies/utils.py:768-776`) and `strip()` rebuilds the model route's params
     with every field, so pydantic's `model_fields_set` cannot tell an explicit value from a
-    default (04-RESEARCH Alert 1). The raw query can: the rule runs only when both keys are in
-    it. The owner accepted that direct Python construction is not refused (D-25). A value
-    `float()` cannot read is left to the query model, whose 422 names it.
+    default (04-RESEARCH Alert 1). The raw query can: only the keys it names reach the rule.
+    Attached to each of the kind's model routes by name, so the rule is the kind's own
+    (`explicit_conflict`, 04-REVIEW WR-02) and nothing sniffs the URL path: uvicorn 0.54.0
+    prepends `--root-path` to `scope["path"]` (h11_impl.py:206), which is how a literal
+    `/api/bolt/` test once skipped the 422 behind a prefix (04-REVIEW CR-01). The owner
+    accepted that direct Python construction is not refused (D-25). A value `float()` cannot
+    read is left to the query model, whose 422 names it.
     """
-    # The matched route, never `request.url.path`: uvicorn 0.54.0 prepends `--root-path` to
-    # `scope["path"]` (h11_impl.py:206), so behind a `/screw` prefix the URL path read
-    # `/screw/api/bolt/info`, a literal prefix test was false, and the conflict built a 10 mm
-    # thread with a warning instead of the 422 (04-REVIEW CR-01). FastAPI stores the matched
-    # `APIRoute` in `scope["route"]`; its `path` is the template, prefix or not.
-    route: object = request.scope.get("route")
-    query = request.query_params
-    if not (isinstance(route, APIRoute) and route.path.startswith("/api/bolt/")) or not (
-            "length" in query and "thread_length" in query):
-        return
-    try:
-        length, thread_length = float(query["length"]), float(query["thread_length"])
-    except ValueError:
-        return
-    if (msg := thread_length_conflict(length, thread_length)) is not None:
-        raise HTTPException(422, detail=[{
-            "loc": ["query"], "type": "thread_length_conflict", "msg": msg,
-            "ctx": {"fields": ["thread_length", "length"]}}])
+    def refuse(request: Request) -> None:
+        values: dict[str, object] = {}
+        for key, raw in request.query_params.items():
+            try:
+                values[key] = float(raw)
+            except ValueError:
+                continue
+        if (conflict := explicit_conflict(kind, values)) is not None:
+            raise HTTPException(422, detail=[{
+                "loc": ["query"], "type": conflict.type, "msg": conflict.msg,
+                "ctx": {"fields": list(conflict.fields)}}])
+    return refuse
 
 
 app = FastAPI(
@@ -232,7 +228,7 @@ app = FastAPI(
     version=__version__,
     summary="Parametric thread and fastener generator with STL/STEP export.",
     lifespan=lifespan,
-    dependencies=[Depends(refuse_repeated_keys), Depends(refuse_thread_length_conflict)],
+    dependencies=[Depends(refuse_repeated_keys)],
 )
 
 # spur L19 measured the real 9,062,784-byte STL of a 199-tooth fine gear at gzip levels 1/6/9
@@ -439,14 +435,15 @@ def presets(kind: str) -> PresetCatalogue:
     return catalogue_document(kind)
 
 
-@app.get("/api/bolt/info")
+@app.get("/api/bolt/info", dependencies=[Depends(refuse_explicit_conflict(BoltParams.kind))])
 def bolt_info(q: Annotated[BoltParams, Query()]) -> PartInfo:
     """The bolt's info document. `quality` is not a bolt field, so it is a 422 here."""
     return derive(q)
 
 
 @app.get("/api/bolt/model.{fmt}", response_class=Response,
-         responses={200: {"content": {t: {} for t in MEDIA_TYPES.values()}}})
+         responses={200: {"content": {t: {} for t in MEDIA_TYPES.values()}}},
+         dependencies=[Depends(refuse_explicit_conflict(BoltParams.kind))])
 async def bolt_model(fmt: Literal["stl", "step"], q: Annotated[BoltModelQuery, Query()],
                      request: Request,
                      backend: Annotated[BuildBackend, Depends(build_backend)]) -> Response:

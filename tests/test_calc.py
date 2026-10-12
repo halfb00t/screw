@@ -6,9 +6,16 @@ import math
 
 import pytest
 
-from screw.calc import STANDING_WARNING, PartInfo, PresetMatch, derive, download_refusal
+from screw.calc import (
+    STANDING_WARNING,
+    PartInfo,
+    PresetMatch,
+    derive,
+    download_refusal,
+    explicit_conflict,
+)
 from screw.calc.presets import WITHDRAWN_DIN_WRENCH_MM, designation_for, match
-from screw.calc.thread import bolt_closed_volume, fine_stl_refusal
+from screw.calc.thread import bolt_closed_volume, fine_stl_refusal, thread_length_conflict
 from screw.params import KINDS, BoltParams, FastenerParams
 from screw.tables.presets import catalogue
 
@@ -547,3 +554,35 @@ def test_a_part_that_matches_no_row_has_no_notes_at_m10_either() -> None:
     assert info.preset == PresetMatch(status="custom", id=None, display=None)
     assert info.notes == []
     assert derive(BoltParams(length=10.0)).notes == []
+
+
+# ------------------------------------ explicit-conflict rule per kind (D-25, WR-02)
+
+
+def test_every_registered_kind_states_its_explicit_conflict_rule() -> None:
+    # A kind without an entry would raise here, so a new kind cannot inherit the bolt's rule or
+    # escape it unnoticed; an empty request conflicts with nothing.
+    for kind in KINDS:
+        assert explicit_conflict(kind, {}) is None
+
+
+def test_an_unregistered_kind_has_no_rule_and_says_so() -> None:
+    with pytest.raises(TypeError, match="no explicit-conflict rule registered for kind 'nut'"):
+        explicit_conflict("nut", {"length": 10.0, "thread_length": 30.0})
+
+
+def test_the_bolt_rule_judges_two_explicit_floats_and_names_both_fields() -> None:
+    conflict = explicit_conflict("bolt", {"length": 10.0, "thread_length": 30.0})
+    assert conflict is not None
+    assert conflict.type == "thread_length_conflict"
+    assert conflict.fields == ("thread_length", "length")
+    assert conflict.msg == thread_length_conflict(10.0, 30.0)
+    assert explicit_conflict("bolt", {"length": 10.0, "thread_length": 10.0}) is None
+
+
+def test_the_bolt_rule_needs_both_values_as_floats() -> None:
+    # One value alone is the default's case (a warning, not a 422); a string is the model's to
+    # refuse by name.
+    assert explicit_conflict("bolt", {"length": 10.0}) is None
+    assert explicit_conflict("bolt", {"thread_length": 30.0}) is None
+    assert explicit_conflict("bolt", {"length": 10.0, "thread_length": "30"}) is None

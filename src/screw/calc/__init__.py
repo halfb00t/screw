@@ -9,8 +9,8 @@ number (L02, D-15).
 from __future__ import annotations
 
 import math
-from collections.abc import Callable
-from typing import Literal
+from collections.abc import Callable, Mapping
+from typing import Literal, NamedTuple
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -20,6 +20,7 @@ from screw.calc.thread import (
     built_thread_length,
     fine_stl_refusal,
     thread_depth,
+    thread_length_conflict,
     turns_of,
 )
 from screw.params import BoltParams, FastenerParams
@@ -221,3 +222,47 @@ def download_refusal(p: FastenerParams, fmt: str, quality: str) -> str | None:
                 p.d, p.pitch, built_thread_length(p.thread_length, p.length), p.left_hand)
         return None
     raise TypeError(f"no download rule for kind {p.kind!r}")
+
+
+class ExplicitConflict(NamedTuple):
+    """A refusal between two values the request named: the error type the API answers with,
+    the fields it names, and the one sentence both front ends print."""
+
+    type: str
+    fields: tuple[str, ...]
+    msg: str
+
+
+def explicit_conflict(kind: str, values: Mapping[str, object]) -> ExplicitConflict | None:
+    """The rule between two explicit values of `kind`, or None when they agree (D-25).
+
+    Runs at the request boundary, before any model exists: FastAPI copies every field default
+    into the query model and pydantic then cannot tell an explicit value from a default
+    (04-RESEARCH Alert 1), so `values` holds only what the request named -- the raw query
+    keys on the API, the flags given on the CLI. Dispatched by kind name the way `derive` and
+    `download_refusal` dispatch by type: a registered kind without an entry raises, so a new
+    kind states its rule (or `None`) instead of inheriting the bolt's or escaping it
+    (04-REVIEW WR-02). A value that is not a float is the model's to refuse, naming the field.
+    """
+    try:
+        rule = _EXPLICIT_CONFLICTS[kind]
+    except KeyError:
+        raise TypeError(f"no explicit-conflict rule registered for kind {kind!r}") from None
+    return None if rule is None else rule(values)
+
+
+def _bolt_explicit_conflict(values: Mapping[str, object]) -> ExplicitConflict | None:
+    length, thread_length = values.get("length"), values.get("thread_length")
+    if not (isinstance(length, float) and isinstance(thread_length, float)):
+        return None
+    msg = thread_length_conflict(length, thread_length)
+    if msg is None:
+        return None
+    return ExplicitConflict("thread_length_conflict", ("thread_length", "length"), msg)
+
+
+# One entry per registered kind (tests/test_calc.py walks `KINDS`); `None` is a kind with no
+# rule between its explicit values.
+_EXPLICIT_CONFLICTS: dict[str, Callable[[Mapping[str, object]], ExplicitConflict | None] | None] = {
+    BoltParams.kind: _bolt_explicit_conflict,
+}
