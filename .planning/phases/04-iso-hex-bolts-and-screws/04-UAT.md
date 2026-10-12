@@ -1,9 +1,9 @@
 ---
-status: complete
+status: diagnosed
 phase: 04-iso-hex-bolts-and-screws
 source: [04-VERIFICATION.md]
 started: 2026-10-12T07:37:18Z
-updated: 2026-10-12T13:26:34.982Z
+updated: 2026-10-12T13:40:47Z
 ---
 
 ## Current Test
@@ -84,7 +84,14 @@ blocked: 0
   reason: "User reported: this part doesn't look clean"
   severity: minor
   test: 5
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "src/screw/static/style.css lays out each info row as a single-line flex box whose value cannot shrink: `#dims div { display: flex; justify-content: space-between; gap: .75rem }` (line 186, default `flex-wrap: nowrap`), `#dims dd { white-space: nowrap }` (line 189, flex-item default `min-width: auto` so the value's minimum width is its whole string, 179.2 px for `15.011106998930268 mm`), and `#dims dt` (line 188) has no sizing so it is the only item that shrinks, down to its longest word. In a `repeat(auto-fill, minmax(12.5rem, 1fr))` track (line 182; 200-256 px at most widths) the label collapses to one word per line and, once value + 12 px gap + longest label word exceeds the track, the row overflows into the next cell. Reproduced in headless Chrome at HEAD 1c612e0, light theme, 720 px viewport: 3 tracks of 213.3 px, `15.011106998930268 mm` ends 43.2 px past its cell and 19.2 px into `Head height` (179.2 + 12 + 65.3 - 213.3 = 43.2). Not narrow-only: overflow also at 821, 1280, 1536, 1600, 1680, 1920 and 2560 px; none at 375, 1024, 1366, 1440 (labels still squeezed to 4 lines at 1440). The rules date from plan 01-04 (8fd0ab0) when values were rounded; plan 04-13 (d671ee5) made them full precision by design (L02) and added the long cited labels, which exposed the defect. The dark theme block sets colours only, so both themes share the geometry. No test reads style.css or pins a `#dims` rule."
+  artifacts:
+    - path: "src/screw/static/style.css"
+      issue: "lines 182, 186, 188, 189: single-line flex row (`nowrap`), unshrinkable `dd` (`white-space: nowrap`, `min-width: auto`), unsized `dt` that absorbs the whole shortfall"
+    - path: ".planning/phases/01-runtime-port-and-walking-skeleton/01-UI-SPEC.md"
+      issue: "lines 78, 362, 364: Page Anatomy says `label left and value right in each row`; E10 overflow and long-text rows note that `dd` is `nowrap` and may overrun, as a later visual check, not a layout rule"
+  missing:
+    - "Change the row layout, not the number (L02: full precision stays): let label and value stop sharing a line when they do not fit — `flex-wrap: wrap` on `#dims dl div` with the value pushed right (differential V7: no overflow at any width, values whole); optionally `dt { flex: 1 1 7rem }` so short values stay beside their labels, plus `dd { white-space: normal; overflow-wrap: anywhere }` only as the last-resort guard for a value wider than a whole track (V8: no overflow at 680-1920 px, long values drop whole under the label, the 25-character longest valid value `0.00010825317547305484 mm` breaks only at the space before `mm`)"
+    - "Do not use `min-width: 0` alone (V1, V5: identical or worse), `overflow-wrap: anywhere` inside the single-line row (V4: splits digits, e.g. `14.3 / 8 mm`, a misreading risk under L02) or a wider column alone (V6: only moves the threshold)"
+    - "Amend 01-UI-SPEC.md Page Anatomy and E10 (overflow, long-text) in the same plan; add a guard the gate can run, since no test covers the CSS today (e.g. a style.css source pin in tests/test_parity.py for the `#dims` row rules)"
+  debug_session: ".planning/debug/info-panel-full-precision-value-overflows-cell.md"
