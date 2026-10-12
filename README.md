@@ -21,6 +21,8 @@ the product is built from here with gsd.
     make serve                                      # web UI and API on http://127.0.0.1:8000
     .venv/bin/screw info bolt --d 8                 # the info document as JSON
     .venv/bin/screw export bolt --d 8 -o bolt.stl   # an STL; `.step` for STEP
+    .venv/bin/screw presets bolt                    # the ISO 4014 / 4017 catalogue as JSON
+    .venv/bin/screw info bolt --preset iso4014:M10x80   # an ISO preset fills the mm fields
 
 ## Develop
 

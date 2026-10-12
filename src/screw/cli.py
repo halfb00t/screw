@@ -72,9 +72,29 @@ def _add_args(ap: argparse.ArgumentParser, kind: str, model: type[FastenerParams
                            metavar="V", type=annotation)
 
 
+def _add_preset(ap: argparse.ArgumentParser) -> None:
+    # The one flag of info and export that is not generated from a model field (D-11).
+    ap.add_argument("--preset", default=None, action=_Once, metavar="ID",
+                    help="fill the fields from an ISO preset (screw presets <kind> lists them); "
+                         "flags given as well override it")
+
+
 def _params(kind: str, ns: argparse.Namespace) -> FastenerParams:
     model = KINDS[kind]
     values = {k: v for k in model.model_fields if (v := getattr(ns, k)) is not None}
+    if ns.preset is not None:
+        # The preset is metadata of this one command (D-09): it is expanded into the mm fields
+        # here and the model never sees it. The explicit flags are laid over the row, so a
+        # field the user typed wins (L02), and the conflict rule below then judges the merged
+        # values: `--preset iso4014:M10x80 --length 20` is a thread longer than its bolt.
+        from .calc.presets import expand
+
+        row = expand(kind, ns.preset)
+        if row is None:
+            print(f"error: preset: unknown id {ns.preset!r} for kind {kind}; "
+                  f"list them with screw presets {kind}", file=sys.stderr)
+            raise SystemExit(2)
+        values = {**row, **values}
     # D-25: only the explicit flags are in `values`, so this is the request-boundary rule the API
     # applies to the raw query. The model cannot tell an explicit value from its default.
     length, thread_length = values.get("length"), values.get("thread_length")
@@ -190,6 +210,7 @@ def main(argv: list[str] | None = None) -> None:
         prk.add_parser(kind, allow_abbrev=False)
 
         kp = ik.add_parser(kind, allow_abbrev=False)
+        _add_preset(kp)
         _add_args(kp, kind, model)
 
         kp = ek.add_parser(kind, allow_abbrev=False)
@@ -200,6 +221,7 @@ def main(argv: list[str] | None = None) -> None:
         # default=None so a repeat is detectable; cmd_export reads `ns.quality or "fine"`.
         kp.add_argument("--quality", choices=["preview", "fine"], default=None, action=_Once,
                         help="STL tessellation [fine]")
+        _add_preset(kp)
         _add_args(kp, kind, model)
 
     ns = ap.parse_args(argv)

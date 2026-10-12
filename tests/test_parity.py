@@ -38,8 +38,11 @@ APP_JS = (STATIC / "app.js").read_text()
 FOREIGN = "zz_not_a_field"
 
 # The flags of each command that are not generated from a model field, in the order `--help`
-# lists them.
-HAND_WRITTEN: dict[str, list[str]] = {"info": [], "export": ["--output", "--format", "--quality"]}
+# lists them. `--preset` is the one flag of `info` and `export` that is not generated from a
+# model field (D-11): the preset is metadata of one command, expanded into fields before the
+# model is built, and the model routes of the API take no such key (D-09).
+HAND_WRITTEN: dict[str, list[str]] = {
+    "info": ["--preset"], "export": ["--output", "--format", "--quality", "--preset"]}
 
 
 async def _inline_backend(p: FastenerParams, fmt: str, quality: str) -> bytes:
@@ -438,6 +441,7 @@ def test_a_repeated_parameter_is_refused_naming_it(
     # export's own options are refused the same way.
     for given in (["--quality", "fine", "--quality", "preview"],
                   ["--format", "stl", "--format", "step"],
+                  ["--preset", "iso4017:M6x20", "--preset", "iso4017:M6x25"],
                   ["-o", "a.stl", "-o", "b.stl"]):
         with pytest.raises(SystemExit) as stop:
             cli.main(["export", kind, "-o", "x.stl", *given])
