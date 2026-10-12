@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: ISO Hex Bolts and Screws
 status: executing
-stopped_at: Completed 04-12-PLAN.md
-last_updated: "2026-10-12T03:40:42.512Z"
+stopped_at: Completed 04-13-PLAN.md
+last_updated: "2026-10-12T03:57:38.005Z"
 last_activity: 2026-10-11
 last_activity_desc: Phase 04 execution started
-state_head: bf99d28182a11236c41d92020e9155df812e6dbc
+state_head: b127473e1a4ccd294290a9ebbfb60e2c6da1cce8
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 39
-  completed_plans: 37
+  completed_plans: 38
   percent: 43
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-11)
 ## Current Position
 
 Phase: 04 (ISO Hex Bolts and Screws) — EXECUTING
-Plan: 13 of 14
+Plan: 14 of 14
 Status: Ready to execute
 Last activity: 2026-10-11 — Phase 04 execution started
 
@@ -95,6 +95,7 @@ Progress: [████░░░░░░] 43%
 | Phase 04 P10 | 1h | 2 tasks | 9 files |
 | Phase 04 P11 | 35min | 2 tasks | 5 files |
 | Phase 04 P12 | 40min | 2 tasks | 8 files |
+| Phase 04 P13 | about 1 h | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -170,6 +171,8 @@ Recent decisions affecting current work:
 - [Phase 04]: 04-10: the catalogue order is the tie rule; all ISO 4017 rows precede the ISO 4014 rows so match reports ISO 4017 for a part equal to both (latent: 4017 is threaded to the head, 4014 only b)
 - [Phase 04]: 04-11: group names and the no-row warning are constants in screw.calc; a matched ISO 4014 row's b is read from its thread_length field, which the catalogue sets to the band's b
 - [Phase 04]: 04-12: GET /api/presets and screw presets emit one calc-built PresetCatalogue; --preset is expanded in cli._params before the conflict check, explicit flags win; 62 ISO 4017 presets have a refused fine STL (pinned literal, Phase 7 moves it)
+- [Phase 04]: 04-13: the badge basis is the last exact match (a pick, Reset or an edit that lands on a row), not only the last pick, so a later edit never reads against a stale row; a reloaded link matching no row still reads custom
+- [Phase 04]: 04-13: a failed /api/presets fetch refuses the link whole and refuseLink clears the picker; a change to the blank select option is not a pick
 
 ### Pending Todos
 
@@ -208,6 +211,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-12T03:40:42.440Z
-Stopped at: Completed 04-12-PLAN.md
+Last session: 2026-10-12T03:57:37.932Z
+Stopped at: Completed 04-13-PLAN.md
 Resume file: None
