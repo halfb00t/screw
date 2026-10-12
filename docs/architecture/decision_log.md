@@ -555,7 +555,10 @@ over the thread. The closed form of the whole part is `section_area(d, pitch) t 
 (length - t) + (sqrt(3)/2) s^2 k`, so `T_GATE` holds as L12 set it; an ISO 4017 screw has
 `length - t = 0`. The fuses were not measured by Phase 2, so D-03 asked for a probe first:
 `bench/RESULTS.md` `## Head fuse probe (Phase 4, D-03)` (`bench/head_fuse.py`, run 2026-10-11 on
-`d876dbd777fe2d7e75e47107d8bd39d707aac12e`) fused seven cases (M2 x 4, M6 x 20, M6 x 30, M10 x 80,
+`d876dbd777fe2d7e75e47107d8bd39d707aac12e` with the shank and head fused before the thread, and
+re-run 2026-10-12 on `979168d5d68009c113ae1dab0b672057efe38c28` through the shipped `bolt.thread`
+and `bolt.assemble` in the product's order, 04-REVIEW WR-01: every geometry column identical)
+built seven cases (M2 x 4, M6 x 20, M6 x 30, M10 x 80,
 M16 x 160, M20 x 200 and a left-hand M6 x 30) and every one is one valid solid, with a whole-part
 volume error of at most 1.6e-06 against `T_GATE` 9e-05 and zero open edges at both qualities; the
 head and shank add 1.1 to 26.3 KB to a fine STL of 3.1 to 145 MB. It is a probe: single runs on

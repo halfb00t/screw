@@ -9,8 +9,11 @@ The head values below (`s`, `k`, and the thread lengths `t`) are preview reading
 probe inputs chosen to span the corpus, not table rows. D-15's UNVERIFIED scan covers
 `src/screw/tables/` only, and nothing here is read by `src/`.
 
-The thread is the shipped builder's (`helical.thread`), never a copy of it, so what is measured
-is what ships.
+Thread, shank and head are built by the shipped `screw.solid.bolt.thread` and `assemble` from a
+`BoltParams` per case, never a copy, so what is measured is what ships. The first run of this
+probe (2026-10-11) fused shank and head together before the thread, the reverse of the product's
+order, so its table was evidence for a different boolean sequence (04-REVIEW WR-01); the table in
+`bench/RESULTS.md` is the re-run through the shipped builder.
 """
 
 from __future__ import annotations
@@ -28,7 +31,8 @@ from bench.build_time import stl_size
 from bench.quiet import Reading, read_now
 from bench.thread_spike.measure import mesh_stl, stl_check
 from screw.calc.thread import section_area
-from screw.solid import TESSELLATION, helical, precise_volume
+from screw.params import BoltParams
+from screw.solid import TESSELLATION, bolt, precise_volume
 
 
 @dataclass(frozen=True)
@@ -41,6 +45,11 @@ class Case:
     k: float
     t: float
     left_hand: bool = False
+
+    def params(self) -> BoltParams:
+        """The case as the shipped parameter model: the probe builds what a request builds."""
+        return BoltParams(d=self.d, pitch=self.pitch, length=self.length, s=self.s, k=self.k,
+                          thread_length=self.t, left_hand=self.left_hand)
 
 
 # s, k and t of every case are UNVERIFIED preview readings (probe inputs, not table rows).
@@ -63,7 +72,9 @@ def _shape(w: cq.Workplane) -> cq.Shape:
 
 
 def _head_and_shank(case: Case) -> cq.Shape:
-    """Head plus shank without the thread: the head alone when the thread runs to the head."""
+    """Head plus shank without the thread, for the `head+shank fine bytes` column only; the part
+    under test comes from the shipped builder, not from here. The head alone when the thread
+    runs to the head."""
     # circumscribed=True makes `s` the across-flats size; the default inscribes the polygon in a
     # circle of that diameter and reads 0.75 of the closed form (RESEARCH Pitfall 1).
     head = _shape(cq.Workplane("XY").workplane(offset=case.length).polygon(
@@ -76,13 +87,14 @@ def _head_and_shank(case: Case) -> cq.Shape:
 
 
 def assemble(case: Case) -> tuple[cq.Shape, cq.Solid]:
-    """(the fused part, the bare thread): thread z 0..t, shank t..length, head length..length+k.
-
-    `Shape.fuse` has no `clean=` keyword (RESEARCH Pitfall 2) and the research probe saw no
-    change from `.clean()`, so none is called.
+    """(the fused part, the bare thread), built by the shipped `screw.solid.bolt` from the case's
+    `BoltParams`: thread z 0..t, then the shank t..length fused on, then the head
+    length..length+k, in the product's order (`_build` calls exactly this code). `Shape.fuse`
+    has no `clean=` keyword (RESEARCH Pitfall 2) and none is called, as in the product.
     """
-    thread = helical.thread(case.d, case.pitch, case.t, left_hand=case.left_hand)
-    return thread.fuse(_head_and_shank(case)), thread
+    p = case.params()
+    thread = bolt.thread(p)
+    return bolt.assemble(p, thread), thread
 
 
 def closed(case: Case) -> float:

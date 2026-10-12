@@ -6327,28 +6327,34 @@ The corpus was not re-picked and no row was skipped.
 Phase 2 built no head (02 D-08), so nothing had measured what a hex head and a plain shank fused
 to the shipped thread do to the solid count, validity, volume, mesh closedness and export size.
 D-03 asks for that record before any plan fixes an expectation about the fused bolt, so this is
-it: `bench/head_fuse.py` fuses, per case, the shipped `helical.thread` (z 0 to t), a plain shank
-cylinder (t to length, only when length exceeds t) and a hex prism of across-flats `s` and height
-`k` (length to length + k) with `Shape.fuse`, one part at a time and no `clean()`. It then judges
+it: `bench/head_fuse.py` builds each case through the shipped `screw.solid.bolt.thread` and
+`assemble` from a `BoltParams`: the thread (z 0 to t), then the plain shank cylinder (t to length,
+only when length exceeds t) fused on, then the hex prism of across-flats `s` and height `k`
+(length to length + k), the product's own order, `Shape.fuse` one part at a time and no `clean()`.
+The first run (2026-10-11, `d876dbd`) fused shank and head together before the thread, the reverse
+order, so it was evidence for a different boolean sequence (04-REVIEW WR-01); the table below is the
+2026-10-12 re-run through the shipped builder, and every geometry column (solids, validity, both
+volume errors, z extent, triangles, bytes, open edges, head+shank bytes) is identical to that first
+run; only `build+fuse s` and peak RSS moved. It then judges
 the whole part against the closed form `section_area(d, P) t + pi (d/2)^2 (length - t) +
 (sqrt(3)/2) s^2 k` with `precise_volume`, and meshes it at both `TESSELLATION` qualities.
 
-Command: `.venv/bin/python -m bench.head_fuse`. Run on HEAD `d876dbd777fe2d7e75e47107d8bd39d707aac12e`
-plus the uncommitted probe module (`bench/head_fuse.py`) and its test, 2026-10-11 (UTC). Host:
-`bench.machine_facts()`: `12 CPUs, arm64, 32.0 GiB RAM`, macOS 27.0.1, Python 3.12.13, cadquery
-2.8.0, cadquery-ocp 7.9.3.1.1. Load reading before the run: 2.83 at 2026-10-11T14:32:14+00:00;
-after: 5.79 at 2026-10-11T14:33:00+00:00 (the second one includes the run's own meshing load,
-`exportStl` uses every core). Wall time of the whole run 48.9 s.
+Command: `.venv/bin/python -m bench.head_fuse`. Run on HEAD `979168d5d68009c113ae1dab0b672057efe38c28`
+plus the uncommitted probe edit (`bench/head_fuse.py` through the shipped builder), 2026-10-12 (UTC).
+Host: `bench.machine_facts()`: `12 CPUs, arm64, 32.0 GiB RAM`, macOS 27.0.1, Python 3.12.13, cadquery
+2.8.0, cadquery-ocp 7.9.3.1.1. Load reading before the run: 2.49 at 2026-10-12T08:38:23+00:00;
+after: 5.27 at 2026-10-12T08:39:08+00:00 (the second one includes the run's own meshing load,
+`exportStl` uses every core). Wall time of the whole run 47.0 s (`time -p`: real 46.97, user 115.60).
 
 | Case | build+fuse s | solids | isValid | whole-part rel. volume error | bare-thread rel. volume error | z extent | triangles preview / fine | bytes preview / fine | open edges preview / fine | head+shank fine bytes | peak RSS so far (bytes, macOS) |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| M2 x 4 | 0.10 | 1 | True | -1.58e-06 | -4.92e-06 | -0.0000 to 5.4000 | 7720 / 62920 | 386084 / 3146084 | 0 / 0 | 1084 | 733790208 |
-| M6 x 20 | 0.16 | 1 | True | +4.95e-08 | +9.71e-10 | -0.0000 to 24.0000 | 31584 / 209692 | 1579284 / 10484684 | 0 / 0 | 1084 | 1069826048 |
-| M6 x 30 | 0.24 | 1 | True | -7.82e-08 | -7.26e-08 | -0.0000 to 34.0000 | 29016 / 181900 | 1450884 / 9095084 | 0 / 0 | 26284 | 1099497472 |
-| M10 x 80 | 0.22 | 1 | True | -7.66e-08 | +1.74e-07 | -0.0000 to 86.4000 | 31444 / 415930 | 1572284 / 20796584 | 0 / 0 | 26284 | 1463451648 |
-| M16 x 160 | 0.20 | 1 | True | -5.56e-08 | +2.60e-07 | -0.0000 to 170.0000 | 72000 / 764052 | 3600084 / 38202684 | 0 / 0 | 26284 | 1955872768 |
-| M20 x 200 | 0.45 | 1 | True | -1.83e-07 | -2.13e-07 | -0.0000 to 212.5000 | 446414 / 2898906 | 22320784 / 144945384 | 0 / 0 | 1084 | 4143431680 |
-| M6 x 30 left-hand | 0.25 | 1 | True | -7.82e-08 | -7.26e-08 | -0.0000 to 34.0000 | 22792 / 136080 | 1139684 / 6804084 | 0 / 0 | 26284 | 4143431680 |
+| M2 x 4 | 0.10 | 1 | True | -1.58e-06 | -4.92e-06 | -0.0000 to 5.4000 | 7720 / 62920 | 386084 / 3146084 | 0 / 0 | 1084 | 731709440 |
+| M6 x 20 | 0.15 | 1 | True | +4.95e-08 | +9.71e-10 | -0.0000 to 24.0000 | 31584 / 209692 | 1579284 / 10484684 | 0 / 0 | 1084 | 1068941312 |
+| M6 x 30 | 0.27 | 1 | True | -7.82e-08 | -7.26e-08 | -0.0000 to 34.0000 | 29016 / 181900 | 1450884 / 9095084 | 0 / 0 | 26284 | 1102839808 |
+| M10 x 80 | 0.25 | 1 | True | -7.66e-08 | +1.74e-07 | -0.0000 to 86.4000 | 31444 / 415930 | 1572284 / 20796584 | 0 / 0 | 26284 | 1471873024 |
+| M16 x 160 | 0.24 | 1 | True | -5.56e-08 | +2.60e-07 | -0.0000 to 170.0000 | 72000 / 764052 | 3600084 / 38202684 | 0 / 0 | 26284 | 1919844352 |
+| M20 x 200 | 0.44 | 1 | True | -1.83e-07 | -2.13e-07 | -0.0000 to 212.5000 | 446414 / 2898906 | 22320784 / 144945384 | 0 / 0 | 1084 | 4226596864 |
+| M6 x 30 left-hand | 0.27 | 1 | True | -7.82e-08 | -7.26e-08 | -0.0000 to 34.0000 | 22792 / 136080 | 1139684 / 6804084 | 0 / 0 | 26284 | 4226596864 |
 
 Columns: `build+fuse s` is thread, shank, head and the fuses, nothing else. The two volume errors are
 signed relative errors of `precise_volume` against the closed form of the whole part and against
