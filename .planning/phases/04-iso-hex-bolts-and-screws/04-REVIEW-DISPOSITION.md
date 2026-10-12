@@ -9,15 +9,15 @@ findings:
     title: "The `thread_length`/`length` 422 is silently skipped under `screw serve --root-path`"
   - id: WR-01
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "`bench/head_fuse.py` does not fuse in the order the shipped builder does, yet claims to measure what ships"
   - id: WR-02
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "Kind-specific rules are hard-coded into the generic request and CLI paths"
   - id: IN-01
     severity: info
-    disposition: open
+    disposition: fixed
     title: "Production `assert` statements guard data and kernel invariants"
   - id: IN-02
     severity: info
@@ -25,29 +25,29 @@ findings:
     title: "The page's Download STL link fetches the fine STL, which is refused for 62 of the picker's presets"
   - id: IN-03
     severity: info
-    disposition: open
+    disposition: skipped
     title: "The same edit gives a 422 or a warning depending on whether `thread_length` equals the default 20"
   - id: IN-04
     severity: info
-    disposition: open
+    disposition: fixed
     title: "The `thread` parameter of `assemble` shadows the module-level `thread` function"
-open: 6
+open: 1
 total: 7
-recorded: 2026-10-12T07:27:50Z
+recorded: 2026-10-12T08:56:58Z
 ---
 
 # Phase 04: Code Review Disposition
 
-Recorded by the execute-phase code-review gate on 2026-10-12. CR-01 was a blocker under the repo's rule ("fix it now or stop and ask"): it was reproduced, fixed and tested in the same run. Every other finding stays `open` until the owner rules; none is filed as tech debt yet, because a deferred item needs the owner's sign-off (CLAUDE.md). Review: `04-REVIEW.md` (33 files, standard depth, 1 critical / 2 warnings / 4 info).
+Recorded by the execute-phase code-review gate on 2026-10-12. CR-01 was a blocker under the repo's rule ("fix it now or stop and ask"): it was reproduced, fixed and tested in the same run. Owner ruling 2026-10-12 (UAT test 3): "fix all". WR-01, WR-02, IN-01 and IN-04 were fixed in the same session; IN-03 was skipped by the owner as designed; IN-02 is a page/API contract change and goes through a gap-closure plan (G-04-3). Review: `04-REVIEW.md` (33 files, standard depth, 1 critical / 2 warnings / 4 info).
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
 | CR-01 | critical | fixed | `41c21ae` fix(app): refuse the thread_length conflict on the matched route, not the URL path — reproduced first (`TestClient(app, root_path="/screw")` on `/screw/api/bolt/info?length=10&thread_length=30` → 200 with a warning), fixed, regression test `test_the_conflict_is_still_a_422_behind_a_root_path`; pre-commit `make verify` green |
-| WR-01 | warning | open | owner ruling needed: re-run the D-03 probe through the shipped `assemble` (kernel minutes) and refresh `bench/RESULTS.md`, or amend the probe docstring and the RESULTS note to say the probe fuses `thread.fuse(shank.fuse(head))` while the product fuses `thread.fuse(shank).fuse(head)`; the `_build` gate protects users either way |
-| WR-02 | warning | open | design change (a registry-dispatched conflict rule, as `download_refusal` is); the Phase 5 nut is the trigger; owner decides debt item vs Phase 5 plan |
-| IN-01 | info | open | production `assert` as an invariant guard; owner decides whether a `BuildError` / `ValueError` is wanted instead |
-| IN-02 | info | open | user-visible: the page's Download STL link asks for the fine STL, refused (422) for 62 of the 294 presets; a UAT item and a Phase 6 printability candidate |
-| IN-03 | info | open | user-visible: an edited Length is a 422 when `thread_length` was set explicitly and a warning when it equals the default 20, because the page omits default-equal fields (D-09); as designed under D-25, but worth an owner look |
-| IN-04 | info | open | naming: `assemble(thread=...)` shadows the module-level `thread` function |
+| WR-01 | warning | fixed | `27723c1` fix(bench): build the head-fuse probe through the shipped bolt builder — re-run 2026-10-12 at 979168d, every geometry column identical to the 2026-10-11 run; RESULTS and L13 record both runs |
+| WR-02 | warning | fixed | `505934a` refactor(calc, app, cli): make the explicit-conflict rule the kind's own — `calc.explicit_conflict` dispatched by kind with one entry per registered kind, route-attached `refuse_explicit_conflict(kind)`, CLI calls the same; tests walk `KINDS` |
+| IN-01 | info | fixed | `d38efef` fix(solid, tables): raise on an unexpected kernel shape instead of asserting — `BuildError` for a non-Solid head or shank, `ValueError` for a missing second b |
+| IN-02 | info | open | owner ruling 2026-10-12 (UAT test 3, option a): fix through gap G-04-3 in 04-UAT.md — a structured download state on the info document and a preview-STL link on the page; planned by /gsd-plan-phase 4 --gaps, not patched inline |
+| IN-03 | info | skipped | owner ruling 2026-10-12 (UAT test 3, option a): as designed — "explicit" means named in the request, and the page's request is the link's content (D-25, D-09) |
+| IN-04 | info | fixed | `d38efef` — `assemble(p, bare_thread)`; `_build`'s local renamed too |
 
 Dispositions: `open` (recorded, not yet triaged), `fixed`, `skipped`, `deferred`.
