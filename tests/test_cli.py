@@ -271,6 +271,20 @@ def test_serve_runs_uvicorn_on_the_app_without_its_own_log_config(
         "proxy_headers": True, "log_config": None})]
 
 
+def test_presets_prints_the_catalogue_and_refuses_an_unknown_kind(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    cli.main(["presets", "bolt"])
+    doc = json.loads(capsys.readouterr().out)
+    ids = [row["id"] for row in doc["rows"]]
+    assert doc["kind"] == "bolt"
+    assert doc["axes"] == ["Standard", "Size", "Length"]
+    assert "iso4017:M6x20" in ids
+    assert "iso4014:M10x80" in ids
+    assert len(ids) == len(set(ids))
+    assert _exit_code(["presets", "nut"]) == 2
+    assert _exit_code(["presets"]) == 2
+
+
 def test_readme_cli_examples_run(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """Every `.venv/bin/screw` command the README shows runs as written (-o aside)."""
     readme = (Path(__file__).parents[1] / "README.md").read_text()

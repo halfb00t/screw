@@ -4,6 +4,7 @@
     GET /api/health                  liveness, plus build pool state
     GET /api/kinds                   the registered kinds and the default one
     GET /api/schema?kind=            JSON schema of one kind's parameters (drives the form)
+    GET /api/presets?kind=           the ISO preset catalogue of one kind (drives the picker)
     GET /api/bolt/info?...           the info document: rows and warnings
     GET /api/bolt/model.stl?...      binary STL   (quality=preview|fine)
     GET /api/bolt/model.step?...     STEP AP214 solid
@@ -37,6 +38,7 @@ from starlette.concurrency import run_in_threadpool
 from . import __version__, int_env
 from .build_errors import BuildError, BuildTimeout
 from .calc import PartInfo, derive, download_refusal
+from .calc.presets import PresetCatalogue, catalogue_document
 from .calc.thread import thread_length_conflict
 from .params import DEFAULT_KIND, KINDS, BoltParams, FastenerParams
 from .pool import BuildPool
@@ -400,9 +402,8 @@ def kinds() -> KindsReport:
     return KindsReport(default=DEFAULT_KIND, kinds=list(KINDS))
 
 
-@app.get("/api/schema")
-def schema(kind: str) -> JsonSchemaValue:
-    """One kind's parameter schema. `kind` is required: there is no API-side default."""
+def _known_kind(kind: str) -> type[FastenerParams]:
+    """The kind's model, or the 404 the UI parses for an unknown one."""
     model = KINDS.get(kind)
     if model is None:
         # A handler-raised 404, not a Literal path parameter: a Literal built from the
@@ -411,7 +412,24 @@ def schema(kind: str) -> JsonSchemaValue:
         raise HTTPException(404, detail=[{
             "loc": ["query", "kind"], "type": "unknown_kind",
             "msg": f"Unknown kind {kind!r}. Known kinds: {', '.join(KINDS)}."}])
-    return model.model_json_schema()
+    return model
+
+
+@app.get("/api/schema")
+def schema(kind: str) -> JsonSchemaValue:
+    """One kind's parameter schema. `kind` is required: there is no API-side default."""
+    return _known_kind(kind).model_json_schema()
+
+
+@app.get("/api/presets")
+def presets(kind: str) -> PresetCatalogue:
+    """One kind's ISO preset catalogue, the picker's only source (D-10).
+
+    The model routes take millimetres only: a preset id is not a query key there, so a link
+    never carries one and the part is always rebuilt from its fields (D-09, TABL-01).
+    """
+    _known_kind(kind)
+    return catalogue_document(kind)
 
 
 @app.get("/api/bolt/info")

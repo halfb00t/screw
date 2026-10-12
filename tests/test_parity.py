@@ -12,6 +12,7 @@ before it is trusted to find nothing.
 
 from __future__ import annotations
 
+import argparse
 import json
 import re
 from collections.abc import Iterator
@@ -35,6 +36,10 @@ Pairs = list[tuple[str, str | int | float | bool | None]]
 
 APP_JS = (STATIC / "app.js").read_text()
 FOREIGN = "zz_not_a_field"
+
+# The flags of each command that are not generated from a model field, in the order `--help`
+# lists them.
+HAND_WRITTEN: dict[str, list[str]] = {"info": [], "export": ["--output", "--format", "--quality"]}
 
 
 async def _inline_backend(p: FastenerParams, fmt: str, quality: str) -> bytes:
@@ -157,10 +162,40 @@ def test_a_foreign_field_is_refused_on_every_route(kind: str) -> None:
 @pytest.mark.parametrize("kind", list(KINDS))
 def test_the_cli_flags_are_the_model(kind: str, capsys: pytest.CaptureFixture[str]) -> None:
     fields = _expected_flags(kind)
-    assert _cli_flags(kind, "info", capsys) == ["--help", *fields]
-    # export's own three options come first; everything after them is the model.
-    assert _cli_flags(kind, "export", capsys) == ["--help", "--output", "--format",
-                                                  "--quality", *fields]
+    # A positive rule (D-11): the whole flag list is the hand-written flags then the model's
+    # fields, so a stray flag fails here instead of being filtered out.
+    for command, hand_written in HAND_WRITTEN.items():
+        assert _cli_flags(kind, command, capsys) == ["--help", *hand_written, *fields]
+
+
+def test_a_stray_flag_makes_the_flag_comparison_fail(
+        monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    # The teeth of the positive rule above: plant one option outside the generated group.
+    real = cli._add_args
+
+    def plant(ap: argparse.ArgumentParser, kind: str, model: type[FastenerParams]) -> None:
+        real(ap, kind, model)
+        ap.add_argument("--stray", default=None)
+
+    monkeypatch.setattr(cli, "_add_args", plant)
+    flags = _cli_flags("bolt", "info", capsys)
+    assert "--stray" in flags
+    assert flags != ["--help", *HAND_WRITTEN["info"], *_expected_flags("bolt")]
+
+
+@pytest.mark.parametrize("kind", list(KINDS))
+def test_the_cli_and_the_api_print_the_same_preset_catalogue(
+        kind: str, capsys: pytest.CaptureFixture[str]) -> None:
+    # D-10, FRNT-05: one document, so every registered kind has one and both front ends agree.
+    # Compared as parsed JSON (key order and numbers included) after one real UTF-8 round trip.
+    api = client.get("/api/presets", params={"kind": kind})
+    assert api.status_code == 200, kind
+    cli.main(["presets", kind])
+    printed = capsys.readouterr().out.encode("utf-8")
+    assert json.loads(printed) == json.loads(api.content)
+    assert list(json.loads(printed)) == list(json.loads(api.content))
+    assert json.loads(printed)["kind"] == kind
+    assert json.loads(printed)["rows"], kind
 
 
 @pytest.mark.parametrize("kind", list(KINDS))

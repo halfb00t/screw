@@ -33,6 +33,7 @@ from screw.calc import STANDING_WARNING
 from screw.calc.thread import T_GATE, bolt_closed_volume
 from screw.params import DEFAULT_KIND, INTERIM_MAX_MM, KINDS, BoltParams, FastenerParams
 from screw.solid import Format, Quality, export, precise_volume
+from screw.tables.presets import catalogue
 
 client = TestClient(app)
 
@@ -149,6 +150,67 @@ def test_schema_requires_a_kind_and_knows_only_registered_kinds() -> None:
     assert detail["type"] == "unknown_kind"
 
 
+def test_the_preset_catalogue_is_one_document_in_catalogue_order() -> None:
+    res = client.get("/api/presets", params={"kind": "bolt"})
+    assert res.status_code == 200
+    body = res.json()
+    assert set(body) == {"kind", "axes", "rows"}
+    assert body["kind"] == "bolt"
+    assert body["axes"] == ["Standard", "Size", "Length"]
+    rows = body["rows"]
+    assert [r["id"] for r in rows] == [row.id for row in catalogue()]
+    # 186 ISO 4017 rows then 108 ISO 4014 rows (plans 04-09 and 04-10).
+    assert len(rows) == 294
+    assert rows[0]["id"] == "iso4017:M2x4"
+    assert rows[-1]["id"] == "iso4014:M20x200"
+    m6 = next(r for r in rows if r["id"] == "iso4017:M6x20")
+    assert set(m6) == {"id", "display", "designation", "picker", "fields", "citation"}
+    assert m6["display"] == "ISO 4017 M6 \u00d7 20"
+    assert m6["picker"] == ["ISO 4017", "M6", "20"]
+    assert m6["fields"] == {"d": 6.0, "pitch": 1.0, "length": 20.0, "s": 10.0, "k": 4.0,
+                            "thread_length": 20.0}
+    assert "ISO 4017:2022" in m6["citation"]
+
+
+def test_a_second_choice_size_is_bracketed_in_the_catalogue_and_a_decimal_point_is_kept() -> None:
+    rows = {r["id"]: r for r in client.get("/api/presets", params={"kind": "bolt"}).json()["rows"]}
+    assert rows["iso4017:M3.5x20"]["picker"][1] == "(M3.5)"
+    assert rows["iso4017:M3.5x20"]["display"] == "ISO 4017 (M3.5) \u00d7 20"
+    assert "iso4017:m6x20" not in rows, "ids are case-sensitive"
+
+
+def test_the_preset_catalogue_of_an_unknown_kind_is_a_404_naming_the_known_kinds() -> None:
+    res = client.get("/api/presets", params={"kind": "nut"})
+    assert res.status_code == 404
+    [detail] = res.json()["detail"]
+    assert detail["loc"] == ["query", "kind"]
+    assert detail["type"] == "unknown_kind"
+    assert "Known kinds: bolt" in detail["msg"]
+
+
+def test_the_preset_catalogue_needs_one_kind() -> None:
+    assert client.get("/api/presets").status_code == 422
+    twice = client.get("/api/presets", params=[("kind", "bolt"), ("kind", "bolt")])
+    assert twice.status_code == 422
+    assert twice.json()["detail"][0]["type"] == "duplicate"
+
+
+@pytest.mark.parametrize("path", ["/api/bolt/info", "/api/bolt/model.stl"])
+def test_a_preset_key_is_refused_on_the_model_routes(path: str) -> None:
+    # TABL-01, D-09: a link carries millimetres, never a preset id.
+    res = client.get(path, params={"preset": "iso4017:M6x20"})
+    assert res.status_code == 422
+    [detail] = res.json()["detail"]
+    assert detail["type"] == "extra_forbidden"
+    assert detail["loc"] == ["query", "preset"]
+
+
+def test_the_empty_query_is_the_iso_4017_m6_x_20_exact_match() -> None:
+    preset = client.get("/api/bolt/info").json()["preset"]
+    assert preset["status"] == "exact"
+    assert preset["id"] == "iso4017:M6x20"
+
+
 def test_an_unknown_kind_has_no_routes() -> None:
     assert client.get("/api/nut/info").status_code == 404
     assert client.get("/api/nut/model.stl").status_code == 404
@@ -184,6 +246,15 @@ def test_openapi_documents_the_typed_contracts() -> None:
     info_route = schema["paths"]["/api/bolt/info"]["get"]
     info_names = {p["name"] for p in info_route["parameters"] if p["in"] == "query"}
     assert info_names == {"d", "pitch", "left_hand", "length", "s", "k", "thread_length"}
+
+    presets_response = schema["paths"]["/api/presets"]["get"]["responses"]["200"]
+    assert presets_response["content"]["application/json"]["schema"] == {
+        "$ref": "#/components/schemas/PresetCatalogue"}
+    catalogue_component = schema["components"]["schemas"]["PresetCatalogue"]
+    assert set(catalogue_component["required"]) == {"kind", "axes", "rows"}
+    entry_component = schema["components"]["schemas"]["PresetEntry"]
+    assert set(entry_component["required"]) == {
+        "id", "display", "designation", "picker", "fields", "citation"}
 
     health_response = schema["paths"]["/api/health"]["get"]["responses"]["200"]
     assert health_response["content"]["application/json"]["schema"] == {

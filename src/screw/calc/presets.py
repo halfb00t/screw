@@ -7,9 +7,14 @@ file would put every rebuilt link behind a table (contract 6, tests/test_import_
 
 from __future__ import annotations
 
+from functools import lru_cache
+
+from pydantic import BaseModel, ConfigDict, Field
+
 from screw.calc import HEAD, SHANK, InfoRow
-from screw.params import BoltParams
+from screw.params import KINDS, BoltParams
 from screw.tables.presets import PresetRow, catalogue
+from screw.tables.presets import expand as expand_row
 from screw.tables.rows import Source
 
 # The wrench size the withdrawn DIN 931 and DIN 933 gave the three sizes where it differs from the
@@ -95,3 +100,53 @@ def notes(row: PresetRow) -> list[str]:
         result.append(f"wrench size {row.head.s:g} mm ({cite}); "
                       f"the withdrawn {WITHDRAWN_DIN[row.standard]} used {din:g} mm")
     return result
+
+
+# The picker's select labels, in the order a row's `picker` strings answer them (D-10, D-28).
+AXES = ["Standard", "Size", "Length"]
+
+
+class PresetEntry(BaseModel):
+    """One catalogue row as the picker and the CLI read it."""
+
+    model_config = ConfigDict(frozen=True)
+
+    id: str = Field(description="the row's stable, case-sensitive id, e.g. iso4017:M6x20")
+    display: str = Field(description="the row's text for the badge and the info panel; "
+                                     "second-choice sizes are bracketed")
+    designation: str = Field(description="the standard's designation of the row, ASCII")
+    picker: list[str] = Field(description="the row's three display strings, one per axis")
+    fields: dict[str, float] = Field(description="the millimetre values picking the row writes")
+    citation: str = Field(description="the standards, tables and columns the row came from")
+
+
+class PresetCatalogue(BaseModel):
+    """The preset catalogue of one kind: one document for the page, the API and the CLI (D-10)."""
+
+    model_config = ConfigDict(frozen=True)
+
+    kind: str = Field(description="the kind the catalogue fills")
+    axes: list[str] = Field(description="the picker's select labels, in order")
+    rows: list[PresetEntry] = Field(description="every row, in catalogue order")
+
+
+@lru_cache
+def catalogue_document(kind: str) -> PresetCatalogue:
+    """The catalogue document of `kind`; TypeError for a kind without one, like `derive`.
+
+    Built from in-memory rows and cached per kind, so the route costs nothing per request
+    and starts no kernel (T-04-20). The frozen result is safe to share between callers.
+    """
+    if KINDS.get(kind) is not BoltParams:
+        raise TypeError(f"no preset catalogue for kind {kind!r}")
+    return PresetCatalogue(kind=kind, axes=AXES, rows=[
+        PresetEntry(id=row.id, display=row.display, designation=row.designation,
+                    picker=list(row.picker), fields=dict(row.fields), citation=row.citation())
+        for row in catalogue()])
+
+
+def expand(kind: str, preset_id: str) -> dict[str, float] | None:
+    """The millimetre fields of one row of `kind`'s catalogue, or None for an unknown id."""
+    if KINDS.get(kind) is not BoltParams:
+        raise TypeError(f"no preset catalogue for kind {kind!r}")
+    return expand_row(preset_id)

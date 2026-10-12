@@ -1,4 +1,4 @@
-"""Command line: `screw serve`, `screw info <kind>`, `screw export <kind>`.
+"""Command line: `screw serve`, `screw info <kind>`, `screw export <kind>`, `screw presets <kind>`.
 
 Each kind's options are generated from its registered model, so they always match the API.
 """
@@ -110,6 +110,12 @@ def cmd_serve(ns: argparse.Namespace) -> None:
                 root_path=ns.root_path, proxy_headers=True, log_config=None)
 
 
+def cmd_presets(ns: argparse.Namespace) -> None:
+    from .calc.presets import catalogue_document
+
+    print(catalogue_document(ns.kind).model_dump_json(indent=2))
+
+
 def cmd_info(ns: argparse.Namespace) -> None:
     from .calc import derive
 
@@ -175,7 +181,14 @@ def main(argv: list[str] | None = None) -> None:
     ek = e.add_subparsers(dest="kind", required=True)
     e.set_defaults(func=cmd_export)
 
+    pr = sub.add_parser("presets", help="print a kind's ISO preset catalogue as JSON",
+                        allow_abbrev=False)
+    prk = pr.add_subparsers(dest="kind", required=True)
+    pr.set_defaults(func=cmd_presets)
+
     for kind, model in KINDS.items():
+        prk.add_parser(kind, allow_abbrev=False)
+
         kp = ik.add_parser(kind, allow_abbrev=False)
         _add_args(kp, kind, model)
 
