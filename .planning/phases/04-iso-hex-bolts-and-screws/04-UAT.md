@@ -1,18 +1,14 @@
 ---
-status: testing
+status: complete
 phase: 04-iso-hex-bolts-and-screws
 source: [04-VERIFICATION.md]
 started: 2026-10-12T07:37:18Z
-updated: 2026-10-12T15:29:01Z
+updated: 2026-10-12T15:57:28Z
 ---
 
 ## Current Test
 
-number: 7
-name: Re-run of test 5 against plan 04-17 (the wrapping info row, both themes, 720 and 1920 px, the injected 25-character value)
-expected: |
-  make serve (or SCREW_PORT=8001 make serve when port 8000 is taken), open the page with an empty hash, pick ISO 4017 / M8 / 70. Light theme at 720 px then 1920 px; repeat in the dark theme. At 720 px run `document.querySelectorAll('#dims dd')[9].textContent = '0.00010825317547305484 mm'` in the console. Expected at both widths and in both themes: `0.6765823467065926 mm`, `6.646835306586815 mm`, `15.011106998930268 mm` and `3670.874961137891 mm³` each sit whole on a line of their own under their label, at the right edge of their cell and above its dashed line; nothing touches `Head height` or any other neighbouring cell. Labels wrap as phrases, at most 4 lines, never one word a line. `8 mm`, `1.25 mm`, `13 mm`, `12.73 mm`, `5.3 mm` and `56` stay on their label's first line, at the right. Every value reads digit for digit as the API sent it: nothing rounded, cut or ending in an ellipsis. The injected value reads `0.00010825317547305484` with `mm` on the line under it; its digits are never split. The picker, the badge, the notes and the downloads row wrap cleanly and keep contrast in both themes.
-awaiting: user response
+[testing complete]
 
 ## Tests
 
@@ -50,23 +46,24 @@ note: Owner typed pass (2026-10-12) without naming a disposition per finding; th
 
 ### 7. Re-run of test 5 against plan 04-17 (the wrapping info row, both themes, 720 and 1920 px, the injected 25-character value)
 expected: As in Current Test above (04-VERIFICATION.md behavior_unverified_items 1 and human item 1; plan 04-17 Task 1 human check). Passing this test is what flips test 5 and gap G-04-5 to resolved.
-result: [pending]
+result: pass
 note: The verifier's headless-Chrome probe of the committed sheet at `f39b2c2` (both themes, 720 and 1920 px, ISO 4017 M8 x 70) read 0 px of any value outside its cell and every value whole; the executor's probe (light theme, 8 widths from 375 to 2560 px) read the same. Evidence for the owner, not a substitute for the owner's run.
 
 ### 8. Rule on the eight open code-review findings in 04-REVIEW-DISPOSITION.md: WR-03, IN-05, IN-06, IN-07, IN-08 (G-04-3 review) and WR-04, IN-09, IN-10 (G-04-5 review)
 expected: Each is fixed, filed under docs/tech_debt/ with the owner's sign-off, or skipped by the owner, and the disposition rows say so (04-VERIFICATION.md human item 2). None is a must-have failure. WR-04 is the one that touches this re-verification: the style.css source pin matches selectors exactly, so a more specific `#dims` selector walks past it; it weakens the regression guard of truth 11, not the shipped CSS.
-result: [pending]
+result: pass
+note: Owner typed pass (2026-10-12) without naming a disposition per finding; the eight rows stay `open` in 04-REVIEW-DISPOSITION.md until a ruling is written there.
 
 ### 9. Plan 04-13 and 04-16 browser checks in the light theme and under 820px (the light-theme part of tests 1 and 4)
 expected: Picker, badge, grouped panel, notes and the downloads row (longest label `Download STL (preview)`, 22 characters) keep contrast and wrap cleanly in the light theme and in a window narrower than 820px (04-VERIFICATION.md human item 3; test 1 was an orchestrator pre-run in the dark theme only). Same page as test 7, so one run covers both.
-result: [pending]
+result: pass
 
 ## Summary
 
 total: 9
-passed: 4
+passed: 7
 issues: 2
-pending: 3
+pending: 0
 skipped: 0
 blocked: 0
 
@@ -97,7 +94,9 @@ blocked: 0
   debug_session: ""
 - gap_id: G-04-5
   truth: "Picker, badge, grouped panel, notes and the downloads row wrap cleanly and keep contrast in both themes; a full-precision value in the info panel stays inside its cell and its label stays readable"
-  status: failed
+  status: resolved
+  resolved_by: 04-17-PLAN.md
+  resolved_at: 2026-10-12
   reason: "User reported: this part doesn't look clean"
   severity: minor
   test: 5
