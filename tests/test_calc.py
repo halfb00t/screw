@@ -8,6 +8,7 @@ import pytest
 
 from screw.calc import (
     STANDING_WARNING,
+    Download,
     PartInfo,
     PresetMatch,
     derive,
@@ -217,7 +218,8 @@ def test_every_registered_kind_has_a_download_rule() -> None:
 
 
 def test_a_capped_part_warns_about_its_fine_stl_after_the_standing_warning() -> None:
-    # The page's Download STL link asks for the fine default, so the page says so first.
+    # The document names the refused download in `downloads`; this sentence is the reason the
+    # page and `screw info` show.
     capped = derive(BoltParams(d=8.0, pitch=1.25, length=67.6, thread_length=67.6))
     assert capped.warnings == [STANDING_WARNING, NO_ROW,
                                fine_stl_refusal(8.0, 1.25, 67.6, False)]
@@ -251,6 +253,57 @@ def test_a_left_hand_part_is_judged_by_its_own_measured_cap() -> None:
     assert refusal is not None
     assert "right-hand" in refusal
     assert derive(right).warnings == [STANDING_WARNING, refusal]
+
+
+# --- the download state: one entry per served format and quality, from the shared rule ---------
+
+ALL_SERVED = [Download(format="stl", quality="fine", refusal=None),
+              Download(format="stl", quality="preview", refusal=None),
+              Download(format="step", quality="fine", refusal=None),
+              Download(format="step", quality="preview", refusal=None)]
+
+
+def test_the_default_part_lists_its_four_downloads_in_the_pages_order_none_refused() -> None:
+    assert derive(BoltParams()).downloads == ALL_SERVED
+
+
+def test_a_capped_part_refuses_exactly_its_fine_stl_download_by_the_shared_rule() -> None:
+    capped = BoltParams(d=8.0, pitch=1.25, length=67.6, thread_length=67.6)
+    downloads = derive(capped).downloads
+    assert [(e.format, e.quality) for e in downloads] == [
+        ("stl", "fine"), ("stl", "preview"), ("step", "fine"), ("step", "preview")]
+    for entry in downloads:
+        assert entry.refusal == download_refusal(capped, entry.format, entry.quality)
+    sentence = fine_stl_refusal(8.0, 1.25, 67.6, False)
+    assert sentence is not None
+    assert [e.refusal for e in downloads] == [sentence, None, None, None]
+
+
+def test_the_fine_stl_warning_is_the_refused_downloads_reasons_once_in_entry_order() -> None:
+    info = derive(BoltParams(d=8.0, pitch=1.25, length=67.6, thread_length=67.6))
+    reasons = [e.refusal for e in info.downloads if e.refusal is not None]
+    assert info.warnings == [STANDING_WARNING, NO_ROW, *reasons]
+    assert len(reasons) == 1
+
+
+def test_a_left_hand_part_refuses_no_download_and_the_right_hand_one_only_its_fine_stl() -> None:
+    left = BoltParams(d=10.0, pitch=1.5, length=60.0, thread_length=60.0, left_hand=True, s=16.0,
+                      k=6.4)
+    right = BoltParams(d=10.0, pitch=1.5, length=60.0, thread_length=60.0, s=16.0, k=6.4)
+    assert derive(left).downloads == ALL_SERVED
+    sentence = fine_stl_refusal(10.0, 1.5, 60.0, False)
+    assert sentence is not None
+    assert "right-hand" in sentence
+    assert [e.refusal for e in derive(right).downloads] == [sentence, None, None, None]
+
+
+def test_every_registered_kinds_document_agrees_with_its_download_rule() -> None:
+    for model in KINDS.values():
+        part = model()
+        downloads = derive(part).downloads
+        assert downloads, model.kind
+        for entry in downloads:
+            assert entry.refusal == download_refusal(part, entry.format, entry.quality)
 
 
 SHORT_THREAD_WARNING = (

@@ -16,6 +16,7 @@ import argparse
 import json
 import re
 from collections.abc import Iterator
+from pathlib import Path
 from typing import cast
 
 import pytest
@@ -24,6 +25,7 @@ from fastapi.testclient import TestClient
 from screw import cli
 from screw.app import STATIC, app, build_backend
 from screw.calc import STANDING_WARNING, derive
+from screw.calc.presets import expand
 from screw.params import DEFAULT_KIND, KINDS, FastenerParams
 from screw.solid import Format, Quality, export
 
@@ -251,6 +253,34 @@ def test_the_cli_and_the_api_print_the_same_document(
         # The literal too, so rewording the constant fails here and not only in test_calc (D-04).
         assert api_doc["warnings"][0] == (
             "plain-cut thread ends, no tip chamfer or under-head fillet; not a product build")
+
+
+def test_the_downloads_of_iso_4017_m8_x_70_are_one_sentence_on_the_cli_the_api_and_export(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    # G-04-3, FRNT-05: the document, the model route and `screw export` read one rule, so the
+    # entry the document refuses is the 422 the route answers and the line export prints.
+    row = expand("bolt", "iso4017:M8x70")
+    assert row is not None
+    fields: Params = {**row}
+    cli.main(["info", "bolt", "--preset", "iso4017:M8x70"])
+    cli_downloads = json.loads(capsys.readouterr().out)["downloads"]
+    api_downloads = client.get("/api/bolt/info", params=fields).json()["downloads"]
+    assert cli_downloads == api_downloads
+    (refused,) = [e for e in api_downloads if e["refusal"] is not None]
+    assert (refused["format"], refused["quality"]) == ("stl", "fine")
+    assert refused["refusal"].startswith("thread_length and length: ")
+
+    route = client.get("/api/bolt/model.stl", params=fields)   # quality defaults to fine
+    assert route.status_code == 422
+    (detail,) = route.json()["detail"]
+    assert (detail["type"], detail["msg"]) == ("fine_stl_cap", refused["refusal"])
+
+    out = tmp_path / "x.stl"
+    with pytest.raises(SystemExit) as stop:
+        cli.main(["export", "bolt", "--preset", "iso4017:M8x70", "-o", str(out)])
+    assert stop.value.code == 2
+    assert capsys.readouterr().err == f"error: {refused['refusal']}\n"
+    assert not out.exists()
 
 
 @pytest.mark.parametrize("kind", list(KINDS))

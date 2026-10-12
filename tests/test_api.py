@@ -30,6 +30,7 @@ from screw import app as app_module
 from screw.app import app, build_backend
 from screw.build_errors import BuildError, BuildTimeout
 from screw.calc import STANDING_WARNING
+from screw.calc.presets import expand
 from screw.calc.thread import T_GATE, bolt_closed_volume
 from screw.params import DEFAULT_KIND, INTERIM_MAX_MM, KINDS, BoltParams, FastenerParams
 from screw.solid import Format, Quality, export, precise_volume
@@ -228,7 +229,7 @@ def test_openapi_documents_the_typed_contracts() -> None:
         "$ref": "#/components/schemas/PartInfo"}
 
     part_info = schema["components"]["schemas"]["PartInfo"]
-    keys = {"kind", "rows", "warnings", "designation", "preset", "notes"}
+    keys = {"kind", "rows", "warnings", "designation", "preset", "notes", "downloads"}
     assert set(part_info["properties"]) == keys
     assert set(part_info["required"]) == keys
     preset = schema["components"]["schemas"]["PresetMatch"]
@@ -242,6 +243,22 @@ def test_openapi_documents_the_typed_contracts() -> None:
     query_names = {p["name"] for p in model_route["parameters"] if p["in"] == "query"}
     assert query_names == {"d", "pitch", "left_hand", "length", "s", "k", "thread_length",
                            "quality"}
+    # The download state is pinned to the model route's own enums, read from this document and
+    # not typed here, so a route that grows a format or a quality fails this test instead of
+    # drifting from the info document (G-04-3).
+    route_params = {p["name"]: p["schema"] for p in model_route["parameters"]}
+    formats, qualities = route_params["fmt"]["enum"], route_params["quality"]["enum"]
+    download = schema["components"]["schemas"]["Download"]
+    assert set(download["properties"]) == {"format", "quality", "refusal"}
+    assert set(download["required"]) == {"format", "quality", "refusal"}
+    assert set(download["properties"]["format"]["enum"]) == set(formats)
+    assert set(download["properties"]["quality"]["enum"]) == set(qualities)
+    assert part_info["properties"]["downloads"]["items"] == {
+        "$ref": "#/components/schemas/Download"}
+    listed = [(e["format"], e["quality"]) for e in client.get("/api/bolt/info").json()["downloads"]]
+    assert sorted(listed) == sorted((f, q) for f in formats for q in qualities)
+    for fmt in formats:
+        assert next(q for f, q in listed if f == fmt) == route_params["quality"]["default"]
     # `quality` belongs to the model route only: it is a foreign field on the info route.
     info_route = schema["paths"]["/api/bolt/info"]["get"]
     info_names = {p["name"] for p in info_route["parameters"] if p["in"] == "query"}
@@ -1026,6 +1043,42 @@ def test_the_cap_itself_and_an_off_row_part_reach_the_backend_as_asked() -> None
     assert [(p.d, p.pitch, p.length, p.thread_length) for p in bolts] == [
         (8.0, 1.25, 67.5, 67.5), (8.0, 1.0, 100.0, 20.0), (8.0, 1.25, 100.0, 60.0)]
     assert len(bolts) == len(seen)
+
+
+def test_every_download_the_document_lists_is_answered_by_the_route_as_it_says() -> None:
+    """G-04-3, T-04-29: the document and the model route read one rule, so they cannot disagree.
+
+    ISO 4017 M8 x 70 and a part off every row, 5.55 mm, a diameter no other test downloads (the
+    byte cache is session-wide, and the stub's bytes would answer a later real download).
+    """
+    row = expand("bolt", "iso4017:M8x70")
+    assert row is not None
+    capped: Params = {**row}
+    plain: Params = {"d": 5.55}
+    seen: list[tuple[str, str]] = []
+
+    async def stub(p: FastenerParams, fmt: str, quality: str) -> bytes:
+        seen.append((fmt, quality))
+        return b"stub"
+
+    for fields, refused in ((capped, 1), (plain, 0)):
+        downloads = client.get("/api/bolt/info", params=fields).json()["downloads"]
+        assert len(downloads) == 4
+        assert sum(e["refusal"] is not None for e in downloads) == refused
+        with _backend(stub):
+            for entry in downloads:
+                before = len(seen)
+                r = client.get(f"/api/bolt/model.{entry['format']}",
+                               params={**fields, "quality": entry["quality"]})
+                if entry["refusal"] is None:
+                    assert r.status_code == 200, entry
+                    assert seen[before:] == [(entry["format"], entry["quality"])]
+                else:
+                    assert r.status_code == 422, entry
+                    (detail,) = r.json()["detail"]
+                    assert detail["type"] == "fine_stl_cap"
+                    assert detail["msg"] == entry["refusal"]
+                    assert len(seen) == before
 
 
 def test_the_left_hand_part_l11_measured_inside_the_budget_reaches_the_backend() -> None:

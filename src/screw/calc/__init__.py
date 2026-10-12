@@ -25,6 +25,11 @@ from screw.calc.thread import (
 )
 from screw.params import BoltParams, FastenerParams
 
+# The values the model route takes for `fmt` and `quality`. app.py keeps its own Literals (it
+# imports no solid names, contract 5); tests/test_api.py pins the two together through OpenAPI.
+DownloadFormat = Literal["stl", "step"]
+DownloadQuality = Literal["preview", "fine"]
+
 PROFILE = "ISO 68-1:2023 basic profile"
 
 # The standing entry on every info document (D-04, D-18): the thread ends are plain planar cuts
@@ -67,6 +72,24 @@ class PresetMatch(BaseModel):
     display: str | None = Field(description="the matching row's display text, null when custom")
 
 
+class Download(BaseModel):
+    """One download the model route serves, and whether the shared rule refuses it before any build.
+
+    The page links, per format, the first entry not refused and reads no warning (D-10).
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    format: DownloadFormat
+    quality: DownloadQuality
+    refusal: str | None = Field(
+        description="the sentence the model route answers with a 422 and `screw export` prints "
+                    "after `error:` (exit 2), from `download_refusal`; null when that rule does "
+                    "not refuse this download on the parameters alone, which is not a promise "
+                    "that the build succeeds (a part the builder refuses is still a 422 "
+                    "`build_error` on every format)")
+
+
 class PartInfo(BaseModel):
     """The info document: identical on `/api/<kind>/info` and `screw info <kind>` (D-15)."""
 
@@ -83,6 +106,10 @@ class PartInfo(BaseModel):
     notes: list[str] = Field(
         description="one-line notes about the matched row, present only on an exact match; the "
                     "page shows them after the warnings in their own style (D-20)")
+    downloads: list[Download] = Field(
+        description="every format and quality the model route serves, in the order the page "
+                    "offers them (per format the route's default quality first), each with the "
+                    "reason the route and `screw export` refuse it, or null")
 
 
 def _thread_length_warning(p: BoltParams, t: float) -> str | None:
@@ -179,9 +206,13 @@ def _bolt(p: BoltParams) -> PartInfo:
     if row is None:
         # L02: no row means no row value and no nearest row; the part is built from its fields.
         warnings.append(NO_ROW_WARNING)
-    fine = fine_stl_refusal(p.d, p.pitch, t, p.left_hand)
-    if fine is not None:
-        warnings.append(fine)
+    # A refused download is also a warning (L02, never a silent downgrade): the page offers the
+    # next served quality in place of a refused one and labels it (plan 04-16), and this sentence
+    # is the reason, on the page under the buttons, on the API and in `screw info`. Read from the
+    # same call as `downloads`, so the warning and the member cannot disagree.
+    downloads = _downloads(p)
+    for reason in dict.fromkeys(e.refusal for e in downloads if e.refusal is not None):
+        warnings.append(reason)
     if row is None:
         preset = PresetMatch(status="custom", id=None, display=None)
         designation = None
@@ -191,7 +222,7 @@ def _bolt(p: BoltParams) -> PartInfo:
         designation = designation_for(p, row)
         row_notes = notes(row)
     return PartInfo(kind=p.kind, rows=rows, warnings=warnings, designation=designation,
-                    preset=preset, notes=row_notes)
+                    preset=preset, notes=row_notes, downloads=downloads)
 
 
 def derive(p: FastenerParams) -> PartInfo:
@@ -222,6 +253,23 @@ def download_refusal(p: FastenerParams, fmt: str, quality: str) -> str | None:
                 p.d, p.pitch, built_thread_length(p.thread_length, p.length), p.left_hand)
         return None
     raise TypeError(f"no download rule for kind {p.kind!r}")
+
+
+# The page's preference: per format the route's default quality first, then the coarser preview it
+# falls back to (`solid.TESSELLATION`, INTERIM: preview 0.08 mm and 0.5 rad, fine 0.01 mm and
+# 0.1 rad). STEP ignores quality in `solid._write_export`, but the route accepts both, so both are
+# listed and both are true. tests/test_api.py pins the set and the first quality to the route.
+_DOWNLOADS: tuple[tuple[DownloadFormat, DownloadQuality], ...] = (
+    ("stl", "fine"), ("stl", "preview"), ("step", "fine"), ("step", "preview"))
+
+
+def _downloads(p: FastenerParams) -> list[Download]:
+    """The download state of `p`: one entry per `_DOWNLOADS`, refused by the rule `_serve` and
+    `cmd_export` call, so the document, the route and the CLI cannot disagree. Kind-generic: the
+    rule dispatches by kind, and every kind's info builder must call this (the member is required).
+    """
+    return [Download(format=fmt, quality=quality, refusal=download_refusal(p, fmt, quality))
+            for fmt, quality in _DOWNLOADS]
 
 
 class ExplicitConflict(NamedTuple):
