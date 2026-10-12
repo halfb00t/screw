@@ -1,18 +1,14 @@
 ---
-status: testing
+status: complete
 phase: 04-iso-hex-bolts-and-screws
 source: [04-VERIFICATION.md]
 started: 2026-10-12T07:37:18Z
-updated: 2026-10-12T11:29:19Z
+updated: 2026-10-12T13:26:34.982Z
 ---
 
 ## Current Test
 
-number: 4
-name: The browser steps of plan 04-16 Task 1 (Download STL (preview), tooltip, saved file, Download STEP, disabled state)
-expected: |
-  make serve (or SCREW_PORT=8001 make serve); empty hash: Download STL and Download STEP, no tooltip. Pick ISO 4017 / M8 / 70: the STL button reads Download STL (preview), its tooltip begins 'thread_length and length: the fine STL of a right-hand thread with d 8 and pitch 1.25 is refused above 67.5 mm of thread (54 turns)', the click saves bolt_d8_pitch1.25_left_hand0_length70_s13_k5.3_thread_length70.stl (an STL, not a JSON body), Download STEP saves the .step, the same sentence shows as a warning under the buttons, the hash carries mm fields only. Tick Left-hand thread: Download STL again. Untick, pick M8 / 65: Download STL, no tooltip. Set Length 10 and Thread length 30: the error shows and both buttons are disabled under Download STL and Download STEP. Repeat in the other theme and in a window narrower than 820px.
-awaiting: user response
+[testing complete]
 
 ## Tests
 
@@ -34,22 +30,26 @@ note: Ruled 2026-10-12. Fixed in the session: WR-01 `27723c1`, WR-02 `505934a`, 
 
 ### 4. The browser steps of plan 04-16 Task 1 (Download STL (preview), tooltip, saved file, Download STEP, disabled state)
 expected: As in Current Test above (04-VERIFICATION.md behavior_unverified_items 1 and human item 1). The verifier ran the real setDownloads from app.js under node on a stub DOM and the four cases held; that is evidence, not the browser run.
-result: [pending]
+result: pass
 
 ### 5. The page in the light theme and in a window narrower than 820px (plans 04-13 and 04-16)
 expected: Picker, badge, grouped panel, notes and the downloads row (longest label `Download STL (preview)`, 22 characters) wrap cleanly and keep contrast in both themes (04-VERIFICATION.md human item 2; UAT test 1 was pre-run in the dark theme only).
-result: [pending]
+result: issue
+reported: "this part doesn't look clean"
+severity: minor
+note: Screenshot (light theme, 2026-10-12 19:23 local) of the info panel for ISO 4017 M8 x 70: the full-precision values (`0.6765823467065926 mm`, `6.646835306586815 mm`, `15.011106998930268 mm`, `3670.874961137891 mm³`) do not wrap or shrink, so `15.011106998930268 mm` runs into the `Head height` label of the next cell and the labels beside them wrap one word per line (`Thread / depth / (ISO / 68- / 1:2023 / basic / profile)`). Short values (`13 mm`, `12.73 mm`) lay out fine. Full precision is by design (L02; the 2026-10-06 rounding debt item was resolved in 04-13), so the fix is the row layout, not the number.
 
 ### 6. Rule on the open findings of the incremental code review of the gap closure: WR-03, IN-05, IN-06, IN-07, IN-08 (04-REVIEW-DISPOSITION.md, open: 5)
 expected: Each is fixed, filed under docs/tech_debt/ with the owner's sign-off, or skipped by the owner. None is a must-have failure; WR-03 is the one warning (the rule 17 test checks a Python copy of the algorithm, not app.js).
-result: [pending]
+result: pass
+note: Owner typed pass (2026-10-12) without naming a disposition per finding; the five rows stay `open` in 04-REVIEW-DISPOSITION.md until a ruling is written there.
 
 ## Summary
 
 total: 6
-passed: 2
-issues: 1
-pending: 3
+passed: 4
+issues: 2
+pending: 0
 skipped: 0
 blocked: 0
 
@@ -57,7 +57,9 @@ blocked: 0
 
 - gap_id: G-04-3
   truth: "The page's Download STL link never points at a download the server will refuse: when the fine STL of the part is refused by the INTERIM export cap, the page offers the preview STL instead (labelled so) and the STEP, and the info document carries the download state as a structured field that the API and the CLI print alike"
-  status: failed
+  status: resolved
+  resolved_by: 04-16-PLAN.md
+  resolved_at: 2026-10-12
   reason: "User reported: fix all; IN-02 a, IN-03 a"
   severity: minor
   test: 3
@@ -75,4 +77,14 @@ blocked: 0
     - "A structured `downloads` member on PartInfo (per format and quality: served, or refused with the reason), computed by `download_refusal` so the two paths cannot disagree"
     - "The page builds the two download links from that member and offers `Download STL (preview)` when the fine STL is refused; no string matching in app.js (D-10)"
     - "CLI `screw info` parity for the field; tests on calc (the 62 refused presets), API, CLI and the parity assertions; 01-UI-SPEC.md amended in the same plan"
+  debug_session: ""
+- gap_id: G-04-5
+  truth: "Picker, badge, grouped panel, notes and the downloads row wrap cleanly and keep contrast in both themes; a full-precision value in the info panel stays inside its cell and its label stays readable"
+  status: failed
+  reason: "User reported: this part doesn't look clean"
+  severity: minor
+  test: 5
+  root_cause: ""
+  artifacts: []
+  missing: []
   debug_session: ""
