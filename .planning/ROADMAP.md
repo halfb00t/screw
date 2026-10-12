@@ -174,7 +174,7 @@ Plans:
   4. Every table row carries a typed `Source` (standard, edition, table, column), so a row without one fails mypy, and exactly one pure-data verification test generated from the table; a row marked UNVERIFIED (entered from a preview) is refused by the gate in a release build.
   5. The bolt's info panel numbers (head, shank and thread) come from the kernel-free maths, each traceable to a mm field or a cited, tested row; a value that cannot be computed honestly is a warning and no number; any volume shown is the closed form; where the ISO wrench size differs from the withdrawn DIN equivalent the panel adds a one-line note.
 
-**Plans**: 8/14 plans executed (one PR, through `make pr.land`)
+**Plans**: 9/14 plans executed (one PR, through `make pr.land`)
 
 Plans:
 **Wave 1**
@@ -196,7 +196,7 @@ Plans:
 - [x] 04-08-PLAN.md — The info document reports the exact match and the designation; the frozen defaults equal the ISO 4017 M6 × 20 row
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [ ] 04-09-PLAN.md — Owner's full copy; every ISO 262 size and every ISO 4017 head and length
+- [x] 04-09-PLAN.md — Owner's full copy; every ISO 262 size and every ISO 4017 head and length
 
 **Wave 7** *(blocked on Wave 6 completion)*
 - [ ] 04-10-PLAN.md — ISO 4014 heads, b bands and shank cells; ISO 4014 presets filling b; the 4017-first tie rule
@@ -271,7 +271,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 2 
 | 1. Runtime Port and Walking Skeleton | 10/10 | Complete    | 2026-10-06 |
 | 2. Thread Spike | 8/8 | Complete    | 2026-10-09 |
 | 3. Real Helical Thread | 7/7 | Complete    | 2026-10-11 |
-| 4. ISO Hex Bolts and Screws | 8/14 | In Progress | - |
+| 4. ISO Hex Bolts and Screws | 9/14 | In Progress | - |
 | 5. Hex Nut and Kernel Pair Proof | 0/TBD | Not started | - |
 | 6. Printed Pair Acceptance | 0/TBD | Not started | - |
 | 7. Operability Re-sweep | 0/TBD | Not started | - |

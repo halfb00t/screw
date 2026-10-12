@@ -29,17 +29,17 @@ Requirements for the first release: the mating-pair cut (infra port, thread spik
 ### Fastener Types
 
 - [ ] **TYPE-01**: User can generate a hex head bolt per ISO 4014:2022 (partial thread): across-flats `s`, across-corners `e`, head height `k`, bearing face `dw`, thread length `b` by length band, unthreaded shank `ls`/grip `lg`, chamfered point, under-head fillet, product grade A/B boundary (A for d ≤ M24 and l ≤ 10d or 150 mm).
-- [ ] **TYPE-02**: User can generate a hex head screw per ISO 4017:2022 (threaded to the head), lengths to the standard's 200 mm cap.
+- [x] **TYPE-02**: User can generate a hex head screw per ISO 4017:2022 (threaded to the head), lengths to the standard's 200 mm cap.
 - [ ] **TYPE-03**: User can generate a hex nut per ISO 4032:2023 (style 1): `s`, `e`, height `m`, wrench height `mw`, `dw`, chamfers on both faces; M5–M20 from the normative tables, M2–M4 from informative Annex A labelled "informative / historical" in the preset and on the info panel.
 - [ ] **TYPE-04**: For any generated bolt the user can get the matching nut, and vice versa, derived from the same `d`, pitch, hand and clearance.
 
 ### ISO Tables and Presets
 
 - [ ] **TABL-01**: User picks standard + size + length from the valid combinations ("M6 × 20, ISO 4017"); the preset fills the explicit mm fields; the shareable URL carries mm fields only, the preset id is metadata and never the source of truth.
-- [ ] **TABL-02**: Every table row cites standard, edition, table and column in a required typed `Source` field; a row without a citation does not type-check.
-- [ ] **TABL-03**: Every table row has one verification test asserting the standard's invariants for that row (pure data test; no kernel build per row).
-- [ ] **TABL-04**: A table row ships only against a purchased copy of its standard (v1: ISO 4014:2022, 4017:2022, 4032:2023, 262:2023, 724:2023, 965-2:2024); rows entered from previews are marked UNVERIFIED and the gate refuses an UNVERIFIED row in a release build.
-- [ ] **TABL-05**: Sizes M2–M20 per ISO 262:2023 — first choice M2, M2.5, M3, M4, M5, M6, M8, M10, M12, M16, M20; second choice M3.5, M7, M14, M18 shown in brackets as the standards do — coarse pitch only.
+- [x] **TABL-02**: Every table row cites standard, edition, table and column in a required typed `Source` field; a row without a citation does not type-check.
+- [x] **TABL-03**: Every table row has one verification test asserting the standard's invariants for that row (pure data test; no kernel build per row).
+- [x] **TABL-04**: A table row ships only against a purchased copy of its standard (v1: ISO 4014:2022, 4017:2022, 4032:2023, 262:2023, 724:2023, 965-2:2024); rows entered from previews are marked UNVERIFIED and the gate refuses an UNVERIFIED row in a release build.
+- [x] **TABL-05**: Sizes M2–M20 per ISO 262:2023 — first choice M2, M2.5, M3, M4, M5, M6, M8, M10, M12, M16, M20; second choice M3.5, M7, M14, M18 shown in brackets as the standards do — coarse pitch only.
 - [ ] **TABL-06**: The UI shows a preset-match badge: "matches ISO 4017 M6 × 20" while the mm fields equal the row, "custom, based on ISO 4017 M6 × 20" once any field is edited.
 - [ ] **TABL-07**: The designation line shows the ISO designation without a property class (printed plastic has none).
 
@@ -129,14 +129,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PAIR-05 | Phase 6 | Pending |
 | PAIR-06 | Phase 6 | Pending |
 | TYPE-01 | Phase 4 | Pending |
-| TYPE-02 | Phase 4 | Pending |
+| TYPE-02 | Phase 4 | Complete |
 | TYPE-03 | Phase 5 | Pending |
 | TYPE-04 | Phase 5 | Pending |
 | TABL-01 | Phase 4 | Pending |
-| TABL-02 | Phase 4 | Pending |
-| TABL-03 | Phase 4 | Pending |
-| TABL-04 | Phase 4 | Pending |
-| TABL-05 | Phase 4 | Pending |
+| TABL-02 | Phase 4 | Complete |
+| TABL-03 | Phase 4 | Complete |
+| TABL-04 | Phase 4 | Complete |
+| TABL-05 | Phase 4 | Complete |
 | TABL-06 | Phase 4 | Pending |
 | TABL-07 | Phase 4 | Pending |
 | INFO-01 | Phase 5 | Pending |
