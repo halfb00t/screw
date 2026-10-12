@@ -35,7 +35,7 @@ Requirements for the first release: the mating-pair cut (infra port, thread spik
 
 ### ISO Tables and Presets
 
-- [ ] **TABL-01**: User picks standard + size + length from the valid combinations ("M6 × 20, ISO 4017"); the preset fills the explicit mm fields; the shareable URL carries mm fields only, the preset id is metadata and never the source of truth.
+- [x] **TABL-01**: User picks standard + size + length from the valid combinations ("M6 × 20, ISO 4017"); the preset fills the explicit mm fields; the shareable URL carries mm fields only, the preset id is metadata and never the source of truth.
 - [x] **TABL-02**: Every table row cites standard, edition, table and column in a required typed `Source` field; a row without a citation does not type-check.
 - [x] **TABL-03**: Every table row has one verification test asserting the standard's invariants for that row (pure data test; no kernel build per row).
 - [x] **TABL-04**: A table row ships only against a purchased copy of its standard (v1: ISO 4014:2022, 4017:2022, 4032:2023, 262:2023, 724:2023, 965-2:2024; ISO 4753 (Phase 5)); rows entered from previews are marked UNVERIFIED and the gate refuses an UNVERIFIED row in a release build.
@@ -132,7 +132,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TYPE-02 | Phase 4 | Complete |
 | TYPE-03 | Phase 5 | Pending |
 | TYPE-04 | Phase 5 | Pending |
-| TABL-01 | Phase 4 | Pending |
+| TABL-01 | Phase 4 | Complete |
 | TABL-02 | Phase 4 | Complete |
 | TABL-03 | Phase 4 | Complete |
 | TABL-04 | Phase 4 | Complete |
