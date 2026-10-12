@@ -336,3 +336,22 @@ def test_every_catalogue_row_matches_itself_exactly() -> None:
         found = match(part)
         assert found is not None
         assert found.id == row.id
+
+
+def test_an_iso_4014_bolt_is_recognised_with_the_owners_designation() -> None:
+    # THRD-03: b = 26 is the thread length of an M10 x 80 bolt, so this part is the row.
+    part = BoltParams(
+        d=10.0, pitch=1.5, length=80.0, s=16.0, k=6.4, thread_length=26.0)
+    info = derive(part)
+    assert info.preset == PresetMatch(
+        status="exact", id="iso4014:M10x80", display="ISO 4014 M10 \u00d7 80")
+    assert info.designation == "Hexagon head bolt ISO 4014 - M10 x 80"
+    # The same length threaded to the head is the ISO 4017 screw, not the bolt.
+    full = derive(part.model_copy(update={"thread_length": 80.0}))
+    assert full.preset == PresetMatch(
+        status="exact", id="iso4017:M10x80", display="ISO 4017 M10 \u00d7 80")
+    assert full.designation == "Hexagon head screw ISO 4017 - M10 x 80"
+    # A thread length that is neither is custom, never the nearest row.
+    other = derive(part.model_copy(update={"thread_length": 30.0}))
+    assert other.preset == PresetMatch(status="custom", id=None, display=None)
+    assert other.designation is None

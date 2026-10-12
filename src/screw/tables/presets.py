@@ -12,9 +12,10 @@ from dataclasses import dataclass
 from functools import cache
 from typing import Literal
 
+from screw.tables import iso4014
 from screw.tables.iso262 import SIZES
 from screw.tables.iso4017 import HEADS, SERIES
-from screw.tables.rows import HexHead, Source
+from screw.tables.rows import HexHead, ShankCell, Size, Source, ThreadBand
 
 # Every key `expand` returns; a test asserts each is a `BoltParams` field so a rename cannot
 # drift silently.
@@ -35,6 +36,8 @@ class PresetRow:
     picker: tuple[str, str, str]
     fields: tuple[tuple[str, float], ...]
     head: HexHead
+    band: ThreadBand | None  # ISO 4014 rows only: the b of the row's length band
+    cell: ShankCell | None  # ISO 4014 rows only: the printed ls,min and lg,max
     sources: tuple[Source, ...]
 
     def citation(self) -> str:
@@ -42,44 +45,81 @@ class PresetRow:
         return "; ".join(dict.fromkeys(source.cite() for source in self.sources))
 
 
+def _row(
+    *, standard: str, noun: str, size: Size, head: HexHead, length: float, thread_length: float,
+    band: ThreadBand | None, cell: ShankCell | None, sources: tuple[Source, ...],
+) -> PresetRow:
+    shown_length = f"{length:g}"
+    # Second-choice sizes carry their brackets in the display and the picker (D-28); the
+    # designation never does, and prints the decimal sign the standard prints (a comma).
+    shown = f"({size.label})" if size.choice == 2 else size.label
+    return PresetRow(
+        id=f"{standard.replace(' ', '').lower()}:{size.label}x{shown_length}",
+        standard=standard,
+        edition="2022",
+        size=size.label,
+        choice=size.choice,
+        length=length,
+        grade=head.grade,
+        display=f"{standard} {shown} \u00d7 {shown_length}",
+        designation=(
+            f"{noun} {standard} - {size.label.replace('.', ',')} x {shown_length}"
+        ),
+        picker=(standard, shown, shown_length),
+        fields=(
+            ("d", size.d),
+            ("pitch", size.pitch),
+            ("length", length),
+            ("s", head.s),
+            ("k", head.k),
+            ("thread_length", thread_length),
+        ),
+        head=head,
+        band=band,
+        cell=cell,
+        sources=sources,
+    )
+
+
 @cache
 def catalogue() -> tuple[PresetRow, ...]:
-    """ISO 4017 rows first, then ISO 4014; by diameter, then length, ascending."""
+    """Every ISO 4017 row, then every ISO 4014 row; by diameter, then length, ascending.
+
+    The order is the tie rule: `calc.presets.match` reports the first equal row, so a part that
+    ever equalled a row of each standard would read as ISO 4017, the standard's own "ISO 4017
+    recommended" note (CONTEXT discretion). The tie is latent today: an ISO 4017 screw is
+    threaded to the head and an ISO 4014 bolt is not, so no two rows share every field.
+    """
     sizes = {size.label: size for size in SIZES}
     heads = {(head.size, head.grade): head for head in HEADS}
     rows: list[PresetRow] = []
     for entry in sorted(SERIES, key=lambda e: (sizes[e.size].d, e.length)):
         size = sizes[entry.size]
         head = heads[entry.size, entry.grade]
-        length = f"{entry.length:g}"
-        # Second-choice sizes carry their brackets in the display and the picker (D-28); the
-        # designation never does, and prints the decimal sign the standard prints (a comma).
-        shown = f"({size.label})" if size.choice == 2 else size.label
         rows.append(
-            PresetRow(
-                id=f"iso4017:{size.label}x{length}",
-                standard="ISO 4017",
-                edition="2022",
-                size=size.label,
-                choice=size.choice,
+            _row(
+                standard="ISO 4017", noun="Hexagon head screw", size=size, head=head,
                 length=entry.length,
-                grade=entry.grade,
-                display=f"ISO 4017 {shown} \u00d7 {length}",
-                designation=(
-                    f"Hexagon head screw ISO 4017 - {size.label.replace('.', ',')} x {length}"
-                ),
-                picker=("ISO 4017", shown, length),
                 # thread_length = length: the thread runs the full length (D-07).
-                fields=(
-                    ("d", size.d),
-                    ("pitch", size.pitch),
-                    ("length", entry.length),
-                    ("s", head.s),
-                    ("k", head.k),
-                    ("thread_length", entry.length),
-                ),
-                head=head,
+                thread_length=entry.length, band=None, cell=None,
                 sources=(size.source, head.source, entry.source),
+            )
+        )
+    heads_4014 = {(head.size, head.grade): head for head in iso4014.HEADS}
+    bands = {band.size: band for band in iso4014.BANDS}
+    for cell in sorted(iso4014.CELLS, key=lambda c: (sizes[c.size].d, c.length)):
+        size = sizes[cell.size]
+        head = heads_4014[cell.size, cell.grade]
+        band = bands[cell.size]
+        # b for l <= 125, the second b for 125 < l <= 200; a size with no second b has no
+        # length above 125, which a test pins.
+        b = band.b_short if cell.length <= 125 else band.b_long
+        assert b is not None, cell
+        rows.append(
+            _row(
+                standard="ISO 4014", noun="Hexagon head bolt", size=size, head=head,
+                length=cell.length, thread_length=b, band=band, cell=cell,
+                sources=(size.source, head.source, band.source, cell.source),
             )
         )
     return tuple(rows)

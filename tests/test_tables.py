@@ -49,7 +49,9 @@ def test_row_relations(row: PresetRow) -> None:
     # Product grade is a function of diameter and length (the title of the standards).
     assert row.grade == ("A" if d <= 24 and row.length <= min(10 * d, 150) else "B")
     assert head.grade == row.grade
-    assert dict(row.fields)["thread_length"] == row.length
+    # ISO 4017 is threaded to the head (D-07); an ISO 4014 bolt is threaded b of its band (THRD-03).
+    expected_thread = row.length if row.standard == "ISO 4017" else _b_of(row.size, row.length)
+    assert dict(row.fields)["thread_length"] == expected_thread
 
 
 @pytest.mark.parametrize("row", ROWS, ids=lambda r: r.id)
@@ -319,6 +321,81 @@ def test_an_iso_4014_head_equals_the_iso_4017_head_of_the_same_size_and_grade(
     assert other.source.standard == "ISO 4017"
 
 
+ROWS_4014 = [row for row in ROWS if row.standard == "ISO 4014"]
+
+
+def test_the_iso_4014_catalogue_has_one_row_per_shank_cell() -> None:
+    assert len(ROWS_4014) == len(iso4014.CELLS) == 108
+    assert len(ROWS) == 186 + 108
+
+
+@pytest.mark.parametrize("row", ROWS_4014, ids=lambda r: r.id)
+def test_an_iso_4014_row_fills_thread_length_with_b_of_its_band_and_is_shorter_than_the_bolt(
+    row: PresetRow,
+) -> None:
+    fields = dict(row.fields)
+    assert fields["thread_length"] == _b_of(row.size, row.length)
+    assert fields["thread_length"] < fields["length"]
+    assert row.band is BAND[row.size]
+    assert row.cell is not None
+    assert (row.cell.size, row.cell.length) == (row.size, row.length)
+    assert row.id == f"iso4014:{row.size}x{row.length:g}"
+
+
+def test_an_iso_4017_row_carries_no_band_and_no_cell() -> None:
+    assert all(
+        row.band is None and row.cell is None for row in ROWS if row.standard == "ISO 4017"
+    )
+
+
+def test_the_catalogue_order_lists_every_iso_4017_row_before_iso_4014_so_a_tie_reads_4017() -> None:
+    # `match` returns the first equal row, so the catalogue order is the tie rule (CONTEXT
+    # discretion): a part equal to rows of both standards would be reported as ISO 4017.
+    standards = [row.standard for row in ROWS]
+    last_4017 = max(i for i, name in enumerate(standards) if name == "ISO 4017")
+    first_4014 = standards.index("ISO 4014")
+    assert last_4017 < first_4014
+
+
+def test_no_iso_4014_row_has_the_fields_of_an_iso_4017_row_so_the_tie_is_latent() -> None:
+    # An ISO 4017 screw is threaded to the head, an ISO 4014 bolt only b of it, so the two
+    # standards never share a part today. If a later table makes them equal, the order above
+    # decides and this test is the one to revisit.
+    fields_4017 = {row.fields for row in ROWS if row.standard == "ISO 4017"}
+    assert [row.id for row in ROWS_4014 if row.fields in fields_4017] == []
+
+
+@pytest.mark.parametrize(
+    ("label", "shown", "preset_id"),
+    [("M10", "M10", "iso4014:M10x80"), ("M3.5", "(M3.5)", "iso4014:M3.5x20"),
+     ("M14", "(M14)", "iso4014:M14x60"), ("M18", "(M18)", "iso4014:M18x100")],
+)
+def test_an_iso_4014_row_has_the_owners_designation_and_brackets_a_second_choice_size(
+    label: str, shown: str, preset_id: str,
+) -> None:
+    row = next(r for r in ROWS if r.id == preset_id)
+    length = f"{row.length:g}"
+    assert row.display == f"ISO 4014 {shown} \u00d7 {length}"
+    assert row.picker == ("ISO 4014", shown, length)
+    assert row.designation == (
+        f"Hexagon head bolt ISO 4014 - {label.replace('.', ',')} x {length}"
+    )
+    assert "(" not in row.id
+
+
+def test_the_m10_by_80_row_cites_its_standard_and_expands_to_b_as_the_thread_length() -> None:
+    row = next(r for r in ROWS if r.id == "iso4014:M10x80")
+    assert row.citation() == (
+        "ISO 262:2023 Table 1, column Coarse; ISO 4014:2022 Table 2, column M10"
+    )
+    assert expand("iso4014:M10x80") == {
+        "d": 10.0, "pitch": 1.5, "length": 80.0, "s": 16.0, "k": 6.4, "thread_length": 26.0,
+    }
+    # The row's own printed cell: lg,max = 80 - 26, ls,min = lg,max - 5 * 1.5.
+    assert row.cell is not None
+    assert (row.cell.ls_min, row.cell.lg_max) == (46.5, 54.0)
+
+
 @pytest.mark.parametrize("row", ROWS, ids=lambda r: r.id)
 def test_every_catalogue_row_is_recognised_as_its_own_row_on_the_info_document(
     row: PresetRow,
@@ -425,7 +502,8 @@ def test_no_row_in_the_tree_is_unverified() -> None:
     assert unverified([*SIZES, *HEADS, *SERIES, *iso4014.HEADS, *iso4014.CELLS]) == []
     assert unverified(iso4014.BANDS) == []
     assert [s for s in sources if s.status != "verified"] == []
-    assert len(sources) == 3 * len(ROWS)
+    # Size, head and length for ISO 4017; size, head, band and cell for ISO 4014.
+    assert len(sources) == sum(3 if row.standard == "ISO 4017" else 4 for row in ROWS)
 
 
 def test_the_text_scan_sees_an_unverified_row(tmp_path: Path) -> None:
