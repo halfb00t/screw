@@ -5,11 +5,15 @@ sibling of [spur](https://github.com/halfb00t/spur) (gears). Set the parameters,
 live 3D preview, the numbers you would measure on the real part, and an STL or STEP
 download, from a web UI, an HTTP API or a CLI.
 
-**Status: threaded rod (Phase 3), an internal milestone, not released, version 0.0.x.**
-The `bolt` kind builds a threaded rod from `d`, `pitch` and `length` in millimetres: the
-ISO 68-1:2023 basic profile over the whole length, right- or left-hand, plain-cut at both
-ends. There is no head, table or nut yet, and every info document says so in its warnings.
-Every thread build passes a postcondition (`calc/thread.py` is the oracle, `solid/helical.py`
+**Status: ISO hex bolts and screws (Phase 4), an internal milestone, not released, version 0.0.x.**
+The `bolt` kind builds an ISO 4014 bolt or an ISO 4017 screw from explicit millimetre fields
+(`d`, `pitch`, `length`, `s`, `k`, `thread_length`, `left_hand`): the ISO 68-1:2023 basic profile,
+right- or left-hand, under a plain hex head. Presets (`screw presets bolt`, the page's three
+selects) fill those fields from cited, double-entered ISO 262, 4014 and 4017 rows for M2 to M20;
+a link carries the millimetres, never a preset. The thread ends are plain cuts, with no tip
+chamfer or under-head fillet, and there is no nut yet; every info document says so in its
+standing warning: not a product build.
+Every build passes a postcondition (`calc/thread.py` is the oracle, `solid/helical.py`
 the builder) before it reaches a cache, a preview or a download, and a slow tier (`make grid`)
 runs the measured thread grid through the same gate. The numbers it prints are not for
 cutting metal to. The house rules (`AGENTS.md`), the

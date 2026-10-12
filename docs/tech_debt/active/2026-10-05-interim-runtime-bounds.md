@@ -4,7 +4,10 @@ Severity: must
 Status: active
 Date: 2026-10-05
 Source: Phase 1 D-01, D-02, D-14; 01-RESEARCH.md F1, F9; L09. Phase 3 added `MIN_TAIL_MM`,
-`MAX_TURNS` and `FINE_STL_ROWS` and the in-cap costs below (D-01 to D-03, D-17, D-18; L12; plan 03-07)
+`MAX_TURNS` and `FINE_STL_ROWS` and the in-cap costs below (D-01 to D-03, D-17, D-18; L12; plan 03-07).
+Phase 4 moved `MIN_TAIL_MM` to `calc/thread.py`, keyed `FINE_STL_ROWS` by hand and read both caps on the
+built thread, put `INTERIM_MAX_MM` on `s`, `k` and `thread_length` too, and added the preview-STL row
+(D-21, D-22, D-27; L13; plan 04-14)
 Related files (every `INTERIM` label under src/, Dockerfile and compose.yaml; the audit in
 01-09 Task 2 compared `git grep` of the knob names against this item and found none missing):
 - src/screw/app.py:87-93 (`SCREW_EXPORT_CACHE_MB`)
@@ -15,9 +18,9 @@ Related files (every `INTERIM` label under src/, Dockerfile and compose.yaml; th
 - src/screw/solid/__init__.py:44-48 (`TESSELLATION`)
 - src/screw/solid/__init__.py:65-77 (`_release_arenas`)
 - src/screw/solid/__init__.py:137-140 (`SCREW_SOLID_CACHE`)
-- src/screw/solid/helical.py:36-41 (`MIN_TAIL_MM`)
-- src/screw/calc/thread.py:23-28 (`MAX_TURNS`)
-- src/screw/calc/thread.py:138-158 (`FINE_STL_ROWS`)
+- src/screw/calc/thread.py:31-37 (`MIN_TAIL_MM`; the builder in solid/helical.py imports it)
+- src/screw/calc/thread.py:24-29 (`MAX_TURNS`)
+- src/screw/calc/thread.py:258-292 (`FINE_STL_ROWS`)
 - src/screw/params.py:18-31 (`INTERIM_MAX_MM`)
 - src/screw/cli.py:155-157 (`SCREW_WORKERS`, the `serve` default)
 - src/screw/static/app.js:318-321 (UI debounce)
@@ -43,10 +46,11 @@ for screw (D-01).
 | `SCREW_SOLID_CACHE` | 4 solids per worker | solid/__init__.py | spur model.py:561, F9 |
 | `TESSELLATION` | preview (0.08, 0.5), fine (0.01, 0.1) | solid/__init__.py | spur model.py:53, F9: chosen for gears; Phase 5 re-chooses it against pair clearance (FRNT-06) |
 | `_release_arenas` (`malloc_trim`) | on after every export | solid/__init__.py | spur model.py: 1578 MiB resident without it, 360 MiB with it, over 40 distinct 160-199 tooth gears |
-| `INTERIM_MAX_MM` | 1e5 mm on `d` and `length` | params.py | D-14, F1: those figures were measured on the Phase 1 cylinder (d=1e5 and length=1e5: 0.107 s / 550 MiB preview STL, 0.934 s / 1,052 MiB fine STL on macOS arm64; d=1e7 is 25 s and 6.0 GiB, past compose's interim `mem_limit: 4g`). The thread is unmeasured at that corner: planner probe 2026-10-10, d=1e5, pitch=1, length=1 builds in 0.01 s and its preview STL did not finish in 120 s |
-| `MIN_TAIL_MM` | 1e-3 mm | solid/helical.py | D-17, research probe 2026-10-10 at d=6, pitch=1: a twist of length <= 1e-8 mm SIGSEGVs the process before any check can run, 3e-8 to 1e-6 mm raises, 1e-5 mm builds; as a sewn tail 1e-5 to 1e-2 mm built one valid solid at (6, 1), (2, 0.4) and (20, 2.5). 1e-3 sits 100x above the last failing tail. Not a campaign result; Phase 7 re-measures (OPER-03) |
+| `INTERIM_MAX_MM` | 1e5 mm on `d`, `length`, `s`, `k` and `thread_length`; `d` = 1e5 is unreachable, because `s` must exceed `d` (`head_too_small`, L13) and is bounded by the same 1e5 | params.py | D-14, F1: those figures were measured on the Phase 1 cylinder (d=1e5 and length=1e5: 0.107 s / 550 MiB preview STL, 0.934 s / 1,052 MiB fine STL on macOS arm64; d=1e7 is 25 s and 6.0 GiB, past compose's interim `mem_limit: 4g`). The thread is unmeasured at that corner: planner probe 2026-10-10, d=1e5, pitch=1, length=1 builds in 0.01 s and its preview STL did not finish in 120 s |
+| `MIN_TAIL_MM` | 1e-3 mm | calc/thread.py (moved from solid/helical.py in Phase 4; the builder, both closed forms, both caps and `derive` share it, and a plain shank shorter than it is folded into the thread, D-27) | D-17, research probe 2026-10-10 at d=6, pitch=1: a twist of length <= 1e-8 mm SIGSEGVs the process before any check can run, 3e-8 to 1e-6 mm raises, 1e-5 mm builds; as a sewn tail 1e-5 to 1e-2 mm built one valid solid at (6, 1), (2, 0.4) and (20, 2.5). 1e-3 sits 100x above the last failing tail. Not a campaign result; Phase 7 re-measures (OPER-03) |
 | `MAX_TURNS` | 250 turns (`length / pitch`, exact decimals) | calc/thread.py | D-01, L11 `2026-10-08-a-frontier`: measured, no stop up to 250 turns at any size, both hands, rod and void. Nothing above it is measured, and the seconds cap is not established; Phase 7 replaces it with per-size caps (OPER-03) |
-| `FINE_STL_ROWS` | seven `(d, pitch)` rows, 52 to 67.5 mm | calc/thread.py | D-02, D-03, L11 `2026-10-08-a-grid`: measured against the INTERIM 64 MiB export budget and the INTERIM fine preset (0.01 mm, 0.1 rad) with gzip level 1, so each cap moves if either moves. Run keys, not ISO rows; an off-row part has no cap. Phase 7 re-measures (OPER-02, OPER-03) |
+| `FINE_STL_ROWS` | 13 `(d, pitch, left_hand)` rows keyed by hand (D-21): right-hand 52 to 67.5 mm, left-hand 72 to 91 mm, no M8 left-hand row; compared against the built thread `t`, not `length` (D-22) | calc/thread.py | D-02, D-03, D-21, L11 `2026-10-08-a-grid`: the fine raw STL plus its gzip level-1 copy over the INTERIM 64 MiB export budget at the INTERIM fine preset (0.01 mm, 0.1 rad), so each cap moves if either moves; recomputed from the run records by `tests/test_thread_maths.py::test_every_cap_is_the_longest_measured_length_that_fits_in_the_grid_records`. Run keys, not ISO rows; an off-row part has no cap. The caps are measured on rods: the head and shank bytes are known only from the D-03 probe (1.1 to 26.3 KB over seven cases, `bench/RESULTS.md` Head fuse probe, single runs), not swept. The ISO catalogue is 294 rows and 62 ISO 4017 presets (none of ISO 4014) have a fine STL refused by these caps, pinned in `tests/test_presets.py::test_the_fine_stl_refused_presets_are_counted`; the count moves when Phase 7 re-measures (OPER-02, OPER-03) |
+| Preview STL a pick loads | M20 x 200 (ISO 4017, threaded to the head): preview 446,414 triangles, 22,320,784 bytes; its fine STL is 144,945,384 bytes (refused by the cap above) | static/app.js picker, the preview route | Head fuse probe, `bench/RESULTS.md` `## Head fuse probe (Phase 4, D-03)`, one run on macOS arm64, load not controlled; RESEARCH Pitfall 11. Picking a long M20 costs a download of that size on every pick; not a bound. Phase 7 owns it (OPER-02) |
 | `SCREW_WORKERS` | 1 | cli.py `serve` default, Dockerfile `ENV`, compose.yaml | spur L17: one server process, with `SCREW_BUILD_WORKERS` carrying the parallelism; not measured for screw |
 | `mem_limit` | 4g | compose.yaml | spur L17: 4g measured on two workers over spur's 160-199 tooth gear corpus; a labelled cap beats none; not measured for screw. The research probe below peaked at 7875 MiB for one in-cap fine STL |
 | HEALTHCHECK | interval 30 s, timeout 2 s, start-period 30 s, retries 3, and the probe's inner `urlopen` timeout 1 s | Dockerfile | spur's healthcheck (F9): spur measured `/api/health` under-load p95 at 0.7-2.3 ms on its gear service and kept 2 s for interpreter startup in the probe; not measured for screw |
