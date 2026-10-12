@@ -166,7 +166,7 @@ def test_openapi_documents_the_typed_contracts() -> None:
         "$ref": "#/components/schemas/PartInfo"}
 
     part_info = schema["components"]["schemas"]["PartInfo"]
-    keys = {"kind", "rows", "warnings", "designation", "preset"}
+    keys = {"kind", "rows", "warnings", "designation", "preset", "notes"}
     assert set(part_info["properties"]) == keys
     assert set(part_info["required"]) == keys
     preset = schema["components"]["schemas"]["PresetMatch"]
@@ -207,6 +207,9 @@ def test_an_iso_4014_match_and_a_non_row_part_over_the_wire() -> None:
     assert custom["warnings"][-1] == (
         "no ISO 4014:2022 or ISO 4017:2022 row matches these fields; row values not reported")
     assert {"s_min", "b"}.isdisjoint(row["key"] for row in custom["rows"])
+    assert bolt["notes"] == ["product grade A (ISO 4014:2022: l ≤ 150 mm and l ≤ 10 d)",
+                             "wrench size 16 mm (ISO 4014:2022); the withdrawn DIN 931 used 17 mm"]
+    assert custom["notes"] == []
 
 
 def test_the_default_info_document() -> None:

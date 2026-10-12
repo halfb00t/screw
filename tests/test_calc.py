@@ -7,7 +7,7 @@ import math
 import pytest
 
 from screw.calc import STANDING_WARNING, PartInfo, PresetMatch, derive, download_refusal
-from screw.calc.presets import designation_for, match
+from screw.calc.presets import WITHDRAWN_DIN_WRENCH_MM, designation_for, match
 from screw.calc.thread import bolt_closed_volume, fine_stl_refusal
 from screw.params import KINDS, BoltParams, FastenerParams
 from screw.tables.presets import catalogue
@@ -484,3 +484,66 @@ def test_the_no_row_warning_follows_the_thread_warnings_and_precedes_the_fine_st
         STANDING_WARNING,
         "thread_length 80 exceeds length 70: thread built to the full length",
         NO_ROW, refusal]
+
+
+# --- the notes: product grade and the ISO versus withdrawn DIN wrench size (D-20, INFO-05) -----
+
+GRADE_A = "product grade A (ISO 4017:2022: l ≤ 150 mm and l ≤ 10 d)"
+
+
+def _row_part(row_id: str) -> BoltParams:
+    row = next(r for r in catalogue() if r.id == row_id)
+    return BoltParams.model_validate(dict(row.fields))
+
+
+def test_the_default_part_notes_its_product_grade_and_nothing_else() -> None:
+    assert derive(BoltParams()).notes == [GRADE_A]
+
+
+def test_a_grade_b_row_notes_grade_b() -> None:
+    notes = derive(_row_part("iso4017:M16x160")).notes
+    assert notes == ["product grade B (ISO 4017:2022: l > 150 mm)"]
+
+
+def test_the_grade_note_names_the_matched_standard() -> None:
+    notes = derive(M10X80).notes
+    assert notes[0] == "product grade A (ISO 4014:2022: l ≤ 150 mm and l ≤ 10 d)"
+
+
+@pytest.mark.parametrize(("row_id", "note"), [
+    ("iso4017:M10x40", "wrench size 16 mm (ISO 4017:2022); the withdrawn DIN 933 used 17 mm"),
+    ("iso4017:M12x40", "wrench size 18 mm (ISO 4017:2022); the withdrawn DIN 933 used 19 mm"),
+    ("iso4017:M14x40", "wrench size 21 mm (ISO 4017:2022); the withdrawn DIN 933 used 22 mm"),
+    ("iso4014:M10x80", "wrench size 16 mm (ISO 4014:2022); the withdrawn DIN 931 used 17 mm"),
+    ("iso4014:M12x80", "wrench size 18 mm (ISO 4014:2022); the withdrawn DIN 931 used 19 mm"),
+    ("iso4014:M14x80", "wrench size 21 mm (ISO 4014:2022); the withdrawn DIN 931 used 22 mm"),
+])
+def test_the_wrench_note_at_m10_m12_and_m14_is_the_second_note(row_id: str, note: str) -> None:
+    notes = derive(_row_part(row_id)).notes
+    assert len(notes) == 2
+    assert notes[1] == note
+
+
+def test_the_wrench_note_appears_on_those_three_sizes_and_no_others() -> None:
+    # INFO-05: only M10, M12 and M14 differ between the ISO and the withdrawn DIN wrench size.
+    sizes_with_note = {row.size for row in catalogue()
+                       if len(derive(BoltParams.model_validate(dict(row.fields))).notes) == 2}
+    assert sizes_with_note == {"M10", "M12", "M14"}
+    for row_id in ("iso4017:M8x40", "iso4017:M16x40", "iso4017:M20x40", "iso4014:M8x80"):
+        assert len(derive(_row_part(row_id)).notes) == 1, row_id
+
+
+def test_the_iso_wrench_size_differs_from_the_cited_din_one_wherever_a_note_is_made() -> None:
+    # The note's premise: if the shipped s ever equalled the DIN value, "used 17" would be noise.
+    for row in catalogue():
+        din = WITHDRAWN_DIN_WRENCH_MM.get(row.size)
+        if din is not None:
+            assert row.head.s != din, row.id
+
+
+def test_a_part_that_matches_no_row_has_no_notes_at_m10_either() -> None:
+    off = _row_part("iso4017:M10x40").model_copy(update={"length": 41.0, "thread_length": 41.0})
+    info = derive(off)
+    assert info.preset == PresetMatch(status="custom", id=None, display=None)
+    assert info.notes == []
+    assert derive(BoltParams(length=10.0)).notes == []

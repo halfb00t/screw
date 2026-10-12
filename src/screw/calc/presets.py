@@ -12,6 +12,17 @@ from screw.params import BoltParams
 from screw.tables.presets import PresetRow, catalogue
 from screw.tables.rows import Source
 
+# The wrench size the withdrawn DIN 931 and DIN 933 gave the three sizes where it differs from the
+# ISO one, in mm (D-20, INFO-05). Read from two independent web pages that agree, MEDIUM
+# confidence, not from the purchased text: Eurolink FSS, "DIN 933 vs. ISO 4017 and DIN 931 vs.
+# ISO 4014", and Wermac, "metric hex bolt dimensions" (04-RESEARCH.md Sources). The ISO side of the
+# note is never typed here: it is the matched row's own `s`. This is the only DIN text in v1;
+# DIN aliases are v2 (TABL-08).
+WITHDRAWN_DIN_WRENCH_MM: dict[str, float] = {"M10": 17.0, "M12": 19.0, "M14": 22.0}
+
+# The withdrawn DIN standard each ISO one replaced, for the wrench note.
+WITHDRAWN_DIN: dict[str, str] = {"ISO 4017": "DIN 933", "ISO 4014": "DIN 931"}
+
 
 def match(p: BoltParams) -> PresetRow | None:
     """The first catalogue row whose every field equals `p`'s, or None (D-09).
@@ -67,3 +78,20 @@ def row_values(row: PresetRow) -> list[InfoRow]:
                        SHANK),
         ]
     return rows
+
+
+def notes(row: PresetRow) -> list[str]:
+    """The one-line notes of a matched row: its product grade, then the wrench-size remark.
+
+    The grade rule is the standards' (A up to 150 mm and 10 d, else B), read off the row's own
+    grade and standard. The wrench note exists only where the withdrawn DIN size differs, which
+    is M10, M12 and M14; its ISO figure is the row's `s`, its DIN figure a cited constant (D-20).
+    """
+    cite = f"{row.standard}:{row.edition}"
+    limit = "l \u2264 150 mm and l \u2264 10 d" if row.grade == "A" else "l > 150 mm"
+    result = [f"product grade {row.grade} ({cite}: {limit})"]
+    din = WITHDRAWN_DIN_WRENCH_MM.get(row.size)
+    if din is not None:
+        result.append(f"wrench size {row.head.s:g} mm ({cite}); "
+                      f"the withdrawn {WITHDRAWN_DIN[row.standard]} used {din:g} mm")
+    return result

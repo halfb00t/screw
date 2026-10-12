@@ -79,6 +79,9 @@ class PartInfo(BaseModel):
                     "left-hand (the standards give no left-hand form); never a property class")
     preset: PresetMatch | None = Field(
         description="whether the part is a catalogue row; null for a kind without a catalogue")
+    notes: list[str] = Field(
+        description="one-line notes about the matched row, present only on an exact match; the "
+                    "page shows them after the warnings in their own style (D-20)")
 
 
 def _thread_length_warning(p: BoltParams, t: float) -> str | None:
@@ -105,7 +108,7 @@ def _bolt(p: BoltParams) -> PartInfo:
     # Imported here, never at module top: importing `screw.calc.thread` runs this file, and a
     # table import above would load the tables behind every rebuilt link (contract 6,
     # tests/test_import_boundaries.py).
-    from screw.calc.presets import designation_for, match, row_values
+    from screw.calc.presets import designation_for, match, notes, row_values
 
     # One built thread for every row, warning and cap below (D-27): never recomputed.
     t = built_thread_length(p.thread_length, p.length)
@@ -181,11 +184,13 @@ def _bolt(p: BoltParams) -> PartInfo:
     if row is None:
         preset = PresetMatch(status="custom", id=None, display=None)
         designation = None
+        row_notes: list[str] = []
     else:
         preset = PresetMatch(status="exact", id=row.id, display=row.display)
         designation = designation_for(p, row)
+        row_notes = notes(row)
     return PartInfo(kind=p.kind, rows=rows, warnings=warnings, designation=designation,
-                    preset=preset)
+                    preset=preset, notes=row_notes)
 
 
 def derive(p: FastenerParams) -> PartInfo:
