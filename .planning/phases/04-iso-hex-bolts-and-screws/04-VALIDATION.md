@@ -65,8 +65,12 @@ created: "2026-10-11"
 | 04-13-T2 | 04-13 | 10 | TABL-01, TABL-05, TABL-06, TABL-07, INFO-03, INFO-05 | T-04-22 | the basis never enters the hash | source pins (parity) | same command; picker / badge / UI-SPEC greps | ✅ | ✅ green; the browser check is Manual-Only |
 | 04-14-T1 | 04-14 | 10 | TYPE-01, TABL-04 | T-04-23 | L13 recorded with sources | smoke (grep) | L13 / L12 / overview grep chains | ✅ | ✅ green |
 | 04-14-T2 | 04-14 | 10 | TYPE-01, TABL-04 | — | — | smoke | ROADMAP / REQUIREMENTS / debt / README greps; `make test PYTEST_ARGS="tests/test_cli.py -q -n0 --no-cov -k readme"` | ✅ | ✅ green |
+| 04-15-T1 | 04-15 | 11 | TABL-01, TYPE-02 | T-04-29 | one rule: `_downloads` calls `download_refusal`, enums pinned to the route in OpenAPI | tracer (unit, integration) | `make test PYTEST_ARGS="tests/test_calc.py tests/test_api.py tests/test_parity.py -q -n0 --no-cov"`; `screw info bolt --preset iso4017:M8x70` downloads probe | ✅ | ✅ green |
+| 04-15-T2 | 04-15 | 11 | TYPE-02 | T-04-29 | every catalogue row agrees with the rule; the pinned 62 is byte-identical to `d3eb46f` | unit | `make test PYTEST_ARGS="tests/test_presets.py -q -n0 --no-cov"`; `ast` diff of the counted test against `d3eb46f` | ✅ | ✅ green |
+| 04-16-T1 | 04-16 | 12 | TABL-01, TYPE-02 | T-04-27, T-04-28, T-04-30 | text-only DOM; `quality` via `URLSearchParams.set`; the label names the quality it falls back to | tracer (source pins, parity) | `make test PYTEST_ARGS="tests/test_parity.py -q -n0 --no-cov"`; `setDownloads(q, info.downloads)` / `downloadLinks` greps | ✅ | ✅ green; the browser check is Manual-Only |
+| 04-16-T2 | 04-16 | 12 | TABL-01 | — | L13 gains lines only, after the Info document paragraph | smoke (grep, difflib) | UI-SPEC / L13 / disposition / ideas grep chain; difflib one-insert check against `d3eb46f` | ✅ | ✅ green |
 
-Every automated task also ends with `make verify`; it is green at the audited commit (`134dbae`: 2619 passed, coverage 97.57%, pre-commit run) and the per-task probes above were re-run on 2026-10-12 by the execute-phase orchestrator (25 of 26 pass; the one stale probe is noted on 04-03-T1).
+Every automated task also ends with `make verify`; it is green at the audited commit (`134dbae`: 2619 passed, coverage 97.57%, pre-commit run) and the per-task probes above were re-run on 2026-10-12 by the execute-phase orchestrator (25 of 26 pass; the one stale probe is noted on 04-03-T1). The G-04-3 gap closure (04-15, 04-16) was audited at `f3b5acd` (`make verify`: 2635 passed, coverage 97.33%); its four probes were re-run by the orchestrator on 2026-10-12 and pass.
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -90,6 +94,7 @@ From RESEARCH § Validation Architecture → Wave 0 Gaps:
 |----------|-------------|------------|-------------------|
 | The picker, badge, designation, groups, notes and unrounded numbers on the page | TABL-01, TABL-05, TABL-06, TABL-07, INFO-03, INFO-05 | No browser runs in the gate (L01); `tests/test_parity.py` pins the source, a throwaway node harness checked the list logic | The six-step checklist in `04-13-SUMMARY.md` (`make serve`, empty hash, pick ISO 4014 / M10 / 80, edit Length, Reset, reload an edited link, second-choice size) — the Phase 4 UAT item |
 | A table row is marked verified only against the owner's purchased copy of its standard | TABL-04 | The purchased PDFs are not in the repo; the double-entry transcription is the owner checkpoint | Done: opening read 2026-10-11 (04-01 T2, ruling `A - 3.`) and the full copy 2026-10-12 (04-09 T1, ruling B: owner half generated from the purchased PDF text layer, agent half read from page images); recorded in `04-OWNER-READS.md`; no row shipped UNVERIFIED |
+| `Download STL (preview)` with the refusal as its tooltip saves an STL for ISO 4017 / M8 / 70 beside an unchanged `Download STEP`; `Download STL` for M8 / 65; both disabled under their static labels after a failed update; the two buttons lay out in light, dark and under 820px | TABL-01, TYPE-02 | No browser runs in the gate (L01); `tests/test_parity.py` pins the source and applies rule 17 in Python to the live document | The Task 1 human check in `04-16-PLAN.md` (`make serve` or `SCREW_PORT=8001 make serve`, empty hash, pick ISO 4017 / M8 / 70, hover and click the STL button, click Download STEP, tick and untick Left-hand, pick M8 / 65, set Length 10 and Thread length 30, repeat in the other theme and under 820px) — the Phase 4 UAT item for G-04-3 |
 
 ---
 
@@ -102,7 +107,7 @@ From RESEARCH § Validation Architecture → Wave 0 Gaps:
 - [x] Feedback latency < 90s
 - [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** validated 2026-10-12 (execute-phase verify:post; 23 automated tasks green, 2 owner checkpoints and the 04-13 browser checks manual-only; no gaps, no auditor spawned)
+**Approval:** validated 2026-10-12 (execute-phase verify:post; 23 automated tasks green, 2 owner checkpoints and the 04-13 browser checks manual-only; no gaps, no auditor spawned); gap closure 04-15 and 04-16 validated 2026-10-12 (4 automated tasks green, the 04-16 browser check manual-only; no gaps, no auditor spawned)
 
 ## Validation Audit 2026-10-12
 
