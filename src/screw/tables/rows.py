@@ -1,8 +1,10 @@
 """The row types: per-size records of numbers, each carrying the page it was read from.
 
 Rows are never the printed layout of a standard. Tolerance columns (the printed `l` min and max
-cells, `ls,min` and the like) are not stored: the nominal length is the number the product uses,
-so there is nothing to double-enter (RESEARCH Pitfall 10).
+cells) are not stored: the nominal length is the number the product uses, so there is nothing to
+double-enter (RESEARCH Pitfall 10). The one exception is the ISO 4014 shank cell, whose printed
+`ls,min` and `lg,max` are stored as printed so the relation test has something to test against
+(RESEARCH Pitfall 5).
 
 Every dataclass is keyword-only with no defaults, so a row built without `source=` is a
 `mypy --strict` error naming `source` (TABL-02): the citation cannot be forgotten, only written.
@@ -70,4 +72,31 @@ class SeriesLength:
     size: str
     length: float
     grade: Literal["A", "B"]
+    source: Source
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ThreadBand:
+    """The thread length `b` (ref.) of one ISO 4014 size: for l <= 125, and for 125 < l <= 200.
+
+    `b_long` is None where the standard prints no second row, which is every size whose longest
+    length is not above 125 mm.
+    """
+
+    size: str
+    b_short: float
+    b_long: float | None
+    source: Source
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ShankCell:
+    """One white cell of the ISO 4014 length block: a standard length with its printed
+    `ls,min` and `lg,max`."""
+
+    size: str
+    length: float
+    grade: Literal["A", "B"]
+    ls_min: float
+    lg_max: float
     source: Source

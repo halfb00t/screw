@@ -11,12 +11,14 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
+from screw.tables import iso4014
 from screw.tables.iso262 import SIZES
 from screw.tables.iso4017 import HEADS, SERIES
 
 OWNER_DIR = Path(__file__).parent / "data" / "owner"
 
-Cells = dict[str, float | str]
+# `None` is the owner's `-` in a number column: a band the standard prints no second row for.
+Cells = dict[str, float | str | None]
 Rows = dict[tuple[str, ...], Cells]
 
 # Per file: the columns that are the row key, the columns that are numbers.
@@ -27,6 +29,12 @@ _SHAPE: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
         ("pitch", "s", "s_min", "e_min", "k", "k_min", "k_max", "dw_min"),
     ),
     "iso4017_lengths.tsv": (("size", "length"), ()),
+    "iso4014_heads.tsv": (
+        ("size", "grade"),
+        ("pitch", "s", "s_min", "e_min", "k", "k_min", "k_max", "dw_min"),
+    ),
+    "iso4014_bands.tsv": (("size",), ("b_short", "b_long")),
+    "iso4014_lengths.tsv": (("size", "length"), ("ls_min", "lg_max")),
 }
 
 
@@ -37,14 +45,21 @@ def _key(key_columns: tuple[str, ...], cells: dict[str, str]) -> tuple[str, ...]
     )
 
 
+def _cell(is_number: bool, value: str) -> float | str | None:
+    if not is_number:
+        return value
+    return None if value == "-" else float(value)
+
+
 def read_owner(directory: Path, name: str) -> Rows:
-    """The owner's TSV: header first, tab-separated, decimal point; numbers read as floats."""
+    """The owner's TSV: header first, tab-separated, decimal point; numbers read as floats and
+    a `-` in a number column as None."""
     key_columns, number_columns = _SHAPE[name]
     rows: Rows = {}
     with (directory / name).open(encoding="utf-8", newline="") as handle:
         for record in csv.DictReader(handle, delimiter="\t"):
             cells: Cells = {
-                column: (float(value) if column in number_columns else value)
+                column: _cell(column in number_columns, value)
                 for column, value in record.items()
                 if column not in key_columns
             }
@@ -88,6 +103,40 @@ def shipped() -> dict[str, Rows]:
             }
             for entry in SERIES
         },
+        "iso4014_heads.tsv": {
+            (head.size, head.grade): {
+                "pitch": head.pitch,
+                "s": head.s,
+                "s_min": head.s_min,
+                "e_min": head.e_min,
+                "k": head.k,
+                "k_min": head.k_min,
+                "k_max": head.k_max,
+                "dw_min": head.dw_min,
+                "table": head.source.table,
+                "column": head.source.column,
+            }
+            for head in iso4014.HEADS
+        },
+        "iso4014_bands.tsv": {
+            (band.size,): {
+                "b_short": band.b_short,
+                "b_long": band.b_long,
+                "table": band.source.table,
+                "column": band.source.column,
+            }
+            for band in iso4014.BANDS
+        },
+        "iso4014_lengths.tsv": {
+            (cell.size, f"{cell.length:g}"): {
+                "grade": cell.grade,
+                "ls_min": cell.ls_min,
+                "lg_max": cell.lg_max,
+                "table": cell.source.table,
+                "column": cell.source.column,
+            }
+            for cell in iso4014.CELLS
+        },
     }
 
 
@@ -124,6 +173,9 @@ def test_the_owner_copy_is_not_vacuous() -> None:
     assert len(read_owner(OWNER_DIR, "iso262.tsv")) == 15
     assert len(read_owner(OWNER_DIR, "iso4017_heads.tsv")) == 18
     assert len(read_owner(OWNER_DIR, "iso4017_lengths.tsv")) == 186
+    assert len(read_owner(OWNER_DIR, "iso4014_heads.tsv")) == 18
+    assert len(read_owner(OWNER_DIR, "iso4014_bands.tsv")) == 15
+    assert len(read_owner(OWNER_DIR, "iso4014_lengths.tsv")) == 108
 
 
 def test_one_changed_cell_is_one_disagreement_naming_file_key_column_and_both_values() -> None:
@@ -151,3 +203,17 @@ def test_a_row_on_one_side_only_is_a_disagreement() -> None:
         "iso4017_lengths.tsv (M6, 12): only in the shipped rows; go read the standard",
         "iso4017_lengths.tsv (M6, 20): only in the owner copy; go read the standard",
     ]
+
+
+def test_a_dash_in_the_owner_band_file_is_none_and_one_changed_band_is_one_disagreement() -> None:
+    owner = read_owner(OWNER_DIR, "iso4014_bands.tsv")
+    assert owner["M12",]["b_long"] is None
+    assert owner["M14",]["b_long"] == 40.0
+    changed = {key: dict(cells) for key, cells in owner.items()}
+    changed["M12",]["b_long"] = 36.0
+
+    (line,) = diff("iso4014_bands.tsv", changed, shipped()["iso4014_bands.tsv"])
+
+    assert line == (
+        "iso4014_bands.tsv (M12) column b_long: owner 36.0, shipped None; go read the standard"
+    )

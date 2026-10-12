@@ -15,10 +15,11 @@ from mypy import api as mypy_api
 
 from screw.calc import derive
 from screw.params import BoltParams
+from screw.tables import iso4014
 from screw.tables.iso262 import SIZES
 from screw.tables.iso4017 import HEADS, SERIES
 from screw.tables.presets import FIELD_NAMES, PresetRow, catalogue, expand
-from screw.tables.rows import HexHead, Size, Source
+from screw.tables.rows import HexHead, ShankCell, Size, Source
 
 ROOT = Path(__file__).resolve().parents[1]
 TABLES_DIR = ROOT / "src" / "screw" / "tables"
@@ -63,7 +64,7 @@ def test_a_second_choice_size_is_bracketed_and_a_first_choice_size_is_not(row: P
 def test_k_tolerance_is_symmetric_about_the_nominal() -> None:
     # Held for every column read so far. A confirmed row that breaks it means this invariant is
     # wrong; it then comes out only with the owner's ruling recorded in 04-OWNER-READS.md.
-    for head in HEADS:
+    for head in (*HEADS, *iso4014.HEADS):
         assert math.isclose(head.k_max - head.k, head.k - head.k_min, abs_tol=1e-9), head
 
 
@@ -80,7 +81,9 @@ def test_iso_262_holds_exactly_the_fifteen_sizes_of_tabl_05_in_diameter_order() 
     assert {size.label for size in SIZES if size.choice == 2} == SECOND_CHOICE
 
 
-@pytest.mark.parametrize("head", HEADS, ids=lambda h: f"{h.size}-{h.grade}")
+@pytest.mark.parametrize(
+    "head", [*HEADS, *iso4014.HEADS], ids=lambda h: f"{h.source.standard}-{h.size}-{h.grade}"
+)
 def test_head_relations(head: HexHead) -> None:
     assert head.s_min < head.s
     assert head.dw_min < head.s_min
@@ -174,6 +177,146 @@ def test_the_iso_4017_catalogue_has_the_row_count_the_agreed_transcription_yield
     # 1 + 2 + 3 grade B lengths in Table 3.
     assert sum(1 for row in ROWS if row.standard == "ISO 4017") == 186
     assert len(SERIES) == 186
+
+
+# ISO 4014:2022 (TYPE-01): heads, the thread length b by band, and the printed shank cells.
+BAND = {band.size: band for band in iso4014.BANDS}
+HEAD_4014 = {(head.size, head.grade): head for head in iso4014.HEADS}
+
+
+def _cell_id(cell: ShankCell) -> str:
+    return f"{cell.size}x{cell.length:g}"
+
+
+def _b_of(size: str, length: float) -> float:
+    """b of the band the length falls in: b for l <= 125, c for 125 < l <= 200."""
+    band = BAND[size]
+    if length <= 125:
+        return band.b_short
+    assert band.b_long is not None, (size, length)
+    return band.b_long
+
+
+@pytest.mark.parametrize("cell", iso4014.CELLS, ids=_cell_id)
+def test_a_printed_shank_cell_satisfies_lg_max_and_ls_min_from_its_bands_b(
+    cell: ShankCell,
+) -> None:
+    # Pitfall 5: the stored printed cells are tested against the relations, never recomputed from
+    # them, so a mistyped digit in either column fails here as well as in the owner diff.
+    b = _b_of(cell.size, cell.length)
+    assert abs(cell.lg_max - (cell.length - b)) <= 1e-9, cell
+    assert abs(cell.ls_min - (cell.lg_max - 5 * PITCH[cell.size])) <= 1e-9, cell
+
+
+def test_the_iso_4014_pitch_of_each_head_and_band_is_the_iso_262_pitch() -> None:
+    assert all(head.pitch == PITCH[head.size] for head in iso4014.HEADS)
+    assert {band.size for band in iso4014.BANDS} == set(PITCH)
+
+
+def test_a_band_has_a_second_b_exactly_when_a_length_of_the_size_exceeds_125() -> None:
+    for size, band in BAND.items():
+        longest = max(c.length for c in iso4014.CELLS if c.size == size)
+        assert (band.b_long is not None) == (longest > 125), size
+        # b grows with l: the longer band never has the shorter thread.
+        assert band.b_long is None or band.b_long > band.b_short, size
+
+
+def test_every_length_uses_the_band_its_length_falls_in_at_the_125_mm_boundary() -> None:
+    # The cell at 120 or 125 mm and the next listed one (130) sit either side of the boundary
+    # for M14 to M20: 120 takes b, 130 takes c (Table 3, footnotes b and c).
+    for size in ("M14", "M16", "M18", "M20"):
+        by_length = {c.length: c for c in iso4014.CELLS if c.size == size}
+        assert by_length[120.0].length - by_length[120.0].lg_max == BAND[size].b_short, size
+        assert by_length[130.0].length - by_length[130.0].lg_max == BAND[size].b_long, size
+
+
+@pytest.mark.parametrize("label", sorted(PITCH), ids=str)
+def test_an_iso_4014_size_lists_increasing_standard_lengths_up_to_ten_diameters(
+    label: str,
+) -> None:
+    d = DIAMETER[label]
+    lengths = [c.length for c in iso4014.CELLS if c.size == label]
+    assert lengths, label  # a size with no cell would pass every check below for nothing
+    assert lengths == sorted(set(lengths)), label
+    assert set(lengths) <= set(STANDARD_LENGTHS), label
+    assert lengths[-1] <= 10 * d, label
+    # Footnote e: the greatest listed length not above 10 d, and none missing between the ends.
+    assert lengths[-1] == max(n for n in STANDARD_LENGTHS if n <= min(10 * d, 200)), label
+    assert lengths == [n for n in STANDARD_LENGTHS if lengths[0] <= n <= lengths[-1]], label
+
+
+@pytest.mark.parametrize("label", [s for s in sorted(PITCH) if DIAMETER[s] >= 5], ids=str)
+def test_the_shortest_iso_4014_length_follows_the_footnote_from_m5_up(label: str) -> None:
+    # Footnote d: 5 d for M5 to M8, 4,5 d for M10, 4 d for M12 to M22, to the nearest listed
+    # length. M2 to M4 print no such rule; the owner copy alone holds those cells.
+    d = DIAMETER[label]
+    factor = 5 if d <= 8 else 4.5 if d == 10 else 4
+    shortest = min(c.length for c in iso4014.CELLS if c.size == label)
+    assert shortest == min(STANDARD_LENGTHS, key=lambda n: (abs(n - factor * d), -n)), label
+
+
+def test_150_mm_is_the_last_grade_a_iso_4014_length_and_the_next_one_is_grade_b() -> None:
+    for cell in iso4014.CELLS:
+        assert cell.grade == ("A" if cell.length <= min(10 * DIAMETER[cell.size], 150) else "B")
+    assert {c.size for c in iso4014.CELLS if c.grade == "B"} == {"M16", "M18", "M20"}
+    assert all(c.length > 150 for c in iso4014.CELLS if c.grade == "B")
+
+
+def test_every_iso_4014_cell_has_its_grade_head_and_cites_the_same_table_and_column() -> None:
+    assert {(c.size, c.grade) for c in iso4014.CELLS} == set(HEAD_4014)
+    for cell in iso4014.CELLS:
+        assert cell.source == HEAD_4014[cell.size, cell.grade].source, cell
+
+
+def test_iso_4014_heads_and_bands_cite_the_table_and_bracketed_column_of_their_size() -> None:
+    for head in iso4014.HEADS:
+        table = "Table 4" if head.grade == "B" else (
+            "Table 1" if DIAMETER[head.size] <= 4 else
+            "Table 2" if DIAMETER[head.size] <= 12 else "Table 3"
+        )
+        assert head.source.table == table, head
+    sourced: list[tuple[str, Source]] = [
+        *((head.size, head.source) for head in iso4014.HEADS),
+        *((band.size, band.source) for band in iso4014.BANDS),
+    ]
+    for size, source in sourced:
+        assert (source.standard, source.edition) == ("ISO 4014", "2022"), size
+        assert source.column.startswith("(") == (CHOICE[size] == 2), size
+        assert source.column.strip("()") == size.replace(".", ","), size
+    # A band is read from its size's grade A table, the same cell as the grade A head.
+    for band in iso4014.BANDS:
+        assert band.source == HEAD_4014[band.size, "A"].source, band
+
+
+def test_every_size_has_a_grade_a_iso_4014_head_and_grade_b_only_for_m16_m18_m20() -> None:
+    keys = list(HEAD_4014)
+    assert len(keys) == len(iso4014.HEADS) == 18
+    assert {size for size, grade in keys if grade == "A"} == set(PITCH)
+    assert {size for size, grade in keys if grade == "B"} == {"M16", "M18", "M20"}
+    assert keys == sorted(keys, key=lambda k: (DIAMETER[k[0]], k[1]))
+
+
+def test_the_iso_4014_row_counts_the_agreed_transcription_yields() -> None:
+    # Counted after the owner copy and the transcription agreed cell by cell: 2 + 3 + 3 + 4 + 4
+    # cells in Table 1, 6 + 7 + 8 + 8 + 9 + 10 in Table 2, 11 + 10 + 9 + 8 grade A cells in
+    # Table 3 and 1 + 2 + 3 grade B cells in Table 4.
+    assert len(iso4014.CELLS) == 108
+    assert len(iso4014.BANDS) == 15
+
+
+@pytest.mark.parametrize("head", iso4014.HEADS, ids=lambda h: f"{h.size}-{h.grade}")
+def test_an_iso_4014_head_equals_the_iso_4017_head_of_the_same_size_and_grade(
+    head: HexHead,
+) -> None:
+    # A3 = yes (04-OWNER-READS.md, 2026-10-12): the values are equal as numbers, though the
+    # printed digits differ (ISO 4017 M6 k reads `4`, ISO 4014 M6 k reads `4,0`). Equal does not
+    # mean one row: each standard keeps its own head row and its own citation (TABL-02).
+    other = next(h for h in HEADS if (h.size, h.grade) == (head.size, head.grade))
+    for column in ("pitch", "s", "s_min", "e_min", "k", "k_min", "k_max", "dw_min"):
+        assert getattr(head, column) == getattr(other, column), column
+    assert head is not other
+    assert head.source.standard == "ISO 4014"
+    assert other.source.standard == "ISO 4017"
 
 
 @pytest.mark.parametrize("row", ROWS, ids=lambda r: r.id)
@@ -279,7 +422,8 @@ def test_no_module_marks_a_row_unverified() -> None:
 
 def test_no_row_in_the_tree_is_unverified() -> None:
     sources = [source for row in ROWS for source in row.sources]
-    assert unverified([*SIZES, *HEADS, *SERIES]) == []
+    assert unverified([*SIZES, *HEADS, *SERIES, *iso4014.HEADS, *iso4014.CELLS]) == []
+    assert unverified(iso4014.BANDS) == []
     assert [s for s in sources if s.status != "verified"] == []
     assert len(sources) == 3 * len(ROWS)
 
