@@ -285,7 +285,8 @@ def test_the_designation_never_carries_a_property_class() -> None:
 
 
 def test_a_part_matching_no_row_is_custom_with_no_designation() -> None:
-    info = derive(BoltParams(d=8.0, pitch=1.25, s=13.0, k=5.3))
+    # M8 x 22 is not a length of the M8 series (16, 20, 25, ...), so this M8 part is no row.
+    info = derive(BoltParams(d=8.0, pitch=1.25, s=13.0, k=5.3, length=22.0, thread_length=22.0))
     assert info.preset == PresetMatch(status="custom", id=None, display=None)
     assert info.designation is None
 

@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 from mypy import api as mypy_api
 
+from screw.calc import derive
 from screw.params import BoltParams
 from screw.tables.iso262 import SIZES
 from screw.tables.iso4017 import HEADS, SERIES
@@ -25,6 +26,14 @@ ROWS = catalogue()
 PITCH = {size.label: size.pitch for size in SIZES}
 DIAMETER = {size.label: size.d for size in SIZES}
 CHOICE = {size.label: size.choice for size in SIZES}
+
+# The standard nominal lengths the ISO 4017 series are drawn from. The owner confirmed this exact
+# list (assumption A1, 04-OWNER-READS.md, 2026-10-12); it is the standard's list, not a formula,
+# and the series tests below hold every shipped length to it.
+STANDARD_LENGTHS: tuple[float, ...] = (
+    2, 3, 4, 5, 6, 8, 10, 12, 16, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 80, 90, 100, 110,
+    120, 130, 140, 150, 160, 180, 200,
+)
 
 
 @pytest.mark.parametrize("row", ROWS, ids=lambda r: r.id)
@@ -109,10 +118,96 @@ def test_each_head_cites_the_table_that_holds_its_grade_and_size() -> None:
             assert head.source.table == ("Table 1" if DIAMETER[head.size] <= 7 else "Table 2"), head
 
 
+def _series(label: str) -> list[float]:
+    return [entry.length for entry in SERIES if entry.size == label]
+
+
 def test_each_size_series_is_strictly_increasing() -> None:
     for label in {entry.size for entry in SERIES}:
-        lengths = [entry.length for entry in SERIES if entry.size == label]
+        lengths = _series(label)
         assert lengths == sorted(set(lengths)), label
+
+
+@pytest.mark.parametrize("label", sorted(PITCH), ids=str)
+def test_a_size_series_is_the_listed_lengths_between_two_d_and_the_cap(label: str) -> None:
+    # RESEARCH Code Example 5, from the footnotes of the length block: the series starts at the
+    # listed length nearest 2 d (a tie goes to the longer) and ends at the longest listed length
+    # not above min(10 d, 200), with no listed length missing in between (A1).
+    d = DIAMETER[label]
+    first = min(STANDARD_LENGTHS, key=lambda n: (abs(n - 2 * d), -n))
+    last = max(n for n in STANDARD_LENGTHS if n <= min(10 * d, 200))
+    lengths = _series(label)
+    assert lengths, label  # a size with no length would pass every loop below for nothing
+    assert set(lengths) <= set(STANDARD_LENGTHS)
+    assert lengths == [n for n in STANDARD_LENGTHS if first <= n <= last]
+
+
+def test_the_two_series_bounds_are_ties_to_the_longer_for_m3_5_and_m7() -> None:
+    # 2 d = 7 sits midway between 6 and 8, 2 d = 14 midway between 12 and 16 (Pitfall 6).
+    assert _series("M3.5")[0] == 8
+    assert _series("M7")[0] == 16
+
+
+def test_150_mm_is_grade_a_and_the_next_listed_length_is_grade_b() -> None:
+    for label in ("M16", "M18", "M20"):
+        grades = {entry.length: entry.grade for entry in SERIES if entry.size == label}
+        assert grades[150.0] == "A", label
+        assert grades[160.0] == "B", label
+    assert all(entry.grade == "A" for entry in SERIES if entry.length <= 150)
+    assert all(entry.grade == "B" for entry in SERIES if entry.length > 150)
+
+
+def test_every_series_grade_has_a_head_and_grade_b_heads_exist_only_for_grade_b_lengths() -> None:
+    heads = {(head.size, head.grade) for head in HEADS}
+    assert {(entry.size, entry.grade) for entry in SERIES} == heads
+
+
+def test_every_series_length_cites_the_table_that_holds_its_head() -> None:
+    sources = {(head.size, head.grade): head.source for head in HEADS}
+    for entry in SERIES:
+        assert entry.source == sources[entry.size, entry.grade], entry
+
+
+def test_the_iso_4017_catalogue_has_the_row_count_the_agreed_transcription_yields() -> None:
+    # Counted after the owner copy and the transcription agreed cell by cell: 8 + 8 + 8 + 8 + 9
+    # + 10 + 11 + 12 grade A lengths in Table 1, 13 + 14 + 15 + 16 + 17 + 16 + 15 in Table 2 and
+    # 1 + 2 + 3 grade B lengths in Table 3.
+    assert sum(1 for row in ROWS if row.standard == "ISO 4017") == 186
+    assert len(SERIES) == 186
+
+
+@pytest.mark.parametrize("row", ROWS, ids=lambda r: r.id)
+def test_every_catalogue_row_is_recognised_as_its_own_row_on_the_info_document(
+    row: PresetRow,
+) -> None:
+    info = derive(BoltParams.model_validate(dict(row.fields)))
+    assert info.preset is not None
+    assert (info.preset.status, info.preset.id) == ("exact", row.id)
+    assert info.designation == row.designation
+
+
+@pytest.mark.parametrize(
+    ("label", "shown", "preset_id"),
+    [("M7", "(M7)", "iso4017:M7x20"), ("M3.5", "(M3.5)", "iso4017:M3.5x20"),
+     ("M14", "(M14)", "iso4017:M14x50"), ("M18", "(M18)", "iso4017:M18x50")],
+)
+def test_a_second_choice_row_is_bracketed_in_display_and_picker_but_not_in_id_or_designation(
+    label: str, shown: str, preset_id: str,
+) -> None:
+    row = next(r for r in ROWS if r.id == preset_id)
+    length = f"{row.length:g}"
+    assert row.display == f"ISO 4017 {shown} \u00d7 {length}"
+    assert row.picker == ("ISO 4017", shown, length)
+    assert row.designation == (
+        f"Hexagon head screw ISO 4017 - {label.replace('.', ',')} x {length}"
+    )
+    assert "(" not in row.id
+
+
+def test_the_catalogue_lists_m20_up_to_the_200_mm_cap_and_no_longer() -> None:
+    assert expand("iso4017:M20x200") is not None
+    assert expand("iso4017:M20x220") is None
+    assert max(row.length for row in ROWS) == 200
 
 
 def test_catalogue_ids_are_unique_match_the_grammar_and_are_in_catalogue_order() -> None:

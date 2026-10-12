@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from screw.tables.rows import HexHead, SeriesLength, Source
 
 
@@ -56,8 +58,37 @@ HEADS: tuple[HexHead, ...] = (
             k_min=12.15, k_max=12.85, dw_min=27.7, source=_source("Table 3", "M20")),
 )
 
-# The M6 column's range between the stepped bold lines of the length block, grade A.
+# Each size's range of standard lengths between the stepped bold lines of the length block, read
+# from the same pages: (size, grade, table, column, lengths). A size whose lengths pass 150 mm has
+# a second run, grade B, from Table 3 (the 150 mm row of Table 2 is the last grade A one).
+_RUNS: tuple[tuple[str, Literal["A", "B"], str, str, tuple[float, ...]], ...] = (
+    ("M2", "A", "Table 1", "M2", (4, 5, 6, 8, 10, 12, 16, 20)),
+    ("M2.5", "A", "Table 1", "M2,5", (5, 6, 8, 10, 12, 16, 20, 25)),
+    ("M3", "A", "Table 1", "M3", (6, 8, 10, 12, 16, 20, 25, 30)),
+    ("M3.5", "A", "Table 1", "(M3,5)", (8, 10, 12, 16, 20, 25, 30, 35)),
+    ("M4", "A", "Table 1", "M4", (8, 10, 12, 16, 20, 25, 30, 35, 40)),
+    ("M5", "A", "Table 1", "M5", (10, 12, 16, 20, 25, 30, 35, 40, 45, 50)),
+    ("M6", "A", "Table 1", "M6", (12, 16, 20, 25, 30, 35, 40, 45, 50, 55, 60)),
+    ("M7", "A", "Table 1", "(M7)", (16, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70)),
+    ("M8", "A", "Table 2", "M8", (16, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 80)),
+    ("M10", "A", "Table 2", "M10", (20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 80, 90, 100)),
+    ("M12", "A", "Table 2", "M12",
+     (25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 80, 90, 100, 110, 120)),
+    ("M14", "A", "Table 2", "(M14)",
+     (30, 35, 40, 45, 50, 55, 60, 65, 70, 80, 90, 100, 110, 120, 130, 140)),
+    ("M16", "A", "Table 2", "M16",
+     (30, 35, 40, 45, 50, 55, 60, 65, 70, 80, 90, 100, 110, 120, 130, 140, 150)),
+    ("M16", "B", "Table 3", "M16", (160,)),
+    ("M18", "A", "Table 2", "(M18)",
+     (35, 40, 45, 50, 55, 60, 65, 70, 80, 90, 100, 110, 120, 130, 140, 150)),
+    ("M18", "B", "Table 3", "(M18)", (160, 180)),
+    ("M20", "A", "Table 2", "M20",
+     (40, 45, 50, 55, 60, 65, 70, 80, 90, 100, 110, 120, 130, 140, 150)),
+    ("M20", "B", "Table 3", "M20", (160, 180, 200)),
+)
+
 SERIES: tuple[SeriesLength, ...] = tuple(
-    SeriesLength(size="M6", length=length, grade="A", source=_source("Table 1", "M6"))
-    for length in (12.0, 16.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, 50.0, 55.0, 60.0)
+    SeriesLength(size=size, length=float(length), grade=grade, source=_source(table, column))
+    for size, grade, table, column, lengths in _RUNS
+    for length in lengths
 )

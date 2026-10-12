@@ -123,6 +123,7 @@ def test_the_owner_copy_is_not_vacuous() -> None:
     # An empty or truncated owner file would make the diff above pass for nothing.
     assert len(read_owner(OWNER_DIR, "iso262.tsv")) == 15
     assert len(read_owner(OWNER_DIR, "iso4017_heads.tsv")) == 18
+    assert len(read_owner(OWNER_DIR, "iso4017_lengths.tsv")) == 186
 
 
 def test_one_changed_cell_is_one_disagreement_naming_file_key_column_and_both_values() -> None:
