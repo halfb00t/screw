@@ -12,7 +12,7 @@ created: "2026-10-12"
 
 > Per-phase security contract: threat register, accepted risks, and audit trail.
 
-Register origin: every one of the 14 plans carries a `<threat_model>` block (authored at plan time), so this audit verifies the declared mitigations and scans for nothing new. ASVS level 1 and `threats_open: 0` after the grep-level classification below, so no auditor agent was spawned (secure-phase short-circuit rule). Evidence is a file, a line or a test name in this repository at the audited commit; the SUMMARY `## Threat Flags` sections of all 14 plans were read and none flags a new surface.
+Register origin: every one of the 14 plans carries a `<threat_model>` block (authored at plan time), so this audit verifies the declared mitigations and scans for nothing new. ASVS level 1 and `threats_open: 0` after the grep-level classification below, so no auditor agent was spawned (secure-phase short-circuit rule). Evidence is a file, a line or a test name in this repository at the audited commit; the SUMMARY `## Threat Flags` sections of all 14 plans were read and none flags a new surface. Gap closure (plans 04-15 and 04-16, G-04-3) re-audited 2026-10-12 at `f3b5acd` by the same rule: both plans carry a register, both SUMMARY threat-flag sections read `None`, and the six new threats below closed at grep level, so again no auditor was spawned.
 
 ---
 
@@ -38,7 +38,7 @@ Register origin: every one of the 14 plans carries a `<threat_model>` block (aut
 |-----------|----------|-----------|----------|-------------|------------|--------|
 | T-04-01 | Information disclosure | `.gitignore`, page renders | medium | mitigate | `.gitignore` has `*.pdf` and `/.standards/`; `git ls-files '*.pdf' '*.png'` is empty; the six tracked `tests/data/owner/*.tsv` files are per-size numeric records (D-16), the double-entry's owner half | closed |
 | T-04-02 | Tampering | owner copy, D-07 defaults | high | mitigate | Plans 04-01 and 04-09 carry `blocking-human` checkpoints the owner answered (`04-OWNER-READS.md`: ruling `A - 3.`, `permanent: accepted`, A1, A3, ruling B); values come from the purchased copies via the PDF text layer and page images, never a preview or a web table | closed |
-| T-04-SC | Tampering | npm / pip / cargo installs | low | accept | No package was added in Phase 4: `git diff main...HEAD -- pyproject.toml` adds only import-linter contracts 6 and 7; `requirements*.txt` and `web/package.json` are unchanged; poppler is a Homebrew install on the owner's machine (04-01) | closed — accepted |
+| T-04-SC | Tampering | npm / pip / cargo installs | low | accept | No package was added in Phase 4: `git diff main...HEAD -- pyproject.toml` adds only import-linter contracts 6 and 7; `requirements*.txt` and `web/package.json` are unchanged; poppler is a Homebrew install on the owner's machine (04-01); the gap closure (`79c0522..f3b5acd`) touches no dependency file | closed — accepted |
 | T-04-03 | Denial of service | `FINE_STL_ROWS` left-hand caps | medium | mitigate | `tests/test_thread_maths.py::test_every_cap_is_the_longest_measured_length_that_fits_in_the_grid_records` recomputes each cap from the JSONL records; a typed first-over value fails it | closed |
 | T-04-04 | Denial of service | `s`, `k` up to 1e5 mm | low | accept | Bounds `gt=0`, `le=INTERIM_MAX_MM`, finite at the model; the head is one prism (D-03 probe, tens of kB fine); the interim bounds are the debt row `docs/tech_debt/active/2026-10-05-interim-runtime-bounds.md` for Phase 7 (OPER-02) | closed — accepted |
 | T-04-05 | Tampering | `_build` fused part vs the gate | high | mitigate | `tests/test_solid.py:179 test_a_thread_wrong_by_a_part_in_ten_thousand_is_refused_on_the_thread_not_the_whole` (positive control) and `:201 test_the_good_thread_of_the_same_screw_passes_both_gates`; both gates sit inside the cached build in `src/screw/solid/bolt.py` | closed |
@@ -63,6 +63,11 @@ Register origin: every one of the 14 plans carries a `<threat_model>` block (aut
 | T-04-24 | Repudiation | a bench workload whose meaning drifts under recorded figures | low | mitigate | `bench/corpus.py:31` pins `s`, `k`, `thread_length` per entry; `tests/test_bench.py` spells each entry out | closed |
 | T-04-25 | Elevation of privilege | `calc/__init__.py` importing `screw.calc.presets` at module top | medium | mitigate | No module-top import (`grep -E '^from screw\.calc\.presets' src/screw/calc/__init__.py` prints nothing); the import sits inside `_bolt` at `src/screw/calc/__init__.py:111`; the `derive` converse in `tests/test_import_boundaries.py` | closed |
 | T-04-26 | Repudiation | info numbers for a part the builder refuses | medium | mitigate | `MIN_TAIL_MM` in `src/screw/calc/thread.py`; `tests/test_calc.py:258 test_a_thread_too_short_to_build_gets_a_warning_and_no_turns_or_volume`; API case in `tests/test_api.py` | closed |
+| T-04-29 | Repudiation | the document says served while the route refuses, or the reverse | high | mitigate | One rule: `src/screw/calc/__init__.py:271` `_downloads` builds every entry with `download_refusal(p, fmt, quality)`, the call `app._serve` and `cli.cmd_export` make; `DownloadFormat` / `DownloadQuality` `Literal`s (`:30`, `:31`) pinned to the route's `fmt` and `quality` enums by `tests/test_api.py:220 test_openapi_documents_the_typed_contracts`; `tests/test_api.py:1048` answers every M8 x 70 entry through the route; `tests/test_parity.py:258` three-way CLI / API / export; `tests/test_presets.py` every catalogue row | closed |
+| T-04-27 | Tampering (XSS) | server `refusal` and `quality` strings in the download anchors | medium | mitigate | `src/screw/static/app.js:421` sets `a.title` as a property and the label through `textContent`; no `innerHTML` / `insertAdjacentHTML` / `outerHTML` in app.js; `tests/test_parity.py:509 test_the_ui_builds_nodes_from_text_only` | closed |
+| T-04-28 | Tampering | the download href composed from the server's `format` and `quality` | low | mitigate | `src/screw/static/app.js:415` `qs.set('quality', download.quality)` (encoded); both values are `Literal` enums on `Download` pinned to the route in `tests/test_api.py:220`; `tests/test_parity.py:565` requires an `#dl-<fmt>` anchor for every route format | closed |
+| T-04-30 | Spoofing | a preview mesh taken for the fine one (silent downgrade, L02) | medium | mitigate | The label reads `<static label> (<quality>)`, the `title` and the warning carry the refusal (`src/screw/static/app.js:415-421`; `tests/test_parity.py:565`); residual — the saved file name does not name its quality — filed for the owner in `docs/ideas/2026-10-12-preview-stl-download-names-its-quality.md` | closed |
+| T-04-31 | Denial of service | a click on the preview STL of a long preset | low | accept | The link is the same `(params, "stl", "preview", encoding)` query the page's preview fetch just made, so it is served from the bytes cache when it fits the INTERIM budget and otherwise built under the existing admission control (L13); no new build path | closed — accepted |
 
 *Status: open · closed · open — below high threshold (non-blocking)*
 *Severity: critical > high > medium > low — only open threats at or above workflow.security_block_on count toward threats_open*
@@ -79,6 +84,7 @@ Register origin: every one of the 14 plans carries a `<threat_model>` block (aut
 | AR-04-03 | T-04-06 | D-22: a long plain shank is one cheap cylinder; `INTERIM_MAX_MM` and the 30 s timeout backstop it; recorded for Phase 7 | owner, via plan 04-04's register and D-22 | 2026-10-11 |
 | AR-04-04 | T-04-17 | DIN wrench sizes are a note on three sizes only, with two cited sources and MEDIUM confidence (D-20) | owner, via plan 04-11's register and D-20 | 2026-10-11 |
 | AR-04-05 | T-04-19 | `kind` echo in a JSON 404 matches `/api/schema`; no HTML sink | owner, via plan 04-12's register | 2026-10-11 |
+| AR-04-06 | T-04-31 | The preview-STL link repeats the query the page's preview fetch already made; served from the bytes cache or built under the existing admission control, no new build path (L13) | owner, via plan 04-16's register (IN-02 ruling a, 2026-10-12) | 2026-10-12 |
 
 *Accepted risks do not resurface in future audit runs.*
 
@@ -100,3 +106,11 @@ Register origin: every one of the 14 plans carries a `<threat_model>` block (aut
 - [x] `status: verified` set in frontmatter
 
 **Approval:** verified 2026-10-12
+
+## Security Audit 2026-10-12
+
+| Metric | Count |
+|---|---|
+| Threats found | 32 |
+| Closed | 32 |
+| Open | 0 |
