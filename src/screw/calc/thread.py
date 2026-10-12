@@ -28,6 +28,14 @@ T_GATE = 9e-05
 # replaces it with measured per-size caps (OPER-03).
 MAX_TURNS = 250
 
+# INTERIM (D-17): the shortest length, or sewn tail, the builder accepts, in mm. Research probe
+# 2026-10-10 at d=6, pitch=1: a twist of length <= 1e-8 mm SIGSEGVs the process before any check
+# can run, 3e-8 to 1e-6 mm raises, 1e-5 mm builds; as a sewn tail, 1e-5 to 1e-2 mm built one
+# valid solid at (6, 1), (2, 0.4) and (20, 2.5). 1e-3 sits 100x above the last failing tail.
+# Phase 7 re-measures (OPER-03). One definition for the builder, the closed form, the caps and
+# the info document (D-27).
+MIN_TAIL_MM = 1e-3
+
 
 def fundamental_height(pitch: float) -> float:
     """H = (sqrt(3) / 2) * P, the height of the sharp 60 degree triangle."""
@@ -79,6 +87,80 @@ def section_area(d: float, pitch: float, clearance: float = 0.0) -> float:
 def closed_volume(d: float, pitch: float, length: float, clearance: float = 0.0) -> float:
     """Volume of a rod of `length`: the section is the same at every z, so area times length."""
     return section_area(d, pitch, clearance) * length
+
+
+def hex_prism_volume(s: float, k: float) -> float:
+    """Volume of a regular hexagonal prism of across-flats `s` and height `k`.
+
+    The hexagon area is (sqrt(3) / 2) s^2, a sharp-cornered plain prism with no chamfer or
+    washer face (D-01, D-02).
+    """
+    return math.sqrt(3) / 2 * s * s * k
+
+
+def built_thread_length(thread_length: float, length: float) -> float:
+    """The thread the builder makes, in mm from the tip: `thread_length` capped at `length`.
+
+    D-08: the thread runs from the tip, so a `thread_length` above `length` is built to the full
+    length, and the stored field is never rewritten. D-27: a shank left shorter than
+    `MIN_TAIL_MM` is a sliver the builder cannot take (the kernel crashed on one, RESEARCH
+    Alert 6), so it is folded into the thread, as `helical.thread` folds its own sewn tail. The
+    builder, the closed forms, both caps, the turn-cap validator and `derive` all call this and
+    none recomputes it.
+    """
+    t = min(thread_length, length)
+    return length if length - t < MIN_TAIL_MM else t
+
+
+def bolt_closed_volume(d: float, pitch: float, length: float, s: float, k: float,
+                       t: float) -> float:
+    """Volume of the whole bolt (D-03): thread on z 0..t, plain shank t..length, head on
+    length..length + k.
+
+    The thread is the section area times t, the shank a cylinder of the major diameter, the head
+    a hexagonal prism. `t` is `built_thread_length`, at most `length`.
+    """
+    return (section_area(d, pitch) * t + math.pi * (d / 2) ** 2 * (length - t)
+            + hex_prism_volume(s, k))
+
+
+def head_too_small_refusal(s: float, d: float) -> str | None:
+    """None when the across-flats width `s` exceeds the diameter `d`; otherwise the text (D-23).
+
+    The text begins `s and d: ` so the CLI, which prints no `loc` for a model-level error, still
+    names both fields. No braces in the text: pydantic formats a custom error from its context.
+    """
+    if s > d:
+        return None
+    return (f"s and d: the across-flats width s {s:g} mm must exceed the diameter d {d:g} mm; "
+            f"a head no wider than the shank is not a hex head")
+
+
+def _plain(x: float) -> str:
+    """`repr` without a trailing `.0`: 30.0 reads 30, 10.00001 reads 10.00001.
+
+    `:g` keeps 6 significant figures and prints 10.00001 as 10, which would make the conflict
+    text below say "10 mm is longer than 10 mm" (L02: a number the tool prints is one someone acts
+    on).
+    """
+    return repr(x).removesuffix(".0")
+
+
+def thread_length_conflict(length: float, thread_length: float) -> str | None:
+    """None unless an explicit `thread_length` is longer than an explicit `length`; else the text.
+
+    D-25: the one rule the API dependency and the CLI share, the shape of `download_refusal`.
+    The model carries no such rule because it cannot tell an explicit value from a default
+    (D-08: a default `thread_length` above a short `length` builds to the full length and warns).
+    A value that is not finite or not above 0 gives None, so the model's own 422 keeps naming
+    the bad field. Equal values are no conflict. No braces in the text: pydantic formats a custom
+    error from its context.
+    """
+    if not (math.isfinite(length) and math.isfinite(thread_length)
+            and length > 0 and thread_length > 0 and thread_length > length):
+        return None
+    return (f"thread_length and length: thread_length {_plain(thread_length)} mm is longer than "
+            f"length {_plain(length)} mm; shorten thread_length or lengthen length")
 
 
 def volume_check(measured: float, closed: float) -> str | None:
@@ -159,47 +241,72 @@ def root_radius_refusal(d: float, pitch: float) -> str | None:
     return f"{text}; the largest pitch for this d, to 6 significant figures, is {largest:g}"
 
 
-def turn_cap_refusal(length: float, pitch: float) -> str | None:
-    """None when length / pitch is at most `MAX_TURNS` as exact decimals; else the text (D-01)."""
-    if _exact(length) <= MAX_TURNS * _exact(pitch):
+def turn_cap_refusal(t: float, pitch: float) -> str | None:
+    """None when t / pitch is at most `MAX_TURNS` as exact decimals; else the text (D-01, D-22).
+
+    `t` is the built thread (`built_thread_length`), not the length: the shank adds no turns.
+    The text begins `thread_length, length and pitch: ` so the CLI, which prints no `loc` for a
+    model-level error, still names the fields.
+    """
+    if _exact(t) <= MAX_TURNS * _exact(pitch):
         return None
-    return (f"length and pitch: {turns_of(length, pitch):g} turns is past the {MAX_TURNS}-turn "
-            f"cap, the most measured (run 2026-10-08-a-frontier); shorten length or raise pitch")
+    return (f"thread_length, length and pitch: {turns_of(t, pitch):g} turns of built thread is "
+            f"past the {MAX_TURNS}-turn cap, the most measured (run 2026-10-08-a-frontier); "
+            f"shorten thread_length or length, or raise pitch")
 
 
-# The fine-STL bytes caps of the seven (d, pitch) rows L11 measured (D-03): (d, pitch) -> the
-# largest length in mm whose fine STL still fits the export budget. L11 measured rows
-# (`2026-10-08-a-grid`), not ISO rows: each cap is the largest length below the first grid row
-# whose fine raw STL plus gzip level 1 exceeded the INTERIM 64 MiB export budget, at the INTERIM
-# fine preset (0.01 mm, 0.1 rad). The keys are the campaign's run keys (ISO 262 preview pitches,
-# UNVERIFIED as table truth, exact as run keys and exactly representable floats). This is bench
-# evidence, not a `tables` module, so it does not pre-empt contract 6. It was measured against
-# the 64 MiB budget only and applies unconditionally, even if a deployer changes
-# SCREW_EXPORT_CACHE_MB (03-RESEARCH Open Question 4). An off-row (d, pitch) gets no bytes cap:
-# a cap from an unmeasured mapping to the nearest row is the plausible number L02 forbids.
-# Phase 7 re-measures the budget and the caps (OPER-02, OPER-03). Turns are derived from the
-# millimetres by `turns_of`, never stored.
-FINE_STL_ROWS: dict[tuple[float, float], float] = {
-    (8.0, 1.25): 67.5,    # first row over budget: M8 right L=68 rod
-    (10.0, 1.5): 56.0,    # M10 right L=57 rod
-    (12.0, 1.75): 60.0,   # M12 right L=61 rod
-    (14.0, 2.0): 58.0,    # M14 right L=59 rod
-    (16.0, 2.0): 52.0,    # M16 right L=53 rod
-    (18.0, 2.5): 65.0,    # M18 right L=66 rod
-    (20.0, 2.5): 64.0,    # M20 right L=65 rod
+# The fine-STL caps of the thirteen (d, pitch, left_hand) rod runs L11 measured (D-03, D-21):
+# (d, pitch, left_hand) -> the largest length in mm whose fine STL plus its gzip level-1 copy
+# still fits the INTERIM 64 MiB export budget. L11 measured rows (`2026-10-08-a-grid`), not ISO
+# rows: each cap is the longest measured length below the first grid rod row whose fine raw STL
+# plus its gzip copy exceeded that budget, at the INTERIM fine preset (0.01 mm, 0.1 rad). The
+# criterion is the sum of the two blobs, not the STL alone: at M8 right L=68 the raw fine STL is
+# 45,659,684 bytes, under the budget. The caps are keyed by hand because the left-hand rods
+# measured smaller files and fit longer (first over-budget length M10 right 57, left 73; the
+# right-hand caps applied to a left-hand part refused lengths L11 had measured inside). The keys
+# are the campaign's run keys (ISO 262 preview pitches, UNVERIFIED as table truth, exact as run
+# keys and exactly representable floats), not ISO rows. This is bench evidence, not a `tables`
+# module, so it does not pre-empt contract 6. It was measured against the 64 MiB budget only and
+# applies unconditionally, even if a deployer changes SCREW_EXPORT_CACHE_MB (03-RESEARCH Open
+# Question 4). A part off these keys gets no cap: a cap from an unmeasured mapping to the
+# nearest row is the plausible number L02 forbids. Phase 7 re-measures the budget and the caps
+# (OPER-02, OPER-03). Turns are derived from the millimetres by `turns_of`, never stored.
+# D-22: the cap reads the built thread `t`, the part these rods measured. The head and the plain
+# shank add bytes no run measured, bounded and small next to the thread (the head-plus-shank
+# fine bytes are in `bench/RESULTS.md`, Head fuse probe); Phase 7 re-sweeps on the finished bolt.
+FINE_STL_ROWS: dict[tuple[float, float, bool], float] = {
+    (8.0, 1.25, False): 67.5,    # first row over budget: M8 right L=68 rod
+    (10.0, 1.5, False): 56.0,    # M10 right L=57 rod
+    (12.0, 1.75, False): 60.0,   # M12 right L=61 rod
+    (14.0, 2.0, False): 58.0,    # M14 right L=59 rod
+    (16.0, 2.0, False): 52.0,    # M16 right L=53 rod
+    (18.0, 2.5, False): 65.0,    # M18 right L=66 rod
+    (20.0, 2.5, False): 64.0,    # M20 right L=65 rod
+    # M8 left-hand: no row over budget up to 80 mm, so no cap (no measured stop).
+    (10.0, 1.5, True): 72.0,     # M10 left L=73 rod
+    (12.0, 1.75, True): 77.0,    # M12 left L=78 rod
+    (14.0, 2.0, True): 78.0,     # M14 left L=79 rod
+    (16.0, 2.0, True): 75.0,     # M16 left L=76 rod
+    (18.0, 2.5, True): 91.0,     # M18 left L=92 rod
+    (20.0, 2.5, True): 91.0,     # M20 left L=92 rod
 }
 
 
-def fine_stl_refusal(d: float, pitch: float, length: float) -> str | None:
-    """None unless (d, pitch) is a measured row and `length` is past its fine-STL bytes cap.
+def fine_stl_refusal(d: float, pitch: float, t: float, left_hand: bool) -> str | None:
+    """None unless (d, pitch, left_hand) is a measured run and the built thread `t` is past its
+    fine-STL cap.
 
-    The text begins `length: ` so the CLI, which prints no `loc` for a model-level error, still
-    names the field. No braces in the text: pydantic formats a custom error from its context.
+    The text begins `thread_length and length: ` so the CLI, which prints no `loc` for a
+    model-level error, still names the fields. No braces in the text: pydantic formats a custom
+    error from its context.
     """
-    cap = FINE_STL_ROWS.get((d, pitch))
-    if cap is None or length <= cap:
+    cap = FINE_STL_ROWS.get((d, pitch, left_hand))
+    if cap is None or t <= cap:
         return None
-    return (f"length: the fine STL of the rod with d {d:g} and pitch {pitch:g} is refused above "
-            f"{cap:g} mm ({turns_of(cap, pitch):g} turns), where L11 measured it over the "
-            f"export budget (run 2026-10-08-a-grid); this length is {length:g} mm. Shorten "
-            f"length, or ask for the preview STL or the STEP, which are not capped")
+    hand = "left-hand" if left_hand else "right-hand"
+    return (f"thread_length and length: the fine STL of a {hand} thread with d {d:g} and pitch "
+            f"{pitch:g} is refused above {cap:g} mm of thread ({turns_of(cap, pitch):g} turns), "
+            f"the longest L11 measured whose fine STL plus its gzip copy fit the 64 MiB export "
+            f"budget (run 2026-10-08-a-grid); the thread built here is {t:g} mm. Shorten "
+            f"thread_length or length, or ask for the preview STL or the STEP, which are not "
+            f"capped")

@@ -4,13 +4,14 @@
     GET /api/health                  liveness, plus build pool state
     GET /api/kinds                   the registered kinds and the default one
     GET /api/schema?kind=            JSON schema of one kind's parameters (drives the form)
+    GET /api/presets?kind=           the ISO preset catalogue of one kind (drives the picker)
     GET /api/bolt/info?...           the info document: rows and warnings
     GET /api/bolt/model.stl?...      binary STL   (quality=preview|fine)
     GET /api/bolt/model.step?...     STEP AP214 solid
 
 Every parameter is a query string field, so a model URL is shareable and curl-able. Unset
 fields take their defaults; a field the kind does not define, or a key given twice, is a 422
-naming it.
+naming it, and so is an explicit `thread_length` longer than an explicit `length`.
 """
 
 from __future__ import annotations
@@ -36,7 +37,8 @@ from starlette.concurrency import run_in_threadpool
 
 from . import __version__, int_env
 from .build_errors import BuildError, BuildTimeout
-from .calc import PartInfo, derive, download_refusal
+from .calc import PartInfo, derive, download_refusal, explicit_conflict
+from .calc.presets import PresetCatalogue, catalogue_document
 from .params import DEFAULT_KIND, KINDS, BoltParams, FastenerParams
 from .pool import BuildPool
 from .records import build_failed, build_started, configure, export_served, queue_refused
@@ -86,10 +88,12 @@ class _BlobCache:
 #
 # INTERIM (D-01): 64 MB, carried from spur's export-cache default (same knob, renamed),
 # where it sized the cache against 160-199 tooth gears (~9 MB raw STL each). Not a screw
-# sizing, but L11 measured fine STLs over it from M8 L=68 up (`2026-10-08-a-grid`); `put`
-# drops an over-budget blob without caching it, so such a part would be served but rebuilt
-# on every repeat request, which is why D-02 refuses the fine STL on the measured rows
-# (`download_refusal`, called first in `_serve`). Phase 7 re-sweeps (OPER-02).
+# sizing, but L11 measured the fine STL plus its gzip-1 copy over it from M8 L=68
+# right-hand up (`2026-10-08-a-grid`). At that row the raw fine STL alone is 45,659,684
+# bytes, under the budget, so `put` keeps both blobs and they evict each other: such a part
+# is served but rebuilt on every repeat request. That is why D-02 and D-21 refuse the fine
+# STL on the measured rows, with the caps keyed by hand because the left-hand rods fit
+# longer (`download_refusal`, called first in `_serve`). Phase 7 re-sweeps (OPER-02).
 _EXPORTS = _BlobCache(int_env("SCREW_EXPORT_CACHE_MB", 64) * 1024 * 1024)
 
 
@@ -188,6 +192,35 @@ def refuse_repeated_keys(request: Request) -> None:
         raise HTTPException(422, detail=[
             {"loc": ["query", key], "type": "duplicate", "msg": f"{key} was given more than once."}
             for key in repeated])
+
+
+def refuse_explicit_conflict(kind: str) -> Callable[[Request], None]:
+    """A route dependency: the kind's rule between two explicit query values is a 422 naming both.
+
+    D-25: D-08's 422 for two explicit values lives at the request boundary because FastAPI
+    0.142.2 copies every field default into the query model before validation
+    (`fastapi/dependencies/utils.py:768-776`) and `strip()` rebuilds the model route's params
+    with every field, so pydantic's `model_fields_set` cannot tell an explicit value from a
+    default (04-RESEARCH Alert 1). The raw query can: only the keys it names reach the rule.
+    Attached to each of the kind's model routes by name, so the rule is the kind's own
+    (`explicit_conflict`, 04-REVIEW WR-02) and nothing sniffs the URL path: uvicorn 0.54.0
+    prepends `--root-path` to `scope["path"]` (h11_impl.py:206), which is how a literal
+    `/api/bolt/` test once skipped the 422 behind a prefix (04-REVIEW CR-01). The owner
+    accepted that direct Python construction is not refused (D-25). A value `float()` cannot
+    read is left to the query model, whose 422 names it.
+    """
+    def refuse(request: Request) -> None:
+        values: dict[str, object] = {}
+        for key, raw in request.query_params.items():
+            try:
+                values[key] = float(raw)
+            except ValueError:
+                continue
+        if (conflict := explicit_conflict(kind, values)) is not None:
+            raise HTTPException(422, detail=[{
+                "loc": ["query"], "type": conflict.type, "msg": conflict.msg,
+                "ctx": {"fields": list(conflict.fields)}}])
+    return refuse
 
 
 app = FastAPI(
@@ -372,9 +405,8 @@ def kinds() -> KindsReport:
     return KindsReport(default=DEFAULT_KIND, kinds=list(KINDS))
 
 
-@app.get("/api/schema")
-def schema(kind: str) -> JsonSchemaValue:
-    """One kind's parameter schema. `kind` is required: there is no API-side default."""
+def _known_kind(kind: str) -> type[FastenerParams]:
+    """The kind's model, or the 404 the UI parses for an unknown one."""
     model = KINDS.get(kind)
     if model is None:
         # A handler-raised 404, not a Literal path parameter: a Literal built from the
@@ -383,17 +415,35 @@ def schema(kind: str) -> JsonSchemaValue:
         raise HTTPException(404, detail=[{
             "loc": ["query", "kind"], "type": "unknown_kind",
             "msg": f"Unknown kind {kind!r}. Known kinds: {', '.join(KINDS)}."}])
-    return model.model_json_schema()
+    return model
 
 
-@app.get("/api/bolt/info")
+@app.get("/api/schema")
+def schema(kind: str) -> JsonSchemaValue:
+    """One kind's parameter schema. `kind` is required: there is no API-side default."""
+    return _known_kind(kind).model_json_schema()
+
+
+@app.get("/api/presets")
+def presets(kind: str) -> PresetCatalogue:
+    """One kind's ISO preset catalogue, the picker's only source (D-10).
+
+    The model routes take millimetres only: a preset id is not a query key there, so a link
+    never carries one and the part is always rebuilt from its fields (D-09, TABL-01).
+    """
+    _known_kind(kind)
+    return catalogue_document(kind)
+
+
+@app.get("/api/bolt/info", dependencies=[Depends(refuse_explicit_conflict(BoltParams.kind))])
 def bolt_info(q: Annotated[BoltParams, Query()]) -> PartInfo:
     """The bolt's info document. `quality` is not a bolt field, so it is a 422 here."""
     return derive(q)
 
 
 @app.get("/api/bolt/model.{fmt}", response_class=Response,
-         responses={200: {"content": {t: {} for t in MEDIA_TYPES.values()}}})
+         responses={200: {"content": {t: {} for t in MEDIA_TYPES.values()}}},
+         dependencies=[Depends(refuse_explicit_conflict(BoltParams.kind))])
 async def bolt_model(fmt: Literal["stl", "step"], q: Annotated[BoltModelQuery, Query()],
                      request: Request,
                      backend: Annotated[BuildBackend, Depends(build_backend)]) -> Response:
@@ -405,9 +455,10 @@ async def _serve(params: FastenerParams, fmt: Literal["stl", "step"], quality: s
     """The one model-serving path every kind's route delegates to: cache, admission
     control, build, compress, log, respond.
     """
-    # First, before the cache, the admission slot and the pool: a fine STL L11 measured over
-    # the export budget is refused on the parameters alone, so it never occupies a worker
-    # (D-02). Reads no field by name, so every kind gets its own rule through the one call.
+    # First, before the cache, the admission slot and the pool: a fine STL whose fine STL plus
+    # gzip copy L11 measured over the export budget is refused on the parameters alone, so it
+    # never occupies a worker (D-02). Reads no field by name, so every kind gets its own rule
+    # through the one call.
     refusal = download_refusal(params, fmt, quality)
     if refusal is not None:
         raise HTTPException(422, detail=[{"loc": ["query"], "type": "fine_stl_cap",

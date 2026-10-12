@@ -11,19 +11,31 @@ let kinds = { default: null, kinds: [] }; // the /api/kinds body
 let currentKind = null; // the kind the form below was built for; null while none is valid
 const fields = new Map(); // name -> { input, wrap, title }
 let defaults = {};
+const picker = $('#picker');
+const pickerLegend = picker.querySelector('legend');
+const badge = $('#badge');
+const pickerSelects = []; // one select per catalogue axis, in axis order
+let catalogue = null; // the /api/presets body for currentKind; null while there is no picker
+let shownPreset = null; // the preset member of the newest info document, null after a failure
+// The catalogue row the part last matched or was picked from, for the `custom, based on`
+// badge. Page-session state only (D-09): navigate() clears it, and no request, hash or query
+// ever reads it, so a link carries millimetres and never a preset.
+let presetBasis = null;
 // Warnings belong to a mesh, not to the last info fetch (D-11). update() fetches info first,
 // so by the time a model.stl request fails the newest info document describes the part that
 // did not build while the mesh on screen is an older one. A rendered info document waits in
 // pendingWarnings and becomes the mesh's warnings only where showModel replaces the mesh;
 // every error shows meshWarnings below it, because the warning is the honest label on the
-// part the user is still looking at (the threaded-rod warning, D-06).
+// part the user is still looking at (the standing warning, D-06). The notes (D-20) follow the
+// same rule: they describe the part, so they stay with the mesh and not with the last fetch.
 let pendingWarnings = [];
 let meshWarnings = [];
+let pendingNotes = [];
+let meshNotes = [];
 
 // Nothing here knows a field name, a row key or a kind's label: the form, the hash, the
 // info panel and the download links are all read off what the API sends, so a new
 // registered kind needs no edit in this file (D-10; tests/test_parity.py pins it).
-const fmt = (v) => Number(v).toFixed(3).replace(/\.?0+$/, '');
 // A checkbox's .value is the constant "on", so every read and write of a control goes through
 // these two: a checkbox reads as 'true' or 'false' and is written from either, any other
 // control by its value (D-09). The link then carries `left_hand=true` and nothing else.
@@ -52,6 +64,15 @@ function clearForm() {
   form.replaceChildren();
   fields.clear();
   defaults = {};
+}
+
+function clearPicker() {
+  picker.hidden = true;
+  picker.replaceChildren(pickerLegend);
+  pickerSelects.length = 0;
+  catalogue = null;
+  shownPreset = null;
+  badge.textContent = '';
 }
 
 async function buildForm(kind) {
@@ -113,6 +134,98 @@ async function buildForm(kind) {
   return true;
 }
 
+// ---------------------------------------------------------------- preset picker
+
+/** The values of select `i` offered once the selects before it hold `earlier`, in catalogue order. */
+function offered(i, earlier) {
+  const values = new Set();
+  for (const entry of catalogue.rows) {
+    if (earlier.every((v, j) => entry.picker[j] === v)) values.add(entry.picker[i]);
+  }
+  return [...values];
+}
+
+/** Fill the selects with `picks` (blank strings for none); a select with no choice before it is empty. */
+function showPicks(picks) {
+  pickerSelects.forEach((select, i) => {
+    const earlier = picks.slice(0, i);
+    const values = earlier.every((v) => v !== '') ? offered(i, earlier) : [];
+    select.replaceChildren(new Option('', ''), ...values.map((v) => new Option(v, v)));
+    select.value = picks[i];
+  });
+}
+
+/**
+ * The selects and the badge follow the fields (D-12, D-09): the matching catalogue row when the
+ * newest info document says exact, blank selects when it says custom or the update failed. The
+ * badge text composes from preset.status and preset.display alone; the id only finds the row.
+ */
+function showMatch(preset) {
+  if (catalogue === null) return;
+  shownPreset = preset;
+  const exact = preset !== null && preset.status === 'exact';
+  const entry = exact ? catalogue.rows.find((row) => row.id === preset.id) : undefined;
+  showPicks(entry ? entry.picker : pickerSelects.map(() => ''));
+  // The last exact match is the basis, not only a pick: after Reset, or after an edit that lands
+  // on another row, a later edit is "based on" the row the part really was (never a guess, D-09).
+  if (exact) presetBasis = preset;
+  if (preset === null) badge.textContent = '';
+  else if (exact) badge.textContent = `matches ${preset.display}`;
+  else badge.textContent = presetBasis ? `custom, based on ${presetBasis.display}` : 'custom';
+}
+
+/**
+ * A change in select `changed` resolves to one complete row: later selects holding a blank or a
+ * value no longer offered take their first offered value, then every field the row defines is
+ * written through write() and the part builds at once. Fields the row does not define (the
+ * handedness) are left as they are (D-12). A change to blank is no pick: the selects go back to
+ * what the fields match.
+ */
+function pick(changed) {
+  const picks = pickerSelects.map((select) => select.value);
+  if (picks[changed] === '') return showMatch(shownPreset);
+  for (let i = changed + 1; i < picks.length; i++) {
+    const values = offered(i, picks.slice(0, i));
+    if (!values.includes(picks[i])) picks[i] = values[0];
+  }
+  const entry = catalogue.rows.find((row) => row.picker.every((v, i) => v === picks[i]));
+  if (!entry) return showMatch(shownPreset);
+  showPicks(picks);
+  for (const [name, value] of Object.entries(entry.fields)) write(fields.get(name).input, value);
+  presetBasis = entry;
+  return update();
+}
+
+function buildPicker() {
+  pickerSelects.length = 0;
+  const labels = catalogue.axes.map((axis, i) => {
+    const select = document.createElement('select');
+    select.addEventListener('change', () => pick(i));
+    pickerSelects.push(select);
+    const control = Object.assign(document.createElement('span'), { className: 'control' });
+    control.append(select);
+    const label = Object.assign(document.createElement('label'), { className: 'field' });
+    label.append(Object.assign(document.createElement('span'), { className: 'name', textContent: axis }), control);
+    return label;
+  });
+  picker.replaceChildren(pickerLegend, ...labels);
+  picker.hidden = false;
+  showPicks(pickerSelects.map(() => ''));
+}
+
+// The catalogue is fetched once per kind change, after the form and under the same guard: a
+// response an older navigation started must not build a picker for another kind (Pitfall 6).
+async function loadPresets(kind) {
+  const mine = formSeq;
+  const res = await fetch(`api/presets?kind=${encodeURIComponent(kind)}`);
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  const body = await res.json();
+  if (mine !== formSeq) return false;
+  catalogue = body;
+  buildPicker();
+  return true;
+}
+
 /**
  * A link the page cannot honour is refused whole, the same way for an unknown kind, a key
  * given twice, a key the kind does not define and a value its control cannot hold: the form,
@@ -122,12 +235,13 @@ async function buildForm(kind) {
  */
 function refuseLink(message) {
   clearForm();
+  clearPicker();
   currentKind = null;
   kindSelect.selectedIndex = -1;
   $('#dims').replaceChildren();
   setDownloads(null);
   setStatus('');
-  showMessages([message], mesh ? meshWarnings : []);
+  showMessages([message], mesh ? meshWarnings : [], mesh ? meshNotes : []);
 }
 
 /**
@@ -141,6 +255,7 @@ async function navigate() {
   inflight?.abort();
   ++seq;
   ++formSeq;
+  presetBasis = null;
   const h = new URLSearchParams(location.hash.slice(1));
   // First, before the kind lookup: get() would answer for the first of two values and the
   // link would open a part it does not name (`#kind=bolt&kind=x`). The API refuses a
@@ -158,6 +273,12 @@ async function navigate() {
 
   if (kind !== currentKind) {
     if (!(await buildForm(kind))) return;
+    try {
+      if (!(await loadPresets(kind))) return;
+    } catch (err) {
+      // A form without its picker would be half a page; refuse whole, like a link it cannot honour.
+      return refuseLink(`Could not load the part: ${err.message}`);
+    }
     currentKind = kind;
   }
   // `kind` is the only key that is not a field, and the only one the page writes besides them.
@@ -206,11 +327,12 @@ function writeHash(q) {
 
 // ---------------------------------------------------------------- messages
 
-function showMessages(errors = [], warnings = []) {
+function showMessages(errors = [], warnings = [], notes = []) {
   const box = $('#messages');
   box.replaceChildren(
     ...errors.map((t) => Object.assign(document.createElement('p'), { className: 'error', textContent: t })),
     ...warnings.map((t) => Object.assign(document.createElement('p'), { className: 'warning', textContent: t })),
+    ...notes.map((t) => Object.assign(document.createElement('p'), { className: 'note', textContent: t })),
   );
 }
 
@@ -231,32 +353,74 @@ async function problems(res) {
   }
 }
 
+// The panel shows the designation, then one heading and list per distinct group in server
+// order (the buildForm pattern), each value as the API sent it. Rounding here showed `0 mm`
+// for a valid 0.0004 and 565.487 for 565.4866776461628 (tech debt 2026-10-06, D-19, L02).
 function renderInfo(info) {
-  const rows = [];
+  const nodes = [];
+  if (typeof info.designation === 'string') {
+    nodes.push(Object.assign(document.createElement('h2'), { textContent: info.designation }));
+  }
+  const lists = new Map();
   for (const row of info.rows) {
+    if (!lists.has(row.group)) {
+      const list = document.createElement('dl');
+      nodes.push(Object.assign(document.createElement('h3'), { textContent: row.group }), list);
+      lists.set(row.group, list);
+    }
     const line = document.createElement('div');
     line.append(
       Object.assign(document.createElement('dt'), { textContent: row.label }),
-      Object.assign(document.createElement('dd'), { textContent: `${fmt(row.value)} ${row.unit}`.trim() }),
+      Object.assign(document.createElement('dd'), { textContent: `${String(row.value)} ${row.unit}`.trim() }),
     );
-    rows.push(line);
+    lists.get(row.group).append(line);
   }
-  $('#dims').replaceChildren(...rows);
+  $('#dims').replaceChildren(...nodes);
   pendingWarnings = info.warnings ?? [];
-  showMessages([], pendingWarnings);
+  pendingNotes = info.notes ?? [];
+  showMessages([], pendingWarnings, pendingNotes);
+  showMatch(info.preset ?? null);
 }
 
-function setDownloads(q) {
-  for (const fmt of ['stl', 'step']) {
-    const a = $(`#dl-${fmt}`);
-    if (q) {
-      const qs = q.toString();
-      a.href = `api/${currentKind}/model.${fmt}${qs ? `?${qs}` : ''}`;
-      a.removeAttribute('aria-disabled');
-    } else {
-      a.removeAttribute('href');
-      a.setAttribute('aria-disabled', 'true');
+// The page never links a download the server refuses (G-04-3, L02): the info document lists, per
+// format and quality, whether the shared rule refuses it, in the server's order of preference, so
+// each link is the first entry of its format that is not refused and the page names no format,
+// no quality and no warning text of its own (D-10). When an earlier entry of that format was
+// refused the label names the quality it falls back to and the title says why, because a coarser
+// mesh must never pass for the one the user would have been refused (L02). The static label of
+// each anchor is index.html's; a format with no served entry keeps it, disabled. Nothing here
+// reaches the hash: partQuery and writeHash read the form only (D-09).
+const downloadLinks = new Map(
+  [...document.querySelectorAll('.downloads a')].map((a) => [a, a.textContent]),
+);
+
+function setDownloads(q, downloads = []) {
+  for (const [a, label] of downloadLinks) {
+    a.textContent = label;
+    a.removeAttribute('href');
+    a.removeAttribute('title');
+    a.setAttribute('aria-disabled', 'true');
+  }
+  if (!q) return;
+  const refusals = new Map(); // format -> the sentence that refused its first entry
+  const linked = new Set();
+  for (const download of downloads) {
+    if (linked.has(download.format)) continue;
+    if (download.refusal !== null) {
+      if (!refusals.has(download.format)) refusals.set(download.format, download.refusal);
+      continue;
     }
+    const a = $(`#dl-${download.format}`);
+    const qs = new URLSearchParams(q);
+    qs.set('quality', download.quality);
+    a.href = `api/${currentKind}/model.${download.format}?${qs}`;
+    a.removeAttribute('aria-disabled');
+    if (refusals.has(download.format)) {
+      const label = downloadLinks.get(a);
+      a.textContent = `${label} (${download.quality})`;
+      a.title = refusals.get(download.format);
+    }
+    linked.add(download.format);
   }
 }
 
@@ -287,8 +451,9 @@ async function update() {
 
   const fail = (errors) => {
     if (mine !== seq) return;
-    showMessages(errors, mesh ? meshWarnings : []);
+    showMessages(errors, mesh ? meshWarnings : [], mesh ? meshNotes : []);
     $('#dims').replaceChildren();
+    showMatch(null);
     setStatus(mesh ? 'Showing the last valid part' : '');
   };
 
@@ -306,7 +471,7 @@ async function update() {
     const buf = await res.arrayBuffer();
     if (mine !== seq) return;
     showModel(buf);
-    setDownloads(q);
+    setDownloads(q, info.downloads);
     setStatus('');
   } catch (err) {
     if (err.name !== 'AbortError') fail([`Request failed: ${err.message}`]);
@@ -409,6 +574,7 @@ function showModel(buffer) {
   }
   mesh = new Mesh(geometry, material);
   meshWarnings = pendingWarnings;
+  meshNotes = pendingNotes;
   edges = new LineSegments(new EdgesGeometry(geometry, 40), edgeMaterial);
   scene.add(mesh, edges);
   const previous = box;
@@ -434,7 +600,7 @@ function resize() {
 
 // ---------------------------------------------------------------- wiring
 
-const reportLoadError = (err) => showMessages([`Could not load the part: ${err.message}`], mesh ? meshWarnings : []);
+const reportLoadError = (err) => showMessages([`Could not load the part: ${err.message}`], mesh ? meshWarnings : [], mesh ? meshNotes : []);
 
 form.addEventListener('submit', (e) => e.preventDefault());
 form.addEventListener('input', scheduleUpdate);

@@ -61,10 +61,10 @@ class FastenerParams(BaseModel):
 
     kind: ClassVar[str]
 
-    # ASSUMPTION (D-05): 1.0 mm is the ISO 262 coarse pitch for M6. Phase 4's ISO 262 row
-    # test must assert the default (d, pitch) equals a row; Phase 5's `defaults mate` test
-    # guards the pair. These defaults are frozen: every shareable link omits fields at
-    # default, so moving one silently rebuilds a different part from an old link (L02).
+    # The defaults are the ISO 4017 M6 x 20 row, asserted by
+    # tests/test_params.py::test_the_frozen_defaults_are_the_iso_4017_m6_x_20_row (D-07). They
+    # are frozen all the same: every shareable link omits fields at default, so moving one
+    # silently rebuilds a different part from an old link (L02).
     d: float = _f(6.0, gt=0, le=INTERIM_MAX_MM, title="Diameter", group="Size", unit="mm",
                   step=0.1, help="Nominal (major) diameter of the shank.")
     pitch: float = _f(1.0, gt=0, title="Pitch", group="Size", unit="mm", step=0.05,
@@ -97,20 +97,54 @@ class FastenerParams(BaseModel):
 
 
 class BoltParams(FastenerParams):
-    """The bolt: a threaded rod of diameter d, pitch and length; no head until Phase 4."""
+    """The bolt: a hex head bolt or screw of diameter d, pitch, nominal length, across flats s
+    and head height k."""
 
     kind: ClassVar[str] = "bolt"
 
     length: float = _f(20.0, gt=0, le=INTERIM_MAX_MM, title="Length", group="Size", unit="mm",
-                       step=0.5, help="Length of the threaded rod along its axis.")
+                       step=0.5, help="Nominal length l: from the tip of the thread to the "
+                                      "underside of the head.")
+    # D-07, L02: the ISO 4017:2022 M6 row (grade A) as the owner read it on 2026-10-11 from the
+    # purchased copy and confirmed in 04-OWNER-READS.md. Frozen: every shareable link that omits
+    # s or k means these values forever. Plan 04-08's row test asserts them against the cited row.
+    s: float = _f(10.0, gt=0, le=INTERIM_MAX_MM, title="Across flats", group="Head", unit="mm",
+                  step=0.1, help="Width across flats of the hexagon head (ISO symbol s).")
+    k: float = _f(4.0, gt=0, le=INTERIM_MAX_MM, title="Head height", group="Head", unit="mm",
+                  step=0.1, help="Height of the hexagon head along the axis (ISO symbol k).")
+    # D-07, L02: the ISO 4017 M6 x 20 row fills this with the full length, and the default 20.0 is
+    # frozen: every shareable link that omits it means 20 forever. Measured from the tip (D-08)
+    # and never rewritten: `built_thread_length` derives the thread the builder makes, so a
+    # length below this default builds a full-thread screw and the info document says so.
+    thread_length: float = _f(20.0, gt=0, le=INTERIM_MAX_MM, title="Thread length",
+                              group="Thread", unit="mm", step=0.5,
+                              help="Length of the thread from the tip (ISO 4014: b; ISO 4017: "
+                                   "the whole length); the rest of the length is a plain shank "
+                                   "of diameter d.")
 
     @model_validator(mode="after")
     def _turn_cap(self) -> Self:
-        # Needs `length`, which only the bolt has (D-01).
-        from screw.calc.thread import turn_cap_refusal
+        # Needs the built thread, which only the bolt has (D-01, D-22). No `thread_length` is
+        # refused against `length` here: the owner's D-25 ruling accepts a direct
+        # BoltParams(length=10, thread_length=30), built to the length and warned by `derive`,
+        # and puts the 422 for two explicit values at the request boundary (plan 04-05).
+        from screw.calc.thread import built_thread_length, turn_cap_refusal
 
-        if (msg := turn_cap_refusal(self.length, self.pitch)) is not None:
-            raise PydanticCustomError("turn_cap", msg, {"fields": ["length", "pitch"]})
+        t = built_thread_length(self.thread_length, self.length)
+        if (msg := turn_cap_refusal(t, self.pitch)) is not None:
+            raise PydanticCustomError(
+                "turn_cap", msg, {"fields": ["thread_length", "length", "pitch"]})
+        return self
+
+    @model_validator(mode="after")
+    def _head_too_small(self) -> Self:
+        # Product policy, not a kernel necessity (D-26): the research probe fused s < d and
+        # s == d into one valid solid inside the gate. A head no wider than the shank is not a
+        # hex head, so it is a 422 naming both fields rather than a silently different part (L02).
+        from screw.calc.thread import head_too_small_refusal
+
+        if (msg := head_too_small_refusal(self.s, self.d)) is not None:
+            raise PydanticCustomError("head_too_small", msg, {"fields": ["s", "d"]})
         return self
 
 

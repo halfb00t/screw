@@ -26,7 +26,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Runtime Port and Walking Skeleton** - spur's runtime ported per L07, serving a plain skeleton bolt on UI, API and CLI with parity proven (completed 2026-10-06)
 - [x] **Phase 2: Thread Spike** - a pre-registered measurement picks the thread construction, volume estimator and turn cap before any thread field exists (completed 2026-10-09)
 - [x] **Phase 3: Real Helical Thread** - the bolt kind carries a real ISO 68-1 helical thread, right- or left-hand, behind a postcondition gate (completed 2026-10-11)
-- [ ] **Phase 4: ISO Hex Bolts and Screws** - ISO 4014 and 4017 presets from cited, tested table rows fill explicit mm fields; a traceable info panel for the bolt
+- [x] **Phase 4: ISO Hex Bolts and Screws** - ISO 4014 and 4017 presets from cited, tested table rows fill explicit mm fields; a traceable info panel for the bolt (completed 2026-10-12)
 - [ ] **Phase 5: Hex Nut and Kernel Pair Proof** - ISO 4032 nut with a clearance field, matching-part derivation and a kernel pair proof that can fail
 - [ ] **Phase 6: Printed Pair Acceptance** - the owner's printed test sets the clearance default and the printability threshold; a printed pair threads together by hand
 - [ ] **Phase 7: Operability Re-sweep** - every runtime bound measured on the full grid on linux/amd64 and cited; every allowed configuration builds inside the timeout
@@ -168,13 +168,58 @@ Plans:
 **Precondition (owner checkpoint)**: owner holds purchased copies of ISO 4014:2022, 4017:2022, 4032:2023, 262:2023, 724:2023, 965-2:2024. No table row is entered as verified before the owner confirms this (TABL-04).
 **Requirements**: THRD-03, TYPE-01, TYPE-02, TABL-01, TABL-02, TABL-03, TABL-04, TABL-05, TABL-06, TABL-07, INFO-03, INFO-05
 **Success Criteria** (what must be TRUE):
-  1. A user can pick standard + size + length from the valid combinations across M2–M20 per ISO 262:2023 (first-choice sizes, second-choice sizes in brackets, coarse pitch only) on the UI, API and CLI, and get an ISO 4014 bolt (`s`, `e`, `k`, `dw`, `b` by length band, `ls`/`lg`, chamfered point, under-head fillet, product grade A/B) or an ISO 4017 screw threaded to the head up to the standard's 200 mm cap; the parity test is green.
-  2. The preset fills explicit mm fields only: the shareable URL carries mm fields, the preset id is metadata, and opening the URL rebuilds the same part without consulting a table (import-linter forbids `params` and `calc.feasibility` from importing `tables` and keeps `tables` a leaf); `thread_length` is filled by the preset (full length for 4017, `b` for 4014) and stays editable.
+  1. A user can pick standard + size + length from the valid combinations across M2–M20 per ISO 262:2023 (first-choice sizes, second-choice sizes in brackets, coarse pitch only) on the UI, API and CLI, and get an ISO 4014 bolt (`s`, `e`, `k`, `dw`, `b` by length band, `ls`/`lg`, product grade A/B; plain planar thread ends, the chamfer and the fillet are Phase 5's, D-02) or an ISO 4017 screw threaded to the head up to the standard's 200 mm cap; the parity test is green.
+  2. The preset fills explicit mm fields only: the shareable URL carries mm fields, the preset id is metadata, and opening the URL rebuilds the same part without consulting a table (import-linter forbids `screw.params` and `screw.calc.thread` from importing `tables` and keeps `tables` a leaf); `thread_length` is filled by the preset (full length for 4017, `b` for 4014) and stays editable.
   3. The UI badge reads "matches ISO 4017 M6 × 20" while the fields equal the row and "custom, based on ISO 4017 M6 × 20" once any field is edited; the designation line shows the ISO designation without a property class.
   4. Every table row carries a typed `Source` (standard, edition, table, column), so a row without one fails mypy, and exactly one pure-data verification test generated from the table; a row marked UNVERIFIED (entered from a preview) is refused by the gate in a release build.
   5. The bolt's info panel numbers (head, shank and thread) come from the kernel-free maths, each traceable to a mm field or a cited, tested row; a value that cannot be computed honestly is a warning and no number; any volume shown is the closed form; where the ISO wrench size differs from the withdrawn DIN equivalent the panel adds a one-line note.
 
-**Plans**: TBD
+**Plans**: 17/17 plans complete (one PR, through `make pr.land`)
+
+Plans:
+**Wave 1**
+- [x] 04-01-PLAN.md — Owner opening read (ISO 4017 M6 × 20, ISO 262 M6, Clause 7, rendering route, permanence of the defaults acknowledged); the D-03 head-fuse probe; purchased material kept out of git
+- [x] 04-02-PLAN.md — Fine-STL caps keyed by hand from the grid records, reworded to what was measured, WR-02 retired in the fixing commit (D-21)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [x] 04-03-PLAN.md — Tracer (defaults from the 04-01 acknowledgement): the empty link builds a gated hex head screw (s, k) on every front end; head_too_small; the bare-thread gate
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [x] 04-04-PLAN.md — thread_length and the plain shank (ISO 4014 shape); built_thread_length and the sliver fold; caps on the built thread
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [x] 04-05-PLAN.md — The explicit-conflict 422 at the request boundary on API and CLI (D-25); the short-thread warning, IN-01 retired
+- [x] 04-06-PLAN.md — The bench corpus pins thread_length and keeps its Phase 3 meaning; its README and the d100 repro
+- [x] 04-07-PLAN.md — First cited rows (ISO 262 and ISO 4017 M6) double-entered behind the gates and contracts 6 and 7
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [x] 04-08-PLAN.md — The info document reports the exact match and the designation; the frozen defaults equal the ISO 4017 M6 × 20 row
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [x] 04-09-PLAN.md — Owner's full copy; every ISO 262 size and every ISO 4017 head and length
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [x] 04-10-PLAN.md — ISO 4014 heads, b bands and shank cells; ISO 4014 presets filling b; the 4017-first tie rule
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [x] 04-11-PLAN.md — Info document: groups, the matched row's cited values, the no-row warning, grade and DIN wrench notes
+
+**Wave 9** *(blocked on Wave 8 completion)*
+- [x] 04-12-PLAN.md — Preset catalogue on API and CLI (`/api/presets`, `screw presets`, `--preset`); parity rule; refused fine-STL count
+
+**Wave 10** *(blocked on Wave 9 completion)*
+- [x] 04-13-PLAN.md — Page: picker, badge, designation, groups, notes, unrounded numbers; 01-UI-SPEC amended
+- [x] 04-14-PLAN.md — L13 (supersedes L12's cap list; D-25 acceptance) and L12's pointer, overview, README status; TYPE-01/THRD-05/SC1 amendments; STATE blockers; interim-bounds rows
+
+**Wave 11** *(blocked on Wave 10 completion; gap closure G-04-3)*
+- [x] 04-15-PLAN.md — Download state on the info document (per format and quality, from `download_refusal`); `/api/<kind>/info` and `screw info` print it alike; the model route and `screw export` refuse exactly what it refuses; every catalogue row checked
+
+**Wave 12** *(blocked on Wave 11 completion; gap closure G-04-3)*
+- [x] 04-16-PLAN.md — The page builds both download links from `info.downloads` and offers `Download STL (preview)` where the fine STL is refused; 01-UI-SPEC and L13 amended; IN-02 closed
+
+**Wave 13** *(blocked on Wave 12 completion; gap closure G-04-5)*
+- [x] 04-17-PLAN.md — An info row wraps: the label keeps half the row and a full-precision value drops whole under it instead of into the next cell (CSS only, never rounded); style.css source pin; 01-UI-SPEC amended
+
 **UI hint**: yes
 
 ### Phase 5: Hex Nut and Kernel Pair Proof
@@ -182,7 +227,7 @@ Plans:
 **Goal**: For any bolt a user can get the matching ISO 4032 nut at a chosen radial clearance, see the pair's numbers on the info panel, and get a kernel verdict on whether the pair mates, one that cannot report `proven` when its own control did not fire.
 **Mode:** mvp
 **Depends on**: Phase 4
-**Precondition (owner checkpoint)**: owner holds purchased copies of ISO 4014:2022, 4017:2022, 4032:2023, 262:2023, 724:2023, 965-2:2024. The ISO 4032 and ISO 965-2 rows ship here (TABL-04).
+**Precondition (owner checkpoint)**: owner holds purchased copies of ISO 4014:2022, 4017:2022, 4032:2023, 262:2023, 724:2023, 965-2:2024, and ISO 4753 (bolt ends, D-02). The ISO 4032 and ISO 965-2 rows ship here (TABL-04); ISO 4753 is read here for THRD-05.
 **Precondition (L11 escape clause)**: the roadmap is revised before this phase is planned — M18 not falsifiable (right, left hand) in `2026-10-08-a-pair`
 **Requirements**: TYPE-03, TYPE-04, THRD-05, PAIR-01, PAIR-03, PAIR-04, INFO-01, INFO-02, FRNT-06
 **Success Criteria** (what must be TRUE):
@@ -235,7 +280,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 2 
 | 1. Runtime Port and Walking Skeleton | 10/10 | Complete    | 2026-10-06 |
 | 2. Thread Spike | 8/8 | Complete    | 2026-10-09 |
 | 3. Real Helical Thread | 7/7 | Complete    | 2026-10-11 |
-| 4. ISO Hex Bolts and Screws | 0/TBD | Not started | - |
+| 4. ISO Hex Bolts and Screws | 17/17 | Complete    | 2026-10-12 |
 | 5. Hex Nut and Kernel Pair Proof | 0/TBD | Not started | - |
 | 6. Printed Pair Acceptance | 0/TBD | Not started | - |
 | 7. Operability Re-sweep | 0/TBD | Not started | - |

@@ -19,7 +19,7 @@ from OCP.BRepOffsetAPI import BRepOffsetAPI_MakePipeShell
 from OCP.TopoDS import TopoDS
 
 from screw.build_errors import BuildError
-from screw.calc.thread import thread_depth
+from screw.calc.thread import MIN_TAIL_MM, thread_depth
 
 # Spline samples per flank: 14 sits 0.1 um off the ideal Archimedean spiral, 4 gives 7 um
 # (STACK, measured). MEASURED-PRIOR protocol input of L11, not a campaign result.
@@ -33,12 +33,6 @@ SEWING_TOLERANCE = 1e-4
 # Segment length in turns: K = 3, selected by the K rule over `2026-10-08-a-ksweep` (L11; all
 # three K qualified and K = 3 had the fewest fine triangles at the standard max).
 DEFAULT_K = 3
-# INTERIM (D-17): the shortest length, or sewn tail, the builder accepts, in mm. Research probe
-# 2026-10-10 at d=6, pitch=1: a twist of length <= 1e-8 mm SIGSEGVs the process before any check
-# can run, 3e-8 to 1e-6 mm raises, 1e-5 mm builds; as a sewn tail, 1e-5 to 1e-2 mm built one
-# valid solid at (6, 1), (2, 0.4) and (20, 2.5). 1e-3 sits 100x above the last failing tail.
-# Phase 7 re-measures (OPER-03).
-MIN_TAIL_MM = 1e-3
 
 
 def section(d: float, pitch: float, clearance: float = 0.0) -> cq.Wire:

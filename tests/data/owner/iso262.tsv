@@ -1,0 +1,16 @@
+size	d	pitch	choice	table	column
+M2	2	0.4	1	Table 1	Coarse
+M2.5	2.5	0.45	1	Table 1	Coarse
+M3	3	0.5	1	Table 1	Coarse
+M3.5	3.5	0.6	2	Table 1	Coarse
+M4	4	0.7	1	Table 1	Coarse
+M5	5	0.8	1	Table 1	Coarse
+M6	6	1	1	Table 1	Coarse
+M7	7	1	2	Table 1	Coarse
+M8	8	1.25	1	Table 1	Coarse
+M10	10	1.5	1	Table 1	Coarse
+M12	12	1.75	1	Table 1	Coarse
+M14	14	2	2	Table 1	Coarse
+M16	16	2	1	Table 1	Coarse
+M18	18	2.5	2	Table 1	Coarse
+M20	20	2.5	1	Table 1	Coarse

@@ -13,8 +13,9 @@ import pytest
 from pydantic import ValidationError
 
 from screw.params import DEFAULT_KIND, INTERIM_MAX_MM, KINDS, BoltParams, FastenerParams
+from screw.tables.presets import expand
 
-FIELDS = ("d", "pitch", "length")
+FIELDS = ("d", "pitch", "length", "s", "k", "thread_length")
 
 
 def test_the_default_kind_is_the_literal_bolt_and_is_registered() -> None:
@@ -30,9 +31,29 @@ def test_every_registry_key_equals_its_class_kind() -> None:
         assert key == model.kind
 
 
-def test_the_frozen_defaults_are_6_1_20_millimetres() -> None:
+def test_the_frozen_defaults_are_the_iso_4017_m6_row_the_owner_confirmed() -> None:
+    # D-07, L02: the owner's opening read (04-OWNER-READS.md) confirmed s 10.0 and k 4.0 for
+    # ISO 4017:2022 M6 and typed `permanent: accepted`. The literals, so moving one fails here.
     p = BoltParams()
-    assert (p.d, p.pitch, p.length) == (6.0, 1.0, 20.0)
+    assert (p.d, p.pitch, p.length, p.s, p.k) == (6.0, 1.0, 20.0, 10.0, 4.0)
+
+
+def test_the_frozen_defaults_are_the_iso_4017_m6_x_20_row() -> None:
+    # D-07: closes 01 D-05's ASSUMPTION. The defaults are absolute millimetres (L02) and must
+    # also be a cited table row, so a table edit that moves M6 x 20 fails here instead of leaving
+    # the default link describing a part no standard has.
+    row = expand("iso4017:M6x20")
+    assert row is not None
+    p = BoltParams()
+    assert {name: getattr(p, name) for name in row} == row
+
+
+def test_the_default_thread_length_is_the_frozen_20_and_never_follows_the_length() -> None:
+    # D-08, L02: a link that omits thread_length means 20.0 forever; the builder derives the
+    # thread it builds, the stored field is never rewritten.
+    assert BoltParams().thread_length == 20.0
+    assert BoltParams.model_fields["thread_length"].default == 20.0
+    assert BoltParams(length=10.0).thread_length == 20.0
 
 
 @pytest.mark.parametrize("field", FIELDS)
@@ -55,12 +76,17 @@ def test_a_foreign_field_is_refused_as_extra_forbidden_naming_it() -> None:
 
 
 @pytest.mark.parametrize(("field", "extra"), [
-    ("d", {}),
-    # 250 turns at pitch 400, root radius above 0 at d = 1000: the corner the bound admits
-    # (research built d=1e5, pitch=400 at 1e5 mm in 1.74 s).
-    ("length", {"pitch": 400.0, "d": 1000.0}),
+    # d at the bound needs s above it, which s's own bound forbids: the whole value is refused by
+    # head_too_small, so d is tested at the bound below.
+    # 250 turns at pitch 400, root radius above 0 at d = 1000, a head wider than d (D-23): the
+    # corner the bound admits (research built d=1e5, pitch=400 at 1e5 mm in 1.74 s).
+    ("length", {"pitch": 400.0, "d": 1000.0, "s": 1500.0, "k": 600.0}),
+    ("s", {}),
+    ("k", {}),
+    # 250 turns at pitch 400 needs the thread as long as the length (D-22, D-23).
+    ("thread_length", {"pitch": 400.0, "d": 1000.0, "s": 1500.0, "k": 600.0, "length": 1e5}),
 ])
-def test_d_and_length_are_accepted_at_the_interim_bound_and_refused_above_it(
+def test_length_s_k_and_thread_length_are_accepted_at_the_interim_bound_and_refused_above_it(
         field: str, extra: dict[str, float]) -> None:
     assert INTERIM_MAX_MM == 1e5
     assert getattr(BoltParams.model_validate({**extra, field: 1e5}), field) == 1e5
@@ -69,6 +95,36 @@ def test_d_and_length_are_accepted_at_the_interim_bound_and_refused_above_it(
     [err] = caught.value.errors()
     assert err["loc"] == (field,)
     assert err["type"] == "less_than_equal"
+
+
+def test_d_at_the_interim_bound_is_head_too_small_and_the_next_float_names_d() -> None:
+    # s cannot exceed INTERIM_MAX_MM, so d = INTERIM_MAX_MM can never have a head wider than it
+    # (D-23); one float above is the bound itself, caught on the field before any model rule.
+    with pytest.raises(ValidationError) as caught:
+        BoltParams.model_validate({"d": 1e5, "s": 1e5})
+    [err] = caught.value.errors()
+    assert err["type"] == "head_too_small"
+    assert err["loc"] == ()
+    assert err["ctx"]["fields"] == ["s", "d"]
+    with pytest.raises(ValidationError) as caught:
+        BoltParams.model_validate({"d": math.nextafter(1e5, math.inf)})
+    [err] = caught.value.errors()
+    assert (err["loc"], err["type"]) == (("d",), "less_than_equal")
+
+
+def test_a_head_no_wider_than_the_shank_is_refused_naming_s_and_d() -> None:
+    # D-23: product policy. s one float above d is a hex head and is accepted; s equal to d or
+    # below is the model-level error, whose message starts `s and d: ` for the CLI (no loc).
+    assert BoltParams.model_validate({"s": math.nextafter(6.0, math.inf)}).s > 6.0
+    for s in (6.0, 5.0):
+        with pytest.raises(ValidationError) as caught:
+            BoltParams.model_validate({"s": s})
+        [err] = caught.value.errors()
+        assert err["type"] == "head_too_small"
+        assert err["loc"] == ()
+        assert err["ctx"]["fields"] == ["s", "d"]
+        assert err["msg"].startswith("s and d: ")
+        assert "must exceed" in err["msg"]
 
 
 def test_a_pitch_with_no_root_radius_is_refused_naming_d_and_pitch() -> None:
@@ -84,15 +140,29 @@ def test_a_pitch_with_no_root_radius_is_refused_naming_d_and_pitch() -> None:
         assert err["msg"].startswith("d and pitch: ")
 
 
-def test_a_length_past_250_turns_is_refused_naming_length_and_pitch() -> None:
-    assert BoltParams.model_validate({"length": 250.0}).length == 250.0
+def test_a_thread_past_250_turns_is_refused_naming_thread_length_length_and_pitch() -> None:
+    both = {"length": 250.0, "thread_length": 250.0}
+    assert BoltParams.model_validate(both).thread_length == 250.0
     with pytest.raises(ValidationError) as caught:
-        BoltParams.model_validate({"length": 250.5})
+        BoltParams.model_validate({"length": 250.5, "thread_length": 250.5})
     [err] = caught.value.errors()
     assert err["type"] == "turn_cap"
     assert err["loc"] == ()
-    assert err["ctx"]["fields"] == ["length", "pitch"]
-    assert err["msg"].startswith("length and pitch: ")
+    assert err["ctx"]["fields"] == ["thread_length", "length", "pitch"]
+    assert err["msg"].startswith("thread_length, length and pitch: ")
+
+
+def test_a_long_length_with_a_short_thread_is_accepted_the_cap_reads_the_built_thread() -> None:
+    # D-22: the 250-turn cap bounds the thread, the shank is one cylinder.
+    assert BoltParams.model_validate({"length": 1e5}).length == 1e5
+    assert BoltParams.model_validate({"length": 250.5}).length == 250.5
+
+
+def test_a_thread_length_above_the_length_is_accepted_by_the_model() -> None:
+    # D-25, the owner's ruling: direct construction is built to the length and warned by derive;
+    # the refusal of two explicit values lives at the request boundary (plan 04-05), not here.
+    p = BoltParams(length=10.0, thread_length=30.0)
+    assert (p.length, p.thread_length) == (10.0, 30.0)
 
 
 @pytest.mark.parametrize(("pitch", "length"), [(5e-324, 20.0), (1e-310, 1e5)])
@@ -104,14 +174,15 @@ def test_a_pitch_past_the_float_range_of_turns_is_a_turn_cap_error_not_an_overfl
         BoltParams.model_validate({"pitch": pitch, "length": length})
     [err] = caught.value.errors()
     assert err["type"] == "turn_cap"
-    assert err["ctx"]["fields"] == ["length", "pitch"]
-    assert err["msg"].startswith("length and pitch: inf turns is past the 250-turn cap")
+    assert err["ctx"]["fields"] == ["thread_length", "length", "pitch"]
+    assert err["msg"].startswith(
+        "thread_length, length and pitch: inf turns of built thread is past the 250-turn cap")
 
 
 def test_the_measured_m4_250_turn_row_is_accepted() -> None:
     # 175 / 0.7 is a float above 250; the user typed exactly 250 turns (Pitfall 2).
-    p = BoltParams.model_validate({"d": 4.0, "pitch": 0.7, "length": 175.0})
-    assert (p.d, p.pitch, p.length) == (4.0, 0.7, 175.0)
+    p = BoltParams.model_validate({"d": 4.0, "pitch": 0.7, "length": 175.0, "thread_length": 175.0})
+    assert (p.d, p.pitch, p.length, p.thread_length) == (4.0, 0.7, 175.0, 175.0)
 
 
 def test_a_field_error_hides_the_model_rules_that_need_every_field() -> None:
@@ -122,20 +193,27 @@ def test_a_field_error_hides_the_model_rules_that_need_every_field() -> None:
     assert [e["loc"] for e in caught.value.errors()] == [("d",)]
 
 
-def test_the_schema_lists_d_pitch_left_hand_length_with_ui_metadata() -> None:
+def test_the_schema_lists_the_fields_with_ui_metadata() -> None:
     props = BoltParams.model_json_schema()["properties"]
-    assert list(props) == ["d", "pitch", "left_hand", "length"]
+    assert list(props) == ["d", "pitch", "left_hand", "length", "s", "k", "thread_length"]
     for name, prop in props.items():
         assert "title" in prop, name
         assert "unit" in prop, name
         if name == "left_hand":
             continue
-        assert prop["group"] == "Size", name
+        group = {"s": "Head", "k": "Head", "thread_length": "Thread"}.get(name, "Size")
+        assert prop["group"] == group, name
         assert prop["unit"] == "mm", name
         assert "step" in prop, name
         # exclusiveMinimum, not minimum: gt=0 must not read as an inclusive HTML min.
         assert prop["exclusiveMinimum"] == 0, name
         assert "minimum" not in prop, name
+
+
+def test_the_thread_length_is_a_millimetre_field_in_the_thread_group() -> None:
+    prop = BoltParams.model_json_schema()["properties"]["thread_length"]
+    assert (prop["title"], prop["group"], prop["unit"]) == ("Thread length", "Thread", "mm")
+    assert prop["default"] == 20.0
 
 
 def test_the_hand_is_a_boolean_in_the_thread_group_with_no_numeric_bounds() -> None:
@@ -163,17 +241,18 @@ def test_left_hand_parses_a_boolean_and_refuses_anything_else() -> None:
 
 
 def test_the_slug_of_the_default_bolt_is_stable() -> None:
-    assert BoltParams().slug() == "bolt_d6_pitch1_left_hand0_length20"
+    assert BoltParams().slug() == "bolt_d6_pitch1_left_hand0_length20_s10_k4_thread_length20"
 
 
 def test_the_slug_tells_the_hands_apart() -> None:
-    assert BoltParams(left_hand=True).slug() == "bolt_d6_pitch1_left_hand1_length20"
+    assert BoltParams(left_hand=True).slug() == (
+        "bolt_d6_pitch1_left_hand1_length20_s10_k4_thread_length20")
 
 
 @pytest.mark.parametrize("values", [
-    {"d": 1e5},
-    {"d": 0.001, "pitch": 0.0001, "length": 0.01},
-    {"length": 1e5, "pitch": 400.0, "d": 1000.0},
+    {"d": 99999.0, "s": 1e5, "k": 1e5},
+    {"d": 0.001, "pitch": 0.0001, "length": 0.01, "s": 0.002, "k": 0.001},
+    {"length": 1e5, "pitch": 400.0, "d": 1000.0, "s": 1500.0, "k": 600.0},
 ])
 def test_the_slug_is_filename_safe_for_extreme_values(values: dict[str, float]) -> None:
     # It becomes a Content-Disposition filename and a temp file name (T-01-06).

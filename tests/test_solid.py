@@ -15,7 +15,14 @@ from bench.thread_spike.helical import naive_sweep_fuse, one_pipe
 from bench.thread_spike.maths import VOID_CLEARANCE
 from screw.build_errors import BuildError
 from screw.calc import derive
-from screw.calc.thread import T_GATE, closed_volume, thread_depth
+from screw.calc.thread import (
+    T_GATE,
+    bolt_closed_volume,
+    closed_volume,
+    section_area,
+    thread_depth,
+    volume_check,
+)
 from screw.params import KINDS, BoltParams, FastenerParams
 from screw.solid import (
     _build_cached,
@@ -38,27 +45,162 @@ def _triangles(stl: bytes) -> int:
     return int(count)
 
 
-def test_the_default_bolt_is_one_valid_thread_six_by_six_by_twenty() -> None:
+def test_the_default_bolt_is_one_valid_hex_head_screw_threaded_to_the_head() -> None:
     solid = build(BoltParams())
     assert len(solid.Solids()) == 1
     assert solid.isValid()
     box = solid.BoundingBox()
-    # z is exact to the 1e-7 box gap. x and y are not: the optimal box reads the crest up to
-    # 3.000069 mm at M6 L=20.5 (3.000026 at L=20, planner probe 2026-10-10), so 1e-4.
+    # The thread on z 0..20 and the head on z 20..20 + k (D-05, D-07). z is exact to the 1e-7 box
+    # gap. The head is a sharp-cornered prism, so its box is exact too (s across flats in x,
+    # s / cos 30 degrees across corners in y); the thread's crest (3.000026 mm at M6 L=20,
+    # planner probe 2026-10-10) is inside it, so 1e-4 covers the optimal box.
     assert box.zmin == pytest.approx(0.0, abs=TOL)
-    assert box.zmax == pytest.approx(20.0, abs=TOL)
-    assert box.xlen == pytest.approx(6.0, abs=1e-4)
-    assert box.ylen == pytest.approx(6.0, abs=1e-4)
-    # A modelled thread, not the old cylinder: the closed form is the oracle, and the cylinder
-    # of the same major diameter is 1 % or more away from it.
+    assert box.zmax == pytest.approx(20.0 + 4.0, abs=TOL)
+    assert box.xlen == pytest.approx(10.0, abs=1e-4)
+    assert box.ylen == pytest.approx(10.0 / math.cos(math.pi / 6), abs=1e-4)
+    # The closed form of the whole part is the oracle; the bare thread's is more than 1 % away,
+    # so a head that was not fused would be refused (the head is 346 of 805 mm3).
     volume = precise_volume(solid)
-    assert volume == pytest.approx(closed_volume(6.0, 1.0, 20.0), rel=T_GATE)
-    assert abs(volume - math.pi * 9 * 20) > 0.01 * math.pi * 9 * 20
+    whole = bolt_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0)
+    assert volume == pytest.approx(whole, rel=T_GATE)
+    assert abs(volume - closed_volume(6.0, 1.0, 20.0)) > 0.01 * closed_volume(6.0, 1.0, 20.0)
+
+
+def test_an_iso_4014_shaped_bolt_has_a_thread_a_plain_shank_and_a_head_in_one_valid_solid() -> None:
+    # THRD-03, TYPE-01: M6 x 30 with 18 mm of thread from the tip, a plain shank of d from 18 to
+    # 30 and the head on top. build() runs both gates against the closed form on t = 18.
+    p = BoltParams(length=30.0, thread_length=18.0)
+    solid = build(p)
+    assert len(solid.Solids()) == 1
+    assert solid.isValid()
+    box = solid.BoundingBox()
+    assert box.zmin == pytest.approx(0.0, abs=TOL)
+    assert box.zmax == pytest.approx(34.0, abs=TOL)
+    volume = precise_volume(solid)
+    assert volume == pytest.approx(bolt_closed_volume(6.0, 1.0, 30.0, 10.0, 4.0, 18.0), rel=T_GATE)
+    # The shank is a plain cylinder of the major diameter: at mid shank a point 2.9 mm from the
+    # axis, outside the thread's root radius (2.46) at some angles, is inside at every angle, and
+    # one 3.1 mm out is outside.
+    for angle in (0.0, math.pi / 3, math.pi):
+        x, y = 2.9 * math.cos(angle), 2.9 * math.sin(angle)
+        assert solid.isInside(cq.Vector(x, y, 24.0))
+        assert not solid.isInside(cq.Vector(3.1 * math.cos(angle), 3.1 * math.sin(angle), 24.0))
+
+
+def test_a_left_hand_iso_4014_shaped_bolt_builds_through_both_gates() -> None:
+    solid = build(BoltParams(length=30.0, thread_length=18.0, left_hand=True))
+    assert len(solid.Solids()) == 1
+    assert solid.isValid()
+
+
+def test_a_screw_shorter_than_the_default_thread_builds_to_its_length() -> None:
+    # D-08: BoltParams(length=10) keeps thread_length 20 and builds a 10 mm full-thread screw.
+    solid = build(BoltParams(length=10.0))
+    assert solid.BoundingBox().zmax == pytest.approx(10.0 + 4.0, abs=TOL)
+    assert precise_volume(solid) == pytest.approx(
+        bolt_closed_volume(6.0, 1.0, 10.0, 10.0, 4.0, 10.0), rel=T_GATE)
+
+
+def test_a_thread_length_above_the_length_builds_to_the_full_length() -> None:
+    # D-25: the model accepts it, the builder derives t and the info warns.
+    solid = build(BoltParams(length=10.0, thread_length=30.0))
+    assert len(solid.Solids()) == 1
+    assert solid.BoundingBox().zmax == pytest.approx(10.0 + 4.0, abs=TOL)
+
+
+def test_a_shank_sliver_below_the_floor_is_folded_and_one_at_the_floor_is_built() -> None:
+    # D-27, T-04-08: 0.0005 mm folds into the thread; exactly 0.001 mm keeps a shank. Both are
+    # one valid solid inside both gates (the kernel path that crashed on a sliver, Alert 6).
+    folded = build(BoltParams(thread_length=19.9995))
+    assert len(folded.Solids()) == 1
+    assert folded.isValid()
+    assert precise_volume(folded) == pytest.approx(
+        bolt_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0), rel=T_GATE)
+    kept = build(BoltParams(thread_length=19.999))
+    assert len(kept.Solids()) == 1
+    assert kept.isValid()
+    assert precise_volume(kept) == pytest.approx(
+        bolt_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 19.999), rel=T_GATE)
+
+
+def test_a_thread_below_the_floor_is_refused_naming_both_fields_before_the_kernel(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    # Alert 6: helical's own guard names only `length`, so the bolt builder names the pair.
+    def unreachable(*_args: float, **_kwargs: float) -> None:
+        pytest.fail("the builder reached the kernel")
+
+    monkeypatch.setattr(helical, "twist", unreachable)
+    with pytest.raises(BuildError) as raised:
+        build(BoltParams(length=0.0005))
+    assert str(raised.value).startswith("thread_length and length: ")
+    assert "0.0005" in str(raised.value)
 
 
 def test_the_stl_is_binary_and_the_step_is_iso_10303() -> None:
     assert _triangles(export(BoltParams(), "stl", "preview")) > 0
     assert export(BoltParams(), "step").startswith(b"ISO-10303-21;")
+
+
+def test_a_left_hand_screw_builds_through_both_gates_with_the_same_head() -> None:
+    # The hand is the thread's; the head is a prism that does not know it (D-09).
+    solid = build(BoltParams(left_hand=True))
+    assert len(solid.Solids()) == 1
+    assert solid.isValid()
+    assert solid.BoundingBox().xlen == pytest.approx(10.0, abs=1e-4)
+
+
+@pytest.mark.parametrize(("d", "pitch", "length", "s", "k"), [
+    (8.0, 1.25, 12.0, 13.0, 5.3),
+    (6.0, 1.0, 20.0, 6.0 * 1.0000001, 0.5),   # a head barely wider than the shank
+])
+def test_the_head_is_a_sharp_hex_prism_of_across_flats_s_in_x_and_s_over_cos_30_in_y(
+        d: float, pitch: float, length: float, s: float, k: float) -> None:
+    box = build(BoltParams(d=d, pitch=pitch, length=length, s=s, k=k)).BoundingBox()
+    # No chamfer, washer face or fillet (D-01, D-02): the corners are sharp, so the box is exact.
+    assert box.zmax == pytest.approx(length + k, abs=TOL)
+    # The head is the widest part only when s is above the crest's 1e-4 box tolerance.
+    assert box.xlen == pytest.approx(max(s, d), abs=1e-4)
+    assert box.ylen == pytest.approx(max(s / math.cos(math.pi / 6), d), abs=1e-4)
+
+
+def _eps_diluted_below_the_gate_for_a_whole_part(d: float, pitch: float) -> float:
+    """A relative growth of the diameter that moves the thread's section area by 1.1e-4 to
+    1.4e-4 of itself: above T_GATE (9e-5) on the bare thread, and once the thread's share of the
+    whole volume (0.57 at M6 x 20) multiplies it, 6.3e-5 to 8.0e-5, below T_GATE on the part."""
+    eps = 4e-5
+    while True:
+        error = section_area(d * (1 + eps), pitch) / section_area(d, pitch) - 1
+        if 1.1e-4 <= error <= 1.4e-4:
+            return eps
+        assert error < 1.4e-4, "the scan stepped over the band"
+        eps += 5e-6
+
+
+def test_a_thread_wrong_by_a_part_in_ten_thousand_is_refused_on_the_thread_not_the_whole(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    # RESEARCH Alert 5: the head dilutes a thread error. The thread is 0.57 of the volume at
+    # M6 x 20, so a thread wrong by 1.1e-4 to 1.4e-4 reads 6.3e-5 to 8.0e-5 on the whole part,
+    # inside T_GATE, and only the bare-thread gate sees it.
+    p = BoltParams()
+    eps = _eps_diluted_below_the_gate_for_a_whole_part(p.d, p.pitch)
+    bad = helical.thread(p.d * (1 + eps), p.pitch, p.length)
+    whole = bolt_closed_volume(p.d, p.pitch, p.length, p.s, p.k, p.length)
+    share = closed_volume(p.d, p.pitch, p.length) / whole
+    assert 0.5 < share < 0.6  # the measured thread share this control relies on
+    # The control is real: the whole-part check alone would pass this very thread.
+    assert volume_check(precise_volume(bolt.assemble(p, bad)), whole) is None
+    monkeypatch.setattr(bolt, "thread", lambda _p: bad)
+    clear_cache()
+    size = _build_cached.cache_info().currsize
+    with pytest.raises(BuildError, match="wrong thread") as raised:
+        build(p)
+    assert 1.1e-4 <= abs(_relative_error(str(raised.value))) <= 1.4e-4
+    assert _build_cached.cache_info().currsize == size  # a refusal is never cached
+
+
+def test_the_good_thread_of_the_same_screw_passes_both_gates() -> None:
+    # The negative of the control above: the unpatched build of the same part is served.
+    assert len(build(BoltParams()).Solids()) == 1
 
 
 def test_a_preview_export_leaves_the_cached_solid_unmeshed() -> None:
@@ -67,7 +209,7 @@ def test_a_preview_export_leaves_the_cached_solid_unmeshed() -> None:
     clear_cache()
     p = BoltParams()
     export(p, "stl", "preview")
-    assert build(p).BoundingBox().zlen == pytest.approx(20.0, abs=TOL)
+    assert build(p).BoundingBox().zlen == pytest.approx(20.0 + 4.0, abs=TOL)
 
 
 def test_preview_has_fewer_triangles_than_fine() -> None:
@@ -127,7 +269,7 @@ def test_an_integer_turn_length_whose_float_tail_drifts_builds_and_ends_at_its_l
     solid = build(BoltParams(d=3.5, pitch=0.6, length=5.4))
     assert len(solid.Solids()) == 1
     assert solid.isValid()
-    assert solid.BoundingBox().zmax == pytest.approx(5.4, abs=TOL)
+    assert solid.BoundingBox().zmax == pytest.approx(5.4 + 4.0, abs=TOL)  # + the default head k
 
 
 def test_a_kind_without_a_builder_is_a_bug_not_a_user_error() -> None:
@@ -156,9 +298,10 @@ def _relative_error(text: str) -> float:
 
 def _assert_refused_and_not_cached(
         monkeypatch: pytest.MonkeyPatch, shape: cq.Shape, p: BoltParams) -> float:
-    """Feed `shape` to the gate as if the bolt builder had made it: refused twice (a refusal
-    is never cached, so the second call rebuilds and is refused again), cache size unchanged."""
-    monkeypatch.setattr(bolt, "rod", lambda _p: shape)
+    """Feed `shape` to the gate as if the bolt builder had made the thread: refused twice (a
+    refusal is never cached, so the second call rebuilds and is refused again), cache size
+    unchanged. The bare-thread gate fires first, before any head is fused."""
+    monkeypatch.setattr(bolt, "thread", lambda _p: shape)
     clear_cache()
     size = _build_cached.cache_info().currsize
     errors = []
@@ -185,7 +328,7 @@ def test_the_gate_refuses_the_naive_sweep_the_kernel_calls_valid(
     assert len(naive.Solids()) == 1
     assert naive.isValid()
     error = _assert_refused_and_not_cached(
-        monkeypatch, naive, BoltParams(d=d, pitch=pitch, length=length))
+        monkeypatch, naive, BoltParams(d=d, pitch=pitch, length=length, s=3 * d, k=d))
     assert error < -0.5
 
 
@@ -197,7 +340,7 @@ def test_the_gate_refuses_the_inverted_one_pipe_twist_by_its_sign(
     inverted = one_pipe(6.0, 1.0, 160.0)
     assert inverted.isValid()
     error = _assert_refused_and_not_cached(
-        monkeypatch, inverted, BoltParams(d=6.0, pitch=1.0, length=160.0))
+        monkeypatch, inverted, BoltParams(d=6.0, pitch=1.0, length=160.0, thread_length=160.0))
     assert error < -1.5
 
 
@@ -210,12 +353,12 @@ def test_the_gate_refuses_the_inverted_one_pipe_twist_by_its_sign(
 ])
 def test_a_length_off_the_whole_turns_builds_through_the_gate_and_ends_at_its_length(
         d: float, pitch: float, length: float) -> None:
-    solid = build(BoltParams(d=d, pitch=pitch, length=length))
+    solid = build(BoltParams(d=d, pitch=pitch, length=length, thread_length=length))
     assert len(solid.Solids()) == 1
     assert solid.isValid()
     box = solid.BoundingBox()
     assert box.zmin == pytest.approx(0.0, abs=TOL)
-    assert box.zmax == pytest.approx(length, abs=TOL)
+    assert box.zmax == pytest.approx(length + 4.0, abs=TOL)  # the head ends at length + k
 
 
 def _inside_at(solid: cq.Solid, d: float, pitch: float, sign: int, z: float) -> bool:
@@ -249,15 +392,22 @@ def test_the_hand_decides_which_way_the_thread_climbs_and_both_pass_the_same_gat
     # The volume gate cannot see the hand: a mirrored thread has the same volume. Only a
     # probe on the helix does, and both hands are asserted here so it cannot pass vacuously.
     # It is read in every segment: each segment is a separate twist() that gets its own hand.
-    right = build(BoltParams(d=d, pitch=pitch, length=length, left_hand=False))
-    left = build(BoltParams(d=d, pitch=pitch, length=length, left_hand=True))
+    # The probe reads the bare thread `_build` fuses the head onto, not the fused screw: OCCT's
+    # ray classifier is unreliable on the fused M3.5 x 5.4 screw (isInside says outside at +theta
+    # on z = 1.35 for the right-hand part at 80 %, and inside at +theta for the left-hand part at
+    # 50 %; the bare thread reads both hands correctly at 80 %, 2026-10-11), although the fused
+    # solid is valid and inside T_GATE of its closed form. The head is a prism on top and cannot
+    # change the hand.
+    right_p = BoltParams(d=d, pitch=pitch, length=length, left_hand=False)
+    left_p = BoltParams(d=d, pitch=pitch, length=length, left_hand=True)
+    right, left = bolt.thread(right_p), bolt.thread(left_p)
     for z in heights:
         assert (_inside_at(right, d, pitch, +1, z), _inside_at(right, d, pitch, -1, z)) == (
             True, False), z
         assert (_inside_at(left, d, pitch, +1, z), _inside_at(left, d, pitch, -1, z)) == (
             False, True), z
-    closed = closed_volume(d, pitch, length)
-    for solid in (right, left):
+    closed = bolt_closed_volume(d, pitch, length, 10.0, 4.0, length)
+    for solid in (build(right_p), build(left_p)):
         assert len(solid.Solids()) == 1
         assert solid.isValid()
         assert precise_volume(solid) == pytest.approx(closed, rel=T_GATE)

@@ -1,0 +1,16 @@
+size	b_short	b_long	table	column
+M2	10	-	Table 1	M2
+M2.5	11	-	Table 1	M2,5
+M3	12	-	Table 1	M3
+M3.5	13	-	Table 1	(M3,5)
+M4	14	-	Table 1	M4
+M5	16	-	Table 2	M5
+M6	18	-	Table 2	M6
+M7	20	-	Table 2	(M7)
+M8	22	-	Table 2	M8
+M10	26	-	Table 2	M10
+M12	30	-	Table 2	M12
+M14	34	40	Table 3	(M14)
+M16	38	44	Table 3	M16
+M18	42	48	Table 3	(M18)
+M20	46	52	Table 3	M20

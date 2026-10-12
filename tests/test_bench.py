@@ -44,6 +44,8 @@ from bench import quiet as quiet_module
 from bench.build_time import Timing, load_sweep, report, stl_size
 from bench.corpus import corpus
 from bench.export_cost import GzipRow, find_set, maxrss_bytes, select_gzip_level
+from bench.head_fuse import CASES as HEAD_FUSE_CASES
+from bench.head_fuse import probe as head_fuse_probe
 from bench.latency import (
     DEFAULT_SCENARIOS,
     MIN_SAMPLES,
@@ -137,8 +139,12 @@ def test_the_skeleton_corpus_is_the_d_by_length_grid() -> None:
     """12 parts, d outermost: the grid is pinned so a later edit cannot quietly change the
     workload under figures that someone compares with an earlier run. It exercises the
     harness and sets no bound (L07); Phase 7 replaces it with the threaded grid."""
+    # Each entry pins a head, s = 2 d and k = d / 2: harness inputs so every entry passes
+    # `s > d`, not ISO rows and not bounds (04-03, RESEARCH Alert 4). It also pins
+    # thread_length = length: the default 20 mm thread would quietly make the 200-turn part
+    # cheap (04-06).
     assert corpus() == [
-        {"d": d, "length": length}
+        {"d": d, "length": length, "s": 2 * d, "k": d / 2, "thread_length": length}
         for d in (2.0, 6.0, 20.0, 100.0)
         for length in (5.0, 20.0, 200.0)
     ]
@@ -151,10 +157,12 @@ def test_every_corpus_entry_is_a_valid_bolt() -> None:
         BoltParams.model_validate(entry)
 
 
-def test_the_default_sweep_is_the_corpus_labelled_by_its_two_numbers() -> None:
+def test_the_default_sweep_is_the_corpus_labelled_by_every_key_it_pins() -> None:
     sets = load_sweep()
-    assert [label for label, _ in sets][:2] == ["d=2 length=5", "d=2 length=20"]
-    assert sets[-1] == ("d=100 length=200", BoltParams(d=100.0, length=200.0))
+    assert [label for label, _ in sets][:2] == [
+        "d=2 length=5 s=4 k=1 thread_length=5", "d=2 length=20 s=4 k=1 thread_length=20"]
+    assert sets[-1] == ("d=100 length=200 s=200 k=50 thread_length=200",
+                        BoltParams(d=100.0, length=200.0, s=200.0, k=50.0, thread_length=200.0))
     assert len(sets) == 12
 
 
@@ -170,7 +178,8 @@ def test_a_sweep_file_set_that_is_not_a_bolt_is_refused_naming_it(tmp_path: Path
 
 
 def test_a_set_is_found_by_the_label_the_sweep_prints() -> None:
-    assert find_set(None, "d=100 length=200") == BoltParams(d=100.0, length=200.0)
+    assert find_set(None, "d=100 length=200 s=200 k=50 thread_length=200") == BoltParams(
+        d=100.0, length=200.0, s=200.0, k=50.0, thread_length=200.0)
 
 
 def test_an_unknown_set_label_exits_2_and_lists_the_labels(
@@ -178,7 +187,7 @@ def test_an_unknown_set_label_exits_2_and_lists_the_labels(
     with pytest.raises(SystemExit) as raised:
         find_set(None, "d=7 length=7")
     assert raised.value.code == 2
-    assert "d=2 length=5" in capsys.readouterr().err
+    assert "d=2 length=5 s=4 k=1 thread_length=5" in capsys.readouterr().err
 
 
 def test_a_binary_stl_is_sized_by_its_length_and_the_triangle_count_its_header_names() -> None:
@@ -335,7 +344,8 @@ def test_the_concurrent_scenario_never_builds_the_single_scenarios_part() -> Non
     """The default run is concurrent then single; a part built first would make the second a
     cache hit that puts no load on the server."""
     heaviest = corpus()[-1]
-    assert heaviest == {"d": 100.0, "length": 200.0}
+    assert heaviest == {
+        "d": 100.0, "length": 200.0, "s": 200.0, "k": 50.0, "thread_length": 200.0}
     assert heaviest not in corpus()[:10]
 
 
@@ -4875,3 +4885,20 @@ def test_the_protocol_text_above_results_carries_every_pre_registered_section() 
     headings = [line for line in _protocol_head().split("\n") if line.startswith("## ")]
     names = [h.removeprefix("## ") for h in headings]
     assert [n for n in names if n in _PROTOCOL_HEADINGS] == list(_PROTOCOL_HEADINGS)
+
+
+def test_the_head_fuse_probe_of_the_smallest_case_is_one_valid_solid_inside_the_gate() -> None:
+    """The D-03 probe's own harness, on M2 x 4 only (about 0.1 s): a probe whose assembly was
+    never run against the kernel would be a claim, not a record."""
+    case = HEAD_FUSE_CASES[0]
+    result = head_fuse_probe(case)
+    assert result["solids"] == 1
+    assert result["valid"] is True
+    for key in ("volume_error", "thread_error"):
+        error = result[key]
+        assert isinstance(error, float)
+        assert abs(error) <= screw_thread.T_GATE
+    zmax = result["zmax"]
+    assert isinstance(zmax, float)
+    assert abs(zmax - (case.length + case.k)) < 1e-6
+    assert result["preview_open_edges"] == 0

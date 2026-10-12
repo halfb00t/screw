@@ -467,16 +467,18 @@ which closes the collapsed-solid blocker.
 is a 422 naming `length` and `pitch` (L11's construction cap, `2026-10-08-a-frontier`: no stop up to
 250 turns at any size, both hands, rod and void; nothing above is measured). The fine STL is refused
 above L11's bytes cap, on the seven measured `(d, pitch)` rows only (M8 67.5 mm, M10 56, M12 60,
-M14 58, M16 52, M18 65, M20 64; `2026-10-08-a-grid`, measured against the INTERIM 64 MiB budget and
-the INTERIM fine preset): a 422 on the API before the cache, the admission slot and the pool, exit 2
-on the CLI before the kernel import, and a warning on the info document. The preview STL and the
+M14 58, M16 52, M18 65, M20 64; `2026-10-08-a-grid`, right-hand rods: the fine raw STL plus its
+gzip level-1 copy, measured over the INTERIM 64 MiB budget at the INTERIM fine preset): a 422 on
+the API before the cache, the admission slot and the pool, exit 2 on the CLI before the kernel
+import, and a warning on the info document. The preview STL and the
 STEP are not capped. An off-row `(d, pitch)` gets the 250-turn cap alone, because a cap from an
 unmeasured mapping to the nearest row is the plausible number L02 forbids. L11 says Phase 3's
 "cap-and-warn input is the smallest of the three columns"; this entry reads that as the input, and
 narrows "cap-and-warn" to a refusal for these two artefacts, because `length` is an explicit choice
 and trimming it builds a part the user did not ask for (L02). It is a reading recorded here and not
 a superseding entry. The seconds cap is still not established; the INTERIM 30 s timeout stays the
-backstop below the 250-turn cap.
+backstop below the 250-turn cap. Since Phase 4 the caps are keyed by hand and read on the built
+thread; see L13, which supersedes this cap list (D-21, D-22).
 
 **Pitch (D-04).** The only new `(d, pitch)` refusal is geometric: a root radius `d/2 - 5H/8` at or
 below zero (`H = (sqrt(3)/2) * pitch`, zero at `pitch` about `0.9238 d`) is a 422 naming `d` and
@@ -533,3 +535,267 @@ Reversibility: costly overall. Every later kind's builder runs through the gate,
 One-way for the `left_hand` field on the base, its default and its hash spelling, which are part of
 every shareable link from this phase on. Reversible for the caps and `MIN_TAIL_MM`: one constant and
 one validator each, which Phase 7 replaces with measured per-size values (OPER-01, OPER-03).
+
+## L13 — The bolt is an ISO 4014 bolt or ISO 4017 screw built from explicit millimetres; presets fill fields from cited, double-entered rows; the info document traces every number
+
+Date: 2026-10-12. Decided by the owner in the Phase 4 discussion (D-01 to D-24, 2026-10-11), in the
+planning rulings D-25 to D-28 and the D-21 clarification (2026-10-11, after `04-RESEARCH.md`'s
+Planner Alerts), in the opening read of 2026-10-11 and in the full-copy rulings of 2026-10-12
+(`04-OWNER-READS.md`). Every cap value is read from L11's run records, from the run named beside it; every other
+figure names a test, a plan summary or the research probe it comes from. This entry measures nothing new
+except the head-fuse probe of D-03, which it cites as a probe and not as a bound.
+
+**Geometry (D-01 to D-03).** The head is a plain hex prism: across flats `s`, height `k`, sharp
+corners at `s / cos 30 degrees`, no top chamfer and no washer face, because the standards' 15 to 30
+degree chamfer is a band and not a number (L02). Its closed form is exact, `(sqrt(3)/2) s^2 k`. The
+shank is a plain cylinder of diameter `d`; the L11 thread (`helical.thread`, unchanged) is built
+over the built thread `t` only, from the tip, and ends in its plain planar cut, which is fused to
+the shank's end face, and the shank to the head's underside: two planar fuses, never a cylinder
+over the thread. The closed form of the whole part is `section_area(d, pitch) t + pi (d/2)^2
+(length - t) + (sqrt(3)/2) s^2 k`, so `T_GATE` holds as L12 set it; an ISO 4017 screw has
+`length - t = 0`. The fuses were not measured by Phase 2, so D-03 asked for a probe first:
+`bench/RESULTS.md` `## Head fuse probe (Phase 4, D-03)` (`bench/head_fuse.py`, run 2026-10-11 on
+`d876dbd777fe2d7e75e47107d8bd39d707aac12e` with the shank and head fused before the thread, and
+re-run 2026-10-12 on `979168d5d68009c113ae1dab0b672057efe38c28` through the shipped `bolt.thread`
+and `bolt.assemble` in the product's order, 04-REVIEW WR-01: every geometry column identical)
+built seven cases (M2 x 4, M6 x 20, M6 x 30, M10 x 80,
+M16 x 160, M20 x 200 and a left-hand M6 x 30) and every one is one valid solid, with a whole-part
+volume error of at most 1.6e-06 against `T_GATE` 9e-05 and zero open edges at both qualities; the
+head and shank add 1.1 to 26.3 KB to a fine STL of 3.1 to 145 MB. It is a probe: single runs on
+macOS arm64 at uncontrolled load, not linux/amd64, and its `s`, `k` and `t` are UNVERIFIED preview
+readings used as inputs and not table rows. The ends stay plain planar cuts: the tip chamfer and
+the under-head fillet move to THRD-05 (Phase 5) with ISO 4753, which joins the purchase list (D-02),
+because an OCCT fillet on a fused junction is the fragile operation nothing measured, its volume
+would have to enter the closed form, and a chamfer without ISO 4753 is an invented end (L02, 03
+D-16). The standing warning on every bolt info document is now `plain-cut thread ends, no tip
+chamfer or under-head fillet; not a product build` (D-04); the text quoted in L12 is the Phase 3
+one and stays there as history. Phase 5 rewrites this warning when the ends land and Phase 6
+removes its second clause at release. **The bare-thread gate** (RESEARCH Alert 5, taken by the
+planner, which tightens L12's gate and so needs no superseding entry): `_build` also checks the bare
+thread against its own closed form before the fuse, because the thread is only 0.19 of the volume of
+an ISO 4014 M12 x 120 and 0.570 of the default M6 x 20 (04-03 summary), and at 0.19 a thread error of
+4.7e-4 passes `T_GATE` on the whole part. It costs one more precise volume (0.44 s at M20 x 200, at
+most 0.82 s over the grid, `volume_s` of `2026-10-08-a-grid`, a loaded single run). Its positive
+control is a thread wrong by 1.1e-4 to 1.4e-4 that the whole-part check alone passes
+(`tests/test_solid.py::test_a_thread_wrong_by_a_part_in_ten_thousand_is_refused_on_the_thread_not_the_whole`).
+A thread's hand is probed on the bare thread (`bolt.thread`), not on the fused screw, because OCCT's
+`isInside` misreads the fused M3.5 x 5.4 screw although it is valid and inside `T_GATE` (04-03).
+
+**Fields and defaults (D-05 to D-07).** `BoltParams` gains `s`, `k` and `thread_length`, floats in
+millimetres named by the ISO symbols, with the words in the schema `title` (`Across flats`, `Head
+height`, `Thread length`) and the flags `--s`, `--k`, `--thread-length`; each is `gt=0`, finite and
+`le=INTERIM_MAX_MM`, like `d` and `length`. Nothing else became a field: `e`, `dw`, `b`, `ls`, `lg`
+and the product grade are read from the matching row or derived. The frozen defaults are the
+ISO 4017 M6 x 20 row: `d` 6.0, `pitch` 1.0, `length` 20.0, `s` 10.0, `k` 4.0, `thread_length`
+20.0, read by the owner from the purchased ISO 4017:2022 Table 1 (M6, grade A) and ISO 262:2023
+Table 1 (first choice, coarse) on 2026-10-11, with `permanent: accepted` typed on its own the same
+day (`04-OWNER-READS.md`). `tests/test_params.py::test_the_frozen_defaults_are_the_iso_4017_m6_x_20_row`
+pins them against the row, which closes 01 D-05's `ASSUMPTION`. A link made in Phase 3 that omits
+the new fields now opens a part with a head (RESEARCH Pitfall 3; 50 tests that pinned the old
+default part were updated with it, 04-03). Whether `s` moves to `FastenerParams` for the nut is
+Phase 5's call; a move between base and subclass changes no link.
+
+**thread_length (D-08, D-25, D-27).** `thread_length` is measured from the tip, and the thread is
+built over `t = built_thread_length(thread_length, length)`, which is `min(thread_length, length)`
+except that a plain shank shorter than `MIN_TAIL_MM` (1e-3 mm, now in `calc/thread.py`) is folded
+into the thread (D-27); the builder, both closed forms, both caps and `derive` all call it, and the
+stored value is never rewritten. A `thread_length` above `length` therefore never changes the part
+a link meant: `#length=10` opens a full-thread 10 mm screw and the info document says
+`thread_length 20 (default) exceeds length 10: thread built to the full length`; the same text
+without `(default)` covers any other value, and a folded shank has its own warning. A thread below
+`MIN_TAIL_MM` is a `BuildError` naming `thread_length` and `length` before the kernel runs, and the
+info document warns and prints no `turns` or `volume` for it. **Two explicit values are a 422 at
+the request boundary, not in the model.** FastAPI 0.142.2 copies every field default into the query
+model before validation (`fastapi/dependencies/utils.py:768-776`, a runtime probe in RESEARCH
+Alert 1), and `app.py`'s `strip()` rebuilds the model route's parameters with every field, so
+`model_fields_set` cannot tell an explicit value from a default on the API. The rule is therefore
+one pure `thread_length_conflict(length, thread_length)` in `calc/thread.py`, called by an app-level
+dependency (`refuse_thread_length_conflict`, after `refuse_repeated_keys`, `/api/bolt/` paths only)
+that raises the 422 `thread_length_conflict` with `ctx.fields` naming both when both keys are in the
+raw query and both parse as floats, and by `cli._params` after `--preset` expansion (exit 2); a
+parity test asserts the API and the CLI print the same words. **The owner's exception (D-25,
+2026-10-11).** L02 says a direct conflict between two explicit values is a 422. At the model level
+that is not kept: a `BoltParams(length=10, thread_length=30)` built directly in Python is accepted,
+built to `t = min(thread_length, length)` and warned, because the model cannot tell an explicit
+value from a default on FastAPI 0.142.2. The owner accepted this exception and no other; on the API
+and the CLI two explicit values are still a 422 naming both fields, decided at the request boundary
+by the one `thread_length_conflict`. The `(default)` mark in the warning is keyed on the value
+(`thread_length` equal to its field default), the only thing a model can test.
+
+**Presets (D-09 to D-12, D-28).** No preset id is in the link, the query or the model: the page
+writes the preset's millimetre fields and the part is always rebuilt from them (contract 6 below).
+`GET /api/presets?kind=<kind>` returns one kernel-free document built in `calc`
+(`{kind, axes, rows}`, axes `Standard`, `Size`, `Length`; each row has `id`, `display`,
+`designation`, `picker`, `fields`, `citation`); an unknown kind is the `/api/schema` 404
+`unknown_kind`; the model routes stay millimetres-only, so a `preset` key is a 422
+`extra_forbidden`. The id grammar is `<standard token>:<size>x<length>` and, as shipped (04-07),
+keeps the size as printed with its capital `M` and is case-sensitive: `iso4017:M6x20`, `iso4014:M10x80`
+(CONTEXT D-11 wrote lowercase; the plan's regex is the later and more specific statement). The
+display is `ISO 4017 M6 × 20`; the second-choice sizes M3.5, M7, M14 and M18 carry their brackets in
+the picker, the catalogue `choice`, the badge and the display (`ISO 4017 (M7) × 20`, D-28) and not
+in the designation. The CLI has `screw presets <kind>`, which prints the identical document, and
+`--preset <id>` on `screw info` and `screw export`: the row is expanded before the model is built,
+explicit flags win, the `thread_length` conflict rule runs on the merged values, and an unknown id
+exits 2 naming it. `--preset` is the one flag not generated from a field, by a positive rule in
+`tests/test_parity.py` (`HAND_WRITTEN`) that a planted stray flag fails. The page has three selects
+above the form, each with a blank first option; a pick writes the six fields the row defines
+(`d`, `pitch`, `length`, `s`, `k`, `thread_length`), leaves `left_hand` alone and builds at once;
+`Reset` is still every field to its frozen default, which is ISO 4017 M6 x 20. **The badge, as
+shipped** (04-13, `01-UI-SPEC.md` rule 33): `matches ISO 4017 M6 × 20` while the fields equal a row,
+`custom, based on <display>` after an edit, `custom` for a reloaded link that matches no row. The
+basis is the last row the part matched exactly (a pick, `Reset`, or an edit that lands on a row),
+not only the last pick, so that an edit never reads against a stale row; the consequence is that
+editing the default part reads `custom, based on ISO 4017 M6 × 20`. A failed catalogue fetch
+refuses the link whole and the picker goes with it, and a change to the blank option is not a pick.
+There is no nearest-row inference anywhere (a guessed basis is the plausible number L02 forbids).
+The catalogue holds 294 rows, 186 ISO 4017 and then 108 ISO 4014, M2 to M20; that order is the tie
+rule, so `match` reports ISO 4017 for a part equal to both (latent today: a screw is threaded to the
+head and a bolt only `b` of it).
+
+**Tables (D-13 to D-16).** The owner's precondition was met on 2026-10-11 (purchased ISO 4014:2022,
+ISO 4017:2022 and ISO 262:2023 in hand), so rows enter `src/screw/tables/` verified from the first
+commit. The package holds ISO 262:2023 Table 1 (the 15 sizes of TABL-05, coarse pitch, choice 2 for
+M3.5, M7, M14 and M18), ISO 4017:2022 (18 heads, grade A for every size and grade B for M16, M18
+and M20, and 186 lengths up to the 200 mm cap) and ISO 4014:2022 (18 heads, 15 `b` bands and 108
+printed `ls,min` / `lg,max` shank cells); the tolerance columns are not stored. Every row carries a
+required typed `Source(standard, edition, table, column)` with the table and the column as printed,
+so a row without one is a `mypy --strict` error (a test runs `mypy` over a bad and a good file). The
+ISO 4014 and ISO 4017 head values are equal per size and grade (the owner's answer A3) and are kept
+as separate rows with separate sources, with a test that pins the equality. **Double entry, as it
+was done.** The owner typed the M6 lines of the three ISO 262 and ISO 4017 files by hand on
+2026-10-11. For the full tables the owner ruled `B` on 2026-10-12, which supersedes D-14's clause
+"the owner types one copy" for this phase (`04-OWNER-READS.md`, `## Full copy`): the owner copy was
+generated from the purchased PDFs' own text layer (`pdftotext -tsv`, poppler 26.10.0) by
+`make_owner_copy.py`, kept beside the copy outside the repository; which lengths belong to which
+size (the stepped bold lines) was read by pixel sampling of the rendered page (a white cell is a
+standard length), and for ISO 4014 cross-checked against the printed `ls,min` / `lg,max` pair in
+each cell; the generator reproduces the owner's hand-typed M6 lines byte for byte, and the series
+bounds it produced were reported to the owner and not separately typed. The agent's independent
+reading of the rendered page images is the second entry, written before the owner files were copied
+into `tests/data/owner/`. The full tables are therefore not owner-typed, and the two copies share
+the same PDFs and differ in reading method (text layer plus pixels against the eye on a rendered
+image): the double entry catches a reading slip and cannot catch an error in the PDFs themselves.
+The pages the agent read are the on-disk preview pages, under the owner's ruling `A - 3.` of
+2026-10-11 that they are the same pages as the purchased edition; the rendered pages carry an iTeh
+preview watermark, and plan 04-01's prohibition of "the iTeh previews" as a source is read through
+that ruling (04-01 summary). The diff was empty at the first run for every file (04-07, 04-09,
+04-10 summaries). A test in `make verify` diffs the two copies cell by cell, and every disagreement
+is "go read the standard", never a majority vote. On top of it, one pure-data relation test per
+catalogue row (`s,min < s`, `dw,min < s,min < e,min < s / cos 30`, `k,min <= k <= k,max`, the head
+pitch equals the ISO 262 pitch, the grade from `(d, l)`, `lg,max = l - b` and `ls,min = lg,max - 5 P`
+for ISO 4014, the series strictly increasing and equal to the listed lengths between its bounds); no
+kernel build per row. **The UNVERIFIED gate** (D-15): `Source` carries a verification marker and
+`make verify` fails on any UNVERIFIED row under `src/screw/tables/` (a text scan and a runtime walk
+of every row, each with a positive control), so one cannot pass the hook, the CI job or `make
+pr.land`; there is no runtime filtering and no version check, every row the catalogue serves is
+verified by construction. TABL-04's "release build" is read as every build. **Licence stance**
+(D-16): the modules store the numeric values the product needs for M2 to M20 with a typed source per
+row; no clause wording, notes, figures or table layout is reproduced, and the catalogue serves the
+same numbers; the purchased PDFs and every render of them stay out of git (`.gitignore`: `*.pdf`,
+`/.standards/`). The stance is in the `tables` package docstring and in
+`docs/architecture/overview.md`. **Contracts 6 and 7**, in `pyproject.toml` with the module: 6,
+"The parameters never consult a table", forbids `screw.params` and `screw.calc.thread` (and what
+they import) from importing `screw.tables`, indirect imports checked; 7, "Tables are a leaf",
+forbids `screw.tables` from importing `screw.params`, `screw.calc`, `screw.solid`, `screw.app`,
+`screw.cli`, `screw.records`, `cadquery`, `OCP`, `fastapi`, `pydantic` or `logging`; contract 2 is
+widened with `screw.tables`. Import-linter cannot see the package `__init__` edge (RESEARCH Alert 3:
+a contract with `screw.params` and `screw.calc.thread` as sources stays KEPT while
+`screw/calc/__init__.py` imports a table), so the property that matters has its own control:
+`calc/__init__.py` imports no table at top level, `_bolt` imports `screw.calc.presets` inside the
+function, and `tests/test_import_boundaries.py` runs fresh `python -I` interpreters that show
+`BoltParams()`, `import screw.solid` and `import screw.calc` leave `screw.tables` out of
+`sys.modules` while `derive(BoltParams())` puts it in, so the test cannot pass vacuously.
+
+**Info document (D-17 to D-20).** `InfoRow` gains a required `group` (`Shank and thread`, `Head`,
+`Part`) and `PartInfo` gains `designation`, `preset` (`status` exact or custom, `id`, `display`) and
+`notes`, all required keys on the API and the CLI; the page renders one heading per distinct group
+in server order and reads no key by a field or row name (a parity assertion). Rows present always:
+`d`, `pitch`, `length`, `thread_length`, the shank length, `turns`, thread depth and minor diameter
+(the ISO 68-1:2023 basic profile), `s`, the geometric across corners `s / cos 30 degrees` (labelled
+apart from the row's `e,min`), `k`, and the volume (the closed form of the whole part, never the
+kernel's `Volume()`). Rows present only on an exact match of every field the row defines: `s,min`,
+`e,min`, `k,max`, `k,min`, `dw,min` and, on ISO 4014, `b`, `lg,max` and `ls,min`, each labelled with
+its sense and its source, such as `Across flats, min (ISO 4017:2022 Table 1)`, the table read from
+the stored `Source`. A part that matches no row has none of them and gets one warning, `no ISO
+4014:2022 or ISO 4017:2022 row matches these fields; row values not reported`. A non-coarse pitch
+still builds (03 D-04), reads `custom` and gets no row numbers, which closes the coarse-pitch
+question STATE.md carried. The designation is the standards' own: `Hexagon head screw ISO 4017 - M6
+x 20`, `Hexagon head bolt ISO 4014 - M10 x 80`, no property class, ASCII `-` and `x` where Clause 7
+prints an en dash and a multiplication sign, a decimal comma in the size (`M3,5`), and `null` for a
+left-hand part, because Clause 7 of both standards gives no left-hand form (the owner's read,
+`04-OWNER-READS.md`). `InfoRow.value` stays a float and the page shows `String(row.value)`: nothing
+rounds anywhere, and the ui-rounds debt item is resolved. `notes` are present only on an exact match
+and are not warnings: the product grade (`product grade A (ISO 4017:2022: l <= 150 mm and l <= 10
+d)`, with the matched standard substituted, and the ISO 4014 clause itself was not read for this
+wording, 04-11) and, for M10, M12 and M14 only, `wrench size 16 mm (ISO 4017:2022); the withdrawn
+DIN 933 used 17 mm`. The ISO figure is the row's own `s`; the DIN figures (17, 19 and 22 mm) are a
+constant read from two web pages that agree (Eurolink FSS and Wermac, `04-RESEARCH.md` Sources),
+MEDIUM confidence and not from a purchased text; it is the only DIN text in v1.
+`PartInfo` also carries `downloads` (the owner's IN-02 ruling a, UAT 2026-10-12, gap G-04-3), one
+entry per format and quality the model route serves, per format the route's default quality first,
+each with `refusal`, the sentence of `download_refusal` or null; the route, `screw export` and the
+document read that one rule, and the page links per format the first entry not refused, so a long
+ISO 4017 screw whose fine STL the INTERIM cap refuses is offered as `Download STL (preview)`, and the
+fine-STL warning stays.
+
+**Caps (D-21, D-22).** This paragraph supersedes L12's cap list. The measured quantity is the fine
+raw STL plus its gzip level-1 copy over the INTERIM 64 MiB export budget, at the INTERIM fine preset
+(0.01 mm, 0.1 rad), run `2026-10-08-a-grid`; the raw fine STL alone was under the budget at every
+first over-budget row (at M8 right-hand L=68 it is 45,659,684 bytes), which is why L12's parenthesis
+is corrected. The convention is unchanged: each cap is the longest measured length that fits, below
+the first rod row over the budget. `FINE_STL_ROWS` is keyed by `(d, pitch, left_hand)` by hand, the
+owner's WR-02 ruling of 2026-10-11, because the left-hand rods measured smaller files and the
+right-hand caps applied to a left-hand part refused lengths L11 had measured inside. The right-hand
+caps are unchanged: M8 67.5, M10 56, M12 60, M14 58, M16 52, M18 65, M20 64 mm. The left-hand caps
+are M10 72, M12 77, M14 78, M16 75, M18 91, M20 91 mm, and there is no cap for M8 left-hand, because
+no row measured over budget up to 80 mm (65,776,259 bytes at L=80, under 67,108,864). The debt
+item's 73, 78, 79, 76, 92, 92 were the first over-budget lengths, not caps (D-21 clarification). The
+values are proven against the run records, 3580 built rod rows of
+`bench/results/thread-spike/2026-10-08-a-grid.jsonl`, by
+`tests/test_thread_maths.py::test_every_cap_is_the_longest_measured_length_that_fits_in_the_grid_records`,
+which also reproduces the seven right-hand caps; no cap is typed to match. **Both caps are on the
+built thread** (D-22): the 250-turn cap compares `t / pitch` as exact decimals and its 422 names
+`thread_length`, `length` and `pitch`, and the fine-STL rows compare `t`, with the refusal naming
+`thread_length` and the hand. The head and the shank add bytes no run measured beyond the probe
+above (1.1 to 26.3 KB, small next to the thread's), so the caps stand on the thread alone and the
+interim-bounds debt item records it; Phase 7 re-sweeps on the finished bolt (OPER-02, OPER-03). The
+catalogue makes 62 ISO 4017 presets, and no ISO 4014 preset, fine-STL refusals, each a long screw
+whose built thread is past its right-hand cap (first `iso4017:M8x70`, last `iso4017:M20x200`); the
+count is pinned as a literal in `tests/test_presets.py::test_the_fine_stl_refused_presets_are_counted`
+so that Phase 7's re-sweep shows the change. The preview STL and the STEP of those presets work. The
+preview STL a pick loads is as large as 22,320,784 bytes for M20 x 200 (446,414 triangles; fine
+144,945,384 bytes), the probe's largest case.
+
+**Head rule (D-23, D-26).** `s <= d` is a 422 `head_too_small` naming `s` and `d`, with the message
+`s` must exceed `d`. This is product policy and not a kernel necessity: a research probe on
+2026-10-11 (scratch, not recorded in `bench/RESULTS.md`; RESEARCH Alert 4) fused `s < d` and
+`s == d` into one valid solid inside the gate with a volume error under 1.4e-7, and the head stacks
+on the shank without overlap, so D-23's first stated reason ("would fail the gate with an
+unhelpful kernel message") did not hold; the reason is that a head no wider than its shank is not a
+hex head. Its cost is visible: with the frozen `s = 10.0`, a hand edit of `d` to 10 or more is a
+422 until `s` is also set, and a preset sets `s`. No bound ties `k` or `s` to a table (contract 6; a
+tall head is a valid custom part). `d` can never reach `INTERIM_MAX_MM` because `s` must exceed
+it and is bounded by the same value.
+
+**Open, filed.** `docs/tech_debt/active/2026-10-05-interim-runtime-bounds.md` gains the rows this
+phase adds: `MIN_TAIL_MM`'s new home, the hand-keyed `FINE_STL_ROWS` and the unmeasured head and
+shank bytes, the refused-preset count, the bound on `s`, `k` and `thread_length`, and the M20 x 200
+preview STL a pick loads (Phase 7, OPER-02).
+
+Reason: the part a user asks for must be the part they get, and a number the tool prints must be one
+they can cut metal to (L02). Making the millimetre fields the only truth, and presets only a way to
+fill them from rows that cite their table and column and were read twice, keeps every shareable link
+meaning one part with no table consulted, and keeps a row from reaching a user unverified. Deciding
+the `thread_length` conflict at the request boundary is the only place the provenance of a value
+exists. Gating the bare thread first keeps L11's tolerance meaningful once a head and a shank dilute
+the whole-part volume. Keying the caps by hand and saying what was measured keeps every cap a value
+a run produced.
+
+Reversibility: one-way for the `s`, `k` and `thread_length` names and frozen defaults (every
+shareable link that omits them depends on them forever), for the preset id grammar and for the
+published shape of the info document. Costly for the info document's groups, notes and labels (a
+published shape every consumer reads), the `/api/presets` route, the `thread_length` rule and its
+request-boundary mechanism, and the geometry (a later head chamfer changes the part every existing
+link means with no field change, acceptable while the standing warning says "not a product build",
+a superseding entry after release). Reversible for the caps and `MIN_TAIL_MM`: constants that Phase 7
+replaces with measured values (OPER-01, OPER-02, OPER-03).

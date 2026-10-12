@@ -6,15 +6,17 @@ the moment it is registered, with no edit here. Every comparison is against
 drift together with the thing it is meant to check (01-RESEARCH.md Pitfall 2).
 
 This module must stay in `make verify`. It holds no browser (L01): the UI is checked by
-reading `app.js` as text, and `_field_literals` is shown to catch what it claims to catch
-before it is trusted to find nothing.
+reading `app.js` and `style.css` as text, and `_field_literals` is shown to catch what it
+claims to catch before it is trusted to find nothing.
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import re
 from collections.abc import Iterator
+from pathlib import Path
 from typing import cast
 
 import pytest
@@ -23,6 +25,7 @@ from fastapi.testclient import TestClient
 from screw import cli
 from screw.app import STATIC, app, build_backend
 from screw.calc import STANDING_WARNING, derive
+from screw.calc.presets import expand
 from screw.params import DEFAULT_KIND, KINDS, FastenerParams
 from screw.solid import Format, Quality, export
 
@@ -34,7 +37,15 @@ Params = dict[str, str | int | float | bool | None]
 Pairs = list[tuple[str, str | int | float | bool | None]]
 
 APP_JS = (STATIC / "app.js").read_text()
+STYLE_CSS = (STATIC / "style.css").read_text()
 FOREIGN = "zz_not_a_field"
+
+# The flags of each command that are not generated from a model field, in the order `--help`
+# lists them. `--preset` is the one flag of `info` and `export` that is not generated from a
+# model field (D-11): the preset is metadata of one command, expanded into fields before the
+# model is built, and the model routes of the API take no such key (D-09).
+HAND_WRITTEN: dict[str, list[str]] = {
+    "info": ["--preset"], "export": ["--output", "--format", "--quality", "--preset"]}
 
 
 async def _inline_backend(p: FastenerParams, fmt: str, quality: str) -> bytes:
@@ -111,6 +122,61 @@ def _squash(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+# The info row as the planner measured it (04-17-PLAN.md, G-04-5): exact declarations, so a
+# revert to the one-line row, a clip or a deleted rule fails the gate. Property -> value.
+INFO_ROW_RULES: dict[str, dict[str, str]] = {
+    "#dims div": {
+        "display": "flex", "flex-wrap": "wrap", "justify-content": "space-between",
+        "gap": ".75rem", "padding": ".15rem 0", "border-bottom": "1px dashed var(--line)"},
+    "#dims dt": {"color": "var(--muted)", "flex": "1 1 50%"},
+    "#dims dd": {
+        "margin": "0 0 0 auto", "font-variant-numeric": "tabular-nums",
+        "overflow-wrap": "anywhere"},
+    "#dims dl": {
+        "display": "grid", "grid-template-columns": "repeat(auto-fill, minmax(12.5rem, 1fr))",
+        "gap": ".15rem 1.5rem", "margin": "0"},
+}
+CLIPS = ("overflow", "overflow-x", "text-overflow")
+
+
+def _css_rules(css: str) -> list[tuple[str, dict[str, str]]]:
+    """Every brace-free rule of `css` as (squashed selector, declarations), comments dropped.
+
+    The inner rules of an `@media` block are found the same way: the pattern needs a body with
+    no brace in it, so the block's own opening brace never starts a match.
+    """
+    bare = re.sub(r"/\*.*?\*/", "", css, flags=re.DOTALL)
+    rules: list[tuple[str, dict[str, str]]] = []
+    for selector, body in re.findall(r"([^{}]+)\{([^{}]*)\}", bare):
+        declarations: dict[str, str] = {}
+        for declaration in body.split(";"):
+            if ":" in declaration:
+                prop, value = declaration.split(":", 1)
+                declarations[prop.strip()] = _squash(value)
+        rules.append((_squash(selector), declarations))
+    return rules
+
+
+def _css_declarations(css: str, selector: str) -> dict[str, str]:
+    """The declarations `selector` ends up with, a later rule overriding an earlier one."""
+    merged: dict[str, str] = {}
+    for found, declarations in _css_rules(css):
+        if found == selector:
+            merged.update(declarations)
+    return merged
+
+
+def _info_row_problems(css: str) -> list[str]:
+    """What differs from the pinned info row; the four selectors are never read from `css`."""
+    problems = [s for s, want in INFO_ROW_RULES.items() if _css_declarations(css, s) != want]
+    dims = [(s, d) for s, d in _css_rules(css) if "#dims" in s]
+    if any(value == "nowrap" for _, d in dims for value in d.values()):
+        problems.append("nowrap")
+    if any(prop in CLIPS for _, d in dims for prop in d):
+        problems.append("clip")
+    return problems
+
+
 def test_the_registry_is_not_empty_and_holds_the_default() -> None:
     # First, so an empty registry fails here instead of passing every parametrised test
     # below with nothing to iterate (Pitfall 2).
@@ -157,10 +223,40 @@ def test_a_foreign_field_is_refused_on_every_route(kind: str) -> None:
 @pytest.mark.parametrize("kind", list(KINDS))
 def test_the_cli_flags_are_the_model(kind: str, capsys: pytest.CaptureFixture[str]) -> None:
     fields = _expected_flags(kind)
-    assert _cli_flags(kind, "info", capsys) == ["--help", *fields]
-    # export's own three options come first; everything after them is the model.
-    assert _cli_flags(kind, "export", capsys) == ["--help", "--output", "--format",
-                                                  "--quality", *fields]
+    # A positive rule (D-11): the whole flag list is the hand-written flags then the model's
+    # fields, so a stray flag fails here instead of being filtered out.
+    for command, hand_written in HAND_WRITTEN.items():
+        assert _cli_flags(kind, command, capsys) == ["--help", *hand_written, *fields]
+
+
+def test_a_stray_flag_makes_the_flag_comparison_fail(
+        monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    # The teeth of the positive rule above: plant one option outside the generated group.
+    real = cli._add_args
+
+    def plant(ap: argparse.ArgumentParser, kind: str, model: type[FastenerParams]) -> None:
+        real(ap, kind, model)
+        ap.add_argument("--stray", default=None)
+
+    monkeypatch.setattr(cli, "_add_args", plant)
+    flags = _cli_flags("bolt", "info", capsys)
+    assert "--stray" in flags
+    assert flags != ["--help", *HAND_WRITTEN["info"], *_expected_flags("bolt")]
+
+
+@pytest.mark.parametrize("kind", list(KINDS))
+def test_the_cli_and_the_api_print_the_same_preset_catalogue(
+        kind: str, capsys: pytest.CaptureFixture[str]) -> None:
+    # D-10, FRNT-05: one document, so every registered kind has one and both front ends agree.
+    # Compared as parsed JSON (key order and numbers included) after one real UTF-8 round trip.
+    api = client.get("/api/presets", params={"kind": kind})
+    assert api.status_code == 200, kind
+    cli.main(["presets", kind])
+    printed = capsys.readouterr().out.encode("utf-8")
+    assert json.loads(printed) == json.loads(api.content)
+    assert list(json.loads(printed)) == list(json.loads(api.content))
+    assert json.loads(printed)["kind"] == kind
+    assert json.loads(printed)["rows"], kind
 
 
 @pytest.mark.parametrize("kind", list(KINDS))
@@ -210,6 +306,37 @@ def test_the_cli_and_the_api_print_the_same_document(
         assert cli_doc == api_doc, values
         assert cli_doc["warnings"][0] == STANDING_WARNING
         assert api_doc["warnings"][0] == STANDING_WARNING
+        # The literal too, so rewording the constant fails here and not only in test_calc (D-04).
+        assert api_doc["warnings"][0] == (
+            "plain-cut thread ends, no tip chamfer or under-head fillet; not a product build")
+
+
+def test_the_downloads_of_iso_4017_m8_x_70_are_one_sentence_on_the_cli_the_api_and_export(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    # G-04-3, FRNT-05: the document, the model route and `screw export` read one rule, so the
+    # entry the document refuses is the 422 the route answers and the line export prints.
+    row = expand("bolt", "iso4017:M8x70")
+    assert row is not None
+    fields: Params = {**row}
+    cli.main(["info", "bolt", "--preset", "iso4017:M8x70"])
+    cli_downloads = json.loads(capsys.readouterr().out)["downloads"]
+    api_downloads = client.get("/api/bolt/info", params=fields).json()["downloads"]
+    assert cli_downloads == api_downloads
+    (refused,) = [e for e in api_downloads if e["refusal"] is not None]
+    assert (refused["format"], refused["quality"]) == ("stl", "fine")
+    assert refused["refusal"].startswith("thread_length and length: ")
+
+    route = client.get("/api/bolt/model.stl", params=fields)   # quality defaults to fine
+    assert route.status_code == 422
+    (detail,) = route.json()["detail"]
+    assert (detail["type"], detail["msg"]) == ("fine_stl_cap", refused["refusal"])
+
+    out = tmp_path / "x.stl"
+    with pytest.raises(SystemExit) as stop:
+        cli.main(["export", "bolt", "--preset", "iso4017:M8x70", "-o", str(out)])
+    assert stop.value.code == 2
+    assert capsys.readouterr().err == f"error: {refused['refusal']}\n"
+    assert not out.exists()
 
 
 @pytest.mark.parametrize("kind", list(KINDS))
@@ -226,6 +353,15 @@ def test_the_no_flag_is_a_value_and_agrees_with_the_omitted_default(
 def test_every_row_key_is_unread_by_name_in_the_ui(kind: str) -> None:
     keys = [row.key for row in derive(KINDS[kind]()).rows]
     assert keys, "derive() produced no rows to check"
+    assert _field_literals(APP_JS, keys) == []
+
+
+def test_the_row_keys_of_an_iso_4014_match_are_unread_by_name_in_the_ui() -> None:
+    # An ISO 4014 match adds b, lg_max and ls_min to the default document's keys (D-17).
+    m10x80 = KINDS["bolt"].model_validate(
+        {"d": 10, "pitch": 1.5, "length": 80, "s": 16, "k": 6.4, "thread_length": 26})
+    keys = [row.key for row in derive(m10x80).rows]
+    assert {"b", "lg_max", "ls_min"} <= set(keys)
     assert _field_literals(APP_JS, keys) == []
 
 
@@ -286,12 +422,13 @@ def test_the_ui_round_trips_every_field_through_generic_code() -> None:
 
 
 @pytest.mark.parametrize("kind", list(KINDS))
-def test_the_form_has_a_size_fieldset_then_a_thread_one(kind: str) -> None:
+def test_the_form_has_a_size_fieldset_then_a_thread_one_then_a_head_one(kind: str) -> None:
     # Rule 1: one fieldset per group in first-seen order, so `left_hand` (declared between
-    # pitch and length) opens a `Thread` fieldset after `Size` and `length` stays in `Size`.
+    # pitch and length) opens a `Thread` fieldset after `Size` and `length` stays in `Size`; `s`
+    # and `k` open a `Head` fieldset last (04-03).
     properties = client.get("/api/schema", params={"kind": kind}).json()["properties"]
     groups = list(dict.fromkeys(prop["group"] for prop in properties.values()))
-    assert groups == ["Size", "Thread"]
+    assert groups == ["Size", "Thread", "Head"]
     assert properties["left_hand"]["type"] == "boolean"
     assert properties["left_hand"]["default"] is False
 
@@ -322,8 +459,9 @@ def test_the_ui_refuses_a_link_it_cannot_honour() -> None:
     # One helper serves the unknown kind and the three new cases, and it clears everything.
     helper = re.search(r"function refuseLink\(message\) \{(.*?)\n\}", APP_JS, re.DOTALL)
     assert helper is not None
-    for statement in ("clearForm();", "currentKind = null;", "kindSelect.selectedIndex = -1;",
-                      "$('#dims').replaceChildren();", "setDownloads(null);"):
+    for statement in ("clearForm();", "clearPicker();", "currentKind = null;",
+                      "kindSelect.selectedIndex = -1;", "$('#dims').replaceChildren();",
+                      "setDownloads(null);"):
         assert statement in helper.group(1), statement
     assert APP_JS.count("refuseLink(") >= 5  # the definition and the four refusals
 
@@ -349,10 +487,196 @@ def test_the_ui_keeps_the_warnings_of_the_mesh_on_screen() -> None:
     assert "Could not load the part kinds and schema" in bare[0]
 
 
+def test_the_ui_prints_the_numbers_as_sent_under_the_designation_and_the_groups() -> None:
+    # D-19, D-17 (01-UI-SPEC rules 22 and 23): the page writes `String(row.value)` and rounds
+    # nowhere, so a valid 0.0004 reads 0.0004 and not `0 mm`; the heading is the server's
+    # designation and each group heading the server's `group`, in first-seen order.
+    source = _squash(APP_JS)
+    assert "String(row.value)" in source
+    for rounding in ("toFixed", "toPrecision", "toLocaleString", "Intl.NumberFormat"):
+        assert rounding not in APP_JS, rounding
+    assert "fmt(" not in APP_JS  # the retired rounding helper
+    assert "info.designation" in APP_JS
+    assert "row.group" in APP_JS
+    assert "for (const row of info.rows) {" in source
+
+
+def test_an_info_row_drops_a_long_value_whole_under_its_label_instead_of_into_the_next_cell(
+) -> None:
+    # G-04-5: ISO 4017 M8 x 70's `15.011106998930268 mm` ran 55 px into `Head height` when the
+    # row kept its value on the label's line. Full precision is by design (L02, D-19), so the
+    # row gives, never the number: it wraps, the label keeps half of it and a value that does
+    # not fit beside it drops whole under it. No browser runs in the gate (L01), so the
+    # stylesheet is read as text and the measurement lives in 04-17-PLAN.md.
+    assert _info_row_problems(STYLE_CSS) == []
+    # The plain space before the unit is the first break the value's last-resort guard takes.
+    assert "${String(row.value)} ${row.unit}" in APP_JS
+
+
+def test_the_info_row_check_has_teeth() -> None:
+    dl = ("#dims dl { display: grid;"
+          " grid-template-columns: repeat(auto-fill, minmax(12.5rem, 1fr));"
+          " gap: .15rem 1.5rem; margin: 0; }\n")
+    row = ("#dims div { display: flex; justify-content: space-between; gap: .75rem;"
+           " padding: .15rem 0; border-bottom: 1px dashed var(--line); }\n")
+    dt = "#dims dt { color: var(--muted); }\n"
+    plan_01_04 = dl + row + dt + (
+        "#dims dd { margin: 0; font-variant-numeric: tabular-nums; white-space: nowrap; }\n")
+    found = _info_row_problems(plan_01_04)
+    assert {"#dims div", "#dims dt", "#dims dd", "nowrap"} <= set(found)
+    # Debug V4: wrapping text inside the one-line row split `14.38 mm` as `14.3 / 8 mm`.
+    v4 = dl + row + dt + ("#dims dd { margin: 0; font-variant-numeric: tabular-nums;"
+                          " white-space: normal; overflow-wrap: anywhere; }\n")
+    assert "#dims div" in _info_row_problems(v4)
+    ellipsis = "#dims dd { overflow: hidden; text-overflow: ellipsis; }"
+    clipped = _info_row_problems(STYLE_CSS + ellipsis)
+    assert {"#dims dd", "clip"} <= set(clipped)
+    # A deleted rule is reported, not skipped.
+    cut = re.sub(r"#dims dt \{[^}]*\}", "", STYLE_CSS)
+    assert cut != STYLE_CSS
+    assert "#dims dt" in _info_row_problems(cut)
+    # Comments cannot satisfy or fail the pin.
+    assert _info_row_problems("/* #dims dd { white-space: nowrap; } */" + STYLE_CSS) == []
+
+
+def test_the_ui_keeps_the_notes_of_the_mesh_on_screen_like_its_warnings() -> None:
+    # D-20 (01-UI-SPEC rules 15 and 24): a note describes the part like a warning does, so it
+    # is copied to the mesh where the mesh is replaced and shown beside every error.
+    source = _squash(APP_JS)
+    assert "pendingNotes = info.notes ?? [];" in source
+    assert source.count("meshNotes = pendingNotes") == 1
+    show = re.search(r"function showModel\(buffer\) \{(.*?)\n\}", APP_JS, re.DOTALL)
+    assert show is not None
+    assert "meshNotes = pendingNotes;" in show.group(1)
+    assert source.count("mesh ? meshNotes : []") >= 3
+    # Wherever the warnings of the mesh are named the notes are named with them.
+    for line in APP_JS.splitlines():
+        if "mesh ? meshWarnings : []" in line:
+            assert "mesh ? meshNotes : []" in line, line
+
+
+def _function_body(name: str) -> str:
+    found = re.search(rf"function {name}\([^)]*\) \{{(.*?)\n\}}", APP_JS, re.DOTALL)
+    assert found is not None, name
+    return found.group(1)
+
+
+def test_the_ui_builds_its_picker_from_the_catalogue_and_writes_fields_only() -> None:
+    # D-12, D-10 (01-UI-SPEC picker rules): the three selects come from /api/presets with no
+    # field name, a pick writes the row's fields through write() and builds at once.
+    source = _squash(APP_JS)
+    assert "api/presets?kind=" in APP_JS
+    assert "catalogue.axes" in APP_JS
+    assert "entry.picker" in APP_JS
+    assert "Object.entries(entry.fields)" in APP_JS
+    assert "write(fields.get(name).input, value)" in source
+    pick = _function_body("pick")
+    assert "update()" in pick
+    # Only the select values and the picked row are read, never a literal for a field.
+    assert _field_literals(APP_JS, list(KINDS["bolt"].model_fields)) == []
+
+
+def test_the_badge_composes_from_the_status_and_the_display_and_the_basis_stays_in_the_page(
+) -> None:
+    # D-09, TABL-06: `matches X`, `custom, based on X`, `custom`; the preset id never enters a
+    # link, a query or a request, and the basis is cleared by navigate().
+    assert "`matches ${preset.display}`" in APP_JS
+    assert "`custom, based on ${presetBasis.display}`" in APP_JS
+    assert "'custom'" in APP_JS
+    assert "preset.status" in APP_JS
+    # Every key read off a preset member of the info document: the badge uses the first two, the
+    # id only finds the catalogue row for the selects.
+    assert set(re.findall(r"\bpreset\.(\w+)", APP_JS)) == {"status", "display", "id"}
+    for name in ("partQuery", "writeHash"):
+        assert "presetBasis" not in _function_body(name), name
+    assert "presetBasis = null;" in _function_body("navigate")
+    # No request URL is built from the basis or a row id: the only fetches are the ones below.
+    assert re.findall(r"fetch\(`([^`]*)`", APP_JS) == [
+        "api/schema?kind=${encodeURIComponent(kind)}",
+        "api/presets?kind=${encodeURIComponent(kind)}",
+        "api/${currentKind}/info?${q}",
+        "api/${currentKind}/model.stl?${stlQ}",
+    ]
+    assert "location.hash" not in _function_body("pick")
+
+
 def test_the_ui_builds_nodes_from_text_only() -> None:
     assert "textContent" in APP_JS
     for sink in ("innerHTML", "outerHTML", "insertAdjacentHTML"):
         assert sink not in APP_JS, sink
+
+
+def test_the_ui_builds_both_download_links_from_the_info_document_and_names_no_quality() -> None:
+    # G-04-3, D-10, D-09, L02: the page links, per format, the first download the server does not
+    # refuse, in the server's order, and holds no format name, no quality preference and no
+    # warning text of its own. The state never enters the shareable link. Source assertions (L01).
+    assert "setDownloads(q, info.downloads)" in _function_body("update")
+    assert "downloadLinks" in APP_JS
+    assert set(re.findall(r"\binfo\.(\w+)", APP_JS)) == {
+        "designation", "rows", "warnings", "notes", "preset", "downloads"}
+    assert set(re.findall(r"\bdownload\.(\w+)", APP_JS)) == {"format", "quality", "refusal"}
+    body = _function_body("setDownloads")
+    assert "qs.set('quality', download.quality)" in body
+    assert "title" in body
+    assert "`${label} (${download.quality})`" in APP_JS
+    # The only quality the page names is the preview mesh it fetches; no format, no other
+    # quality, no spelling of the cap or of the warning.
+    assert len(re.findall(r"""(['"`])preview\1""", APP_JS)) == 1
+    for word in ("fine", "stl", "step"):
+        assert re.findall(rf"""(['"`]){word}\1""", APP_JS) == [], word
+    assert APP_JS.count("info.warnings") == 1   # the pendingWarnings line, nothing matches a text
+    assert "fine_stl_cap" not in APP_JS
+    assert "fine STL" not in APP_JS
+    for name in ("partQuery", "writeHash"):
+        assert "quality" not in _function_body(name), name
+        assert "download" not in _function_body(name), name
+
+
+def _download_labels() -> dict[str, str]:
+    """The static label of each `id="dl-<format>"` anchor of index.html, by format."""
+    html = (STATIC / "index.html").read_text()
+    return dict(re.findall(r'<a id="dl-(\w+)"[^>]*>([^<]*)</a>', html))
+
+
+def _links_by_rule_17(labels: dict[str, str], downloads: list[dict[str, str | None]]
+                      ) -> dict[str, str]:
+    """Rule 17 of 01-UI-SPEC.md as the page applies it: per format the first entry whose refusal
+    is null, labelled `<static label> (<quality>)` only when an earlier entry of that format was
+    refused. A format with no served entry has no link."""
+    links: dict[str, str] = {}
+    refused: set[str] = set()
+    for entry in downloads:
+        fmt = str(entry["format"])
+        if fmt in links:
+            continue
+        if entry["refusal"] is not None:
+            refused.add(fmt)
+            continue
+        links[fmt] = labels[fmt] + (f" ({entry['quality']})" if fmt in refused else "")
+    return links
+
+
+def test_the_download_labels_are_static_and_the_refused_fine_stl_reads_download_stl_preview(
+) -> None:
+    # G-04-3: index.html holds one anchor per format the model route serves, with the static
+    # labels; the page composes the quality after the label and holds no label of its own.
+    route = client.get("/openapi.json").json()["paths"]["/api/bolt/model.{fmt}"]["get"]
+    (fmt_param,) = [p for p in route["parameters"] if p["name"] == "fmt"]
+    labels = _download_labels()
+    assert set(labels) == set(fmt_param["schema"]["enum"])
+    assert labels == {"stl": "Download STL", "step": "Download STEP"}
+
+    row = expand("bolt", "iso4017:M8x70")
+    assert row is not None
+    fields: Params = {**row}
+    capped = client.get("/api/bolt/info", params=fields).json()["downloads"]
+    assert _links_by_rule_17(labels, capped) == {
+        "stl": "Download STL (preview)", "step": "Download STEP"}
+    served = client.get("/api/bolt/info").json()["downloads"]
+    assert _links_by_rule_17(labels, served) == labels
+    # A format whose every entry is refused has no link: the page keeps it disabled.
+    assert _links_by_rule_17(labels, [{**e, "refusal": "x"} for e in capped
+                                      if e["format"] == "stl"]) == {}
 
 
 def _repeat_argvs(kind: str, name: str) -> list[list[str]]:
@@ -390,8 +714,25 @@ def test_a_repeated_parameter_is_refused_naming_it(
     # export's own options are refused the same way.
     for given in (["--quality", "fine", "--quality", "preview"],
                   ["--format", "stl", "--format", "step"],
+                  ["--preset", "iso4017:M6x20", "--preset", "iso4017:M6x25"],
                   ["-o", "a.stl", "-o", "b.stl"]):
         with pytest.raises(SystemExit) as stop:
             cli.main(["export", kind, "-o", "x.stl", *given])
         assert stop.value.code == 2, given
         assert given[0] in capsys.readouterr().err, given
+
+
+def test_a_thread_length_conflict_is_the_same_words_on_the_api_and_the_cli(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    """D-25, FRNT-05: one rule, so the 422 `msg` and the CLI `error:` line are the same text."""
+    for length, thread_length in ((10, 30), (10, 10.00001), (0.5, 0.75)):
+        res = client.get("/api/bolt/info", params={"length": length,
+                                                   "thread_length": thread_length})
+        assert res.status_code == 422, (length, thread_length)
+        [detail] = res.json()["detail"]
+        assert detail["type"] == "thread_length_conflict"
+        with pytest.raises(SystemExit) as stop:
+            cli.main(["info", "bolt", "--length", str(length),
+                      "--thread-length", str(thread_length)])
+        assert stop.value.code == 2
+        assert capsys.readouterr().err == f"error: {detail['msg']}\n"

@@ -75,6 +75,10 @@ over too few samples) are tested in `tests/test_bench.py`, which is part of the 
 
 `bench/corpus.py` is 12 parts on a d x length grid. Since Phase 3 each entry builds the L11
 thread at the default 1 mm pitch (the grid was chosen for the cylinders the bolt was in Phase 1).
+Since Phase 4 each entry also carries a head (`s = 2 d`, `k = d / 2`: harness inputs chosen so
+every entry passes `s > d`, not ISO rows and not bounds) and pins `thread_length = length`, because
+the default is a 20 mm thread under a plain shank and would quietly make the 200-turn part cheap;
+pinned, each entry builds the full-length thread it built in Phase 3. The grid itself is unchanged.
 It exercises the harness and sets no bound: it stays far below the D-14 corner (`d`, `length` up
 to 1e5 mm), so nothing measured against it says anything about the interim `mem_limit` or
 `SCREW_BUILD_TIMEOUT`. Phase 7 replaces it with the threaded grid and keeps that one fixed from

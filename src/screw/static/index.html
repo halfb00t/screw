@@ -17,6 +17,8 @@
   <main>
     <aside>
       <label class="field">Kind <select id="kind"></select></label>
+      <fieldset id="picker" hidden><legend>ISO preset</legend></fieldset>
+      <p id="badge" aria-live="polite"></p>
       <form id="params" autocomplete="off"></form>
       <div class="actions">
         <button type="button" id="reset">Reset</button>
@@ -40,7 +42,7 @@
           <div id="messages" aria-live="polite"></div>
         </div>
         <div class="col">
-          <dl id="dims"></dl>
+          <div id="dims"></div>
         </div>
       </div>
     </section>

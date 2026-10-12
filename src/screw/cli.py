@@ -1,4 +1,4 @@
-"""Command line: `screw serve`, `screw info <kind>`, `screw export <kind>`.
+"""Command line: `screw serve`, `screw info <kind>`, `screw export <kind>`, `screw presets <kind>`.
 
 Each kind's options are generated from its registered model, so they always match the API.
 """
@@ -15,6 +15,7 @@ from typing import Literal, cast, get_args, get_origin
 from pydantic import ValidationError
 
 from . import __version__, int_env
+from .calc import explicit_conflict
 from .params import KINDS, FastenerParams
 from .records import configure
 
@@ -71,9 +72,35 @@ def _add_args(ap: argparse.ArgumentParser, kind: str, model: type[FastenerParams
                            metavar="V", type=annotation)
 
 
+def _add_preset(ap: argparse.ArgumentParser) -> None:
+    # The one flag of info and export that is not generated from a model field (D-11).
+    ap.add_argument("--preset", default=None, action=_Once, metavar="ID",
+                    help="fill the fields from an ISO preset (screw presets <kind> lists them); "
+                         "flags given as well override it")
+
+
 def _params(kind: str, ns: argparse.Namespace) -> FastenerParams:
     model = KINDS[kind]
     values = {k: v for k in model.model_fields if (v := getattr(ns, k)) is not None}
+    if ns.preset is not None:
+        # The preset is metadata of this one command (D-09): it is expanded into the mm fields
+        # here and the model never sees it. The explicit flags are laid over the row, so a
+        # field the user typed wins (L02), and the conflict rule below then judges the merged
+        # values: `--preset iso4014:M10x80 --length 20` is a thread longer than its bolt.
+        from .calc.presets import expand
+
+        row = expand(kind, ns.preset)
+        if row is None:
+            print(f"error: preset: unknown id {ns.preset!r} for kind {kind}; "
+                  f"list them with screw presets {kind}", file=sys.stderr)
+            raise SystemExit(2)
+        values = {**row, **values}
+    # D-25: only the explicit flags are in `values`, so this is the request-boundary rule the API
+    # applies to the raw query, and it is the kind's own rule, never the bolt's for every kind
+    # (04-REVIEW WR-02). The model cannot tell an explicit value from its default.
+    if (conflict := explicit_conflict(kind, values)) is not None:
+        print(f"error: {conflict.msg}", file=sys.stderr)
+        raise SystemExit(2)
     try:
         return model(**values)
     except ValidationError as exc:
@@ -100,6 +127,12 @@ def cmd_serve(ns: argparse.Namespace) -> None:
     # and land on the one root handler above, so the whole stream shares one format.
     uvicorn.run("screw.app:app", host=ns.host, port=ns.port, workers=ns.workers,
                 root_path=ns.root_path, proxy_headers=True, log_config=None)
+
+
+def cmd_presets(ns: argparse.Namespace) -> None:
+    from .calc.presets import catalogue_document
+
+    print(catalogue_document(ns.kind).model_dump_json(indent=2))
 
 
 def cmd_info(ns: argparse.Namespace) -> None:
@@ -167,8 +200,16 @@ def main(argv: list[str] | None = None) -> None:
     ek = e.add_subparsers(dest="kind", required=True)
     e.set_defaults(func=cmd_export)
 
+    pr = sub.add_parser("presets", help="print a kind's ISO preset catalogue as JSON",
+                        allow_abbrev=False)
+    prk = pr.add_subparsers(dest="kind", required=True)
+    pr.set_defaults(func=cmd_presets)
+
     for kind, model in KINDS.items():
+        prk.add_parser(kind, allow_abbrev=False)
+
         kp = ik.add_parser(kind, allow_abbrev=False)
+        _add_preset(kp)
         _add_args(kp, kind, model)
 
         kp = ek.add_parser(kind, allow_abbrev=False)
@@ -179,6 +220,7 @@ def main(argv: list[str] | None = None) -> None:
         # default=None so a repeat is detectable; cmd_export reads `ns.quality or "fine"`.
         kp.add_argument("--quality", choices=["preview", "fine"], default=None, action=_Once,
                         help="STL tessellation [fine]")
+        _add_preset(kp)
         _add_args(kp, kind, model)
 
     ns = ap.parse_args(argv)
