@@ -11,6 +11,16 @@ let kinds = { default: null, kinds: [] }; // the /api/kinds body
 let currentKind = null; // the kind the form below was built for; null while none is valid
 const fields = new Map(); // name -> { input, wrap, title }
 let defaults = {};
+const picker = $('#picker');
+const pickerLegend = picker.querySelector('legend');
+const badge = $('#badge');
+const pickerSelects = []; // one select per catalogue axis, in axis order
+let catalogue = null; // the /api/presets body for currentKind; null while there is no picker
+let shownPreset = null; // the preset member of the newest info document, null after a failure
+// The catalogue row the part last matched or was picked from, for the `custom, based on`
+// badge. Page-session state only (D-09): navigate() clears it, and no request, hash or query
+// ever reads it, so a link carries millimetres and never a preset.
+let presetBasis = null;
 // Warnings belong to a mesh, not to the last info fetch (D-11). update() fetches info first,
 // so by the time a model.stl request fails the newest info document describes the part that
 // did not build while the mesh on screen is an older one. A rendered info document waits in
@@ -54,6 +64,15 @@ function clearForm() {
   form.replaceChildren();
   fields.clear();
   defaults = {};
+}
+
+function clearPicker() {
+  picker.hidden = true;
+  picker.replaceChildren(pickerLegend);
+  pickerSelects.length = 0;
+  catalogue = null;
+  shownPreset = null;
+  badge.textContent = '';
 }
 
 async function buildForm(kind) {
@@ -115,6 +134,98 @@ async function buildForm(kind) {
   return true;
 }
 
+// ---------------------------------------------------------------- preset picker
+
+/** The values of select `i` offered once the selects before it hold `earlier`, in catalogue order. */
+function offered(i, earlier) {
+  const values = new Set();
+  for (const entry of catalogue.rows) {
+    if (earlier.every((v, j) => entry.picker[j] === v)) values.add(entry.picker[i]);
+  }
+  return [...values];
+}
+
+/** Fill the selects with `picks` (blank strings for none); a select with no choice before it is empty. */
+function showPicks(picks) {
+  pickerSelects.forEach((select, i) => {
+    const earlier = picks.slice(0, i);
+    const values = earlier.every((v) => v !== '') ? offered(i, earlier) : [];
+    select.replaceChildren(new Option('', ''), ...values.map((v) => new Option(v, v)));
+    select.value = picks[i];
+  });
+}
+
+/**
+ * The selects and the badge follow the fields (D-12, D-09): the matching catalogue row when the
+ * newest info document says exact, blank selects when it says custom or the update failed. The
+ * badge text composes from preset.status and preset.display alone; the id only finds the row.
+ */
+function showMatch(preset) {
+  if (catalogue === null) return;
+  shownPreset = preset;
+  const exact = preset !== null && preset.status === 'exact';
+  const entry = exact ? catalogue.rows.find((row) => row.id === preset.id) : undefined;
+  showPicks(entry ? entry.picker : pickerSelects.map(() => ''));
+  // The last exact match is the basis, not only a pick: after Reset, or after an edit that lands
+  // on another row, a later edit is "based on" the row the part really was (never a guess, D-09).
+  if (exact) presetBasis = preset;
+  if (preset === null) badge.textContent = '';
+  else if (exact) badge.textContent = `matches ${preset.display}`;
+  else badge.textContent = presetBasis ? `custom, based on ${presetBasis.display}` : 'custom';
+}
+
+/**
+ * A change in select `changed` resolves to one complete row: later selects holding a blank or a
+ * value no longer offered take their first offered value, then every field the row defines is
+ * written through write() and the part builds at once. Fields the row does not define (the
+ * handedness) are left as they are (D-12). A change to blank is no pick: the selects go back to
+ * what the fields match.
+ */
+function pick(changed) {
+  const picks = pickerSelects.map((select) => select.value);
+  if (picks[changed] === '') return showMatch(shownPreset);
+  for (let i = changed + 1; i < picks.length; i++) {
+    const values = offered(i, picks.slice(0, i));
+    if (!values.includes(picks[i])) picks[i] = values[0];
+  }
+  const entry = catalogue.rows.find((row) => row.picker.every((v, i) => v === picks[i]));
+  if (!entry) return showMatch(shownPreset);
+  showPicks(picks);
+  for (const [name, value] of Object.entries(entry.fields)) write(fields.get(name).input, value);
+  presetBasis = entry;
+  return update();
+}
+
+function buildPicker() {
+  pickerSelects.length = 0;
+  const labels = catalogue.axes.map((axis, i) => {
+    const select = document.createElement('select');
+    select.addEventListener('change', () => pick(i));
+    pickerSelects.push(select);
+    const control = Object.assign(document.createElement('span'), { className: 'control' });
+    control.append(select);
+    const label = Object.assign(document.createElement('label'), { className: 'field' });
+    label.append(Object.assign(document.createElement('span'), { className: 'name', textContent: axis }), control);
+    return label;
+  });
+  picker.replaceChildren(pickerLegend, ...labels);
+  picker.hidden = false;
+  showPicks(pickerSelects.map(() => ''));
+}
+
+// The catalogue is fetched once per kind change, after the form and under the same guard: a
+// response an older navigation started must not build a picker for another kind (Pitfall 6).
+async function loadPresets(kind) {
+  const mine = formSeq;
+  const res = await fetch(`api/presets?kind=${encodeURIComponent(kind)}`);
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  const body = await res.json();
+  if (mine !== formSeq) return false;
+  catalogue = body;
+  buildPicker();
+  return true;
+}
+
 /**
  * A link the page cannot honour is refused whole, the same way for an unknown kind, a key
  * given twice, a key the kind does not define and a value its control cannot hold: the form,
@@ -124,6 +235,7 @@ async function buildForm(kind) {
  */
 function refuseLink(message) {
   clearForm();
+  clearPicker();
   currentKind = null;
   kindSelect.selectedIndex = -1;
   $('#dims').replaceChildren();
@@ -143,6 +255,7 @@ async function navigate() {
   inflight?.abort();
   ++seq;
   ++formSeq;
+  presetBasis = null;
   const h = new URLSearchParams(location.hash.slice(1));
   // First, before the kind lookup: get() would answer for the first of two values and the
   // link would open a part it does not name (`#kind=bolt&kind=x`). The API refuses a
@@ -160,6 +273,12 @@ async function navigate() {
 
   if (kind !== currentKind) {
     if (!(await buildForm(kind))) return;
+    try {
+      if (!(await loadPresets(kind))) return;
+    } catch (err) {
+      // A form without its picker would be half a page; refuse whole, like a link it cannot honour.
+      return refuseLink(`Could not load the part: ${err.message}`);
+    }
     currentKind = kind;
   }
   // `kind` is the only key that is not a field, and the only one the page writes besides them.
@@ -260,6 +379,7 @@ function renderInfo(info) {
   pendingWarnings = info.warnings ?? [];
   pendingNotes = info.notes ?? [];
   showMessages([], pendingWarnings, pendingNotes);
+  showMatch(info.preset ?? null);
 }
 
 function setDownloads(q) {
@@ -305,6 +425,7 @@ async function update() {
     if (mine !== seq) return;
     showMessages(errors, mesh ? meshWarnings : [], mesh ? meshNotes : []);
     $('#dims').replaceChildren();
+    showMatch(null);
     setStatus(mesh ? 'Showing the last valid part' : '');
   };
 

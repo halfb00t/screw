@@ -373,8 +373,9 @@ def test_the_ui_refuses_a_link_it_cannot_honour() -> None:
     # One helper serves the unknown kind and the three new cases, and it clears everything.
     helper = re.search(r"function refuseLink\(message\) \{(.*?)\n\}", APP_JS, re.DOTALL)
     assert helper is not None
-    for statement in ("clearForm();", "currentKind = null;", "kindSelect.selectedIndex = -1;",
-                      "$('#dims').replaceChildren();", "setDownloads(null);"):
+    for statement in ("clearForm();", "clearPicker();", "currentKind = null;",
+                      "kindSelect.selectedIndex = -1;", "$('#dims').replaceChildren();",
+                      "setDownloads(null);"):
         assert statement in helper.group(1), statement
     assert APP_JS.count("refuseLink(") >= 5  # the definition and the four refusals
 
@@ -428,6 +429,51 @@ def test_the_ui_keeps_the_notes_of_the_mesh_on_screen_like_its_warnings() -> Non
     for line in APP_JS.splitlines():
         if "mesh ? meshWarnings : []" in line:
             assert "mesh ? meshNotes : []" in line, line
+
+
+def _function_body(name: str) -> str:
+    found = re.search(rf"function {name}\([^)]*\) \{{(.*?)\n\}}", APP_JS, re.DOTALL)
+    assert found is not None, name
+    return found.group(1)
+
+
+def test_the_ui_builds_its_picker_from_the_catalogue_and_writes_fields_only() -> None:
+    # D-12, D-10 (01-UI-SPEC picker rules): the three selects come from /api/presets with no
+    # field name, a pick writes the row's fields through write() and builds at once.
+    source = _squash(APP_JS)
+    assert "api/presets?kind=" in APP_JS
+    assert "catalogue.axes" in APP_JS
+    assert "entry.picker" in APP_JS
+    assert "Object.entries(entry.fields)" in APP_JS
+    assert "write(fields.get(name).input, value)" in source
+    pick = _function_body("pick")
+    assert "update()" in pick
+    # Only the select values and the picked row are read, never a literal for a field.
+    assert _field_literals(APP_JS, list(KINDS["bolt"].model_fields)) == []
+
+
+def test_the_badge_composes_from_the_status_and_the_display_and_the_basis_stays_in_the_page(
+) -> None:
+    # D-09, TABL-06: `matches X`, `custom, based on X`, `custom`; the preset id never enters a
+    # link, a query or a request, and the basis is cleared by navigate().
+    assert "`matches ${preset.display}`" in APP_JS
+    assert "`custom, based on ${presetBasis.display}`" in APP_JS
+    assert "'custom'" in APP_JS
+    assert "preset.status" in APP_JS
+    # Every key read off a preset member of the info document: the badge uses the first two, the
+    # id only finds the catalogue row for the selects.
+    assert set(re.findall(r"\bpreset\.(\w+)", APP_JS)) == {"status", "display", "id"}
+    for name in ("partQuery", "writeHash"):
+        assert "presetBasis" not in _function_body(name), name
+    assert "presetBasis = null;" in _function_body("navigate")
+    # No request URL is built from the basis or a row id: the only fetches are the ones below.
+    assert re.findall(r"fetch\(`([^`]*)`", APP_JS) == [
+        "api/schema?kind=${encodeURIComponent(kind)}",
+        "api/presets?kind=${encodeURIComponent(kind)}",
+        "api/${currentKind}/info?${q}",
+        "api/${currentKind}/model.stl?${stlQ}",
+    ]
+    assert "location.hash" not in _function_body("pick")
 
 
 def test_the_ui_builds_nodes_from_text_only() -> None:

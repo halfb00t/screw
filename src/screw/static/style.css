@@ -117,6 +117,11 @@ legend {
   outline: 1px solid var(--accent);
 }
 
+/* The badge is one caption line under the picker (Caption role, muted). It is never accent:
+   the contract reserves accent for primary actions and invalid fields (UI-SPEC Color). The
+   picker needs no rule of its own: it is a fieldset of .field rows like the form's. */
+#badge { margin: .35rem 0 0; color: var(--muted); font-size: .85rem; }
+
 .actions { display: flex; gap: .5rem; margin-top: 1.25rem; }
 
 button, .btn {
