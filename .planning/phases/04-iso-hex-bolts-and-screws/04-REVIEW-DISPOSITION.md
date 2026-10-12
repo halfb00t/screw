@@ -31,14 +31,36 @@ findings:
     severity: info
     disposition: fixed
     title: "The `thread` parameter of `assemble` shadows the module-level `thread` function"
-open: 0
-total: 7
-recorded: 2026-10-12T08:56:58Z
+  - id: WR-03
+    severity: warning
+    disposition: open
+    title: "The \"rule 17\" link test checks a Python copy of the algorithm, not app.js"
+  - id: IN-05
+    severity: info
+    disposition: open
+    title: "Stale, now-false comment above the thread-length warning in `_bolt`"
+  - id: IN-06
+    severity: info
+    disposition: open
+    title: "`downloadLinks` selects every `.downloads a`, while the lookup uses `#dl-<format>`"
+  - id: IN-07
+    severity: info
+    disposition: open
+    title: "Two new tests compare `_downloads` to the call it is built from"
+  - id: IN-08
+    severity: info
+    disposition: open
+    title: "Stub bytes for ISO 4017 M8 x 70 land in the session-wide export cache"
+open: 5
+total: 12
+recorded: 2026-10-12T11:22:09Z
 ---
 
 # Phase 04: Code Review Disposition
 
 Recorded by the execute-phase code-review gate on 2026-10-12. CR-01 was a blocker under the repo's rule ("fix it now or stop and ask"): it was reproduced, fixed and tested in the same run. Owner ruling 2026-10-12 (UAT test 3): "fix all". WR-01, WR-02, IN-01 and IN-04 were fixed in the same session; IN-03 was skipped by the owner as designed; IN-02 was a page/API contract change and went through a gap-closure plan (G-04-3), fixed by plans 04-15 and 04-16 in `90ad513` and `31a4596`. Review: `04-REVIEW.md` (33 files, standard depth, 1 critical / 2 warnings / 4 info).
+
+Second pass 2026-10-12, after the G-04-3 gap closure (plans 04-15 and 04-16): `04-REVIEW.md` now holds the incremental review of the 9 files that changed since `afb9d04` (standard depth, 0 critical / 1 warning / 4 info). The reviewer numbered its findings WR-01 and IN-01 to IN-04; they were renumbered WR-03 and IN-05 to IN-08 before recording so the ids above keep their decisions. The five rows below are open and await the owner's ruling.
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
@@ -49,5 +71,10 @@ Recorded by the execute-phase code-review gate on 2026-10-12. CR-01 was a blocke
 | IN-02 | info | fixed | `90ad513` feat(calc): carry the download state on the info document, from the rule the model route and screw export share, and `31a4596` feat(ui): build the download links from the info document and offer the preview STL where the fine one is refused — `PartInfo.downloads` from `download_refusal`; the page links per format the first entry not refused and offers `Download STL (preview)` with the refusal as its title where the fine STL is refused (owner ruling 2026-10-12, UAT test 3, option a: gap G-04-3); route-agreement, three-way parity, catalogue-wide (`afeffd8`), page-source and label tests |
 | IN-03 | info | skipped | owner ruling 2026-10-12 (UAT test 3, option a): as designed — "explicit" means named in the request, and the page's request is the link's content (D-25, D-09) |
 | IN-04 | info | fixed | `d38efef` — `assemble(p, bare_thread)`; `_build`'s local renamed too |
+| WR-03 | warning | open | recorded by the execute-phase code-review gate on 2026-10-12 (incremental review of the G-04-3 gap closure); awaiting the owner's ruling |
+| IN-05 | info | open | recorded by the execute-phase code-review gate on 2026-10-12 (incremental review of the G-04-3 gap closure); awaiting the owner's ruling |
+| IN-06 | info | open | recorded by the execute-phase code-review gate on 2026-10-12 (incremental review of the G-04-3 gap closure); awaiting the owner's ruling |
+| IN-07 | info | open | recorded by the execute-phase code-review gate on 2026-10-12 (incremental review of the G-04-3 gap closure); awaiting the owner's ruling |
+| IN-08 | info | open | recorded by the execute-phase code-review gate on 2026-10-12 (incremental review of the G-04-3 gap closure); awaiting the owner's ruling |
 
 Dispositions: `open` (recorded, not yet triaged), `fixed`, `skipped`, `deferred`.
