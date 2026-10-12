@@ -1,14 +1,18 @@
 ---
-status: diagnosed
+status: testing
 phase: 04-iso-hex-bolts-and-screws
 source: [04-VERIFICATION.md]
 started: 2026-10-12T07:37:18Z
-updated: 2026-10-12T08:58:15.491Z
+updated: 2026-10-12T11:29:19Z
 ---
 
 ## Current Test
 
-[testing complete]
+number: 4
+name: The browser steps of plan 04-16 Task 1 (Download STL (preview), tooltip, saved file, Download STEP, disabled state)
+expected: |
+  make serve (or SCREW_PORT=8001 make serve); empty hash: Download STL and Download STEP, no tooltip. Pick ISO 4017 / M8 / 70: the STL button reads Download STL (preview), its tooltip begins 'thread_length and length: the fine STL of a right-hand thread with d 8 and pitch 1.25 is refused above 67.5 mm of thread (54 turns)', the click saves bolt_d8_pitch1.25_left_hand0_length70_s13_k5.3_thread_length70.stl (an STL, not a JSON body), Download STEP saves the .step, the same sentence shows as a warning under the buttons, the hash carries mm fields only. Tick Left-hand thread: Download STL again. Untick, pick M8 / 65: Download STL, no tooltip. Set Length 10 and Thread length 30: the error shows and both buttons are disabled under Download STL and Download STEP. Repeat in the other theme and in a window narrower than 820px.
+awaiting: user response
 
 ## Tests
 
@@ -26,14 +30,26 @@ expected: Each is fixed, filed as a docs/tech_debt item with the owner's sign-of
 result: issue
 reported: "fix all; IN-02 a, IN-03 a"
 severity: minor
-note: Ruled 2026-10-12. Fixed in the session: WR-01 `27723c1`, WR-02 `505934a`, IN-01 and IN-04 `d38efef` (CR-01 `41c21ae` earlier). IN-03 skipped by the owner (as designed, D-25/D-09). IN-02 option a is the one open item: a page/API contract change, planned as gap G-04-3 below rather than patched inline.
+note: Ruled 2026-10-12. Fixed in the session: WR-01 `27723c1`, WR-02 `505934a`, IN-01 and IN-04 `d38efef` (CR-01 `41c21ae` earlier). IN-03 skipped by the owner (as designed, D-25/D-09). IN-02 option a is the one open item: a page/API contract change, planned as gap G-04-3 below rather than patched inline. G-04-3 closed by plans 04-15 and 04-16 (`90ad513`, `afeffd8`, `31a4596`, `ac91249`); re-verified 2026-10-12 in 04-VERIFICATION.md (re_verification, 9/10).
+
+### 4. The browser steps of plan 04-16 Task 1 (Download STL (preview), tooltip, saved file, Download STEP, disabled state)
+expected: As in Current Test above (04-VERIFICATION.md behavior_unverified_items 1 and human item 1). The verifier ran the real setDownloads from app.js under node on a stub DOM and the four cases held; that is evidence, not the browser run.
+result: [pending]
+
+### 5. The page in the light theme and in a window narrower than 820px (plans 04-13 and 04-16)
+expected: Picker, badge, grouped panel, notes and the downloads row (longest label `Download STL (preview)`, 22 characters) wrap cleanly and keep contrast in both themes (04-VERIFICATION.md human item 2; UAT test 1 was pre-run in the dark theme only).
+result: [pending]
+
+### 6. Rule on the open findings of the incremental code review of the gap closure: WR-03, IN-05, IN-06, IN-07, IN-08 (04-REVIEW-DISPOSITION.md, open: 5)
+expected: Each is fixed, filed under docs/tech_debt/ with the owner's sign-off, or skipped by the owner. None is a must-have failure; WR-03 is the one warning (the rule 17 test checks a Python copy of the algorithm, not app.js).
+result: [pending]
 
 ## Summary
 
-total: 3
+total: 6
 passed: 2
 issues: 1
-pending: 0
+pending: 3
 skipped: 0
 blocked: 0
 

@@ -1,8 +1,8 @@
 ---
 phase: 04-iso-hex-bolts-and-screws
-verified: 2026-10-12T13:55:00Z
+verified: 2026-10-12T17:35:00Z
 status: human_needed
-score: 6/8 must-haves verified
+score: 9/10 must-haves verified
 covered_files:
   - ".planning/phases/04-iso-hex-bolts-and-screws/04-01-PLAN.md"
   - ".planning/phases/04-iso-hex-bolts-and-screws/04-01-SUMMARY.md"
@@ -32,6 +32,11 @@ covered_files:
   - ".planning/phases/04-iso-hex-bolts-and-screws/04-13-SUMMARY.md"
   - ".planning/phases/04-iso-hex-bolts-and-screws/04-14-PLAN.md"
   - ".planning/phases/04-iso-hex-bolts-and-screws/04-14-SUMMARY.md"
+  - ".planning/phases/04-iso-hex-bolts-and-screws/04-15-PLAN.md"
+  - ".planning/phases/04-iso-hex-bolts-and-screws/04-15-SUMMARY.md"
+  - ".planning/phases/04-iso-hex-bolts-and-screws/04-16-PLAN.md"
+  - ".planning/phases/04-iso-hex-bolts-and-screws/04-16-SUMMARY.md"
+  - "bench/head_fuse.py"
   - "docs/architecture/decision_log.md"
   - "pyproject.toml"
   - "src/screw/app.py"
@@ -49,53 +54,67 @@ covered_files:
   - "src/screw/tables/iso4017.py"
   - "src/screw/tables/presets.py"
   - "src/screw/tables/rows.py"
+  - "tests/test_api.py"
+  - "tests/test_calc.py"
   - "tests/test_import_boundaries.py"
   - "tests/test_parity.py"
   - "tests/test_presets.py"
   - "tests/test_tables.py"
   - "tests/test_tables_second_entry.py"
-covered_digest: "v3:sha256:cabf64f8850bce6259d7334c96dae986b3091973ce4ce4ad6c335efc99b050ef"
-behavior_unverified: 2
+covered_digest: "v3:sha256:f035ea37af25bdbbc459e4d8de42aebd777e613576eb447f100ccfd4cb6b4292"
+behavior_unverified: 1
 overrides_applied: 0
+re_verification:
+  previous_status: human_needed
+  previous_score: 6/8
+  gaps_closed:
+    - "G-04-3: the Download STL link never points at a download the server refuses (UAT test 3, review IN-02; plans 04-15 and 04-16)"
+    - "Truth 2 (UI picker cascade) and truth 5 (badge transitions): the page half was human-confirmed by UAT test 1 (pass); that code is unchanged since"
+  gaps_remaining: []
+  regressions: []
 behavior_unverified_items:
-  - truth: "The UI picker resolves a change in any of the three selects to one complete row, writes the six mm fields through the form and rebuilds at once, and the selects follow the fields afterwards (SC1, UI half)"
-    test: "make serve; open an empty hash; pick ISO 4014, then M10, then 80; change Standard back to ISO 4017; choose a bracketed size such as (M3.5)"
-    expected: "Selects read ISO 4017 / M6 / 20 on an empty hash; the ISO 4014 pick fills d 10, pitch 1.5, length 80, s 16, k 6.4, thread_length 26 and leaves Left-hand thread as it was; the hash carries mm fields only; a bracketed size shows its brackets in the select and the badge"
-    why_human: "The page's cascade and the hash are exercised only by source-string assertions in tests/test_parity.py; no committed test runs the page. The verifier ran the real pick/showPicks/showMatch functions of app.js under node against the live 294-row catalogue and the transitions held, but that run is not in the repository and is not a browser"
-  - truth: "The badge reads 'matches <display>' while the fields equal a row and 'custom, based on <display>' once a field is edited (SC3, page half)"
-    test: "In the browser: empty hash (badge matches ISO 4017 M6 x 20); edit Pitch to 0.75; Reset; pick ISO 4014 M10 x 80, edit Length to 75, then to 90, then Reset; reload a link with an edited field"
-    expected: "Pitch edit reads 'custom, based on ISO 4017 M6 × 20' (NOT plain 'custom': the basis is the last exact match, rule 33); Length 75 reads 'custom, based on ISO 4014 M10 × 80'; Length 90 reads 'matches ISO 4014 M10 × 90'; Reset reads 'matches ISO 4017 M6 × 20'; a reloaded edited link reads plain 'custom'"
-    why_human: "A state transition in page-session state (presetBasis) that no committed test executes; the backend status that feeds it (exact/custom) is tested. Note: step 4 of 04-13-SUMMARY.md's browser list says Pitch 0.75 reads 'custom'; with the shipped basis rule it reads 'custom, based on ISO 4017 M6 × 20' when the session began on the default part, so the SUMMARY's expectation is stale against its own Deviation 1"
+  - truth: "The page builds both download links from info.downloads: Download STL (preview) with the refusal sentence as its tooltip where the fine STL is refused, Download STEP unchanged, both disabled under their static labels after a failed update (G-04-3, plan 04-16 truth 5, verification: backstop)"
+    test: "make serve; empty hash; pick ISO 4017 / M8 / 70, hover the STL button, click it, click Download STEP; tick Left-hand thread; untick and pick M8 / 65; set Length 10 and Thread length 30; repeat in the other theme and under 820px"
+    expected: "Empty hash: Download STL and Download STEP, no tooltip. M8 / 70: the STL button reads Download STL (preview), the tooltip begins 'thread_length and length: the fine STL of a right-hand thread with d 8 and pitch 1.25 is refused above 67.5 mm of thread (54 turns)', the click saves an .stl file (not a JSON body), Download STEP saves the .step, the same sentence shows as a warning, the hash carries mm fields only. Left-hand ticked: Download STL again. M8 / 65: Download STL, no tooltip. Length 10 with Thread length 30: the error shows and both buttons are disabled under their static labels"
+    why_human: "The anchor download, the tooltip and the on-screen label are visible only in a browser. No committed test executes app.js (L01): tests/test_parity.py asserts the source of setDownloads and applies rule 17 to the document with a Python copy of the algorithm (04-REVIEW WR-03). The verifier ran the real setDownloads from app.js under node with a stub DOM and the four cases held (see Behavioral Spot-Checks), which is evidence for the human check and not a substitute for it. The executor deferred this check to end-of-phase UAT (04-VALIDATION.md, Manual-Only)"
 human_verification:
-  - test: "Run the six browser steps of 04-13-SUMMARY.md (picker cascade, badge transitions, panel groups and notes in light and dark, error-with-warnings, label wrap at 820px)"
-    expected: "As in the two behavior_unverified_items above, plus: heading is the designation, groups Shank and thread / Head / Part, grade note after the standing warning in its own style, long labels wrap"
-    why_human: "Layout, theme contrast and interactive select behaviour are visual; the orchestrator is running this in parallel with this verification"
-  - test: "Open the page on a long ISO 4017 preset (for example ISO 4017 M20 x 200, or M8 x 70) and click Download STL"
-    expected: "Decide whether the current behaviour is acceptable: the info panel warns that the fine STL is refused, the link then returns a 422 JSON body; the preview STL and the STEP of the same part are served"
-    why_human: "62 of the 186 ISO 4017 presets (33% of them, 21% of the 294-row catalogue) cannot be downloaded as a fine STL because the INTERIM 64 MiB export budget caps the thread (D-21, L13; 04-REVIEW IN-02). The owner accepted the caps, not necessarily this page behaviour for the picker's own rows"
-  - test: "Rule on the open code-review findings WR-01, WR-02, IN-01, IN-02, IN-03, IN-04 (04-REVIEW-DISPOSITION.md)"
-    expected: "Each is fixed, filed as docs/tech_debt with sign-off, or skipped by the owner"
-    why_human: "CLAUDE.md: a deferred item needs the owner's sign-off; none is a must-have failure, CR-01 (the one blocker) is fixed in 41c21ae"
+  - test: "Run the browser steps of plan 04-16 Task 1 (listed in behavior_unverified_items above)"
+    expected: "As in the item above"
+    why_human: "Deferred by the plan to end-of-phase UAT; the download, the tooltip and the layout need a real page"
+  - test: "Look at the page in the light theme and in a window narrower than 820px (plans 04-13 and 04-16)"
+    expected: "Picker, badge, grouped panel, notes and the downloads row (the longest label Download STL (preview) is 22 characters) wrap cleanly and keep contrast in both themes"
+    why_human: "UAT test 1 was pre-run in the dark theme only; light theme, contrast and the 820px wrap were not looked at (04-UAT.md note). Layout and contrast are visual"
+  - test: "Rule on the open findings of the incremental review of the gap closure: WR-03, IN-05, IN-06, IN-07, IN-08 (04-REVIEW-DISPOSITION.md, open: 5)"
+    expected: "Each is fixed, filed under docs/tech_debt/ with sign-off, or skipped by the owner"
+    why_human: "CLAUDE.md: a deferred item needs the owner's sign-off. None is a must-have failure. WR-03 is the one warning: the rule 17 test checks a Python copy of the algorithm, not app.js, which is exactly why the page behavior above is held for a human"
 ---
 
 # Phase 4: ISO Hex Bolts and Screws Verification Report
 
 **Phase Goal:** A user picks "M6 x 20, ISO 4017" (or an ISO 4014 size and length) and gets a hex head bolt or screw whose explicit millimetre fields were filled from a cited, tested table row, with an info panel whose every number traces to a field or a row.
-**Verified:** 2026-10-12T13:55:00Z
+**Verified:** 2026-10-12T17:35:00Z, at HEAD `e9a7f8d0f8f10d3df5511a3d7e7b1c9e89403bc3`
 **Status:** human_needed
-**Re-verification:** No, initial verification (no previous VERIFICATION.md in the phase directory).
+**Re-verification:** Yes, after gap closure G-04-3 (plans 04-15 and 04-16). Previous report: `human_needed`, 6/8, with two page truths held at PRESENT_BEHAVIOR_UNVERIFIED.
 
 ## Verdict
 
-The goal is achieved in the code. No must-have FAILED and no BLOCKER was found. Two page-side truths (the picker cascade and the badge transitions) are present, wired and source-asserted but no committed test executes them, so they are held at PRESENT_BEHAVIOR_UNVERIFIED and routed to the browser check the orchestrator is running. Those two items, the long-preset STL download decision and the open review findings are the only reasons the status is `human_needed` and not `passed`.
+The goal is achieved in the code and gap G-04-3 is closed on the server side and in the page source. No must-have FAILED and no BLOCKER was found. The status is `human_needed` for one reason that is a must-have: the page half of G-04-3 (the `Download STL (preview)` link, its tooltip and the saved file) is tagged `verification: backstop` by its own plan, no committed test runs the page, and the executor deferred the browser steps to end-of-phase UAT as the orchestrator said. Two further human items (light theme and the 820px wrap; the owner's ruling on five open review findings) do not touch the goal.
+
+What changed against the first report:
+
+- The two page truths held at PRESENT_BEHAVIOR_UNVERIFIED (picker cascade, badge transitions) are now VERIFIED: `04-UAT.md` test 1 is `result: pass` (committed in 935cccc), and `git diff afb9d04..HEAD -- src/screw/static/app.js` shows only `setDownloads`, the `downloadLinks` map and one line of `update()` changed, so the code that run observed (`buildPicker`, `pick`, `showPicks`, `showMatch`) is unchanged. Provenance note: the UAT note says the run was an orchestrator pre-run in dark theme only; I accept the recorded `pass` as the human result the first report asked for and carry the unlooked light-theme and 820px part as a human item.
+- The first report's human item 2 (long-preset STL download) is resolved by G-04-3: the owner ruled option a, and the page no longer links a refused download.
+- The first report's open review findings were ruled on 2026-10-12: WR-01, WR-02, IN-01, IN-04 fixed, IN-02 fixed by G-04-3, IN-03 skipped by the owner (as designed, D-25). The incremental review of the gap closure opened five new items (WR-03, IN-05 to IN-08, none critical).
 
 Evidence I produced myself, not read from SUMMARYs:
 
-- `make verify` run once from `/Users/halfb00t/git/halfb00t/screw` at HEAD afb9d04: ruff, mypy --strict, import-linter (9 contracts kept, 0 broken), unfinished-work scan, pytest `2620 passed in 59.61s`, coverage 97.57% (floor 96), exit 0.
-- Live API through `TestClient`: `/api/presets?kind=bolt` returns 294 rows, axes Standard/Size/Length, both standards, all 15 ISO 262 sizes (second-choice bracketed), longest ISO 4017 length 200; `/api/bolt/info` for the empty query returns designation `Hexagon head screw ISO 4017 - M6 x 20`, preset exact `iso4017:M6x20`; the ISO 4014 M10 x 80 fields return designation `Hexagon head bolt ISO 4014 - M10 x 80`, `b` 26, `lg,max` 54, `ls,min` 46.5, and the wrench note `16 mm (ISO 4014:2022); the withdrawn DIN 931 used 17 mm`; a length of 81 returns `custom`, no designation, the no-row warning and no cited rows; `length=10&thread_length=30` is a 422 `thread_length_conflict` on the plain path, under `root_path="/screw"` (the CR-01 fix) and on `model.stl`; `s=5` is `head_too_small`; `preset=` is `extra_forbidden`.
-- Real builds through the CLI (`screw export bolt --preset ... --quality preview`): `iso4017:M6x20`, `iso4014:M10x80`, `iso4017:M2x4`, `iso4014:M20x200` each built in about 3 s past the THRD-04 gate; a STEP of `iso4014:M10x80` wrote 942 KiB.
-- Independent third read of the shipped numbers against the purchased-edition preview pages in `/Users/halfb00t/Documents/standards` (not the owner copy and not the agent's second entry): ISO 262 Table 1 (all 15 sizes, coarse pitch and choice column), ISO 4017 Tables 1, 2 and 3 (`dw,min`, `e,min`, `k` min/max/nom, `s` min/nom, pitch for M2 to M20, both grades) all equal the shipped `HEADS`; ISO 4014 Table 2 rendered and read by eye (M5 to M12 length cells and `ls,min`/`lg,max`, `b` 16/18/20/22/26/30), Table 3 `b` row and Table 4 grade B cells (M16 160: 106/116; M18 160 and 180: 99.5/112 and 119.5/132; M20 160, 180, 200: 95.5/108, 115.5/128, 135.5/148; `c` 44/48/52) all equal `CELLS` and `BANDS`. No disagreement found.
-- A node harness (scratchpad, not in the repo) extracted `buildPicker`, `pick`, `showPicks`, `showMatch` from the shipped `app.js` and drove them with the real catalogue: the cascade, the six written fields, the bracketed size, the blank-change resync and the badge strings behaved as the SUMMARY claims. Evidence for the human check, not a substitute for it.
+- `make verify` run once at HEAD from the repo root: ruff "All checks passed", mypy --strict "Success: no issues found in 59 source files", import-linter "Contracts: 9 kept, 0 broken", unfinished-work scan clean, pytest `2635 passed in 69.61s`, coverage 97.33% (floor 96), exit 0.
+- Live API through `TestClient` with the app lifespan running: the empty query answers designation `Hexagon head screw ISO 4017 - M6 x 20`, preset exact `iso4017:M6x20` and four `downloads` entries in the order stl fine, stl preview, step fine, step preview, none refused. For the row `iso4017:M8x70` (d 8, pitch 1.25, length 70, s 13, k 5.3, thread_length 70) only the stl fine entry carries a refusal. The model route then answered the entries as the document says: stl fine `422 fine_stl_cap`, stl preview `200 model/stl` (4,813,884 bytes), step fine and step preview `200 model/step` (3,367,238 bytes).
+- Across all 294 catalogue rows through `/api/bolt/info`: exactly 62 rows carry a refusal (the pinned count of `test_the_fine_stl_refused_presets_are_counted`, unchanged), none of them refuses its first STL entry without the document saying so, and no row leaves a format without a served entry.
+- CLI: `python -m screw info bolt --preset iso4017:M8x70` prints the same downloads (stl fine refused only). `screw export bolt --preset iso4017:M8x70 -o x.stl` exits 2 with `error: thread_length and length: the fine STL of a right-hand thread with d 8 and pitch 1.25 is refused above 67.5 mm of thread (54 turns) ...` and writes no file; with `--quality preview` it exits 0 and writes the 4,813,884-byte STL, the same size the route served.
+- The fine-STL warning is still on the document, after the standing warning, with the same text as the refusal sentence (printed live above and by `screw export --quality preview`), so L02's "never a silent downgrade" holds: the preview link is labelled, carries the reason as its title and the warning stays.
+- A node harness (scratchpad, not in the repo) extracted the real `downloadLinks`/`setDownloads` text from `app.js` and ran it on a stub DOM; see Behavioral Spot-Checks.
+- The data half (ISO 262, 4017 and 4014 tables against the purchased-edition preview pages, three-way read) was done in the first verification and `src/screw/tables/*` is byte-unchanged since except the `assert` to `raise ValueError` edit in `presets.py` (IN-01); the 294 per-row tests and the two diff tests run green inside the 2635.
 
 ## Goal Achievement
 
@@ -103,88 +122,81 @@ Evidence I produced myself, not read from SUMMARYs:
 
 | # | Truth (source) | Status | Evidence |
 |---|----------------|--------|----------|
-| 1 | A user can pick standard + size + length across M2 to M20 per ISO 262 (second-choice sizes bracketed, coarse only) on the API and the CLI and get an ISO 4014 bolt or ISO 4017 screw up to 200 mm; parity is green (SC1; TYPE-01, TYPE-02, TABL-01, TABL-05) | ✓ VERIFIED | 294 catalogue rows (186 ISO 4017, 108 ISO 4014), 15 sizes; `GET /api/presets` and `screw presets bolt` print the same document (`tests/test_parity.py::test_the_cli_and_the_api_print_the_same_preset_catalogue`); `--preset` on `info` and `export` (`cli.py::_params`); every row round-trips to its own exact match (`tests/test_presets.py::test_every_catalogue_row_round_trips`, 294 cases); builds of four extreme rows passed the gate; parity test green inside `make verify`. Plain planar ends are the amended SC1 wording (D-02, below) |
-| 2 | The UI offers the same pick and writes the row's mm fields (SC1, UI half) | ⚠️ PRESENT_BEHAVIOR_UNVERIFIED | `index.html` has `#picker` and `#badge`; `app.js` `loadPresets`, `buildPicker`, `pick` write `Object.entries(entry.fields)` through `write()` then `update()`; `tests/test_parity.py::test_the_ui_builds_its_picker_from_the_catalogue_and_writes_fields_only` asserts the source. No committed test runs the cascade. Node harness run by the verifier held. Browser check pending (orchestrator) |
-| 3 | The preset fills explicit mm fields only: link carries mm fields, preset id is metadata, opening the URL rebuilds the part without consulting a table; `thread_length` is filled by the preset (full length 4017, `b` 4014) and stays editable (SC2; TABL-01, THRD-03) | ✓ VERIFIED | `BoltParams` has `d, pitch, length, s, k, thread_length` and `extra="forbid"` (a `preset` key is a 422, checked live); catalogue `thread_length` is `length` for ISO 4017 and `_b_of(size, length)` for ISO 4014 (`test_row_relations`, `test_an_iso_4014_row_fills_thread_length_with_b_of_its_band...`); contract "The parameters never consult a table" KEPT plus `tests/test_import_boundaries.py` runtime probes (fresh `-I` interpreter: `BoltParams()` and `screw.solid` leave `screw.tables` out of `sys.modules`, with positive controls); the page's only fetches and the `partQuery`/`writeHash` bodies are asserted free of `presetBasis` and ids; the field is editable and a bad edit is a 422 or a warning (checked live) |
-| 4 | The designation line shows the ISO designation without a property class (SC3, second clause; TABL-07) | ✓ VERIFIED | `Hexagon head screw ISO 4017 - M6 x 20`, `Hexagon head bolt ISO 4014 - M10 x 80` live; second-choice sizes carry no brackets in the designation and a comma decimal (`M3,5`); withheld for left-hand (`designation_for`, Clause 7 gives no left-hand form, 04-OWNER-READS.md); `tests/test_tables.py` asserts no `8.8`-shaped token |
-| 5 | The badge reads "matches ISO 4017 M6 x 20" while the fields equal the row and "custom, based on ISO 4017 M6 x 20" once any field is edited (SC3, first clause; TABL-06) | ⚠️ PRESENT_BEHAVIOR_UNVERIFIED | Backend half verified: `preset.status` is `exact`/`custom` with id and display, exact float equality, live-checked. Page half: `showMatch` composes the three strings (`app.js` lines 163-175), asserted by source only. Node harness: default match then edit gives `custom, based on ISO 4017 M6 × 20`; pick M10 x 80 then edit gives `custom, based on ISO 4014 M10 × 80`. Judgment on the widened basis in "Judgments" below. Browser check pending |
-| 6 | Every table row carries a typed `Source`, so a row without one fails mypy; exactly one pure-data verification test per row generated from the table; an UNVERIFIED row is refused by the gate (SC4; TABL-02, TABL-03, TABL-04) | ✓ VERIFIED | `rows.py` dataclasses are `kw_only` with no defaults and a required `source: Source`; `test_a_row_without_source_fails_mypy_strict_naming_source...` runs mypy over a bad and a good file; `test_row_relations` is parametrized over the 294 catalogue rows, `test_head_relations` over the 36 heads, a per-cell relation test over the 108 shank cells; the diff test `tests/test_tables_second_entry.py` reads six owner files cell by cell and is non-vacuous (15/18/186/18/15/108 rows asserted); `test_no_module_marks_a_row_unverified` text-scans `src/screw/tables`, `test_no_row_in_the_tree_is_unverified` walks every row, each with a control that sees a planted unverified row. The gate runs in every `make verify`, which is stricter than "a release build". Minor: ISO 262 `Size` rows and `ThreadBand` rows have no 1:1 parametrized test; their invariants are tested through the aggregate test and through every head and cell that cross-checks pitch and `b` |
-| 7 | The info panel numbers (head, shank, thread) come from kernel-free maths, each traceable to an mm field or a cited, tested row; an uncomputable value is a warning and no number; any volume is the closed form; where ISO wrench size differs from the withdrawn DIN the panel adds a one-line note (SC5; INFO-03, INFO-05) | ✓ VERIFIED | `calc/__init__.py::_bolt`: every row is an exact reading of a field or `thread_depth`/`closed form`; volume is `bolt_closed_volume`, never `Volume()`; non-finite or sub-`MIN_TAIL_MM` rows are dropped with a named warning (IN-01 retired); cited rows (`s_min`, `e_min`, `k_max`, `k_min`, `dw_min`, `b`, `lg_max`, `ls_min`) appear only on an exact match, each labelled with its own table; no-row part gets `NO_ROW_WARNING` and no row values (checked live); `calc` never imports the kernel or the logger (contracts KEPT); wrench note only for M10, M12, M14 (`WITHDRAWN_DIN_WRENCH_MM`, `test_calc.py` pins all six texts and that no other size gets one). The DIN figures are web-sourced (two pages, MEDIUM confidence, D-20), not a purchased row; they are a note, not a panel number |
-| 8 | The bolt/screw the preset names builds as one valid solid with plain planar ends, gated by the THRD-04 postcondition including the bare-thread gate (TYPE-01, TYPE-02 geometry) | ✓ VERIFIED | `solid/bolt.py` hex prism with `circumscribed=True`, plain shank fused at a planar face; `_build` gates the bare thread then the whole part against `bolt_closed_volume`; four CLI builds and one STEP passed; positive controls in `tests/test_solid.py` (inside the green 2620) |
+| 1 | A user can pick standard + size + length across M2 to M20 per ISO 262 (second-choice bracketed, coarse only) on the API and the CLI and get an ISO 4014 bolt or ISO 4017 screw up to 200 mm; parity is green (SC1; TYPE-01, TYPE-02, TABL-01, TABL-05) | ✓ VERIFIED | `/api/presets?kind=bolt` returns 294 rows, ids and fields read live; `screw info bolt --preset` and `screw export bolt --preset` accept the same ids; `tests/test_presets.py` round-trips every row to its own exact match; the parity tests are inside the green 2635. Plain planar ends are the amended SC1 wording (D-02) |
+| 2 | The UI offers the same pick and writes the row's mm fields (SC1, UI half) | ✓ VERIFIED | `index.html` `#picker`/`#badge`; `app.js` `loadPresets`, `buildPicker`, `pick` write `entry.fields` through `write()` then `update()`; source test pins it. Human: `04-UAT.md` test 1 `result: pass`; the functions are unchanged since (`git diff afb9d04..HEAD`). Light theme and 820px not looked at (human item 2) |
+| 3 | The preset fills explicit mm fields only: the link carries mm fields, the preset id is metadata, opening the URL rebuilds the part without consulting a table; `thread_length` is filled by the preset and stays editable (SC2; TABL-01, THRD-03) | ✓ VERIFIED | `BoltParams` is `extra="forbid"`; catalogue `thread_length` is `length` for 4017 and `b` for 4014; contract "The parameters never consult a table" KEPT plus the `-I` runtime probes in `tests/test_import_boundaries.py`; the new `downloads` member does not enter `partQuery` or `writeHash` (asserted in `test_the_ui_builds_both_download_links_from_the_info_document_and_names_no_quality`; the function bodies hold no `quality` or `download`) |
+| 4 | The designation line shows the ISO designation without a property class (SC3, second clause; TABL-07) | ✓ VERIFIED | live: `Hexagon head screw ISO 4017 - M6 x 20`; the ISO 4014 form and the left-hand withholding are unchanged and tested in `tests/test_tables.py`/`test_calc.py` |
+| 5 | The badge reads "matches ISO 4017 M6 x 20" while the fields equal the row and "custom, based on ISO 4017 M6 x 20" once any field is edited (SC3, first clause; TABL-06) | ✓ VERIFIED | backend `preset.status` exact/custom with id and display, live: exact for the empty query; `showMatch` composes the strings (`app.js`, unchanged since the first report); human: UAT test 1 `pass` (Pitch edit, Length 82 off-row edit, Reset, pick, reload as listed in the first report) |
+| 6 | Every table row carries a typed `Source`, so a row without one fails mypy; exactly one pure-data verification test per row generated from the table; an UNVERIFIED row is refused by the gate (SC4; TABL-02, TABL-03, TABL-04) | ✓ VERIFIED | `rows.py` kw_only dataclasses with required `source`; mypy control test; `test_row_relations` over 294 catalogue rows, `test_head_relations` over 36 heads, per-cell relation test over 108 cells; `test_no_row_in_the_tree_is_unverified` with a planted-row control; all green in `make verify`. Minor, as before: ISO 262 `Size` and `ThreadBand` rows have no 1:1 parametrized test, their invariants are checked through the aggregate and through every head and cell |
+| 7 | The info panel numbers come from kernel-free maths, each traceable to an mm field or a cited, tested row; an uncomputable value is a warning and no number; any volume is the closed form; where ISO wrench size differs from the withdrawn DIN the panel adds a one-line note (SC5; INFO-03, INFO-05) | ✓ VERIFIED | `calc/__init__.py::_bolt`: rows are exact readings of fields, `thread_depth` or the closed form; cited rows only on an exact match; no-row part gets the no-row warning and no row values; `calc` never imports the kernel or the logger (contracts KEPT); the only edit since the first report is that the fine-STL warning is now appended from `_downloads(p)` refusals (same text, same position after the no-row warning: `test_the_fine_stl_warning_is_the_refused_downloads_reasons_once_in_entry_order` pins `[STANDING_WARNING, NO_ROW, *reasons]`) |
+| 8 | The bolt the preset names builds as one valid solid with plain planar ends, gated by the THRD-04 postcondition including the bare-thread gate (TYPE-01, TYPE-02 geometry) | ✓ VERIFIED | `solid/bolt.py` and `solid/__init__.py` re-read: the gap-closure-adjacent edits are a rename (`bare_thread`) and `assert` to `BuildError` (IN-01, IN-04), no geometry change; live builds of `iso4017:M8x70` (stl preview, step) passed the `_build` gates; solid tests with positive controls are inside the 2635 |
+| 9 | The info document carries a required `downloads` member, one entry per format and quality the model route serves in the page's order, each `refusal` equal to `download_refusal(p, fmt, quality)`; `/api/bolt/info` serves it and `screw info bolt` prints it identically; the route and `screw export` refuse exactly what it refuses; the fine-STL warning stays; the pinned 62 is unchanged (G-04-3, plan 04-15 truths) | ✓ VERIFIED | `calc/__init__.py` `Download`, `PartInfo.downloads` (required field), `_DOWNLOADS`, `_downloads(p)` over `download_refusal`; live M8 x 70 route/CLI/export agreement as listed in the Verdict; 62 rows refused across the catalogue, derived live; `tests/test_presets.py::test_every_catalogue_rows_document_agrees_with_the_shared_download_rule` and `..._rows_whose_stl_falls_back_to_the_preview_are_the_fine_stl_refused_rows` (both lists derived, nothing typed); `tests/test_api.py::test_every_download_the_document_lists_is_answered_by_the_route_as_it_says`; the 62 in `test_the_fine_stl_refused_presets_are_counted` is untouched in the diff |
+| 10 | The page builds both download links from `info.downloads`, offers `Download STL (preview)` with the refusal sentence as its title where the fine STL is refused, keeps `Download STEP`, matches no warning text and holds no format name or quality preference (D-10), writes nothing to the hash (D-09); in a real browser M8 / 70 saves an STL not a JSON body (G-04-3, plan 04-16) | ⚠️ PRESENT_BEHAVIOR_UNVERIFIED | Present and wired: `app.js` `downloadLinks`, `setDownloads(q, downloads)`, called as `setDownloads(q, info.downloads)` from `update()` after `showModel`; `setDownloads(null)` on every failure path; `index.html` keeps the two static anchors. Source test `test_the_ui_builds_both_download_links_from_the_info_document_and_names_no_quality` (pins the only `info.*` and `download.*` members, no `'fine'`/`'stl'`/`'step'` literals, no warning text, `partQuery`/`writeHash` free of quality) and the label test pass. Not behaviorally proven by a committed test (WR-03). Node harness held; browser steps pending (human item 1). The plan itself tags this truth `verification: backstop` |
 
-**Score:** 6/8 truths verified (2 present, behavior-unverified).
+**Score:** 9/10 truths verified (1 present, behavior-unverified).
 
-### Judgments the orchestrator asked for
+### Judgments
 
-1. **REQUIREMENTS.md final state.** Today's file marks TABL-02, TABL-03, TABL-04, TABL-05 and TYPE-02 `[x]`/Complete and leaves THRD-03, TYPE-01, TABL-01, TABL-06, TABL-07, INFO-03, INFO-05 `[ ]`/Pending (traceability agrees). The five early ticks by plan 04-09 were premature at that moment (ISO 4014 rows did not exist until 04-10) but are correct now: every ISO 4014 and ISO 4017 row has a Source, a per-row test and the gate; all 15 sizes are held; ISO 4017 reaches 200. One caveat on TABL-04: its text also names ISO 4032, 724 and 965-2 and the Phase 5 precondition says the 4032 and 965-2 rows ship there, so the tick is the gate and the Phase 4 standards, not the whole v1 list; acceptable because the roadmap maps TABL-04 to Phase 4. Remaining ticks: THRD-03, TYPE-01, TABL-07, INFO-03, INFO-05 are proven in code and can be ticked on this verification; TABL-01 and TABL-06 each have a page half and should be ticked after the browser check passes. The Phase 4 ROADMAP checkbox, STATE and the "Last updated" line are the orchestrator's to move.
-2. **Badge basis (rule 33) vs SC3.** SC3 is met as written. The shipped basis is "the last row the part matched exactly" (a pick, Reset, or an edit landing on another row); the plan and D-12 said "the picked row". The two differ only when a part passes through a second exact row before the next edit, where the plan's reading would show a stale row, which L02 forbids; plan 04-13's own expected sequence already had Reset reading `matches ISO 4017 M6 x 20`. It also makes the default-part case read exactly the TABL-06 example (edit the default and see `custom, based on ISO 4017 M6 × 20`). The deviation is recorded (04-13 Deviation 1, 01-UI-SPEC rule 33, L13) and pinned by a source test. Not a gap. Real defect found while checking: the 04-13 SUMMARY browser step 4 and the plan's wording expect plain `custom` after a Pitch edit from an empty hash; the shipped rule gives `custom, based on ISO 4017 M6 × 20`. The expectation is stale, not the code.
-3. **Preset id case (D-11 "lowercase").** D-11 contradicts itself: it says lowercase and in the same sentence gives `iso4017:M6x20` and `iso4014:M10x80`. The shipped ids keep the capital M, are case-sensitive, and that is recorded in L13 and pinned (`expand('iso4017:m6x20')` is None in `tests/test_tables.py`, `tests/test_presets.py` and the CLI test that exits 2). The ids are metadata and never enter a link, so this changes no URL. Accepted; info only.
-4. **Owner ruling B (generated owner copy).** Recorded in 04-OWNER-READS.md and L13, with the cost stated in L13 itself (the two copies share the same PDFs and differ in reading method; the diff cannot catch a printed error). The three hand-typed M6 files are byte-identical to the generator's output per the record. Because the independence is weaker than D-14 intended, I read the shipped numbers off the preview pages a third time (see evidence above) and found no disagreement. The one standing residue is that the second entry and the checks read the on-disk preview pages under the owner's ruling `A - 3.`, not the full purchased documents; that is the owner's recorded call and stays so. Accepted.
-5. **Plan 04-13 browser checks.** No executor ran them. They are human_verification items 1 and 2 above and the two behavior_unverified_items. The node run is supporting evidence only.
-6. **TDD without a RED commit.** The pre-commit hook rejects a failing suite, so no repo can hold a RED commit. Each TDD plan's SUMMARY records the RED run with source at HEAD and the assertion-level failures (plan 04-05 gives the failing counts and notes an import fault was not counted as RED). Judged against acceptance, not commit shape: met. One loose end from 04-05 is flagged for the verifier: the plan's must-have about "re-pinning a probe row" found nothing to re-pin; the behaviour it would pin is covered by the new tests.
+1. **L02, the owner's standing rule, on the new link.** A coarser mesh could pass for the fine one the user was refused. It does not: the label names the quality (`Download STL (preview)`), the title is the server's refusal sentence, the warning stays after the no-row warning, and `Download STEP` is not capped. The one place the quality does not travel is the saved file name (`Content-Disposition` carries no quality). The owner's ruling named the label and the link, not the header; the item is filed as `docs/ideas/2026-10-12-preview-stl-download-names-its-quality.md` with an INDEX row. Not a gap. Info.
+2. **"A parameter the user did not set must never silently change the part."** The download state is not a parameter and never enters the link or the form. The explicit-conflict rule (IN-02/WR-02 refactor) still returns a 422 naming both fields; `explicit_conflict` is dispatched by kind and raises for an unregistered kind, so a new kind cannot inherit the bolt's rule.
+3. **"Uncomputable value is a warning and no number."** The `Download` entry says `refusal` is null when the shared rule does not refuse on parameters alone, and it states that this is not a promise the build succeeds (a builder refusal is still a 422 `build_error`). Honest; no number is invented.
+4. **REQUIREMENTS.md final state.** The file marks TYPE-02 and TABL-01 to TABL-05 `[x]`/Complete and leaves THRD-03, TYPE-01, TABL-06, TABL-07, INFO-03, INFO-05 `[ ]`/Pending. All six are proven in code at HEAD and TABL-06's page half now has the UAT pass; they can be ticked on this verification once the owner accepts the status. Ticking REQUIREMENTS.md, ROADMAP, STATE and "Last updated" is the orchestrator's. Caveat unchanged: TABL-04's text also names ISO 4032, 724 and 965-2 (Phase 5), the tick is the gate and the Phase 4 standards.
+5. **Preset id case (D-11), badge basis (rule 33), owner ruling B, TDD without a RED commit.** Unchanged from the first report; code at HEAD agrees with that analysis. The first report's note that the 04-13 SUMMARY browser step 4 expected plain `custom` after a Pitch edit from an empty hash was stale against the shipped basis rule; UAT test 1 recorded the shipped behavior as the expected one.
 
 ### Amendments made inside the phase (read as the contract)
 
-Commit `e376024` amended TYPE-01 and ROADMAP SC1 to drop "chamfered point, under-head fillet" (moved to THRD-05, Phase 5 with ISO 4753), INFO-05 to M10, M12, M14 only, and SC2 to name `screw.params` and `screw.calc.thread`. These were pre-announced in 04-CONTEXT D-02 and D-20 (owner discuss-phase rulings of 2026-10-11) and THRD-05 stays Pending, so no requirement is lost. I verified against the amended text. The unamended SC1 would fail on the chamfer and fillet; the owner chose that scope.
+Commit `e376024` amended TYPE-01 and ROADMAP SC1 (tip chamfer and under-head fillet go to THRD-05, Phase 5), INFO-05 (M10, M12, M14 only) and SC2 (names `screw.params` and `screw.calc.thread`); pre-announced in 04-CONTEXT D-02 and D-20, and THRD-05 stays Pending. Verified against the amended text. The G-04-3 closure amended `01-UI-SPEC.md` (Hard constraints, Page Anatomy, Color, Copywriting, Interaction rules 13, 15, 17, 22, 29, E8, verification status; each names the pinning test) and L13 (a paragraph on `downloads`) with no existing L13 line changed, as plan 04-16 promised.
 
 ### Deferred Items
 
 | # | Item | Addressed In | Evidence |
 |---|------|--------------|----------|
-| 1 | Tip chamfer and under-head fillet | Phase 5 | ROADMAP Phase 5 requirement THRD-05 and its ISO 4753 precondition |
+| 1 | Tip chamfer and under-head fillet | Phase 5 | ROADMAP Phase 5, THRD-05 and its ISO 4753 precondition |
 | 2 | Printability warning for small sizes | Phase 6 | INFO-04 maps to Phase 6 |
-| 3 | Measured per-size build caps and a re-swept export budget (the cause of the 62 refused fine STLs) | Phase 7 | OPER-01 to OPER-03 and the INTERIM markers in `calc/thread.py` |
+| 3 | Measured per-size build caps and a re-swept export budget (the cause of the 62 refused fine STLs, now reached through the preview link) | Phase 7 | OPER-01 to OPER-03 and the INTERIM markers in `calc/thread.py` |
+| 4 | Preview quality named in the saved file name | Phase 5 (with FRNT-06) | `docs/ideas/2026-10-12-preview-stl-download-names-its-quality.md`; an owner decision and a new Lxx |
 
 ### Required Artifacts
 
 | Artifact | Expected | Status | Details |
 |----------|----------|--------|---------|
-| `src/screw/tables/rows.py` | typed row dataclasses with a required `Source` | ✓ VERIFIED | kw_only, no defaults; mypy test with control |
-| `src/screw/tables/iso262.py` | 15 sizes, coarse | ✓ VERIFIED | equals the owner copy and the printed ISO 262 Table 1 (pitches and the first/second-choice column of all 15 sizes read from the preview page text) |
-| `src/screw/tables/iso4017.py` | 18 heads, 186 lengths | ✓ VERIFIED | heads checked against Tables 1 to 3 of the preview pages |
-| `src/screw/tables/iso4014.py` | 18 heads, 15 bands, 108 cells | ✓ VERIFIED | Tables 2 and 4 and the `b` rows checked against the preview pages |
-| `src/screw/tables/presets.py` | catalogue and `expand` | ✓ VERIFIED | 294 rows, closed dict lookup, case-sensitive ids |
-| `src/screw/calc/presets.py` | match, designation, cited rows, notes, catalogue document | ✓ VERIFIED | 100% coverage, wired from `_bolt` and `app.py`/`cli.py` |
-| `src/screw/params.py` | `s`, `k`, `thread_length` with frozen defaults equal to the M6 x 20 row | ✓ VERIFIED | defaults `s 10, k 4, thread_length 20` equal the row and the owner's confirmation; test pins them |
-| `src/screw/app.py` | `/api/presets`, conflict dependency on the matched route | ✓ VERIFIED | CR-01 fix confirmed live under `root_path` |
-| `src/screw/cli.py` | `presets`, `--preset`, conflict rule | ✓ VERIFIED | unknown id exits 2; flags win; repeat refused |
-| `src/screw/solid/bolt.py`, `solid/__init__.py` | hex head, plain shank, bare-thread gate | ✓ VERIFIED | builds past the gate |
-| `src/screw/static/app.js`, `index.html` | picker, badge, grouped panel, unrounded numbers | ⚠️ present and wired, behavior routed to human | see truths 2 and 5 |
-| `tests/data/owner/*.tsv` | six owner files | ✓ VERIFIED | non-vacuity counts asserted |
+| `src/screw/calc/__init__.py` | `Download`, `PartInfo.downloads`, `_downloads` over `download_refusal`; kind-owned `explicit_conflict` | ✓ VERIFIED | 100% coverage; `downloads` is a required field (no default), so a kind's info builder cannot omit it |
+| `src/screw/static/app.js` | `setDownloads(q, info.downloads)` building both links | ✓ VERIFIED (source) / ⚠️ behavior routed to human | see truth 10 |
+| `src/screw/static/index.html` | two static anchors `#dl-stl`, `#dl-step` | ✓ VERIFIED | labels `Download STL`, `Download STEP`, pinned by the label test against the OpenAPI `fmt` enum |
+| `src/screw/app.py`, `cli.py` | route-attached `refuse_explicit_conflict(kind)`; CLI calls the same `explicit_conflict` | ✓ VERIFIED | the global dependency is gone; the dependency is on `/api/bolt/info` and `/api/bolt/model.{fmt}`; `root_path` regression test from CR-01 still green |
+| `tests/test_calc.py`, `test_api.py`, `test_parity.py`, `test_presets.py` | agreement of document, route, CLI and every catalogue row | ✓ VERIFIED | new tests listed in truth 9 and 10, all green |
+| `docs/architecture/decision_log.md` (L13), `01-UI-SPEC.md`, `04-REVIEW-DISPOSITION.md`, `docs/ideas/*` | amendments in the same plan | ✓ VERIFIED | read; IN-02 `fixed` with the two commits named |
+| `src/screw/tables/*`, `calc/presets.py`, `params.py`, `solid/*` | as in the first report | ✓ VERIFIED | unchanged but for IN-01/IN-04 edits, read |
 
 ### Key Link Verification
 
 | From | To | Via | Status | Details |
 |------|----|-----|--------|---------|
-| `app.py` presets route | `calc.presets.catalogue_document` | direct call | WIRED | live 294 rows |
-| `calc.__init__._bolt` | `calc.presets.match/row_values/notes` | function-local import | WIRED | local import keeps tables behind `derive` only; runtime probe proves it |
-| `cli._params` | `calc.presets.expand` then `thread_length_conflict` | merge then rule | WIRED | exit 2 on conflict |
-| `app.refuse_thread_length_conflict` | matched `APIRoute` | `request.scope["route"]` | WIRED | 422 under `root_path` confirmed live |
-| `app.js` pick | form inputs and `update()` | `write(fields.get(name).input, value)` | WIRED (source) | behavior in human items |
-| `app.js` `showMatch` | `info.preset.status/display/id` | `renderInfo` | WIRED (source) | behavior in human items |
-| `tables.presets` | `iso262`, `iso4014`, `iso4017` | imports | WIRED | contract "Tables are a leaf" KEPT |
-| `params` / `calc.thread` | `tables` | none allowed | NOT IMPORTED (as required) | contract KEPT, runtime probe |
+| `calc._bolt` | `download_refusal` | `_downloads(p)` once, warnings appended from the same list | WIRED | the document, the warning, the route and `screw export` read one rule |
+| `app._serve` / `cmd_export` | `download_refusal` | direct call | WIRED | live: route 422 `fine_stl_cap`, export exit 2, same sentence |
+| `app.py` model route | `Download` order and enums | OpenAPI | WIRED | `test_api.py` pins the set and the first quality to the route's `fmt` and `quality` parameters |
+| `app.js update()` | `setDownloads` | `setDownloads(q, info.downloads)` after the preview mesh is shown | WIRED (source) | a failed info or mesh fetch leaves the links disabled (`setDownloads(null)` at the start of each update and on `fail`) |
+| `app.js setDownloads` | `index.html` anchors | `downloadLinks` map of static labels, `#dl-<format>` lookup | WIRED | IN-06: the map selects every `.downloads a` while the lookup uses `#dl-<format>`; harmless today with two anchors |
+| `cli info` | the same document | prints `PartInfo` as served | WIRED | live: equal downloads; `test_the_downloads_of_iso_4017_m8_x_70_...` asserts CLI == API, and that the refused sentence is the route's `msg` and export's error line |
+| `params` / `calc.thread` | `tables` | none allowed | NOT IMPORTED (as required) | contracts 9 kept |
 
 ### Data-Flow Trace (Level 4)
 
 | Artifact | Data Variable | Source | Produces Real Data | Status |
 |----------|---------------|--------|--------------------|--------|
-| Info panel cited rows | `row_values(row)` | stored `HexHead`/`ThreadBand`/`ShankCell` records, each with own `Source` | yes (values equal the PDF pages for the sampled cells) | ✓ FLOWING |
-| Info panel computed rows | `p.*`, `thread_depth`, `bolt_closed_volume` | the user's own fields and the pinned profile | yes | ✓ FLOWING |
-| Picker | `catalogue.rows` | `/api/presets` from `calc.presets.catalogue_document` | yes (294 rows) | ✓ FLOWING |
-| Badge | `preset.display` | `PresetMatch` from `match(p)` | yes | ✓ FLOWING (page behavior unverified) |
+| Download links | `info.downloads` | `download_refusal(p, fmt, quality)` over the user's own fields | yes (62 of 294 rows refuse stl fine, live) | ✓ FLOWING |
+| `title` of the preview link | `download.refusal` | the same sentence the route 422s with | yes | ✓ FLOWING |
+| Info panel, picker, badge | as in the first report | stored `Source`-carrying rows, `/api/presets`, `PresetMatch` | yes | ✓ FLOWING |
 
 ### Behavioral Spot-Checks
 
 | Behavior | Command | Result | Status |
 |----------|---------|--------|--------|
-| The gate | `make verify` | 2620 passed, 9 contracts kept, coverage 97.57%, exit 0 | ✓ PASS |
-| Catalogue document | `TestClient.get('/api/presets?kind=bolt')` | 294 rows, 15 sizes, max length 200 | ✓ PASS |
-| Exact and custom match, designation, notes | `TestClient.get('/api/bolt/info?...')` | as listed in Verdict | ✓ PASS |
-| Conflict 422 on plain path, `root_path`, model route | `TestClient` | 422 on all three | ✓ PASS |
-| Build of four extreme presets | `python -m screw export bolt --preset ID --quality preview` | each built about 3 s | ✓ PASS |
-| Table data against the standard | `pdftotext` and a rendered page of the preview PDFs | no disagreement in the sampled cells | ✓ PASS |
-| Picker/badge functions of `app.js` | node harness on the real functions | transitions as claimed | ✓ PASS (not a browser) |
+| The gate | `make verify` | 2635 passed, 9 contracts kept, coverage 97.33%, exit 0 | ✓ PASS |
+| Document, route and export agree for M8 x 70 | `TestClient` with lifespan: `/api/bolt/info` then each `model.{stl,step}?quality=` | stl fine 422 `fine_stl_cap`; stl preview 200; step fine/preview 200 | ✓ PASS |
+| Refused count over the catalogue | `/api/bolt/info` for all 294 `fields` | 62 rows with a refusal; none without a served entry per format | ✓ PASS |
+| CLI parity and refusal | `screw info bolt --preset iso4017:M8x70`; `screw export ... -o x.stl`; same with `--quality preview` | same downloads; exit 2, no file; exit 0, 4,813,884 bytes | ✓ PASS |
+| Real `setDownloads` from `app.js` on a stub DOM (node) | all-served document; stl-fine-refused document; `q = null`; stl all refused | `Download STL` -> `...model.stl?d=8&length=70&quality=fine`; refused -> `Download STL (preview)`, `...quality=preview`, title = the sentence, `Download STEP` unchanged at `quality=fine`; `q=null` -> both disabled under static labels; stl all refused -> `Download STL` disabled, STEP linked | ✓ PASS (not a browser) |
 
 ### Probe Execution
 
@@ -192,19 +204,19 @@ Step 7c: SKIPPED. No PLAN or SUMMARY of this phase declares a probe script and `
 
 ### Requirements Coverage
 
-Every ID in the 14 PLAN frontmatters is accounted for and equals the ROADMAP's list of twelve. No ID is orphaned: REQUIREMENTS.md maps no further ID to Phase 4.
+Every ID in the 16 PLAN frontmatters is accounted for and equals the ROADMAP's list of twelve (the two gap-closure plans declare TABL-01 and TYPE-02). No ID is orphaned: REQUIREMENTS.md maps exactly these twelve to Phase 4 and no further ID.
 
 | Requirement | Source Plans | Description | Status | Evidence |
 |-------------|--------------|-------------|--------|----------|
-| THRD-03 | 04-04, 04-05, 04-06, 04-10, 04-12 | `thread_length` explicit mm; 4017 fills full length, 4014 fills `b`; editable | ✓ SATISFIED | truth 3; code complete, REQUIREMENTS.md still `[ ]` |
-| TYPE-01 | 04-03, 04-04, 04-08, 04-10, 04-11, 04-14 | ISO 4014 hex bolt: `s, e, k, dw, b, ls/lg`, grade (amended, D-02) | ✓ SATISFIED | truths 1, 7, 8; `e` and `dw` and `ls,min`/`lg,max` shown on exact match, grade as a note |
-| TYPE-02 | 04-03, 04-09 | ISO 4017 hex screw to 200 mm | ✓ SATISFIED | 186 rows, M20 x 200 builds; already `[x]` and correct |
-| TABL-01 | 04-12, 04-13 | pick standard + size + length; mm fields only | ✓ SATISFIED (UI half pending human) | truths 1 to 3 |
+| THRD-03 | 04-04, 04-05, 04-06, 04-10, 04-12 | `thread_length` explicit mm; 4017 fills full length, 4014 fills `b`; editable | ✓ SATISFIED | truth 3; REQUIREMENTS.md still `[ ]` |
+| TYPE-01 | 04-03, 04-04, 04-08, 04-10, 04-11, 04-14 | ISO 4014 hex bolt (amended, D-02) | ✓ SATISFIED | truths 1, 7, 8; REQUIREMENTS.md still `[ ]` |
+| TYPE-02 | 04-03, 04-09, 04-15, 04-16 | ISO 4017 hex screw to 200 mm | ✓ SATISFIED | truths 1, 8, 9; every one of the 186 ISO 4017 rows has a served format, including the 62 whose fine STL is capped |
+| TABL-01 | 04-12, 04-13, 04-15, 04-16 | pick standard + size + length; mm fields only | ✓ SATISFIED (G-04-3 link behavior pending human) | truths 1 to 3, 9; the picker's own primary action no longer ends in a 422 once truth 10's human check passes |
 | TABL-02 | 04-07, 04-09, 04-10 | typed `Source` on every row | ✓ SATISFIED | truth 6 |
-| TABL-03 | 04-07, 04-09, 04-10 | one pure-data test per row | ✓ SATISFIED | truth 6, minor note on Size and Band rows |
-| TABL-04 | 04-01, 04-07, 04-09, 04-10, 04-14 | purchased-copy rule, UNVERIFIED gate | ✓ SATISFIED for the Phase 4 standards | caveat on 4032, 724 and 965-2 (Phase 5) in Judgments |
-| TABL-05 | 04-09, 04-12, 04-13 | M2 to M20 per ISO 262, brackets, coarse | ✓ SATISFIED | 15 sizes, 4 bracketed |
-| TABL-06 | 04-08, 04-13 | match badge | ⚠️ backend satisfied, page behavior routed to human | truth 5 |
+| TABL-03 | 04-07, 04-09, 04-10 | one pure-data test per row | ✓ SATISFIED | truth 6 |
+| TABL-04 | 04-01, 04-07, 04-09, 04-10, 04-14 | purchased-copy rule, UNVERIFIED gate | ✓ SATISFIED for the Phase 4 standards | caveat in Judgments 4 |
+| TABL-05 | 04-09, 04-12, 04-13 | M2 to M20 per ISO 262, brackets, coarse | ✓ SATISFIED | truth 1 |
+| TABL-06 | 04-08, 04-13 | match badge | ✓ SATISFIED | truth 5 (backend tested, page human-confirmed by UAT 1) |
 | TABL-07 | 04-07, 04-08, 04-13 | designation without a property class | ✓ SATISFIED | truth 4 |
 | INFO-03 | 04-02, 04-03, 04-04, 04-05, 04-11, 04-13 | every number traces; no number rather than a plausible one; closed-form volume | ✓ SATISFIED | truth 7 |
 | INFO-05 | 04-11, 04-13 | ISO wrench value and one-line DIN note for M10, M12, M14 | ✓ SATISFIED | truth 7 |
@@ -213,39 +225,41 @@ Every ID in the 14 PLAN frontmatters is accounted for and equals the ROADMAP's l
 
 | File | Line | Pattern | Severity | Impact |
 |------|------|---------|----------|--------|
-| `src/` and the phase's test and bench files | | `TBD`/`FIXME`/`XXX`/`TODO`/`HACK`/`PLACEHOLDER` scan | none found | `make verify`'s unfinished-work scan agrees |
-| `bench/head_fuse.py` | 74, 85 | fuses `thread.fuse(shank.fuse(head))`; the product fuses `thread.fuse(shank).fuse(head)` (04-REVIEW WR-01, open) | ⚠️ Warning | the D-03 probe is cited in L13 as measuring "what ships"; the `_build` gate protects users either way; owner ruling pending |
-| `src/screw/calc/thread.py` | `FINE_STL_ROWS` | INTERIM caps refuse the fine STL for 62 of 186 ISO 4017 presets | ⚠️ Warning | owner-accepted bound (D-21, L13), logged as INTERIM, surfaced as a panel warning and a 422; see human item 2 |
-| `src/screw/app.py`, `cli.py` | | kind-specific conflict rule hard-coded in generic paths (WR-02, open) | ⚠️ Warning | Phase 5's nut is the named trigger |
-| `src/screw/params.py` and solid | | edit gives 422 or warning depending on whether `thread_length` equals 20 (IN-03) | ℹ️ Info | as designed under D-25 |
+| `src/`, `tests/`, `bench/` | | `TBD`/`FIXME`/`XXX`/`TODO`/`HACK`/`PLACEHOLDER` scan | none found | `make verify`'s unfinished-work scan agrees |
+| `tests/test_parity.py` | `_links_by_rule_17` | the rule 17 test applies a Python copy of the page's algorithm (04-REVIEW WR-03, open) | ⚠️ Warning | the page's link choice is source-asserted only; this is the reason truth 10 is held for a human. No product defect found: the real function behaved identically under node |
+| `src/screw/calc/__init__.py` | above `_thread_length_warning` | comment now false after the fine-STL block moved (IN-05, open) | ℹ️ Info | wording only |
+| `src/screw/static/app.js` | `downloadLinks` | selects every `.downloads a`, lookup by `#dl-<format>` (IN-06, open) | ℹ️ Info | fine with two anchors |
+| `tests/test_calc.py` | | two tests compare `_downloads` to the call it is built from (IN-07, open) | ℹ️ Info | tautological but cheap; the independent route/CLI/catalogue tests carry the load |
+| `tests/test_api.py` | | stub bytes for M8 x 70 enter the session-wide export cache (IN-08, open) | ℹ️ Info | test isolation |
+| `src/screw/calc/thread.py` | `FINE_STL_ROWS` | INTERIM caps refuse the fine STL for 62 of 186 ISO 4017 presets | ℹ️ Info | owner-accepted bound (D-21, L13), now handled by the preview link; Phase 7 re-sweeps |
 
-No debt marker, no stub, no hollow prop and no static-return data source found. The ISO 4014 and ISO 4017 head values being equal per size and grade is the owner's confirmed answer A3 and is pinned by a test, not a copy-paste stub.
+No stub, hollow prop or static-return data source found. `IN-03` (edit gives a 422 or a warning depending on whether `thread_length` equals 20) is skipped by the owner as designed (D-25, D-09).
 
 ### Human Verification Required
 
-#### 1. Browser run of plan 04-13's checks (in progress by the orchestrator)
+#### 1. Browser run of plan 04-16 Task 1 (the deferred `<human-check>`)
 
-**Test:** `make serve`, empty hash; pick ISO 4014 / M10 / 80; edit Length to 75 then 90; Reset; edit Pitch to 0.75; reload an edited link; pick a bracketed size; force a request error; check long labels at 820 px in light and dark.
-**Expected:** as in the two `behavior_unverified_items`. Pitch 0.75 from an empty hash reads `custom, based on ISO 4017 M6 × 20`, not plain `custom` (the 04-13 SUMMARY step 4 is stale on this point).
-**Why human:** interactive selects, the hash, theme contrast and layout; no committed test runs the page.
+**Test:** `make serve` (or `SCREW_PORT=8001 make serve`), empty hash; pick ISO 4017 / M8 / 70, hover the STL button, click it, click Download STEP; tick Left-hand thread; untick it and pick ISO 4017 / M8 / 65; set Length 10 and Thread length 30.
+**Expected:** Empty hash: `Download STL` and `Download STEP`, no tooltip. M8 / 70: the STL button reads `Download STL (preview)`, its tooltip begins `thread_length and length: the fine STL of a right-hand thread with d 8 and pitch 1.25 is refused above 67.5 mm of thread (54 turns)`, the click saves `bolt_d8_pitch1.25_left_hand0_length70_s13_k5.3_thread_length70.stl` (an STL, not a JSON body); `Download STEP` saves the `.step`; the same sentence shows as a warning under the buttons; the hash carries mm fields only. Left-hand ticked: `Download STL` again (the left-hand M8 has no cap, D-21). M8 / 65: `Download STL`, no tooltip. Length 10 with Thread length 30: the error shows and both buttons are disabled under `Download STL` and `Download STEP`.
+**Why human:** the anchor download, the tooltip and the label on screen are visible only in a browser; no committed test runs `app.js`.
 
-#### 2. Fine-STL refusal on the picker's own long presets
+#### 2. Light theme and narrow layout
 
-**Test:** click Download STL on `ISO 4017 M20 x 200` or `ISO 4017 M8 x 70`.
-**Expected:** owner decision on whether a 422 JSON body behind a link the page itself offers is acceptable until Phase 7, or whether the link should be disabled or switched to the preview quality for refused parts (04-REVIEW IN-02).
-**Why human:** a product decision; the part is delivered through the preview STL and the STEP and the panel names the refusal.
+**Test:** repeat the page in the light theme and in a window narrower than 820px (the downloads row with `Download STL (preview)`, the picker, the badge, the grouped panel and notes).
+**Expected:** clean wrap, readable contrast, no clipped label.
+**Why human:** UAT test 1 was run in dark theme only; layout and contrast are visual.
 
-#### 3. Open code-review findings
+#### 3. Owner's ruling on the open review findings
 
-**Test:** rule on WR-01, WR-02, IN-01, IN-02, IN-03, IN-04.
+**Test:** rule on WR-03, IN-05, IN-06, IN-07, IN-08 in `04-REVIEW-DISPOSITION.md`.
 **Expected:** each fixed, filed under `docs/tech_debt/` with sign-off, or skipped.
 **Why human:** CLAUDE.md requires the owner's sign-off for deferral. No debt item was filed by this verification.
 
 ### Gaps Summary
 
-No gaps. Nothing in the codebase contradicts a must-have, and the data was independently re-read from the standard's own pages. What remains is the page-behavior confirmation in a real browser (two truths held at PRESENT_BEHAVIOR_UNVERIFIED), one product decision about the long-preset STL download, and the owner's rulings on the open review findings. When the browser run reports the expected strings, the phase can be marked passed and REQUIREMENTS.md can tick THRD-03, TYPE-01, TABL-01, TABL-06, TABL-07, INFO-03 and INFO-05.
+No gaps. Gap G-04-3 is closed: the info document carries `downloads` from the single `download_refusal` rule, the model route, `screw export`, the CLI and all 294 catalogue rows agree with it, the fine-STL warning is preserved, and the page source builds its links from the document and labels the preview link. What remains is the owner's browser confirmation of that link (the one behavior-unverified truth, deferred by the plan to end-of-phase UAT), the visual pass in the light theme and under 820px, and the owner's rulings on five open review findings. When the browser run reports the expected strings, the phase can be marked passed and REQUIREMENTS.md can tick THRD-03, TYPE-01, TABL-06, TABL-07, INFO-03 and INFO-05.
 
 ---
 
-_Verified: 2026-10-12T13:55:00Z_
+_Verified: 2026-10-12T17:35:00Z_
 _Verifier: Claude (gsd-verifier)_
