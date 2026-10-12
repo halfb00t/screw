@@ -512,6 +512,79 @@ def test_the_ui_builds_nodes_from_text_only() -> None:
         assert sink not in APP_JS, sink
 
 
+def test_the_ui_builds_both_download_links_from_the_info_document_and_names_no_quality() -> None:
+    # G-04-3, D-10, D-09, L02: the page links, per format, the first download the server does not
+    # refuse, in the server's order, and holds no format name, no quality preference and no
+    # warning text of its own. The state never enters the shareable link. Source assertions (L01).
+    assert "setDownloads(q, info.downloads)" in _function_body("update")
+    assert "downloadLinks" in APP_JS
+    assert set(re.findall(r"\binfo\.(\w+)", APP_JS)) == {
+        "designation", "rows", "warnings", "notes", "preset", "downloads"}
+    assert set(re.findall(r"\bdownload\.(\w+)", APP_JS)) == {"format", "quality", "refusal"}
+    body = _function_body("setDownloads")
+    assert "qs.set('quality', download.quality)" in body
+    assert "title" in body
+    assert "`${label} (${download.quality})`" in APP_JS
+    # The only quality the page names is the preview mesh it fetches; no format, no other
+    # quality, no spelling of the cap or of the warning.
+    assert len(re.findall(r"""(['"`])preview\1""", APP_JS)) == 1
+    for word in ("fine", "stl", "step"):
+        assert re.findall(rf"""(['"`]){word}\1""", APP_JS) == [], word
+    assert APP_JS.count("info.warnings") == 1   # the pendingWarnings line, nothing matches a text
+    assert "fine_stl_cap" not in APP_JS
+    assert "fine STL" not in APP_JS
+    for name in ("partQuery", "writeHash"):
+        assert "quality" not in _function_body(name), name
+        assert "download" not in _function_body(name), name
+
+
+def _download_labels() -> dict[str, str]:
+    """The static label of each `id="dl-<format>"` anchor of index.html, by format."""
+    html = (STATIC / "index.html").read_text()
+    return dict(re.findall(r'<a id="dl-(\w+)"[^>]*>([^<]*)</a>', html))
+
+
+def _links_by_rule_17(labels: dict[str, str], downloads: list[dict[str, str | None]]
+                      ) -> dict[str, str]:
+    """Rule 17 of 01-UI-SPEC.md as the page applies it: per format the first entry whose refusal
+    is null, labelled `<static label> (<quality>)` only when an earlier entry of that format was
+    refused. A format with no served entry has no link."""
+    links: dict[str, str] = {}
+    refused: set[str] = set()
+    for entry in downloads:
+        fmt = str(entry["format"])
+        if fmt in links:
+            continue
+        if entry["refusal"] is not None:
+            refused.add(fmt)
+            continue
+        links[fmt] = labels[fmt] + (f" ({entry['quality']})" if fmt in refused else "")
+    return links
+
+
+def test_the_download_labels_are_static_and_the_refused_fine_stl_reads_download_stl_preview(
+) -> None:
+    # G-04-3: index.html holds one anchor per format the model route serves, with the static
+    # labels; the page composes the quality after the label and holds no label of its own.
+    route = client.get("/openapi.json").json()["paths"]["/api/bolt/model.{fmt}"]["get"]
+    (fmt_param,) = [p for p in route["parameters"] if p["name"] == "fmt"]
+    labels = _download_labels()
+    assert set(labels) == set(fmt_param["schema"]["enum"])
+    assert labels == {"stl": "Download STL", "step": "Download STEP"}
+
+    row = expand("bolt", "iso4017:M8x70")
+    assert row is not None
+    fields: Params = {**row}
+    capped = client.get("/api/bolt/info", params=fields).json()["downloads"]
+    assert _links_by_rule_17(labels, capped) == {
+        "stl": "Download STL (preview)", "step": "Download STEP"}
+    served = client.get("/api/bolt/info").json()["downloads"]
+    assert _links_by_rule_17(labels, served) == labels
+    # A format whose every entry is refused has no link: the page keeps it disabled.
+    assert _links_by_rule_17(labels, [{**e, "refusal": "x"} for e in capped
+                                      if e["format"] == "stl"]) == {}
+
+
 def _repeat_argvs(kind: str, name: str) -> list[list[str]]:
     """Every way to give one field's flag twice (the CLI keeps the last silently, D-12)."""
     flag = _flag(name)

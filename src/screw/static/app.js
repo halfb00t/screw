@@ -382,17 +382,45 @@ function renderInfo(info) {
   showMatch(info.preset ?? null);
 }
 
-function setDownloads(q) {
-  for (const fmt of ['stl', 'step']) {
-    const a = $(`#dl-${fmt}`);
-    if (q) {
-      const qs = q.toString();
-      a.href = `api/${currentKind}/model.${fmt}${qs ? `?${qs}` : ''}`;
-      a.removeAttribute('aria-disabled');
-    } else {
-      a.removeAttribute('href');
-      a.setAttribute('aria-disabled', 'true');
+// The page never links a download the server refuses (G-04-3, L02): the info document lists, per
+// format and quality, whether the shared rule refuses it, in the server's order of preference, so
+// each link is the first entry of its format that is not refused and the page names no format,
+// no quality and no warning text of its own (D-10). When an earlier entry of that format was
+// refused the label names the quality it falls back to and the title says why, because a coarser
+// mesh must never pass for the one the user would have been refused (L02). The static label of
+// each anchor is index.html's; a format with no served entry keeps it, disabled. Nothing here
+// reaches the hash: partQuery and writeHash read the form only (D-09).
+const downloadLinks = new Map(
+  [...document.querySelectorAll('.downloads a')].map((a) => [a, a.textContent]),
+);
+
+function setDownloads(q, downloads = []) {
+  for (const [a, label] of downloadLinks) {
+    a.textContent = label;
+    a.removeAttribute('href');
+    a.removeAttribute('title');
+    a.setAttribute('aria-disabled', 'true');
+  }
+  if (!q) return;
+  const refusals = new Map(); // format -> the sentence that refused its first entry
+  const linked = new Set();
+  for (const download of downloads) {
+    if (linked.has(download.format)) continue;
+    if (download.refusal !== null) {
+      if (!refusals.has(download.format)) refusals.set(download.format, download.refusal);
+      continue;
     }
+    const a = $(`#dl-${download.format}`);
+    const qs = new URLSearchParams(q);
+    qs.set('quality', download.quality);
+    a.href = `api/${currentKind}/model.${download.format}?${qs}`;
+    a.removeAttribute('aria-disabled');
+    if (refusals.has(download.format)) {
+      const label = downloadLinks.get(a);
+      a.textContent = `${label} (${download.quality})`;
+      a.title = refusals.get(download.format);
+    }
+    linked.add(download.format);
   }
 }
 
@@ -443,7 +471,7 @@ async function update() {
     const buf = await res.arrayBuffer();
     if (mine !== seq) return;
     showModel(buf);
-    setDownloads(q);
+    setDownloads(q, info.downloads);
     setStatus('');
   } catch (err) {
     if (err.name !== 'AbortError') fail([`Request failed: ${err.message}`]);
