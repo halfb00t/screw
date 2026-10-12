@@ -12,7 +12,7 @@ created: "2026-10-12"
 
 > Per-phase security contract: threat register, accepted risks, and audit trail.
 
-Register origin: every one of the 14 plans carries a `<threat_model>` block (authored at plan time), so this audit verifies the declared mitigations and scans for nothing new. ASVS level 1 and `threats_open: 0` after the grep-level classification below, so no auditor agent was spawned (secure-phase short-circuit rule). Evidence is a file, a line or a test name in this repository at the audited commit; the SUMMARY `## Threat Flags` sections of all 14 plans were read and none flags a new surface. Gap closure (plans 04-15 and 04-16, G-04-3) re-audited 2026-10-12 at `f3b5acd` by the same rule: both plans carry a register, both SUMMARY threat-flag sections read `None`, and the six new threats below closed at grep level, so again no auditor was spawned.
+Register origin: every one of the 14 plans carries a `<threat_model>` block (authored at plan time), so this audit verifies the declared mitigations and scans for nothing new. ASVS level 1 and `threats_open: 0` after the grep-level classification below, so no auditor agent was spawned (secure-phase short-circuit rule). Evidence is a file, a line or a test name in this repository at the audited commit; the SUMMARY `## Threat Flags` sections of all 14 plans were read and none flags a new surface. Gap closure (plans 04-15 and 04-16, G-04-3) re-audited 2026-10-12 at `f3b5acd` by the same rule: both plans carry a register, both SUMMARY threat-flag sections read `None`, and the six new threats below closed at grep level, so again no auditor was spawned. Gap closure plan 04-17 (G-04-5) re-audited 2026-10-12 at `fa4b344` by the same rule: the plan carries a register (T-04-32 and T-04-SC), its SUMMARY threat-flag section reads `None`, and T-04-32 closes at grep level (the three `#dims` rules in `src/screw/static/style.css`, the source pin and its teeth in `tests/test_parity.py`, 30 passed), so no auditor was spawned.
 
 ---
 
@@ -29,6 +29,7 @@ Register origin: every one of the 14 plans carries a `<threat_model>` block (aut
 | bench records → code | a typed fine-STL cap must be one the committed grid records hold; the corpus pins `s`, `k`, `thread_length` | JSONL records → `FINE_STL_ROWS`; `bench/corpus.py` |
 | decisions → later phases | Phase 5 reads L13 for the document shape, the tables and the fields | `docs/architecture/decision_log.md` |
 | host → system tools | poppler installed through Homebrew on the owner's machine only, outside the project closure (L06) | nothing enters the repository or its dependency files |
+| API document → page layout | server value and label strings of any length are laid out by `src/screw/static/style.css`; the layout decides where a number may break and whether it can reach a neighbouring cell (L02: someone cuts metal to it) | `row.value`, `row.unit`, `row.label` text → the wrapping `#dims` row |
 
 ---
 
@@ -38,7 +39,7 @@ Register origin: every one of the 14 plans carries a `<threat_model>` block (aut
 |-----------|----------|-----------|----------|-------------|------------|--------|
 | T-04-01 | Information disclosure | `.gitignore`, page renders | medium | mitigate | `.gitignore` has `*.pdf` and `/.standards/`; `git ls-files '*.pdf' '*.png'` is empty; the six tracked `tests/data/owner/*.tsv` files are per-size numeric records (D-16), the double-entry's owner half | closed |
 | T-04-02 | Tampering | owner copy, D-07 defaults | high | mitigate | Plans 04-01 and 04-09 carry `blocking-human` checkpoints the owner answered (`04-OWNER-READS.md`: ruling `A - 3.`, `permanent: accepted`, A1, A3, ruling B); values come from the purchased copies via the PDF text layer and page images, never a preview or a web table | closed |
-| T-04-SC | Tampering | npm / pip / cargo installs | low | accept | No package was added in Phase 4: `git diff main...HEAD -- pyproject.toml` adds only import-linter contracts 6 and 7; `requirements*.txt` and `web/package.json` are unchanged; poppler is a Homebrew install on the owner's machine (04-01); the gap closure (`79c0522..f3b5acd`) touches no dependency file | closed — accepted |
+| T-04-SC | Tampering | npm / pip / cargo installs | low | accept | No package was added in Phase 4: `git diff main...HEAD -- pyproject.toml` adds only import-linter contracts 6 and 7; `requirements*.txt` and `web/package.json` are unchanged; poppler is a Homebrew install on the owner's machine (04-01); the gap closure (`79c0522..f3b5acd`) touches no dependency file; the G-04-5 gap closure (`f0193d9..fa4b344`) changes only `style.css`, `tests/test_parity.py` and planning files | closed — accepted |
 | T-04-03 | Denial of service | `FINE_STL_ROWS` left-hand caps | medium | mitigate | `tests/test_thread_maths.py::test_every_cap_is_the_longest_measured_length_that_fits_in_the_grid_records` recomputes each cap from the JSONL records; a typed first-over value fails it | closed |
 | T-04-04 | Denial of service | `s`, `k` up to 1e5 mm | low | accept | Bounds `gt=0`, `le=INTERIM_MAX_MM`, finite at the model; the head is one prism (D-03 probe, tens of kB fine); the interim bounds are the debt row `docs/tech_debt/active/2026-10-05-interim-runtime-bounds.md` for Phase 7 (OPER-02) | closed — accepted |
 | T-04-05 | Tampering | `_build` fused part vs the gate | high | mitigate | `tests/test_solid.py:179 test_a_thread_wrong_by_a_part_in_ten_thousand_is_refused_on_the_thread_not_the_whole` (positive control) and `:201 test_the_good_thread_of_the_same_screw_passes_both_gates`; both gates sit inside the cached build in `src/screw/solid/bolt.py` | closed |
@@ -68,6 +69,7 @@ Register origin: every one of the 14 plans carries a `<threat_model>` block (aut
 | T-04-28 | Tampering | the download href composed from the server's `format` and `quality` | low | mitigate | `src/screw/static/app.js:415` `qs.set('quality', download.quality)` (encoded); both values are `Literal` enums on `Download` pinned to the route in `tests/test_api.py:220`; `tests/test_parity.py:565` requires an `#dl-<fmt>` anchor for every route format | closed |
 | T-04-30 | Spoofing | a preview mesh taken for the fine one (silent downgrade, L02) | medium | mitigate | The label reads `<static label> (<quality>)`, the `title` and the warning carry the refusal (`src/screw/static/app.js:415-421`; `tests/test_parity.py:565`); residual — the saved file name does not name its quality — filed for the owner in `docs/ideas/2026-10-12-preview-stl-download-names-its-quality.md` | closed |
 | T-04-31 | Denial of service | a click on the preview STL of a long preset | low | accept | The link is the same `(params, "stl", "preview", encoding)` query the page's preview fetch just made, so it is served from the bytes cache when it fits the INTERIM budget and otherwise built under the existing admission control (L13); no new build path | closed — accepted |
+| T-04-32 | Tampering (misreading) | the `#dims` row rules in `src/screw/static/style.css`: a value split inside its digits, or run into the next cell's label, read as a different number or its neighbour's | medium | mitigate | `#dims div` wraps (`flex-wrap: wrap`), `#dims dt` is `flex: 1 1 50%`, `#dims dd` is `margin: 0 0 0 auto` with `overflow-wrap: anywhere` and no `white-space`, so a value that does not fit moves whole under its own label and the last-resort guard fires only for a value wider than a whole track, taking the space before the unit first (the `${String(row.value)} ${row.unit}` text is pinned in `APP_JS`); `tests/test_parity.py` `test_an_info_row_drops_a_long_value_whole_under_its_label_instead_of_into_the_next_cell` pins the four `#dims` rule sets and forbids `nowrap`, `overflow`, `overflow-x`, `text-overflow`; `test_the_info_row_check_has_teeth` shows the pin catches the one-line rules, the digit-splitting V4 variant, a clip and a deleted rule; the 25-character value is in the owner's human check (UAT test 5 re-run) | closed |
 
 *Status: open · closed · open — below high threshold (non-blocking)*
 *Severity: critical > high > medium > low — only open threats at or above workflow.security_block_on count toward threats_open*
@@ -95,6 +97,7 @@ Register origin: every one of the 14 plans carries a `<threat_model>` block (aut
 | Audit Date | Threats Total | Closed | Open | Run By |
 |------------|---------------|--------|------|--------|
 | 2026-10-12 | 27 | 27 | 0 | execute-phase orchestrator (verify:post secure-phase, grep-level ASVS L1; no auditor agent) |
+| 2026-10-12 | 33 | 33 | 0 | execute-phase orchestrator (verify:post secure-phase after the G-04-5 gap closure, grep-level ASVS L1; no auditor agent) |
 
 ---
 
@@ -113,4 +116,12 @@ Register origin: every one of the 14 plans carries a `<threat_model>` block (aut
 |---|---|
 | Threats found | 32 |
 | Closed | 32 |
+| Open | 0 |
+
+## Security Audit 2026-10-12
+
+| Metric | Count |
+|---|---|
+| Threats found | 33 |
+| Closed | 33 |
 | Open | 0 |
