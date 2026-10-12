@@ -6,8 +6,8 @@ the moment it is registered, with no edit here. Every comparison is against
 drift together with the thing it is meant to check (01-RESEARCH.md Pitfall 2).
 
 This module must stay in `make verify`. It holds no browser (L01): the UI is checked by
-reading `app.js` as text, and `_field_literals` is shown to catch what it claims to catch
-before it is trusted to find nothing.
+reading `app.js` and `style.css` as text, and `_field_literals` is shown to catch what it
+claims to catch before it is trusted to find nothing.
 """
 
 from __future__ import annotations
@@ -37,6 +37,7 @@ Params = dict[str, str | int | float | bool | None]
 Pairs = list[tuple[str, str | int | float | bool | None]]
 
 APP_JS = (STATIC / "app.js").read_text()
+STYLE_CSS = (STATIC / "style.css").read_text()
 FOREIGN = "zz_not_a_field"
 
 # The flags of each command that are not generated from a model field, in the order `--help`
@@ -119,6 +120,61 @@ def _field_literals(source: str, names: list[str]) -> list[str]:
 
 def _squash(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
+
+
+# The info row as the planner measured it (04-17-PLAN.md, G-04-5): exact declarations, so a
+# revert to the one-line row, a clip or a deleted rule fails the gate. Property -> value.
+INFO_ROW_RULES: dict[str, dict[str, str]] = {
+    "#dims div": {
+        "display": "flex", "flex-wrap": "wrap", "justify-content": "space-between",
+        "gap": ".75rem", "padding": ".15rem 0", "border-bottom": "1px dashed var(--line)"},
+    "#dims dt": {"color": "var(--muted)", "flex": "1 1 50%"},
+    "#dims dd": {
+        "margin": "0 0 0 auto", "font-variant-numeric": "tabular-nums",
+        "overflow-wrap": "anywhere"},
+    "#dims dl": {
+        "display": "grid", "grid-template-columns": "repeat(auto-fill, minmax(12.5rem, 1fr))",
+        "gap": ".15rem 1.5rem", "margin": "0"},
+}
+CLIPS = ("overflow", "overflow-x", "text-overflow")
+
+
+def _css_rules(css: str) -> list[tuple[str, dict[str, str]]]:
+    """Every brace-free rule of `css` as (squashed selector, declarations), comments dropped.
+
+    The inner rules of an `@media` block are found the same way: the pattern needs a body with
+    no brace in it, so the block's own opening brace never starts a match.
+    """
+    bare = re.sub(r"/\*.*?\*/", "", css, flags=re.DOTALL)
+    rules: list[tuple[str, dict[str, str]]] = []
+    for selector, body in re.findall(r"([^{}]+)\{([^{}]*)\}", bare):
+        declarations: dict[str, str] = {}
+        for declaration in body.split(";"):
+            if ":" in declaration:
+                prop, value = declaration.split(":", 1)
+                declarations[prop.strip()] = _squash(value)
+        rules.append((_squash(selector), declarations))
+    return rules
+
+
+def _css_declarations(css: str, selector: str) -> dict[str, str]:
+    """The declarations `selector` ends up with, a later rule overriding an earlier one."""
+    merged: dict[str, str] = {}
+    for found, declarations in _css_rules(css):
+        if found == selector:
+            merged.update(declarations)
+    return merged
+
+
+def _info_row_problems(css: str) -> list[str]:
+    """What differs from the pinned info row; the four selectors are never read from `css`."""
+    problems = [s for s, want in INFO_ROW_RULES.items() if _css_declarations(css, s) != want]
+    dims = [(s, d) for s, d in _css_rules(css) if "#dims" in s]
+    if any(value == "nowrap" for _, d in dims for value in d.values()):
+        problems.append("nowrap")
+    if any(prop in CLIPS for _, d in dims for prop in d):
+        problems.append("clip")
+    return problems
 
 
 def test_the_registry_is_not_empty_and_holds_the_default() -> None:
@@ -443,6 +499,44 @@ def test_the_ui_prints_the_numbers_as_sent_under_the_designation_and_the_groups(
     assert "info.designation" in APP_JS
     assert "row.group" in APP_JS
     assert "for (const row of info.rows) {" in source
+
+
+def test_an_info_row_drops_a_long_value_whole_under_its_label_instead_of_into_the_next_cell(
+) -> None:
+    # G-04-5: ISO 4017 M8 x 70's `15.011106998930268 mm` ran 55 px into `Head height` when the
+    # row kept its value on the label's line. Full precision is by design (L02, D-19), so the
+    # row gives, never the number: it wraps, the label keeps half of it and a value that does
+    # not fit beside it drops whole under it. No browser runs in the gate (L01), so the
+    # stylesheet is read as text and the measurement lives in 04-17-PLAN.md.
+    assert _info_row_problems(STYLE_CSS) == []
+    # The plain space before the unit is the first break the value's last-resort guard takes.
+    assert "${String(row.value)} ${row.unit}" in APP_JS
+
+
+def test_the_info_row_check_has_teeth() -> None:
+    dl = ("#dims dl { display: grid;"
+          " grid-template-columns: repeat(auto-fill, minmax(12.5rem, 1fr));"
+          " gap: .15rem 1.5rem; margin: 0; }\n")
+    row = ("#dims div { display: flex; justify-content: space-between; gap: .75rem;"
+           " padding: .15rem 0; border-bottom: 1px dashed var(--line); }\n")
+    dt = "#dims dt { color: var(--muted); }\n"
+    plan_01_04 = dl + row + dt + (
+        "#dims dd { margin: 0; font-variant-numeric: tabular-nums; white-space: nowrap; }\n")
+    found = _info_row_problems(plan_01_04)
+    assert {"#dims div", "#dims dt", "#dims dd", "nowrap"} <= set(found)
+    # Debug V4: wrapping text inside the one-line row split `14.38 mm` as `14.3 / 8 mm`.
+    v4 = dl + row + dt + ("#dims dd { margin: 0; font-variant-numeric: tabular-nums;"
+                          " white-space: normal; overflow-wrap: anywhere; }\n")
+    assert "#dims div" in _info_row_problems(v4)
+    ellipsis = "#dims dd { overflow: hidden; text-overflow: ellipsis; }"
+    clipped = _info_row_problems(STYLE_CSS + ellipsis)
+    assert {"#dims dd", "clip"} <= set(clipped)
+    # A deleted rule is reported, not skipped.
+    cut = re.sub(r"#dims dt \{[^}]*\}", "", STYLE_CSS)
+    assert cut != STYLE_CSS
+    assert "#dims dt" in _info_row_problems(cut)
+    # Comments cannot satisfy or fail the pin.
+    assert _info_row_problems("/* #dims dd { white-space: nowrap; } */" + STYLE_CSS) == []
 
 
 def test_the_ui_keeps_the_notes_of_the_mesh_on_screen_like_its_warnings() -> None:
