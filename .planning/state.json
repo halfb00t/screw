@@ -21,7 +21,7 @@
     {
       "number": "4",
       "name": "ISO Hex Bolts and Screws",
-      "status": "in_progress"
+      "status": "complete"
     },
     {
       "number": "5",
@@ -41,8 +41,8 @@
   ],
   "next": {
     "command": "/gsd:progress --next",
-    "label": "Advance to the next step",
-    "reason": "Phase 04 of 7 · 43% · executing"
+    "label": "Advance to the next step (plan phase 5)",
+    "reason": "Phase 5 of 7 — needs a plan"
   },
-  "updated_at": "2026-10-12T14:57:40.031Z"
+  "updated_at": "2026-10-12T16:00:57.351Z"
 }

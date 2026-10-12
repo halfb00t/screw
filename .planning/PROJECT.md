@@ -51,6 +51,24 @@ mating pair out.
       Phase 3 (hand proven by an `isInside` probe at base and tail, both hands through the same
       gate). The pair clause of THRD-02 — a left-hand pair proven like a right-hand pair — is
       Phase 5 PAIR-03 (owner ruling 2026-10-11).
+- ✓ ISO tables as presets, explicit millimetres as truth — Phase 4 (L13): the page picker,
+      `GET /api/presets` and `--preset` fill the mm fields from a cited ISO 4014 or ISO 4017
+      row; the shareable link carries millimetres only and rebuilds the part without a table
+      (import-linter contracts 6 and 7 plus a `sys.modules` runtime probe); the badge reads
+      `matches ISO 4017 M6 x 20` on an exact row and `custom, based on` after an edit.
+- ✓ Every table row carries its standard and clause and has one verification test — Phase 4:
+      294 ISO 262 / 4014 / 4017 rows with a typed `Source`, one pure-data test per row, the
+      owner's double-entry diff (ruling B: owner half from the purchased PDFs' text layer,
+      agent half from page images), and an UNVERIFIED row refused by the gate.
+- ✓ Thread length on bolts via one `thread_length` field — Phase 4: the ISO 4017 preset
+      fills the full length, the ISO 4014 preset fills `b` from its length band, the user
+      edits either; two explicit values that conflict are a 422 naming both fields (D-25),
+      never a trim; a sub-1e-3 mm shank sliver is folded before the kernel.
+- ✓ Every number on the bolt's info panel is traceable to an explicit mm field or a cited
+      ISO row — Phase 4: grouped rows name their field or row, a part on no row shows one
+      warning and no row numbers, the volume is the closed form, nothing is rounded (D-19),
+      and a full-precision value that does not fit beside its label moves whole under it
+      instead of shrinking or clipping (G-04-5). The pair's numbers are Phase 5 INFO-01/02.
 
 
 ### Active
@@ -67,16 +85,11 @@ All hypotheses until shipped and validated. Grouped by the owner's decisions of
 - [ ] One `clearance` field, carried by the **nut** (its thread grows inward); the bolt is
       built to nominal so it mates a bought nut. The default value comes from the thread
       spike and a printed test, never from a guess.
-- [ ] Thread length on bolts via one `thread_length` field: the ISO 4017 preset sets it to
-      the full length, the ISO 4014 preset sets `b` from the table; the user may edit it.
 
 **Presets and tables**
-- [ ] ISO tables as presets, explicit millimetres as truth: a size picker ("M6 × 20,
-      ISO 4017") fills the mm fields from a cited table; the part is always built from the
-      mm fields in the shareable link, and the user can edit any of them.
-- [ ] Every table row carries its standard and clause and has one verification test; a row
-      without a cited source does not ship.
-- [ ] Size range M2–M20 (ISO 261 preferred sizes) for every table in v1.
+- [ ] Size range M2–M20 (ISO 261 preferred sizes) for every table in v1 — ISO 262, 4014
+      and 4017 shipped in Phase 4 (second-choice sizes bracketed, coarse pitch only);
+      ISO 4032 and ISO 965-2 are Phase 5.
 - [ ] ISO 965 tolerance classes 6g / 6H reported as min/max numbers on the info panel from
       a cited table; geometry is nominal plus clearance, not toleranced.
 
@@ -91,9 +104,10 @@ All hypotheses until shipped and validated. Grouped by the owner's decisions of
 - [ ] Every fastener type ships on UI, API and CLI from the one parameter model, with its
       tests, in the same change; the Phase 1 parity test covers each new `KINDS` entry
       without an edit.
-- [ ] Every number on the info panel is traceable to an explicit mm field or to a cited ISO
-      row with a test; where a number cannot be computed honestly the tool shows a warning
-      and no number.
+- [ ] Every number on the pair's info panel (nut, clearance, engagement, 6g/6H limits) is
+      traceable to an explicit mm field or to a cited ISO row with a test; where a number
+      cannot be computed honestly the tool shows a warning and no number. The bolt half
+      shipped in Phase 4 (Validated above).
 
 **Operability (inherited shape)**
 - [ ] Every allowed configuration builds inside a measured per-build timeout, with the bound
@@ -215,12 +229,13 @@ table cites it. `cq_warehouse.fastener` is likewise unverified.
 |----------|-----------|---------|
 | Separate repo and product from spur; same stack and rules (L01) | spur stays a gear generator; a "parts generator" was rejected 2026-10-05 | Phase 1: runtime ported, skeleton `bolt` on UI, API and CLI, `make verify` green |
 | Real helical threads; mating pairs are the product | A cosmetic thread cannot be proven to mate; the core value is a pair that threads together | Phase 3: the L11 thread ships on `bolt` behind the THRD-04 gate (L12); the mating proof is Phase 5 |
-| ISO tables as presets, explicit mm as truth | A looked-up number is still a number someone cuts metal to; the link must rebuild the part without the table | — Pending |
-| Every table row cites its standard and clause and has a test | Table liability: a row without a source is a claim nobody checked | — Pending |
+| ISO tables as presets, explicit mm as truth | A looked-up number is still a number someone cuts metal to; the link must rebuild the part without the table | Phase 4 (L13): 294 cited rows; mm-only links; contracts 6 and 7; the catalogue on page, API and CLI |
+| Every table row cites its standard and clause and has a test | Table liability: a row without a source is a claim nobody checked | Phase 4: typed `Source`, one test per row, the owner's double-entry diff (ruling B), an UNVERIFIED row refused by the gate |
 | `clearance` lives on the nut | The bolt stays nominal and mates a bought nut; FDM practice opens the hole, not the shaft | — Pending |
 | ISO metric only in v1 (68-1 profile, 261/262 sizes) | One thread form to prove; UNC/UNF adds tables without adding proof | — Pending |
-| M2–M20 range for every v1 table | What makers print and assemble; every row is a test | — Pending |
-| `thread_length` field serves both ISO 4014 and 4017 | One field, two presets; the user edits either | — Pending |
+| M2–M20 range for every v1 table | What makers print and assemble; every row is a test | Phase 4: ISO 262, 4014 and 4017; ISO 4032 and 965-2 follow in Phase 5 |
+| `thread_length` field serves both ISO 4014 and 4017 | One field, two presets; the user edits either | Phase 4: 4017 fills the full length, 4014 fills `b`; an explicit conflict is a 422 (D-25); a shank sliver is folded before the kernel |
+| Phase 4 decisions recorded as L13 (supersedes L12's cap list): D-07 defaults frozen from the owner's read, D-21 hand-keyed fine-STL caps, D-25 explicit-conflict 422, ruling B for the owner copy, the 4017-before-4014 tie rule, a structured download state on the info document (G-04-3), an info row that wraps rather than rounds (G-04-5) | L02: every value traces to a purchased page or a measured run; when a value does not fit, the layout gives way, never the number | Phase 4: 17 plans, UAT 7 passed with both recorded issues resolved by gap plans; 62 ISO 4017 presets keep a refused fine STL under the INTERIM budget; 8 review findings await per-finding rulings in `04-REVIEW-DISPOSITION.md` |
 | Left-hand thread as a boolean field in v1 | Cheap in the kernel now; adding it later changes the model and the fixture | Phase 3: `left_hand` on every kind, API/CLI/page, hand proven by probe; pair proof Phase 5 |
 | Tolerance classes 6g/6H as info-panel numbers only | Geometry is nominal plus clearance; modelling a tolerance would contradict explicit-mm truth | — Pending |
 | First release = infra port + thread spike + hex bolt + hex nut as a proven mating pair; socket cap 4762 second | Fewer tables before the first print; the thread, the risk, is shared | — Pending |
@@ -252,4 +267,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-10-11 after Phase 3*
+*Last updated: 2026-10-12 after Phase 4*
