@@ -31,6 +31,15 @@ PROFILE = "ISO 68-1:2023 basic profile"
 # rewrites it when the ends land; Phase 6 removes the last clause at release.
 STANDING_WARNING = "plain-cut thread ends, no tip chamfer or under-head fillet; not a product build"
 
+# The panel headings (D-17); `calc.presets` files the rows a matched row adds under the same two.
+SHANK = "Shank and thread"
+HEAD = "Head"
+PART = "Part"
+
+# The one warning for a part that is no catalogue row (INFO-03, D-18, L02).
+NO_ROW_WARNING = ("no ISO 4014:2022 or ISO 4017:2022 row matches these fields; "
+                  "row values not reported")
+
 
 class InfoRow(BaseModel):
     """One labelled number. The UI renders rows generically; it never reads a row by key."""
@@ -41,6 +50,9 @@ class InfoRow(BaseModel):
     label: str
     value: float
     unit: str
+    group: str = Field(
+        description="the panel heading this row sits under; the page renders one heading per "
+                    "distinct group in server order and reads no group name (D-17)")
 
 
 class PresetMatch(BaseModel):
@@ -90,12 +102,23 @@ def _thread_length_warning(p: BoltParams, t: float) -> str | None:
 
 
 def _bolt(p: BoltParams) -> PartInfo:
+    # Imported here, never at module top: importing `screw.calc.thread` runs this file, and a
+    # table import above would load the tables behind every rebuilt link (contract 6,
+    # tests/test_import_boundaries.py).
+    from screw.calc.presets import designation_for, match, row_values
+
     # One built thread for every row, warning and cap below (D-27): never recomputed.
     t = built_thread_length(p.thread_length, p.length)
+    row = match(p)
+    # The cited values of the matched row, spliced in after the row each belongs beside (D-18):
+    # the thread's after minor_diameter, the head's after k. A part that is no row gets none.
+    cited = [] if row is None else row_values(row)
+    after = {"minor_diameter": [r for r in cited if r.group == SHANK],
+             "k": [r for r in cited if r.group != SHANK]}
     rows = [
-        InfoRow(key="d", label="Diameter", value=p.d, unit="mm"),
-        InfoRow(key="pitch", label="Pitch", value=p.pitch, unit="mm"),
-        InfoRow(key="length", label="Length", value=p.length, unit="mm"),
+        InfoRow(key="d", label="Diameter", value=p.d, unit="mm", group=SHANK),
+        InfoRow(key="pitch", label="Pitch", value=p.pitch, unit="mm", group=SHANK),
+        InfoRow(key="length", label="Length", value=p.length, unit="mm", group=SHANK),
     ]
     warnings = [STANDING_WARNING]
     # Every number below is the pinned profile's or an exact reading of the user's own fields,
@@ -104,21 +127,22 @@ def _bolt(p: BoltParams) -> PartInfo:
     # non-finite number leaves derive()" is this function's own contract (D-15): d=1e200
     # overflows a float on the way (F2) and `Fraction(repr(inf))` raises. The rows are in the
     # order the page shows them: the shank's, then the head's, the volume last (D-18).
-    computed: list[tuple[str, str, str, str, Callable[[], float]]] = [
-        ("thread_length", "Thread length (built)", "mm", "min(thread_length, length)",
+    computed: list[tuple[str, str, str, str, str, Callable[[], float]]] = [
+        ("thread_length", SHANK, "Thread length (built)", "mm", "min(thread_length, length)",
          lambda: t),
-        ("shank_length", "Plain shank length", "mm", "length - thread_length (built)",
+        ("shank_length", SHANK, "Plain shank length", "mm", "length - thread_length (built)",
          lambda: p.length - t),
-        ("turns", "Turns", "", "thread_length (built) / pitch", lambda: turns_of(t, p.pitch)),
-        ("thread_depth", f"Thread depth ({PROFILE})", "mm", "5H/8 with H = (sqrt(3) / 2) * pitch",
-         lambda: thread_depth(p.pitch)),
-        ("minor_diameter", f"Minor diameter ({PROFILE})", "mm", "d - 2 * (5H/8)",
+        ("turns", SHANK, "Turns", "", "thread_length (built) / pitch",
+         lambda: turns_of(t, p.pitch)),
+        ("thread_depth", SHANK, f"Thread depth ({PROFILE})", "mm",
+         "5H/8 with H = (sqrt(3) / 2) * pitch", lambda: thread_depth(p.pitch)),
+        ("minor_diameter", SHANK, f"Minor diameter ({PROFILE})", "mm", "d - 2 * (5H/8)",
          lambda: p.d - 2 * thread_depth(p.pitch)),
-        ("s", "Across flats", "mm", "s", lambda: p.s),
-        ("across_corners", "Across corners, geometric (s / cos 30°)", "mm", "s / cos 30°",
+        ("s", HEAD, "Across flats", "mm", "s", lambda: p.s),
+        ("across_corners", HEAD, "Across corners, geometric (s / cos 30°)", "mm", "s / cos 30°",
          lambda: p.s / math.cos(math.pi / 6)),
-        ("k", "Head height", "mm", "k", lambda: p.k),
-        ("volume", "Volume (closed form)", "mm³",
+        ("k", HEAD, "Head height", "mm", "k", lambda: p.k),
+        ("volume", PART, "Volume (closed form)", "mm³",
          "the closed form section_area(d, pitch) * thread_length (built) "
          "+ pi * (d / 2)^2 * shank_length + (sqrt(3) / 2) * s^2 * k",
          lambda: bolt_closed_volume(p.d, p.pitch, p.length, p.s, p.k, t)),
@@ -127,7 +151,7 @@ def _bolt(p: BoltParams) -> PartInfo:
     # volume row would be a number for a bolt nobody can make. They are left out and the warning
     # below says why; every other row is an exact reading of the user's own fields.
     buildable = t >= MIN_TAIL_MM
-    for key, label, unit, formula, compute in computed:
+    for key, group, label, unit, formula, compute in computed:
         if not buildable and key in ("turns", "volume"):
             continue
         try:
@@ -135,10 +159,11 @@ def _bolt(p: BoltParams) -> PartInfo:
         except (OverflowError, ValueError):
             value = math.nan
         if math.isfinite(value):
-            rows.append(InfoRow(key=key, label=label, value=value, unit=unit))
+            rows.append(InfoRow(key=key, label=label, value=value, unit=unit, group=group))
         else:
             warnings.append(f"{key} not reported: {formula} is not a finite number "
                             "for these parameters")
+        rows.extend(after.get(key, []))
     # The page's Download STL link asks for the fine default, so without this a click on a
     # capped part opens raw JSON with no notice. Same text the API and the CLI refuse with.
     if (short := _thread_length_warning(p, t)) is not None:
@@ -147,15 +172,12 @@ def _bolt(p: BoltParams) -> PartInfo:
         warnings.append(f"thread_length and length: a thread of {t:g} mm is shorter than the "
                         f"{MIN_TAIL_MM:g} mm the builder can model, so this part is not built; "
                         "turns and volume not reported")
+    if row is None:
+        # L02: no row means no row value and no nearest row; the part is built from its fields.
+        warnings.append(NO_ROW_WARNING)
     fine = fine_stl_refusal(p.d, p.pitch, t, p.left_hand)
     if fine is not None:
         warnings.append(fine)
-    # Imported here, never at module top: importing `screw.calc.thread` runs this file, and a
-    # table import above would load the tables behind every rebuilt link (contract 6,
-    # tests/test_import_boundaries.py).
-    from screw.calc.presets import designation_for, match
-
-    row = match(p)
     if row is None:
         preset = PresetMatch(status="custom", id=None, display=None)
         designation = None

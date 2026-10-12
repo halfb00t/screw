@@ -173,8 +173,8 @@ def test_openapi_documents_the_typed_contracts() -> None:
     assert set(preset["properties"]) == {"status", "id", "display"}
     assert set(preset["required"]) == {"status", "id", "display"}
     info_row = schema["components"]["schemas"]["InfoRow"]
-    assert set(info_row["properties"]) == {"key", "label", "value", "unit"}
-    assert set(info_row["required"]) == {"key", "label", "value", "unit"}
+    assert set(info_row["properties"]) == {"key", "label", "value", "unit", "group"}
+    assert set(info_row["required"]) == {"key", "label", "value", "unit", "group"}
 
     model_route = schema["paths"]["/api/bolt/model.{fmt}"]["get"]
     query_names = {p["name"] for p in model_route["parameters"] if p["in"] == "query"}
@@ -195,6 +195,20 @@ def test_openapi_documents_the_typed_contracts() -> None:
         "workers", "queue_available", "workers_replaced"}
 
 
+def test_an_iso_4014_match_and_a_non_row_part_over_the_wire() -> None:
+    # INFO-03: the row values travel only for an exact match; the wire says so in one warning.
+    bolt = client.get("/api/bolt/info", params={
+        "d": 10, "pitch": 1.5, "length": 80, "s": 16, "k": 6.4, "thread_length": 26}).json()
+    by_key = {row["key"]: row for row in bolt["rows"]}
+    assert {"b", "lg_max", "ls_min"} <= set(by_key)
+    assert by_key["b"]["group"] == by_key["ls_min"]["group"] == "Shank and thread"
+    assert by_key["b"]["label"].startswith("Thread length b, ref (ISO 4014:2022 ")
+    custom = client.get("/api/bolt/info", params={"pitch": 0.75}).json()
+    assert custom["warnings"][-1] == (
+        "no ISO 4014:2022 or ISO 4017:2022 row matches these fields; row values not reported")
+    assert {"s_min", "b"}.isdisjoint(row["key"] for row in custom["rows"])
+
+
 def test_the_default_info_document() -> None:
     r = client.get("/api/bolt/info")
     assert r.status_code == 200
@@ -202,7 +216,10 @@ def test_the_default_info_document() -> None:
     assert body["kind"] == "bolt"
     assert [row["key"] for row in body["rows"]] == [
         "d", "pitch", "length", "thread_length", "shank_length", "turns", "thread_depth",
-        "minor_diameter", "s", "across_corners", "k", "volume"]
+        "minor_diameter", "s", "across_corners", "k", "s_min", "e_min", "k_max", "k_min", "dw_min",
+        "volume"]
+    assert [row["group"] for row in body["rows"]] == (
+        ["Shank and thread"] * 8 + ["Head"] * 8 + ["Part"])
     values = {row["key"]: row["value"] for row in body["rows"]}
     assert values["d"] == 6.0
     assert values["pitch"] == 1.0

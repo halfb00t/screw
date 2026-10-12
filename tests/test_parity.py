@@ -232,6 +232,15 @@ def test_every_row_key_is_unread_by_name_in_the_ui(kind: str) -> None:
     assert _field_literals(APP_JS, keys) == []
 
 
+def test_the_row_keys_of_an_iso_4014_match_are_unread_by_name_in_the_ui() -> None:
+    # An ISO 4014 match adds b, lg_max and ls_min to the default document's keys (D-17).
+    m10x80 = KINDS["bolt"].model_validate(
+        {"d": 10, "pitch": 1.5, "length": 80, "s": 16, "k": 6.4, "thread_length": 26})
+    keys = [row.key for row in derive(m10x80).rows]
+    assert {"b", "lg_max", "ls_min"} <= set(keys)
+    assert _field_literals(APP_JS, keys) == []
+
+
 def test_the_literal_check_has_teeth() -> None:
     names = ["d", "pitch", "length"]
     assert _field_literals("const v = info.length;", names) == ["length"]

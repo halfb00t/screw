@@ -6,7 +6,7 @@ import math
 
 import pytest
 
-from screw.calc import STANDING_WARNING, PresetMatch, derive, download_refusal
+from screw.calc import STANDING_WARNING, PartInfo, PresetMatch, derive, download_refusal
 from screw.calc.presets import designation_for, match
 from screw.calc.thread import bolt_closed_volume, fine_stl_refusal
 from screw.params import KINDS, BoltParams, FastenerParams
@@ -14,8 +14,13 @@ from screw.tables.presets import catalogue
 
 WARNING = "plain-cut thread ends, no tip chamfer or under-head fillet; not a product build"
 PROFILE = "ISO 68-1:2023 basic profile"
+NO_ROW = ("no ISO 4014:2022 or ISO 4017:2022 row matches these fields; "
+          "row values not reported")
+ROW_KEYS = ["s_min", "e_min", "k_max", "k_min", "dw_min", "b", "lg_max", "ls_min"]
+# The default part is the ISO 4017 M6 x 20 row, so it carries that row's five head values.
 KEYS = ["d", "pitch", "length", "thread_length", "shank_length", "turns", "thread_depth",
-        "minor_diameter", "s", "across_corners", "k", "volume"]
+        "minor_diameter", "s", "across_corners", "k", "s_min", "e_min", "k_max", "k_min",
+        "dw_min", "volume"]
 
 
 def _rows(p: BoltParams) -> dict[str, float]:
@@ -27,7 +32,8 @@ def test_the_default_document_lists_the_inputs_the_thread_the_head_then_the_volu
     assert info.kind == "bolt"
     assert [r.key for r in info.rows] == KEYS
     assert [r.unit for r in info.rows] == [
-        "mm", "mm", "mm", "mm", "mm", "", "mm", "mm", "mm", "mm", "mm", "mm³"]
+        "mm", "mm", "mm", "mm", "mm", "", "mm", "mm", "mm", "mm", "mm", "mm", "mm", "mm", "mm",
+        "mm", "mm³"]
 
 
 def test_the_default_thread_numbers_come_from_the_pinned_profile() -> None:
@@ -54,7 +60,7 @@ def test_the_thread_rows_are_the_built_thread_and_the_plain_shank_left_over() ->
     rows = _rows(p)
     assert (rows["thread_length"], rows["shank_length"], rows["turns"]) == (20.0, 10.0, 20.0)
     assert rows["volume"] == bolt_closed_volume(6.0, 1.0, 30.0, 10.0, 4.0, 20.0)
-    assert derive(p).warnings == [STANDING_WARNING]
+    assert derive(p).warnings == [STANDING_WARNING, NO_ROW]
 
 
 def test_the_rows_of_a_screw_shorter_than_the_default_thread_read_the_built_thread() -> None:
@@ -68,19 +74,21 @@ def test_a_default_thread_below_an_explicit_length_is_built_to_the_length_and_wa
     warnings = derive(BoltParams(length=10.0)).warnings
     assert warnings == [STANDING_WARNING,
                         "thread_length 20 (default) exceeds length 10: thread built to the "
-                        "full length"]
+                        "full length", NO_ROW]
 
 
 def test_an_explicit_thread_length_above_the_length_is_built_to_the_length_and_warned() -> None:
     # D-25: direct construction; the model never refuses it.
     warnings = derive(BoltParams(thread_length=30.0)).warnings
-    assert warnings[1:] == ["thread_length 30 exceeds length 20: thread built to the full length"]
+    assert warnings[1:] == ["thread_length 30 exceeds length 20: thread built to the full length",
+                            NO_ROW]
     warnings = derive(BoltParams(length=10.0, thread_length=30.0)).warnings
-    assert warnings[1:] == ["thread_length 30 exceeds length 10: thread built to the full length"]
+    assert warnings[1:] == ["thread_length 30 exceeds length 10: thread built to the full length",
+                            NO_ROW]
 
 
 def test_a_thread_length_equal_to_the_length_has_no_shank_and_no_warning() -> None:
-    info = derive(BoltParams(length=30.0, thread_length=30.0))
+    info = derive(BoltParams(length=30.0, thread_length=30.0))  # the ISO 4017 M6 x 30 row
     assert info.warnings == [STANDING_WARNING]
     assert {r.key: r.value for r in info.rows}["shank_length"] == 0.0
 
@@ -90,14 +98,14 @@ def test_a_shank_too_short_to_model_is_folded_into_the_thread_and_warned() -> No
     info = derive(BoltParams(thread_length=19.9995))
     assert info.warnings[1:] == [
         "thread_length 19.9995 leaves a plain shank of 0.0005 mm, shorter than the 0.001 mm the "
-        "builder can model: thread built to the full length"]
+        "builder can model: thread built to the full length", NO_ROW]
     rows = {r.key: r.value for r in info.rows}
     assert (rows["thread_length"], rows["shank_length"]) == (20.0, 0.0)
 
 
 def test_a_shank_of_exactly_the_floor_keeps_its_shank_and_warns_of_nothing() -> None:
     info = derive(BoltParams(thread_length=19.999))
-    assert info.warnings == [STANDING_WARNING]
+    assert info.warnings == [STANDING_WARNING, NO_ROW]
     assert {r.key: r.value for r in info.rows}["thread_length"] == 19.999
 
 
@@ -204,19 +212,20 @@ def test_every_registered_kind_has_a_download_rule() -> None:
 def test_a_capped_part_warns_about_its_fine_stl_after_the_standing_warning() -> None:
     # The page's Download STL link asks for the fine default, so the page says so first.
     capped = derive(BoltParams(d=8.0, pitch=1.25, length=67.6, thread_length=67.6))
-    assert capped.warnings == [STANDING_WARNING, fine_stl_refusal(8.0, 1.25, 67.6, False)]
+    assert capped.warnings == [STANDING_WARNING, NO_ROW,
+                               fine_stl_refusal(8.0, 1.25, 67.6, False)]
 
 
 def test_no_fine_stl_warning_at_the_cap_or_off_the_measured_rows() -> None:
     for p in (BoltParams(d=8.0, pitch=1.25, length=67.5, thread_length=67.5),
               BoltParams(d=8.0, pitch=1.0, length=67.6, thread_length=67.6)):
-        assert derive(p).warnings == [STANDING_WARNING]
+        assert derive(p).warnings == [STANDING_WARNING, NO_ROW]
 
 
 def test_the_fine_stl_cap_reads_the_built_thread_not_the_length() -> None:
     # D-22: M8 x 1.25 is capped at 67.5 mm of thread; a 100 mm bolt with 60 mm of it is inside.
     inside = BoltParams(d=8.0, pitch=1.25, length=100.0, thread_length=60.0)
-    assert derive(inside).warnings == [STANDING_WARNING]
+    assert derive(inside).warnings == [STANDING_WARNING, NO_ROW]
     assert download_refusal(inside, "stl", "fine") is None
     over = BoltParams(d=8.0, pitch=1.25, length=100.0, thread_length=67.6)
     assert download_refusal(over, "stl", "fine") == fine_stl_refusal(8.0, 1.25, 67.6, False)
@@ -229,7 +238,7 @@ def test_a_left_hand_part_is_judged_by_its_own_measured_cap() -> None:
                       k=6.4)
     right = BoltParams(d=10.0, pitch=1.5, length=60.0, thread_length=60.0, s=16.0, k=6.4)
     assert download_refusal(left, "stl", "fine") is None
-    assert derive(left).warnings == [STANDING_WARNING]
+    assert derive(left).warnings == [STANDING_WARNING]  # an ISO 4017 M10 x 60 row, left-hand
     refusal = download_refusal(right, "stl", "fine")
     assert refusal == fine_stl_refusal(10.0, 1.5, 60.0, False)
     assert refusal is not None
@@ -355,3 +364,123 @@ def test_an_iso_4014_bolt_is_recognised_with_the_owners_designation() -> None:
     other = derive(part.model_copy(update={"thread_length": 30.0}))
     assert other.preset == PresetMatch(status="custom", id=None, display=None)
     assert other.designation is None
+
+
+# --- the grouped, traceable panel (INFO-03, TYPE-01, D-17, D-18) -------------------------------
+
+M10X80 = BoltParams(d=10.0, pitch=1.5, length=80.0, s=16.0, k=6.4, thread_length=26.0)
+
+
+def _groups(info: PartInfo) -> list[tuple[str, str]]:
+    return [(r.group, r.key) for r in info.rows]
+
+
+def test_the_rows_sit_in_three_groups_in_server_order() -> None:
+    info = derive(BoltParams())
+    shank = ["d", "pitch", "length", "thread_length", "shank_length", "turns", "thread_depth",
+             "minor_diameter"]
+    head = ["s", "across_corners", "k", "s_min", "e_min", "k_max", "k_min", "dw_min"]
+    assert _groups(info) == ([("Shank and thread", k) for k in shank]
+                             + [("Head", k) for k in head] + [("Part", "volume")])
+
+
+def test_an_iso_4014_match_adds_b_lg_max_and_ls_min_to_the_shank_group() -> None:
+    info = derive(M10X80)
+    shank = [k for g, k in _groups(info) if g == "Shank and thread"]
+    assert shank == ["d", "pitch", "length", "thread_length", "shank_length", "turns",
+                     "thread_depth", "minor_diameter", "b", "lg_max", "ls_min"]
+    assert [k for g, k in _groups(info) if g == "Head"] == [
+        "s", "across_corners", "k", "s_min", "e_min", "k_max", "k_min", "dw_min"]
+
+
+def test_a_matched_rows_values_carry_their_sense_and_source_in_the_label() -> None:
+    # ISO 4017 prints M6 in Table 1 and M10 in Table 2; the label reads the row's own source.
+    labels = {r.key: r.label for r in derive(BoltParams()).rows}
+    assert labels["s_min"] == "Across flats, min (ISO 4017:2022 Table 1)"
+    assert labels["e_min"] == "Across corners, min (ISO 4017:2022 Table 1)"
+    assert labels["k_max"] == "Head height, max (ISO 4017:2022 Table 1)"
+    assert labels["k_min"] == "Head height, min (ISO 4017:2022 Table 1)"
+    assert labels["dw_min"] == "Bearing face diameter, min (ISO 4017:2022 Table 1)"
+    # The geometric number stays a separate row beside the standard's e,min (PITFALLS C7).
+    assert labels["across_corners"].startswith("Across corners, geometric")
+    m10 = BoltParams(d=10.0, pitch=1.5, length=20.0, s=16.0, k=6.4, thread_length=20.0)
+    assert {r.key: r.label for r in derive(m10).rows}["s_min"] == (
+        "Across flats, min (ISO 4017:2022 Table 2)")
+
+
+def test_the_default_rows_equal_the_stored_iso_4017_m6_head() -> None:
+    row = match(BoltParams())
+    assert row is not None
+    values = _rows(BoltParams())
+    head = row.head
+    assert (values["s_min"], values["e_min"], values["k_max"], values["k_min"],
+            values["dw_min"]) == (head.s_min, head.e_min, head.k_max, head.k_min, head.dw_min)
+    assert {"b", "lg_max", "ls_min"}.isdisjoint(values)  # TYPE-01: a screw has no b
+
+
+def test_an_iso_4014_match_reports_the_stored_band_and_cell() -> None:
+    row = match(M10X80)
+    assert row is not None
+    assert row.band is not None
+    assert row.cell is not None
+    info = derive(M10X80)
+    values = _rows(M10X80)
+    assert (values["b"], values["lg_max"], values["ls_min"]) == (
+        row.band.b_short, row.cell.lg_max, row.cell.ls_min)
+    labels = {r.key: r.label for r in info.rows}
+    assert labels["b"] == f"Thread length b, ref (ISO 4014:2022 {row.band.source.table})"
+    assert labels["lg_max"] == f"Grip length lg, max (ISO 4014:2022 {row.cell.source.table})"
+    assert labels["ls_min"] == (
+        f"Plain shank length ls, min (ISO 4014:2022 {row.cell.source.table})")
+    assert labels["s_min"] == f"Across flats, min (ISO 4014:2022 {row.head.source.table})"
+
+
+def test_every_catalogue_row_reports_its_own_stored_values_with_its_own_source() -> None:
+    for row in catalogue():
+        info = derive(BoltParams.model_validate(dict(row.fields)))
+        by_key = {r.key: r for r in info.rows}
+        head = row.head
+        for key, value in (("s_min", head.s_min), ("e_min", head.e_min), ("k_max", head.k_max),
+                           ("k_min", head.k_min), ("dw_min", head.dw_min)):
+            assert by_key[key].value == value, (row.id, key)
+            assert by_key[key].label.endswith(f"({head.source.standard}:2022 {head.source.table})")
+        if row.band is None or row.cell is None:
+            assert {"b", "lg_max", "ls_min"}.isdisjoint(by_key), row.id
+            continue
+        b = row.band.b_short if row.length <= 125 else row.band.b_long
+        assert by_key["b"].value == b, row.id
+        assert by_key["lg_max"].value == row.cell.lg_max, row.id
+        assert by_key["ls_min"].value == row.cell.ls_min, row.id
+
+
+def test_a_non_coarse_pitch_builds_with_no_row_value_and_one_honest_warning() -> None:
+    info = derive(BoltParams(pitch=0.75))
+    assert {r.key for r in info.rows}.isdisjoint(ROW_KEYS)
+    assert info.warnings == [STANDING_WARNING, NO_ROW]
+    assert info.preset == PresetMatch(status="custom", id=None, display=None)
+    assert info.designation is None
+    assert {r.group for r in info.rows} == {"Shank and thread", "Head", "Part"}
+
+
+def test_an_edited_field_drops_every_row_value_never_the_nearest_row() -> None:
+    for change in ({"length": 21.0}, {"s": 10.5}, {"k": 4.1}, {"d": 6.5}, {"thread_length": 19.0}):
+        info = derive(BoltParams.model_validate(change))
+        assert {r.key for r in info.rows}.isdisjoint(ROW_KEYS), change
+        assert info.warnings[-1] == NO_ROW, change
+
+
+def test_an_iso_4014_part_with_an_edited_thread_length_reports_no_b_lg_max_or_ls_min() -> None:
+    # TYPE-01: b is the standard's, not the user's; 30 is not it, so no row and no b.
+    info = derive(M10X80.model_copy(update={"thread_length": 30.0}))
+    assert {r.key for r in info.rows}.isdisjoint(ROW_KEYS)
+    assert info.warnings[-1] == NO_ROW
+
+
+def test_the_no_row_warning_follows_the_thread_warnings_and_precedes_the_fine_stl_one() -> None:
+    # M8 x 1.25 over 67.5 mm of thread is capped (D-22); thread_length 80 exceeds length 70.
+    info = derive(BoltParams(d=8.0, pitch=1.25, length=70.0, thread_length=80.0))
+    refusal = fine_stl_refusal(8.0, 1.25, 70.0, False)
+    assert info.warnings == [
+        STANDING_WARNING,
+        "thread_length 80 exceeds length 70: thread built to the full length",
+        NO_ROW, refusal]
