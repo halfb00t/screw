@@ -16,14 +16,16 @@ let defaults = {};
 // did not build while the mesh on screen is an older one. A rendered info document waits in
 // pendingWarnings and becomes the mesh's warnings only where showModel replaces the mesh;
 // every error shows meshWarnings below it, because the warning is the honest label on the
-// part the user is still looking at (the threaded-rod warning, D-06).
+// part the user is still looking at (the standing warning, D-06). The notes (D-20) follow the
+// same rule: they describe the part, so they stay with the mesh and not with the last fetch.
 let pendingWarnings = [];
 let meshWarnings = [];
+let pendingNotes = [];
+let meshNotes = [];
 
 // Nothing here knows a field name, a row key or a kind's label: the form, the hash, the
 // info panel and the download links are all read off what the API sends, so a new
 // registered kind needs no edit in this file (D-10; tests/test_parity.py pins it).
-const fmt = (v) => Number(v).toFixed(3).replace(/\.?0+$/, '');
 // A checkbox's .value is the constant "on", so every read and write of a control goes through
 // these two: a checkbox reads as 'true' or 'false' and is written from either, any other
 // control by its value (D-09). The link then carries `left_hand=true` and nothing else.
@@ -127,7 +129,7 @@ function refuseLink(message) {
   $('#dims').replaceChildren();
   setDownloads(null);
   setStatus('');
-  showMessages([message], mesh ? meshWarnings : []);
+  showMessages([message], mesh ? meshWarnings : [], mesh ? meshNotes : []);
 }
 
 /**
@@ -206,11 +208,12 @@ function writeHash(q) {
 
 // ---------------------------------------------------------------- messages
 
-function showMessages(errors = [], warnings = []) {
+function showMessages(errors = [], warnings = [], notes = []) {
   const box = $('#messages');
   box.replaceChildren(
     ...errors.map((t) => Object.assign(document.createElement('p'), { className: 'error', textContent: t })),
     ...warnings.map((t) => Object.assign(document.createElement('p'), { className: 'warning', textContent: t })),
+    ...notes.map((t) => Object.assign(document.createElement('p'), { className: 'note', textContent: t })),
   );
 }
 
@@ -231,19 +234,32 @@ async function problems(res) {
   }
 }
 
+// The panel shows the designation, then one heading and list per distinct group in server
+// order (the buildForm pattern), each value as the API sent it. Rounding here showed `0 mm`
+// for a valid 0.0004 and 565.487 for 565.4866776461628 (tech debt 2026-10-06, D-19, L02).
 function renderInfo(info) {
-  const rows = [];
+  const nodes = [];
+  if (typeof info.designation === 'string') {
+    nodes.push(Object.assign(document.createElement('h2'), { textContent: info.designation }));
+  }
+  const lists = new Map();
   for (const row of info.rows) {
+    if (!lists.has(row.group)) {
+      const list = document.createElement('dl');
+      nodes.push(Object.assign(document.createElement('h3'), { textContent: row.group }), list);
+      lists.set(row.group, list);
+    }
     const line = document.createElement('div');
     line.append(
       Object.assign(document.createElement('dt'), { textContent: row.label }),
-      Object.assign(document.createElement('dd'), { textContent: `${fmt(row.value)} ${row.unit}`.trim() }),
+      Object.assign(document.createElement('dd'), { textContent: `${String(row.value)} ${row.unit}`.trim() }),
     );
-    rows.push(line);
+    lists.get(row.group).append(line);
   }
-  $('#dims').replaceChildren(...rows);
+  $('#dims').replaceChildren(...nodes);
   pendingWarnings = info.warnings ?? [];
-  showMessages([], pendingWarnings);
+  pendingNotes = info.notes ?? [];
+  showMessages([], pendingWarnings, pendingNotes);
 }
 
 function setDownloads(q) {
@@ -287,7 +303,7 @@ async function update() {
 
   const fail = (errors) => {
     if (mine !== seq) return;
-    showMessages(errors, mesh ? meshWarnings : []);
+    showMessages(errors, mesh ? meshWarnings : [], mesh ? meshNotes : []);
     $('#dims').replaceChildren();
     setStatus(mesh ? 'Showing the last valid part' : '');
   };
@@ -409,6 +425,7 @@ function showModel(buffer) {
   }
   mesh = new Mesh(geometry, material);
   meshWarnings = pendingWarnings;
+  meshNotes = pendingNotes;
   edges = new LineSegments(new EdgesGeometry(geometry, 40), edgeMaterial);
   scene.add(mesh, edges);
   const previous = box;
@@ -434,7 +451,7 @@ function resize() {
 
 // ---------------------------------------------------------------- wiring
 
-const reportLoadError = (err) => showMessages([`Could not load the part: ${err.message}`], mesh ? meshWarnings : []);
+const reportLoadError = (err) => showMessages([`Could not load the part: ${err.message}`], mesh ? meshWarnings : [], mesh ? meshNotes : []);
 
 form.addEventListener('submit', (e) => e.preventDefault());
 form.addEventListener('input', scheduleUpdate);

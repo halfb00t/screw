@@ -157,8 +157,22 @@ button, .btn {
 #messages p { margin: .35rem 0 0; padding: .4rem .6rem; border-radius: 6px; font-size: .85rem; }
 #messages .error { color: var(--err-fg); background: var(--err-bg); }
 #messages .warning { color: var(--warn-fg); background: var(--warn-bg); }
+/* A note is information about the part, not a fault: muted text on the page background, no
+   tint, so it never reads as a warning or an error. */
+#messages .note { color: var(--muted); background: var(--bg); }
 
-#dims {
+/* The designation is the panel's heading at body size; a group heading is the legend's
+   role (small caps, muted), so no size or weight is added to the scale (UI-SPEC Typography). */
+#dims h2 { margin: 0 0 .15rem; font-size: 1em; font-weight: 700; }
+#dims h3 {
+  margin: .75rem 0 .25rem;
+  color: var(--muted);
+  font-size: .75rem;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+#dims dl {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(12.5rem, 1fr));
   gap: .15rem 1.5rem;

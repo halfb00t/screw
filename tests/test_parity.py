@@ -400,6 +400,36 @@ def test_the_ui_keeps_the_warnings_of_the_mesh_on_screen() -> None:
     assert "Could not load the part kinds and schema" in bare[0]
 
 
+def test_the_ui_prints_the_numbers_as_sent_under_the_designation_and_the_groups() -> None:
+    # D-19, D-17 (01-UI-SPEC rules 22 and 23): the page writes `String(row.value)` and rounds
+    # nowhere, so a valid 0.0004 reads 0.0004 and not `0 mm`; the heading is the server's
+    # designation and each group heading the server's `group`, in first-seen order.
+    source = _squash(APP_JS)
+    assert "String(row.value)" in source
+    for rounding in ("toFixed", "toPrecision", "toLocaleString", "Intl.NumberFormat"):
+        assert rounding not in APP_JS, rounding
+    assert "fmt(" not in APP_JS  # the retired rounding helper
+    assert "info.designation" in APP_JS
+    assert "row.group" in APP_JS
+    assert "for (const row of info.rows) {" in source
+
+
+def test_the_ui_keeps_the_notes_of_the_mesh_on_screen_like_its_warnings() -> None:
+    # D-20 (01-UI-SPEC rules 15 and 24): a note describes the part like a warning does, so it
+    # is copied to the mesh where the mesh is replaced and shown beside every error.
+    source = _squash(APP_JS)
+    assert "pendingNotes = info.notes ?? [];" in source
+    assert source.count("meshNotes = pendingNotes") == 1
+    show = re.search(r"function showModel\(buffer\) \{(.*?)\n\}", APP_JS, re.DOTALL)
+    assert show is not None
+    assert "meshNotes = pendingNotes;" in show.group(1)
+    assert source.count("mesh ? meshNotes : []") >= 3
+    # Wherever the warnings of the mesh are named the notes are named with them.
+    for line in APP_JS.splitlines():
+        if "mesh ? meshWarnings : []" in line:
+            assert "mesh ? meshNotes : []" in line, line
+
+
 def test_the_ui_builds_nodes_from_text_only() -> None:
     assert "textContent" in APP_JS
     for sink in ("innerHTML", "outerHTML", "insertAdjacentHTML"):

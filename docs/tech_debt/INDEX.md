@@ -21,7 +21,6 @@ Severity (grep-able `Severity:` field):
 | nice | [check_solid discards the volume estimator's own error estimate](active/2026-10-11-check-solid-ignores-the-volume-error-estimate.md) | when the gate or T_GATE next changes |
 | must | [Two thread spike protocol amendments wait for the owner before the next campaign](active/2026-10-10-spike-protocol-amendments-before-next-campaign.md) | before the next thread-spike campaign runs |
 | must | [Interim runtime bounds are spur's figures, not screw's measurements](active/2026-10-05-interim-runtime-bounds.md) | Phase 7 operability re-sweep (OPER-02) |
-| must | [The web page rounds every displayed number in the browser](active/2026-10-06-ui-rounds-displayed-numbers.md) | before the Phase 4 plan that puts cited ISO rows on the info panel |
 | must | [bench.memory samples too coarsely to read a peak off a corpus that runs in seconds](active/2026-10-06-bench-memory-sampling-is-too-coarse-for-short-corpora.md) | before the Phase 7 memory sweep (OPER-02, OPER-03) |
 | nice | [The infrastructure forked from spur is not a shared package](active/2026-10-05-shared-infra-extraction.md) | fired: the pool.py race guard (L09) — owner decides extract vs fix twice |
 | nice | [Enji Guard not connected](active/2026-10-05-enji-guard-not-connected.md) | first product code on `main`, or the owner decides they want continuous AI audit |
@@ -30,6 +29,7 @@ Severity (grep-able `Severity:` field):
 
 | Item | Resolved in |
 |---|---|
+| [The web page rounds every displayed number in the browser](resolved/2026-10-06-ui-rounds-displayed-numbers.md) | this commit — fix(ui): show the API's numbers unrounded, with the designation, groups and notes (plan 04-13) |
 | [derive() prints turns and volume for a length below MIN_TAIL_MM, which the builder refuses](resolved/2026-10-11-info-document-prints-numbers-for-a-length-the-builder-refuses.md) | this commit — fix(calc): report no turns or volume for a thread too short to build (plan 04-05) |
 | [The fine-STL refusal applies the right-hand caps to left-hand parts and misstates what L11 measured](resolved/2026-10-11-fine-stl-cap-applies-right-hand-rows-to-left-hand-parts.md) | this commit — fix(calc): key the fine-STL caps by hand from the grid records and say what was measured (plan 04-02) |
 | [A failed update hides the standing warnings while the last mesh stays on screen](resolved/2026-10-06-ui-hides-warnings-on-failed-update.md) | 909dec3 — fix(ui): keep the warnings of the mesh on screen when an update fails (plan 03-05) |
