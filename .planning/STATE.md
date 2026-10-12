@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: ISO Hex Bolts and Screws
-status: executing
-stopped_at: Completed 04-13-PLAN.md
-last_updated: "2026-10-12T03:57:38.005Z"
+status: verifying
+stopped_at: Completed 04-14-PLAN.md
+last_updated: "2026-10-12T04:09:57.582Z"
 last_activity: 2026-10-11
 last_activity_desc: Phase 04 execution started
-state_head: b127473e1a4ccd294290a9ebbfb60e2c6da1cce8
+state_head: e3760249076cb0b1bfd0382057dcfe5f1e516426
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 39
-  completed_plans: 38
+  completed_plans: 39
   percent: 43
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-10-11)
 
 Phase: 04 (ISO Hex Bolts and Screws) — EXECUTING
 Plan: 14 of 14
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-10-11 — Phase 04 execution started
 
 Progress: [████░░░░░░] 43%
@@ -96,6 +96,7 @@ Progress: [████░░░░░░] 43%
 | Phase 04 P11 | 35min | 2 tasks | 5 files |
 | Phase 04 P12 | 40min | 2 tasks | 8 files |
 | Phase 04 P13 | about 1 h | 2 tasks | 7 files |
+| Phase 04 P14 | 15 min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -173,6 +174,7 @@ Recent decisions affecting current work:
 - [Phase 04]: 04-12: GET /api/presets and screw presets emit one calc-built PresetCatalogue; --preset is expanded in cli._params before the conflict check, explicit flags win; 62 ISO 4017 presets have a refused fine STL (pinned literal, Phase 7 moves it)
 - [Phase 04]: 04-13: the badge basis is the last exact match (a pick, Reset or an edit that lands on a row), not only the last pick, so a later edit never reads against a stale row; a reloaded link matching no row still reads custom
 - [Phase 04]: 04-13: a failed /api/presets fetch refuses the link whole and refuseLink clears the picker; a change to the blank select option is not a pick
+- [Phase 04]: 04-14: L13 supersedes L12's cap list and records the owner's D-25 exception; the full tables are told as generated from the PDFs' text layer (ruling B), not owner-typed
 
 ### Pending Todos
 
@@ -211,6 +213,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-12T03:57:37.932Z
-Stopped at: Completed 04-13-PLAN.md
+Last session: 2026-10-12T04:09:57.510Z
+Stopped at: Completed 04-14-PLAN.md
 Resume file: None
