@@ -174,7 +174,7 @@ Plans:
   4. Every table row carries a typed `Source` (standard, edition, table, column), so a row without one fails mypy, and exactly one pure-data verification test generated from the table; a row marked UNVERIFIED (entered from a preview) is refused by the gate in a release build.
   5. The bolt's info panel numbers (head, shank and thread) come from the kernel-free maths, each traceable to a mm field or a cited, tested row; a value that cannot be computed honestly is a warning and no number; any volume shown is the closed form; where the ISO wrench size differs from the withdrawn DIN equivalent the panel adds a one-line note.
 
-**Plans**: 16/16 plans executed (one PR, through `make pr.land`)
+**Plans**: 16/17 plans executed (one PR, through `make pr.land`)
 
 Plans:
 **Wave 1**
@@ -216,6 +216,9 @@ Plans:
 
 **Wave 12** *(blocked on Wave 11 completion; gap closure G-04-3)*
 - [x] 04-16-PLAN.md — The page builds both download links from `info.downloads` and offers `Download STL (preview)` where the fine STL is refused; 01-UI-SPEC and L13 amended; IN-02 closed
+
+**Wave 13** *(blocked on Wave 12 completion; gap closure G-04-5)*
+- [ ] 04-17-PLAN.md — An info row wraps: the label keeps half the row and a full-precision value drops whole under it instead of into the next cell (CSS only, never rounded); style.css source pin; 01-UI-SPEC amended
 
 **UI hint**: yes
 
