@@ -80,3 +80,33 @@ Observation for plan 04-09 and the verifier, not a ruling: the rendered page bea
 of the iTeh preview service. Plan 04-01's prohibition names "the iTeh previews" as a forbidden source
 of table values; the owner's ruling above is the standing exception, scoped to the tables these
 preview pages contain, and the owner's own typed copy stays the first copy.
+
+## Full copy (owner, 2026-10-12)
+
+Owner reply to the plan 04-09 checkpoint, literal: `complete` / `A1: confirmed` / `A3: yes`.
+Answers and route only; no table value is recorded here (D-16).
+
+- A1: confirmed. The standard nominal lengths the series are drawn from are 2, 3, 4, 5, 6, 8, 10,
+  12, 16, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160,
+  180, 200 (the research guess, confirmed without correction).
+- A3: yes. The ISO 4014 and ISO 4017 head values (pitch, s, s_min, e_min, k, k_min, k_max, dw_min)
+  are identical per size and grade.
+- Relations dropped: none. No relation in `tests/test_tables.py` was named for removal; a printed row
+  that breaks one stops the work and is reported, the relation is not edited.
+
+### Owner ruling on how the owner copy was produced (2026-10-12, literal reply `B`)
+
+This supersedes D-14's clause "the owner types one copy" for this phase. The owner copy was
+generated mechanically from the purchased PDFs' own text layer (`pdftotext -tsv`, poppler 26.10.0)
+by the script `/Users/halfb00t/Documents/standards/screw-owner-copy/make_owner_copy.py`, kept outside
+the repository next to the copy. Which lengths belong to which size (the stepped bold lines of the
+length block) was read by sampling the rendered page pixels (`pdftoppm -gray -r 144`, a white cell
+is a standard length); for ISO 4014 that pixel read was cross-checked against the presence of the
+printed `ls,min` / `lg,max` pair in each cell. The owner's hand-typed M6 lines of 2026-10-11 are
+reproduced byte for byte by the generator in all three pre-existing files. The series bounds the
+generator produced were reported to the owner with the hand-off on 2026-10-12; the owner did not
+separately type them.
+
+Everything else in D-14 stands: the agent's transcription from the rendered page images is the
+independent second entry, the cell-by-cell diff test runs over the full files, relation tests
+guard every row, and every disagreement goes back to the owner, never to a majority vote.

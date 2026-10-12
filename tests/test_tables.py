@@ -17,7 +17,7 @@ from screw.params import BoltParams
 from screw.tables.iso262 import SIZES
 from screw.tables.iso4017 import HEADS, SERIES
 from screw.tables.presets import FIELD_NAMES, PresetRow, catalogue, expand
-from screw.tables.rows import Size, Source
+from screw.tables.rows import HexHead, Size, Source
 
 ROOT = Path(__file__).resolve().parents[1]
 TABLES_DIR = ROOT / "src" / "screw" / "tables"
@@ -56,6 +56,57 @@ def test_k_tolerance_is_symmetric_about_the_nominal() -> None:
     # wrong; it then comes out only with the owner's ruling recorded in 04-OWNER-READS.md.
     for head in HEADS:
         assert math.isclose(head.k_max - head.k, head.k - head.k_min, abs_tol=1e-9), head
+
+
+SECOND_CHOICE = {"M3.5", "M7", "M14", "M18"}
+FIRST_CHOICE = {"M2", "M2.5", "M3", "M4", "M5", "M6", "M8", "M10", "M12", "M16", "M20"}
+
+
+def test_iso_262_holds_exactly_the_fifteen_sizes_of_tabl_05_in_diameter_order() -> None:
+    labels = [size.label for size in SIZES]
+    assert len(SIZES) == 15
+    assert set(labels) == FIRST_CHOICE | SECOND_CHOICE
+    assert [size.d for size in SIZES] == sorted({size.d for size in SIZES})
+    assert all(size.label == f"M{size.d:g}" for size in SIZES)
+    assert {size.label for size in SIZES if size.choice == 2} == SECOND_CHOICE
+
+
+@pytest.mark.parametrize("head", HEADS, ids=lambda h: f"{h.size}-{h.grade}")
+def test_head_relations(head: HexHead) -> None:
+    assert head.s_min < head.s
+    assert head.dw_min < head.s_min
+    assert head.s_min < head.e_min < head.s / math.cos(math.radians(30))
+    assert head.k_min <= head.k <= head.k_max
+    # The printed pitch of the head table is a second source for ISO 262's (Pitfall 7).
+    assert head.pitch == PITCH[head.size]
+
+
+def test_every_size_has_a_grade_a_head_and_no_head_is_listed_twice() -> None:
+    keys = [(head.size, head.grade) for head in HEADS]
+    assert len(set(keys)) == len(keys)
+    assert {size for size, grade in keys if grade == "A"} == set(PITCH)
+    # Grade B is held only for the sizes whose lengths pass 150 mm (D-13).
+    assert {size for size, grade in keys if grade == "B"} == {"M16", "M18", "M20"}
+    # By diameter ascending, then grade A before B.
+    assert keys == sorted(keys, key=lambda k: (DIAMETER[k[0]], k[1]))
+
+
+def test_a_head_column_is_bracketed_exactly_for_a_second_choice_size() -> None:
+    # Pitfall 8: the brackets are printed in the 4017 size column, which `Source.column` keeps.
+    for head in HEADS:
+        assert head.source.column.startswith("(") == (CHOICE[head.size] == 2), head
+        assert head.source.column.endswith(")") == (CHOICE[head.size] == 2), head
+    # The column names its size, decimal comma as printed.
+    for head in HEADS:
+        assert head.source.column.strip("()") == head.size.replace(".", ","), head
+
+
+def test_each_head_cites_the_table_that_holds_its_grade_and_size() -> None:
+    for head in HEADS:
+        if head.grade == "B":
+            assert head.source.table == "Table 3", head
+        else:
+            assert head.source.table == ("Table 1" if DIAMETER[head.size] <= 7 else "Table 2"), head
 
 
 def test_each_size_series_is_strictly_increasing() -> None:
