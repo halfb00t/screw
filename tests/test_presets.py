@@ -157,3 +157,37 @@ def test_the_fine_stl_refused_presets_are_counted() -> None:
     assert len(refused) == 62
     longest = max(row.fields["length"] for row in ROWS if row.id.startswith("iso4017:"))
     assert longest == 200.0
+
+
+def test_every_catalogue_rows_document_agrees_with_the_shared_download_rule() -> None:
+    # G-04-3, T-04-29: the page links the first served entry per format (plan 04-16), so a row
+    # whose document disagreed with the rule `_serve` and `screw export` call would link a 422.
+    for row in ROWS:
+        p = BoltParams.model_validate(row.fields)
+        downloads = derive(p).downloads
+        for entry in downloads:
+            assert entry.refusal == download_refusal(p, entry.format, entry.quality), row.id
+            if entry.format == "step":
+                assert entry.refusal is None, row.id
+        # No preset leaves a format without a link.
+        served = {e.format for e in downloads if e.refusal is None}
+        assert served == {e.format for e in downloads}, row.id
+
+
+def test_the_rows_whose_stl_falls_back_to_the_preview_are_the_fine_stl_refused_rows() -> None:
+    # Both lists are read from the catalogue, never typed: rule 17 applied in Python to the
+    # document's STL entries against the rule itself. TYPE-02: only the long ISO 4017 screws,
+    # threaded to the head, are past a cap; no ISO 4014 row is threaded past its own.
+    falls_back: list[str] = []
+    refused: list[str] = []
+    for row in ROWS:
+        p = BoltParams.model_validate(row.fields)
+        stl = [e for e in derive(p).downloads if e.format == "stl"]
+        first_served = next(e for e in stl if e.refusal is None)
+        if first_served is not stl[0] and first_served.quality == "preview":
+            falls_back.append(row.id)
+        if download_refusal(p, "stl", "fine") is not None:
+            refused.append(row.id)
+    assert falls_back
+    assert falls_back == refused
+    assert all(row_id.startswith("iso4017:") for row_id in falls_back)
