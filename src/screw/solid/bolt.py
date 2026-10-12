@@ -27,23 +27,34 @@ def thread(p: BoltParams) -> cq.Solid:
     return helical.thread(p.d, p.pitch, t, left_hand=p.left_hand)
 
 
-def assemble(p: BoltParams, thread: cq.Solid) -> cq.Shape:
+def _solid(made: object, what: str) -> cq.Solid:
+    """The Solid an extrude leaves on a workplane (`val()` is typed as the union of everything a
+    workplane can hold). Anything else is a kernel failure, refused like the gate refuses one and
+    never asserted: `python -O` strips an assert and would let the fuse run on it (04-REVIEW IN-01).
+    """
+    if not isinstance(made, cq.Solid):
+        raise BuildError(f"Geometry kernel produced {type(made).__name__} for the {what}, "
+                         "expected a solid.")
+    return made
+
+
+def assemble(p: BoltParams, bare_thread: cq.Solid) -> cq.Shape:
     """The plain shank of diameter d from the thread's end t to the length, then the hex head, a
-    prism of across-flats s and height k on z length..length + k, fused onto the thread."""
+    prism of across-flats s and height k on z length..length + k, fused onto `bare_thread`
+    (what `thread()` built; named so it does not shadow that function, 04-REVIEW IN-04)."""
     # circumscribed=True makes the polygon's diameter the across-flats width: without it the
     # diameter is across corners and the prism is 0.75 of its closed form (RESEARCH Pitfall 1).
-    head = cq.Workplane("XY").workplane(offset=p.length).polygon(
-        6, p.s, circumscribed=True).extrude(p.k).val()
-    assert isinstance(head, cq.Solid)  # a Workplane.val() is a Shape; extrude of a face is a Solid
+    head = _solid(cq.Workplane("XY").workplane(offset=p.length).polygon(
+        6, p.s, circumscribed=True).extrude(p.k).val(), "head")
     t = built_thread_length(p.thread_length, p.length)
     if p.length > t:
         # A planar fuse at the thread's plain end (D-03), never a cylinder over the thread: the
         # shank starts on the face the thread already ends in.
-        shank = cq.Workplane("XY").workplane(offset=t).circle(p.d / 2).extrude(p.length - t).val()
-        assert isinstance(shank, cq.Solid)
-        body: cq.Shape = thread.fuse(shank)
+        shank = _solid(cq.Workplane("XY").workplane(offset=t).circle(p.d / 2).extrude(
+            p.length - t).val(), "shank")
+        body: cq.Shape = bare_thread.fuse(shank)
     else:
-        body = thread
+        body = bare_thread
     # No clean(): Shape.fuse takes none, and the D-03 probe (bench/RESULTS.md "Head fuse probe")
     # saw the same single valid solid either way.
     return body.fuse(head)

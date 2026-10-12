@@ -114,7 +114,11 @@ def catalogue() -> tuple[PresetRow, ...]:
         # b for l <= 125, the second b for 125 < l <= 200; a size with no second b has no
         # length above 125, which a test pins.
         b = band.b_short if cell.length <= 125 else band.b_long
-        assert b is not None, cell
+        if b is None:
+            # tests/test_tables.py pins that no such cell exists; a table edit that breaks the
+            # pin is refused here too, never asserted (`python -O` strips asserts, 04-REVIEW IN-01).
+            raise ValueError(f"ISO 4014 {cell.size} x {cell.length:g}: no second b for a length "
+                             "above 125 mm")
         rows.append(
             _row(
                 standard="ISO 4014", noun="Hexagon head bolt", size=size, head=head,

@@ -123,13 +123,13 @@ def _build(p: FastenerParams) -> cq.Solid:
     if not isinstance(p, BoltParams):
         raise TypeError(f"no solid builder for kind {p.kind!r}")
     t = built_thread_length(p.thread_length, p.length)
-    thread = bolt.thread(p)
+    bare_thread = bolt.thread(p)
     # Gate the bare thread first (RESEARCH Alert 5): it is 0.19 to 0.57 of the whole volume, so a
     # thread error the whole-part gate dilutes below T_GATE (1.1e-4 to 1.4e-4 at M6 x 20 is
     # passed by the fused check alone) is caught here. Cost: one more precise volume, at most
     # 0.82 s over the grid (`2026-10-08-a-grid` volume_s).
-    check_solid(thread, closed_volume(p.d, p.pitch, t), part="thread")
-    fused = bolt.assemble(p, thread)
+    check_solid(bare_thread, closed_volume(p.d, p.pitch, t), part="thread")
+    fused = bolt.assemble(p, bare_thread)
     check_solid(fused, bolt_closed_volume(p.d, p.pitch, p.length, p.s, p.k, t))
     return fused.Solids()[0]
 
