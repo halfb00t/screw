@@ -2,12 +2,11 @@
 gsd_state_version: "1.0"
 current_phase: 5
 current_phase_name: Hex Nut and Kernel Pair Proof
-status: planning
+status: "Phase 04 shipped — PR #12"
 stopped_at: Phase 04 complete, ready to plan Phase 5
-last_updated: "2026-10-12T16:00:57.339Z"
+last_updated: "2026-10-12T16:24:19.267Z"
 last_activity: 2026-10-12
-last_activity_desc: Phase 04 complete, transitioned to Phase 5
-state_head: 3ca3df82515fdd02390105b988c6afff391b7122
+state_head: 3de1795d13de4841557147345e844a972ff41888
 progress:
   total_phases: 7
   completed_phases: 4
@@ -29,8 +28,8 @@ See: .planning/PROJECT.md (updated 2026-10-12)
 
 Phase: 5 — Hex Nut and Kernel Pair Proof
 Plan: Not started
-Status: Ready to plan
-Last activity: 2026-10-12 — Phase 04 complete, transitioned to Phase 5
+Status: Phase 04 shipped — PR #12
+Last activity: 2026-10-12
 
 Progress: [██████░░░░] 57%
 
