@@ -1112,6 +1112,20 @@ def test_the_conflict_rule_does_not_reach_the_schema_route() -> None:
     assert r.status_code == 200
 
 
+def test_the_conflict_is_still_a_422_behind_a_root_path() -> None:
+    # uvicorn 0.54.0 prepends `--root-path` to `scope["path"]` (h11_impl.py:206), so a request
+    # behind a `/screw` prefix matches the bolt route while `request.url.path` reads
+    # `/screw/api/bolt/info`; a literal path test skipped the rule there and built a 10 mm
+    # thread with a warning (04-REVIEW CR-01).
+    behind_prefix = TestClient(app, root_path="/screw")
+    r = behind_prefix.get("/screw/api/bolt/info", params={"length": 10, "thread_length": 30})
+    assert r.status_code == 422
+    [detail] = r.json()["detail"]
+    assert detail["type"] == "thread_length_conflict"
+    assert detail["ctx"] == {"fields": ["thread_length", "length"]}
+    assert behind_prefix.get("/screw/api/bolt/info", params={"length": 10}).status_code == 200
+
+
 def test_a_length_below_the_floor_is_a_warned_info_document_and_a_422_build_error() -> None:
     # IN-01: the info document and the build agree on what is a part. The info document says so
     # with a warning and no turns or volume; the build names thread_length and length.

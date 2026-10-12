@@ -30,6 +30,7 @@ from typing import Annotated, Literal
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, Response
+from fastapi.routing import APIRoute
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.json_schema import JsonSchemaValue
@@ -206,8 +207,14 @@ def refuse_thread_length_conflict(request: Request) -> None:
     it. The owner accepted that direct Python construction is not refused (D-25). A value
     `float()` cannot read is left to the query model, whose 422 names it.
     """
+    # The matched route, never `request.url.path`: uvicorn 0.54.0 prepends `--root-path` to
+    # `scope["path"]` (h11_impl.py:206), so behind a `/screw` prefix the URL path read
+    # `/screw/api/bolt/info`, a literal prefix test was false, and the conflict built a 10 mm
+    # thread with a warning instead of the 422 (04-REVIEW CR-01). FastAPI stores the matched
+    # `APIRoute` in `scope["route"]`; its `path` is the template, prefix or not.
+    route: object = request.scope.get("route")
     query = request.query_params
-    if not request.url.path.startswith("/api/bolt/") or not (
+    if not (isinstance(route, APIRoute) and route.path.startswith("/api/bolt/")) or not (
             "length" in query and "thread_length" in query):
         return
     try:
