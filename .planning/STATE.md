@@ -2,11 +2,12 @@
 gsd_state_version: "1.0"
 current_phase: 5
 current_phase_name: Hex Nut and Kernel Pair Proof
-status: "Phase 04 shipped — PR #12"
-stopped_at: Phase 04 complete, ready to plan Phase 5
-last_updated: "2026-10-13T05:16:42.518Z"
+status: planning
+stopped_at: Phase 03 verification refreshed (passed, 14/14) after a UAT restart; Phase 04 shipped (PR #12); ready to plan Phase 5
+last_updated: "2026-10-13T07:33:50.795Z"
 last_activity: 2026-10-13
-state_head: 397b207e09717da49dbb02ef999e8e023cd29254
+last_activity_desc: Phase 03 UAT restarted (33 passed) and 03-VERIFICATION.md regenerated (passed, 14/14); Phase 4 unchanged
+state_head: 04b5c5058e670bc7f71b005f828dada10b283132
 progress:
   total_phases: 7
   completed_phases: 4
@@ -28,8 +29,8 @@ See: .planning/PROJECT.md (updated 2026-10-12)
 
 Phase: 5 — Hex Nut and Kernel Pair Proof
 Plan: Not started
-Status: Phase 04 shipped — PR #12
-Last activity: 2026-10-13 - Completed quick task 261013-f9m: close 02 deferred flake item and record grid run 38240380994 in bench/RESULTS.md, resolve 03-UAT test 5
+Status: Ready to plan
+Last activity: 2026-10-13 — Phase 03 UAT restarted (33 passed, 0 issues) and 03-VERIFICATION.md regenerated (passed, 14/14, was stale); Phase 04 shipped — PR #12
 
 Progress: [██████░░░░] 57%
 
@@ -222,5 +223,5 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-10-12T16:03:16Z
-Stopped at: Phase 04 complete, ready to plan Phase 5
+Stopped at: Phase 03 verification refreshed; Phase 04 complete, ready to plan Phase 5
 Resume file: None
