@@ -15,3 +15,13 @@ Out-of-scope discoveries logged by executors; not fixed in the plan that found t
 - **Trigger to act:** a second occurrence. Then measure the failure rate with and without
   `tests/test_bench.py` and decide between lowering the new tests' CPU cost and a debt item for
   the pool test's timeouts.
+- **Status:** resolved
+- **Resolved:** The trigger fired. The item was filed as must-severity debt at the first
+  occurrence, on the owner's sign-off (9502c66, 2026-10-06). The second occurrence was recorded
+  on 2026-10-08 (3964e3f) and a third happened on 2026-10-09. It was fixed on 2026-10-10 in
+  69436fb (PR #7). The cause was neither host load nor the 02-02 bench tests:
+  `test_a_wedged_build_is_terminated_and_its_worker_replaced` left five semaphores as cyclic
+  garbage, CPython's resource tracker re-entered on their finalisers (gh-109629), and
+  `filterwarnings = ["error"]` charged the failure to the next test. The fix is a `del manager`
+  in that test; no product code changed. The full record is
+  `docs/tech_debt/resolved/2026-10-06-test-pool-dying-worker-flake.md`.

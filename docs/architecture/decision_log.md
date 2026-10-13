@@ -395,6 +395,25 @@ is revised (via `/gsd-phase`); the owner named no direction for the revision, so
 to be named when Phase 5 is revised. Phase 3 stays plannable and is planned on this entry. No
 constant was tuned toward a pass and nothing was re-run to change the outcome.
 
+**Escape clause, revision direction** (named by the owner on 2026-10-13 after the Phase 2
+verification refresh; ROADMAP Phase 5 revised the same day via `/gsd-phase --edit 5`). Direction:
+scope the proof, M18 reads `inconclusive`. The D-14 rule stands as PAIR-03 writes it. Phase 5 ships
+the check for every size, and a cell whose control reads empty at any pose returns `inconclusive`
+naming the pose and clearance, never `proven`. The CI grid's expected verdicts are pre-registered
+from `2026-10-08-a-pair` before the first Phase 5 run: M18 `inconclusive` on both hands at K = 3,
+and each size's excluded clearances outside its proven set. The M18 nut ships; the M18 pair is
+unproven in v1 and labelled so from the cited record, not from a kernel call. The failing reading
+is one control pose, theta -2pi/3 on the right hand and +2pi/3 on the left, 0 solids at every
+clearance including c = -0.05 and c = 0, with no boolean error or warning (`2026-10-08-a-pair`, M18
+tables): the same pose on all twelve M18 cells, one observation each; whether the kernel repeats it
+is not established and is the diagnosis task's to measure. Phase 5 carries one bounded diagnosis task,
+its method committed before it runs, that changes no verdict rule. Rejected: amending the rule to the reported variants
+(two of three controls; the same-pose c = -0.05 reading as the control), under which every M18 cell
+reads proven, because that is a rule chosen after seeing which rule passes (D-17); and a decimal
+diagnosis phase with its own campaign, because it costs the WR-03 and IN-02 amendments and a
+campaign cycle before any Phase 5 work, and the M18 reading is reproducible from the recorded
+cells. Phase 5 is plannable on this entry. No constant was tuned.
+
 **Conditions of the record.** The campaign ran on a host other than the registered one (Apple M5
 Max, 18 CPUs, 64 GiB, macOS 27.0.1, Python 3.12.15 against the registered M2 Max, 12 CPUs,
 32 GiB, Python 3.12.13; kernel pair identical: cadquery 2.8.0, cadquery-ocp 7.9.3.1.1), under

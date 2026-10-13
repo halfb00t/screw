@@ -80,8 +80,9 @@ All hypotheses until shipped and validated. Grouped by the owner's decisions of
 - [ ] A bolt and a nut from this tool, printed on an FDM printer at the chosen clearance,
       thread together by hand; a kernel-level interference check proves the pair before any
       printer does. Phase 2 measured the check falsifiable on both hands at every size except
-      M18, where every proof clearance is excluded (L11 escape clause); the roadmap is
-      revised before Phase 5 is planned.
+      M18, where every proof clearance is excluded (L11 escape clause); the roadmap was
+      revised on 2026-10-13: Phase 5 ships the check for every size, M18 reads
+      `inconclusive` at K = 3 and never `proven`, the rule is unchanged.
 - [ ] One `clearance` field, carried by the **nut** (its thread grows inward); the bolt is
       built to nominal so it mates a bought nut. The default value comes from the thread
       spike and a printed test, never from a guess.

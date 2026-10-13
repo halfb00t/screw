@@ -6321,6 +6321,65 @@ s for 82 rows is 1.6 s a row and 148.15 s for 92 rows 1.6 s a row, against the 2
 research assumed for the CI sizing (A2). That is this host and this load, not a GitHub runner.
 The corpus was not re-picked and no row was skipped.
 
+### GitHub runner: run 38240380994 (2026-10-12)
+
+The first run of `.github/workflows/grid.yml` on `main` was not a `workflow_dispatch`, so the
+section intro's "first CI dispatch after merge" did not happen that way. It was the workflow's
+weekly `schedule` trigger (`cron: "23 3 * * 1"` in grid.yml): same workflow file, same 15-size
+matrix, same command. The ref was `main` at `57d05c6c7844a2b0403107f647e5251acc2477eb`, which is
+after the Phase 3 merge 66d9393 and before the Phase 4 merge e8df305, so the run speaks for that
+commit only. Run URL: https://github.com/halfb00t/screw/actions/runs/38240380994. Created
+2026-10-12T11:05:07Z, last updated 2026-10-12T11:34:14Z (29 min 7 s, by subtraction), conclusion
+success, 15 of 15 jobs success.
+
+Machine: each shard ran on its own GitHub-hosted `ubuntu-latest` runner (15 distinct runner names
+in the jobs API). The "Set up job" log printed `Image: ubuntu-24.04`, `Version: 20261004.327.1`,
+and the setup-python cache key carries `Linux-x64-24.04`. Each shard ran 4 pytest-xdist workers
+(`created: 4/4 workers` in every log; the Makefile clamps `PYTEST_WORKERS` to the online CPU
+count, so 4 is what the runner reported). The logs printed Python 3.12.15, pytest 9.1.1,
+cadquery 2.8.0 and cadquery-ocp 7.9.3.1.1. Load is not readable on a hosted runner and was not
+recorded. Command per shard: `make grid PYTHON=python SIZE=<size>`, which is
+`pytest -m grid -n 4 --no-cov -k '<size>-'` once `make` has created `.venv`. The Wall (pytest)
+column is the figure from pytest's own summary line, the Job wall column is the jobs API's
+`completed_at` minus `started_at` at 1 s resolution:
+
+| Shard | Rows built | pytest result | Wall (pytest) | Job wall | s a row |
+|---|---|---|---|---|---|
+| M2 | 4 cells x 60 = 240 | 4 passed | 292.77 s | 5:42 | 4.88 |
+| M2.5 | 4 cells x 78 = 312 | 4 passed | 402.10 s | 7:32 | 5.16 |
+| M3 | 4 cells x 60 = 240 | 4 passed | 343.20 s | 6:34 | 5.72 |
+| M3.5 | 4 cells x 82 = 328 | 4 passed | 256.30 s | 4:59 | 3.13 |
+| M4 | 4 cells x 92 = 368 | 4 passed | 470.87 s | 8:42 | 5.12 |
+| M5 | 4 cells x 100 = 400 | 4 passed | 556.78 s | 10:08 | 5.57 |
+| M6 | 4 cells x 60 = 240 | 4 passed | 327.15 s | 6:17 | 5.45 |
+| M7 | 4 cells x 70 = 280 | 4 passed | 443.67 s | 8:15 | 6.34 |
+| M8 | 4 cells x 128 = 512 | 4 passed | 730.42 s | 13:10 | 5.71 |
+| M10 | 4 cells x 133 = 532 | 4 passed | 782.36 s | 13:56 | 5.88 |
+| M12 | 4 cells x 171 = 684 | 4 passed | 1030.43 s | 18:05 | 6.03 |
+| M14 | 4 cells x 140 = 560 | 4 passed | 736.56 s | 13:08 | 5.26 |
+| M16 | 4 cells x 160 = 640 | 4 passed | 1129.03 s | 19:44 | 7.06 |
+| M18 | 4 cells x 216 = 864 | 4 passed | 1354.47 s | 23:22 | 6.27 |
+| M20 | 4 cells x 240 = 960 | 4 passed | 1686.74 s | 29:03 | 7.03 |
+
+Column key: Wall (pytest) is the build-and-gate time alone. Job wall is the number
+`timeout-minutes: 120` bounds (a job-level setting, `grid.yml`); it adds runner set-up, checkout, setup-python with its pip cache
+restore, the venv creation and dependency install `make grid` does before pytest, the kernel-pair
+print and the post steps; on this table it exceeds Wall (pytest) by 42.7 s (M3.5) to 59.6 s (M8)
+per shard, arithmetic on the two columns with the job wall at 1 s resolution. The `make grid`
+step's own time is a third number and is not recorded here. s a row is Wall (pytest) divided by
+the rows of one cell: four cells run on four workers, so a shard's wall is its slowest cell's,
+and all four cells of a size have the same number of rows.
+
+**What this shows / what it does not.** All 60 cells, 7160 rows, passed the THRD-04 gate on a
+GitHub runner, nothing was skipped and the corpus was not re-picked. The slowest shard, M20, took
+1686.74 s of pytest wall and 29:03 (1743 s) of job wall against `timeout-minutes: 120` (7200 s):
+1686.74 / 7200 = 0.234 and 1743 / 7200 = 0.242. The runner's cost per row ran from 3.13 s (M3.5)
+to 7.06 s (M16), against the 2 s a row the research assumed (A2) and the 1.6 s a row the local
+shards above measured on an 18-CPU host at `-n 8`. The limits: it is one run, on one runner per
+shard, with load unknown; the hosted runner's hardware is GitHub's to change; and it is a harness
+record, not a bound (L07). grid.yml's `timeout-minutes` and its "UNVERIFIED" sizing comment are
+unchanged by this entry, and changing them is the owner's call.
+
 
 ## Head fuse probe (Phase 4, D-03)
 
