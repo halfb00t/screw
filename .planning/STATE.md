@@ -3,11 +3,11 @@ gsd_state_version: "1.0"
 current_phase: 5
 current_phase_name: Hex Nut and Kernel Pair Proof
 status: planning
-stopped_at: Phase 03 verification refreshed (passed, 14/14) after a UAT restart; Phase 04 shipped (PR #12); ready to plan Phase 5
-last_updated: "2026-10-13T07:33:50.795Z"
+stopped_at: Phases 01 and 03 verification refreshed (passed, 17/17 and 14/14); Phase 04 shipped (PR #12); ready to plan Phase 5
+last_updated: "2026-10-13T07:52:21.210Z"
 last_activity: 2026-10-13
-last_activity_desc: Phase 03 UAT restarted (33 passed) and 03-VERIFICATION.md regenerated (passed, 14/14); Phase 4 unchanged
-state_head: 04b5c5058e670bc7f71b005f828dada10b283132
+last_activity_desc: 01-VERIFICATION.md regenerated (passed, 17/17, was stale); Phase 4 unchanged
+state_head: 752d20cda9c4247e9d6b9521c0d74808221baf5e
 progress:
   total_phases: 7
   completed_phases: 4
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-12)
 Phase: 5 — Hex Nut and Kernel Pair Proof
 Plan: Not started
 Status: Ready to plan
-Last activity: 2026-10-13 — Phase 03 UAT restarted (33 passed, 0 issues) and 03-VERIFICATION.md regenerated (passed, 14/14, was stale); Phase 04 shipped — PR #12
+Last activity: 2026-10-13 — 01-VERIFICATION.md and 03-VERIFICATION.md regenerated (passed, was stale); Phase 04 shipped — PR #12
 
 Progress: [██████░░░░] 57%
 
@@ -223,5 +223,5 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-10-12T16:03:16Z
-Stopped at: Phase 03 verification refreshed; Phase 04 complete, ready to plan Phase 5
+Stopped at: Phases 01 and 03 verification refreshed; Phase 04 complete, ready to plan Phase 5
 Resume file: None
