@@ -10,6 +10,7 @@ the same commit as the file.
 |---|---|---|
 | 2026-10-11 | [Phase 7's linux/amd64 re-sweep runs the known-bad controls, not only the builder](2026-10-11-oper-02-resweep-runs-the-controls.md) | Phase 7 (OPER-02) owns the first native linux/amd64 sweep. |
 | 2026-10-12 | [A saved preview STL should name its quality in the file name](2026-10-12-preview-stl-download-names-its-quality.md) | The owner's ruling on IN-02 named the label and the link, not the `Content-Disposition` header; revisit with FRNT-06 in Phase 5. |
+| 2026-10-13 | [Head and drive families beyond the hex head](2026-10-13-head-and-drive-families.md) | Each standard is a purchased copy, a cited table with tests and new recess geometry (TABL-04, L02); the first non-hex head is v2's ISO 4762 (TYP2-01). Revisit after it ships, via `/gsd-new-milestone`. |
 
 ## Done
 

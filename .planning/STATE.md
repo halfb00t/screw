@@ -4,10 +4,10 @@ current_phase: 5
 current_phase_name: Hex Nut and Kernel Pair Proof
 status: planning
 stopped_at: "Phases 01, 02 and 03 verification refreshed (passed, 17/17, 5/5 and 14/14); Phase 04 shipped (PR #12); ready to plan Phase 5"
-last_updated: "2026-10-13T13:57:41.156Z"
+last_updated: "2026-10-13T15:26:20.066Z"
 last_activity: 2026-10-13
 last_activity_desc: Phase 02 UAT restarted (48 passed, 0 issues) and 02-VERIFICATION.md regenerated (passed, 5/5, was stale); Phases 01 and 03 refreshed earlier today; Phase 4 unchanged
-state_head: b456cba98143de6c358fdcab715d4e76da30922c
+state_head: 7634830ce730a09cd92d945f146e7dc324d73ee4
 progress:
   total_phases: 7
   completed_phases: 4
@@ -211,6 +211,7 @@ None yet.
 | 261011-fzb | Stop the pytest worker segfault at exit: read pair.common only in a child process (the in-process test parked BRepAlgoAPI_Common builders in pair._KEEP, freed at teardown with SIGSEGV); resolve the 2026-10-10 bench pair-tests debt item | 2026-10-11 | 5be6a15 | [261011-fzb-stop-the-pytest-worker-segfault-at-exit-](./quick/261011-fzb-stop-the-pytest-worker-segfault-at-exit-/) |
 | 4 | fast: kill the signal-death bench worker test with SIGTERM instead of a self-inflicted SIGSEGV so make verify leaves no macOS crash report | 2026-10-11 | 4a9999b | — |
 | 261013-f9m | close 02 deferred flake item and record grid run 38240380994 in bench/RESULTS.md, resolve 03-UAT test 5 | 2026-10-13 | 397b207 | [261013-f9m-close-02-deferred-flake-item-and-record-](./quick/261013-f9m-close-02-deferred-flake-item-and-record-/) |
+| 6 | File the docs/ideas item "head and drive families beyond the hex head" (2026-10-13-head-and-drive-families.md) and its INDEX row | 2026-10-13 | 7634830 | — |
 
 ### Roadmap Evolution
 
