@@ -3,11 +3,11 @@ gsd_state_version: "1.0"
 current_phase: 5
 current_phase_name: Hex Nut and Kernel Pair Proof
 status: planning
-stopped_at: "Phases 01, 02 and 03 verification refreshed (passed, 17/17, 5/5 and 14/14); Phase 04 shipped (PR #12); ready to plan Phase 5"
-last_updated: "2026-10-13T13:57:41.156Z"
+stopped_at: "Phases 01 to 04 verification refreshed (passed, 17/17, 5/5, 14/14 and 12/12); Phase 04 shipped (PR #12); ready to plan Phase 5"
+last_updated: "2026-10-13T15:10:15Z"
 last_activity: 2026-10-13
-last_activity_desc: Phase 02 UAT restarted (48 passed, 0 issues) and 02-VERIFICATION.md regenerated (passed, 5/5, was stale); Phases 01 and 03 refreshed earlier today; Phase 4 unchanged
-state_head: b456cba98143de6c358fdcab715d4e76da30922c
+last_activity_desc: 04-VERIFICATION.md regenerated against main (passed, 12/12, was stale); Phases 01, 02 and 03 refreshed earlier today; code unchanged since PR #12
+state_head: 7634830ce730a09cd92d945f146e7dc324d73ee4
 progress:
   total_phases: 7
   completed_phases: 4
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-12)
 Phase: 5 — Hex Nut and Kernel Pair Proof
 Plan: Not started
 Status: Ready to plan
-Last activity: 2026-10-13 — Phase 02 UAT restarted (48 passed, 0 issues) and 02-VERIFICATION.md regenerated (passed, 5/5, was stale); 01 and 03 refreshed earlier today; Phase 04 shipped — PR #12
+Last activity: 2026-10-13 — 04-VERIFICATION.md regenerated against main (passed, 12/12, was stale); 01, 02 and 03 refreshed earlier today; Phase 04 shipped — PR #12
 
 Progress: [██████░░░░] 57%
 
@@ -226,6 +226,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-13T08:58:30.303Z
-Stopped at: Phases 01, 02 and 03 verification refreshed (passed, 17/17, 5/5 and 14/14); Phase 04 shipped (PR #12); ready to plan Phase 5
+Last session: 2026-10-13T15:10:15Z
+Stopped at: Phases 01 to 04 verification refreshed (passed, 17/17, 5/5, 14/14 and 12/12); Phase 04 shipped (PR #12); ready to plan Phase 5
 Resume file: None
