@@ -3,7 +3,7 @@ status: complete
 phase: 03-real-helical-thread
 source: [03-VERIFICATION.md]
 started: 2026-10-11T03:47:00Z
-updated: 2026-10-11T04:24:57.495Z
+updated: 2026-10-13T05:13:00Z
 ---
 
 ## Current Test
@@ -31,8 +31,8 @@ note: owner keeps the empty status line over a refused link (2026-10-11)
 
 ### 5. First `workflow_dispatch` of `.github/workflows/grid.yml` after merge
 expected: All 15 size shards (7160 rows) green on a GitHub runner; per-size wall time recorded in bench/RESULTS.md. Until then `timeout-minutes: 120` is an unmeasured guess (03-06). Locally: one cell (M2-left-void) green in 81 s; 03-06 recorded the M3.5 (131.89 s) and M4 (148.15 s) shards. Needs GitHub Actions after the PR merges.
-result: skipped
-reason: "Deferred follow-up: owner replied pass on 2026-10-11 before any run existed; gh run list reports grid.yml not on the default branch (404) and the phase branch is unpushed. Dispatch once the Phase 3 PR merges and record per-size wall time in bench/RESULTS.md."
+result: pass
+note: "Deferred on 2026-10-11 because no run existed (grid.yml was not yet on the default branch); closed on 2026-10-13 on run 38240380994. That run was the workflow's weekly schedule trigger, not a workflow_dispatch: same workflow, same job matrix, ref main at 57d05c6. 15 of 15 shards green, 7160 rows. Per-size pytest and job wall time are in bench/RESULTS.md under '### GitHub runner: run 38240380994 (2026-10-12)'. The slowest job, M20, took 29:03 of job wall (1686.74 s of pytest wall) against timeout-minutes: 120, which this test does not change."
 
 ### 6. Owner severity ruling on WR-05
 expected: Rule on docs/tech_debt/active/2026-10-11-default-pitch-d100-length200-exceeds-both-interim-backstops.md: keep Severity must under D-18, or re-tag blocker. A single `GET /api/bolt/model.stl?d=100&length=200` (valid, in-cap, default pitch) measured at 53.3 s, 9143 MiB peak RSS, 1.3 GB fine STL against the 30 s timeout and the 4g limit. CLAUDE.md: a blocker is fixed now or surfaced and waited on — it is surfaced here.
@@ -47,10 +47,10 @@ note: owner ruling 2026-10-11 — keep the tick; REQUIREMENTS.md annotated "seco
 ## Summary
 
 total: 7
-passed: 6
+passed: 7
 issues: 0
 pending: 0
-skipped: 1
+skipped: 0
 blocked: 0
 
 ## Gaps
@@ -60,3 +60,5 @@ blocked: 0
 - test: 5
   idea: "First workflow_dispatch of .github/workflows/grid.yml after the Phase 3 PR merges: 15 shards green, per-size GitHub-runner wall time recorded in bench/RESULTS.md; timeout-minutes: 120 is unmeasured until then"
   deferred_at: 2026-10-11
+  resolved_at: 2026-10-13
+  resolved_by: "quick task 261013-f9m: grid run 38240380994 (schedule, main at 57d05c6), recorded in bench/RESULTS.md"
