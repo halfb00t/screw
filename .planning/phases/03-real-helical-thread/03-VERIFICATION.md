@@ -40,7 +40,7 @@ covered_files:
   - tests/test_parity.py
   - tests/test_solid.py
   - tests/test_thread_maths.py
-covered_digest: "v3:sha256:8e9ee643a2c2b614e994bd77a5df3f046327beac65450feb5e475745ecd880d6"
+covered_digest: "v3:sha256:bd9cc73bf196bba9e357deb759e34a412480b5450a364f4441a95e674560081c"
 behavior_unverified: 0
 overrides_applied: 0
 re_verification:
@@ -211,6 +211,10 @@ None open. The earlier report's seven human items are closed in 03-UAT.md (tests
 ### Gaps Summary
 
 No roadmap success criterion failed and no must-have truth is FAILED, so there is no `gaps:` block. The only items left are deferred by design (THRD-02 second clause to Phase 5; WR-04 and WR-05 to Phase 7) and two documentation warnings (the stale `AGENTS.md` line 16 brief, the `params.py` interim comment). I would still fix `AGENTS.md:16` soon, because every agent reads it first and it now describes a product that no longer exists.
+
+### Digest refresh (2026-10-13, PR #13 review)
+
+One covered file changed after the verifier ran: `docs/architecture/decision_log.md` gained L11's additive "Escape clause, revision direction" paragraph (`b4f9a96`, the Phase 5 roadmap revision). L12 and every L11 value this report cites are unchanged; `covered_digest` is recomputed with `verification.fingerprint` over the same 36 files.
 
 ---
 

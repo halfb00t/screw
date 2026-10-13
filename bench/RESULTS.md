@@ -6361,8 +6361,8 @@ column is the figure from pytest's own summary line, the Job wall column is the 
 | M18 | 4 cells x 216 = 864 | 4 passed | 1354.47 s | 23:22 | 6.27 |
 | M20 | 4 cells x 240 = 960 | 4 passed | 1686.74 s | 29:03 | 7.03 |
 
-Column key: Wall (pytest) is the build-and-gate time alone, and it is the number
-`timeout-minutes` protects. Job wall adds runner set-up, checkout, setup-python with its pip cache
+Column key: Wall (pytest) is the build-and-gate time alone. Job wall is the number
+`timeout-minutes: 120` bounds (a job-level setting, `grid.yml`); it adds runner set-up, checkout, setup-python with its pip cache
 restore, the venv creation and dependency install `make grid` does before pytest, the kernel-pair
 print and the post steps; on this table it exceeds Wall (pytest) by 42.7 s (M3.5) to 59.6 s (M8)
 per shard, arithmetic on the two columns with the job wall at 1 s resolution. The `make grid`

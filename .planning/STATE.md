@@ -189,7 +189,7 @@ None yet.
 
 ### Blockers/Concerns
 
-- [Phase 4] Branch `gsd/phase-04-iso-hex-bolts-and-screws` carries Phase 3 and Phase 4, both complete and verified but unshipped (86 commits ahead of `origin/main`; `7287403`, the Phase 3 close, is not on `main`). Land it before Phase 5 planning builds on it. First `grid.yml` dispatch (15 shards, 7160 rows) happens after the merge; `timeout-minutes: 120` is unmeasured until then.
+- [Phase 4] Closed 2026-10-13: Phases 3 and 4 landed on `main` as `66d9393` (PR #10) and `e8df305` (PR #12). The first `grid.yml` run on a GitHub runner is recorded (`bench/RESULTS.md`, run 38240380994: 15 of 15 shards green, 7160 rows, slowest shard M20 at 29:03 job wall against `timeout-minutes: 120`); the owner keeps the UNVERIFIED sizing comment and the 120 min timeout as they are (03-UAT test 10).
 - [Phase 3] WR-05 (`d=100&length=200` at default pitch: 53.3 s, 9143 MiB RSS, 1.3 GB fine STL vs the 30 s / 4g backstops) stays Severity must under D-18 by owner ruling 2026-10-11; trigger Phase 7 re-sweep. Of the four owner-deferred review items, WR-02 (left-hand caps) and IN-01 were retired in Phase 4 (04-02, 04-05); WR-04 root-radius floor (must) and IN-03 (nice) remain; the serial bench pair-tests exit 139 was fixed by quick task 261011-fzb.
 - [Phase 4] Eight code-review findings stay `open` in `04-REVIEW-DISPOSITION.md` (WR-03, WR-04, IN-05 to IN-10): UAT tests 6 and 8 passed without a per-finding ruling. WR-04 matters most: the style.css `#dims` source pin matches selectors exactly, so a more specific selector walks past it; it weakens the regression guard, not the shipped CSS.
 - [Phase 4] 62 of the 186 ISO 4017 presets have a refused fine STL under the INTERIM 64 MiB export budget (D-21, L13); the page offers `Download STL (preview)` instead; the pinned count moves with the Phase 7 re-sweep.
@@ -198,7 +198,7 @@ None yet.
 - ISO 4753 (bolt ends, THRD-05) must be read in Phase 5; it is now on the purchase line above and no longer off the list (D-02). (ISO 68-1:2023 read by the owner on 2026-10-06; profile pinned basic — `02-SPIKE.md` § Owner rulings, D-01.)
 - ⚠️ [Phase 1] Every runtime bound is INTERIM (timeout, memory, gzip, workers, cache budget, container limits — 16 knobs in the D-02 tech-debt item, Severity must) until the Phase 7 linux/amd64 re-sweep; the Phase 1 memory sweep is an emulation figure with 4–12 samples per row (sampling limit filed as debt).
 - Pair-proof reliability on the full grid is measured (`2026-10-08-a-pair`, decisive): falsifiable on both hands at every size except M18, which is not falsifiable on either hand (all four proof clearances excluded) (L11).
-- Phase 5 not planned until the roadmap is revised (L11, SC5): M18 not falsifiable (right, left hand) in `2026-10-08-a-pair`; the owner chose "revise" on 2026-10-09 and named no direction yet. Phases 3 and 4 are complete.
+- Closed 2026-10-13: the roadmap is revised per L11's escape clause (direction: scope the proof, M18 reads `inconclusive`; D-14 rule unchanged; ROADMAP Phase 5 revision note and criteria 3 and 6; L11 revision-direction paragraph). Phase 5 is plannable.
 - Printability threshold (INFO-04): a printed test over M6–M12 cannot locate a floor below M6; Phase 6 must widen the matrix or warn below the smallest size it proved.
 - Every research number is single-machine macOS arm64; linux/amd64 is unverified until Phase 7.
 

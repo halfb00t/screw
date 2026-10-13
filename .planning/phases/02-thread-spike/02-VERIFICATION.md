@@ -37,7 +37,7 @@ covered_files:
   - "bench/thread_spike/verdict.py"
   - "docs/architecture/decision_log.md"
   - "tests/test_bench.py"
-covered_digest: "v3:sha256:d66ffe73ceb72326610dacc6c034e4f9f65bef25fd87387f1db9218d41c40896"
+covered_digest: "v3:sha256:3dcaa82ffc65dcead008083dad56738933fb2681493d89974ce02ecf49fa3d61"
 behavior_unverified: 0
 overrides_applied: 0
 re_verification:
@@ -184,6 +184,10 @@ No gaps against the roadmap contract. Things the owner should keep in view, all 
 - Seconds caps are unestablished for all 15 sizes (grid ran non-decisive after the R4 override); Phase 3's cap-and-warn input is the construction and bytes columns until Phase 7.
 - WR-03 and IN-02 are two pre-registered-input amendments waiting for the owner before any next campaign (active must debt).
 - The task brief's L11 commit `bfd5a45` and the campaign header's `32cdeac` are not objects in this repository (squash merges). History-based claims here cite `fd40abc` and `7615de2`.
+
+### Digest refresh (2026-10-13, PR #13 review)
+
+Two covered files changed after the verifier ran, neither touching a verified claim: `docs/architecture/decision_log.md` gained L11's additive "Escape clause, revision direction" paragraph (`b4f9a96`, the Phase 5 roadmap revision), and `bench/RESULTS.md` corrected one sentence of the GitHub-runner column key (`timeout-minutes` bounds the job wall, not the pytest wall). The verdict section, the pair tables and every value this report cites are unchanged; `covered_digest` is recomputed with `verification.fingerprint` over the same 33 files.
 
 ---
 

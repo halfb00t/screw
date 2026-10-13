@@ -231,6 +231,7 @@ coverage_id: 02-06-D3
 expected: PR 5 is MERGED, the protocol guard holds on gsd/phase-02-thread-spike-runs, no campaign record exists on origin/main, the runs branch has no commit of its own, and src/ is untouched by the diff against origin/main
 result: pass
 source: automated
+note: "'No campaign record exists on origin/main' is the state at PR 5's merge (`fd40abc`, 2026-10-08), the pre-registration point 02-06 D4 checks; PR 6 (`7615de2`) landed the campaign record afterwards. The pass covers that ordering, not main today."
 coverage_id: 02-06-D4
 
 ### 40. Nine block records and the campaign log committed with sha256 (02-07 D1, automated)

@@ -96,6 +96,7 @@ source: automated
 expected: The info document lists d, pitch, length, turns, volume, thread_depth, minor_diameter in that order with the closed-form volume, exact turns and the profile-labelled depth and minor diameter, and carries the threaded-rod warning first on the API and the CLI.
 result: pass
 source: automated
+note: "Expected text is the Phase 3 contract (`66d9393`). Phase 4 (L13, `e8df305`) superseded it: the order on main is d, pitch, length, thread_length, shank_length, turns, thread_depth, minor_diameter, the head values, then volume (`tests/test_calc.py` KEYS), and the standing warning is 'plain-cut thread ends, no tip chamfer or under-head fillet; not a product build'. The pass is the automated coverage of the current contract (closed-form volume, exact turns, profile-labelled depth and minor diameter, warning first), not of the Phase 3 order or wording; same deviation as test 1."
 
 ### 19. Non-finite row is left out and explained (03-02, automated)
 expected: A computed row that is not a finite number is left out and explained in warnings, and the standing warning stays first.
@@ -166,6 +167,7 @@ source: automated
 expected: Each of the four items Phase 3 retired names its fix commit in Resolved in: and in its INDEX row, and every sha is reachable from HEAD.
 result: pass
 source: automated
+note: "The shas named (de9304e, 05fb4ed, eaaac85, 909dec3) exist but are not reachable from main: they are Phase 3 branch commits, squash-merged as `66d9393` (PR #10). Passed under the owner's ruling on test 9 (2026-10-13: branch shas accepted as the citation, not filed as a gap); the 'reachable from HEAD' clause as written does not hold on main."
 
 ### 33. Coverage floor re-measured (03-07, automated)
 expected: The coverage floor is re-measured on the 843-test suite by spur L34's rule and fail_under equals its result (96).

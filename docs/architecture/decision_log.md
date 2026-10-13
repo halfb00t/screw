@@ -405,8 +405,9 @@ and each size's excluded clearances outside its proven set. The M18 nut ships; t
 unproven in v1 and labelled so from the cited record, not from a kernel call. The failing reading
 is one control pose, theta -2pi/3 on the right hand and +2pi/3 on the left, 0 solids at every
 clearance including c = -0.05 and c = 0, with no boolean error or warning (`2026-10-08-a-pair`, M18
-tables): deterministic, not flaky. Phase 5 carries one bounded diagnosis task, its method committed
-before it runs, that changes no verdict rule. Rejected: amending the rule to the reported variants
+tables): the same pose on all twelve M18 cells, one observation each; whether the kernel repeats it
+is not established and is the diagnosis task's to measure. Phase 5 carries one bounded diagnosis task,
+its method committed before it runs, that changes no verdict rule. Rejected: amending the rule to the reported variants
 (two of three controls; the same-pose c = -0.05 reading as the control), under which every M18 cell
 reads proven, because that is a rule chosen after seeing which rule passes (D-17); and a decimal
 diagnosis phase with its own campaign, because it costs the WR-03 and IN-02 amendments and a
