@@ -211,7 +211,7 @@ None yet.
 | 261011-fzb | Stop the pytest worker segfault at exit: read pair.common only in a child process (the in-process test parked BRepAlgoAPI_Common builders in pair._KEEP, freed at teardown with SIGSEGV); resolve the 2026-10-10 bench pair-tests debt item | 2026-10-11 | 5be6a15 | [261011-fzb-stop-the-pytest-worker-segfault-at-exit-](./quick/261011-fzb-stop-the-pytest-worker-segfault-at-exit-/) |
 | 4 | fast: kill the signal-death bench worker test with SIGTERM instead of a self-inflicted SIGSEGV so make verify leaves no macOS crash report | 2026-10-11 | 4a9999b | — |
 | 261013-f9m | close 02 deferred flake item and record grid run 38240380994 in bench/RESULTS.md, resolve 03-UAT test 5 | 2026-10-13 | 397b207 | [261013-f9m-close-02-deferred-flake-item-and-record-](./quick/261013-f9m-close-02-deferred-flake-item-and-record-/) |
-| 6 | File the docs/ideas item "head and drive families beyond the hex head" (2026-10-13-head-and-drive-families.md) and its INDEX row | 2026-10-13 | 7634830 | — |
+| 6 | File the docs/ideas item "head and drive families beyond the hex head" (2026-10-13-head-and-drive-families.md) and its INDEX row | 2026-10-13 | 7618320 | — |
 
 ### Roadmap Evolution
 
