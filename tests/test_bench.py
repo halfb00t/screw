@@ -40,6 +40,7 @@ import httpx2 as httpx
 import pytest
 from pydantic import ValidationError
 
+from bench import end_cuts
 from bench import quiet as quiet_module
 from bench.build_time import Timing, load_sweep, report, stl_size
 from bench.corpus import corpus
@@ -4902,3 +4903,150 @@ def test_the_head_fuse_probe_of_the_smallest_case_is_one_valid_solid_inside_the_
     assert isinstance(zmax, float)
     assert abs(zmax - (case.length + case.k)) < 1e-6
     assert result["preview_open_edges"] == 0
+
+
+# --- the D-10 end-cut oracles (bench/end_cuts.py), each against an identity that does not use it --
+
+_ORACLE_SECTIONS = ((2.0, 0.4), (6.0, 1.0), (10.0, 1.5), (20.0, 2.5))
+
+
+def _angle_midpoints(n: int) -> Iterable[float]:
+    return ((i + 0.5) * 2 * math.pi / n for i in range(n))
+
+
+@pytest.mark.parametrize(("d", "pitch"), _ORACLE_SECTIONS)
+@pytest.mark.parametrize("clearance", [-0.05, 0.0, 0.1])
+def test_the_end_cut_oracle_outside_a_disc_of_radius_zero_is_the_whole_section(
+        d: float, pitch: float, clearance: float) -> None:
+    whole = screw_thread.section_area(d, pitch, clearance)
+    assert end_cuts.a_out(d, pitch, clearance, 0.0) == pytest.approx(whole, rel=1e-12)
+
+
+@pytest.mark.parametrize(("d", "pitch"), _ORACLE_SECTIONS)
+def test_the_end_cut_oracle_finds_nothing_outside_the_crest_radius(d: float, pitch: float) -> None:
+    for clearance in (-0.05, 0.0, 0.1):
+        crest = d / 2 + clearance
+        assert end_cuts.a_out(d, pitch, clearance, crest) == 0.0
+        assert end_cuts.a_out(d, pitch, clearance, crest + 1.0) == 0.0
+
+
+@pytest.mark.parametrize(("d", "pitch"), _ORACLE_SECTIONS)
+def test_the_end_cut_oracle_outside_a_disc_matches_an_integral_over_the_section_angle(
+        d: float, pitch: float) -> None:
+    """a_out is half the integral of max(0, r^2 - rho^2) over the angle, with r read from
+    `section_radius`: a route that shares no arithmetic with the closed form."""
+    clearance = 0.1
+    ro = d / 2 + clearance
+    rr = d / 2 - screw_thread.thread_depth(pitch) + clearance
+    n = 200_000
+    radii = [screw_thread.section_radius(d, pitch, clearance, th) for th in _angle_midpoints(n)]
+    for rho in (0.5 * rr, rr, (rr + ro) / 2, 0.99 * ro):
+        integral = 0.5 * sum(max(0.0, r * r - rho * rho) for r in radii) * 2 * math.pi / n
+        assert end_cuts.a_out(d, pitch, clearance, rho) == pytest.approx(integral, rel=1e-6)
+
+
+@pytest.mark.parametrize(("d", "pitch"), _ORACLE_SECTIONS)
+def test_the_end_cut_oracle_nut_material_in_a_disc_matches_an_integral_over_the_section_angle(
+        d: float, pitch: float) -> None:
+    """Material in a disc is the disc less the section it holds, half the integral of
+    min(r, rho)^2 over the angle; it is nothing inside the root circle."""
+    clearance = 0.1
+    ro = d / 2 + clearance
+    rr = d / 2 - screw_thread.thread_depth(pitch) + clearance
+    n = 200_000
+    radii = [screw_thread.section_radius(d, pitch, clearance, th) for th in _angle_midpoints(n)]
+    assert end_cuts.mat_in_disc(d, pitch, clearance, 0.9 * rr) == pytest.approx(0.0, abs=1e-9)
+    for rho in (1.1 * ro, 1.5 * ro):
+        inside = 0.5 * sum(min(r, rho) ** 2 for r in radii) * 2 * math.pi / n
+        disc = math.pi * rho * rho
+        assert end_cuts.mat_in_disc(d, pitch, clearance, rho) == pytest.approx(
+            disc - inside, rel=1e-6)
+
+
+@pytest.mark.parametrize(("d", "pitch"), _ORACLE_SECTIONS)
+def test_the_end_cut_oracle_tip_cone_volume_matches_a_double_integral_and_scales_with_tan_alpha(
+        d: float, pitch: float) -> None:
+    """Swapping the order of integration, the cone removes tan(alpha) times half the integral
+    over the angle of r^2 (r - rr) - (r^3 - rr^3) / 3, with no a_out in it."""
+    rr = d / 2 - screw_thread.thread_depth(pitch)
+    n = 200_000
+    radii = [screw_thread.section_radius(d, pitch, 0.0, th) for th in _angle_midpoints(n)]
+    swapped = 0.5 * sum(r * r * (r - rr) - (r**3 - rr**3) / 3 for r in radii) * 2 * math.pi / n
+    for alpha in (30.0, 45.0):
+        assert end_cuts.tip_cone_removed(d, pitch, alpha) == pytest.approx(
+            swapped * math.tan(math.radians(alpha)), rel=1e-6)
+
+
+def test_the_end_cut_oracle_hexagon_arc_is_a_full_circle_inside_the_inscribed_circle() -> None:
+    s = 10.0
+    for rho in (0.1, 2.5, 5.0):
+        assert end_cuts.arc_inside(s, rho) == pytest.approx(2 * math.pi * rho, rel=1e-12)
+    assert end_cuts.arc_inside(s, s / 2 / math.cos(math.pi / 6) + 0.01) == 0.0
+
+
+@pytest.mark.parametrize("s", [4.0, 10.0, 30.0])
+def test_the_end_cut_oracle_hexagon_arc_integrates_to_the_hexagon_area(s: float) -> None:
+    corner = s / 2 / math.cos(math.pi / 6)
+    n = 200_000
+    h = corner / n
+    area = h * sum(end_cuts.arc_inside(s, (i + 0.5) * h) for i in range(n))
+    assert area == pytest.approx(screw_thread.hex_prism_volume(s, 1.0), rel=1e-6)
+
+
+@pytest.mark.parametrize("s", [4.0, 10.0, 30.0])
+@pytest.mark.parametrize("start", [1.0, 0.9])
+def test_the_end_cut_oracle_face_chamfer_matches_a_polar_integral_over_the_hexagon(
+        s: float, start: float) -> None:
+    """The chamfer removes (rho - r0) tan(beta) over the hexagon outside r0; in polar form the
+    radial extent is a / cos(phi - 30 degrees) per 60 degree sector, with no arc_inside in it."""
+    a = s / 2
+    r0 = start * a
+    n = 200_000
+    total = 0.0
+    for i in range(n):
+        phi = (i + 0.5) * (math.pi / 3) / n
+        extent = a / math.cos(phi - math.pi / 6)
+        total += ((extent**3 - r0**3) / 3 - r0 * (extent**2 - r0**2) / 2) * (math.pi / 3) / n
+    total *= 6 * math.tan(math.radians(30.0))
+    assert end_cuts.face_chamfer_removed(s, r0, 30.0) == pytest.approx(total, rel=1e-6)
+
+
+@pytest.mark.parametrize(("d", "r"), [(6.0, 0.25), (10.0, 0.4), (20.0, 0.8)])
+def test_the_end_cut_oracle_fillet_ring_volume_equals_the_revolved_region_integral(
+        d: float, r: float) -> None:
+    """The region is the square r x r less a quarter disc on its far corner: under the arc at
+    offset u from the shank its height is r - sqrt(r^2 - (r - u)^2); revolve it by integrating
+    2 pi (d/2 + u) over u."""
+    n = 200_000
+    h = r / n
+    total = 0.0
+    for i in range(n):
+        u = (i + 0.5) * h
+        total += 2 * math.pi * (d / 2 + u) * (r - math.sqrt(r * r - (r - u) ** 2)) * h
+    assert end_cuts.ring_volume(d, r) == pytest.approx(total, rel=1e-6)
+
+
+def test_the_end_cut_oracle_rounds_a_gate_up_to_one_significant_figure() -> None:
+    assert end_cuts.one_significant_figure_up(0.0123) == pytest.approx(0.02)
+    assert end_cuts.one_significant_figure_up(0.03) == pytest.approx(0.03)
+    assert end_cuts.one_significant_figure_up(7.2e-5) == pytest.approx(8e-5)
+
+
+def test_the_end_cut_probe_agrees_with_its_oracles_on_the_smallest_case_of_each_cutter() -> None:
+    """The probe's own harness against the kernel (about 1 s): a probe whose cutters were never
+    run would be a claim, not a record. The bounds are loose on purpose, a harness check and not
+    a tolerance: the recorded piece errors are in `bench/RESULTS.md`, End-cut probe."""
+    tip = end_cuts.probe_tip_bare(2.0, 0.4, 30.0, False)
+    ring = end_cuts.probe_ring(end_cuts.FILLET_BOLTS[0][0], end_cuts.FILLET_BOLTS[0][1])
+    cases = end_cuts._nut_cases("M2", 2.0, 0.4, 4.0, False)
+    base = end_cuts.probe_nut(cases[0], None).volume
+    nut = end_cuts.probe_nut(cases[3], base)
+    for row in (tip, ring, nut):
+        assert row.solids == 1
+        assert row.valid is True
+        assert row.open_preview == 0
+        assert row.open_fine == 0
+        assert row.piece_error is not None
+        assert abs(row.piece_error) < 1e-2
+        assert row.whole_error is not None
+        assert abs(row.whole_error) <= screw_thread.T_GATE

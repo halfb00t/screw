@@ -6432,3 +6432,174 @@ arm64, load not controlled (2.83 before, so the host was not idle), not a bound 
 linux/amd64. The head values (`s`, `k`) and the thread lengths `t` of the cases are UNVERIFIED
 preview readings used as probe inputs, not table rows. Phase 7 re-sweeps on linux/amd64
 (OPER-02).
+
+
+## End-cut probe (Phase 5, D-10)
+
+Phase 4 left both thread ends plain (04 D-01, D-02), and Phase 5 adds a tip cone on the bolt, a
+fillet ring under the head, and a countersink and a face chamfer on the nut before ISO 4753 and
+ISO 4032 are read. Nothing had measured whether those cutters keep the solid count, validity, mesh
+closedness and export size, or whether the volume gate can see them. D-10 asks for that record before
+any end model or tolerance is fixed, so this is it: `bench/end_cuts.py` builds every case through the
+shipped `screw.solid.helical.thread` (rod and void) and the shipped `screw.solid.bolt.thread` and
+`assemble`, never a copy, adds the cutters (the tip as the `2026-10-08-a-trim` intersect recipe, the
+ring fused under the head, the countersinks and chamfers cut from the nut), and judges each cut against
+a kernel-free oracle of the volume it removes or adds (05-RESEARCH F4; `tests/test_bench.py` checks each
+oracle against an identity that does not use it). Three comparisons per row: the **piece error** is the
+kernel's removed or added volume against the oracle piece, relative to the piece; the **whole error** is
+`precise_volume` of the finished part against its closed form less (or plus) the oracle pieces; the
+open edges come from `stl_check` on the preview and the fine mesh.
+
+Command: `.venv/bin/python -m bench.end_cuts` (one run, exit 0). Run on HEAD
+`54a0ca5a077c23d5c3267762c866719b75f18ad4` plus the uncommitted probe module and its oracle tests (both
+land in the commit that adds this entry), 2026-10-14 (UTC). Host: `bench.machine_facts()`: `18 CPUs,
+arm64, 64.0 GiB RAM`, macOS 27.0.1, Python 3.12.15, cadquery 2.8.0, cadquery-ocp 7.9.3.1.1. Load reading
+before the run: 3.84 at 2026-10-14T12:04:13+00:00; after: 6.79 at 2026-10-14T12:05:48+00:00 (the second
+includes the run's own meshing load). Wall time of the whole run 96.4 s (`time -p`: real 96.39, user
+279.38, sys 30.22).
+
+Every angle, radius, `s`, `m` and `r` below is an UNVERIFIED probe input chosen to span the sizes, not
+a table row and not a clause of ISO 4753 or ISO 4032: tip cones at 30 and 45 degrees from the face,
+meeting it at the minor radius; countersinks of 90 degrees included from radius `d/2 + c + P/2` at the
+face, a crossing cone ending 0.3 thread depths below the root radius and the grazing cone ending exactly
+on it; face chamfers of 30 degrees from the face starting at the inscribed circle `s/2`; nut clearance
+0.1 mm; nut `s` 4.0, 10.0, 16.0, 30.0 for M2, M6, M10, M20 with `m` the spike's preview heights 1.6, 5.2,
+8.4, 18.0; ring radii 0.25, 0.4, 0.8; the bolts' `s`, `k` and `t` the Head fuse probe's preview readings
+(M20 x 100: `s` 30, `k` 12.5, `t` 46). The two bolt-tip rows use 30 degrees on M6 x 20 and 45 on
+M10 x 80. Bare threads are 8 pitches long; the controls use M6 and M10 rods of 60 and 200 mm.
+
+| Case | build+cut s | solids | isValid | piece rel. error | whole rel. error | open edges preview / fine | fine mesh s | peak RSS so far (bytes, macOS) |
+|---|---|---|---|---|---|---|---|---|
+| tip 30 M2 right | 0.16 | 1 | True | -7.71e-05 | -3.81e-06 | 0 / 0 | 0.07 | 695697408 |
+| tip 45 M2 right | 0.18 | 1 | True | +2.74e-03 | -1.97e-05 | 0 / 0 | 0.06 | 722501632 |
+| tip 30 M6 right | 0.19 | 1 | True | +2.34e-05 | +4.15e-07 | 0 / 0 | 0.16 | 846577664 |
+| tip 45 M6 right | 0.20 | 1 | True | +2.06e-05 | +3.83e-07 | 0 / 0 | 0.13 | 881229824 |
+| tip 30 M10 right | 0.21 | 1 | True | +2.60e-05 | +3.80e-07 | 0 / 0 | 0.32 | 1122959360 |
+| tip 45 M10 right | 0.22 | 1 | True | +2.01e-05 | +3.59e-07 | 0 / 0 | 0.28 | 1151811584 |
+| tip 30 M20 right | 0.24 | 1 | True | +3.50e-06 | +5.32e-07 | 0 / 0 | 0.52 | 1378271232 |
+| tip 45 M20 right | 0.22 | 1 | True | +1.15e-04 | +1.53e-07 | 0 / 0 | 0.46 | 1398931456 |
+| tip 30 M2 left | 0.15 | 1 | True | +8.98e-04 | -7.02e-06 | 0 / 0 | 0.06 | 1398931456 |
+| tip 45 M2 left | 0.18 | 1 | True | +1.28e-03 | -1.14e-05 | 0 / 0 | 0.05 | 1398931456 |
+| tip 30 M6 left | 0.18 | 1 | True | +1.47e-05 | +4.38e-07 | 0 / 0 | 0.11 | 1398931456 |
+| tip 45 M6 left | 0.21 | 1 | True | +1.40e-05 | +4.14e-07 | 0 / 0 | 0.10 | 1398931456 |
+| tip 30 M10 left | 0.20 | 1 | True | +1.66e-05 | +4.02e-07 | 0 / 0 | 0.24 | 1398931456 |
+| tip 45 M10 left | 0.21 | 1 | True | +1.59e-05 | +3.76e-07 | 0 / 0 | 0.23 | 1398931456 |
+| tip 30 M20 left | 0.23 | 1 | True | -2.07e-05 | +5.79e-07 | 0 / 0 | 0.40 | 1398931456 |
+| tip 45 M20 left | 0.22 | 1 | True | +5.44e-05 | +3.57e-07 | 0 / 0 | 0.36 | 1398931456 |
+| tip 30 bolt M6 x 20 | 0.29 | 1 | True | -5.17e-07 | -2.00e-08 | 0 / 0 | 0.25 | 1398931456 |
+| tip 45 bolt M10 x 80 | 0.38 | 1 | True | +5.80e-05 | -1.48e-07 | 0 / 0 | 0.42 | 1595490304 |
+| ring r 0.25 M6 x 30 | 0.23 | 1 | True | +1.77e-05 | -7.41e-08 | 0 / 0 | 0.20 | 1595490304 |
+| ring r 0.4 M10 x 80 | 0.21 | 1 | True | -1.50e-05 | -7.88e-08 | 0 / 0 | 0.39 | 1626423296 |
+| ring r 0.8 M20 x 100 | 0.18 | 1 | True | -1.63e-04 | -1.64e-08 | 0 / 0 | 0.69 | 1950416896 |
+| ring r 0.25 M6 x 30 left | 0.23 | 1 | True | +1.77e-05 | -7.41e-08 | 0 / 0 | 0.15 | 1950416896 |
+| nut M2 right none | 0.12 | 1 | True | - | +1.70e-06 | 0 / 0 | 0.05 | 1950416896 |
+| nut M2 right countersinks | 0.36 | 1 | True | +5.00e-06 | +1.56e-06 | 0 / 0 | 0.04 | 1950416896 |
+| nut M2 right face chamfers | 0.19 | 1 | True | -1.49e-07 | +1.72e-06 | 0 / 0 | 0.05 | 1950416896 |
+| nut M2 right both | 0.42 | 1 | True | +3.98e-06 | +1.58e-06 | 0 / 0 | 0.04 | 1950416896 |
+| nut M6 right none | 0.16 | 1 | True | - | -1.79e-07 | 0 / 0 | 0.12 | 1950416896 |
+| nut M6 right countersinks | 0.47 | 1 | True | -1.92e-06 | -1.05e-07 | 0 / 0 | 0.11 | 1950416896 |
+| nut M6 right face chamfers | 0.26 | 1 | True | +4.72e-07 | -1.83e-07 | 0 / 0 | 0.13 | 1950416896 |
+| nut M6 right both | 0.55 | 1 | True | -1.68e-06 | -1.05e-07 | 0 / 0 | 0.13 | 1950416896 |
+| nut M10 right none | 0.17 | 1 | True | - | -2.09e-07 | 0 / 0 | 0.28 | 1950416896 |
+| nut M10 right countersinks | 0.50 | 1 | True | -2.83e-06 | -1.08e-07 | 0 / 0 | 0.22 | 1950416896 |
+| nut M10 right face chamfers | 0.23 | 1 | True | +5.65e-07 | -2.15e-07 | 0 / 0 | 0.26 | 1950416896 |
+| nut M10 right both | 0.57 | 1 | True | -2.51e-06 | -1.03e-07 | 0 / 0 | 0.23 | 1950416896 |
+| nut M20 right none | 0.18 | 1 | True | - | +1.96e-08 | 0 / 0 | 0.43 | 1950416896 |
+| nut M20 right countersinks | 0.58 | 1 | True | +5.58e-06 | -1.48e-07 | 0 / 0 | 0.37 | 1950416896 |
+| nut M20 right face chamfers | 0.26 | 1 | True | -1.51e-07 | +2.07e-08 | 0 / 0 | 0.43 | 1950416896 |
+| nut M20 right both | 0.65 | 1 | True | +4.62e-06 | -1.51e-07 | 0 / 0 | 0.38 | 1950416896 |
+| nut M2 left none | 0.12 | 1 | True | - | +1.70e-06 | 0 / 0 | 0.05 | 1950416896 |
+| nut M2 left countersinks | 0.36 | 1 | True | +5.00e-06 | +1.56e-06 | 0 / 0 | 0.03 | 1950416896 |
+| nut M2 left face chamfers | 0.18 | 1 | True | -1.49e-07 | +1.72e-06 | 0 / 0 | 0.05 | 1950416896 |
+| nut M2 left both | 0.43 | 1 | True | +3.98e-06 | +1.58e-06 | 0 / 0 | 0.03 | 1950416896 |
+| nut M6 left none | 0.16 | 1 | True | - | -1.79e-07 | 0 / 0 | 0.10 | 1950416896 |
+| nut M6 left countersinks | 0.47 | 1 | True | -2.80e-06 | -6.84e-08 | 0 / 0 | 0.09 | 1950416896 |
+| nut M6 left face chamfers | 0.25 | 1 | True | +4.72e-07 | -1.83e-07 | 0 / 0 | 0.10 | 1950416896 |
+| nut M6 left both | 0.53 | 1 | True | -2.43e-06 | -6.73e-08 | 0 / 0 | 0.09 | 1950416896 |
+| nut M10 left none | 0.15 | 1 | True | - | -2.09e-07 | 0 / 0 | 0.23 | 1950416896 |
+| nut M10 left countersinks | 0.49 | 1 | True | -3.33e-06 | -8.81e-08 | 0 / 0 | 0.19 | 1950416896 |
+| nut M10 left face chamfers | 0.23 | 1 | True | +5.65e-07 | -2.15e-07 | 0 / 0 | 0.22 | 1950416896 |
+| nut M10 left both | 0.57 | 1 | True | -2.79e-06 | -8.97e-08 | 0 / 0 | 0.20 | 1950416896 |
+| nut M20 left none | 0.18 | 1 | True | - | +1.96e-08 | 0 / 0 | 0.37 | 1950416896 |
+| nut M20 left countersinks | 0.60 | 1 | True | +5.00e-06 | -1.31e-07 | 0 / 0 | 0.32 | 1950416896 |
+| nut M20 left face chamfers | 0.26 | 1 | True | -1.51e-07 | +2.07e-08 | 0 / 0 | 0.38 | 1950416896 |
+| nut M20 left both | 0.81 | 1 | True | +3.82e-06 | -1.22e-07 | 0 / 0 | 0.31 | 1950416896 |
+| nut M6 right countersinks grazing | 0.60 | 1 | True | - | -1.28e-07 | 8 / 4 | 7.02 | 1950416896 |
+| nut M6 left countersinks grazing | 0.56 | 1 | True | - | -9.07e-08 | 9 / 752 | 0.09 | 1950416896 |
+| control tip cut skipped M6 L60 | 0.13 | 1 | True | -1.00e+00 | +3.55e-04 | 0 / - | - | 1950416896 |
+| control tip 45 built, 30 expected M6 L60 | 0.43 | 1 | True | +7.32e-01 | -2.61e-04 | 0 / - | - | 1950416896 |
+| control tip cut skipped M10 L200 | 0.28 | 1 | True | -1.00e+00 | +1.41e-04 | 0 / - | - | 1950416896 |
+| control tip 45 built, 30 expected M10 L200 | 0.76 | 1 | True | +7.33e-01 | -1.05e-04 | 0 / - | - | 1950416896 |
+| ring dropped r 0.25 M6 x 60 | 0.19 | 1 | True | -1.00e+00 | -1.32e-04 | 0 / - | - | 1950416896 |
+| ring dropped r 0.4 M10 x 200 | 0.18 | 1 | True | -1.00e+00 | -6.55e-05 | 0 / - | - | 1950416896 |
+
+Fine STL of a finished nut (countersinks and chamfers, both faces) at the `FINE_STL_ROWS` cap of the
+same (d, pitch, hand) and at the cap + 1 mm, with its gzip level-1 copy, against the 64 MiB (67 108 864
+byte) export budget the caps were measured against (`sum / 64 MiB` above 1.000 is over budget):
+
+| Case | build s | solids | isValid | whole rel. error | fine STL bytes | gzip-1 bytes | sum | sum / 64 MiB | fine mesh s | gzip s | peak RSS so far (bytes, macOS) |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| nut M10 right m 56 | 0.88 | 1 | True | +6.89e-08 | 43774484 | 20407813 | 64182297 | 0.956 | 0.79 | 0.32 | 1950416896 |
+| nut M10 right m 57 | 0.91 | 1 | True | +3.61e-08 | 44518584 | 20760539 | 65279123 | 0.973 | 0.80 | 0.33 | 1950416896 |
+| nut M20 right m 64 | 0.85 | 1 | True | -2.21e-07 | 42345984 | 19456785 | 61802769 | 0.921 | 0.86 | 0.31 | 2072117248 |
+| nut M20 right m 65 | 0.86 | 1 | True | +2.60e-07 | 43056184 | 19762089 | 62818273 | 0.936 | 0.88 | 0.31 | 2079916032 |
+| nut M20 left m 91 | 0.94 | 1 | True | -1.13e-07 | 45604884 | 21713461 | 67318345 | 1.003 | 0.96 | 0.35 | 2110341120 |
+| nut M20 left m 92 | 0.99 | 1 | True | -2.52e-08 | 46292084 | 22059153 | 68351237 | 1.019 | 1.01 | 0.35 | 2111094784 |
+
+Positive controls: a tip cut skipped, a 45 degree cone built where 30 is expected, a ring dropped, each
+judged by the piece comparison and by the whole-part comparison at `T_GATE` 9e-05. The piece gate used
+for the flag is the arithmetic of the rule R11 as proposed to the owner (10 times the largest honest
+piece error rounded up to one significant figure), printed here to show what it would flag; it is not
+adopted and no tolerance is chosen by this entry:
+
+| Control | piece rel. error | piece flagged at that gate | whole rel. error | whole flagged at T_GATE |
+|---|---|---|---|---|
+| control tip cut skipped M6 L60 | -1.00e+00 | True | +3.55e-04 | True |
+| control tip 45 built, 30 expected M6 L60 | +7.32e-01 | True | -2.61e-04 | True |
+| control tip cut skipped M10 L200 | -1.00e+00 | True | +1.41e-04 | True |
+| control tip 45 built, 30 expected M10 L200 | +7.33e-01 | True | -1.05e-04 | True |
+| ring dropped r 0.25 M6 x 60 | -1.00e+00 | True | -1.32e-04 | True |
+| ring dropped r 0.4 M10 x 200 | -1.00e+00 | True | -6.55e-05 | False |
+
+Largest honest piece errors (absolute values; the grazing rows and the controls are not honest rows):
+
+```
+largest |piece error| tip: 2.737e-03 over 16 rows
+largest |piece error| tip-bolt: 5.803e-05 over 2 rows
+largest |piece error| ring: 1.627e-04 over 4 rows
+largest |piece error| nut: 5.578e-06 over 24 rows
+largest |piece error| overall: 2.737e-03 over 46 rows
+```
+
+Columns: `build+cut s` is the rod or void, the cutters and the fuse, nothing else (the volume estimates and
+the meshes are after it). `piece rel. error` is `-` where no piece exists (the no-cutter nut) or none was
+computed (the grazing rows). `peak RSS so far` is `ru_maxrss` after the case, the peak of the whole
+process so far, so a row reads the largest case run before it and not its own. `open edges` is `-` where
+that quality was not meshed (the controls mesh the preview only; the cap rows do not read the fine mesh).
+
+**What this shows / what it does not.** All 54 honest rows (16 bare tips, 2 bolt tips, 4 rings, 32 nuts)
+are one valid solid with 0 open edges at the preview and the fine mesh, and their whole-part error is at
+most 1.97e-05 (tip 45 M2 right) against `T_GATE` 9e-05. The largest piece error is 2.737e-03, tip 45
+degrees on the M2 right-hand rod, a piece of 0.0444 mm3 whose absolute error is about 1.2e-04 mm3; the
+M2 rows set the tip maximum (the next largest tip errors are M2 left 45 and 30 degrees at 1.28e-03 and
+8.98e-04, then M20 right 45 degrees at 1.15e-04, and every M6 and M10 tip is at most 2.6e-05), the two bolt tips are at most
+5.80e-05, the rings at most 1.63e-04 (M20 x 100, r 0.8) and the 24 nut pieces at most 5.58e-06. The
+cutters' piece errors therefore do not grow with the part, the noise is the absolute volume noise of the
+kernel on a small piece, and the input of the differential-tolerance ruling is **2.737e-03**, read as one
+single-run maximum over 46 rows, not a bound. A cone that ends exactly on the root radius is valid
+and has the right volume (M6 grazing: -1.28e-07 right, -9.07e-08 left against the closed form) but
+meshes open: 8 open edges at the preview and 4 at the fine mesh on the right-hand nut (fine mesh 7.02 s,
+against 0.11 to 0.13 s for the crossing variants of that nut), 9 and 752 on the left-hand nut; neither
+`isValid()` nor the volume comparison sees it, which is why every countersink in the nut rows crosses the
+root radius and all 32 of those rows are watertight. The positive controls: the piece comparison flags
+all six, the whole-part comparison at `T_GATE` flags five of six and does not see the dropped ring on
+M10 x 200 (6.55e-05, 0.73 of `T_GATE`), the dilution P8 predicted. The nut fine STL at the caps: a nut of
+M10 right at m 56 and 57 and M20 right at m 64 and 65 fits the budget (0.921 to 0.973), including at
+cap + 1 where the rod of that length was over it (the rod rows of `2026-10-08-a-grid` at L = 56, 57, 64,
+65 are 66 414 767, 67 426 226, 66 578 235 and 70 089 640 bytes for raw plus gzip), while M20 left at
+m 91 is already over (67 318 345 bytes, 1.003; the rod at L = 91 was 66 845 877). The cap rows are nut
+heights of 56 to 92 mm, far above any nut height read so far (the largest `m` above is the M20 preview
+18.0), so they say what the rod caps would do on a nut, not what a nut costs. This is a probe: single
+runs, macOS arm64, load not controlled (3.84 before, so the host was not idle), not a bound and not
+linux/amd64; every geometry input is an UNVERIFIED preview value and no table value of ISO 4032 or
+ISO 4753 is read here. Phase 7 re-sweeps on linux/amd64 (OPER-02).
