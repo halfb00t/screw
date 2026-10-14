@@ -7,6 +7,8 @@ adds the slow `pair` tier that runs the kernel against the table.
 
 from __future__ import annotations
 
+import os
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -136,10 +138,25 @@ def test_the_m18_deadline_is_four_times_the_slowest_recorded_m18_boolean() -> No
 
 
 def test_the_m18_probe_refuses_to_run_until_its_protocol_is_on_main() -> None:
-    text = m18_probe.PROTOCOL.read_text(encoding="utf-8")
+    text = m18_probe.PROTOCOL.read_bytes()
     assert not m18_probe.protocol_on_main(text, None)
-    assert not m18_probe.protocol_on_main(text, text + " ")
+    assert not m18_probe.protocol_on_main(text, text + b" ")
+    assert not m18_probe.protocol_on_main(text, text.replace(b"\n", b"\r\n"))
     assert m18_probe.protocol_on_main(text, text)
+
+
+def test_the_run_guard_reads_git_output_as_bytes_so_line_endings_count(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # The pre-commit hook runs this with GIT_INDEX_FILE and friends pointing at the real repo.
+    for name in [n for n in os.environ if n.startswith("GIT_")]:
+        monkeypatch.delenv(name)
+    git = ("git", "-C", str(tmp_path))
+    subprocess.run([*git, "init", "-q"], check=True)
+    subprocess.run([*git, "config", "core.autocrlf", "false"], check=True)
+    (tmp_path / "protocol.md").write_bytes(b"one\r\ntwo\r\n")
+    subprocess.run([*git, "add", "protocol.md"], check=True)
+    assert m18_probe._git("show", ":protocol.md", cwd=tmp_path) == b"one\r\ntwo\r\n"
+    assert m18_probe._git("show", ":missing.md", cwd=tmp_path) is None
 
 
 def test_the_protocol_states_the_numbers_the_probe_reads() -> None:

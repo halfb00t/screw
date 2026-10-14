@@ -105,8 +105,8 @@ def deadline_from_record(path: Path) -> float:
     return math.ceil(4 * slowest / 10) * 10.0
 
 
-def protocol_on_main(local: str, on_main: str | None) -> bool:
-    """False when `origin/main` has no such file or its text differs from the local one."""
+def protocol_on_main(local: bytes, on_main: bytes | None) -> bool:
+    """False when `origin/main` has no such file or its bytes differ from the local ones."""
     return on_main is not None and on_main == local
 
 
@@ -169,15 +169,16 @@ def _child(r: Reading) -> dict[str, object]:
     return {**base, **result}
 
 
-def _git(*args: str) -> str | None:
-    """Git's stdout untouched (the guard compares bytes), or None when git failed."""
-    done = subprocess.run(["git", *args], capture_output=True, text=True, cwd=ROOT, check=False)
+def _git(*args: str, cwd: Path = ROOT) -> bytes | None:
+    """Git's stdout as raw bytes (text mode would fold CRLF into LF and the guard compares
+    bytes), or None when git failed."""
+    done = subprocess.run(["git", *args], capture_output=True, cwd=cwd, check=False)
     return done.stdout if done.returncode == 0 else None
 
 
 def _rev(spec: str) -> str | None:
     out = _git("rev-parse", spec)
-    return None if out is None else out.strip()
+    return None if out is None else out.decode().strip()
 
 
 def _table(rows: list[dict[str, object]]) -> str:
@@ -192,7 +193,7 @@ def _table(rows: list[dict[str, object]]) -> str:
 
 
 def main() -> int:
-    local = PROTOCOL.read_text(encoding="utf-8")
+    local = PROTOCOL.read_bytes()
     # A stale local ref would pass or fail on old text, so fetch first and fail closed.
     fetched = _git("fetch", "--quiet", "origin", "main") is not None
     on_main = _git("show", f"origin/main:{PROTOCOL_PATH}") if fetched else None
