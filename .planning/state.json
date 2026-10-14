@@ -26,7 +26,7 @@
     {
       "number": "5",
       "name": "Hex Nut and Kernel Pair Proof",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "number": "6",
@@ -44,5 +44,5 @@
     "label": "Advance to the next step",
     "reason": "Phase 05 of 7 · 57% · executing"
   },
-  "updated_at": "2026-10-14T11:54:33.919Z"
+  "updated_at": "2026-10-14T15:04:50.228Z"
 }

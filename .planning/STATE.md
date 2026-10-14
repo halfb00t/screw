@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Hex Nut and Kernel Pair Proof
 status: executing
-stopped_at: Completed 05-01-PLAN.md
-last_updated: "2026-10-14T11:54:45.782Z"
+stopped_at: Completed 05-02-PLAN.md
+last_updated: "2026-10-14T15:04:51.258Z"
 last_activity: 2026-10-14
 last_activity_desc: Phase 05 execution started
-state_head: ba108304259b7449cf431888fbdbcee17150c4df
+state_head: c9f441f11dbc95aee19d521d1318616b8abd8346
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 60
-  completed_plans: 43
+  completed_plans: 44
   percent: 57
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-12)
 ## Current Position
 
 Phase: 05 (Hex Nut and Kernel Pair Proof) — EXECUTING
-Plan: 2 of 18
+Plan: 3 of 18
 Status: Ready to execute
 Last activity: 2026-10-14 — Phase 05 execution started
 
@@ -102,6 +102,7 @@ Progress: [██████░░░░] 57%
 | Phase 04 P16 | 13 min | 2 tasks | 7 files |
 | Phase 04 P17 | 6 min | 2 tasks | 3 files |
 | Phase 05 P01 | 15 min | 3 tasks | 6 files |
+| Phase 05 P02 | about 3h wall (owner stop) | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -185,6 +186,9 @@ Recent decisions affecting current work:
 - [Phase 04]: 04-17: info row wraps; label basis is the proportion 50% (no new length, UI-SPEC extension rule 4); overflow-wrap anywhere on dd is only the last resort inside the wrapping row; pinned by a style.css source test with teeth (G-04-5)
 - [Phase 05]: 05-01: PR A is number 17 (gsd/phase-05-preregistration, cut from origin/main 0ef52e8); plan 05-03 has the other CLI review it and lands it before any Phase 5 pair run or M18 probe reading
 - [Phase 05]: 05-01: the expected pair table is derived (240 K = 3 cells: 88 proven, 92 inconclusive, 60 violated) and re-derived by a make verify test; the M18 probe deadline is 130 s = 4 x 30.964 s rounded up to 10 s, IN-02's 600 s not reused
+- [Phase 05]: 05-02: R11 differential end-cut tolerance 0.03 (10 x probe largest piece error 2.737e-03, rounded up); R6 FRNT-06 fraction 0.5 of the 0.05 mm proof clearance, fine preset 0.01 mm kept
+- [Phase 05]: 05-02: owner permanence accepted 2026-10-14 for ISO 4032 M6 s 10.0 and m 5.2 (m max), read from a GlobalFastener.com print of the standard, not the standard (D-14 deviation); reads 3 to 7 PENDING, each names the plan that needs it
+- [Phase 05]: 05-02: R12 condition (nut fits at each rod cap, not at cap + 1) is shown on none of the three sizes the probe measured; plan 05-05 must put the table to the owner before editing download_refusal
 
 ### Pending Todos
 
@@ -230,6 +234,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-14T11:54:45.725Z
-Stopped at: Completed 05-01-PLAN.md
+Last session: 2026-10-14T15:04:51.204Z
+Stopped at: Completed 05-02-PLAN.md
 Resume file: None
