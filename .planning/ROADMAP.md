@@ -238,7 +238,63 @@ Plans:
   5. STL and STEP downloads come from the same modelled-thread solid; the STL chord deviation is explicit, measured against the clearances the printed test will use, and recorded and cited in a decision entry, with `ControlSurfaceDeflection` on for downloads; the preview may mesh coarser, the numbers may not.
   6. The M18 control that reads empty at theta -2π/3 (right hand) and +2π/3 (left hand) at every clearance in `2026-10-08-a-pair` (0 solids, no boolean error or warning) is diagnosed in one bounded task whose method is committed before it runs; the finding is recorded in a decision entry and changes no verdict rule. Until a later campaign proves M18, the M18 nut ships (criterion 1), `screw pair` reads `inconclusive` for it, and the info panel's pair section labels M18 "kernel pair proof inconclusive at K = 3 (`2026-10-08-a-pair`)" from the cited record, not from a kernel call (criterion 4).
 
-**Plans**: TBD
+**Plans**: 18 plans (sequential waves 1-18; the pre-registration lands as its own PR first)
+
+Plans:
+**Wave 1**
+- [ ] 05-01-PLAN.md — Pre-registration PR: expected pair verdicts derived from `2026-10-08-a-pair` by the unmodified rule, and the M18 diagnosis protocol with its probe (D-07, D-08)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 05-02-PLAN.md — D-10 end-cut probe, then the owner read of ISO 4032, 724, 965-2, 4753 and the phase rulings, recorded in 05-OWNER-READS.md (D-14)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 05-03-PLAN.md — Codex reviews the pre-registration PR; it lands on main; the phase branch merges origin/main
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 05-04-PLAN.md — Tracer: the nut kind with a required clearance on every front end, hex prism less the L11 void, two gates (D-01, D-15)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 05-05-PLAN.md — Nut rules: root radius with clearance, nut_too_thin, turn cap on m + 2P, the non-positive clearance warning, the nut fine-STL rule (D-04, D-13)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 05-06-PLAN.md — ISO 4032:2023 rows double-entered, relation tests, the frozen nut defaults pinned to the M6 row
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 05-07-PLAN.md — The ISO 4032 catalogue and the nut's exact match, cited values, designation and Annex A note (D-17)
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [ ] 05-08-PLAN.md — ISO 724 nominal diameters and the ISO 965-2:2024 6g/6H limits, double-entered (D-16)
+
+**Wave 9** *(blocked on Wave 8 completion)*
+- [ ] 05-09-PLAN.md — The panel: pitch and minor diameters, the INFO-02 limits group, the pair rows, the M18 note (D-16, D-19, D-20)
+
+**Wave 10** *(blocked on Wave 9 completion)*
+- [ ] 05-10-PLAN.md — The matching part (counterpart) on every info document and the page link; UI contract amendments (D-02, D-03)
+
+**Wave 11** *(blocked on Wave 10 completion)*
+- [ ] 05-11-PLAN.md — TDD: kernel-free end-cut oracles, end models, capped depths and the piece tolerance (D-09, D-10)
+
+**Wave 12** *(blocked on Wave 11 completion)*
+- [ ] 05-12-PLAN.md — Bolt ends: ISO 4753 tip cone and ISO 4014 under-head fillet ring, gated whole and by piece, watertight sweep (D-09, D-11)
+
+**Wave 13** *(blocked on Wave 12 completion)*
+- [ ] 05-13-PLAN.md — Nut ends: lead-in countersinks and face chamfers on both faces, watertight sweep; the standing warning rewritten (D-12, D-18)
+
+**Wave 14** *(blocked on Wave 13 completion)*
+- [ ] 05-14-PLAN.md — The pair proof: the rule moved into calc/pair.py, the bodies and prove() in solid/pair.py, the shipped-solid evidence row, the server-side contract (D-05, D-06, D-24)
+
+**Wave 15** *(blocked on Wave 14 completion)*
+- [ ] 05-15-PLAN.md — `screw pair` with exit codes, the verify cell, the pair-marked grid, `make pair`, pair.yml; the ubuntu reading of the verify cell (D-06, D-07)
+
+**Wave 16** *(blocked on Wave 15 completion)*
+- [ ] 05-16-PLAN.md — Kernel runs: the M18 diagnosis, the full pair grid, the product cells at the verified nut height (D-07, D-08)
+
+**Wave 17** *(blocked on Wave 16 completion)*
+- [ ] 05-17-PLAN.md — FRNT-06: the fine STL deflection by the owner's rule, ControlSurfaceDeflection and deviation pinned, caps re-derived if the preset moved (D-21)
+
+**Wave 18** *(blocked on Wave 17 completion)*
+- [ ] 05-18-PLAN.md — The preview download names its quality (D-22); L14, the overview, the UI contract, requirement and state lines, the phase's debt (D-23)
+
 **UI hint**: yes
 
 ### Phase 6: Printed Pair Acceptance
