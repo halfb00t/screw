@@ -16,6 +16,7 @@ Severity (grep-able `Severity:` field):
 
 | Severity | Item | Trigger to revisit |
 |---|---|---|
+| must | [The nut has no fine-STL cap: its caps need their own measurement run](active/2026-10-14-nut-fine-stl-caps-unmeasured.md) | before the nut fine STL can be offered as bounded |
 | must | [Root radii down to about 3e-5 mm pass validation and then fail in the kernel with a generic message](active/2026-10-11-root-radius-floor-is-not-the-kernel-boundary.md) | measure the floor; before L12's boundary claim is relied on |
 | must | [A valid in-cap request (d=100, length=200, default pitch) exceeds both interim backstops and is unrecorded](active/2026-10-11-default-pitch-d100-length200-exceeds-both-interim-backstops.md) | owner severity ruling; measure at the 30 s kill point |
 | nice | [The M18 probe's --one entry has no deadline when started by hand during a run](active/2026-10-14-m18-probe-one-entry-has-no-deadline-during-a-run.md) | the probe is reused, or the owner wants the entry closed completely |

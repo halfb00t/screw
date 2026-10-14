@@ -251,6 +251,12 @@ def _nut(p: NutParams) -> PartInfo:
     ]
     rows: list[InfoRow] = []
     warnings = [STANDING_WARNING]
+    # D-04, PAIR-03: a clearance of 0 or below is a part the user may ask for and build, but the
+    # kernel's pair verdict cannot be `proven` for it, so every front end says so out loud. The
+    # test is `<= 0`, not `< epsilon`: 5e-324 is positive and carries no warning.
+    if p.clearance <= 0:
+        warnings.append(f"clearance {p.clearance:g} is not positive: "
+                        "the pair cannot be proven (PAIR-03)")
     for key, group, label, unit, formula, compute in computed:
         try:
             value = compute()
@@ -300,7 +306,13 @@ def download_refusal(p: FastenerParams, fmt: str, quality: str) -> str | None:
                 p.d, p.pitch, built_thread_length(p.thread_length, p.length), p.left_hand)
         return None
     if isinstance(p, NutParams):
-        # No rule yet: the nut's fine-STL cap is plan 05-05's (R12), so every download is served.
+        # No fine-STL rule for the nut, on purpose and not by omission. R12 (05-OWNER-READS.md)
+        # reuses `FINE_STL_ROWS` on `m` only if the probe's nut bytes fit the 64 MiB budget at
+        # each cap and not at cap + 1 mm. They do not: M10 right (0.973) and M20 right (0.936) still
+        # fit at cap + 1, and M20 left is over at the cap itself (1.003). So the ruling's other
+        # branch applies, "measure nut caps in their own run", and until that run lands no number
+        # here is a measured one: a rod cap applied to a nut is the plausible number L02 forbids.
+        # Open item: docs/tech_debt/active/2026-10-14-nut-fine-stl-caps-unmeasured.md.
         return None
     raise TypeError(f"no download rule for kind {p.kind!r}")
 

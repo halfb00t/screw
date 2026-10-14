@@ -218,6 +218,36 @@ def test_a_nut_document_has_its_rows_in_groups_the_closed_form_volume_and_no_row
     assert (info.designation, info.notes) == (None, [])
 
 
+@pytest.mark.parametrize(("clearance", "text"), [
+    (0.0, "clearance 0 is not positive: the pair cannot be proven (PAIR-03)"),
+    (-0.05, "clearance -0.05 is not positive: the pair cannot be proven (PAIR-03)"),
+])
+def test_a_nut_with_a_non_positive_clearance_warns_once_after_the_standing_warning(
+        clearance: float, text: str) -> None:
+    info = derive(NutParams(clearance=clearance))
+    assert info.warnings == [STANDING_WARNING, text, NUT_NO_ROW_WARNING]
+
+
+@pytest.mark.parametrize("clearance", [5e-324, 0.1])
+def test_a_nut_with_a_positive_clearance_has_no_clearance_warning(clearance: float) -> None:
+    # 5e-324 is the smallest positive float: still positive, so no warning (PAIR-01, adjacency).
+    info = derive(NutParams(clearance=clearance))
+    assert info.warnings == [STANDING_WARNING, NUT_NO_ROW_WARNING]
+
+
+def test_a_nut_download_is_never_refused_until_the_nut_fine_stl_caps_are_measured() -> None:
+    # R12 (05-OWNER-READS.md): the probe does not show the rod caps hold on a nut, so no cap is
+    # applied. The M10 right rod cap is 56 mm of thread; a nut that tall is served, and the rod's
+    # rule is not routed through the nut. This test moves with the open debt item
+    # docs/tech_debt/active/2026-10-14-nut-fine-stl-caps-unmeasured.md.
+    tall = NutParams(d=10.0, pitch=1.5, s=17.0, m=57.0, clearance=0.1)
+    for fmt, quality in (("stl", "fine"), ("stl", "preview"), ("step", "fine"),
+                         ("step", "preview")):
+        assert download_refusal(tall, fmt, quality) is None
+    assert fine_stl_refusal(10.0, 1.5, 57.0, False) is not None, "the rod cap is the control"
+    assert all(entry.refusal is None for entry in derive(tall).downloads)
+
+
 def test_the_nut_closed_form_is_the_prism_less_the_section_times_the_height() -> None:
     # The hexagon written out, and the section by a midpoint sum of r^2 / 2 over the angle of
     # `section_radius`: a different path from `section_area`'s closed form.
