@@ -11,8 +11,10 @@ from pathlib import Path
 
 import pytest
 
-from bench import pair_expected
-from screw.solid.helical import DEFAULT_K
+from bench import m18_probe, pair_expected
+from bench.thread_spike import maths
+from bench.thread_spike.verdict import closed_control
+from screw.solid.helical import DEFAULT_K, SEWING_TOLERANCE
 
 PROOF_CLEARANCES = (0.05, 0.10, 0.15, 0.20)
 
@@ -100,3 +102,53 @@ def test_a_record_that_is_not_the_one_l11_cites_is_refused(tmp_path: Path) -> No
 
 def test_the_table_is_the_product_k() -> None:
     assert pair_expected.PRODUCT_K == DEFAULT_K
+
+
+def _probe(name: str, left_hand: bool) -> list[m18_probe.Reading]:
+    return [r for r in m18_probe.READINGS if r.probe == name and r.left_hand is left_hand]
+
+
+def test_the_m18_probe_reads_exactly_the_36_pre_registered_readings() -> None:
+    assert len(m18_probe.READINGS) == 36
+    assert len(set(m18_probe.READINGS[:5])) == 1  # P1 repeats one reading
+    assert m18_probe.REPEATS == 5
+    expected = {"P1": 5, "P2": len(m18_probe.DELTAS), "P3": 1, "P4a": 1, "P4b": 1, "H": 2}
+    for left_hand in (False, True):
+        assert {name: len(_probe(name, left_hand)) for name in expected} == expected
+        failing = maths.MATCHED_POSES[2] if left_hand else maths.MATCHED_POSES[0]
+        others = tuple(t for t in maths.MATCHED_POSES if t != failing)
+        assert {r.theta for r in _probe("P1", left_hand)} == {failing}
+        assert [r.theta - failing for r in _probe("P2", left_hand)] == pytest.approx(
+            list(m18_probe.DELTAS))
+        assert [r.theta for r in _probe("P3", left_hand)] == [failing]
+        assert [r.theta for r in _probe("H", left_hand)] == list(others)
+    assert m18_probe.DELTAS == (-0.1, -0.01, -0.001, -0.0001, 0.0001, 0.001, 0.01, 0.1)
+    assert all(r.offset_pitches == maths.CONTROL_OFFSET_PITCHES for r in m18_probe.READINGS)
+    assert m18_probe.FUZZY_MM == SEWING_TOLERANCE
+    for r in m18_probe.READINGS:
+        assert (r.fuzzy is not None) is (r.probe == "P4a")
+        assert r.swapped is (r.probe == "P4b")
+        assert r.clearance == (-0.05 if r.probe == "P3" else 0.10)
+
+
+def test_the_m18_deadline_is_four_times_the_slowest_recorded_m18_boolean() -> None:
+    assert m18_probe.deadline_from_record(pair_expected.RECORD) == m18_probe.DEADLINE_S == 130.0
+
+
+def test_the_m18_probe_refuses_to_run_until_its_protocol_is_on_main() -> None:
+    text = m18_probe.PROTOCOL.read_text(encoding="utf-8")
+    assert not m18_probe.protocol_on_main(text, None)
+    assert not m18_probe.protocol_on_main(text, text + " ")
+    assert m18_probe.protocol_on_main(text, text)
+
+
+def test_the_protocol_states_the_numbers_the_probe_reads() -> None:
+    text = m18_probe.PROTOCOL.read_text(encoding="utf-8")
+    deltas = ", ".join(f"{delta:+g}" for delta in m18_probe.DELTAS)
+    closed = closed_control({
+        "size": "M18", "d": m18_probe.D, "pitch": m18_probe.PITCH, "m": m18_probe.M,
+        "clearance": m18_probe.CLEARANCE, "rod_left_hand": False, "nut_left_hand": False,
+        "k": m18_probe.K})
+    assert m18_probe.FUZZY_MM == 1e-4
+    for stated in (f"{m18_probe.DEADLINE_S:g} s", "1e-4", "five times", deltas, f"{closed:.4f}"):
+        assert stated in text, stated
