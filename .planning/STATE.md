@@ -3,11 +3,11 @@ gsd_state_version: "1.0"
 current_phase: 5
 current_phase_name: Hex Nut and Kernel Pair Proof
 status: planning
-stopped_at: "Phases 01, 02 and 03 verification refreshed (passed, 17/17, 5/5 and 14/14); Phase 04 shipped (PR #12); ready to plan Phase 5"
-last_updated: "2026-10-13T15:26:20.066Z"
-last_activity: 2026-10-13
-last_activity_desc: Phase 02 UAT restarted (48 passed, 0 issues) and 02-VERIFICATION.md regenerated (passed, 5/5, was stale); Phases 01 and 03 refreshed earlier today; Phase 4 unchanged
-state_head: 7634830ce730a09cd92d945f146e7dc324d73ee4
+stopped_at: Phase 04 verification regenerated (passed, 12/12; was stale after 7634830 touched decision_log.md); ready to plan Phase 5
+last_updated: "2026-10-14T07:58:42.097Z"
+last_activity: 2026-10-14
+last_activity_desc: Phase 04 verification regenerated (passed, 12/12, was stale: docs/architecture/decision_log.md changed in 7634830 after the verifier ran); gates re-run on an unchanged tree, make verify 2637 passed; shipped as PR #16
+state_head: 304204ed9892f2ae6e99d15e2fc308b5a8527d7d
 progress:
   total_phases: 7
   completed_phases: 4
@@ -29,8 +29,8 @@ See: .planning/PROJECT.md (updated 2026-10-12)
 
 Phase: 5 — Hex Nut and Kernel Pair Proof
 Plan: Not started
-Status: Ready to plan
-Last activity: 2026-10-13 — Phase 02 UAT restarted (48 passed, 0 issues) and 02-VERIFICATION.md regenerated (passed, 5/5, was stale); 01 and 03 refreshed earlier today; Phase 04 shipped — PR #12
+Status: Phase 04 shipped — PR #16
+Last activity: 2026-10-14 — Phase 04 verification regenerated (passed, 12/12, was stale after 7634830); shipped as PR #16; Phase 5 ready to plan
 
 Progress: [██████░░░░] 57%
 
@@ -227,6 +227,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-13T08:58:30.303Z
-Stopped at: Phases 01, 02 and 03 verification refreshed (passed, 17/17, 5/5 and 14/14); Phase 04 shipped (PR #12); ready to plan Phase 5
+Last session: 2026-10-14T07:50:14Z
+Stopped at: Phase 04 verification regenerated (passed, 12/12); ready to plan Phase 5
 Resume file: None
