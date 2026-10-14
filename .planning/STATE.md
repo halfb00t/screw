@@ -3,11 +3,10 @@ gsd_state_version: "1.0"
 current_phase: 5
 current_phase_name: Hex Nut and Kernel Pair Proof
 status: planning
-stopped_at: "Phase 04 verification regenerated (passed, 12/12; was stale after 7634830 touched decision_log.md); ready to plan Phase 5"
-last_updated: "2026-10-14T07:49:10.140Z"
+stopped_at: Phase 04 verification regenerated (passed, 12/12; was stale after 7634830 touched decision_log.md); ready to plan Phase 5
+last_updated: "2026-10-14T07:58:42.097Z"
 last_activity: 2026-10-14
-last_activity_desc: Phase 04 verification regenerated (passed, 12/12, was stale: docs/architecture/decision_log.md changed in 7634830 after the verifier ran); gates re-run on an unchanged tree, make verify 2637 passed; no source change
-state_head: ce03a335eda47da1e8877d955784002584034165
+state_head: 304204ed9892f2ae6e99d15e2fc308b5a8527d7d
 progress:
   total_phases: 7
   completed_phases: 4
@@ -29,8 +28,8 @@ See: .planning/PROJECT.md (updated 2026-10-12)
 
 Phase: 5 — Hex Nut and Kernel Pair Proof
 Plan: Not started
-Status: Ready to plan
-Last activity: 2026-10-14 — Phase 04 verification regenerated (passed, 12/12, was stale after 7634830); Phase 5 ready to plan
+Status: Phase 04 shipped — PR #16
+Last activity: 2026-10-14
 
 Progress: [██████░░░░] 57%
 
