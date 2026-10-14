@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-10-12)
 Phase: 5 — Hex Nut and Kernel Pair Proof
 Plan: Not started
 Status: Phase 04 shipped — PR #16
-Last activity: 2026-10-14
+Last activity: 2026-10-14 — Phase 04 verification regenerated (passed, 12/12, was stale after 7634830); shipped as PR #16; Phase 5 ready to plan
 
 Progress: [██████░░░░] 57%
 
