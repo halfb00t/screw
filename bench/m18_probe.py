@@ -110,6 +110,23 @@ def protocol_on_main(local: bytes, on_main: bytes | None) -> bool:
     return on_main is not None and on_main == local
 
 
+def child_refusal(r: Reading) -> str | None:
+    """Why `--one` must not start this reading, or None. The child is the module's only way to
+    reach the kernel, so it re-checks what the parent checked: the reading is one of the 36,
+    the protocol is on origin/main byte for byte (the parent just fetched, so no fetch here),
+    and the parent has claimed the output file, which stays empty until the run ends. A manual
+    `--one` is therefore refused before a run, after one and for any pose off the list. It is
+    not refused during a run, and then it has no deadline: closing that needs a secret the
+    child cannot check, which is more than a diagnosis of 36 readings is worth."""
+    if r not in READINGS:
+        return "not one of the 36 registered readings"
+    if not protocol_on_main(PROTOCOL.read_bytes(), _git("show", f"origin/main:{PROTOCOL_PATH}")):
+        return f"{PROTOCOL_PATH} is not on origin/main byte for byte (D-08)"
+    if not OUT.exists() or OUT.stat().st_size:
+        return f"{OUT} is not an output file claimed by a run in progress"
+    return None
+
+
 def read_one(r: Reading) -> dict[str, object]:
     """Build the recorded bodies, place, cover-check and intersect with this reading's options.
 
@@ -224,12 +241,21 @@ def main() -> int:
     return 0
 
 
+def _one_line(raw: str) -> str:
+    """The `--one` child's single result line for the reading in `raw`."""
+    try:
+        reading = Reading(**json.loads(raw))
+        refusal = child_refusal(reading)
+        if refusal is not None:
+            return json.dumps({"outcome": "failure", "error": f"refusing to run: {refusal}"})
+        return json.dumps(read_one(reading))
+    except Exception as exc:  # one reading's failure is one recorded line, not a dead probe
+        return json.dumps({"outcome": "failure", "error": f"{type(exc).__name__}: {exc}"})
+
+
 if __name__ == "__main__":
     if len(sys.argv) == 3 and sys.argv[1] == "--one":
-        try:
-            line = json.dumps(read_one(Reading(**json.loads(sys.argv[2]))))
-        except Exception as exc:  # one reading's failure is one recorded line, not a dead probe
-            line = json.dumps({"outcome": "failure", "error": f"{type(exc).__name__}: {exc}"})
+        line = _one_line(sys.argv[2])
         sys.stdout.write(line + "\n")
         sys.stdout.flush()
         # The boolean is parked in `pair._KEEP`; a normal exit frees it and segfaults (exit 139,

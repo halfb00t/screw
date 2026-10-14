@@ -7,8 +7,11 @@ adds the slow `pair` tier that runs the kernel against the table.
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
+import sys
+from dataclasses import asdict, replace
 from pathlib import Path
 
 import pytest
@@ -169,3 +172,33 @@ def test_the_protocol_states_the_numbers_the_probe_reads() -> None:
     assert m18_probe.FUZZY_MM == 1e-4
     for stated in (f"{m18_probe.DEADLINE_S:g} s", "1e-4", "five times", deltas, f"{closed:.4f}"):
         assert stated in text, stated
+
+
+def test_the_m18_child_runs_only_a_registered_reading_of_a_claimed_run(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    local = m18_probe.PROTOCOL.read_bytes()
+    out = tmp_path / "m18-diagnosis.jsonl"
+    monkeypatch.setattr(m18_probe, "OUT", out)
+    monkeypatch.setattr(m18_probe, "_git", lambda *_a, **_k: local)
+    registered = m18_probe.READINGS[0]
+    off_list = replace(registered, clearance=0.5)
+    out.touch()
+    assert m18_probe.child_refusal(registered) is None
+    assert "registered" in str(m18_probe.child_refusal(off_list))
+    out.write_text("{}\n")
+    assert "claimed" in str(m18_probe.child_refusal(registered))
+    out.unlink()
+    assert "claimed" in str(m18_probe.child_refusal(registered))
+    out.touch()
+    monkeypatch.setattr(m18_probe, "_git", lambda *_a, **_k: local + b" ")
+    assert "origin/main" in str(m18_probe.child_refusal(registered))
+
+
+def test_the_m18_one_entry_refuses_before_it_loads_the_kernel() -> None:
+    off_list = replace(m18_probe.READINGS[0], clearance=0.5)
+    done = subprocess.run(
+        [sys.executable, "-m", "bench.m18_probe", "--one", json.dumps(asdict(off_list))],
+        capture_output=True, text=True, timeout=60, cwd=m18_probe.ROOT, check=False)
+    result = json.loads(done.stdout.strip().splitlines()[-1])
+    assert result["outcome"] == "failure"
+    assert "registered" in result["error"]
