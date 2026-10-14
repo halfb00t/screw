@@ -18,6 +18,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
+import cadquery as cq
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
@@ -31,6 +32,7 @@ from screw.calc.thread import (
     closed_volume,
     nut_closed_volume,
     section_area,
+    section_radius,
     thread_depth,
 )
 from screw.params import BoltParams, NutParams
@@ -386,3 +388,33 @@ def test_an_over_thin_nut_is_a_422_on_the_api_and_exit_2_on_the_cli(
         cli.main(["info", "nut", "--clearance", "0.1", "--s", "6"])
     assert stop.value.code == 2
     assert "error: s, d and clearance: " in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("left_hand", [False, True], ids=["right", "left"])
+def test_a_positive_clearance_moves_the_nut_thread_away_from_the_axis_on_both_hands(
+        left_hand: bool) -> None:
+    """PAIR-01's direction as a kernel fact: 0.05 mm outside the nominal void surface is inside
+    the c = 0 nut and outside the c = 0.1 nut, and the volume drops by the section difference.
+
+    The c = 0 half is the positive control. The point is placed with the hand's sign (RESEARCH
+    F2: the section angle is atan2(y, x) - 2 pi z / P right-hand and + for left-hand), so a wrong
+    sign puts the point on another part of the surface and the c = 0 check, which needs the point
+    in material, fails.
+    """
+    tight = NutParams(clearance=0.0, left_hand=left_hand)
+    loose = NutParams(clearance=0.1, left_hand=left_hand)
+    tight_nut, loose_nut = build(tight).Solids()[0], build(loose).Solids()[0]
+    z = tight.m / 2
+    turn = 2 * math.pi * z / tight.pitch
+    sign = 1 if left_hand else -1
+    # crest, mid flank and root of the section: the three kinds of surface the thread has
+    for section_angle in (0.0, math.pi / 2, math.pi):
+        radius = section_radius(tight.d, tight.pitch, 0.0, section_angle) + 0.05
+        angle = section_angle - sign * turn
+        point = cq.Vector(radius * math.cos(angle), radius * math.sin(angle), z)
+        assert tight_nut.isInside(point, 1e-6), (left_hand, section_angle)
+        assert not loose_nut.isInside(point, 1e-6), (left_hand, section_angle)
+    removed = precise_volume(tight_nut) - precise_volume(loose_nut)
+    expected = (section_area(tight.d, tight.pitch, 0.1)
+                - section_area(tight.d, tight.pitch, 0.0)) * tight.m
+    assert abs(removed - expected) <= T_GATE * precise_volume(tight_nut)
