@@ -187,6 +187,37 @@ class NutParams(FastenerParams):
              "value enlarges the nut's thread and 0 is the nominal profile. The diametral value "
              "(2 c) is on the info panel.")
 
+    @model_validator(mode="after")
+    def _root_radius(self) -> Self:
+        # Same name as the base rule on purpose (RESEARCH F6): pydantic keeps one validator per
+        # name, so this replaces the inherited c-free rule instead of running beside it. The
+        # nut's void grows by the clearance, so the root radius swept is d/2 - 5H/8 + c (D-04).
+        from screw.calc.thread import void_root_radius_refusal
+
+        if (msg := void_root_radius_refusal(self.d, self.pitch, self.clearance)) is not None:
+            raise PydanticCustomError(
+                "pitch_too_coarse", msg, {"fields": ["d", "pitch", "clearance"]})
+        return self
+
+    @model_validator(mode="after")
+    def _nut_too_thin(self) -> Self:
+        # D-13: a void wider than the flats is a direct conflict between values the user typed,
+        # so it is a 422 naming the three fields, not a trimmed part (L02).
+        from screw.calc.thread import nut_too_thin_refusal
+
+        if (msg := nut_too_thin_refusal(self.s, self.d, self.clearance)) is not None:
+            raise PydanticCustomError("nut_too_thin", msg, {"fields": ["s", "d", "clearance"]})
+        return self
+
+    @model_validator(mode="after")
+    def _turn_cap(self) -> Self:
+        # P11: judged on the void the builder makes (m + 2 pitch), not on m alone.
+        from screw.calc.thread import nut_turn_cap_refusal
+
+        if (msg := nut_turn_cap_refusal(self.m, self.pitch)) is not None:
+            raise PydanticCustomError("turn_cap", msg, {"fields": ["m", "pitch"]})
+        return self
+
 
 KINDS: dict[str, type[FastenerParams]] = {
     BoltParams.kind: BoltParams, NutParams.kind: NutParams}

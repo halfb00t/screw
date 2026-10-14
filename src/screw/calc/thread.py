@@ -148,6 +148,23 @@ def head_too_small_refusal(s: float, d: float) -> str | None:
             f"a head no wider than the shank is not a hex head")
 
 
+def nut_too_thin_refusal(s: float, d: float, clearance: float) -> str | None:
+    """None when the across-flats width `s` exceeds the void's major diameter `d + 2 * clearance`;
+    otherwise the text (D-13).
+
+    At or below it the void's crest reaches the flats and the nut is cut in two or left with an
+    edge of no thickness. The text begins `s, d and clearance: ` so the CLI, which prints no `loc`
+    for a model-level error, still names the fields. No braces: pydantic formats a custom error
+    from its context.
+    """
+    major = d + 2 * clearance
+    if s > major:
+        return None
+    return (f"s, d and clearance: across flats s {_plain(s)} mm must exceed the void's major "
+            f"diameter d + 2 * clearance = {_plain(major)} mm, or the void is wider than the "
+            f"flats and breaks through them")
+
+
 def _plain(x: float) -> str:
     """`repr` without a trailing `.0`: 30.0 reads 30, 10.00001 reads 10.00001.
 
@@ -265,6 +282,38 @@ def turn_cap_refusal(t: float, pitch: float) -> str | None:
     return (f"thread_length, length and pitch: {turns_of(t, pitch):g} turns of built thread is "
             f"past the {MAX_TURNS}-turn cap, the most measured (run 2026-10-08-a-frontier); "
             f"shorten thread_length or length, or raise pitch")
+
+
+def void_root_radius_refusal(d: float, pitch: float, clearance: float) -> str | None:
+    """None when the nut void's root radius d/2 - 5H/8 + clearance is above 0; else the text (D-04).
+
+    The nut's void grows by the clearance on both radii (L11 `section_radius`), so the rule the
+    rod uses (`root_radius_refusal`, no clearance) is wrong for it: it refuses a nut a positive
+    clearance would make and accepts one a negative clearance would push through the axis. The
+    text begins `d, pitch and clearance: `. No braces: pydantic formats a custom error from its
+    context.
+    """
+    root = d / 2 - thread_depth(pitch) + clearance
+    if root > 0:
+        return None
+    return (f"d, pitch and clearance: the void's root radius d/2 - 5H/8 + clearance of the "
+            f"ISO 68-1:2023 basic profile is {root:g} mm at d {d:g}, pitch {pitch:g} and "
+            f"clearance {clearance:g}, and must be above 0")
+
+
+def nut_turn_cap_refusal(m: float, pitch: float) -> str | None:
+    """None when the void the builder makes, `m + 2 pitch`, is at most `MAX_TURNS` turns as exact
+    decimals; else the text (P11).
+
+    `solid/nut.py` sweeps the void a pitch past each face, so the kernel sees `m + 2 pitch`, not
+    `m`. The text begins `m and pitch: `.
+    """
+    void = _exact(m) + 2 * _exact(pitch)
+    if void <= MAX_TURNS * _exact(pitch):
+        return None
+    return (f"m and pitch: {float(void / _exact(pitch)):g} turns of void (m + 2 pitch, what the "
+            f"builder makes) is past the {MAX_TURNS}-turn cap, the most measured (run "
+            f"2026-10-08-a-frontier); lower m or raise pitch")
 
 
 # The fine-STL caps of the thirteen (d, pitch, left_hand) rod runs L11 measured (D-03, D-21):
