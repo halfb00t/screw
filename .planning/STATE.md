@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Hex Nut and Kernel Pair Proof
 status: executing
-stopped_at: Completed 05-04-PLAN.md
-last_updated: "2026-10-14T16:09:10.609Z"
+stopped_at: Completed 05-05-PLAN.md (nut fine-STL rule stopped per R12)
+last_updated: "2026-10-14T16:21:32.001Z"
 last_activity: 2026-10-14
 last_activity_desc: Phase 05 execution started
-state_head: 4d26392132697d1fc9e6cc783db85151342f6e79
+state_head: 5ee04b20d0a7e7efb6b452bc6d7fab5d7c71f9bc
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 60
-  completed_plans: 46
+  completed_plans: 47
   percent: 57
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-12)
 ## Current Position
 
 Phase: 05 (Hex Nut and Kernel Pair Proof) — EXECUTING
-Plan: 5 of 18
+Plan: 6 of 18
 Status: Ready to execute
 Last activity: 2026-10-14 — Phase 05 execution started
 
@@ -105,6 +105,7 @@ Progress: [██████░░░░] 57%
 | Phase 05 P02 | about 3h wall (owner stop) | 3 tasks | 5 files |
 | Phase 05 P03 | 50 min | 2 tasks | 4 files |
 | Phase 05 P04 | 12 min | 2 tasks | 18 files |
+| Phase 05 P05 | 30min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -195,6 +196,7 @@ Recent decisions affecting current work:
 - [Phase 05]: 05-03: the M18 output file is claimed with mode x before the first reading; a void probe (harness control outside PAIR_BAND) records the reason in the header, prints VOID and exits 1
 - [Phase 05]: 05-04: NutParams s 10.0 and m 5.2 are the owner-accepted ISO 4032:2023 M6 values (secondary source, permanent: accepted); clearance is required with no default or lower bound
 - [Phase 05]: 05-04: BuildError names type(p).model_fields so a kernel failure never names another kind's fields
+- [Phase 05]: 05-05: R12 decided by its own recorded condition (probe table fails it): the nut fine-STL rule is not shipped, nut caps need their own run (debt item filed, owner sign-off outstanding)
 
 ### Pending Todos
 
@@ -240,6 +242,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-14T16:09:10.555Z
-Stopped at: Completed 05-04-PLAN.md
+Last session: 2026-10-14T16:21:31.947Z
+Stopped at: Completed 05-05-PLAN.md (nut fine-STL rule stopped per R12)
 Resume file: None

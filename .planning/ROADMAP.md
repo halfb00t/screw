@@ -238,7 +238,7 @@ Plans:
   5. STL and STEP downloads come from the same modelled-thread solid; the STL chord deviation is explicit, measured against the clearances the printed test will use, and recorded and cited in a decision entry, with `ControlSurfaceDeflection` on for downloads; the preview may mesh coarser, the numbers may not.
   6. The M18 control that reads empty at theta -2π/3 (right hand) and +2π/3 (left hand) at every clearance in `2026-10-08-a-pair` (0 solids, no boolean error or warning) is diagnosed in one bounded task whose method is committed before it runs; the finding is recorded in a decision entry and changes no verdict rule. Until a later campaign proves M18, the M18 nut ships (criterion 1), `screw pair` reads `inconclusive` for it, and the info panel's pair section labels M18 "kernel pair proof inconclusive at K = 3 (`2026-10-08-a-pair`)" from the cited record, not from a kernel call (criterion 4).
 
-**Plans**: 4/18 plans executed (sequential waves 1-18; the pre-registration lands as its own PR first)
+**Plans**: 5/18 plans executed (sequential waves 1-18; the pre-registration lands as its own PR first)
 
 Plans:
 **Wave 1**
@@ -254,7 +254,7 @@ Plans:
 - [x] 05-04-PLAN.md — Tracer: the nut kind with a required clearance on every front end, hex prism less the L11 void, two gates (D-01, D-15)
 
 **Wave 5** *(blocked on Wave 4 completion)*
-- [ ] 05-05-PLAN.md — Nut rules: root radius with clearance, nut_too_thin, turn cap on m + 2P, the non-positive clearance warning, the nut fine-STL rule (D-04, D-13)
+- [x] 05-05-PLAN.md — Nut rules: root radius with clearance, nut_too_thin, turn cap on m + 2P, the non-positive clearance warning, the nut fine-STL rule (D-04, D-13)
 
 **Wave 6** *(blocked on Wave 5 completion)*
 - [ ] 05-06-PLAN.md — ISO 4032:2023 rows double-entered, relation tests, the frozen nut defaults pinned to the M6 row
@@ -338,6 +338,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 2 
 | 2. Thread Spike | 8/8 | Complete    | 2026-10-09 |
 | 3. Real Helical Thread | 7/7 | Complete    | 2026-10-11 |
 | 4. ISO Hex Bolts and Screws | 17/17 | Complete    | 2026-10-12 |
-| 5. Hex Nut and Kernel Pair Proof | 4/18 | In Progress | - |
+| 5. Hex Nut and Kernel Pair Proof | 5/18 | In Progress | - |
 | 6. Printed Pair Acceptance | 0/TBD | Not started | - |
 | 7. Operability Re-sweep | 0/TBD | Not started | - |
