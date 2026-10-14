@@ -238,11 +238,11 @@ Plans:
   5. STL and STEP downloads come from the same modelled-thread solid; the STL chord deviation is explicit, measured against the clearances the printed test will use, and recorded and cited in a decision entry, with `ControlSurfaceDeflection` on for downloads; the preview may mesh coarser, the numbers may not.
   6. The M18 control that reads empty at theta -2π/3 (right hand) and +2π/3 (left hand) at every clearance in `2026-10-08-a-pair` (0 solids, no boolean error or warning) is diagnosed in one bounded task whose method is committed before it runs; the finding is recorded in a decision entry and changes no verdict rule. Until a later campaign proves M18, the M18 nut ships (criterion 1), `screw pair` reads `inconclusive` for it, and the info panel's pair section labels M18 "kernel pair proof inconclusive at K = 3 (`2026-10-08-a-pair`)" from the cited record, not from a kernel call (criterion 4).
 
-**Plans**: 18 plans (sequential waves 1-18; the pre-registration lands as its own PR first)
+**Plans**: 1/18 plans executed (sequential waves 1-18; the pre-registration lands as its own PR first)
 
 Plans:
 **Wave 1**
-- [ ] 05-01-PLAN.md — Pre-registration PR: expected pair verdicts derived from `2026-10-08-a-pair` by the unmodified rule, and the M18 diagnosis protocol with its probe (D-07, D-08)
+- [x] 05-01-PLAN.md — Pre-registration PR: expected pair verdicts derived from `2026-10-08-a-pair` by the unmodified rule, and the M18 diagnosis protocol with its probe (D-07, D-08)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 05-02-PLAN.md — D-10 end-cut probe, then the owner read of ISO 4032, 724, 965-2, 4753 and the phase rulings, recorded in 05-OWNER-READS.md (D-14)
@@ -338,6 +338,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 2 
 | 2. Thread Spike | 8/8 | Complete    | 2026-10-09 |
 | 3. Real Helical Thread | 7/7 | Complete    | 2026-10-11 |
 | 4. ISO Hex Bolts and Screws | 17/17 | Complete    | 2026-10-12 |
-| 5. Hex Nut and Kernel Pair Proof | 0/TBD | Not started | - |
+| 5. Hex Nut and Kernel Pair Proof | 1/18 | In Progress | - |
 | 6. Printed Pair Acceptance | 0/TBD | Not started | - |
 | 7. Operability Re-sweep | 0/TBD | Not started | - |

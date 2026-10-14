@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Hex Nut and Kernel Pair Proof
 status: executing
-stopped_at: Phase 5 context gathered
-last_updated: "2026-10-14T11:35:36.627Z"
+stopped_at: Completed 05-01-PLAN.md
+last_updated: "2026-10-14T11:54:45.782Z"
 last_activity: 2026-10-14
 last_activity_desc: Phase 05 execution started
-state_head: 73cda423aa3301dbc905e6216e147a8002b00de0
+state_head: ba108304259b7449cf431888fbdbcee17150c4df
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 60
-  completed_plans: 42
+  completed_plans: 43
   percent: 57
 ---
 
@@ -28,8 +28,8 @@ See: .planning/PROJECT.md (updated 2026-10-12)
 ## Current Position
 
 Phase: 05 (Hex Nut and Kernel Pair Proof) — EXECUTING
-Plan: 1 of 18
-Status: Executing Phase 05
+Plan: 2 of 18
+Status: Ready to execute
 Last activity: 2026-10-14 — Phase 05 execution started
 
 Progress: [██████░░░░] 57%
@@ -101,6 +101,7 @@ Progress: [██████░░░░] 57%
 | Phase 04 P15 | 8 min | 2 tasks | 5 files |
 | Phase 04 P16 | 13 min | 2 tasks | 7 files |
 | Phase 04 P17 | 6 min | 2 tasks | 3 files |
+| Phase 05 P01 | 15 min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -182,6 +183,8 @@ Recent decisions affecting current work:
 - [Phase 04]: 04-15: fine-STL warning is appended from the refused downloads (distinct, entry order) at its old place; the info document's downloads member is built by calling download_refusal, the call the route and screw export make (G-04-3, L02)
 - [Phase 04]: 04-16: the downgraded Download STL (preview) link carries the refusal sentence as its title; the STEP link carries quality=fine explicitly (same bytes and cache key); the saved preview STL keeps the fine STL's file name, filed as an idea for the owner
 - [Phase 04]: 04-17: info row wraps; label basis is the proportion 50% (no new length, UI-SPEC extension rule 4); overflow-wrap anywhere on dd is only the last resort inside the wrapping row; pinned by a style.css source test with teeth (G-04-5)
+- [Phase 05]: 05-01: PR A is number 17 (gsd/phase-05-preregistration, cut from origin/main 0ef52e8); plan 05-03 has the other CLI review it and lands it before any Phase 5 pair run or M18 probe reading
+- [Phase 05]: 05-01: the expected pair table is derived (240 K = 3 cells: 88 proven, 92 inconclusive, 60 violated) and re-derived by a make verify test; the M18 probe deadline is 130 s = 4 x 30.964 s rounded up to 10 s, IN-02's 600 s not reused
 
 ### Pending Todos
 
@@ -227,6 +230,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-14T09:36:13.601Z
-Stopped at: Phase 5 context gathered
-Resume file: .planning/phases/05-hex-nut-and-kernel-pair-proof/05-CONTEXT.md
+Last session: 2026-10-14T11:54:45.725Z
+Stopped at: Completed 05-01-PLAN.md
+Resume file: None
