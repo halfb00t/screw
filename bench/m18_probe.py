@@ -20,6 +20,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
+from importlib.metadata import version
 from pathlib import Path
 
 from bench import machine_facts, quiet
@@ -223,6 +224,13 @@ def harness_void(rows: list[dict[str, object]]) -> str | None:
     return None
 
 
+def kernel_versions() -> dict[str, str]:
+    """The installed kernel pair, read from package metadata so the parent never imports it.
+    The protocol names cadquery 2.8.0 with cadquery-ocp 7.9.3.1.1; a different pair is a
+    different measurement and the header is where that shows."""
+    return {name: version(name) for name in ("cadquery", "cadquery-ocp")}
+
+
 def _table(rows: list[dict[str, object]]) -> str:
     head = ("probe", "hand", "clearance", "theta", "fuzzy", "swapped", "outcome", "solids",
             "volume", "closed_control", "seconds")
@@ -266,6 +274,7 @@ def main() -> int:
             "host": machine_facts(),
             "load_before": asdict(before),
             "load_after_includes_the_runs_own_load": asdict(after),
+            "kernel": kernel_versions(),
             "void": void,
         }
         claim.write(json.dumps(header) + "\n")

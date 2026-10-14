@@ -12,6 +12,7 @@ import os
 import subprocess
 import sys
 from dataclasses import asdict, replace
+from importlib.metadata import version
 from pathlib import Path
 
 import pytest
@@ -286,3 +287,16 @@ def test_a_void_m18_probe_says_so_in_the_header_the_table_and_the_exit_code(
     assert m18_probe.main() == 0
     assert json.loads(out.read_text(encoding="utf-8").splitlines()[0])["void"] is None
     assert "VOID" not in capsys.readouterr().out
+
+
+def test_the_m18_header_records_the_installed_kernel_pair(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    out = _fake_run(tmp_path, monkeypatch)
+    monkeypatch.setattr(m18_probe, "_child", _probe_row)
+    assert m18_probe.main() == 0
+    header = json.loads(out.read_text(encoding="utf-8").splitlines()[0])
+    assert header["kernel"] == {"cadquery": version("cadquery"),
+                                "cadquery-ocp": version("cadquery-ocp")}
+    pins = Path(m18_probe.ROOT / "requirements.txt").read_text(encoding="utf-8")
+    for name, installed in header["kernel"].items():
+        assert f"{name}=={installed}" in pins  # the protocol's pair is requirements.txt's (L06)
