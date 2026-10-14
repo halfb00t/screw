@@ -228,6 +228,7 @@ source_modules = [
     "bench.thread_spike.runner",
     "bench.thread_spike.__main__",
     "bench.quiet",
+    "bench.pair_expected",
 ]
 forbidden_modules = ["cadquery", "OCP"]
 
