@@ -36,3 +36,6 @@ web/node_modules/
 # session scratch directory, /.standards/ is a local directory name the owner may use in the tree
 *.pdf
 /.standards/
+
+# macOS Finder metadata
+.DS_Store
