@@ -218,25 +218,31 @@ def main() -> int:
         print(f"refusing to run: {PROTOCOL_PATH} is not on origin/main byte for byte; the "
               "protocol PR must land first (D-08)", file=sys.stderr)
         return 2
-    if OUT.exists():
-        print(f"refusing to run: {OUT} exists and no reading is retried", file=sys.stderr)
-        return 2
-    before = quiet.read_now()
-    with ThreadPoolExecutor(max_workers=MAX_CHILDREN) as pool:
-        rows = list(pool.map(_child, READINGS))
-    after = quiet.read_now()
-    header = {
-        "run_id": f"{datetime.now(UTC):%Y-%m-%d}-m18-diagnosis",
-        "head": _rev("HEAD"),
-        "protocol_blob": _rev(f"origin/main:{PROTOCOL_PATH}"),
-        "host": machine_facts(),
-        "load_before": asdict(before),
-        "load_after_includes_the_runs_own_load": asdict(after),
-    }
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    with OUT.open("x", encoding="utf-8") as out:
-        out.write(json.dumps(header) + "\n")
-        out.writelines(json.dumps(row) + "\n" for row in rows)
+    try:
+        # Claimed before any reading, so a second launch is refused instead of running all 36
+        # and losing them, and an interrupted run leaves an empty file that blocks a repeat:
+        # no reading is retried.
+        claim = OUT.open("x", encoding="utf-8")
+    except FileExistsError:
+        print(f"refusing to run: {OUT} exists (an empty one is an interrupted run) and no "
+              "reading is retried", file=sys.stderr)
+        return 2
+    with claim:
+        before = quiet.read_now()
+        with ThreadPoolExecutor(max_workers=MAX_CHILDREN) as pool:
+            rows = list(pool.map(_child, READINGS))
+        after = quiet.read_now()
+        header = {
+            "run_id": f"{datetime.now(UTC):%Y-%m-%d}-m18-diagnosis",
+            "head": _rev("HEAD"),
+            "protocol_blob": _rev(f"origin/main:{PROTOCOL_PATH}"),
+            "host": machine_facts(),
+            "load_before": asdict(before),
+            "load_after_includes_the_runs_own_load": asdict(after),
+        }
+        claim.write(json.dumps(header) + "\n")
+        claim.writelines(json.dumps(row) + "\n" for row in rows)
     print(_table(rows))
     return 0
 

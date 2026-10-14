@@ -202,3 +202,51 @@ def test_the_m18_one_entry_refuses_before_it_loads_the_kernel() -> None:
     result = json.loads(done.stdout.strip().splitlines()[-1])
     assert result["outcome"] == "failure"
     assert "registered" in result["error"]
+
+
+def _probe_row(r: m18_probe.Reading, volume: float | None = None) -> dict[str, object]:
+    """What a child prints for `r`, kernel-free: the harness controls read their closed form."""
+    closed = m18_probe._closed_form(r)
+    harness = r.probe == "H"
+    return {**asdict(r), "closed_control": closed, "outcome": "built",
+            "solids": 1 if harness else 0,
+            "volume": (closed if volume is None else volume) if harness else 0.0}
+
+
+def _fake_run(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    out = tmp_path / "phase-05" / "m18-diagnosis.jsonl"
+    monkeypatch.setattr(m18_probe, "OUT", out)
+    monkeypatch.setattr(m18_probe, "_git", lambda *_a, **_k: m18_probe.PROTOCOL.read_bytes())
+    return out
+
+
+def test_the_m18_run_claims_its_output_before_the_first_reading(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    out = _fake_run(tmp_path, monkeypatch)
+    started: list[m18_probe.Reading] = []
+
+    def child(r: m18_probe.Reading) -> dict[str, object]:
+        started.append(r)
+        assert out.exists()  # claimed already, so a second launch cannot also run
+        assert m18_probe.main() == 2  # the second launch is refused
+        return _probe_row(r)
+
+    monkeypatch.setattr(m18_probe, "_child", child)
+    assert m18_probe.main() == 0
+    assert len(started) == 36  # the refused launches started nothing
+    assert len(out.read_text(encoding="utf-8").splitlines()) == 37
+    assert m18_probe.main() == 2
+
+
+def test_an_interrupted_m18_run_leaves_a_claim_that_blocks_a_repeat(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    out = _fake_run(tmp_path, monkeypatch)
+
+    def child(_r: m18_probe.Reading) -> dict[str, object]:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(m18_probe, "_child", child)
+    with pytest.raises(KeyboardInterrupt):
+        m18_probe.main()
+    assert out.exists()
+    assert m18_probe.main() == 2
