@@ -6,6 +6,7 @@ status: planning
 stopped_at: Phase 04 verification regenerated (passed, 12/12; was stale after 7634830 touched decision_log.md); ready to plan Phase 5
 last_updated: "2026-10-14T07:58:42.097Z"
 last_activity: 2026-10-14
+last_activity_desc: Phase 04 verification regenerated (passed, 12/12, was stale: docs/architecture/decision_log.md changed in 7634830 after the verifier ran); gates re-run on an unchanged tree, make verify 2637 passed; shipped as PR #16
 state_head: 304204ed9892f2ae6e99d15e2fc308b5a8527d7d
 progress:
   total_phases: 7
