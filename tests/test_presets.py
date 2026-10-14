@@ -57,13 +57,17 @@ def test_every_catalogue_row_round_trips(row: PresetEntry) -> None:
 
 def test_every_kind_expands_and_an_unknown_id_is_none() -> None:
     for kind in KINDS:
-        assert expand(kind, ROWS[0].id) == ROWS[0].fields
         assert expand(kind, "nope") is None
+    assert expand("bolt", ROWS[0].id) == ROWS[0].fields
     assert expand("bolt", "iso4017:m6x20") is None, "ids are case-sensitive"
-    with pytest.raises(TypeError, match="nut"):
-        expand("nut", ROWS[0].id)
-    with pytest.raises(TypeError, match="nut"):
-        catalogue_document("nut")
+    # No ISO 4032 row has shipped, so no id expands for the nut, not even a bolt's (plan 05-07
+    # fills the table and replaces this with the non-empty rule for every kind).
+    assert expand("nut", "iso4017:M6x20") is None
+    assert catalogue_document("nut").rows == []
+    with pytest.raises(TypeError, match="washer"):
+        expand("washer", ROWS[0].id)
+    with pytest.raises(TypeError, match="washer"):
+        catalogue_document("washer")
 
 
 def test_the_preset_m6_x_20_is_the_part_the_empty_command_builds(

@@ -98,6 +98,18 @@ def hex_prism_volume(s: float, k: float) -> float:
     return math.sqrt(3) / 2 * s * s * k
 
 
+def nut_closed_volume(d: float, pitch: float, s: float, m: float, clearance: float) -> float:
+    """Volume of the whole nut: the hex prism of across-flats `s` and height `m` less the thread
+    void, which fills the section of the radial `clearance` over the whole height.
+
+    Both hands agree to the digit (RESEARCH F3): the transverse section of a helical thread is
+    the same outline for either hand, so the void is `section_area * m` whatever the hand is.
+    The void overshoots both faces in the builder, but only the part inside the prism is
+    removed, so the overshoot does not enter the closed form.
+    """
+    return hex_prism_volume(s, m) - section_area(d, pitch, clearance) * m
+
+
 def built_thread_length(thread_length: float, length: float) -> float:
     """The thread the builder makes, in mm from the tip: `thread_length` capped at `length`.
 

@@ -12,7 +12,7 @@ from functools import lru_cache
 from pydantic import BaseModel, ConfigDict, Field
 
 from screw.calc import HEAD, SHANK, InfoRow
-from screw.params import KINDS, BoltParams
+from screw.params import KINDS, BoltParams, NutParams
 from screw.tables.presets import PresetRow, catalogue
 from screw.tables.presets import expand as expand_row
 from screw.tables.rows import Source
@@ -130,14 +130,22 @@ class PresetCatalogue(BaseModel):
     rows: list[PresetEntry] = Field(description="every row, in catalogue order")
 
 
+# The nut's picker labels: no length axis, a nut has no length (D-10).
+NUT_AXES = ["Standard", "Size"]
+
+
 @lru_cache
 def catalogue_document(kind: str) -> PresetCatalogue:
     """The catalogue document of `kind`; TypeError for a kind without one, like `derive`.
 
     Built from in-memory rows and cached per kind, so the route costs nothing per request
-    and starts no kernel (T-04-20). The frozen result is safe to share between callers.
+    and starts no kernel (T-04-20). The frozen result is safe to share between callers. The nut's
+    document has no rows yet: no ISO 4032 row has shipped (plan 05-07 fills it).
     """
-    if KINDS.get(kind) is not BoltParams:
+    model = KINDS.get(kind)
+    if model is NutParams:
+        return PresetCatalogue(kind=kind, axes=NUT_AXES, rows=[])
+    if model is not BoltParams:
         raise TypeError(f"no preset catalogue for kind {kind!r}")
     return PresetCatalogue(kind=kind, axes=AXES, rows=[
         PresetEntry(id=row.id, display=row.display, designation=row.designation,
@@ -146,7 +154,13 @@ def catalogue_document(kind: str) -> PresetCatalogue:
 
 
 def expand(kind: str, preset_id: str) -> dict[str, float] | None:
-    """The millimetre fields of one row of `kind`'s catalogue, or None for an unknown id."""
-    if KINDS.get(kind) is not BoltParams:
+    """The millimetre fields of one row of `kind`'s catalogue, or None for an unknown id.
+
+    The nut has no row yet, so every id is unknown for it (plan 05-07 fills the table).
+    """
+    model = KINDS.get(kind)
+    if model is NutParams:
+        return None
+    if model is not BoltParams:
         raise TypeError(f"no preset catalogue for kind {kind!r}")
     return expand_row(preset_id)

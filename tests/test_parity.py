@@ -15,12 +15,15 @@ from __future__ import annotations
 import argparse
 import json
 import re
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import cast
 
 import pytest
+from conftest import REQUIRED_VALUES
 from fastapi.testclient import TestClient
+from pydantic import Field
+from pydantic_core import PydanticUndefined
 
 from screw import cli
 from screw.app import STATIC, app, build_backend
@@ -177,6 +180,29 @@ def _info_row_problems(css: str) -> list[str]:
     return problems
 
 
+@pytest.mark.parametrize("kind", list(KINDS))
+def test_the_required_fields_are_exactly_the_ones_the_samples_name(kind: str) -> None:
+    # A positive rule (P6): a field is required only when `REQUIRED_VALUES` names it, and every
+    # other field carries a default, so a planted required field fails here instead of silently
+    # breaking every `model()` call and "default document" assumption in the suite.
+    fields = KINDS[kind].model_fields
+    required = {name for name, field in fields.items() if field.is_required()}
+    assert required == set(REQUIRED_VALUES.get(kind, {}))
+    assert all(field.default is not PydanticUndefined
+               for name, field in fields.items() if name not in required)
+
+
+def test_a_planted_required_field_fails_the_required_field_rule() -> None:
+    # The teeth of the rule above: a model with one more required field than the samples name.
+    class Planted(FastenerParams):
+        kind = "planted"
+        extra_required: float = Field(...)
+
+    required = {name for name, field in Planted.model_fields.items() if field.is_required()}
+    assert required == {"extra_required"}
+    assert required != set(REQUIRED_VALUES.get("planted", {}))
+
+
 def test_the_registry_is_not_empty_and_holds_the_default() -> None:
     # First, so an empty registry fails here instead of passing every parametrised test
     # below with nothing to iterate (Pitfall 2).
@@ -213,7 +239,9 @@ def test_the_api_query_is_the_model(kind: str) -> None:
 
 @pytest.mark.parametrize("kind", list(KINDS))
 def test_a_foreign_field_is_refused_on_every_route(kind: str) -> None:
-    query: Params = {FOREIGN: 1}
+    # The required values ride along: a request missing one reports that first, and this test is
+    # about the foreign key being named.
+    query: Params = {FOREIGN: 1, **REQUIRED_VALUES.get(kind, {})}
     for path in (f"/api/{kind}/info", f"/api/{kind}/model.stl"):
         res = client.get(path, params=query)
         assert res.status_code == 422, path
@@ -256,7 +284,12 @@ def test_the_cli_and_the_api_print_the_same_preset_catalogue(
     assert json.loads(printed) == json.loads(api.content)
     assert list(json.loads(printed)) == list(json.loads(api.content))
     assert json.loads(printed)["kind"] == kind
-    assert json.loads(printed)["rows"], kind
+    if kind == "nut":
+        # No ISO 4032 row has shipped; plan 05-07 replaces this with the non-empty rule for
+        # every kind.
+        assert json.loads(printed) == {"kind": "nut", "axes": ["Standard", "Size"], "rows": []}
+    else:
+        assert json.loads(printed)["rows"], kind
 
 
 @pytest.mark.parametrize("kind", list(KINDS))
@@ -281,12 +314,19 @@ def test_a_foreign_or_abbreviated_flag_exits_2(kind: str,
 def test_the_cli_and_the_api_print_the_same_document(
         kind: str, capsys: pytest.CaptureFixture[str]) -> None:
     model = KINDS[kind]
-    cases: list[Params] = [{}]
+    # A required field has no default to move off, so its value comes from the samples and every
+    # case carries it: a request without it is refused, not an info document.
+    required: Params = {**REQUIRED_VALUES.get(kind, {})}
+    cases: list[Params] = [{**required}]
     for name, field in model.model_fields.items():
+        if name in required:
+            continue
         if isinstance(field.default, bool):
-            cases.append({name: not field.default})
+            cases.append({**required, name: not field.default})
         elif isinstance(field.default, float):
-            cases.append({name: field.default * 1.5})
+            cases.append({**required, name: field.default * 1.5})
+    for name, value in REQUIRED_VALUES.get(kind, {}).items():
+        cases.append({**required, name: value * 1.5})
     assert len(cases) > 1, "no float field to move off its default"
 
     def argv(values: Params) -> list[str]:
@@ -343,15 +383,18 @@ def test_the_downloads_of_iso_4017_m8_x_70_are_one_sentence_on_the_cli_the_api_a
 def test_the_no_flag_is_a_value_and_agrees_with_the_omitted_default(
         kind: str, capsys: pytest.CaptureFixture[str]) -> None:
     # `--no-x` is a real value (False), not "not given", and agrees with the omitted default.
-    cli.main(["info", kind])
+    required = [word for name, value in REQUIRED_VALUES.get(kind, {}).items()
+                for word in (_flag(name), repr(value))]
+    cli.main(["info", kind, *required])
     default_doc = capsys.readouterr().out
-    cli.main(["info", kind, "--no-left-hand"])
+    cli.main(["info", kind, *required, "--no-left-hand"])
     assert capsys.readouterr().out == default_doc
 
 
 @pytest.mark.parametrize("kind", list(KINDS))
-def test_every_row_key_is_unread_by_name_in_the_ui(kind: str) -> None:
-    keys = [row.key for row in derive(KINDS[kind]()).rows]
+def test_every_row_key_is_unread_by_name_in_the_ui(
+        kind: str, part_of: Callable[[str], FastenerParams]) -> None:
+    keys = [row.key for row in derive(part_of(kind)).rows]
     assert keys, "derive() produced no rows to check"
     assert _field_literals(APP_JS, keys) == []
 
@@ -422,13 +465,15 @@ def test_the_ui_round_trips_every_field_through_generic_code() -> None:
 
 
 @pytest.mark.parametrize("kind", list(KINDS))
-def test_the_form_has_a_size_fieldset_then_a_thread_one_then_a_head_one(kind: str) -> None:
+def test_the_form_has_a_fieldset_per_group_in_first_seen_order(kind: str) -> None:
     # Rule 1: one fieldset per group in first-seen order, so `left_hand` (declared between
-    # pitch and length) opens a `Thread` fieldset after `Size` and `length` stays in `Size`; `s`
-    # and `k` open a `Head` fieldset last (04-03).
+    # pitch and length) opens a `Thread` fieldset after `Size` and `length` stays in `Size`; the
+    # bolt's `s` and `k` open a `Head` fieldset last (04-03); the nut's `s` and `m` open `Nut`
+    # and its `clearance` opens `Pair` (05-04).
     properties = client.get("/api/schema", params={"kind": kind}).json()["properties"]
     groups = list(dict.fromkeys(prop["group"] for prop in properties.values()))
-    assert groups == ["Size", "Thread", "Head"]
+    assert groups == {"bolt": ["Size", "Thread", "Head"],
+                      "nut": ["Size", "Thread", "Nut", "Pair"]}[kind]
     assert properties["left_hand"]["type"] == "boolean"
     assert properties["left_hand"]["default"] is False
 

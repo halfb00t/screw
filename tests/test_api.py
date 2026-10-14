@@ -122,10 +122,34 @@ def test_index_and_static() -> None:
 
 
 def test_kinds_names_the_frozen_default() -> None:
-    assert client.get("/api/kinds").json() == {"default": "bolt", "kinds": ["bolt"]}
+    assert client.get("/api/kinds").json() == {"default": "bolt", "kinds": ["bolt", "nut"]}
     # The literal, not DEFAULT_KIND: a link that omits `kind` means bolt forever (L02).
     assert DEFAULT_KIND == "bolt"
-    assert list(KINDS) == ["bolt"]
+    assert list(KINDS) == ["bolt", "nut"]
+
+
+def test_a_nut_with_a_clearance_serves_its_info_and_both_downloads() -> None:
+    # TYPE-03: the second kind through every route; the clearance is a test input, not a default.
+    info = client.get("/api/nut/info", params={"clearance": 0.1})
+    assert info.status_code == 200
+    assert info.json()["kind"] == "nut"
+    stl = client.get("/api/nut/model.stl", params={"clearance": 0.1, "quality": "preview"})
+    assert stl.status_code == 200
+    assert len(stl.content) > 1000
+    step = client.get("/api/nut/model.step", params={"clearance": 0.1})
+    assert step.status_code == 200
+    assert step.content.startswith(b"ISO-10303-21;")
+    assert 'filename="nut_' in step.headers["content-disposition"]
+
+
+def test_the_nut_schema_has_the_required_clearance_and_no_default_for_it() -> None:
+    schema = client.get("/api/schema", params={"kind": "nut"}).json()
+    assert list(schema["properties"]) == ["d", "pitch", "left_hand", "s", "m", "clearance"]
+    assert schema["required"] == ["clearance"]
+    assert "default" not in schema["properties"]["clearance"]
+    assert schema["properties"]["clearance"]["title"] == "Clearance (radial)"
+    assert schema["properties"]["clearance"]["group"] == "Pair"
+    assert schema["properties"]["s"]["group"] == schema["properties"]["m"]["group"] == "Nut"
 
 
 def test_schema_requires_a_kind_and_knows_only_registered_kinds() -> None:
@@ -144,7 +168,7 @@ def test_schema_requires_a_kind_and_knows_only_registered_kinds() -> None:
     assert missing.status_code == 422
     assert missing.json()["detail"][0]["loc"] == ["query", "kind"]
 
-    unknown = client.get("/api/schema", params={"kind": "nut"})
+    unknown = client.get("/api/schema", params={"kind": "washer"})
     assert unknown.status_code == 404
     detail = unknown.json()["detail"][0]
     assert detail["loc"] == ["query", "kind"]
@@ -181,12 +205,12 @@ def test_a_second_choice_size_is_bracketed_in_the_catalogue_and_a_decimal_point_
 
 
 def test_the_preset_catalogue_of_an_unknown_kind_is_a_404_naming_the_known_kinds() -> None:
-    res = client.get("/api/presets", params={"kind": "nut"})
+    res = client.get("/api/presets", params={"kind": "washer"})
     assert res.status_code == 404
     [detail] = res.json()["detail"]
     assert detail["loc"] == ["query", "kind"]
     assert detail["type"] == "unknown_kind"
-    assert "Known kinds: bolt" in detail["msg"]
+    assert "Known kinds: bolt, nut" in detail["msg"]
 
 
 def test_the_preset_catalogue_needs_one_kind() -> None:
@@ -213,8 +237,8 @@ def test_the_empty_query_is_the_iso_4017_m6_x_20_exact_match() -> None:
 
 
 def test_an_unknown_kind_has_no_routes() -> None:
-    assert client.get("/api/nut/info").status_code == 404
-    assert client.get("/api/nut/model.stl").status_code == 404
+    assert client.get("/api/washer/info").status_code == 404
+    assert client.get("/api/washer/model.stl").status_code == 404
 
 
 def test_openapi_documents_the_typed_contracts() -> None:
@@ -881,7 +905,8 @@ def test_two_requests_for_one_part_get_two_different_request_ids(
 
 
 @pytest.mark.parametrize(("exc", "want_level", "want_exception", "want_status", "want_type"), [
-    (BuildError("Geometry kernel failed (Standard_Failure); check d, pitch, length, s and k."),
+    (BuildError("Geometry kernel failed (Standard_Failure); "
+                "check d, pitch, left_hand, length, s, k and thread_length."),
      logging.WARNING, "BuildError", 422, "build_error"),
     (BuildTimeout("Build exceeded the 30s per-build timeout."),
      logging.ERROR, "BuildTimeout", 503, "timeout"),

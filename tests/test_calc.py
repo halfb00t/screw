@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Callable
 
 import pytest
 
+from screw import calc
 from screw.calc import (
+    NUT_NO_ROW_WARNING,
     STANDING_WARNING,
     Download,
     PartInfo,
@@ -16,8 +19,14 @@ from screw.calc import (
     explicit_conflict,
 )
 from screw.calc.presets import WITHDRAWN_DIN_WRENCH_MM, designation_for, match
-from screw.calc.thread import bolt_closed_volume, fine_stl_refusal, thread_length_conflict
-from screw.params import KINDS, BoltParams, FastenerParams
+from screw.calc.thread import (
+    bolt_closed_volume,
+    fine_stl_refusal,
+    nut_closed_volume,
+    section_radius,
+    thread_length_conflict,
+)
+from screw.params import KINDS, BoltParams, FastenerParams, NutParams
 from screw.tables.presets import catalogue
 
 WARNING = "plain-cut thread ends, no tip chamfer or under-head fillet; not a product build"
@@ -186,10 +195,39 @@ def test_a_kind_without_an_info_entry_is_a_bug_not_a_user_error() -> None:
         derive(Orphan())
 
 
-def test_every_registered_kind_derives_a_document() -> None:
+def test_every_registered_kind_derives_a_document(part_of: Callable[[str], FastenerParams]) -> None:
     assert len(KINDS) >= 1
-    for model in KINDS.values():
-        assert derive(model()).kind == model.kind
+    for kind, model in KINDS.items():
+        assert derive(part_of(kind)).kind == model.kind
+
+
+def test_a_nut_document_has_its_rows_in_groups_the_closed_form_volume_and_no_row() -> None:
+    p = NutParams(clearance=0.1)
+    info = derive(p)
+    assert info.kind == "nut"
+    assert [(r.key, r.group) for r in info.rows] == [
+        ("d", "Thread"), ("pitch", "Thread"), ("s", "Nut"), ("across_corners", "Nut"),
+        ("m", "Nut"), ("clearance", "Pair"), ("volume", "Part")]
+    values = {r.key: r.value for r in info.rows}
+    assert (values["d"], values["pitch"], values["s"], values["m"], values["clearance"]) == (
+        6.0, 1.0, 10.0, 5.2, 0.1)
+    assert values["across_corners"] == pytest.approx(10.0 / math.cos(math.pi / 6))
+    assert values["volume"] == nut_closed_volume(6.0, 1.0, 10.0, 5.2, 0.1)
+    assert info.warnings == [STANDING_WARNING, NUT_NO_ROW_WARNING]
+    assert info.preset == PresetMatch(status="custom", id=None, display=None)
+    assert (info.designation, info.notes) == (None, [])
+
+
+def test_the_nut_closed_form_is_the_prism_less_the_section_times_the_height() -> None:
+    # The hexagon written out, and the section by a midpoint sum of r^2 / 2 over the angle of
+    # `section_radius`: a different path from `section_area`'s closed form.
+    steps = 20000
+    section = sum(section_radius(6.0, 1.0, 0.1, (i + 0.5) * 2 * math.pi / steps) ** 2 / 2
+                  for i in range(steps)) * 2 * math.pi / steps
+    expected = math.sqrt(3) / 2 * 10.0**2 * 5.2 - section * 5.2
+    assert nut_closed_volume(6.0, 1.0, 10.0, 5.2, 0.1) == pytest.approx(expected, rel=1e-5)
+    # A larger clearance removes more: the nut gets lighter.
+    assert nut_closed_volume(6.0, 1.0, 10.0, 5.2, 0.2) < nut_closed_volume(6.0, 1.0, 10.0, 5.2, 0.1)
 
 
 def test_only_the_fine_stl_of_a_capped_part_is_refused() -> None:
@@ -212,9 +250,10 @@ def test_a_kind_without_a_download_rule_is_a_bug_not_a_user_error() -> None:
         download_refusal(Orphan(), "step", "preview")
 
 
-def test_every_registered_kind_has_a_download_rule() -> None:
-    for model in KINDS.values():
-        assert download_refusal(model(), "stl", "fine") is None
+def test_every_registered_kind_has_a_download_rule(
+        part_of: Callable[[str], FastenerParams]) -> None:
+    for kind in KINDS:
+        assert download_refusal(part_of(kind), "stl", "fine") is None
 
 
 def test_a_capped_part_warns_about_its_fine_stl_after_the_standing_warning() -> None:
@@ -297,11 +336,12 @@ def test_a_left_hand_part_refuses_no_download_and_the_right_hand_one_only_its_fi
     assert [e.refusal for e in derive(right).downloads] == [sentence, None, None, None]
 
 
-def test_every_registered_kinds_document_agrees_with_its_download_rule() -> None:
-    for model in KINDS.values():
-        part = model()
+def test_every_registered_kinds_document_agrees_with_its_download_rule(
+        part_of: Callable[[str], FastenerParams]) -> None:
+    for kind in KINDS:
+        part = part_of(kind)
         downloads = derive(part).downloads
-        assert downloads, model.kind
+        assert downloads, kind
         for entry in downloads:
             assert entry.refusal == download_refusal(part, entry.format, entry.quality)
 
@@ -619,7 +659,13 @@ def test_every_registered_kind_states_its_explicit_conflict_rule() -> None:
         assert explicit_conflict(kind, {}) is None
 
 
-def test_an_unregistered_kind_has_no_rule_and_says_so() -> None:
+def test_a_kind_without_an_entry_has_no_rule_and_says_so(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    # `nut` is registered, so the missing entry is made by dropping its own: the lookup raises
+    # instead of falling back to the bolt's rule.
+    monkeypatch.setattr(
+        calc, "_EXPLICIT_CONFLICTS",
+        {k: v for k, v in calc._EXPLICIT_CONFLICTS.items() if k != "nut"})
     with pytest.raises(TypeError, match="no explicit-conflict rule registered for kind 'nut'"):
         explicit_conflict("nut", {"length": 10.0, "thread_length": 30.0})
 

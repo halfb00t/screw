@@ -19,11 +19,12 @@ from screw.calc.thread import (
     bolt_closed_volume,
     built_thread_length,
     fine_stl_refusal,
+    nut_closed_volume,
     thread_depth,
     thread_length_conflict,
     turns_of,
 )
-from screw.params import BoltParams, FastenerParams
+from screw.params import BoltParams, FastenerParams, NutParams
 
 # The values the model route takes for `fmt` and `quality`. app.py keeps its own Literals (it
 # imports no solid names, contract 5); tests/test_api.py pins the two together through OpenAPI.
@@ -41,10 +42,18 @@ STANDING_WARNING = "plain-cut thread ends, no tip chamfer or under-head fillet; 
 SHANK = "Shank and thread"
 HEAD = "Head"
 PART = "Part"
+# The nut's panel headings (D-17): its own thread rows, the nut's body, and what the pair adds.
+THREAD = "Thread"
+NUT = "Nut"
+PAIR = "Pair"
 
 # The one warning for a part that is no catalogue row (INFO-03, D-18, L02).
 NO_ROW_WARNING = ("no ISO 4014:2022 or ISO 4017:2022 row matches these fields; "
                   "row values not reported")
+
+# The one warning for a nut that is no catalogue row (L02): no ISO 4032 row has shipped yet, so
+# every nut reads this until plan 05-07 fills the table.
+NUT_NO_ROW_WARNING = "no ISO 4032:2023 row matches these fields; row values not reported"
 
 
 class InfoRow(BaseModel):
@@ -225,6 +234,42 @@ def _bolt(p: BoltParams) -> PartInfo:
                     preset=preset, notes=row_notes, downloads=downloads)
 
 
+def _nut(p: NutParams) -> PartInfo:
+    # Same contract as `_bolt` (D-15): every number is a reading of the user's own fields or the
+    # closed form, never the kernel's Volume(), and none that is not finite leaves this function.
+    computed: list[tuple[str, str, str, str, str, Callable[[], float]]] = [
+        ("d", THREAD, "Diameter", "mm", "d", lambda: p.d),
+        ("pitch", THREAD, "Pitch", "mm", "pitch", lambda: p.pitch),
+        ("s", NUT, "Across flats", "mm", "s", lambda: p.s),
+        ("across_corners", NUT, "Across corners, geometric (s / cos 30°)", "mm", "s / cos 30°",
+         lambda: p.s / math.cos(math.pi / 6)),
+        ("m", NUT, "Height", "mm", "m", lambda: p.m),
+        ("clearance", PAIR, "Clearance (radial)", "mm", "clearance", lambda: p.clearance),
+        ("volume", PART, "Volume (closed form)", "mm³",
+         "the closed form (sqrt(3) / 2) * s^2 * m - section_area(d, pitch, clearance) * m",
+         lambda: nut_closed_volume(p.d, p.pitch, p.s, p.m, p.clearance)),
+    ]
+    rows: list[InfoRow] = []
+    warnings = [STANDING_WARNING]
+    for key, group, label, unit, formula, compute in computed:
+        try:
+            value = compute()
+        except (OverflowError, ValueError):
+            value = math.nan
+        if math.isfinite(value):
+            rows.append(InfoRow(key=key, label=label, value=value, unit=unit, group=group))
+        else:
+            warnings.append(f"{key} not reported: {formula} is not a finite number "
+                            "for these parameters")
+    warnings.append(NUT_NO_ROW_WARNING)
+    downloads = _downloads(p)
+    for reason in dict.fromkeys(e.refusal for e in downloads if e.refusal is not None):
+        warnings.append(reason)
+    return PartInfo(kind=p.kind, rows=rows, warnings=warnings, designation=None,
+                    preset=PresetMatch(status="custom", id=None, display=None), notes=[],
+                    downloads=downloads)
+
+
 def derive(p: FastenerParams) -> PartInfo:
     """The info document for `p`.
 
@@ -235,6 +280,8 @@ def derive(p: FastenerParams) -> PartInfo:
     """
     if isinstance(p, BoltParams):
         return _bolt(p)
+    if isinstance(p, NutParams):
+        return _nut(p)
     raise TypeError(f"no info document for kind {p.kind!r}")
 
 
@@ -251,6 +298,9 @@ def download_refusal(p: FastenerParams, fmt: str, quality: str) -> str | None:
         if fmt == "stl" and quality == "fine":
             return fine_stl_refusal(
                 p.d, p.pitch, built_thread_length(p.thread_length, p.length), p.left_hand)
+        return None
+    if isinstance(p, NutParams):
+        # No rule yet: the nut's fine-STL cap is plan 05-05's (R12), so every download is served.
         return None
     raise TypeError(f"no download rule for kind {p.kind!r}")
 
@@ -313,4 +363,6 @@ def _bolt_explicit_conflict(values: Mapping[str, object]) -> ExplicitConflict | 
 # rule between its explicit values.
 _EXPLICIT_CONFLICTS: dict[str, Callable[[Mapping[str, object]], ExplicitConflict | None] | None] = {
     BoltParams.kind: _bolt_explicit_conflict,
+    # No two explicit nut fields contradict each other; `nut_too_thin` is a model rule (D-13).
+    NutParams.kind: None,
 }

@@ -180,14 +180,35 @@ def test_the_measured_m4_250_turn_row_is_accepted_on_the_command_line(
 
 
 @pytest.mark.parametrize("argv", [
-    ["info", "nut"],
-    ["export", "nut", "-o", "unused.stl"],
+    ["info", "washer"],
+    ["export", "washer", "-o", "unused.stl"],
 ])
 def test_an_unknown_kind_exits_2(argv: list[str], capsys: pytest.CaptureFixture[str]) -> None:
     assert _exit_code(argv) == 2
     err = capsys.readouterr().err
-    assert "nut" in err
+    assert "washer" in err
     assert "bolt" in err      # the valid choices are named
+    assert "nut" in err
+
+
+@pytest.mark.parametrize("command", [["info", "nut"], ["export", "nut", "-o", "unused.stl"]])
+def test_a_nut_without_a_clearance_exits_2_naming_it(
+        command: list[str], capsys: pytest.CaptureFixture[str]) -> None:
+    # D-01, PAIR-01: no clearance has no default, so it is refused by name, never built.
+    assert _exit_code(command) == 2
+    err = capsys.readouterr().err
+    assert "error: clearance: " in err
+    assert "Traceback" not in err
+
+
+def test_the_required_flag_is_marked_required_in_the_help(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    assert _exit_code(["info", "nut", "--help"]) == 0
+    out = re.sub(r"\s+", " ", capsys.readouterr().out)
+    assert "[required]" in out
+    assert "PydanticUndefined" not in out
+    # A defaulted field of the same kind still shows its default.
+    assert "(ISO 4032 symbol m). [5.2]" in out
 
 
 def test_unknown_output_extension_is_refused(tmp_path: Path) -> None:
@@ -281,7 +302,7 @@ def test_presets_prints_the_catalogue_and_refuses_an_unknown_kind(
     assert "iso4017:M6x20" in ids
     assert "iso4014:M10x80" in ids
     assert len(ids) == len(set(ids))
-    assert _exit_code(["presets", "nut"]) == 2
+    assert _exit_code(["presets", "washer"]) == 2
     assert _exit_code(["presets"]) == 2
 
 

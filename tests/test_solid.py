@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 import re
 import struct
+from collections.abc import Callable
 from pathlib import Path
 
 import cadquery as cq
@@ -280,12 +281,13 @@ def test_a_kind_without_a_builder_is_a_bug_not_a_user_error() -> None:
         build(Orphan())
 
 
-def test_every_registered_kind_builds_and_derives() -> None:
+def test_every_registered_kind_builds_and_derives(
+        part_of: Callable[[str], FastenerParams]) -> None:
     # The closed list: adding a kind to KINDS without a builder or an info document fails
     # here, not in front of a user.
     assert len(KINDS) >= 1
-    for model in KINDS.values():
-        p = model()
+    for kind, model in KINDS.items():
+        p = part_of(kind)
         assert len(build(p).Solids()) == 1
         assert derive(p).kind == model.kind
 

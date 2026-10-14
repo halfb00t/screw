@@ -53,7 +53,8 @@ def _add_args(ap: argparse.ArgumentParser, kind: str, model: type[FastenerParams
     g = ap.add_argument_group(f"{kind} parameters (defaults in brackets)")
     for name, field in model.model_fields.items():
         flag = "--" + name.replace("_", "-")
-        help_text = f"{field.description} [{field.default}]".replace("%", "%%")
+        shown = "required" if field.is_required() else field.default
+        help_text = f"{field.description} [{shown}]".replace("%", "%%")
         # pydantic gives every declared field an annotation; this check exists only to narrow
         # `field.annotation`'s `type | None` to a real type for argparse's `type=`, not because
         # a field can actually lack one. Before the `is bool` test: mypy otherwise narrows the

@@ -38,10 +38,11 @@ from screw.calc.thread import (
     bolt_closed_volume,
     built_thread_length,
     closed_volume,
+    nut_closed_volume,
     volume_check,
 )
-from screw.params import BoltParams, FastenerParams
-from screw.solid import bolt
+from screw.params import BoltParams, FastenerParams, NutParams
+from screw.solid import bolt, nut
 
 Format = Literal["stl", "step"]
 Quality = Literal["preview", "fine"]
@@ -120,8 +121,26 @@ def check_solid(shape: cq.Shape, closed: float, part: str = "solid") -> None:
 
 
 def _build(p: FastenerParams) -> cq.Solid:
-    if not isinstance(p, BoltParams):
-        raise TypeError(f"no solid builder for kind {p.kind!r}")
+    if isinstance(p, BoltParams):
+        return _build_bolt(p)
+    if isinstance(p, NutParams):
+        return _build_nut(p)
+    raise TypeError(f"no solid builder for kind {p.kind!r}")
+
+
+def _build_nut(p: NutParams) -> cq.Solid:
+    # The void is gated against the bare section first, like the bolt's thread: it is the whole
+    # of what the nut subtracts, so an error in it is not diluted by the prism (D-13, RESEARCH F3).
+    # The sign of the nut's volume is kept: an inverted result reads about -1 times the form.
+    thread_void = nut.void(p)
+    check_solid(thread_void, closed_volume(p.d, p.pitch, p.m + 2 * p.pitch, p.clearance),
+                part="void")
+    cut = nut.assemble(p, thread_void)
+    check_solid(cut, nut_closed_volume(p.d, p.pitch, p.s, p.m, p.clearance))
+    return cut.Solids()[0]
+
+
+def _build_bolt(p: BoltParams) -> cq.Solid:
     t = built_thread_length(p.thread_length, p.length)
     bare_thread = bolt.thread(p)
     # Gate the bare thread first (RESEARCH Alert 5): it is 0.19 to 0.57 of the whole volume, so a
@@ -142,8 +161,11 @@ def _build_checked(p: FastenerParams) -> cq.Solid:
         # registry test catches; it must not be reworded as a user-facing kernel failure.
         raise
     except Exception as exc:  # OCCT raises assorted Standard_Failure subclasses
+        # The model's own fields, in declaration order, so a nut's failure never sends the user to a
+        # bolt's `length` and `k`.
+        names = list(type(p).model_fields)
         raise BuildError(f"Geometry kernel failed ({type(exc).__name__}); "
-                         "check d, pitch, length, thread_length, s and k.") from exc
+                         f"check {', '.join(names[:-1])} and {names[-1]}.") from exc
 
 
 # INTERIM (D-01): 4 solids per worker, carried from spur model.py:561 where it sized a

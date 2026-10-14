@@ -68,7 +68,7 @@ async def main() -> None:
         status, _ = await get("/api/bolt/info", b"m=5")
         assert status == 422, f"foreign field -> {status}, expected 422"
 
-        status, _ = await get("/api/schema", b"kind=nut")
+        status, _ = await get("/api/schema", b"kind=washer")
         assert status == 404, f"unknown kind -> {status}, expected 404"
 
     print("smoke: kernel, exports, ASGI stack and validation all live")
