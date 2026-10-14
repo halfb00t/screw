@@ -24,7 +24,12 @@ from pathlib import Path
 
 from bench import machine_facts, quiet
 from bench.thread_spike import maths
-from bench.thread_spike.verdict import closed_control, parse_pair_result_row
+from bench.thread_spike.verdict import (
+    EMPTY_MM3,
+    PAIR_BAND,
+    closed_control,
+    parse_pair_result_row,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 PROTOCOL_PATH = ".planning/phases/05-hex-nut-and-kernel-pair-proof/05-M18-DIAGNOSIS.md"
@@ -198,6 +203,26 @@ def _rev(spec: str) -> str | None:
     return None if out is None else out.decode().strip()
 
 
+def harness_void(rows: list[dict[str, object]]) -> str | None:
+    """Prediction H: the four harness controls must each read non-empty within `PAIR_BAND` of
+    their closed form, else the probe is void on this host. None when it is not void."""
+    controls = [row for row in rows if row["probe"] == "H"]
+    failed = []
+    for row in controls:
+        volume, closed = row.get("volume"), row["closed_control"]
+        ok = (row.get("outcome") == "built" and isinstance(volume, int | float)
+              and isinstance(closed, float) and abs(volume) > EMPTY_MM3
+              and abs(volume / closed - 1.0) <= PAIR_BAND)
+        if not ok:
+            failed.append(f"{'left' if row['left_hand'] else 'right'} hand theta {row['theta']:g}")
+    if len(controls) != 4:
+        return f"{len(controls)} harness controls ran, not 4"
+    if failed:
+        return ("harness controls not non-empty within PAIR_BAND of the closed form: "
+                + "; ".join(failed))
+    return None
+
+
 def _table(rows: list[dict[str, object]]) -> str:
     head = ("probe", "hand", "clearance", "theta", "fuzzy", "swapped", "outcome", "solids",
             "volume", "closed_control", "seconds")
@@ -233,6 +258,7 @@ def main() -> int:
         with ThreadPoolExecutor(max_workers=MAX_CHILDREN) as pool:
             rows = list(pool.map(_child, READINGS))
         after = quiet.read_now()
+        void = harness_void(rows)
         header = {
             "run_id": f"{datetime.now(UTC):%Y-%m-%d}-m18-diagnosis",
             "head": _rev("HEAD"),
@@ -240,11 +266,14 @@ def main() -> int:
             "host": machine_facts(),
             "load_before": asdict(before),
             "load_after_includes_the_runs_own_load": asdict(after),
+            "void": void,
         }
         claim.write(json.dumps(header) + "\n")
         claim.writelines(json.dumps(row) + "\n" for row in rows)
+    if void is not None:
+        print(f"VOID: {void}; the probe says nothing on this host (prediction H)")
     print(_table(rows))
-    return 0
+    return 0 if void is None else 1
 
 
 def _one_line(raw: str) -> str:

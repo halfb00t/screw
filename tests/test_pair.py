@@ -18,7 +18,7 @@ import pytest
 
 from bench import m18_probe, pair_expected
 from bench.thread_spike import maths
-from bench.thread_spike.verdict import closed_control
+from bench.thread_spike.verdict import PAIR_BAND, closed_control
 from screw.solid.helical import DEFAULT_K, SEWING_TOLERANCE
 
 PROOF_CLEARANCES = (0.05, 0.10, 0.15, 0.20)
@@ -250,3 +250,39 @@ def test_an_interrupted_m18_run_leaves_a_claim_that_blocks_a_repeat(
         m18_probe.main()
     assert out.exists()
     assert m18_probe.main() == 2
+
+
+def test_the_m18_probe_is_void_when_a_harness_control_does_not_fire() -> None:
+    harness = [r for r in m18_probe.READINGS if r.probe == "H"]
+    healthy = [_probe_row(r) for r in m18_probe.READINGS]
+    assert m18_probe.harness_void(healthy) is None
+    closed = m18_probe._closed_form(harness[0])
+    inside = [_probe_row(r, closed * (1 + 0.9 * PAIR_BAND)) for r in harness]
+    assert m18_probe.harness_void(inside) is None
+    for bad in (0.0, closed * (1 + 1.1 * PAIR_BAND), closed * 2):
+        rows = [_probe_row(r, bad) if r == harness[1] else _probe_row(r)
+                for r in m18_probe.READINGS]
+        assert "left hand" not in str(m18_probe.harness_void(rows))  # harness[1] is right hand
+        assert "right hand" in str(m18_probe.harness_void(rows))
+    timed_out = [{**_probe_row(r), "outcome": "timeout"} if r == harness[0] else _probe_row(r)
+                 for r in m18_probe.READINGS]
+    assert m18_probe.harness_void(timed_out) is not None
+    assert "not 4" in str(m18_probe.harness_void(healthy[:30]))
+
+
+def test_a_void_m18_probe_says_so_in_the_header_the_table_and_the_exit_code(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    out = _fake_run(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        m18_probe, "_child",
+        lambda r: _probe_row(r, 0.0) if r.probe == "H" else _probe_row(r))
+    assert m18_probe.main() == 1
+    header = json.loads(out.read_text(encoding="utf-8").splitlines()[0])
+    assert "harness controls" in header["void"]
+    assert "VOID" in capsys.readouterr().out
+    out.unlink()
+    monkeypatch.setattr(m18_probe, "_child", _probe_row)
+    assert m18_probe.main() == 0
+    assert json.loads(out.read_text(encoding="utf-8").splitlines()[0])["void"] is None
+    assert "VOID" not in capsys.readouterr().out
