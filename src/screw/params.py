@@ -173,7 +173,9 @@ class NutParams(FastenerParams):
     # 05-OWNER-READS.md: s the `s` max column, which is the nominal width across flats, and m the
     # `m` max column. The source is secondary: Claude read them on 2026-10-14 from a print of the
     # GlobalFastener.com page that transcribes ISO 4032:2023, not from the purchased standard, and
-    # the owner approved that source and typed `permanent: accepted` for these two values. Frozen:
+    # the owner approved that source and typed `permanent: accepted` for these two values. Both were
+    # cross-checked against GOST ISO 4032-2014 Table 1, M6, on 2026-10-20 and are pinned to that
+    # row by `tests/test_params.py` (L14, 05-OWNER-READS.md). Frozen:
     # every shareable link that omits s or m means these values forever.
     s: float = _f(10.0, gt=0, le=INTERIM_MAX_MM, title="Across flats", group="Nut", unit="mm",
                   step=0.1, help="Width across flats of the hexagon nut (ISO 4032 symbol s).")

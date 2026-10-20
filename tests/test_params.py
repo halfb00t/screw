@@ -14,6 +14,7 @@ from pydantic import ValidationError
 from pydantic_core import PydanticUndefined
 
 from screw.params import DEFAULT_KIND, INTERIM_MAX_MM, KINDS, BoltParams, FastenerParams, NutParams
+from screw.tables import iso4032
 from screw.tables.presets import expand
 
 FIELDS = ("d", "pitch", "length", "s", "k", "thread_length")
@@ -47,6 +48,22 @@ def test_the_nut_defaults_are_the_iso_4032_m6_values_the_owner_accepted() -> Non
     assert (p.d, p.pitch, p.left_hand, p.s, p.m) == (6.0, 1.0, False, 10.0, 5.2)
     assert NutParams.model_fields["s"].default == 10.0
     assert NutParams.model_fields["m"].default == 5.2
+
+
+def test_the_frozen_nut_defaults_are_the_iso_4032_m6_row_the_owner_confirmed() -> None:
+    # D-15, L14: the M6 cross-check of 05-OWNER-READS.md (2026-10-20, GOST ISO 4032-2014 Table 1)
+    # matched the two frozen values: s 10.00 (nominal = max) and m max 5.20. The literals, so
+    # moving one fails here whatever the table says.
+    assert NutParams.model_fields["s"].default == 10.0
+    assert NutParams.model_fields["m"].default == 5.2
+
+
+def test_the_frozen_nut_defaults_are_the_iso_4032_m6_row() -> None:
+    # The same two values, read back from the cited M6 row: a table edit that moves M6 fails here
+    # instead of leaving the default link describing a part no standard has.
+    m6 = next(nut for nut in iso4032.NUTS if nut.size == "M6")
+    assert NutParams.model_fields["s"].default == m6.s
+    assert NutParams.model_fields["m"].default == m6.m_max
 
 
 def test_the_clearance_has_no_default_and_a_missing_one_is_refused_naming_it() -> None:

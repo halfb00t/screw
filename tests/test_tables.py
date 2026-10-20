@@ -659,3 +659,34 @@ def test_a_nut_row_without_source_fails_mypy_strict_naming_source(tmp_path: Path
         for line in stdout.splitlines()
     ), stdout
     assert not any(str(good) in line for line in stdout.splitlines()), stdout
+
+
+def broken_nut_relations(nut: HexNut) -> list[str]:
+    """The relations a printed nut row breaks, each named; empty for a sound row."""
+    checks = {
+        "s_min < s": nut.s_min < nut.s,
+        "e_min > s": nut.e_min > nut.s,
+        "m_min < m_max": nut.m_min < nut.m_max,
+        "mw_min < m_min": nut.mw_min < nut.m_min,
+        "dw_min < s_min": nut.dw_min < nut.s_min,
+        "c_min < c_max": nut.c_min < nut.c_max,
+        "da_min < da_max": nut.da_min < nut.da_max,
+        "pitch is the ISO 262 coarse pitch": nut.pitch == PITCH[nut.size],
+        # The scope clause: grade A for D up to M16, B above (read on the rendered page).
+        "grade A up to d = 16, B above": nut.grade == ("A" if DIAMETER[nut.size] <= 16 else "B"),
+    }
+    return [f"{nut.size}: {name}" for name, holds in checks.items() if not holds]
+
+
+@pytest.mark.parametrize("nut", iso4032.NUTS, ids=lambda n: n.size)
+def test_nut_relations(nut: HexNut) -> None:
+    assert broken_nut_relations(nut) == []
+
+
+def test_a_planted_nut_row_that_breaks_a_relation_is_reported_by_size_and_relation() -> None:
+    m6 = next(nut for nut in iso4032.NUTS if nut.size == "M6")
+    planted = dataclasses.replace(m6, m_min=m6.m_max + 0.1)
+    assert broken_nut_relations(planted) == ["M6: m_min < m_max"]
+    assert broken_nut_relations(dataclasses.replace(m6, grade="B")) == [
+        "M6: grade A up to d = 16, B above"
+    ]
