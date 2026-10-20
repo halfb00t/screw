@@ -7,6 +7,7 @@ adds the slow `pair` tier that runs the kernel against the table.
 
 from __future__ import annotations
 
+import ast
 import json
 import os
 import subprocess
@@ -16,13 +17,18 @@ from dataclasses import asdict, replace
 from importlib.metadata import version
 from pathlib import Path
 
+import cadquery as cq
 import pytest
+from pydantic import ValidationError
 
 from bench import m18_probe, pair_expected
 from bench.thread_spike import maths
 from bench.thread_spike import verdict as spike_verdict
 from bench.thread_spike.verdict import PAIR_BAND, closed_control
 from screw.calc import pair as rule
+from screw.params import NutParams
+from screw.solid import pair as solid_pair
+from screw.solid import precise_volume
 from screw.solid.helical import DEFAULT_K, SEWING_TOLERANCE
 
 PROOF_CLEARANCES = (0.05, 0.10, 0.15, 0.20)
@@ -438,3 +444,172 @@ def test_the_pair_rule_module_loads_no_kernel() -> None:
     out = subprocess.run([sys.executable, "-I", "-c", code], capture_output=True, text=True,
                          check=True).stdout.strip()
     assert out == "False False"
+
+
+# --- screw.solid.pair.prove (05-14) --------------------------------------------------------------
+# `common` is the one call that cannot run in pytest's own process (it parks its boolean in
+# `_KEEP`, and a process that ran it dies at teardown with 139, RESEARCH F5), so these tests hand
+# `prove` a scripted fake and run the real bodies, which are safe in-process.
+
+EMPTY = (0.0, 0, False, False, 0.1)
+
+
+class _Script:
+    """A fake `common`: answers the calls in order, and raises where the script holds an error."""
+
+    def __init__(self, *answers: tuple[float, int, bool, bool, float] | Exception) -> None:
+        self._answers = answers
+        self.calls: list[tuple[cq.Shape, cq.Shape]] = []
+
+    def __call__(self, a: cq.Shape, b: cq.Shape) -> tuple[float, int, bool, bool, float]:
+        self.calls.append((a, b))
+        answer = self._answers[len(self.calls) - 1]
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
+
+
+def _fires(closed: float) -> tuple[float, int, bool, bool, float]:
+    return (closed, 1, False, False, 0.1)
+
+
+M6_CLOSED = rule.closed_control(_cell(0.10))
+
+
+@pytest.fixture(scope="module")
+def bodies() -> tuple[cq.Solid, cq.Solid]:
+    """The M6 right-hand rod and the c = 0.10 blank, built once: each takes about 1.5 s and the
+    orchestration tests below only need them to exist."""
+    return (solid_pair.rod_piece(6.0, 1.0, 5.2, False, DEFAULT_K),
+            solid_pair.blank(6.0, 1.0, 5.2, 0.10, False, DEFAULT_K))
+
+
+@pytest.fixture
+def built(bodies: tuple[cq.Solid, cq.Solid], monkeypatch: pytest.MonkeyPatch) -> None:
+    rod, body = bodies
+    monkeypatch.setattr(solid_pair, "rod_piece", lambda *_a: rod)
+    monkeypatch.setattr(solid_pair, "blank", lambda *_a: body)
+
+
+def _nut(clearance: float = 0.10, *, left_hand: bool = False) -> NutParams:
+    return NutParams(clearance=clearance, left_hand=left_hand)
+
+
+@pytest.fixture(scope="module")
+def proven(bodies: tuple[cq.Solid, cq.Solid]) -> tuple[solid_pair.PairReport, _Script]:
+    """One proven M6 report, taken once: each pose costs about 0.5 s of placing and covering."""
+    rod, body = bodies
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(solid_pair, "rod_piece", lambda *_a: rod)
+        patch.setattr(solid_pair, "blank", lambda *_a: body)
+        fake = _Script(*[EMPTY] * 3, *[_fires(M6_CLOSED)] * 3)
+        return solid_pair.prove(_nut(), common=fake), fake
+
+
+def test_a_pair_whose_matched_poses_are_empty_and_controls_fire_is_proven(
+        proven: tuple[solid_pair.PairReport, _Script]) -> None:
+    report, fake = proven
+    assert (report.verdict, report.reasons) == ("proven", [])
+    assert len(fake.calls) == 6
+    assert [(r.theta, r.offset_pitches) for r in report.readings] == [
+        *[(t, 0.0) for t in rule.MATCHED_POSES], *[(t, 0.5) for t in rule.MATCHED_POSES]]
+    assert report.closed_control == pytest.approx(M6_CLOSED)
+    assert report.band == PAIR_BAND
+    assert report.engagement_turns == pytest.approx(5.2)
+    assert (report.d, report.pitch, report.m, report.clearance) == (6.0, 1.0, 5.2, 0.10)
+    assert (report.rod_left_hand, report.nut_left_hand) == (False, False)
+    assert report.seconds > 0
+
+
+def test_the_real_blank_is_the_closed_form_the_rule_checks_it_against(
+        bodies: tuple[cq.Solid, cq.Solid]) -> None:
+    # `cell_verdict` believes no reading from a blank off its closed form by more than T_PASS, so
+    # the "proven" above holds only if the blank the kernel builds is on it.
+    _, body = bodies
+    assert precise_volume(body) == pytest.approx(rule._nut_body(_cell(0.10)), rel=rule.T_PASS)
+
+
+@pytest.mark.usefixtures("built")
+def test_an_empty_control_is_inconclusive_and_names_the_pose_and_carries_the_clearance() -> None:
+    fake = _Script(*[EMPTY] * 3, EMPTY, _fires(M6_CLOSED), _fires(M6_CLOSED))
+    report = solid_pair.prove(_nut(), common=fake)
+    assert report.verdict == "inconclusive"
+    (reason,) = report.reasons
+    assert "control at theta -2.0944 reads empty" in reason
+    assert report.clearance == 0.10  # the reason carries the closed form, the report the c
+
+
+@pytest.mark.usefixtures("built")
+def test_a_failing_boolean_ends_the_cell_inconclusive_and_keeps_the_readings_taken() -> None:
+    fake = _Script(*[EMPTY] * 3, RuntimeError("boolean exploded"))
+    report = solid_pair.prove(_nut(), common=fake)
+    assert report.verdict == "inconclusive"
+    assert report.reasons == ["cell failure: RuntimeError: boolean exploded"]
+    assert [r.outcome for r in report.readings] == ["built"] * 3 + ["failure"]
+    last = report.readings[-1]
+    assert (last.theta, last.offset_pitches) == (rule.MATCHED_POSES[0], 0.5)
+    assert (last.solids, last.volume, last.seconds) == (None, None, None)
+    assert len(fake.calls) == 4
+
+
+@pytest.mark.parametrize("clearance", [0.0, -0.05])
+def test_at_zero_or_negative_clearance_nothing_is_read(clearance: float) -> None:
+    fake = _Script()
+    report = solid_pair.prove(_nut(clearance), common=fake)
+    assert report.verdict == "inconclusive"
+    assert report.readings == []
+    assert report.closed_control is None
+    assert fake.calls == []
+    # the reason is the rule's own for a same-hand cell, so the two cannot drift apart
+    assert tuple(report.reasons) == rule.cell_verdict(_record(clearance))[1]
+
+
+@pytest.mark.usefixtures("built")
+def test_a_rod_of_the_other_hand_is_violated_through_the_rule() -> None:
+    fake = _Script(*[(0.5, 1, False, False, 0.1)] * 3)
+    report = solid_pair.prove(_nut(), rod_left_hand=True, common=fake)
+    assert report.verdict == "violated"
+    assert (report.rod_left_hand, report.nut_left_hand) == (True, False)
+    assert len(fake.calls) == 3  # a mixed pair is read at the matched poses and nothing else
+    assert all(r.offset_pitches == 0.0 for r in report.readings)
+    assert report.closed_control is None
+
+
+@pytest.mark.usefixtures("built")
+def test_a_left_hand_nut_goes_through_the_same_checks() -> None:
+    fake = _Script(*[EMPTY] * 3, *[_fires(M6_CLOSED)] * 3)
+    report = solid_pair.prove(_nut(left_hand=True), common=fake)
+    assert (report.verdict, report.rod_left_hand, report.nut_left_hand) == ("proven", True, True)
+
+
+def test_the_report_is_frozen_plain_and_serialisable(
+        proven: tuple[solid_pair.PairReport, _Script]) -> None:
+    report, _ = proven
+
+    def plain(value: object) -> bool:
+        if isinstance(value, dict):
+            return all(isinstance(k, str) and plain(v) for k, v in value.items())
+        if isinstance(value, list):
+            return all(plain(v) for v in value)
+        return value is None or isinstance(value, bool | int | float | str)
+
+    assert plain(report.model_dump())
+    assert solid_pair.PairReport.model_validate_json(report.model_dump_json()) == report
+    with pytest.raises(ValidationError, match="frozen"):
+        report.verdict = "violated"  # type: ignore[misc]
+
+
+def test_the_bodies_run_in_process_and_park_nothing(bodies: tuple[cq.Solid, cq.Solid]) -> None:
+    rod, body = bodies
+    parked = len(solid_pair._KEEP)
+    placed = solid_pair.place(body, 2 * 3.141592653589793 / 3, 0.5, 1.0, False)
+    solid_pair.check_cover(rod, placed)
+    assert len(solid_pair._KEEP) == parked
+
+
+def test_the_pair_proof_is_not_imported_by_the_solid_package() -> None:
+    init = Path(solid_pair.__file__).with_name("__init__.py")
+    names = {n for node in ast.walk(ast.parse(init.read_text(encoding="utf-8")))
+             if isinstance(node, ast.Import | ast.ImportFrom)
+             for n in (*(a.name for a in node.names), getattr(node, "module", None) or "")}
+    assert not {n for n in names if n.split(".")[-1] == "pair"}

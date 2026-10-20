@@ -197,6 +197,21 @@ forbidden_modules = ["cadquery", "OCP"]
 allow_indirect_imports = false
 
 [[tool.importlinter.contracts]]
+name = "The serving process and its workers never import the pair proof"
+# The pair proof is a minutes-long, segfault-prone boolean (a normal exit after it dies with 139,
+# RESEARCH F5) and it must never run inside a request or a worker's build (D-24, PAIR-04): the
+# CLI and the pair tiers import `screw.solid.pair` themselves, in a child process, and
+# `screw/solid/__init__.py` does not import it. No indirect imports either: reaching it through
+# another module is the same hazard. import-linter passes a misspelt module vacuously (RESEARCH
+# E5), so the runtime half is the control: tests/test_import_boundaries.py proves in a fresh
+# interpreter that `import screw.app` leaves `screw.solid.pair` out of sys.modules and that
+# importing it puts it in.
+type = "forbidden"
+source_modules = ["screw.app", "screw.pool"]
+forbidden_modules = ["screw.solid.pair"]
+allow_indirect_imports = false
+
+[[tool.importlinter.contracts]]
 name = "Only the solid package imports the CAD kernel"
 # The one doorway: no CadQuery object escapes screw.solid, and no other module may even
 # import it (contract 2 only covers the maths; this covers everything else, present and
