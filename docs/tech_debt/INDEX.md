@@ -16,6 +16,7 @@ Severity (grep-able `Severity:` field):
 
 | Severity | Item | Trigger to revisit |
 |---|---|---|
+| must | [The required CI test job tripled: two pair tests run 20x slower on the runner than locally](active/2026-10-20-ci-test-job-tripled-by-two-pair-tests.md) | phase 5 close, or the `test (3.12)` job passing 20 min |
 | must | [The ISO standards Phase 5 reads are not purchased: rows come from free GOST texts of older editions](active/2026-10-20-iso-standards-not-purchased.md) | before the Phase 6 release, or any public release that claims ISO conformance |
 | nice | [The tip cut fails in the sliver of thread_length just above the cone's axial length](active/2026-10-20-tip-cone-degenerate-boolean-at-the-cone-length.md) | revisit if a real size meets the window, or when the tip length is next changed |
 | must | [The nut has no fine-STL cap: its caps need their own measurement run](active/2026-10-14-nut-fine-stl-caps-unmeasured.md) | before the nut fine STL can be offered as bounded |
