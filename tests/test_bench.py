@@ -4992,7 +4992,7 @@ def _deviation_rows(over: dict[tuple[float, str, bool], float] | None = None,
     """A full ladder grid, every deviation 0.01 mm unless `over` says otherwise."""
     over = over or {}
     return [mesh_deviation.Row(size, hand, step, mesh_deviation.ANGULAR_RAD, 100, 5084,
-                               over.get((step, size, hand), 0.01), 0.005)
+                               over.get((step, size, hand), 0.01), 0.005, 1e-5)
             for step in mesh_deviation.LADDER_MM for size in mesh_deviation.SIZES
             for hand in mesh_deviation.HANDS if (size, hand) != drop or step != 0.0025]
 
@@ -5026,3 +5026,14 @@ def test_the_deviation_rule_selects_nothing_from_a_failed_or_partial_ladder() ->
               for size in mesh_deviation.SIZES for hand in mesh_deviation.HANDS}
     with pytest.raises(ValueError, match="does not cover every size and hand"):
         mesh_deviation.rule(_deviation_rows(coarse, drop=("M3", True)))
+
+
+def test_the_deviation_vertex_check_is_far_below_a_wrong_hand_and_far_above_float_noise() -> None:
+    """A vertex on the right-hand surface reads about 0 as right-hand and 0.35 mm as left-hand,
+    over `VERTEX_TOL_MM`, so a flipped sign aborts the run; the tolerance sits 2.5 orders above
+    the float32 noise of a coordinate near 20 mm (about 2e-6)."""
+    r = 3.0 - 0.28 * _DEPTH_P1
+    facet = ((0.0, r, 5.1), (0.0, r, 5.1), (0.0, r, 5.1))
+    stl = _stl([_END_LOW, facet, _END_HIGH])
+    assert mesh_deviation.vertex_error(stl, 6.0, 1.0, False) < 1e-5
+    assert mesh_deviation.vertex_error(stl, 6.0, 1.0, True) > 100 * mesh_deviation.VERTEX_TOL_MM

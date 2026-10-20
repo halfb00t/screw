@@ -29,8 +29,17 @@ maximum: it is a sample of centroids (vertices lie on the surface and read as ze
 carried into the entry.
 
 THE HARNESS CHECK. Before a row counts, every mesh vertex in the same z window must lie on the
-`section_radius` surface to `VERTEX_TOL_MM` (1e-4 mm; 05-RESEARCH F2 read 1.2e-05). If one does
-not, the sign or the model is wrong and the run aborts as a harness defect, never as a result.
+`section_radius` surface to `VERTEX_TOL_MM`; the largest vertex gap is a column of the table. A
+vertex that far off means the sign or the model is wrong (the wrong sign misses by 0.54 mm), and
+the run aborts as a harness defect, never as a result.
+
+AMENDMENT (first run, HEAD c87aadf, 2026-10-20): the check was first written at 1e-4 mm, from
+05-RESEARCH F2's 1.2e-05 read at M6. It aborted the run at M20 right-hand, 0.01 mm, with a vertex
+1.912e-04 mm off the model. The same vertex gap, 1.92e-04, reads at 0.0025 mm, so it is not the
+mesh: it is the shipped solid's own departure from `section_radius`, the order of
+`helical.SEWING_TOLERANCE` (1e-4 mm). The rule, the ladder, the fraction and the bound were not
+touched. The threshold is now 1e-3 mm: still 540 times below the wrong-sign miss, and 4 % of the
+bound, so what the oracle leaves unexplained cannot move a verdict by more than that.
 
 Kernel side (it imports `cadquery`), run by hand: `python -m bench.mesh_deviation`. The metric
 itself (`radial_deviations`, `vertex_error`, `rule`) is pure `struct` and `math`, so a test can
@@ -65,7 +74,7 @@ HANDS = (False, True)
 PROOF_CLEARANCE_MM = 0.05
 FRACTION = 0.5
 BOUND_MM = FRACTION * PROOF_CLEARANCE_MM
-VERTEX_TOL_MM = 1e-4
+VERTEX_TOL_MM = 1e-3   # amended from 1e-4 after the first run; see the docstring
 ROD_PITCHES = 8     # the rod is this many pitches long
 SKIP_PITCHES = 2    # facets this close to either end are not the thread
 
@@ -82,6 +91,7 @@ class Row:
     nbytes: int
     max_deviation: float
     p99_deviation: float
+    vertex_error: float
 
 
 def _facets(stl: bytes) -> list[tuple[float, ...]]:
@@ -140,7 +150,7 @@ def measure(size: str, left_hand: bool, rod: cq.Solid, linear: float, angular: f
     devs = sorted(radial_deviations(stl, d, pitch, left_hand))
     p99 = devs[math.ceil(0.99 * len(devs)) - 1]   # nearest rank
     return Row(size, left_hand, linear, angular, struct.unpack("<I", stl[80:84])[0], len(stl),
-               devs[-1], p99)
+               devs[-1], p99, on_surface)
 
 
 def rule(rows: list[Row]) -> float:
@@ -165,7 +175,8 @@ def _load(reading: Reading) -> str:
 
 def _row(r: Row) -> str:
     return (f"| {r.size} | {'left' if r.left_hand else 'right'} | {r.linear:g} / {r.angular:g} "
-            f"| {r.triangles} | {r.nbytes} | {r.max_deviation:.4f} | {r.p99_deviation:.4f} |")
+            f"| {r.triangles} | {r.nbytes} | {r.max_deviation:.4f} | {r.p99_deviation:.4f} "
+            f"| {r.vertex_error:.1e} |")
 
 
 def main() -> None:
@@ -176,8 +187,8 @@ def main() -> None:
     print(f"before: {_load(read_now())}")
     print(f"bound: {FRACTION:g} x {PROOF_CLEARANCE_MM:g} mm = {BOUND_MM:g} mm")
     print("| Size | Hand | Preset (lin mm / ang rad) | Triangles | Bytes | Max deviation mm "
-          "| p99 deviation mm |")
-    print("|---|---|---|---|---|---|---|")
+          "| p99 deviation mm | Max vertex gap mm |")
+    print("|---|---|---|---|---|---|---|---|")
     rows: list[Row] = []
     for size in SIZES:
         d, pitch = (float(v) for v in PITCH[size])
