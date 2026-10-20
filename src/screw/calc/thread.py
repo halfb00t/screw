@@ -415,3 +415,157 @@ def fine_stl_refusal(d: float, pitch: float, t: float, left_hand: bool) -> str |
             f"budget (run 2026-10-08-a-grid); the thread built here is {t:g} mm. Shorten "
             f"thread_length or length, or ask for the preview STL or the STEP, which are not "
             f"capped")
+
+
+# --- the end-cut oracles (05-RESEARCH F4, P10; probed in `bench/RESULTS.md`, End-cut probe) -----
+#
+# The transverse section of a thread is the same at every z and rotation-invariant, so for a
+# radius `rho` the area it pokes outside a disc has a closed form, and a cone cut is a
+# one-dimensional integral over its depth. These are the numbers the THRD-04 differential gate
+# compares a chamfered or filleted part against. They are plain `math`, share no code path with
+# the kernel, and refuse with a `ValueError` naming the condition outside their validity: no
+# number there (L02). The formulas moved here unchanged from `bench/end_cuts.py`, where the
+# kernel agreed with them to the piece errors recorded in the probe entry (the first hexagon-arc
+# formula written for F4 was off by a factor of 2.2, so `tests/test_end_oracles.py` pins each
+# one to an identity that does not use it).
+
+
+def _check_angle(name: str, degrees: float) -> None:
+    if not 0 < degrees < 90:
+        raise ValueError(f"{name} {degrees:g} degrees must be above 0 and below 90")
+
+
+def outside_disc_area(d: float, pitch: float, clearance: float, rho: float) -> float:
+    """Area of the thread section that lies outside the disc of radius `rho`.
+
+    Half the integral over one turn of max(0, r(theta)^2 - rho^2): the crest flat spans pi/4 at
+    ro, the root flat pi/2 at rr and each flank 5 pi/8 with r linear in angle. Valid for any
+    `rho >= 0` and any clearance; the helix phase and the hand drop out because the section is
+    rotation-invariant. At `rho = 0` it is `section_area`; at or past the crest radius it is 0.
+    """
+    if not rho >= 0:
+        raise ValueError(f"rho {rho:g} mm must be 0 or more")
+    ro, rr = _radii(d, pitch, clearance)
+    k = ro - rr
+    total = 0.0
+    if rho < ro:
+        total += 0.5 * (ro**2 - rho**2) * math.pi / 4
+    if rho < rr:
+        total += 0.5 * (rr**2 - rho**2) * math.pi / 2
+    if rho <= rr:
+        flank = (ro**3 - rr**3) / (3 * k) - rho**2
+    elif rho < ro:
+        flank = (ro**3 - rho**3) / (3 * k) - rho**2 * (ro - rho) / k
+    else:
+        flank = 0.0
+    return total + 0.5 * 2 * (5 * math.pi / 8) * flank
+
+
+def tip_cone_volume(d: float, pitch: float, angle_deg: float, n: int = 20_000) -> float:
+    """Volume a tip cone removes from the bare thread (clearance 0).
+
+    The cone meets the end face at the minor radius and rises at `angle_deg` from the face, so
+    its radius at height z is minor + z / tan(angle); at each z it removes the section outside
+    that disc. `n` midpoints over z in [0, (d/2 - minor) tan(angle)], above which the cone is
+    outside the section. Valid for 0 < angle < 90, a minor radius above 0 and any rod longer
+    than that height; at n = 20 000 the quadrature error is below T_GATE / 100 of the piece
+    (`tests/test_end_oracles.py`).
+    """
+    _check_angle("angle", angle_deg)
+    minor = d / 2 - thread_depth(pitch)
+    if not minor > 0:
+        raise ValueError(f"the minor radius {minor:g} mm must be above 0 for a tip cone")
+    tan_alpha = math.tan(math.radians(angle_deg))
+    h = (d / 2 - minor) * tan_alpha / n
+    return h * sum(outside_disc_area(d, pitch, 0.0, minor + (i + 0.5) * h / tan_alpha)
+                   for i in range(n))
+
+
+def nut_material_in_disc(d: float, pitch: float, clearance: float, rho: float) -> float:
+    """Nut material inside the disc of radius `rho`: the disc less the void it holds,
+    pi rho^2 - section_area + outside_disc_area(rho). It is 0 inside the root circle.
+
+    Valid while `rho <= s / 2`, the inscribed radius of the hexagon: past it the disc leaves the
+    nut and the formula overcounts (P10). The caller holds `s`; `countersink_volume` checks it.
+    """
+    return math.pi * rho**2 - section_area(d, pitch, clearance) + outside_disc_area(
+        d, pitch, clearance, rho)
+
+
+def countersink_volume(d: float, pitch: float, clearance: float, s: float, face_radius: float,
+                       half_angle_deg: float, depth: float, n: int = 20_000) -> float:
+    """Material one countersink removes from a nut face.
+
+    The cone has radius `face_radius` - z tan(half) at depth z from the face, `half_angle_deg`
+    from the axis; it removes `nut_material_in_disc` at each z over [0, depth] (`n` midpoints).
+    Below the root radius the disc holds no material and the integrand is 0, so a cone that ends
+    in the void and one that ends at `depth` agree. Valid when the face radius is at most s / 2
+    (inside the inscribed circle), 0 < half angle < 90 and the cone has not reached its apex by
+    `depth`. Two more conditions are the caller's, because this function holds neither the nut
+    height nor the chamfer: face radius at most the chamfer's start radius (else the cutters
+    overlap and are counted twice) and 2 * depth <= m (the countersinks of the two faces do
+    not meet); `end_depths` holds both (P10).
+    """
+    _check_angle("half angle", half_angle_deg)
+    if not 0 < face_radius <= s / 2:
+        raise ValueError(f"face radius {face_radius:g} mm must be above 0 and at most s / 2 = "
+                         f"{s / 2:g} mm, the inscribed radius of the hexagon")
+    tan_half = math.tan(math.radians(half_angle_deg))
+    if not (math.isfinite(depth) and depth >= 0 and face_radius - depth * tan_half >= 0):
+        raise ValueError(f"depth {depth:g} mm must be 0 or more and at most face radius / "
+                         f"tan(half angle) = {face_radius / tan_half:g} mm, where the cone ends")
+    h = depth / n
+    return h * sum(nut_material_in_disc(d, pitch, clearance, face_radius - (i + 0.5) * h * tan_half)
+                   for i in range(n))
+
+
+def hex_arc_inside(s: float, rho: float) -> float:
+    """Length of the circle of radius `rho` that lies inside the regular hexagon of across-flats
+    `s`: the whole circle up to the inscribed radius a = s / 2, rho (2 pi - 12 acos(a / rho))
+    between a and the corner radius R = a / cos(pi / 6), nothing above.
+    """
+    a = s / 2
+    corner = a / math.cos(math.pi / 6)
+    if rho <= a:
+        return 2 * math.pi * rho
+    if rho >= corner:
+        return 0.0
+    return rho * (2 * math.pi - 12 * math.acos(a / rho))
+
+
+def face_chamfer_volume(s: float, r0: float, angle_deg: float, depth: float,
+                        n: int = 40_000) -> float:
+    """Material one hexagon-corner face chamfer removes from a prism of across-flats `s`.
+
+    A cone starting at radius `r0` on the face and rising at `angle_deg` from it removes a depth
+    (rho - r0) tan(angle), no deeper than `depth`, over the arc `hex_arc_inside(s, rho)`,
+    integrated over rho in [r0, R] (`n` midpoints). At `depth` 0 it is 0, and at the cone's own
+    depth at the corner, (R - r0) tan(angle), the cap no longer binds. Valid when 0 < r0 < R, 0
+    < angle < 90 and depth >= 0. Two conditions are the caller's: r0 outside the void's crest
+    radius, and a depth of at most m / 2 (the chamfers of the two faces do not meet);
+    `end_depths` holds both (P10).
+    """
+    _check_angle("angle", angle_deg)
+    corner = s / 2 / math.cos(math.pi / 6)
+    if not 0 < r0 < corner:
+        raise ValueError(f"chamfer start {r0:g} mm must be above 0 and below the corner radius "
+                         f"{corner:g} mm")
+    if not (math.isfinite(depth) and depth >= 0):
+        raise ValueError(f"depth {depth:g} mm must be 0 or more")
+    tan_beta = math.tan(math.radians(angle_deg))
+    h = (corner - r0) / n
+    return h * sum(hex_arc_inside(s, r0 + (i + 0.5) * h) * min((i + 0.5) * h * tan_beta, depth)
+                   for i in range(n))
+
+
+def fillet_ring_volume(d: float, r: float) -> float:
+    """Volume of a quarter-circle fillet ring of radius `r` at a shank of diameter `d`.
+
+    The revolved region is the square r x r less a quarter disc centred on its far corner: area
+    A = r^2 (1 - pi/4) and first moment about the shank r^3 (5/6 - pi/4), so Pappus gives
+    2 pi (d/2 A + r^3 (5/6 - pi/4)) = 2 pi (d/2 + u_bar) A with u_bar the centroid's offset.
+    Valid for r above 0. That the shank is at least r long under the head is the caller's.
+    """
+    if not r > 0:
+        raise ValueError(f"r {r:g} mm must be above 0")
+    return 2 * math.pi * (d / 2 * r**2 * (1 - math.pi / 4) + r**3 * (5 / 6 - math.pi / 4))
