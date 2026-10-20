@@ -51,9 +51,11 @@ PAIR = "Pair"
 NO_ROW_WARNING = ("no ISO 4014:2022 or ISO 4017:2022 row matches these fields; "
                   "row values not reported")
 
-# The one warning for a nut that is no catalogue row (L02): no ISO 4032 row has shipped yet, so
-# every nut reads this until plan 05-07 fills the table.
-NUT_NO_ROW_WARNING = "no ISO 4032:2023 row matches these fields; row values not reported"
+# The one warning for a nut that is no catalogue row (L02). It names the document actually read,
+# GOST ISO 4032-2014 (ISO 4032:2012), not the ISO edition L14 deferred buying (L14 Citations). The
+# text prints no M7, so an M7 nut reads this too.
+NUT_NO_ROW_WARNING = ("no GOST ISO 4032-2014 (ISO 4032:2012) row matches these fields; "
+                      "row values not reported")
 
 
 class InfoRow(BaseModel):
@@ -235,8 +237,16 @@ def _bolt(p: BoltParams) -> PartInfo:
 
 
 def _nut(p: NutParams) -> PartInfo:
+    # Imported here for the reason `_bolt` gives (contract 6).
+    from screw.calc.presets import match_nut, nut_designation_for, nut_notes, nut_row_values
+
     # Same contract as `_bolt` (D-15): every number is a reading of the user's own fields or the
     # closed form, never the kernel's Volume(), and none that is not finite leaves this function.
+    row = match_nut(p)
+    # The cited values of the matched row follow the across-corners row (D-17); a nut that is no
+    # row gets none, and no nearest row stands in for it (L02).
+    cited = [] if row is None else nut_row_values(row)
+    after = {"across_corners": cited}
     computed: list[tuple[str, str, str, str, str, Callable[[], float]]] = [
         ("d", THREAD, "Diameter", "mm", "d", lambda: p.d),
         ("pitch", THREAD, "Pitch", "mm", "pitch", lambda: p.pitch),
@@ -267,13 +277,20 @@ def _nut(p: NutParams) -> PartInfo:
         else:
             warnings.append(f"{key} not reported: {formula} is not a finite number "
                             "for these parameters")
-    warnings.append(NUT_NO_ROW_WARNING)
+        rows.extend(after.get(key, []))
+    if row is None:
+        warnings.append(NUT_NO_ROW_WARNING)
     downloads = _downloads(p)
     for reason in dict.fromkeys(e.refusal for e in downloads if e.refusal is not None):
         warnings.append(reason)
-    return PartInfo(kind=p.kind, rows=rows, warnings=warnings, designation=None,
-                    preset=PresetMatch(status="custom", id=None, display=None), notes=[],
-                    downloads=downloads)
+    if row is None:
+        return PartInfo(kind=p.kind, rows=rows, warnings=warnings, designation=None,
+                        preset=PresetMatch(status="custom", id=None, display=None), notes=[],
+                        downloads=downloads)
+    return PartInfo(kind=p.kind, rows=rows, warnings=warnings,
+                    designation=nut_designation_for(p, row),
+                    preset=PresetMatch(status="exact", id=row.id, display=row.display),
+                    notes=nut_notes(row), downloads=downloads)
 
 
 def derive(p: FastenerParams) -> PartInfo:

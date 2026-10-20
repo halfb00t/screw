@@ -11,9 +11,9 @@ from functools import lru_cache
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from screw.calc import HEAD, SHANK, InfoRow
+from screw.calc import HEAD, NUT, SHANK, InfoRow
 from screw.params import KINDS, BoltParams, NutParams
-from screw.tables.presets import PresetRow, catalogue, expand_nut, nut_catalogue
+from screw.tables.presets import NutPresetRow, PresetRow, catalogue, expand_nut, nut_catalogue
 from screw.tables.presets import expand as expand_row
 from screw.tables.rows import Source
 
@@ -53,7 +53,7 @@ def designation_for(p: BoltParams, row: PresetRow) -> str | None:
 
 def _row_value(key: str, sense: str, value: float, source: Source, group: str) -> InfoRow:
     """One cited row value; the label carries its sense and the page it was read from (D-18)."""
-    label = f"{sense} ({source.standard}:{source.edition} {source.table})"
+    label = f"{sense} ({source.document()} {source.table})"
     return InfoRow(key=key, label=label, value=value, unit="mm", group=group)
 
 
@@ -100,6 +100,52 @@ def notes(row: PresetRow) -> list[str]:
         result.append(f"wrench size {row.head.s:g} mm ({cite}); "
                       f"the withdrawn {WITHDRAWN_DIN[row.standard]} used {din:g} mm")
     return result
+
+
+def match_nut(p: NutParams) -> NutPresetRow | None:
+    """The nut row whose d, pitch, s and m all equal `p`'s, or None (D-17, INFO-01).
+
+    Exact float equality, no tolerance and no nearest row (L02). Never `clearance` and never
+    `left_hand`: neither is a row field, so a nut at any clearance, of either hand, is its row.
+    """
+    for row in nut_catalogue():
+        if all(getattr(p, name) == value for name, value in row.fields):
+            return row
+    return None
+
+
+def nut_designation_for(p: NutParams, row: NutPresetRow) -> str | None:
+    """The row's designation for a right-hand nut; None for a left-hand one.
+
+    Clause 5 of GOST ISO 4032-2014 gives no left-hand form (05-OWNER-READS.md, Designation), so
+    the designation is withheld rather than invented (L02).
+    """
+    return None if p.left_hand else row.designation
+
+
+def nut_row_values(row: NutPresetRow) -> list[InfoRow]:
+    """The six cited values of a matched nut row, each labelled with the table it was read from.
+
+    `e`, `mw` and `dw` are reported (D-15); the `c` and `da` columns the table stores are not.
+    """
+    nut = row.nut
+    return [
+        _row_value("s_min", "Across flats, min", nut.s_min, nut.source, NUT),
+        _row_value("e_min", "Across corners, min", nut.e_min, nut.source, NUT),
+        _row_value("m_max", "Height, max", nut.m_max, nut.source, NUT),
+        _row_value("m_min", "Height, min", nut.m_min, nut.source, NUT),
+        _row_value("mw_min", "Wrench height, min", nut.mw_min, nut.source, NUT),
+        _row_value("dw_min", "Bearing face diameter, min", nut.dw_min, nut.source, NUT),
+    ]
+
+
+def nut_notes(row: NutPresetRow) -> list[str]:
+    """The one note of a matched nut row: its product grade, by the scope clause's rule.
+
+    Grade A up to M16 and B above, confirmed on the rendered page of GOST ISO 4032-2014 (05-06).
+    """
+    limit = "D \u2264 16 mm" if row.nut.grade == "A" else "D > 16 mm"
+    return [f"product grade {row.nut.grade} ({row.nut.source.document()}: {limit})"]
 
 
 # The picker's select labels, in the order a row's `picker` strings answer them (D-10, D-28).

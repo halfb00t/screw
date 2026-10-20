@@ -27,12 +27,19 @@ from screw.calc.thread import (
     thread_length_conflict,
 )
 from screw.params import KINDS, BoltParams, FastenerParams, NutParams
-from screw.tables.presets import catalogue
+from screw.tables.iso4032 import NUTS
+from screw.tables.presets import catalogue, expand_nut
+from screw.tables.rows import HexNut
 
 WARNING = "plain-cut thread ends, no tip chamfer or under-head fillet; not a product build"
 PROFILE = "ISO 68-1:2023 basic profile"
 NO_ROW = ("no ISO 4014:2022 or ISO 4017:2022 row matches these fields; "
           "row values not reported")
+# L14 Citations: the nut's rows cite the GOST text actually read, with the ISO edition it adopts.
+NUT_NO_ROW = ("no GOST ISO 4032-2014 (ISO 4032:2012) row matches these fields; "
+              "row values not reported")
+GOST = "GOST ISO 4032-2014 (ISO 4032:2012)"
+NUT_CITED_KEYS = ["s_min", "e_min", "m_max", "m_min", "mw_min", "dw_min"]
 ROW_KEYS = ["s_min", "e_min", "k_max", "k_min", "dw_min", "b", "lg_max", "ls_min"]
 # The default part is the ISO 4017 M6 x 20 row, so it carries that row's five head values.
 KEYS = ["d", "pitch", "length", "thread_length", "shank_length", "turns", "thread_depth",
@@ -201,21 +208,106 @@ def test_every_registered_kind_derives_a_document(part_of: Callable[[str], Faste
         assert derive(part_of(kind)).kind == model.kind
 
 
-def test_a_nut_document_has_its_rows_in_groups_the_closed_form_volume_and_no_row() -> None:
+def test_a_nut_document_has_its_rows_in_groups_the_closed_form_volume_and_its_m6_row() -> None:
     p = NutParams(clearance=0.1)
     info = derive(p)
     assert info.kind == "nut"
+    # The cited values follow the across-corners row, inside the Nut group (D-17).
     assert [(r.key, r.group) for r in info.rows] == [
         ("d", "Thread"), ("pitch", "Thread"), ("s", "Nut"), ("across_corners", "Nut"),
+        *[(key, "Nut") for key in NUT_CITED_KEYS],
         ("m", "Nut"), ("clearance", "Pair"), ("volume", "Part")]
     values = {r.key: r.value for r in info.rows}
     assert (values["d"], values["pitch"], values["s"], values["m"], values["clearance"]) == (
         6.0, 1.0, 10.0, 5.2, 0.1)
     assert values["across_corners"] == pytest.approx(10.0 / math.cos(math.pi / 6))
     assert values["volume"] == nut_closed_volume(6.0, 1.0, 10.0, 5.2, 0.1)
-    assert info.warnings == [STANDING_WARNING, NUT_NO_ROW_WARNING]
+    assert info.warnings == [STANDING_WARNING]
+
+
+def test_the_default_nut_reads_its_gost_iso_4032_m6_row() -> None:
+    info = derive(NutParams(clearance=0.1))
+    m6 = next(nut for nut in NUTS if nut.size == "M6")
+    assert info.preset == PresetMatch(status="exact", id="iso4032:M6", display="ISO 4032 M6")
+    assert info.designation == "Hexagon regular nut GOST ISO 4032 - M6"
+    labels = {r.key: r.label for r in info.rows}
+    values = {r.key: r.value for r in info.rows}
+    assert labels["s_min"] == f"Across flats, min ({GOST} Table 1)"
+    assert labels["e_min"] == f"Across corners, min ({GOST} Table 1)"
+    assert labels["m_max"] == f"Height, max ({GOST} Table 1)"
+    assert labels["m_min"] == f"Height, min ({GOST} Table 1)"
+    assert labels["mw_min"] == f"Wrench height, min ({GOST} Table 1)"
+    assert labels["dw_min"] == f"Bearing face diameter, min ({GOST} Table 1)"
+    assert [values[key] for key in NUT_CITED_KEYS] == [
+        m6.s_min, m6.e_min, m6.m_max, m6.m_min, m6.mw_min, m6.dw_min]
+    assert {r.unit for r in info.rows if r.key in NUT_CITED_KEYS} == {"mm"}
+    assert info.notes == [f"product grade A ({GOST}: D \u2264 16 mm)"]
+    assert NUT_NO_ROW not in info.warnings
+
+
+def test_the_nut_no_row_warning_is_pinned_to_the_text_naming_the_gost_document() -> None:
+    assert NUT_NO_ROW_WARNING == NUT_NO_ROW
+
+
+def test_clearance_and_hand_take_no_part_in_the_nut_match() -> None:
+    base = derive(NutParams(clearance=0.1))
+    wide = derive(NutParams(clearance=0.25))
+    assert wide.preset == base.preset
+    assert [(r.key, r.label, r.value) for r in wide.rows if r.key in NUT_CITED_KEYS] == [
+        (r.key, r.label, r.value) for r in base.rows if r.key in NUT_CITED_KEYS]
+    # No left-hand form in clause 5, so the designation is withheld and nothing else changes.
+    left = derive(NutParams(clearance=0.1, left_hand=True))
+    assert left.preset == base.preset
+    assert left.designation is None
+    assert left.notes == base.notes
+    assert [r.key for r in left.rows] == [r.key for r in base.rows]
+
+
+def test_a_nut_one_float_off_the_m6_row_is_custom_and_cites_nothing() -> None:
+    # INFO-01 boundary (T-05-17): exact equality only, so one ulp off the row's m is no row.
+    off = derive(NutParams(m=math.nextafter(5.2, math.inf), clearance=0.1))
+    assert off.preset == PresetMatch(status="custom", id=None, display=None)
+    assert not {r.key for r in off.rows} & set(NUT_CITED_KEYS)
+    assert (off.designation, off.notes) == (None, [])
+    assert off.warnings == [STANDING_WARNING, NUT_NO_ROW]
+
+
+def test_an_m7_nut_is_custom_because_the_gost_text_prints_no_m7() -> None:
+    info = derive(NutParams(d=7.0, pitch=1.0, s=11.0, m=5.5, clearance=0.1))
     assert info.preset == PresetMatch(status="custom", id=None, display=None)
-    assert (info.designation, info.notes) == (None, [])
+    assert info.warnings == [STANDING_WARNING, NUT_NO_ROW]
+    assert not {r.key for r in info.rows} & set(NUT_CITED_KEYS)
+
+
+@pytest.mark.parametrize("nut", NUTS, ids=lambda n: n.size)
+def test_every_nut_row_reads_back_as_its_own_exact_row(nut: HexNut) -> None:
+    fields = expand_nut(f"iso4032:{nut.size}")
+    assert fields is not None
+    info = derive(NutParams.model_validate({**fields, "clearance": 0.1}))
+    assert info.preset is not None
+    assert info.preset.id == f"iso4032:{nut.size}"
+    table = nut.source.table
+    assert all(r.label.endswith(f"({GOST} {table})") for r in info.rows
+               if r.key in NUT_CITED_KEYS)
+    above_m16 = nut.size in {"M18", "M20"}
+    limit = "D > 16 mm" if above_m16 else "D \u2264 16 mm"
+    assert info.notes == [f"product grade {'B' if above_m16 else 'A'} ({GOST}: {limit})"]
+
+
+def test_the_grade_note_changes_at_m16_and_the_second_choice_rows_cite_table_2() -> None:
+    def nut(size: str) -> list[str]:
+        fields = expand_nut(f"iso4032:{size}")
+        assert fields is not None
+        return derive(NutParams.model_validate({**fields, "clearance": 0.1})).notes
+
+    assert nut("M16") == [f"product grade A ({GOST}: D \u2264 16 mm)"]
+    assert nut("M18") == [f"product grade B ({GOST}: D > 16 mm)"]
+    fields = expand_nut("iso4032:M3.5")
+    assert fields is not None
+    labels = [r.label for r in derive(NutParams.model_validate({**fields, "clearance": 0.1})).rows
+              if r.key in NUT_CITED_KEYS]
+    assert len(labels) == 6
+    assert all(label.endswith("Table 2)") for label in labels)
 
 
 @pytest.mark.parametrize(("clearance", "text"), [
@@ -225,14 +317,14 @@ def test_a_nut_document_has_its_rows_in_groups_the_closed_form_volume_and_no_row
 def test_a_nut_with_a_non_positive_clearance_warns_once_after_the_standing_warning(
         clearance: float, text: str) -> None:
     info = derive(NutParams(clearance=clearance))
-    assert info.warnings == [STANDING_WARNING, text, NUT_NO_ROW_WARNING]
+    assert info.warnings == [STANDING_WARNING, text]
 
 
 @pytest.mark.parametrize("clearance", [5e-324, 0.1])
 def test_a_nut_with_a_positive_clearance_has_no_clearance_warning(clearance: float) -> None:
     # 5e-324 is the smallest positive float: still positive, so no warning (PAIR-01, adjacency).
     info = derive(NutParams(clearance=clearance))
-    assert info.warnings == [STANDING_WARNING, NUT_NO_ROW_WARNING]
+    assert info.warnings == [STANDING_WARNING]
 
 
 def test_a_nut_download_is_never_refused_until_the_nut_fine_stl_caps_are_measured() -> None:
