@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Hex Nut and Kernel Pair Proof
 status: executing
-stopped_at: Completed 05-07-PLAN.md
-last_updated: "2026-10-20T08:24:09.170Z"
+stopped_at: Completed 05-08-PLAN.md
+last_updated: "2026-10-20T09:05:41.691Z"
 last_activity: 2026-10-20
 last_activity_desc: Phase 05 execution started
-state_head: a3d70c9ce581cf6877b64ef7b1d201e4a2d1387d
+state_head: 21c6135b8b12fc5ab8d856548540cb98ab304ee4
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 60
-  completed_plans: 49
+  completed_plans: 50
   percent: 57
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-12)
 ## Current Position
 
 Phase: 05 (Hex Nut and Kernel Pair Proof) — EXECUTING
-Plan: 3 of 18
+Plan: 4 of 18
 Status: Ready to execute
 Last activity: 2026-10-20 — Phase 05 execution started
 
@@ -108,6 +108,7 @@ Progress: [██████░░░░] 57%
 | Phase 05 P05 | 30min | 3 tasks | 7 files |
 | Phase 05 P06 | ~35min | 2 tasks | 8 files |
 | Phase 05 P07 | 10 min | 2 tasks | 7 files |
+| Phase 05 P08 | 35min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -202,6 +203,8 @@ Recent decisions affecting current work:
 - [Phase 05]: 05-06: every GOST ISO 4032-2014 nut row is normative and cites Table 1 or Table 2; Source.document() refuses any standard it has no citation form for
 - [Phase 05]: 05-07: the nut designation is the owner's ruled form, Hexagon regular nut GOST ISO 4032 - M6, decimal comma, none for left-hand
 - [Phase 05]: 05-07: the six cited nut rows follow across_corners in the Nut group, as the plan words it, so the m row follows them
+- [Phase 05]: 05-08: 6g and 6H limits derived by exact Decimal sums of printed GOST 24705-2004 and GOST 16093-2004 values; a size missing a printed term gets no row (L14)
+- [Phase 05]: 05-08: iso724.tsv regenerated with M7 by the owner's ruling; the M7 owner row was generated after the other copy was known (caveat recorded)
 
 ### Pending Todos
 
@@ -248,6 +251,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-20T08:24:09.044Z
-Stopped at: Completed 05-07-PLAN.md
+Last session: 2026-10-20T09:05:41.562Z
+Stopped at: Completed 05-08-PLAN.md
 Resume file: None
