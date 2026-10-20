@@ -7,6 +7,8 @@ pinned section, its area and the closed-form volume) moved to `screw/calc/thread
 and is imported back below (02 D-18: what was measured is what ships);
 `test_the_basic_profile_has_the_coefficients_the_owner_confirmed` still pins `thread_depth(1.0)`
 to the independently written ISO value 0.541265877.
+The pair rule's constants and `interference_area` moved to `screw/calc/pair.py` in Phase 5
+and are imported back below (D-05), unchanged.
 
 Profile: ISO 68-1:2023 basic profile, flat crest and flat root, pinned by the owner on
 2026-10-06 (02-SPIKE.md, Owner rulings). One-way door: a different profile re-runs the campaign.
@@ -16,10 +18,14 @@ Symbols, defined once: `d` major diameter, `P` pitch (`pitch`), `H` fundamental 
 
 from __future__ import annotations
 
-import functools
-import math
 from fractions import Fraction
 
+from screw.calc.pair import CONTROL_OFFSET_PITCHES as CONTROL_OFFSET_PITCHES
+from screw.calc.pair import DIAGNOSTIC_CLEARANCES as DIAGNOSTIC_CLEARANCES
+from screw.calc.pair import INTEGRATION_POINTS as INTEGRATION_POINTS
+from screw.calc.pair import MATCHED_POSES as MATCHED_POSES
+from screw.calc.pair import PAIR_CLEARANCES as PAIR_CLEARANCES
+from screw.calc.pair import interference_area as interference_area
 from screw.calc.thread import closed_volume as closed_volume
 from screw.calc.thread import fundamental_height as fundamental_height
 from screw.calc.thread import section_area as section_area
@@ -138,11 +144,6 @@ def depth_presets(pitch: float) -> list[tuple[str, float, float]]:
 
 # --- Pair check (question 3): the kernel-free expectation a pair reading is judged against ---
 
-# Midpoints over one turn: the integral below matched the kernel to 4-5 significant figures
-# whenever the kernel returned a non-empty result (RESEARCH R5, R7: 1e-5 relative at M10 and
-# M20), so it is the band's centre.
-INTEGRATION_POINTS = 400_000
-
 # Nut height m in mm per size (D-13, owner ruling R5, 02-SPIKE.md). m only scales the engaged
 # length and the closed-form expectation together: a label, never a verdict input. Every entry
 # carries its source label as recorded at the checkpoint and is UNVERIFIED until Phase 5 reads
@@ -165,41 +166,6 @@ NUT_HEIGHT: dict[str, float] = {
     "M20": 18.00,  # m max as read from the ISO 4032:2023 preview by the research. UNVERIFIED
 }
 
-# Radial clearance of the nut's void in mm, the proof bracket (D-11): the upper end brackets
-# Phase 6's printed matrix.
-PAIR_CLEARANCES: tuple[float, ...] = (0.05, 0.10, 0.15, 0.20)
-# The diagnostic rows (D-11): c = 0 reads inconclusive by definition (the boolean's answer at
-# contact is recorded, not trusted: garbage in 3 of 3 research readings), c = -0.05 is the
-# sensitivity check, where interference must appear near the closed form.
-DIAGNOSTIC_CLEARANCES: tuple[float, ...] = (0.0, -0.05)
-# Three screw-motion poses equally spaced over one turn and centred on the seam. The seam pose
-# stays in: dropping it would be a pose picked after the probes saw false-empty readings near
-# it (RESEARCH Pitfall 3). Every |theta| <= 2 pi / 3 keeps the matched slide at P / 3 and the
-# control slide at 5 P / 6, inside the rod's pad of P (Pitfall 2).
-MATCHED_POSES: tuple[float, ...] = (-2 * math.pi / 3, 0.0, 2 * math.pi / 3)
-# The control: the nut slid half a pitch from the matched pose, so crest meets root (D-12).
-CONTROL_OFFSET_PITCHES = 0.5
 # The sizes that also run at the two K values other than the locked one, as reference rows
 # (Pitfall 8): the research's four probe sizes.
 PAIR_REFERENCE_SIZES: tuple[str, ...] = ("M2", "M6", "M10", "M20")
-
-
-@functools.cache
-def interference_area(d: float, pitch: float, clearance: float, phase: float) -> float:
-    """Transverse area in mm2 where a rod of the pinned profile overlaps a void of the same
-    profile grown by `clearance` and turned by `phase`: 0.5 * max(0, r_b(t)^2 - (r_b(t + phase)
-    + c)^2) integrated over one turn. Times the engaged length m it is the volume of the
-    interference. Hand-independent: a symmetric profile's transverse section is the same for
-    both hands (RESEARCH R4 read left = right).
-
-    `phase` 0 is a matched pose, pi the half-pitch control. M6, m = 5.2: control 12.213 at
-    c = 0.10, 14.1335 at 0.05, 16.1427 at 0; matched 4.3627 at c = -0.05 and exactly 0 at
-    every c > 0 (RESEARCH Pattern 5). Cached: 400 000 midpoints take about 0.35 s, and the
-    verdict asks for the same (size, c, phase) once per hand.
-    """
-    step = 2 * math.pi / INTEGRATION_POINTS
-    total = math.fsum(
-        max(0.0, section_radius(d, pitch, 0.0, theta) ** 2
-            - section_radius(d, pitch, clearance, theta + phase) ** 2)
-        for theta in ((i + 0.5) * step for i in range(INTEGRATION_POINTS)))
-    return 0.5 * total * step

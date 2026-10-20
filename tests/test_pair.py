@@ -11,6 +11,7 @@ import json
 import os
 import subprocess
 import sys
+from collections.abc import Sequence
 from dataclasses import asdict, replace
 from importlib.metadata import version
 from pathlib import Path
@@ -19,7 +20,9 @@ import pytest
 
 from bench import m18_probe, pair_expected
 from bench.thread_spike import maths
+from bench.thread_spike import verdict as spike_verdict
 from bench.thread_spike.verdict import PAIR_BAND, closed_control
+from screw.calc import pair as rule
 from screw.solid.helical import DEFAULT_K, SEWING_TOLERANCE
 
 PROOF_CLEARANCES = (0.05, 0.10, 0.15, 0.20)
@@ -300,3 +303,138 @@ def test_the_m18_header_records_the_installed_kernel_pair(
     pins = Path(m18_probe.ROOT / "requirements.txt").read_text(encoding="utf-8")
     for name, installed in header["kernel"].items():
         assert f"{name}=={installed}" in pins  # the protocol's pair is requirements.txt's (L06)
+
+
+# --- The rule moved into screw.calc.pair (05-14): identical objects, and its positive controls ---
+
+# Every name the move named (05-14-PLAN.md), spelled out so a name that quietly stays behind in the
+# spike, as a copy, fails here and not in a campaign.
+MOVED_TO_VERDICT = (
+    "T_PASS", "PAIR_BAND", "EMPTY_MM3", "Outcome", "ReadingOutcome", "PairVerdict", "PairReading",
+    "PairCell", "PairRequest", "PairRecord", "closed_control", "_nut_body", "cell_verdict",
+    "MATCHED_POSES", "CONTROL_OFFSET_PITCHES", "PAIR_CLEARANCES", "DIAGNOSTIC_CLEARANCES",
+    "interference_area")
+MOVED_TO_MATHS = ("INTEGRATION_POINTS", "MATCHED_POSES", "CONTROL_OFFSET_PITCHES",
+                  "PAIR_CLEARANCES", "DIAGNOSTIC_CLEARANCES", "interference_area")
+
+
+@pytest.mark.parametrize("name", MOVED_TO_VERDICT)
+def test_the_spike_verdict_module_re_exports_the_moved_object(name: str) -> None:
+    assert getattr(spike_verdict, name) is getattr(rule, name)
+
+
+@pytest.mark.parametrize("name", MOVED_TO_MATHS)
+def test_the_spike_maths_module_re_exports_the_moved_object(name: str) -> None:
+    assert getattr(maths, name) is getattr(rule, name)
+
+
+def test_the_moved_constants_have_the_values_the_spike_registered() -> None:
+    assert (rule.PAIR_BAND, rule.EMPTY_MM3, rule.T_PASS) == (1e-3, 1e-6, 1e-4)
+    assert rule.CONTROL_OFFSET_PITCHES == 0.5
+    assert rule.PAIR_CLEARANCES == (0.05, 0.10, 0.15, 0.20)
+    assert rule.DIAGNOSTIC_CLEARANCES == (0.0, -0.05)
+    assert rule.INTEGRATION_POINTS == 400_000
+
+
+def _cell(clearance: float = 0.10, *, rod_left: bool = False,
+          nut_left: bool = False) -> rule.PairCell:
+    return {"size": "M6", "d": 6.0, "pitch": 1.0, "m": 5.2, "clearance": clearance,
+            "rod_left_hand": rod_left, "nut_left_hand": nut_left, "k": DEFAULT_K}
+
+
+def _reading(theta: float, offset: float, volume: float) -> rule.PairReading:
+    return {"theta": theta, "offset_pitches": offset, "outcome": "built",
+            "solids": 0 if volume == 0.0 else 1, "volume": volume, "diag_errors": False,
+            "diag_warnings": False, "seconds": 0.1}
+
+
+def _record(clearance: float = 0.10, *, rod_left: bool = False, nut_left: bool = False,
+            matched: Sequence[float] = (0.0, 0.0, 0.0),
+            controls: Sequence[float] | None = None) -> rule.PairRecord:
+    """A built cell as a kernel process would report it: the nut body at its closed form, each
+    matched pose as given and each control at the closed form unless given. The readings are
+    made by hand, so no kernel runs."""
+    cell = _cell(clearance, rod_left=rod_left, nut_left=nut_left)
+    mixed = rod_left != nut_left
+    closed = rule.closed_control(cell)
+    controls = controls if controls is not None else (closed, closed, closed)
+    readings = [_reading(t, 0.0, v) for t, v in zip(rule.MATCHED_POSES, matched, strict=True)]
+    if not mixed:
+        readings += [_reading(t, rule.CONTROL_OFFSET_PITCHES, v)
+                     for t, v in zip(rule.MATCHED_POSES, controls, strict=True)]
+    return {**cell, "outcome": "built", "error": None, "nut_volume": rule._nut_body(cell),
+            "readings": readings}
+
+
+def _not_built(outcome: rule.Outcome, *, left: bool = False) -> rule.PairRecord:
+    return {**_cell(rod_left=left, nut_left=left), "outcome": outcome, "error": "no answer",
+            "nut_volume": None, "readings": []}
+
+
+@pytest.mark.parametrize("left", [False, True], ids=["right", "left"])
+def test_a_cell_whose_controls_fire_and_matched_poses_are_empty_is_proven(left: bool) -> None:
+    assert rule.cell_verdict(_record(rod_left=left, nut_left=left)) == ("proven", ())
+
+
+@pytest.mark.parametrize("left", [False, True], ids=["right", "left"])
+@pytest.mark.parametrize("pose", range(3))
+def test_an_empty_control_at_any_pose_is_inconclusive_and_names_that_pose(
+        left: bool, pose: int) -> None:
+    closed = rule.closed_control(_cell())
+    controls = tuple(0.0 if i == pose else closed for i in range(3))
+    verdict, reasons = rule.cell_verdict(_record(
+        rod_left=left, nut_left=left, controls=controls))
+    assert verdict == "inconclusive"
+    (reason,) = reasons
+    assert f"control at theta {rule.MATCHED_POSES[pose]:+.4f} reads empty" in reason
+    assert f"{closed:.6g}" in reason  # the closed form is the clearance's: c is not in the text
+
+
+def test_the_empty_control_of_the_first_pose_reads_minus_2_0944() -> None:
+    closed = rule.closed_control(_cell())
+    _, reasons = rule.cell_verdict(_record(controls=(0.0, closed, closed)))
+    assert "control at theta -2.0944 reads empty" in reasons[0]
+
+
+@pytest.mark.parametrize("left", [False, True], ids=["right", "left"])
+def test_a_non_empty_matched_pose_is_violated(left: bool) -> None:
+    verdict, reasons = rule.cell_verdict(_record(
+        rod_left=left, nut_left=left, matched=(0.0, 0.5, 0.0)))
+    assert verdict == "violated"
+    assert "matched pose theta +0.0000 reads 0.5 mm3" in reasons[0]
+
+
+@pytest.mark.parametrize("clearance", [0.0, -0.05])
+def test_a_clearance_at_or_below_zero_is_inconclusive_by_definition(clearance: float) -> None:
+    verdict, reasons = rule.cell_verdict(_record(clearance))
+    assert verdict == "inconclusive"
+    assert "inconclusive by definition" in reasons[0]
+
+
+@pytest.mark.parametrize("rod_left", [False, True], ids=["right rod", "left rod"])
+def test_a_mixed_hand_cell_is_violated(rod_left: bool) -> None:
+    record = _record(rod_left=rod_left, nut_left=not rod_left, matched=(1.0, 1.0, 1.0))
+    assert rule.cell_verdict(record)[0] == "violated"
+
+
+@pytest.mark.parametrize("outcome", ["failure", "timeout", "worker_died"])
+@pytest.mark.parametrize("left", [False, True], ids=["right", "left"])
+def test_a_cell_that_did_not_finish_is_never_proven(outcome: rule.Outcome, left: bool) -> None:
+    verdict, reasons = rule.cell_verdict(_not_built(outcome, left=left))
+    assert verdict == "inconclusive"
+    assert outcome in reasons[0]
+
+
+def test_a_nut_body_that_is_not_the_closed_form_believes_no_reading() -> None:
+    record = _record(matched=(1.0, 1.0, 1.0))
+    record["nut_volume"] = (record["nut_volume"] or 0.0) * 1.01
+    verdict, reasons = rule.cell_verdict(record)
+    assert verdict == "inconclusive"
+    assert "no reading is believed" in reasons[0]
+
+
+def test_the_pair_rule_module_loads_no_kernel() -> None:
+    code = "import sys, screw.calc.pair; print('cadquery' in sys.modules, 'OCP' in sys.modules)"
+    out = subprocess.run([sys.executable, "-I", "-c", code], capture_output=True, text=True,
+                         check=True).stdout.strip()
+    assert out == "False False"
