@@ -21,7 +21,7 @@ Requirements for the first release: the mating-pair cut (infra port, thread spik
 
 - [x] **PAIR-01**: User sets one `clearance` field, on the nut, in radial millimetres; a positive value moves the nut's thread surfaces away from the axis (larger hole, material removed from the nut). The bolt is built to nominal. The info panel shows both the radial and the diametral value.
 - [ ] **PAIR-02**: The default `clearance` is set once, before the first release, from a recorded FDM printed test (M6–M12 matrix, owner checkpoint) and cited in the decision log; it is never taken from a forum or vendor figure. Until the test is recorded, no default ships.
-- [ ] **PAIR-03**: A kernel-level interference check proves a bolt/nut pair at the chosen clearance and returns `proven | violated | inconclusive` with its control: a half-pitch axial offset of the same pair must collide, or the verdict is `inconclusive`, never `proven`. Clearance ≤ 0 is `inconclusive` by definition.
+- [x] **PAIR-03**: A kernel-level interference check proves a bolt/nut pair at the chosen clearance and returns `proven | violated | inconclusive` with its control: a half-pitch axial offset of the same pair must collide, or the verdict is `inconclusive`, never `proven`. Clearance ≤ 0 is `inconclusive` by definition.
 - [ ] **PAIR-04**: The pair check is exposed as a function in the solid package, a `screw pair` CLI subcommand and a slow-tier test (one size in `make verify`, the full grid in a CI job). It is not an API endpoint; the API and UI show closed-form flank gaps instead.
 - [ ] **PAIR-05**: A bolt and nut from this tool, printed on an FDM printer at the chosen clearance, thread together by hand — the owner's manual acceptance for the release; a kernel `proven` is necessary, not sufficient.
 - [ ] **PAIR-06**: The printed test also drives a nominal printed bolt into a bought nut; if it binds, a bolt-side `undersize` field (default 0) becomes a v1.x requirement (PAIR-07 below).
@@ -124,7 +124,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | THRD-05 | Phase 5 | Complete |
 | PAIR-01 | Phase 5 | Complete |
 | PAIR-02 | Phase 6 | Pending |
-| PAIR-03 | Phase 5 | Pending |
+| PAIR-03 | Phase 5 | Complete |
 | PAIR-04 | Phase 5 | Pending |
 | PAIR-05 | Phase 6 | Pending |
 | PAIR-06 | Phase 6 | Pending |
