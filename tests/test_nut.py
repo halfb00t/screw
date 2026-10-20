@@ -24,6 +24,7 @@ from fastapi.testclient import TestClient
 from pydantic import ValidationError
 from pydantic_core import PydanticUndefined
 
+from bench.thread_spike.measure import stl_check
 from screw import cli
 from screw.app import app, build_backend
 from screw.build_errors import BuildError
@@ -45,7 +46,8 @@ from screw.calc.thread import (
     volume_check,
 )
 from screw.params import BoltParams, NutParams
-from screw.solid import build, clear_cache, nut, precise_volume
+from screw.solid import build, clear_cache, export, nut, precise_volume
+from screw.tables.presets import nut_catalogue
 
 client = TestClient(app)
 
@@ -569,3 +571,70 @@ def test_the_whole_nut_gate_alone_sees_each_control_a_nut_is_not_a_long_bolt(
     last = list(nut.finish(NOMINAL, nut.assemble(NOMINAL, nut.void(NOMINAL))))[-1][1]
     closed = nut_end_closed_volume(NOMINAL.d, NOMINAL.pitch, NOMINAL.s, NOMINAL.m, 0.1)
     assert volume_check(precise_volume(last), closed) is not None, what
+
+
+# ---------------------------------------------------------------- the catalogue sweep (P7, D-12)
+
+
+def _catalogue_nut(row_id: str, clearance: float, left_hand: bool = False) -> NutParams:
+    [row] = [r for r in nut_catalogue() if r.id == row_id]
+    return NutParams.model_validate({**dict(row.fields), "clearance": clearance,
+                                     "left_hand": left_hand})
+
+
+@pytest.mark.parametrize("left_hand", [False, True], ids=["right", "left"])
+@pytest.mark.parametrize("row_id", [r.id for r in nut_catalogue()])
+def test_every_iso_4032_nut_meshes_watertight_at_preview(row_id: str, left_hand: bool) -> None:
+    mesh = stl_check(export(_catalogue_nut(row_id, 0.1, left_hand), "stl", "preview"))
+    assert mesh.open_edges == 0, (row_id, left_hand)
+    assert mesh.triangles > 0
+
+
+@pytest.mark.parametrize("clearance", [0.0, 0.1, 0.2])
+@pytest.mark.parametrize("row_id", [r.id for r in nut_catalogue()])
+def test_every_countersink_crosses_the_void_root(row_id: str, clearance: float) -> None:
+    """The cone ends below the root radius, so it crosses the root surface and never grazes it
+    (the grazing probe left 8 open preview edges, RESEARCH F8): the geometric half of what the
+    mesh sweep above sees. A nut whose cone cannot cross the void gets no countersink at all."""
+    p = _catalogue_nut(row_id, clearance)
+    depth, _, warnings = end_depths(p.d, p.pitch, clearance, p.s, p.m)
+    root = p.d / 2 - thread_depth(p.pitch) + clearance
+    if depth == 0.0:
+        assert any(w.startswith(f"clearance {clearance:g}:") for w in warnings)
+        return
+    inner = nut.countersink_inner_radius(p, depth)
+    assert inner < root
+    # The inner radius is the one the built cutter ends on: its bottom is where the cone reaches it.
+    cutter = nut.countersink(p, 0.0, depth)
+    reach = (countersink_face_radius(p.d) - inner) / math.tan(math.radians(
+        COUNTERSINK_HALF_ANGLE_DEG))
+    assert cutter.BoundingBox().zmax == pytest.approx(reach, abs=BOX_TOL)
+    # And it opens wider than the crest: the cone crosses the void from the outside as well.
+    assert countersink_face_radius(p.d) > p.d / 2 + clearance
+
+
+def test_a_capped_countersink_ends_flat_in_material_above_the_root() -> None:
+    # R5 a: a depth capped at m / 2 stops where the cone is still outside the root radius, so the
+    # cutter's bottom is a plane in material that crosses the flanks, never a graze.
+    p = NutParams(clearance=0.1, m=0.8)
+    depth = end_depths(p.d, p.pitch, p.clearance, p.s, p.m)[0]
+    assert depth == pytest.approx(0.4)
+    root = p.d / 2 - thread_depth(p.pitch) + p.clearance
+    assert nut.countersink_inner_radius(p, depth) > root
+    assert nut.countersink(p, 0.0, depth).BoundingBox().zmax == pytest.approx(depth, abs=BOX_TOL)
+    mesh = stl_check(export(p, "stl", "preview"))
+    assert mesh.open_edges == 0
+
+
+def test_a_cone_that_ends_on_the_root_passes_every_volume_gate_and_opens_the_mesh(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    # The positive control of the sweep (T-05-28): with no overshoot the cone ends exactly on the
+    # root surface. The solid is valid and inside the volume gate, so only the mesh sees it; the
+    # geometric test above is the other net, and it refuses the same cutter.
+    monkeypatch.setattr(nut, "CROSS_FRACTION", 0.0)
+    p = NutParams(clearance=0.1)
+    depth = end_depths(p.d, p.pitch, p.clearance, p.s, p.m)[0]
+    root = p.d / 2 - thread_depth(p.pitch) + p.clearance
+    assert not nut.countersink_inner_radius(p, depth) < root
+    assert len(build(p).Solids()) == 1  # built: no gate refused it
+    assert stl_check(export(p, "stl", "preview")).open_edges > 0
