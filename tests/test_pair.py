@@ -11,8 +11,11 @@ import ast
 import json
 import math
 import os
+import re
 import subprocess
 import sys
+import time
+import tomllib
 from collections.abc import Sequence
 from dataclasses import asdict, replace
 from importlib.metadata import version
@@ -756,3 +759,172 @@ def test_the_real_shipped_pair_is_empty_at_whole_pitch_starts_and_not_off_phase(
     # the plan named, both interfere, so an empty reading above is the pose and not a blind boolean
     assert result["control"][1] == 1
     assert result["literal"][1] == 1
+
+
+# --- the verify cell and the pair tier (PAIR-04, D-07) --------------------------------------------
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+PAIR_YML = REPO_ROOT / ".github" / "workflows" / "pair.yml"
+CI_YML = REPO_ROOT / ".github" / "workflows" / "ci.yml"
+REQUIRED_JOBS = REPO_ROOT / ".github" / "workflows" / "required-jobs.txt"
+RESULTS = REPO_ROOT / "bench" / "results" / "phase-05"
+
+# The spike's own per-cell deadline for a whole pair cell, six booleans (recorded worst cell
+# 137.3 s, RESEARCH D-07): reused, never re-picked. A cell that outlives it is killed and fails.
+CELL_DEADLINE_S = spike_verdict.PAIR_TIMEOUT_S
+
+# A child process, because the real boolean parks its operation in OpenCascade for the life of
+# the process and a normal exit then dies at teardown with status 139 (RESEARCH F5): the child
+# flushes and ends with os._exit(0), so a non-zero status here means the proof itself failed.
+# `s` is the across-flats width the model needs to accept the row and nothing the proof reads
+# (`shipped=False` builds no bolt and `prove` never touches `s`): the product default of 10 mm
+# is refused for 94 of the 240 rows (d + 2 c above 10), so it is raised to clear the void by 1 mm
+# and is the product default wherever that already suffices.
+_CELL_CHILD = """
+import json, os, sys
+
+from screw.params import NutParams
+from screw.solid.pair import prove
+
+row = json.loads(sys.argv[1])
+d, c = row["d"], row["clearance"]
+p = NutParams(d=d, pitch=row["pitch"], m=row["m"], clearance=c, left_hand=row["nut_left_hand"],
+              s=max(10.0, d + 2 * c + 1.0))
+report = prove(p, rod_left_hand=row["rod_left_hand"], shipped=False)
+print(report.model_dump_json())
+sys.stdout.flush()
+sys.stderr.flush()
+os._exit(0)
+"""
+
+
+def _hands(row: dict[str, str]) -> str:
+    rod, nut = row["rod_left_hand"] == "true", row["nut_left_hand"] == "true"
+    if rod != nut:
+        assert not rod, "the table holds the right-hand rod with a left-hand nut as its mixed pair"
+        return "mixed"
+    return "left" if nut else "right"
+
+
+def _cell_id(row: dict[str, str]) -> str:
+    return f"{row['size']}-{_hands(row)}-c{float(row['clearance']):g}"
+
+
+def _run_cell(row: dict[str, str], *, deadline: float) -> solid_pair.PairReport:
+    """The proof of one table row in a child process, with `shipped=False` (the verdict's own
+    six booleans). A timeout, a non-zero exit or output that is not a PairReport fails the cell:
+    nothing here can turn a dead child into a pass."""
+    spec = {"d": float(row["d"]), "pitch": float(row["pitch"]), "m": float(row["m"]),
+            "clearance": float(row["clearance"]),
+            "rod_left_hand": row["rod_left_hand"] == "true",
+            "nut_left_hand": row["nut_left_hand"] == "true"}
+    where = _cell_id(row)
+    try:
+        done = subprocess.run([sys.executable, "-I", "-c", _CELL_CHILD, json.dumps(spec)],
+                              capture_output=True, text=True, timeout=deadline, check=False)
+    except subprocess.TimeoutExpired:
+        pytest.fail(f"{where}: no answer within {deadline:g} s; a killed cell is never a pass")
+    if done.returncode != 0:
+        pytest.fail(f"{where}: the child exited {done.returncode}: {done.stderr[-500:]}")
+    lines = done.stdout.strip().splitlines()
+    try:
+        return solid_pair.PairReport.model_validate_json(lines[-1])
+    except (IndexError, ValidationError) as exc:
+        pytest.fail(f"{where}: the child's output is not a PairReport ({exc!r}): "
+                    f"{done.stdout[-500:]}")
+
+
+def _verify_row() -> dict[str, str]:
+    (row,) = (r for r in _table() if _cell_id(r) == "M6-right-c0.1")
+    return row
+
+
+def test_the_verify_cell_is_the_recorded_m6_right_hand_c_0_1_row() -> None:
+    row = _verify_row()
+    assert (row["d"], row["pitch"], row["m"], row["verdict"]) == ("6.0", "1.0", "5.2", "proven")
+
+
+def test_the_verify_cell_is_proven_as_pre_registered() -> None:
+    row = _verify_row()
+    report = _run_cell(row, deadline=CELL_DEADLINE_S)
+    assert report.verdict == row["verdict"], report.reasons
+    # the proof did read: six matched and control poses, and the control fired at its closed form
+    assert len(report.readings) == 6
+    assert report.closed_control is not None
+
+
+GRID_ROWS = _table()
+GRID_IDS = [_cell_id(r) for r in GRID_ROWS]
+
+
+def _write_down(row: dict[str, str], record: dict[str, object]) -> None:
+    # One line per cell, appended: an xdist worker writes whole lines, never a partial one.
+    RESULTS.mkdir(parents=True, exist_ok=True)
+    with (RESULTS / f"pair-{row['size']}.jsonl").open("a", encoding="utf-8") as out:
+        out.write(json.dumps(record) + "\n")
+
+
+@pytest.mark.pair
+@pytest.mark.parametrize("row", GRID_ROWS, ids=GRID_IDS)
+def test_pair_cell(row: dict[str, str]) -> None:
+    started = time.perf_counter()
+    record: dict[str, object] = {"id": _cell_id(row), "expected": row["verdict"]}
+    try:
+        report = _run_cell(row, deadline=CELL_DEADLINE_S)
+    except BaseException as failure:    # a failed cell is written down before it fails the run
+        _write_down(row, record | {"error": f"{type(failure).__name__}: {failure}"[:500],
+                                   "wall_seconds": time.perf_counter() - started})
+        raise
+    _write_down(row, record | {"report": report.model_dump(),
+                               "wall_seconds": time.perf_counter() - started})
+    assert report.verdict == row["verdict"], (report.verdict, row["verdict"], report.reasons)
+
+
+def test_the_pair_grid_is_the_240_pre_registered_cells_with_unique_ids() -> None:
+    assert len(GRID_ROWS) == len(set(GRID_IDS)) == 240
+    for wanted in ("M6-right-c0.1", "M6-left-c0.1", "M6-mixed-c0.1", "M6-right-c0",
+                   "M6-right-c-0.05"):
+        assert wanted in GRID_IDS
+
+
+def test_a_size_selects_exactly_its_sixteen_pair_cells_by_id() -> None:
+    """`make pair SIZE=M2` runs `-k 'M2-'`, a case-insensitive substring match: M2 must not pull
+    in M12 or M2.5, nor M3 in M3.5 (the same rule the thread grid pins)."""
+    for size in maths.SIZES:
+        selected = [i for i in GRID_IDS if f"{size}-".lower() in i.lower()]
+        assert selected == [i for i in GRID_IDS if i.startswith(f"{size}-")]
+        assert len(selected) == 16
+
+
+def test_the_pair_marker_is_registered_and_deselected_by_default() -> None:
+    options = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text())["tool"]["pytest"][
+        "ini_options"]
+    assert "-m 'not grid and not pair'" in options["addopts"]
+    assert any(m.startswith("pair:") for m in options["markers"])
+
+
+def test_the_pair_workflow_has_no_pull_request_or_push_trigger_and_reads_only() -> None:
+    """T-05-34: no fork code runs with this token, and the token cannot write."""
+    text = PAIR_YML.read_text()
+    assert "workflow_dispatch:" in text
+    assert re.search(r"^\s*schedule:", text, re.MULTILINE)
+    assert not re.search(r"^\s*(pull_request|pull_request_target|push)\s*:", text, re.MULTILINE)
+    assert re.search(r"^permissions:\n  contents: read$", text, re.MULTILINE)
+    assert "secrets." not in text
+    assert "make pair PYTHON=python SIZE=" in text
+
+
+def test_the_pair_workflow_matrix_is_exactly_the_measured_sizes_in_order() -> None:
+    match = re.search(r"^\s*size:\s*\[([^\]]*)\]", PAIR_YML.read_text(), re.MULTILINE)
+    assert match is not None, "no `size: [...]` matrix found in pair.yml"
+    assert tuple(s.strip().strip('"') for s in match.group(1).split(",")) == maths.SIZES
+
+
+def test_the_pair_tier_is_not_a_required_job() -> None:
+    """D-07, L08: every job in ci.yml is required, so the slow tier lives in its own workflow."""
+    ci = CI_YML.read_text()
+    assert "make pair" not in ci
+    assert "-m pair" not in ci
+    required = [line for line in REQUIRED_JOBS.read_text().splitlines()
+                if line.strip() and not line.startswith("#")]
+    assert not [name for name in required if name.startswith("pair")]

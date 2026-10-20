@@ -29,7 +29,7 @@ CONSTRAINT := $(if $(wildcard requirements.txt),PIP_CONSTRAINT=requirements.txt,
 .PHONY: help venv verify lint typecheck lint-imports no-fake-done test serve lock \
 	    check image smoke up down logs vendor vendor-check \
 	    worktree.bootstrap worktree.new worktree.land pr.land clean clean-docker \
-	    bench bench.build bench.export bench.latency bench.memory bench.thread grid
+	    bench bench.build bench.export bench.latency bench.memory bench.thread grid pair
 
 help:  ## list the targets
 	@grep -hE '^[a-z][a-z.-]*:.*##' $(MAKEFILE_LIST) | sed 's/:[^#]*##/\t/' | expand -t18
@@ -111,6 +111,14 @@ test: $(STAMP)  ## run the test suite under the coverage floor
 # SIZE=M6 runs one size's four cells: `-k 'M6-'` aliases nothing (tests/test_grid.py pins it).
 grid: $(STAMP)  ## the full thread grid through the THRD-04 gate (slow; D-14); SIZE=M6 runs one size
 	$(PY) -m pytest -m grid -n $(PYTEST_WORKERS) --no-cov $(if $(SIZE),-k '$(SIZE)-',) $(PYTEST_ARGS)
+
+# The slow pair tier (D-07): the 240 pre-registered cells of the pair proof, each in its own child
+# process with the spike's per-cell deadline, every verdict asserted against tests/data/
+# pair_expected.tsv and every report appended to bench/results/phase-05/pair-<size>.jsonl. Outside
+# the gate like `grid`; SIZE=M6 runs one size's 16 cells (`-k 'M6-'` aliases nothing: the ids end
+# in a hand and a clearance, and tests/test_pair.py pins it).
+pair: $(STAMP)  ## the pre-registered pair grid (slow; D-07); SIZE=M6 runs one size
+	$(PY) -m pytest -m pair -n $(PYTEST_WORKERS) --no-cov $(if $(SIZE),-k '$(SIZE)-',) $(PYTEST_ARGS)
 
 serve: $(STAMP)  ## run the dev server on http://127.0.0.1:8000
 	$(VENV)/bin/screw serve

@@ -111,9 +111,13 @@ ignore_missing_imports = true
 testpaths = ["tests"]
 # D-14: the full thread grid (tests/test_grid.py) is a slow tier. A later `-m` on the command
 # line wins over this one, so `pytest -m grid` (make grid, grid.yml) runs it; `make verify`
-# deselects it and asserts no timing.
-addopts = "--strict-markers --strict-config -m 'not grid'"
-markers = ["grid: the full 02 D-03 thread grid through the THRD-04 gate; .github/workflows/grid.yml, never make verify"]
+# deselects it and asserts no timing. The pair tier (tests/test_pair.py, `pair`) is deselected
+# the same way and run by `make pair` and pair.yml.
+addopts = "--strict-markers --strict-config -m 'not grid and not pair'"
+markers = [
+  "grid: the full 02 D-03 thread grid through the THRD-04 gate; .github/workflows/grid.yml, never make verify",
+  "pair: the 240 pre-registered pair cells, each in a child process; .github/workflows/pair.yml, never make verify",
+]
 xfail_strict = true
 filterwarnings = ["error"]
 
