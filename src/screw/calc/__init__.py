@@ -47,10 +47,13 @@ PROFILE = "ISO 68-1:2023 basic profile"
 # plain shank to fillet. A note, not a warning: it is what the standard's part is, nothing to fix.
 NO_FILLET_NOTE = "no under-head fillet: the thread runs to the head (ISO 4017:2022)"
 
-# The standing entry on every info document (D-04, D-18): the thread ends are plain planar cuts
-# and the head has no under-head fillet, so nobody should cut metal to it as a product. Phase 5
-# rewrites it when the ends land; Phase 6 removes the last clause at release.
-STANDING_WARNING = "plain-cut thread ends, no tip chamfer or under-head fillet; not a product build"
+# The standing entry on every info document (D-04, D-18): it names the ends the builder models
+# (L15, the bolt tip cone, the under-head fillet and the nut's countersinks and chamfers) and says
+# they are nominal, so nobody should cut metal to it as a product. Phase 6 removes the last clause
+# at release.
+STANDING_WARNING = (
+    "ends modelled per L15: bolt tip chamfer, under-head fillet on an ISO 4014 plain shank, "
+    "nut lead-in countersinks and face chamfers; nominal, not toleranced; not a product build")
 
 # The panel headings (D-17); `calc.presets` files the rows a matched row adds under the same two.
 SHANK = "Shank and thread"

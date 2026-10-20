@@ -47,7 +47,9 @@ from screw.tables.iso4032 import NUTS
 from screw.tables.presets import catalogue, expand_nut
 from screw.tables.rows import HexNut
 
-WARNING = "plain-cut thread ends, no tip chamfer or under-head fillet; not a product build"
+WARNING = ("ends modelled per L15: bolt tip chamfer, under-head fillet on an ISO 4014 plain shank, "
+           "nut lead-in countersinks and face chamfers; nominal, not toleranced; "
+           "not a product build")
 PROFILE = "ISO 68-1:2023 basic profile"
 NO_ROW = ("no ISO 4014:2022 or ISO 4017:2022 row matches these fields; "
           "row values not reported")

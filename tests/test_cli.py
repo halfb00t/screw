@@ -18,7 +18,8 @@ from screw import __version__, cli
 from screw.calc import derive, download_refusal
 from screw.params import KINDS, BoltParams
 
-WARNING = ("warning: plain-cut thread ends, no tip chamfer or under-head fillet; "
+WARNING = ("warning: ends modelled per L15: bolt tip chamfer, under-head fillet on an ISO 4014 "
+           "plain shank, nut lead-in countersinks and face chamfers; nominal, not toleranced; "
            "not a product build")
 
 
