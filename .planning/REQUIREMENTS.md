@@ -15,7 +15,7 @@ Requirements for the first release: the mating-pair cut (infra port, thread spik
 - [x] **THRD-02**: User can choose a left-hand thread via a boolean `left_hand` field (default right-hand); a left-hand pair is proven by the same checks as a right-hand pair. *(Phase 3 ships the right- and left-hand solid; the second clause, a left-hand pair proven like a right-hand pair, is Phase 5 PAIR-03 — owner ruling 2026-10-11.)*
 - [x] **THRD-03**: User sets `thread_length` on a bolt as explicit millimetres; the ISO 4017 preset fills it with the full length, the ISO 4014 preset fills `b` from the table by length band; the user may edit it afterwards.
 - [x] **THRD-04**: Every thread build is gated by a postcondition — valid shape, exactly one solid, volume within a stated tolerance of the closed-form value (sign included) — and a failed gate is a `BuildError` naming what failed, never a cached or served solid. `isValid()` alone is never the gate; the gate has a positive-control test fed a known-bad build.
-- [ ] **THRD-05**: Nut thread and bolt tip carry lead-in chamfers and the bolt an under-head fillet (bolt ends per ISO 4753 — clause UNVERIFIED until the standard is read) so a printed pair can start.
+- [ ] **THRD-05**: Nut thread and bolt tip carry lead-in chamfers and the bolt an under-head fillet (bolt ends per ISO 4753 — clause UNVERIFIED until the standard is read; L14, 2026-10-20: read as GOST 12414-94, the ISO 4753:1983 text) so a printed pair can start.
 
 ### Mating Pair
 
@@ -30,7 +30,7 @@ Requirements for the first release: the mating-pair cut (infra port, thread spik
 
 - [x] **TYPE-01**: User can generate a hex head bolt per ISO 4014:2022 (partial thread): across-flats `s`, across-corners `e`, head height `k`, bearing face `dw`, thread length `b` by length band, unthreaded shank `ls`/grip `lg`, product grade A/B boundary (A for d ≤ M24 and l ≤ 10d or 150 mm). The chamfered point and the under-head fillet are THRD-05's (Phase 5, ISO 4753).
 - [x] **TYPE-02**: User can generate a hex head screw per ISO 4017:2022 (threaded to the head), lengths to the standard's 200 mm cap.
-- [ ] **TYPE-03**: User can generate a hex nut per ISO 4032:2023 (style 1): `s`, `e`, height `m`, wrench height `mw`, `dw`, chamfers on both faces; M5–M20 from the normative tables, M2–M4 from informative Annex A labelled "informative / historical" in the preset and on the info panel.
+- [ ] **TYPE-03**: User can generate a hex nut per ISO 4032:2023 (style 1): `s`, `e`, height `m`, wrench height `mw`, `dw`, chamfers on both faces; M5–M20 from the normative tables, M2–M4 from informative Annex A labelled "informative / historical" in the preset and on the info panel. Amended 2026-10-20 (L14): the rows are read from GOST ISO 4032-2014 (ISO 4032:2012), which has no Annex A, so by the owner's ruling every size M2–M20 it prints (Table 1 and Table 2; no M7) ships as a normative row citing its table and none is labelled informative.
 - [ ] **TYPE-04**: For any generated bolt the user can get the matching nut, and vice versa, derived from the same `d`, pitch, hand and clearance.
 
 ### ISO Tables and Presets
@@ -38,7 +38,7 @@ Requirements for the first release: the mating-pair cut (infra port, thread spik
 - [x] **TABL-01**: User picks standard + size + length from the valid combinations ("M6 × 20, ISO 4017"); the preset fills the explicit mm fields; the shareable URL carries mm fields only, the preset id is metadata and never the source of truth.
 - [x] **TABL-02**: Every table row cites standard, edition, table and column in a required typed `Source` field; a row without a citation does not type-check.
 - [x] **TABL-03**: Every table row has one verification test asserting the standard's invariants for that row (pure data test; no kernel build per row).
-- [x] **TABL-04**: A table row ships only against a purchased copy of its standard (v1: ISO 4014:2022, 4017:2022, 4032:2023, 262:2023, 724:2023, 965-2:2024; ISO 4753 (Phase 5)); rows entered from previews are marked UNVERIFIED and the gate refuses an UNVERIFIED row in a release build.
+- [x] **TABL-04**: A table row ships only against a purchased copy of its standard (v1: ISO 4014:2022, 4017:2022, 4032:2023, 262:2023, 724:2023, 965-2:2024; ISO 4753 (Phase 5)); rows entered from previews are marked UNVERIFIED and the gate refuses an UNVERIFIED row in a release build. Amended 2026-10-20 (L14): for Phase 5, for the documents L14 maps, the free GOST text stands in for the purchased ISO copy (GOST ISO 4032-2014, GOST 24705-2004, GOST 16093-2004, GOST 12414-94, and GOST ISO 4014-2014 where L14's open question selects it), and each row cites the GOST designation and the ISO edition it adopts; buying the ISO texts is debt.
 - [x] **TABL-05**: Sizes M2–M20 per ISO 262:2023 — first choice M2, M2.5, M3, M4, M5, M6, M8, M10, M12, M16, M20; second choice M3.5, M7, M14, M18 shown in brackets as the standards do — coarse pitch only.
 - [x] **TABL-06**: The UI shows a preset-match badge: "matches ISO 4017 M6 × 20" while the mm fields equal the row, "custom, based on ISO 4017 M6 × 20" once any field is edited.
 - [x] **TABL-07**: The designation line shows the ISO designation without a property class (printed plastic has none).
@@ -46,7 +46,7 @@ Requirements for the first release: the mating-pair cut (infra port, thread spik
 ### Info Panel
 
 - [ ] **INFO-01**: The info panel shows, from the pure-maths module without touching the kernel: head (`s` nominal/max/min, across-corners geometric and `e,min` labelled separately, `k`, `dw,min`, wrench size), shank/thread (`l`, `b`, `ls`, `lg`, `d`, `P`, `d2`, `D1`, thread depth), nut (`s`, `e`, `m`, `mw`, `dw`, `D1`, `D2`), pair (clearance radial and diametral, resulting nut diameters, engagement in turns).
-- [ ] **INFO-02**: 6g (bolt) and 6H (nut) min/max limits from ISO 965-2:2024 are shown with the explicit label "limits for a bought part; this model is nominal and not toleranced".
+- [ ] **INFO-02**: 6g (bolt) and 6H (nut) min/max limits from ISO 965-2:2024 are shown with the explicit label "limits for a bought part; this model is nominal and not toleranced". Amended 2026-10-20 (L14): the limits are derived from the GOST 24705-2004 basic diameters plus the GOST 16093-2004 printed deviations and tolerances, and each row says derived and names both.
 - [x] **INFO-03**: Every number on the panel is traceable to an explicit mm field or to a cited row with a test; a value that cannot be computed honestly is a warning and no number. Any volume shown comes from the closed form, never from the kernel's default `Volume()`.
 - [ ] **INFO-04**: Sizes and pitches below the printable threshold get a cap-and-warn printability warning citing its source; the threshold is a constant set from the owner's printed test, not from vendor guides.
 - [x] **INFO-05**: Where the wrench size differs from the withdrawn DIN equivalent (M10, M12 and M14 only, D-20) the panel shows the ISO value with a one-line note.

@@ -228,11 +228,12 @@ Plans:
 **Mode:** mvp
 **Depends on**: Phase 4
 **Precondition (owner checkpoint)**: owner holds purchased copies of ISO 4014:2022, 4017:2022, 4032:2023, 262:2023, 724:2023, 965-2:2024, and ISO 4753 (bolt ends, D-02). The ISO 4032 and ISO 965-2 rows ship here (TABL-04); ISO 4753 is read here for THRD-05.
+**Precondition as amended by L14 (2026-10-20)**: for the documents L14 maps, the free GOST text stands in for the purchased ISO copy: GOST ISO 4032-2014 (ISO 4032:2012) for the nut rows; GOST 24705-2004 (ISO 724:1993, MOD) and GOST 16093-2004 for the 6g/6H limits, which are derived (no GOST prints ISO 965-2's limit tables); GOST 12414-94 (ISO 4753:1983) for the tip end; and, for a new ISO 4014 value, the owner's ISO 4014:2022 copy if it holds it, else GOST ISO 4014-2014 (asked at plan 05-12). The Phase 4 ISO 262:2023, 4017:2022 and 4014:2022 rows stand as L13 records them. Buying the ISO texts is debt (`docs/tech_debt/active/2026-10-20-iso-standards-not-purchased.md`).
 **Revision (L11 escape clause, 2026-10-13)**: M18 is not falsifiable on either hand in `2026-10-08-a-pair` (one control pose reads empty at every clearance). Owner's direction: scope the proof, M18 reads `inconclusive`. The D-14 rule stands as PAIR-03 writes it; no rule or constant is changed toward a `proven`. Phase 5 is plannable on this revision (decision log L11, revision direction).
 **Requirements**: TYPE-03, TYPE-04, THRD-05, PAIR-01, PAIR-03, PAIR-04, INFO-01, INFO-02, FRNT-06
 **Success Criteria** (what must be TRUE):
-  1. A user can generate an ISO 4032 hex nut M2–M20 from a preset or mm fields on the UI, API and CLI (`s`, `e`, `m`, `mw`, `dw`, chamfers on both faces), with M2–M4 labelled "informative / historical" in the preset and on the panel; for any bolt the user gets the matching nut, and vice versa, from the same `d`, pitch, hand and clearance; the nut thread and the bolt tip carry lead-in chamfers; the parity test is green with both kinds.
-  2. The nut's `clearance` field is radial millimetres, a positive value enlarges the nut's thread while the bolt stays nominal, and no default for it ships before Phase 6 records the printed test; the info panel shows the full INFO-01 set (clearance radial and diametral, resulting nut diameters, engagement in turns) and the 6g/6H limits from ISO 965-2:2024 under the label "limits for a bought part; this model is nominal and not toleranced".
+  1. A user can generate an ISO 4032 hex nut M2–M20 from a preset or mm fields on the UI, API and CLI (`s`, `e`, `m`, `mw`, `dw`, chamfers on both faces), with M2–M4 labelled "informative / historical" in the preset and on the panel (amended 2026-10-20: the rows are read from GOST ISO 4032-2014 under L14, whose 2012 edition has no Annex A, so by the owner's ruling no row is labelled informative and each row cites its Table 1 or Table 2; the presets are its 14 sizes from M2 to M20, which include no M7, and an M7 nut is built from mm fields); for any bolt the user gets the matching nut, and vice versa, from the same `d`, pitch, hand and clearance; the nut thread and the bolt tip carry lead-in chamfers; the parity test is green with both kinds.
+  2. The nut's `clearance` field is radial millimetres, a positive value enlarges the nut's thread while the bolt stays nominal, and no default for it ships before Phase 6 records the printed test; the info panel shows the full INFO-01 set (clearance radial and diametral, resulting nut diameters, engagement in turns) and the 6g/6H limits from ISO 965-2:2024 (amended 2026-10-20, L14: derived from the GOST 24705-2004 basic diameters and the GOST 16093-2004 printed deviations and tolerances, labelled derived) under the label "limits for a bought part; this model is nominal and not toleranced".
   3. `screw pair` and the solid-package function return `proven | violated | inconclusive` with the control result: a half-pitch axial offset of the same pair must collide at every matched pose, or the verdict is `inconclusive` naming the pose and clearance whose control read empty, never `proven`; clearance ≤ 0 is `inconclusive` by definition; right- and left-hand pairs go through the same checks; one size runs in `make verify`, the full grid in a CI job against expected verdicts pre-registered from `2026-10-08-a-pair` before the first run (M18 `inconclusive` on both hands at K = 3; each size's excluded clearances outside its proven set), and no rule or constant is changed to turn an `inconclusive` into a `proven`.
   4. The pair proof is not an API endpoint: the API and UI show closed-form flank gaps instead, and import-linter forbids `app` and `pool` from importing the pair module.
   5. STL and STEP downloads come from the same modelled-thread solid; the STL chord deviation is explicit, measured against the clearances the printed test will use, and recorded and cited in a decision entry, with `ControlSurfaceDeflection` on for downloads; the preview may mesh coarser, the numbers may not.
@@ -257,13 +258,13 @@ Plans:
 - [x] 05-05-PLAN.md — Nut rules: root radius with clearance, nut_too_thin, turn cap on m + 2P, the non-positive clearance warning, the nut fine-STL rule (D-04, D-13)
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [ ] 05-06-PLAN.md — ISO 4032:2023 rows double-entered, relation tests, the frozen nut defaults pinned to the M6 row
+- [ ] 05-06-PLAN.md — GOST ISO 4032-2014 (ISO 4032:2012) nut rows double-entered (L14), relation tests, the frozen nut defaults pinned to the M6 row
 
 **Wave 7** *(blocked on Wave 6 completion)*
-- [ ] 05-07-PLAN.md — The ISO 4032 catalogue and the nut's exact match, cited values, designation and Annex A note (D-17)
+- [ ] 05-07-PLAN.md — The ISO 4032 catalogue and the nut's exact match, cited values, designation and grade note (D-17 as ruled 2026-10-20)
 
 **Wave 8** *(blocked on Wave 7 completion)*
-- [ ] 05-08-PLAN.md — ISO 724 nominal diameters and the ISO 965-2:2024 6g/6H limits, double-entered (D-16)
+- [ ] 05-08-PLAN.md — GOST 24705-2004 basic diameters and GOST 16093-2004 deviations double-entered, the 6g/6H limits derived from them (D-16, L14)
 
 **Wave 9** *(blocked on Wave 8 completion)*
 - [ ] 05-09-PLAN.md — The panel: pitch and minor diameters, the INFO-02 limits group, the pair rows, the M18 note (D-16, D-19, D-20)
@@ -275,7 +276,7 @@ Plans:
 - [ ] 05-11-PLAN.md — TDD: kernel-free end-cut oracles, end models, capped depths and the piece tolerance (D-09, D-10)
 
 **Wave 12** *(blocked on Wave 11 completion)*
-- [ ] 05-12-PLAN.md — Bolt ends: ISO 4753 tip cone and ISO 4014 under-head fillet ring, gated whole and by piece, watertight sweep (D-09, D-11)
+- [ ] 05-12-PLAN.md — Bolt ends: the tip cone read from GOST 12414-94 (ISO 4753, L14) and the ISO 4014 under-head fillet ring, gated whole and by piece, watertight sweep (D-09, D-11)
 
 **Wave 13** *(blocked on Wave 12 completion)*
 - [ ] 05-13-PLAN.md — Nut ends: lead-in countersinks and face chamfers on both faces, watertight sweep; the standing warning rewritten (D-12, D-18)
@@ -293,7 +294,7 @@ Plans:
 - [ ] 05-17-PLAN.md — FRNT-06: the fine STL deflection by the owner's rule, ControlSurfaceDeflection and deviation pinned, caps re-derived if the preset moved (D-21)
 
 **Wave 18** *(blocked on Wave 17 completion)*
-- [ ] 05-18-PLAN.md — The preview download names its quality (D-22); L14, the overview, the UI contract, requirement and state lines, the phase's debt (D-23)
+- [ ] 05-18-PLAN.md — The preview download names its quality (D-22); L15 (the phase entry; L14 is the GOST source decision), the overview, the UI contract, requirement and state lines, the phase's debt (D-23)
 
 **UI hint**: yes
 
