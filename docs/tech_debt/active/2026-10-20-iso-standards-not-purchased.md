@@ -9,7 +9,7 @@ Related files:
 - docs/requirements/standards-sources.md (the source map and the edition gaps)
 - .planning/phases/05-hex-nut-and-kernel-pair-proof/05-OWNER-READS.md (the M6 defaults)
 - .planning/REQUIREMENTS.md (TABL-04)
-- src/screw/calc/__init__.py (`NUT_NO_ROW_WARNING` names ISO 4032:2023)
+- src/screw/calc/__init__.py (`NUT_NO_ROW_WARNING` names GOST ISO 4032-2014 (ISO 4032:2012) since plan 05-07)
 
 ## Context
 Phase 5 reads its table values from free GOST texts that adopt the ISO standards (L14), and the
