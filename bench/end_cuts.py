@@ -16,11 +16,12 @@ The bodies are the shipped `screw.solid.helical.thread` (rod and void) and the s
 `screw.solid.bolt.thread` / `assemble`, never a copy, so what is measured is the thread that
 ships. Only the cutters are new, and they are built here.
 
-The oracles (`a_out` and the functions after it) are plain `math` on the section of the thread,
-which is the same at every z, so a cut's removed volume is a one-dimensional integral; they share
-no code path with the kernel. 05-RESEARCH F4 derived them; `tests/test_bench.py` checks each
-against an identity that does not use it, because the first arc formula written for the hexagon
-was off by a factor of 2.2.
+The oracles are plain `math` on the section of the thread, which is the same at every z, so a
+cut's removed volume is a one-dimensional integral; they share no code path with the kernel.
+05-RESEARCH F4 derived them and this module first held them. Since plan 05-11 they live in
+`screw.calc.thread` and are imported back here, so what was probed is what ships (02 D-18);
+`tests/test_end_oracles.py` checks each against an identity that does not use it, because the
+first arc formula written for the hexagon was off by a factor of 2.2.
 """
 
 from __future__ import annotations
@@ -44,9 +45,13 @@ from screw.calc.thread import (
     T_GATE,
     bolt_closed_volume,
     closed_volume,
+    countersink_volume,
+    face_chamfer_volume,
+    fillet_ring_volume,
     hex_prism_volume,
     section_area,
     thread_depth,
+    tip_cone_volume,
 )
 from screw.params import BoltParams
 from screw.solid import TESSELLATION, bolt, helical, precise_volume
@@ -63,117 +68,12 @@ CHAMFER_ANGLE_DEG = 30.0    # from the face, starting on the inscribed circle
 CROSS_FRACTION = 0.3        # a crossing cone ends this fraction of the thread depth below the root
 
 
-# --- kernel-free oracles ------------------------------------------------------------------
+# --- kernel-free helpers -------------------------------------------------------------------
 
 
 def _radii(d: float, pitch: float, c: float) -> tuple[float, float]:
     """(crest radius, root radius) of the section with the radial clearance `c` added."""
     return d / 2 + c, d / 2 - thread_depth(pitch) + c
-
-
-def a_out(d: float, pitch: float, c: float, rho: float) -> float:
-    """Area of the thread section that lies outside the disc of radius `rho`.
-
-    Half the integral over one turn of max(0, r(theta)^2 - rho^2): the crest flat spans pi/4 at
-    ro, the root flat pi/2 at rr and each flank 5 pi/8 with r linear in angle. Valid for any
-    `rho >= 0` and any clearance; the helix phase and the hand drop out, because the section is
-    rotation-invariant.
-    """
-    ro, rr = _radii(d, pitch, c)
-    k = ro - rr
-    total = 0.0
-    if rho < ro:
-        total += 0.5 * (ro**2 - rho**2) * math.pi / 4
-    if rho < rr:
-        total += 0.5 * (rr**2 - rho**2) * math.pi / 2
-    if rho <= rr:
-        flank = (ro**3 - rr**3) / (3 * k) - rho**2
-    elif rho < ro:
-        flank = (ro**3 - rho**3) / (3 * k) - rho**2 * (ro - rho) / k
-    else:
-        flank = 0.0
-    return total + 0.5 * 2 * (5 * math.pi / 8) * flank
-
-
-def tip_cone_removed(d: float, pitch: float, alpha_deg: float, n: int = 20_000) -> float:
-    """Volume a tip cone removes from the bare thread (clearance 0).
-
-    The cone meets the end face at the minor radius and rises at `alpha_deg` from the face, so
-    its radius at height z is minor + z / tan(alpha); at each z it removes the section outside
-    that disc. `n` midpoints over z in [0, (d/2 - minor) tan(alpha)], above which the cone is
-    outside the section. Valid for any rod longer than that height.
-    """
-    minor = d / 2 - thread_depth(pitch)
-    tan_alpha = math.tan(math.radians(alpha_deg))
-    h = (d / 2 - minor) * tan_alpha / n
-    return h * sum(a_out(d, pitch, 0.0, minor + (i + 0.5) * h / tan_alpha) for i in range(n))
-
-
-def mat_in_disc(d: float, pitch: float, c: float, rho: float) -> float:
-    """Nut material inside the disc of radius `rho`: the disc less the void it holds,
-    pi rho^2 - section_area + a_out(rho).
-
-    Valid while `rho <= s / 2`, the inscribed radius of the hexagon: past it the disc leaves the
-    nut and the formula overcounts (P10).
-    """
-    return math.pi * rho**2 - section_area(d, pitch, c) + a_out(d, pitch, c, rho)
-
-
-def countersink_removed(d: float, pitch: float, c: float, r_face: float,
-                        half_angle_deg: float, depth: float, n: int = 20_000) -> float:
-    """Material one countersink removes from a nut face.
-
-    The cone has radius r_face - z tan(half) at depth z from the face, `half_angle_deg` from
-    the axis; it removes `mat_in_disc` at each z over [0, depth] (`n` midpoints). Valid when
-    r_face <= s / 2 (inside the inscribed circle), r_face <= the chamfer's start radius (else
-    the two cutters overlap and are counted twice), and 2 * depth <= m (the two countersinks do
-    not meet) (P10). Below the root radius the disc holds no material and the integrand is 0,
-    so a cone that ends in the void and one that ends on `depth` agree.
-    """
-    tan_half = math.tan(math.radians(half_angle_deg))
-    h = depth / n
-    return h * sum(mat_in_disc(d, pitch, c, r_face - (i + 0.5) * h * tan_half) for i in range(n))
-
-
-def arc_inside(s: float, rho: float) -> float:
-    """Length of the circle of radius `rho` that lies inside the regular hexagon of across-flats
-    `s`: the whole circle up to the inscribed radius a = s / 2, rho (2 pi - 12 acos(a / rho))
-    between a and the corner radius R = a / cos(pi / 6), nothing above.
-    """
-    a = s / 2
-    corner = a / math.cos(math.pi / 6)
-    if rho <= a:
-        return 2 * math.pi * rho
-    if rho >= corner:
-        return 0.0
-    return rho * (2 * math.pi - 12 * math.acos(a / rho))
-
-
-def face_chamfer_removed(s: float, r0: float, beta_deg: float, n: int = 40_000) -> float:
-    """Material one hexagon-corner face chamfer removes from a prism of across-flats `s`.
-
-    A cone starting at radius `r0` on the face and rising at `beta_deg` from it removes a depth
-    (rho - r0) tan(beta) over the arc `arc_inside(s, rho)`, integrated over rho in [r0, R]
-    (`n` midpoints). Valid when r0 is outside the void's crest radius and r0 < R, and
-    (R - r0) tan(beta) <= m / 2 (the two chamfers do not meet) (P10).
-    """
-    corner = s / 2 / math.cos(math.pi / 6)
-    tan_beta = math.tan(math.radians(beta_deg))
-    h = (corner - r0) / n
-    return h * sum(arc_inside(s, r0 + (i + 0.5) * h) * (i + 0.5) * h * tan_beta
-                   for i in range(n))
-
-
-def ring_volume(d: float, r: float) -> float:
-    """Volume of a quarter-circle fillet ring of radius `r` at a shank of diameter `d`.
-
-    The revolved region is the square r x r less a quarter disc centred on its far corner: area
-    r^2 (1 - pi/4), centroid offset u_bar from the shank surface, and Pappus gives
-    2 pi (d/2 + u_bar) * area.
-    """
-    area = r**2 * (1 - math.pi / 4)
-    u_bar = (r**3 / 2 - (math.pi * r**2 / 4) * (r - 4 * r / (3 * math.pi))) / area
-    return 2 * math.pi * (d / 2 + u_bar) * area
 
 
 def one_significant_figure_up(x: float) -> float:
@@ -264,23 +164,28 @@ class NutCase:
     def r0(self) -> float:
         return self.s / 2
 
+    @property
+    def chamfer_depth(self) -> float:
+        """The cone's own depth at the hexagon corner, where the oracle's cap does not bind."""
+        corner = self.s / 2 / math.cos(math.pi / 6)
+        return (corner - self.r0) * math.tan(math.radians(CHAMFER_ANGLE_DEG))
+
     def check_overlap_conditions(self) -> None:
         """P10's four validity conditions of the additive oracle; a case outside them would be
         measured against an oracle that double-counts, so it is refused here."""
-        corner = self.s / 2 / math.cos(math.pi / 6)
-        run = (corner - self.r0) * math.tan(math.radians(CHAMFER_ANGLE_DEG))
         if not (self.r_face <= self.s / 2 and self.r_face <= self.r0
-                and 2 * self.csk_depth <= self.m and run <= self.m / 2):
+                and 2 * self.csk_depth <= self.m and self.chamfer_depth <= self.m / 2):
             raise ValueError(f"{self.label}: the cutters overlap, the additive oracle is invalid")
 
     def oracle_removed(self) -> float:
         """Material both faces lose to the cutters this variant has, by the oracles."""
         removed = 0.0
         if self.countersink:
-            removed += 2 * countersink_removed(self.d, self.pitch, NUT_CLEARANCE, self.r_face,
-                                               CSK_HALF_ANGLE_DEG, self.csk_depth)
+            removed += 2 * countersink_volume(self.d, self.pitch, NUT_CLEARANCE, self.s,
+                                              self.r_face, CSK_HALF_ANGLE_DEG, self.csk_depth)
         if self.chamfer:
-            removed += 2 * face_chamfer_removed(self.s, self.r0, CHAMFER_ANGLE_DEG)
+            removed += 2 * face_chamfer_volume(self.s, self.r0, CHAMFER_ANGLE_DEG,
+                                               self.chamfer_depth)
         return removed
 
 
@@ -362,13 +267,13 @@ def _relative(measured: float, oracle: float) -> float:
 
 
 def probe_tip_bare(d: float, pitch: float, alpha: float, left_hand: bool) -> Row:
-    """A bare thread of 8 pitches with a tip cone: removed volume against `tip_cone_removed`."""
+    """A bare thread of 8 pitches with a tip cone: removed volume against `tip_cone_volume`."""
     length = 8 * pitch
     t0 = time.perf_counter()
     rod = helical.thread(d, pitch, length, left_hand=left_hand)
     cut = tip_cut(rod, d, pitch, length, alpha)
     seconds = time.perf_counter() - t0
-    oracle = tip_cone_removed(d, pitch, alpha)
+    oracle = tip_cone_volume(d, pitch, alpha)
     removed = precise_volume(rod) - precise_volume(cut)
     whole = precise_volume(cut) / (closed_volume(d, pitch, length) - oracle) - 1
     hand = "left" if left_hand else "right"
@@ -403,7 +308,7 @@ def probe_tip_bolt(case: BoltCase, alpha: float) -> Row:
     cut = tip_cut(thread, case.d, case.pitch, case.t, alpha)
     part = bolt.assemble(p, cut)
     seconds = time.perf_counter() - t0
-    oracle = tip_cone_removed(case.d, case.pitch, alpha)
+    oracle = tip_cone_volume(case.d, case.pitch, alpha)
     removed = precise_volume(thread) - precise_volume(cut)
     whole = precise_volume(part) / (case.closed() - oracle) - 1
     return _row(f"tip {alpha:g} bolt {case.label}", "tip-bolt", seconds, part,
@@ -417,7 +322,7 @@ def probe_ring(case: BoltCase, r: float, group: str = "ring") -> Row:
     part = bolt.assemble(p, bolt.thread(p))
     fused = part.fuse(fillet_ring(case.d, case.length, r))
     seconds = time.perf_counter() - t0
-    oracle = ring_volume(case.d, r)
+    oracle = fillet_ring_volume(case.d, r)
     added = precise_volume(fused) - precise_volume(part)
     whole = precise_volume(fused) / (case.closed() + oracle) - 1
     return _row(f"ring r {r:g} {case.label}", group, seconds, fused,
@@ -469,7 +374,7 @@ def control_tip(label: str, d: float, pitch: float, length: float,
     rod = helical.thread(d, pitch, length)
     cut = rod if built_alpha is None else tip_cut(rod, d, pitch, length, built_alpha)
     seconds = time.perf_counter() - t0
-    oracle = tip_cone_removed(d, pitch, expected_alpha)
+    oracle = tip_cone_volume(d, pitch, expected_alpha)
     removed = precise_volume(rod) - precise_volume(cut)
     whole = precise_volume(cut) / (closed_volume(d, pitch, length) - oracle) - 1
     return _row(label, "control", seconds, cut, piece=_relative(removed, oracle), whole=whole,
@@ -482,7 +387,7 @@ def control_ring_dropped(case: BoltCase, r: float) -> Row:
     t0 = time.perf_counter()
     part = bolt.assemble(p, bolt.thread(p))
     seconds = time.perf_counter() - t0
-    oracle = ring_volume(case.d, r)
+    oracle = fillet_ring_volume(case.d, r)
     whole = precise_volume(part) / (case.closed() + oracle) - 1
     return _row(f"ring dropped r {r:g} {case.label}", "control", seconds, part,
                 piece=_relative(0.0, oracle), whole=whole, qualities=("preview",))

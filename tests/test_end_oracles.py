@@ -9,7 +9,9 @@ SUMMARY). The oracles' agreement with the kernel is the probe entry in `bench/RE
 from __future__ import annotations
 
 import math
+import re
 from collections.abc import Iterable
+from pathlib import Path
 
 import pytest
 
@@ -330,3 +332,91 @@ def test_the_oracles_reproduce_the_values_the_probe_computed_before_they_moved()
     assert t.hex_arc_inside(10.0, 5.5) == pytest.approx(6.1973412234937015, rel=1e-12)
     assert t.nut_material_in_disc(6.0, 1.0, 0.1, 3.6) == pytest.approx(16.03276437545116,
                                                                        rel=1e-12)
+
+
+# --- the end models, T_PIECE and piece_refusal ------------------------------------------------
+
+RESULTS = Path(__file__).resolve().parent.parent / "bench" / "RESULTS.md"
+
+
+def _probe_entry() -> list[list[str]]:
+    """The cells of every row of the main table of `bench/RESULTS.md`, End-cut probe (Phase 5,
+    D-10): 9 columns, which keeps the fine-STL cap rows (12 columns) out."""
+    text = RESULTS.read_text()
+    entry = text.split("## End-cut probe (Phase 5, D-10)", 1)[1].split("\n## ", 1)[0]
+    rows = [[cell.strip() for cell in line.strip("|").split("|")]
+            for line in entry.splitlines() if line.startswith("| ")]
+    return [row for row in rows if len(row) == 9]
+
+
+def _piece_errors(prefixes: tuple[str, ...]) -> list[float]:
+    values: list[float] = []
+    for row in _probe_entry():
+        if row[0].startswith(prefixes) and row[4] != "-":
+            values.append(float(row[4]))
+    return values
+
+
+def test_the_end_models_are_the_values_the_owner_ruled_on() -> None:
+    assert t.TIP_ANGLE_DEG == 45.0            # R2, read 6, owner ruling 2026-10-20 (a)
+    assert t.COUNTERSINK_HALF_ANGLE_DEG == 45.0  # R3 b: 90 degrees included
+    assert t.CHAMFER_ANGLE_DEG == 30.0        # R4 a
+
+
+def test_a_document_named_in_the_thread_maths_is_the_edition_that_was_read() -> None:
+    """L14: a cited value names GOST 12414-94 (ISO 4753:1983) or GOST ISO 4032-2014 (ISO
+    4032:2012), never an ISO edition nobody read."""
+    source = Path(t.__file__).read_text()
+    assert "GOST 12414-94 (ISO 4753:1983)" in source
+    assert "GOST ISO 4032-2014 (ISO 4032:2012)" in source
+    assert set(re.findall(r"ISO 4753:(\d+)", source)) == {"1983"}
+    assert set(re.findall(r"ISO 4032:(\d+)", source)) == {"2012"}
+
+
+def test_t_piece_is_ten_times_the_largest_recorded_piece_error_rounded_up_to_one_figure() -> None:
+    honest = _piece_errors(("tip ", "ring r ", "nut M"))
+    assert len(honest) == 46
+    largest = max(abs(x) for x in honest)
+    assert largest == pytest.approx(2.74e-3)  # printed to three figures; R11 quotes 2.737e-03
+    scale = 10.0 ** math.floor(math.log10(10 * largest))
+    assert math.ceil(10 * largest / scale) * scale == pytest.approx(t.T_PIECE)
+    assert t.T_PIECE == 0.03
+
+
+def test_the_piece_check_passes_every_honest_probe_row_and_refuses_every_control() -> None:
+    for error in _piece_errors(("tip ", "ring r ", "nut M")):
+        assert t.piece_refusal(1.0 + error, 1.0, "piece") is None
+    controls = _piece_errors(("control ", "ring dropped "))
+    assert len(controls) == 6
+    for error in controls:
+        assert t.piece_refusal(1.0 + error, 1.0, "piece") is not None
+
+
+def test_a_piece_equal_to_its_oracle_passes_and_one_off_by_twice_the_tolerance_is_named() -> None:
+    assert t.piece_refusal(2.5, 2.5, "tip cone") is None
+    assert t.piece_refusal(2.5 * (1 + 0.9 * t.T_PIECE), 2.5, "tip cone") is None
+    text = t.piece_refusal(2.5 * (1 + 2 * t.T_PIECE), 2.5, "tip cone")
+    assert text is not None
+    assert "tip cone" in text
+    assert "+6.000e-02" in text
+
+
+def test_the_piece_error_keeps_its_sign_and_a_skipped_cut_reads_minus_one() -> None:
+    low = t.piece_refusal(2.5 * (1 - 2 * t.T_PIECE), 2.5, "fillet ring")
+    assert low is not None
+    assert "-6.000e-02" in low
+    skipped = t.piece_refusal(0.0, 2.5, "tip cone")
+    assert skipped is not None
+    assert "-1.000e+00" in skipped
+
+
+@pytest.mark.parametrize("measured", [math.nan, math.inf, -math.inf])
+def test_a_piece_that_is_not_a_number_is_refused(measured: float) -> None:
+    assert t.piece_refusal(measured, 2.5, "tip cone") is not None
+
+
+@pytest.mark.parametrize("oracle", [0.0, -1.0, math.nan, math.inf])
+def test_a_piece_with_no_honest_oracle_is_refused_naming_the_piece(oracle: float) -> None:
+    text = t.piece_refusal(1.0, oracle, "countersink")
+    assert text is not None
+    assert "countersink" in text

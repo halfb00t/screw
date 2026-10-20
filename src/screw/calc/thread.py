@@ -569,3 +569,56 @@ def fillet_ring_volume(d: float, r: float) -> float:
     if not r > 0:
         raise ValueError(f"r {r:g} mm must be above 0")
     return 2 * math.pi * (d / 2 * r**2 * (1 - math.pi / 4) + r**3 * (5 / 6 - math.pi / 4))
+
+
+# --- the end models (D-12, R2 to R4; recorded as models, never as cited table values) -----------
+#
+# Each constant says where it comes from in `05-OWNER-READS.md` and whether it is `cited` (one
+# printed number, with its document) or a `stated model` (a band or no clause: the choice is
+# named, not invented, and any panel row it feeds says "model"). Tuning one toward a gate that
+# passes is forbidden (D-23): a value changes only by a new owner ruling and a new L15 entry.
+
+# Bolt tip, stated model (R2, read 6: GOST 12414-94 (ISO 4753:1983), the chamfered end). The text
+# prints the end face diameter and the length u and marks the angle on its figures as about 45
+# degrees; it prints no angle number and no chamfer length. Note 3's "48 degrees" is recorded as
+# an unresolved misprint and not used (owner ruling 2026-10-20, option a). The cone meets the end
+# face at the minor diameter and rises at this angle from the face, which is what
+# `tip_cone_volume` integrates.
+TIP_ANGLE_DEG = 45.0
+
+# Nut lead-in countersink, stated model (R3 b, read 3: GOST ISO 4032-2014 (ISO 4032:2012),
+# Figure 1 footnote c). The figure prints the included angle as a band, 90 to 120 degrees; the
+# model takes the 90 degree end, so the half angle from the axis is 45 degrees.
+COUNTERSINK_HALF_ANGLE_DEG = 45.0
+
+# Nut face chamfer, stated model (R4 a, read 3: GOST ISO 4032-2014 (ISO 4032:2012), Figure 1
+# footnote b). The figure prints the angle of the hexagon corners' chamfer as a band, 15 to 30
+# degrees from the end face, and no depth; the model takes the 30 degree end, as a cone from the
+# inscribed circle of `s` (start radius s / 2, from fields and not from the row's `dw`, D-12).
+CHAMFER_ANGLE_DEG = 30.0
+
+# The differential tolerance, as a fraction of the piece an end cut removes or adds (R11, P8):
+# 10 times the largest piece error `bench/RESULTS.md` records under `End-cut probe (Phase 5,
+# D-10)` -- 2.737e-03, tip 45 degrees on the M2 right-hand rod, one single-run maximum over 46
+# honest rows -- rounded up to one significant figure: 10 x 2.737e-03 = 2.737e-02 -> 0.03. The
+# whole-part gate cannot see a tip cone or a ring on a long bolt (P8); this one can, and the
+# probe's controls (a skipped cut -1.00, a 45 degree cone where 30 is expected +0.73) sit far
+# above it. `tests/test_end_oracles.py` re-derives it from the entry.
+T_PIECE = 0.03
+
+
+def piece_refusal(measured: float, oracle: float, what: str) -> str | None:
+    """None when the volume an end cut removed or added is inside `T_PIECE` of its oracle's
+    piece; otherwise the text naming `what` and the signed relative error (P8).
+
+    `measured` is the precise volume before the cut less after it (or the reverse for a fuse),
+    `oracle` the kernel-free volume of that piece. The error is signed: a skipped cut reads -1.
+    """
+    if not (math.isfinite(oracle) and oracle > 0):
+        return f"the {what} oracle {oracle:.6g} mm3 is not a finite positive number"
+    rel = measured / oracle - 1.0
+    # A negated <=, as in `volume_check`: a NaN volume must not pass.
+    if not abs(rel) <= T_PIECE:
+        return (f"the {what} is {measured:.6g} mm3 where its oracle says {oracle:.6g} mm3, "
+                f"relative error {rel:+.3e}, allowed {T_PIECE:g} of the piece (D-10, R11)")
+    return None
