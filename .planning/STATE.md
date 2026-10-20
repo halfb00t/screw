@@ -4,10 +4,10 @@ current_phase: 05
 current_phase_name: Hex Nut and Kernel Pair Proof
 status: executing
 stopped_at: Completed 05-05-PLAN.md (nut fine-STL rule stopped per R12)
-last_updated: "2026-10-14T16:21:32.001Z"
+last_updated: "2026-10-20T04:06:55.104Z"
 last_activity: 2026-10-14
 last_activity_desc: Phase 05 execution started
-state_head: 5ee04b20d0a7e7efb6b452bc6d7fab5d7c71f9bc
+state_head: e738d1726de869e041824fa6ac192703653d800c
 progress:
   total_phases: 7
   completed_phases: 4
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-12)
 Phase: 05 (Hex Nut and Kernel Pair Proof) — EXECUTING
 Plan: 6 of 18
 Status: Ready to execute
-Last activity: 2026-10-14 — Phase 05 execution started
+Last activity: 2026-10-20 — Completed quick task 261020-dpw: Phase 5 table values sourced from free GOST equivalents (L14)
 
 Progress: [██████░░░░] 57%
 
@@ -227,6 +227,7 @@ None yet.
 | 4 | fast: kill the signal-death bench worker test with SIGTERM instead of a self-inflicted SIGSEGV so make verify leaves no macOS crash report | 2026-10-11 | 4a9999b | — |
 | 261013-f9m | close 02 deferred flake item and record grid run 38240380994 in bench/RESULTS.md, resolve 03-UAT test 5 | 2026-10-13 | 397b207 | [261013-f9m-close-02-deferred-flake-item-and-record-](./quick/261013-f9m-close-02-deferred-flake-item-and-record-/) |
 | 6 | File the docs/ideas item "head and drive families beyond the hex head" (2026-10-13-head-and-drive-families.md) and its INDEX row | 2026-10-13 | 7618320 | — |
+| 261020-dpw | Source Phase 5 table values from free GOST equivalents (L14); ISO purchase deferred as debt | 2026-10-20 | e738d17 | [261020-dpw-record-the-free-gost-source-decision-for](./quick/261020-dpw-record-the-free-gost-source-decision-for/) |
 
 ### Roadmap Evolution
 
