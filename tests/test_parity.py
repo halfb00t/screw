@@ -257,6 +257,36 @@ def test_the_cli_flags_are_the_model(kind: str, capsys: pytest.CaptureFixture[st
         assert _cli_flags(kind, command, capsys) == ["--help", *hand_written, *fields]
 
 
+# `screw pair` has no hand-written flag at all (no --preset: a preset is metadata of info and
+# export, D-09) and is offered only for kinds whose model declares a clearance, so it is judged
+# apart from HAND_WRITTEN, whose commands exist for every kind.
+PAIR_KINDS = [kind for kind, model in KINDS.items() if "clearance" in model.model_fields]
+
+
+def test_the_pair_command_is_offered_for_nut_only() -> None:
+    assert PAIR_KINDS == ["nut"]
+
+
+@pytest.mark.parametrize("kind", PAIR_KINDS)
+def test_the_pair_flags_are_the_model_and_nothing_else(
+        kind: str, capsys: pytest.CaptureFixture[str]) -> None:
+    assert _cli_flags(kind, "pair", capsys) == ["--help", *_expected_flags(kind)]
+
+
+def test_a_stray_flag_makes_the_pair_flag_comparison_fail(
+        monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    real = cli._add_args
+
+    def plant(ap: argparse.ArgumentParser, kind: str, model: type[FastenerParams]) -> None:
+        real(ap, kind, model)
+        ap.add_argument("--stray", default=None)
+
+    monkeypatch.setattr(cli, "_add_args", plant)
+    flags = _cli_flags("nut", "pair", capsys)
+    assert "--stray" in flags
+    assert flags != ["--help", *_expected_flags("nut")]
+
+
 def test_a_stray_flag_makes_the_flag_comparison_fail(
         monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     # The teeth of the positive rule above: plant one option outside the generated group.

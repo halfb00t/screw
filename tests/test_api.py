@@ -241,6 +241,17 @@ def test_an_unknown_kind_has_no_routes() -> None:
     assert client.get("/api/washer/model.stl").status_code == 404
 
 
+def test_the_pair_proof_has_no_endpoint() -> None:
+    """PAIR-04: the proof is a function and a CLI command, never a route (a boolean per request
+    is not something the server's 30 s budget can promise). Checked on the schema the clients
+    read and on the routes the app serves, so a hidden route fails it too."""
+    paths = client.get("/openapi.json").json()["paths"]
+    assert paths
+    assert not [path for path in paths if "pair" in path]
+    assert not [route for route in app.routes if "pair" in str(getattr(route, "path", ""))]
+    assert client.get("/api/nut/pair").status_code == 404
+
+
 def test_openapi_documents_the_typed_contracts() -> None:
     """The field names are written out literally here, not derived from PartInfo's own
     `model_fields` -- a renamed field, or a route that lost its typed return annotation,

@@ -1,4 +1,5 @@
-"""Command line: `screw serve`, `screw info <kind>`, `screw export <kind>`, `screw presets <kind>`.
+"""Command line: `screw serve`, `screw info <kind>`, `screw export <kind>`, `screw presets <kind>`,
+`screw pair <kind>`.
 
 Each kind's options are generated from its registered model, so they always match the API.
 """
@@ -16,7 +17,7 @@ from pydantic import ValidationError
 
 from . import __version__, int_env
 from .calc import explicit_conflict
-from .params import KINDS, FastenerParams
+from .params import KINDS, FastenerParams, NutParams
 from .records import configure
 
 
@@ -173,6 +174,33 @@ def cmd_export(ns: argparse.Namespace) -> None:
         print(f"warning: {warning}", file=sys.stderr)
 
 
+# Exit codes of `screw pair`: the verdict, readable by a script without parsing the JSON.
+PAIR_EXIT = {"proven": 0, "violated": 1, "inconclusive": 2}
+
+
+def cmd_pair(ns: argparse.Namespace) -> None:
+    p = _params(ns.kind, ns)
+    # The proof mates the nut with the nominal rod of its own d and pitch, a rod the nut's own
+    # validator does not judge (it judges the void, which a positive clearance widens): refuse
+    # here, before the kernel loads, as exit 2 like every other refused parameter.
+    from .calc.thread import root_radius_refusal
+
+    if (refusal := root_radius_refusal(p.d, p.pitch)) is not None:
+        print(f"error: pair: the nominal rod {refusal}", file=sys.stderr)
+        raise SystemExit(2)
+    from .solid.pair import prove
+
+    report = prove(cast("NutParams", p))    # `pair` is offered only for kinds with a clearance
+    print(report.model_dump_json(indent=2))
+    # The last statement, and never a plain return: the real boolean parks its operation for
+    # the life of the process and a normal interpreter exit then dies in OpenCascade's teardown
+    # with status 139 after the JSON is already out (RESEARCH F5, 3 of 3 runs). os._exit skips
+    # the teardown, so the streams are flushed by hand first.
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(PAIR_EXIT[report.verdict])
+
+
 def main(argv: list[str] | None = None) -> None:
     env = os.environ.get
     # allow_abbrev=False on every parser, kind parsers included: with the default,
@@ -206,8 +234,19 @@ def main(argv: list[str] | None = None) -> None:
     prk = pr.add_subparsers(dest="kind", required=True)
     pr.set_defaults(func=cmd_presets)
 
+    pa = sub.add_parser("pair", help="prove with the kernel whether a nut mates its bolt; "
+                                     "exit 0 proven, 1 violated, 2 inconclusive",
+                        allow_abbrev=False)
+    pak = pa.add_subparsers(dest="kind", required=True)
+    pa.set_defaults(func=cmd_pair)
+
     for kind, model in KINDS.items():
         prk.add_parser(kind, allow_abbrev=False)
+
+        if "clearance" in model.model_fields:    # the model decides which kinds have a pair
+            kp = pak.add_parser(kind, allow_abbrev=False)
+            kp.set_defaults(preset=None)    # no --preset: `_params` reads it, the command has none
+            _add_args(kp, kind, model)
 
         kp = ik.add_parser(kind, allow_abbrev=False)
         _add_preset(kp)
