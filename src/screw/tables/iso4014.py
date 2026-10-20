@@ -1,10 +1,16 @@
-"""ISO 4014:2022 hexagon head bolts: heads, the thread length b, and the printed shank cells."""
+"""ISO 4014:2022 hexagon head bolts: heads, the thread length b, and the printed shank cells.
+
+`FILLETS` is the exception: the under-head fillet radius is read from GOST R ISO 4014-2013 (the
+Russian national adoption of ISO 4014:2011), by owner ruling 2026-10-20 (L14 amendment), because
+the owner's ISO 4014:2022 copy is not the source of r,min. Phase 4's rows keep their ISO 4014:2022
+citations.
+"""
 
 from __future__ import annotations
 
 from typing import Literal
 
-from screw.tables.rows import HexHead, ShankCell, Source, ThreadBand
+from screw.tables.rows import FilletRadius, HexHead, ShankCell, Source, ThreadBand
 
 
 def _source(table: str, column: str) -> Source:
@@ -141,4 +147,34 @@ CELLS: tuple[ShankCell, ...] = tuple(
     )
     for size, grade, table, column, cells in _RUNS
     for length, ls_min, lg_max in cells
+)
+
+
+def _fillet_source(table: str, column: str) -> Source:
+    """The page cell an `r` was read from: the table and the size column as printed, with the
+    decimal comma. The national text, not ISO 4014:2022 (L14 amendment)."""
+    return Source(
+        standard="GOST R ISO 4014", edition="2013", table=table, column=column, status="verified"
+    )
+
+
+# Read from the rendered page images of GOST R ISO 4014-2013 (PDF pages 8, 10 and 13), the `r`
+# minimum row, on 2026-10-20, before the owner copy was opened. Table 1 holds the
+# preferred sizes and Table 2 the additional ones. M1,6 and the sizes above M20 are outside the
+# product's M2 to M20; neither table prints M7, so an M7 bolt has no row and gets no fillet (R1).
+FILLETS: tuple[FilletRadius, ...] = (
+    FilletRadius(size="M2", pitch=0.4, r_min=0.1, source=_fillet_source("Table 1", "M2")),
+    FilletRadius(size="M2.5", pitch=0.45, r_min=0.1, source=_fillet_source("Table 1", "M2,5")),
+    FilletRadius(size="M3", pitch=0.5, r_min=0.1, source=_fillet_source("Table 1", "M3")),
+    FilletRadius(size="M3.5", pitch=0.6, r_min=0.1, source=_fillet_source("Table 2", "M3,5")),
+    FilletRadius(size="M4", pitch=0.7, r_min=0.2, source=_fillet_source("Table 1", "M4")),
+    FilletRadius(size="M5", pitch=0.8, r_min=0.2, source=_fillet_source("Table 1", "M5")),
+    FilletRadius(size="M6", pitch=1.0, r_min=0.25, source=_fillet_source("Table 1", "M6")),
+    FilletRadius(size="M8", pitch=1.25, r_min=0.4, source=_fillet_source("Table 1", "M8")),
+    FilletRadius(size="M10", pitch=1.5, r_min=0.4, source=_fillet_source("Table 1", "M10")),
+    FilletRadius(size="M12", pitch=1.75, r_min=0.6, source=_fillet_source("Table 1", "M12")),
+    FilletRadius(size="M14", pitch=2.0, r_min=0.6, source=_fillet_source("Table 2", "M14")),
+    FilletRadius(size="M16", pitch=2.0, r_min=0.6, source=_fillet_source("Table 1", "M16")),
+    FilletRadius(size="M18", pitch=2.5, r_min=0.6, source=_fillet_source("Table 2", "M18")),
+    FilletRadius(size="M20", pitch=2.5, r_min=0.8, source=_fillet_source("Table 1", "M20")),
 )

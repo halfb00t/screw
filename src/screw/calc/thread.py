@@ -606,6 +606,42 @@ COUNTERSINK_FACE_FACTOR = 1.16
 # inscribed circle of `s` (start radius s / 2, from fields and not from the row's `dw`, D-12).
 CHAMFER_ANGLE_DEG = 30.0
 
+# Under-head fillet radius `r` (minimum), cited (R1 option a, read from GOST R ISO 4014-2013 (ISO
+# 4014:2011) Tables 1 and 2, the `r` minimum row, owner ruling 2026-10-20, L14 amendment; the
+# Source document is `GOST R ISO 4014-2013 (ISO 4014:2011)`). Keyed on exact (d, pitch) in
+# millimetres: a bolt off a row gets no fillet, never a guessed radius (L02). Neither table prints
+# M7, so there is none. The solid reads no table (contract 6), so this is a second typed copy of
+# `screw.tables.iso4014.FILLETS`, pinned equal to it by `tests/test_tables.py`.
+FILLET_R: dict[tuple[float, float], float] = {
+    (2.0, 0.4): 0.1,
+    (2.5, 0.45): 0.1,
+    (3.0, 0.5): 0.1,
+    (3.5, 0.6): 0.1,
+    (4.0, 0.7): 0.2,
+    (5.0, 0.8): 0.2,
+    (6.0, 1.0): 0.25,
+    (8.0, 1.25): 0.4,
+    (10.0, 1.5): 0.4,
+    (12.0, 1.75): 0.6,
+    (14.0, 2.0): 0.6,
+    (16.0, 2.0): 0.6,
+    (18.0, 2.5): 0.6,
+    (20.0, 2.5): 0.8,
+}
+
+
+def fillet_radius(d: float, pitch: float, length: float, t: float) -> float | None:
+    """The cited fillet radius, or None when the bolt gets no fillet (R1, L02).
+
+    None off a `FILLET_R` row, and None when the plain shank `length - t` is shorter than `r`,
+    where the ring would run into the thread. `t` is `built_thread_length`.
+    """
+    r = FILLET_R.get((d, pitch))
+    if r is None or length - t < r:
+        return None
+    return r
+
+
 # The differential tolerance, as a fraction of the piece an end cut removes or adds (R11, P8):
 # 10 times the largest piece error `bench/RESULTS.md` records under `End-cut probe (Phase 5,
 # D-10)` -- 2.737e-03, tip 45 degrees on the M2 right-hand rod, one single-run maximum over 46

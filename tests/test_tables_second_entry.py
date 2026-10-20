@@ -43,6 +43,7 @@ _SHAPE: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
         ("pitch", "c_max", "c_min", "da_max", "da_min", "dw_min", "e_min", "m_max", "m_min",
          "mw_min", "s", "s_min"),
     ),
+    "iso4014_fillets.tsv": (("size",), ("pitch", "r_min")),
     "iso724.tsv": (("size",), ("pitch", "d", "d2", "d1")),
     "gost16093.tsv": (("quantity", "grade", "pitch", "d_over", "d_upto"), ("value",)),
 }
@@ -176,6 +177,15 @@ def shipped() -> dict[str, Rows]:
             }
             for nut in iso4032.NUTS
         },
+        "iso4014_fillets.tsv": {
+            (row.size,): {
+                "pitch": row.pitch,
+                "r_min": row.r_min,
+                "table": row.source.table,
+                "column": row.source.column,
+            }
+            for row in iso4014.FILLETS
+        },
         "iso724.tsv": {
             (row.size,): {
                 "pitch": row.pitch,
@@ -239,6 +249,7 @@ def test_the_owner_copy_is_not_vacuous() -> None:
     assert len(read_owner(OWNER_DIR, "iso4014_bands.tsv")) == 15
     assert len(read_owner(OWNER_DIR, "iso4014_lengths.tsv")) == 108
     assert len(read_owner(OWNER_DIR, "iso4032.tsv")) == 14
+    assert len(read_owner(OWNER_DIR, "iso4014_fillets.tsv")) == 14
     assert len(read_owner(OWNER_DIR, "iso724.tsv")) == 15
     assert len(read_owner(OWNER_DIR, "gost16093.tsv")) == 72
 
@@ -305,3 +316,12 @@ def test_one_changed_tolerance_cell_names_the_file_the_key_the_column_and_both_v
         "gost16093.tsv (Td2, 6, 1, 5.6, 11.2) column value: owner 113.0, shipped 112; "
         "go read the standard"
     )
+
+
+def test_one_changed_fillet_cell_names_the_file_the_size_the_column_and_both_values() -> None:
+    owner = read_owner(OWNER_DIR, "iso4014_fillets.tsv")
+    changed = {key: dict(cells) for key, cells in owner.items()}
+    changed["M6",]["r_min"] = 0.3
+    assert diff("iso4014_fillets.tsv", changed, shipped()["iso4014_fillets.tsv"]) == [
+        "iso4014_fillets.tsv (M6) column r_min: owner 0.3, shipped 0.25; go read the standard"
+    ]

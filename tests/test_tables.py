@@ -16,7 +16,7 @@ import pytest
 from mypy import api as mypy_api
 
 from screw.calc import derive
-from screw.calc.thread import basic_minor_diameter, pitch_diameter
+from screw.calc.thread import FILLET_R, basic_minor_diameter, fillet_radius, pitch_diameter
 from screw.params import BoltParams
 from screw.tables import gost16093, iso724, iso4014, iso4032
 from screw.tables.iso262 import SIZES
@@ -514,6 +514,7 @@ def test_no_row_in_the_tree_is_unverified() -> None:
     sources = [source for row in ROWS for source in row.sources]
     assert unverified([*SIZES, *HEADS, *SERIES, *iso4014.HEADS, *iso4014.CELLS]) == []
     assert unverified(iso4014.BANDS) == []
+    assert unverified(iso4014.FILLETS) == []
     assert unverified(iso4032.NUTS) == []
     assert unverified(iso724.BASIC) == []
     assert unverified(gost16093.TOLERANCES) == []
@@ -911,3 +912,60 @@ def test_the_range_bounds_are_over_x_up_to_y() -> None:
     assert len(bolts_of(2.8)) == 1
     assert bolts_of(1.4) == ()
     assert bolts_of(2.8001) == ()
+
+
+# The ISO 4014 under-head fillet radii (R1, L14 amendment): cited, and copied kernel-free.
+def test_the_fillet_rows_are_the_14_gost_r_iso_4014_rows_and_have_no_m7() -> None:
+    assert [row.size for row in iso4014.FILLETS] == [
+        "M2", "M2.5", "M3", "M3.5", "M4", "M5", "M6", "M8", "M10", "M12", "M14", "M16", "M18",
+        "M20",
+    ]
+    assert {row.size for row in iso4014.FILLETS if row.source.table == "Table 2"} == {
+        "M3.5", "M14", "M18",
+    }
+    assert all(row.source.status == "verified" for row in iso4014.FILLETS)
+    assert all(row.pitch == PITCH[row.size] for row in iso4014.FILLETS)
+
+
+def test_a_fillet_row_cites_the_national_text_with_the_iso_edition_it_adopts() -> None:
+    assert {row.source.document() for row in iso4014.FILLETS} == {
+        "GOST R ISO 4014-2013 (ISO 4014:2011)"
+    }
+    m6 = next(row for row in iso4014.FILLETS if row.size == "M6")
+    assert m6.source.cite() == "GOST R ISO 4014-2013 (ISO 4014:2011) Table 1, column M6"
+    assert m6.r_min == 0.25
+
+
+def test_phase_4_iso_4014_rows_keep_their_2022_citation() -> None:
+    sources = [
+        *(row.source for row in iso4014.HEADS),
+        *(row.source for row in iso4014.BANDS),
+        *(row.source for row in iso4014.CELLS),
+    ]
+    assert {source.document() for source in sources} == {"ISO 4014:2022"}
+
+
+def _fillet_copy() -> dict[tuple[float, float], float]:
+    diameters = {size.label: size.d for size in SIZES}
+    return {(diameters[row.size], row.pitch): row.r_min for row in iso4014.FILLETS}
+
+
+def test_the_kernel_free_fillet_copy_equals_the_cited_rows() -> None:
+    assert _fillet_copy() == FILLET_R
+
+
+def test_a_planted_fillet_mismatch_names_the_key() -> None:
+    planted = dict(FILLET_R)
+    planted[6.0, 1.0] = 0.3
+    differing = [key for key in planted.keys() | _fillet_copy().keys()
+                 if planted.get(key) != _fillet_copy().get(key)]
+    assert differing == [(6.0, 1.0)]
+
+
+def test_a_bolt_gets_the_cited_fillet_only_on_a_row_with_a_long_enough_shank() -> None:
+    assert fillet_radius(6.0, 1.0, 60.0, 40.0) == 0.25
+    assert fillet_radius(6.0, 1.0, 60.0, 59.75) == 0.25  # shank exactly r long
+    assert fillet_radius(6.0, 1.0, 60.0, 59.76) is None  # shank shorter than r
+    assert fillet_radius(6.0, 1.0, 60.0, 60.0) is None  # thread to the head
+    assert fillet_radius(6.0, 0.75, 60.0, 40.0) is None  # (d, pitch) off a row
+    assert fillet_radius(7.0, 1.0, 60.0, 40.0) is None  # M7 has no row

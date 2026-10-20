@@ -22,6 +22,7 @@ Status = Literal["verified", "unverified"]
 # recorded ISO equivalent, so citing it as one would be a guess.
 ADOPTED_ISO: dict[str, str] = {
     "GOST ISO 4032-2014": "ISO 4032:2012",
+    "GOST R ISO 4014-2013": "ISO 4014:2011",
     "GOST 24705-2004": "ISO 724:1993, MOD",
     "GOST 16093-2004": "based on ISO 965-1:1998 and ISO 965-3:1998",
 }
@@ -139,6 +140,16 @@ class ShankCell:
     grade: Literal["A", "B"]
     ls_min: float
     lg_max: float
+    source: Source
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class FilletRadius:
+    """The under-head fillet radius `r` (minimum) of one ISO 4014 size, in millimetres (R1)."""
+
+    size: str
+    pitch: float
+    r_min: float
     source: Source
 
 
