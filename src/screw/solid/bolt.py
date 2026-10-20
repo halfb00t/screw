@@ -1,16 +1,21 @@
 """The bolt kind's solid: the L11 thread from the tip at z = 0, a plain shank from 04-04, and a
 plain hex prism head with sharp corners on top.
 
-Both thread ends are plain planar cuts and there is no fillet or chamfer (D-01, D-02, 03 D-16):
-an end treatment waits for ISO 4753, which is unread (L02).
+The tip is one cone cut on the bare thread (`tip_cut`, the ISO tip end read from GOST 12414-94,
+stated model, L14, read 6), and a bolt on a cited ISO 4014 row with a long enough plain shank
+gets a fillet ring revolved at the shank/head junction (`add_fillet`, R1, D-11). The ring is
+built by revolving a profile and fused, never an OCCT fillet: its volume is then an exact
+closed form the gate can judge. The head keeps its sharp corners (the nut's chamfers are 05-13).
 """
 
 from __future__ import annotations
 
+import math
+
 import cadquery as cq
 
 from screw.build_errors import BuildError
-from screw.calc.thread import MIN_TAIL_MM, built_thread_length
+from screw.calc.thread import MIN_TAIL_MM, TIP_ANGLE_DEG, built_thread_length, thread_depth
 from screw.params import BoltParams
 from screw.solid import helical
 
@@ -36,6 +41,46 @@ def _solid(made: object, what: str) -> cq.Solid:
         raise BuildError(f"Geometry kernel produced {type(made).__name__} for the {what}, "
                          "expected a solid.")
     return made
+
+
+def tip_cut(p: BoltParams, bare: cq.Solid) -> cq.Solid:
+    """The bare thread cut by the tip cone at z = 0: the thread intersected with a revolved
+    envelope that leaves the cone (the `2026-10-08-a-trim` recipe the end-cut probe used).
+
+    The cone meets the end face at the minor radius and rises at `TIP_ANGLE_DEG` from the face;
+    the envelope reaches a millimetre past the crest and past the thread's far end, so it shares
+    no face with the thread except the end plane the probe measured.
+    """
+    t = built_thread_length(p.thread_length, p.length)
+    minor = p.d / 2 - thread_depth(p.pitch)
+    outer = p.d / 2 + 1.0
+    run = (outer - minor) * math.tan(math.radians(TIP_ANGLE_DEG))
+    top = t + 1.0
+    envelope = _solid(cq.Workplane("XZ").polyline(
+        [(0, top), (outer, top), (outer, run), (minor, 0.0), (0, 0.0)]
+    ).close().revolve(360, (0, 0, 0), (0, 1, 0)).val(), "tip envelope")
+    solids = bare.intersect(envelope).Solids()
+    if len(solids) != 1:
+        raise BuildError(f"Geometry kernel produced {len(solids)} solids from the tip cut for "
+                         "these parameters, expected exactly 1.")
+    return solids[0]
+
+
+def fillet_ring(p: BoltParams, r: float) -> cq.Solid:
+    """The quarter-circle ring of radius `r` under the head: the region of area r^2 (1 - pi/4)
+    between the shank (radius d/2), the head's underside z = length and the arc centred at
+    (d/2 + r, length - r), revolved about the axis. It shares the shank cylinder and the underside
+    plane, so it fuses onto both."""
+    root = p.d / 2
+    mid = r / math.sqrt(2)
+    return _solid(cq.Workplane("XZ").moveTo(root, p.length).lineTo(root + r, p.length)
+                  .threePointArc((root + r - mid, p.length - r + mid), (root, p.length - r))
+                  .close().revolve(360, (0, 0, 0), (0, 1, 0)).val(), "fillet ring")
+
+
+def add_fillet(p: BoltParams, part: cq.Shape, r: float) -> cq.Shape:
+    """`part` (the assembled bolt) with the fillet ring of radius `r` fused under the head."""
+    return part.fuse(fillet_ring(p, r))
 
 
 def assemble(p: BoltParams, bare_thread: cq.Solid) -> cq.Shape:

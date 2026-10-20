@@ -11,6 +11,7 @@ import pytest
 
 from screw import calc
 from screw.calc import (
+    NO_FILLET_NOTE,
     NUT_NO_ROW_WARNING,
     STANDING_WARNING,
     Counterpart,
@@ -23,9 +24,10 @@ from screw.calc import (
 )
 from screw.calc.presets import WITHDRAWN_DIN_WRENCH_MM, designation_for, match
 from screw.calc.thread import (
+    TIP_ANGLE_DEG,
     axial_play,
     basic_minor_diameter,
-    bolt_closed_volume,
+    bolt_end_closed_volume,
     fine_stl_refusal,
     flank_normal_gap,
     nut_closed_volume,
@@ -33,6 +35,8 @@ from screw.calc.thread import (
     section_radius,
     thread_depth,
     thread_length_conflict,
+    tip_cone_length,
+    tip_cone_volume,
 )
 from screw.params import KINDS, BoltParams, FastenerParams, NutParams
 from screw.tables import iso262
@@ -80,8 +84,10 @@ def test_the_default_thread_numbers_come_from_the_pinned_profile() -> None:
     assert rows["turns"] == 20.0
     # The whole-part closed form, never the kernel's Volume() (L02, INFO-03): the section area
     # times the thread plus the sharp-cornered hexagonal prism, (sqrt(3) / 2) * s^2 * k.
-    assert rows["volume"] == bolt_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0)
-    assert rows["volume"] == pytest.approx(459.14408096158724 + 200 * math.sqrt(3), abs=1e-9)
+    # The closed form less the 45 degree tip cone (D-09): a threaded-to-the-head screw has no ring.
+    assert rows["volume"] == bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None)
+    assert rows["volume"] == pytest.approx(
+        459.14408096158724 + 200 * math.sqrt(3) - tip_cone_volume(6.0, 1.0, 45.0), abs=1e-9)
     # An independently typed 5/8 * sqrt(3)/2 for P = 1.
     assert rows["thread_depth"] == pytest.approx(0.541265877, abs=1e-9)
     assert rows["minor_diameter"] == pytest.approx(6 - 2 * 0.541265877, abs=1e-9)
@@ -98,7 +104,8 @@ def test_the_thread_rows_are_the_built_thread_and_the_plain_shank_left_over() ->
     p = BoltParams(length=30.0)
     rows = _rows(p)
     assert (rows["thread_length"], rows["shank_length"], rows["turns"]) == (20.0, 10.0, 20.0)
-    assert rows["volume"] == bolt_closed_volume(6.0, 1.0, 30.0, 10.0, 4.0, 20.0)
+    # The 10 mm plain shank is at least the cited r = 0.25 mm of an M6 under the head: a ring.
+    assert rows["volume"] == bolt_end_closed_volume(6.0, 1.0, 30.0, 10.0, 4.0, 20.0, True, 0.25)
     assert derive(p).warnings == [STANDING_WARNING, NO_ROW]
 
 
@@ -106,7 +113,7 @@ def test_the_rows_of_a_screw_shorter_than_the_default_thread_read_the_built_thre
     # D-08: `?length=10` builds a 10 mm full-thread screw; the stored thread_length stays 20.
     rows = _rows(BoltParams(length=10.0))
     assert (rows["thread_length"], rows["shank_length"], rows["turns"]) == (10.0, 0.0, 10.0)
-    assert rows["volume"] == bolt_closed_volume(6.0, 1.0, 10.0, 10.0, 4.0, 10.0)
+    assert rows["volume"] == bolt_end_closed_volume(6.0, 1.0, 10.0, 10.0, 4.0, 10.0, True, None)
 
 
 def test_a_default_thread_below_an_explicit_length_is_built_to_the_length_and_warned() -> None:
@@ -745,13 +752,17 @@ def _row_part(row_id: str) -> BoltParams:
     return BoltParams.model_validate(dict(row.fields))
 
 
-def test_the_default_part_notes_its_product_grade_and_nothing_else() -> None:
-    assert derive(BoltParams()).notes == [GRADE_A]
+def _without_fillet_note(notes: list[str]) -> list[str]:
+    return [n for n in notes if n != NO_FILLET_NOTE]
+
+
+def test_the_default_part_notes_its_product_grade_and_that_it_has_no_fillet() -> None:
+    assert derive(BoltParams()).notes == [GRADE_A, NO_FILLET_NOTE]
 
 
 def test_a_grade_b_row_notes_grade_b() -> None:
     notes = derive(_row_part("iso4017:M16x160")).notes
-    assert notes == ["product grade B (ISO 4017:2022: l > 150 mm)"]
+    assert notes == ["product grade B (ISO 4017:2022: l > 150 mm)", NO_FILLET_NOTE]
 
 
 def test_the_grade_note_names_the_matched_standard() -> None:
@@ -768,7 +779,7 @@ def test_the_grade_note_names_the_matched_standard() -> None:
     ("iso4014:M14x80", "wrench size 21 mm (ISO 4014:2022); the withdrawn DIN 931 used 22 mm"),
 ])
 def test_the_wrench_note_at_m10_m12_and_m14_is_the_second_note(row_id: str, note: str) -> None:
-    notes = derive(_row_part(row_id)).notes
+    notes = _without_fillet_note(derive(_row_part(row_id)).notes)
     assert len(notes) == 2
     assert notes[1] == note
 
@@ -776,10 +787,11 @@ def test_the_wrench_note_at_m10_m12_and_m14_is_the_second_note(row_id: str, note
 def test_the_wrench_note_appears_on_those_three_sizes_and_no_others() -> None:
     # INFO-05: only M10, M12 and M14 differ between the ISO and the withdrawn DIN wrench size.
     sizes_with_note = {row.size for row in catalogue()
-                       if len(derive(BoltParams.model_validate(dict(row.fields))).notes) == 2}
+                       if len(_without_fillet_note(
+                           derive(BoltParams.model_validate(dict(row.fields))).notes)) == 2}
     assert sizes_with_note == {"M10", "M12", "M14"}
     for row_id in ("iso4017:M8x40", "iso4017:M16x40", "iso4017:M20x40", "iso4014:M8x80"):
-        assert len(derive(_row_part(row_id)).notes) == 1, row_id
+        assert len(_without_fillet_note(derive(_row_part(row_id)).notes)) == 1, row_id
 
 
 def test_the_iso_wrench_size_differs_from_the_cited_din_one_wherever_a_note_is_made() -> None:
@@ -1166,3 +1178,43 @@ def test_following_a_nuts_counterpart_gives_a_bolt_with_the_nuts_d_pitch_and_han
     nut = NutParams(left_hand=True, clearance=0.1)
     bolt = BoltParams.model_validate(_counterpart(nut).fields)
     assert (bolt.d, bolt.pitch, bolt.left_hand) == (nut.d, nut.pitch, nut.left_hand)
+
+
+# --- the bolt's ends: the tip cone, the fillet ring, their notes and warnings (D-09, D-11, 05-12)
+
+
+def test_the_volume_row_is_the_closed_form_less_the_tip_and_plus_the_ring() -> None:
+    # An ISO 4014 M10 x 80 row: 26 mm of thread under a 54 mm plain shank, r = 0.4 (cited).
+    rows = _rows(M10X80)
+    assert rows["volume"] == bolt_end_closed_volume(10.0, 1.5, 80.0, 16.0, 6.4, 26.0, True, 0.4)
+    assert rows["volume"] != bolt_end_closed_volume(10.0, 1.5, 80.0, 16.0, 6.4, 26.0, True, None)
+
+
+def test_the_volume_formula_text_names_the_tip_cone_and_the_ring() -> None:
+    # The formula is spoken only when the row cannot be reported (L02); d = 1e200 overflows it.
+    info = derive(BoltParams.model_construct(d=1e200, pitch=1.0, length=20.0, s=10.0, k=4.0))
+    text = next(w for w in info.warnings if w.startswith("volume not reported"))
+    assert "tip cone" in text
+    assert "fillet ring" in text
+
+
+def test_a_thread_no_longer_than_the_tip_cone_gets_no_cone_and_a_warning_naming_thread() -> None:
+    cone = tip_cone_length(1.0, TIP_ANGLE_DEG)
+    assert cone == pytest.approx(thread_depth(1.0))  # tan 45 degrees is 1
+    for t, cut in ((cone, False), (math.nextafter(cone, math.inf), True)):
+        p = BoltParams(d=6.0, pitch=1.0, length=10.0, thread_length=t)
+        info = derive(p)
+        warned = [w for w in info.warnings if w.startswith("thread_length: the built thread")]
+        assert bool(warned) is not cut, t
+        values = {r.key: r.value for r in info.rows}
+        assert values["volume"] == bolt_end_closed_volume(6.0, 1.0, 10.0, 10.0, 4.0, t, cut, 0.25)
+    short = derive(BoltParams(d=6.0, pitch=1.0, length=10.0, thread_length=cone)).warnings
+    assert any("thread_length" in w and "no tip cone is cut" in w for w in short)
+
+
+def test_an_iso_4017_screw_notes_that_it_has_no_fillet_and_an_iso_4014_bolt_does_not() -> None:
+    assert NO_FILLET_NOTE == "no under-head fillet: the thread runs to the head (ISO 4017:2022)"
+    assert NO_FILLET_NOTE in derive(BoltParams()).notes
+    assert NO_FILLET_NOTE not in derive(M10X80).notes
+    # A note, not a warning.
+    assert all(NO_FILLET_NOTE not in w for w in derive(BoltParams()).warnings)

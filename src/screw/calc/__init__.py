@@ -16,16 +16,20 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from screw.calc.thread import (
     MIN_TAIL_MM,
+    TIP_ANGLE_DEG,
     axial_play,
     basic_minor_diameter,
-    bolt_closed_volume,
+    bolt_end_closed_volume,
     built_thread_length,
+    fillet_radius,
     fine_stl_refusal,
     flank_normal_gap,
     nut_closed_volume,
     pitch_diameter,
     thread_depth,
     thread_length_conflict,
+    tip_cone_fits,
+    tip_cone_length,
     turns_of,
 )
 from screw.params import BoltParams, FastenerParams, NutParams
@@ -36,6 +40,10 @@ DownloadFormat = Literal["stl", "step"]
 DownloadQuality = Literal["preview", "fine"]
 
 PROFILE = "ISO 68-1:2023 basic profile"
+
+# The note on a matched ISO 4017 screw (D-11, D-18): the thread runs to the head, so there is no
+# plain shank to fillet. A note, not a warning: it is what the standard's part is, nothing to fix.
+NO_FILLET_NOTE = "no under-head fillet: the thread runs to the head (ISO 4017:2022)"
 
 # The standing entry on every info document (D-04, D-18): the thread ends are plain planar cuts
 # and the head has no under-head fillet, so nobody should cut metal to it as a product. Phase 5
@@ -197,6 +205,11 @@ def _bolt(p: BoltParams) -> PartInfo:
     # One built thread for every row, warning and cap below (D-27): never recomputed.
     t = built_thread_length(p.thread_length, p.length)
     row = match(p)
+    # The ends the builder cuts and fuses, decided once here as it decides them (D-27): the tip
+    # cone when the built thread is longer than it, the ring when (d, pitch) has a cited radius
+    # and the plain shank is at least that long.
+    tip = tip_cone_fits(p.pitch, t)
+    ring = fillet_radius(p.d, p.pitch, p.length, t)
     # The cited values of the matched row, spliced in after the row each belongs beside (D-18):
     # the thread's after the pitch diameter, the head's after k. A part that is no row gets none.
     # The limits group follows the thread's rows and precedes the head's, so it is one contiguous
@@ -236,8 +249,10 @@ def _bolt(p: BoltParams) -> PartInfo:
         ("k", HEAD, "Head height", "mm", "k", lambda: p.k),
         ("volume", PART, "Volume (closed form)", "mm³",
          "the closed form section_area(d, pitch) * thread_length (built) "
-         "+ pi * (d / 2)^2 * shank_length + (sqrt(3) / 2) * s^2 * k",
-         lambda: bolt_closed_volume(p.d, p.pitch, p.length, p.s, p.k, t)),
+         "+ pi * (d / 2)^2 * shank_length + (sqrt(3) / 2) * s^2 * k, less the tip cone "
+         "(the thread cut at 45° from the end face from the minor diameter) and plus the "
+         "under-head fillet ring where the thread has a plain shank at a cited ISO 4014 size",
+         lambda: bolt_end_closed_volume(p.d, p.pitch, p.length, p.s, p.k, t, tip, ring)),
     ]
     # IN-01, L02: below `MIN_TAIL_MM` of built thread the builder refuses the part, so a turns or
     # volume row would be a number for a bolt nobody can make. They are left out and the warning
@@ -260,6 +275,11 @@ def _bolt(p: BoltParams) -> PartInfo:
     # capped part opens raw JSON with no notice. Same text the API and the CLI refuse with.
     if (short := _thread_length_warning(p, t)) is not None:
         warnings.append(short)
+    if buildable and not tip:
+        # L02: capped, not a thinner tip. The builder cuts no cone and the volume row has none.
+        warnings.append(f"thread_length: the built thread of {t:g} mm is not longer than the "
+                        f"{tip_cone_length(p.pitch, TIP_ANGLE_DEG):g} mm tip cone, so no tip "
+                        "cone is cut")
     if not buildable:
         warnings.append(f"thread_length and length: a thread of {t:g} mm is shorter than the "
                         f"{MIN_TAIL_MM:g} mm the builder can model, so this part is not built; "
@@ -285,6 +305,8 @@ def _bolt(p: BoltParams) -> PartInfo:
         preset = PresetMatch(status="exact", id=row.id, display=row.display)
         designation = designation_for(p, row)
         row_notes = notes(row)
+        if row.standard == "ISO 4017":
+            row_notes.append(NO_FILLET_NOTE)
     return PartInfo(kind=p.kind, rows=rows, warnings=warnings, designation=designation,
                     preset=preset, notes=row_notes, downloads=downloads, counterpart=counterpart)
 

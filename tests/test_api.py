@@ -31,7 +31,7 @@ from screw.app import app, build_backend
 from screw.build_errors import BuildError, BuildTimeout
 from screw.calc import STANDING_WARNING
 from screw.calc.presets import expand
-from screw.calc.thread import T_GATE, bolt_closed_volume
+from screw.calc.thread import T_GATE, bolt_end_closed_volume
 from screw.params import DEFAULT_KIND, INTERIM_MAX_MM, KINDS, BoltParams, FastenerParams
 from screw.solid import Format, Quality, export, precise_volume
 from screw.tables.presets import catalogue
@@ -348,7 +348,7 @@ def test_the_default_info_document() -> None:
     assert (values["thread_length"], values["shank_length"]) == (20.0, 0.0)
     assert (values["s"], values["k"]) == (10.0, 4.0)
     assert values["across_corners"] == 10.0 / math.cos(math.pi / 6)
-    assert values["volume"] == bolt_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0)
+    assert values["volume"] == bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None)
     assert body["warnings"][0] == STANDING_WARNING
     assert body["preset"] == {"status": "exact", "id": "iso4017:M6x20",
                               "display": "ISO 4017 M6 \u00d7 20"}
@@ -378,7 +378,7 @@ def test_an_iso_4014_shaped_bolt_reports_its_thread_and_its_shank() -> None:
     values = {row["key"]: row["value"] for row in r.json()["rows"]}
     assert (values["thread_length"], values["shank_length"]) == (18.0, 12.0)
     assert values["turns"] == 18.0
-    assert values["volume"] == bolt_closed_volume(6.0, 1.0, 30.0, 10.0, 4.0, 18.0)
+    assert values["volume"] == bolt_end_closed_volume(6.0, 1.0, 30.0, 10.0, 4.0, 18.0, True, 0.25)
 
 
 @pytest.mark.parametrize("route", ["/api/bolt/info", "/api/bolt/model.stl"])
@@ -551,7 +551,7 @@ def test_the_default_part_served_is_the_gated_hex_head_screw(tmp_path: Path) -> 
     assert isinstance(shape, cq.Shape)
     assert len(shape.Solids()) == 1
     assert precise_volume(shape) == pytest.approx(
-        bolt_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0), rel=T_GATE)
+        bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None), rel=T_GATE)
 
 
 def test_the_download_filename_is_safe_for_many_digit_values() -> None:

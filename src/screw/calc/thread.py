@@ -642,6 +642,33 @@ def fillet_radius(d: float, pitch: float, length: float, t: float) -> float | No
     return r
 
 
+def tip_cone_length(pitch: float, angle_deg: float) -> float:
+    """Axial length of the tip cone: from the minor radius at the end face to the crest radius,
+    the radial depth `thread_depth(pitch)` times tan(angle). A built thread this short or shorter
+    is not cut: the cone would be all of it (L02: capped and warned, never a thinner tip)."""
+    _check_angle("angle", angle_deg)
+    return thread_depth(pitch) * math.tan(math.radians(angle_deg))
+
+
+def tip_cone_fits(pitch: float, t: float) -> bool:
+    """True when the built thread `t` is longer than the tip cone, so the cone is cut. The one
+    place that decides it: the builder, the closed form and `derive` all call it."""
+    return t > tip_cone_length(pitch, TIP_ANGLE_DEG)
+
+
+def bolt_end_closed_volume(d: float, pitch: float, length: float, s: float, k: float, t: float,
+                           tip: bool, r: float | None) -> float:
+    """`bolt_closed_volume` less the tip cone when `tip`, plus the fillet ring when `r` is a
+    radius: the volume of a bolt with its ends (D-09, D-11). Each oracle raises `ValueError`
+    outside its validity, so there is no number for a bolt the oracles cannot judge (L02)."""
+    volume = bolt_closed_volume(d, pitch, length, s, k, t)
+    if tip:
+        volume -= tip_cone_volume(d, pitch, TIP_ANGLE_DEG)
+    if r is not None:
+        volume += fillet_ring_volume(d, r)
+    return volume
+
+
 # The differential tolerance, as a fraction of the piece an end cut removes or adds (R11, P8):
 # 10 times the largest piece error `bench/RESULTS.md` records under `End-cut probe (Phase 5,
 # D-10)` -- 2.737e-03, tip 45 degrees on the M2 right-hand rod, one single-run maximum over 46
