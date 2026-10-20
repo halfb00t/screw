@@ -103,8 +103,10 @@ no-fake-done:  ## refuse unfinished work dressed up as finished
 PYTEST_WORKERS ?= $(shell w=8; n=$$(getconf _NPROCESSORS_ONLN 2>/dev/null); \
                     [ "$$n" -ge 1 ] 2>/dev/null || n=1; echo $$(( n < w ? n : w )))
 
+# --durations=10 puts the ten slowest tests in the log of every run, CI's included: the pair verify
+# cell is a real kernel boolean and the only record of how long it takes on a runner (05-15, T-05-35).
 test: $(STAMP)  ## run the test suite under the coverage floor
-	$(PY) -m pytest -n $(PYTEST_WORKERS) --cov --cov-report=term $(PYTEST_ARGS)
+	$(PY) -m pytest -n $(PYTEST_WORKERS) --cov --cov-report=term --durations=10 $(PYTEST_ARGS)
 
 # The slow thread tier (D-14): outside the gate like the bench family, so nothing here is
 # in `make verify`. --no-cov because a partial run reads a low total against the floor.
