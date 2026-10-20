@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Hex Nut and Kernel Pair Proof
 status: executing
-stopped_at: Completed 05-15-PLAN.md
-last_updated: "2026-10-20T13:51:40.222Z"
+stopped_at: Completed 05-16-PLAN.md
+last_updated: "2026-10-20T14:31:05.580Z"
 last_activity: 2026-10-20
 last_activity_desc: Phase 05 execution started
-state_head: c374150a5970d674cd90339ee918f7623d545b70
+state_head: a58b70204c4ea55c2b392c11d9c0becd90abeb50
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 60
-  completed_plans: 57
+  completed_plans: 58
   percent: 57
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-12)
 ## Current Position
 
 Phase: 05 (Hex Nut and Kernel Pair Proof) — EXECUTING
-Plan: 11 of 18
+Plan: 12 of 18
 Status: Ready to execute
 Last activity: 2026-10-20 — Phase 05 execution started
 
@@ -116,6 +116,7 @@ Progress: [██████░░░░] 57%
 | Phase 05 P13 | ~1h | 3 tasks | 8 files |
 | Phase 05 P14 | 35min | 3 tasks | 8 files |
 | Phase 05 P15 | 75min | 3 tasks | 9 files |
+| Phase 05 P16 | 35min | 3 tasks | 17 files |
 
 ## Accumulated Context
 
@@ -224,6 +225,7 @@ Recent decisions affecting current work:
 - [Phase 05]: 05-14: prove at c <= 0 builds nothing and reads nothing (R8); PairReport.closed_control and .shipped are None where nothing was read (L02)
 - [Phase 05]: 05-15: the pair cell harness raises the nut's across-flats s to max(10, d + 2c + 1) because the product default is refused for 94 of 240 rows; prove never reads s
 - [Phase 05]: 05-15: make test prints the ten slowest tests so the ubuntu seconds of the pair verify cell are in the CI log (167.5 s)
+- [Phase 05]: 05-16: ran the M18 diagnosis, the 240-cell pair grid and the product-cell comparison once each; M18 empty reproduces 10/10 and is a band of poses (H2 not held), grid 240/240 equals the table, no ISO 4032 row m differs so no product cells
 
 ### Pending Todos
 
@@ -270,6 +272,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-20T13:51:40.055Z
-Stopped at: Completed 05-15-PLAN.md
+Last session: 2026-10-20T14:31:05.414Z
+Stopped at: Completed 05-16-PLAN.md
 Resume file: None
