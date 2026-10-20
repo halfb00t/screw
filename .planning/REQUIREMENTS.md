@@ -15,7 +15,7 @@ Requirements for the first release: the mating-pair cut (infra port, thread spik
 - [x] **THRD-02**: User can choose a left-hand thread via a boolean `left_hand` field (default right-hand); a left-hand pair is proven by the same checks as a right-hand pair. *(Phase 3 ships the right- and left-hand solid; the second clause, a left-hand pair proven like a right-hand pair, is Phase 5 PAIR-03 — owner ruling 2026-10-11.)*
 - [x] **THRD-03**: User sets `thread_length` on a bolt as explicit millimetres; the ISO 4017 preset fills it with the full length, the ISO 4014 preset fills `b` from the table by length band; the user may edit it afterwards.
 - [x] **THRD-04**: Every thread build is gated by a postcondition — valid shape, exactly one solid, volume within a stated tolerance of the closed-form value (sign included) — and a failed gate is a `BuildError` naming what failed, never a cached or served solid. `isValid()` alone is never the gate; the gate has a positive-control test fed a known-bad build.
-- [ ] **THRD-05**: Nut thread and bolt tip carry lead-in chamfers and the bolt an under-head fillet (bolt ends per ISO 4753 — clause UNVERIFIED until the standard is read; L14, 2026-10-20: read as GOST 12414-94, the ISO 4753:1983 text) so a printed pair can start.
+- [x] **THRD-05**: Nut thread and bolt tip carry lead-in chamfers and the bolt an under-head fillet (bolt ends per ISO 4753 — clause UNVERIFIED until the standard is read; L14, 2026-10-20: read as GOST 12414-94, the ISO 4753:1983 text) so a printed pair can start.
 
 ### Mating Pair
 
@@ -30,7 +30,7 @@ Requirements for the first release: the mating-pair cut (infra port, thread spik
 
 - [x] **TYPE-01**: User can generate a hex head bolt per ISO 4014:2022 (partial thread): across-flats `s`, across-corners `e`, head height `k`, bearing face `dw`, thread length `b` by length band, unthreaded shank `ls`/grip `lg`, product grade A/B boundary (A for d ≤ M24 and l ≤ 10d or 150 mm). The chamfered point and the under-head fillet are THRD-05's (Phase 5, ISO 4753).
 - [x] **TYPE-02**: User can generate a hex head screw per ISO 4017:2022 (threaded to the head), lengths to the standard's 200 mm cap.
-- [ ] **TYPE-03**: User can generate a hex nut per ISO 4032:2023 (style 1): `s`, `e`, height `m`, wrench height `mw`, `dw`, chamfers on both faces; M5–M20 from the normative tables, M2–M4 from informative Annex A labelled "informative / historical" in the preset and on the info panel. Amended 2026-10-20 (L14): the rows are read from GOST ISO 4032-2014 (ISO 4032:2012), which has no Annex A, so by the owner's ruling every size M2–M20 it prints (Table 1 and Table 2; no M7) ships as a normative row citing its table and none is labelled informative.
+- [x] **TYPE-03**: User can generate a hex nut per ISO 4032:2023 (style 1): `s`, `e`, height `m`, wrench height `mw`, `dw`, chamfers on both faces; M5–M20 from the normative tables, M2–M4 from informative Annex A labelled "informative / historical" in the preset and on the info panel. Amended 2026-10-20 (L14): the rows are read from GOST ISO 4032-2014 (ISO 4032:2012), which has no Annex A, so by the owner's ruling every size M2–M20 it prints (Table 1 and Table 2; no M7) ships as a normative row citing its table and none is labelled informative.
 - [x] **TYPE-04**: For any generated bolt the user can get the matching nut, and vice versa, derived from the same `d`, pitch, hand and clearance.
 
 ### ISO Tables and Presets
@@ -121,7 +121,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | THRD-02 | Phase 3 | Complete |
 | THRD-03 | Phase 4 | Complete |
 | THRD-04 | Phase 3 | Complete |
-| THRD-05 | Phase 5 | Pending |
+| THRD-05 | Phase 5 | Complete |
 | PAIR-01 | Phase 5 | Complete |
 | PAIR-02 | Phase 6 | Pending |
 | PAIR-03 | Phase 5 | Pending |
@@ -130,7 +130,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PAIR-06 | Phase 6 | Pending |
 | TYPE-01 | Phase 4 | Complete |
 | TYPE-02 | Phase 4 | Complete |
-| TYPE-03 | Phase 5 | Pending |
+| TYPE-03 | Phase 5 | Complete |
 | TYPE-04 | Phase 5 | Complete |
 | TABL-01 | Phase 4 | Complete |
 | TABL-02 | Phase 4 | Complete |
