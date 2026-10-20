@@ -20,9 +20,11 @@ from screw.calc import (
 )
 from screw.calc.presets import WITHDRAWN_DIN_WRENCH_MM, designation_for, match
 from screw.calc.thread import (
+    axial_play,
     basic_minor_diameter,
     bolt_closed_volume,
     fine_stl_refusal,
+    flank_normal_gap,
     nut_closed_volume,
     pitch_diameter,
     section_radius,
@@ -49,6 +51,8 @@ ROW_KEYS = ["s_min", "e_min", "k_max", "k_min", "dw_min", "b", "lg_max", "ls_min
 # The default part is the ISO 4017 M6 x 20 row, so it carries that row's five head values.
 # M6 x 1 is an exact ISO 262 size, so the default part carries the 6g limits group (INFO-02).
 LIMITS_KEYS = ["d_max", "d_min", "d2_max", "d2_min"]
+PAIR_KEYS = ["clearance", "clearance_diametral", "flank_gap", "axial_play", "nut_major_diameter",
+             "nut_pitch_diameter", "nut_minor_diameter", "engagement_turns"]
 NUT_LIMITS_KEYS = ["D1_min", "D1_max", "D2_min", "D2_max"]
 KEYS = ["d", "pitch", "length", "thread_length", "shank_length", "turns", "thread_depth",
         "minor_diameter", "pitch_diameter", *LIMITS_KEYS, "s", "across_corners", "k", "s_min",
@@ -226,7 +230,7 @@ def test_a_nut_document_has_its_rows_in_groups_the_closed_form_volume_and_its_m6
         *[(key, calc.LIMITS) for key in NUT_LIMITS_KEYS],
         ("s", "Nut"), ("across_corners", "Nut"),
         *[(key, "Nut") for key in NUT_CITED_KEYS],
-        ("m", "Nut"), ("clearance", "Pair"), ("volume", "Part")]
+        ("m", "Nut"), *[(key, "Pair") for key in PAIR_KEYS], ("volume", "Part")]
     values = {r.key: r.value for r in info.rows}
     assert (values["d"], values["pitch"], values["s"], values["m"], values["clearance"]) == (
         6.0, 1.0, 10.0, 5.2, 0.1)
@@ -936,3 +940,70 @@ def test_the_limit_labels_name_both_gost_texts_and_never_an_unread_edition() -> 
             assert "GOST 16093-2004 (based on ISO 965-1:1998 and ISO 965-3:1998)" in row.label
             assert "ISO 724:2023" not in row.label
             assert "965-2" not in row.label
+
+
+# --- the nut's Pair group (PAIR-01, D-19, PAIR-04) ----------------------------------------------
+
+def _pair(p: NutParams) -> dict[str, float]:
+    return {r.key: r.value for r in derive(p).rows if r.group == "Pair"}
+
+
+def test_the_nut_pair_rows_are_the_eight_keys_in_the_fixed_order() -> None:
+    info = derive(NutParams(clearance=0.1))
+    assert [r.key for r in info.rows if r.group == "Pair"] == PAIR_KEYS
+    assert [r.label for r in info.rows if r.group == "Pair"] == [
+        "Clearance (radial)", "Clearance (diametral, 2c)", "Flank-normal gap (closed form)",
+        "Axial play, both flanks (closed form)", "Nut major diameter (d + 2c)",
+        "Nut pitch diameter (D2 + 2c)", "Nut minor diameter (D1 + 2c)", "Engagement (m / P)"]
+    assert [r.unit for r in info.rows if r.group == "Pair"] == ["mm"] * 7 + ["turns"]
+    # The Pair group is contiguous and the bolt has none (D-19).
+    keys = [r.key for r in info.rows]
+    assert keys[keys.index("clearance"):][:8] == PAIR_KEYS
+    assert "Pair" not in {r.group for r in derive(BoltParams()).rows}
+
+
+def test_the_nut_pair_values_are_the_unrounded_closed_forms() -> None:
+    c = 0.1
+    pair = _pair(NutParams(clearance=c))
+    assert pair["clearance"] == c
+    assert pair["clearance_diametral"] == 2 * c
+    assert pair["flank_gap"] == flank_normal_gap(c)
+    assert pair["axial_play"] == axial_play(c)
+    assert pair["nut_major_diameter"] == 6.0 + 2 * c
+    assert pair["nut_pitch_diameter"] == pitch_diameter(6.0, 1.0) + 2 * c
+    assert pair["nut_minor_diameter"] == basic_minor_diameter(6.0, 1.0) + 2 * c
+    assert pair["engagement_turns"] == 5.2 / 1.0
+    assert pair["flank_gap"] == pytest.approx(0.5 * c, abs=1e-15)
+    assert pair["axial_play"] == pytest.approx(2 * c / math.sqrt(3), abs=1e-15)
+
+
+def test_the_engagement_is_the_exact_quotient_of_the_height_and_the_pitch() -> None:
+    # 5.4 / 0.6 is 9.000000000000002 in floats; the panel prints the exact quotient, like turns.
+    assert _pair(NutParams(d=3.5, pitch=0.6, s=6.0, m=5.4, clearance=0.1))[
+        "engagement_turns"] == 9.0
+
+
+def test_zero_clearance_gives_zero_gaps_and_the_warning_and_interference_is_reported() -> None:
+    zero = derive(NutParams(clearance=0.0))
+    pair = {r.key: r.value for r in zero.rows if r.group == "Pair"}
+    assert (pair["clearance_diametral"], pair["flank_gap"], pair["axial_play"]) == (0.0, 0.0, 0.0)
+    assert any("is not positive" in w for w in zero.warnings)
+    tight = derive(NutParams(clearance=-0.05))
+    pair = {r.key: r.value for r in tight.rows if r.group == "Pair"}
+    assert pair["clearance_diametral"] == -0.1
+    assert pair["flank_gap"] < 0
+    assert pair["axial_play"] < 0
+    assert pair["nut_major_diameter"] == 6.0 - 0.1
+    assert any("is not positive" in w for w in tight.warnings)
+
+
+def test_the_pair_rows_do_not_depend_on_the_hand() -> None:
+    assert _pair(NutParams(clearance=0.1, left_hand=True)) == _pair(NutParams(clearance=0.1))
+
+
+def test_a_pair_value_that_is_not_finite_is_left_out_with_a_warning() -> None:
+    # model_construct skips the bounds (D-15): the quotient overflows and is dropped, not printed.
+    info = derive(NutParams.model_construct(d=6.0, pitch=5e-324, s=10.0, m=5.2, clearance=0.1,
+                                            left_hand=False))
+    assert "engagement_turns" not in [r.key for r in info.rows]
+    assert any(w.startswith("engagement_turns not reported") for w in info.warnings)

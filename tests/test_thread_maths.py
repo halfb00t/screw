@@ -15,11 +15,13 @@ from screw.calc.thread import (
     MAX_TURNS,
     MIN_TAIL_MM,
     T_GATE,
+    axial_play,
     basic_minor_diameter,
     bolt_closed_volume,
     built_thread_length,
     closed_volume,
     fine_stl_refusal,
+    flank_normal_gap,
     fundamental_height,
     head_too_small_refusal,
     hex_prism_volume,
@@ -394,3 +396,52 @@ def test_the_basic_minor_diameter_is_the_shank_minor_diameter_row_formula(pitch:
     assert basic_minor_diameter(10.0, pitch) == pytest.approx(
         10.0 - 2 * thread_depth(pitch), abs=1e-15
     )
+
+
+# --- the pair's closed-form gaps, pinned to the section they come from (PAIR-01, RESEARCH F7) ---
+
+
+def _flank_slope(d: float, pitch: float, clearance: float, theta: float) -> float:
+    """dr/dz over a flank by central difference, theta mapped to z = theta * pitch / (2 pi)."""
+    h = 1e-3
+    dr = (section_radius(d, pitch, clearance, theta + h)
+          - section_radius(d, pitch, clearance, theta - h))
+    return dr / (2 * h) * (2 * math.pi / pitch)
+
+
+@pytest.mark.parametrize(("d", "pitch"), [(6.0, 1.0), (10.0, 1.5), (20.0, 2.5), (2.0, 0.4)])
+def test_both_flanks_rise_sqrt_3_mm_per_mm_of_z(d: float, pitch: float) -> None:
+    # The first flank falls from the crest to the root, the second rises back: 30 degrees from the
+    # axis-normal plane on both, whatever the size or the clearance.
+    for clearance in (0.0, 0.05, -0.05):
+        down = _flank_slope(d, pitch, clearance, math.pi / 2)
+        up = _flank_slope(d, pitch, clearance, 3 * math.pi / 2)
+        assert down == pytest.approx(-math.sqrt(3), abs=1e-9)
+        assert up == pytest.approx(math.sqrt(3), abs=1e-9)
+
+
+@pytest.mark.parametrize("clearance", [0.0, 0.05, 0.1, 0.25, -0.05])
+def test_the_flank_and_axial_gaps_follow_the_numeric_slope_not_a_typed_factor(
+        clearance: float) -> None:
+    slope = abs(_flank_slope(6.0, 1.0, 0.0, math.pi / 2))
+    angle = math.atan(1 / slope)    # flank angle from the axis-normal plane
+    assert math.degrees(angle) == pytest.approx(30.0, abs=1e-7)
+    # Moving the surface radially by c shifts each flank c / slope along z; the normal gap is the
+    # radial shift projected on the flank normal.
+    assert flank_normal_gap(clearance) == pytest.approx(clearance * math.sin(angle), abs=1e-12)
+    assert axial_play(clearance) == pytest.approx(2 * clearance / slope, abs=1e-12)
+
+
+def test_the_clearance_moves_the_section_radius_by_exactly_c_at_every_angle() -> None:
+    # The premise of both gaps: the nut surface is the rod surface moved radially by c.
+    for i in range(64):
+        theta = 2 * math.pi * i / 64
+        assert section_radius(6.0, 1.0, 0.1, theta) - section_radius(6.0, 1.0, 0.0, theta) == (
+            pytest.approx(0.1, abs=1e-12))
+
+
+def test_the_gaps_are_zero_at_zero_clearance_and_negative_for_an_interference() -> None:
+    assert flank_normal_gap(0.0) == 0.0
+    assert axial_play(0.0) == 0.0
+    assert flank_normal_gap(-0.05) < 0
+    assert axial_play(-0.05) < 0

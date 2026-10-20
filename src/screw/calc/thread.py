@@ -91,6 +91,31 @@ def section_radius(d: float, pitch: float, clearance: float, theta: float) -> fl
     return rr + (ro - rr) * (th - 5 * math.pi / 4) / (5 * math.pi / 8)
 
 
+# The flank's angle from the axis-normal plane, 30 degrees: the flank rises sqrt(3) mm per mm of
+# radius change in z (RESEARCH F7; tests/test_thread_maths.py differentiates `section_radius` to
+# confirm it), and tan 30 degrees = 1 / sqrt(3). The two gaps below derive from it, not from 0.5.
+FLANK_ANGLE = math.pi / 6
+
+
+def flank_normal_gap(clearance: float) -> float:
+    """The gap measured normal to a flank when the nut surface is the rod surface moved
+    radially by `clearance`: clearance * sin(flank angle), half the clearance at 30 degrees.
+
+    For reporting, never a geometry input (PAIR-04): the nut surface is the rod surface moved
+    radially by c, and the flank rises sqrt(3) mm per mm of z (RESEARCH F7).
+    """
+    return clearance * math.sin(FLANK_ANGLE)
+
+
+def axial_play(clearance: float) -> float:
+    """The axial slack across both flanks for a radial `clearance`: 2 * clearance * tan(flank
+    angle), 2c / sqrt(3) at 30 degrees. Each flank is shifted c * tan(30 degrees) along z.
+
+    For reporting, never a geometry input (PAIR-04).
+    """
+    return 2 * clearance * math.tan(FLANK_ANGLE)
+
+
 def section_area(d: float, pitch: float, clearance: float = 0.0) -> float:
     """Area of the transverse section: pi/8 ro^2 + pi/4 rr^2 + 5 pi/24 (ro^2 + ro rr + rr^2).
 
