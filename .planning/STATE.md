@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Hex Nut and Kernel Pair Proof
 status: executing
-stopped_at: Completed 05-11-PLAN.md
-last_updated: "2026-10-20T10:44:55.571Z"
+stopped_at: Completed 05-12-PLAN.md
+last_updated: "2026-10-20T11:36:59.807Z"
 last_activity: 2026-10-20
 last_activity_desc: Phase 05 execution started
-state_head: 343636150d204cae4e09983fa1987b79dfdbc8ba
+state_head: 8b35dfc817c806fa8e96a32cfcddc06708abddd2
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 60
-  completed_plans: 53
+  completed_plans: 54
   percent: 57
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-12)
 ## Current Position
 
 Phase: 05 (Hex Nut and Kernel Pair Proof) — EXECUTING
-Plan: 7 of 18
+Plan: 8 of 18
 Status: Ready to execute
 Last activity: 2026-10-20 — Phase 05 execution started
 
@@ -112,6 +112,7 @@ Progress: [██████░░░░] 57%
 | Phase 05 P09 | 40min | 3 tasks | 7 files |
 | Phase 05 P10 | 35min | 3 tasks | 9 files |
 | Phase 05 P11 | continuation | 2 tasks | 4 files |
+| Phase 05 P12 | 55 min | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -213,6 +214,7 @@ Recent decisions affecting current work:
 - [Phase 05]: 05-10: R10 applied in navigate()'s kind-change branch so the Matching link drops the stale mesh as the selector does
 - [Phase 05]: 05-10: the matching-part link is muted Caption text, the accent stays reserved for primary actions and invalid fields
 - [Phase 05]: 05-11: COUNTERSINK_FACE_FACTOR 1.16 (owner R3 option A, stated model); countersink dropped with a warning when it cannot cross the void or leaves the flats; T_PIECE 0.03 (R11)
+- [Phase 05]: 05-12: fillet r,min read from GOST R ISO 4014-2013 (owner ruling, L14 amendment); tip piece check runs before the cut thread's whole gate; add_fillet fuses the ring so its added volume is measured
 
 ### Pending Todos
 
@@ -259,6 +261,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-20T10:44:55.429Z
-Stopped at: Completed 05-11-PLAN.md
+Last session: 2026-10-20T11:36:59.659Z
+Stopped at: Completed 05-12-PLAN.md
 Resume file: None
