@@ -14,6 +14,7 @@ from OCP.IFSelect import IFSelect_ReturnStatus
 
 from bench.thread_spike.helical import naive_sweep_fuse, one_pipe
 from bench.thread_spike.maths import VOID_CLEARANCE
+from bench.thread_spike.measure import stl_check
 from screw.build_errors import BuildError
 from screw.calc import derive
 from screw.calc.thread import (
@@ -24,6 +25,7 @@ from screw.calc.thread import (
     closed_volume,
     fillet_radius,
     fillet_ring_volume,
+    fine_stl_refusal,
     piece_refusal,
     section_area,
     thread_depth,
@@ -42,6 +44,8 @@ from screw.solid import (
     helical,
     precise_volume,
 )
+from screw.tables.iso262 import SIZES
+from screw.tables.presets import catalogue
 
 TOL = 1e-6  # mm
 
@@ -614,3 +618,32 @@ def test_a_thread_no_longer_than_the_tip_cone_builds_without_the_cone() -> None:
         p = BoltParams(d=6.0, pitch=1.0, length=10.0, s=10.0, k=4.0, thread_length=t)
         assert precise_volume(build(p)) == pytest.approx(
             bolt_end_closed_volume(6.0, 1.0, 10.0, 10.0, 4.0, t, cut, 0.25), rel=T_GATE)
+
+
+# --- the watertight sweep over both standards, both hands (RESEARCH P7, 05-12) ------------------
+
+
+def _sweep_row(size: str, standard: str, left_hand: bool) -> BoltParams:
+    """The shortest ISO 4017 row of `size`, or the longest ISO 4014 row of it whose fine STL is
+    not refused for the hand (so the part stays inside what a user can download at fine)."""
+    rows = [r for r in catalogue() if r.size == size and r.standard == standard]
+    if standard == "ISO 4017":
+        row = min(rows, key=lambda r: r.length)
+    else:
+        row = max(
+            (r for r in rows if fine_stl_refusal(
+                dict(r.fields)["d"], dict(r.fields)["pitch"],
+                min(dict(r.fields)["thread_length"], r.length), left_hand) is None),
+            key=lambda r: r.length)
+    return BoltParams.model_validate({**dict(row.fields), "left_hand": left_hand})
+
+
+@pytest.mark.parametrize("left_hand", [False, True], ids=["right", "left"])
+@pytest.mark.parametrize("standard", ["ISO 4017", "ISO 4014"])
+@pytest.mark.parametrize("size", [size.label for size in SIZES])
+def test_every_size_of_both_standards_meshes_watertight_at_preview(
+        size: str, standard: str, left_hand: bool) -> None:
+    p = _sweep_row(size, standard, left_hand)
+    mesh = stl_check(export(p, "stl", "preview"))
+    assert mesh.open_edges == 0, (size, standard, left_hand, p.length)
+    assert mesh.triangles > 0
