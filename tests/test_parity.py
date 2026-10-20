@@ -665,7 +665,7 @@ def test_the_ui_builds_both_download_links_from_the_info_document_and_names_no_q
     assert "setDownloads(q, info.downloads)" in _function_body("update")
     assert "downloadLinks" in APP_JS
     assert set(re.findall(r"\binfo\.(\w+)", APP_JS)) == {
-        "designation", "rows", "warnings", "notes", "preset", "downloads"}
+        "designation", "rows", "warnings", "notes", "preset", "downloads", "counterpart"}
     assert set(re.findall(r"\bdownload\.(\w+)", APP_JS)) == {"format", "quality", "refusal"}
     body = _function_body("setDownloads")
     assert "qs.set('quality', download.quality)" in body
@@ -802,3 +802,53 @@ def test_the_cli_and_the_api_print_the_same_counterpart(
     assert cli_doc["counterpart"]["kind"] == other
     assert cli_doc["warnings"] == api_doc["warnings"]
     assert "clearance" not in cli_doc["counterpart"]["fields"]
+
+
+def test_the_ui_reads_the_counterpart_by_kind_and_fields_only_and_names_no_kind() -> None:
+    # D-01, D-02, T-05-22: the link is composed from `info.counterpart` alone, as text in a hash
+    # fragment (never innerHTML), and the page quotes no kind, field or label of its own.
+    assert set(re.findall(r"\bcounterpart\.(\w+)", APP_JS)) == {"kind", "fields"}
+    body = _function_body("showCounterpart")
+    assert "new URLSearchParams({ kind: counterpart.kind, ...counterpart.fields })" in body
+    assert "counterpartLink.href = `#${q}`;" in body
+    assert "`Matching ${counterpart.kind}`" in body
+    assert "counterpartLink.hidden = counterpart === null;" in body
+    assert "showCounterpart(info.counterpart ?? null);" in _function_body("renderInfo")
+    # A failed update and a refused link take the link away with the panel it belongs to.
+    assert "showCounterpart(null);" in _function_body("refuseLink")
+    assert "showCounterpart(null);" in _function_body("update")
+    for kind_name in KINDS:
+        assert re.findall(rf"""(['"`]){kind_name}\1""", APP_JS) == [], kind_name
+    html = (STATIC / "index.html").read_text()
+    assert re.search(r'<p id="badge"[^>]*></p>\s*<a id="counterpart" hidden></a>', html)
+
+
+def test_a_field_with_no_default_is_written_empty_never_as_the_word_undefined() -> None:
+    # RESEARCH P9b: the nut's clearance has no default, so `defaults[name]` is undefined.
+    assert "else input.value = v ?? '';" in _function_body("write")
+    assert "input.value = v;" not in APP_JS
+
+
+def test_a_kind_change_drops_the_old_mesh_and_what_described_it() -> None:
+    # R10, T-05-23 (05-OWNER-READS.md): a nut with no clearance typed builds nothing, so the old
+    # bolt mesh, its warnings and its notes must not stay on screen under "last valid part".
+    nav = _squash(_function_body("navigate"))
+    assert nav.index("dropMesh();") < nav.index("await buildForm(kind)")
+    assert nav.index("if (kind !== currentKind) {") < nav.index("dropMesh();")
+    drop = _function_body("dropMesh")
+    for statement in ("scene.remove(mesh, edges);", "mesh = null;", "edges = null;",
+                      "meshWarnings = [];", "meshNotes = [];", "pendingWarnings = [];",
+                      "pendingNotes = [];", "fitted = false;"):
+        assert statement in drop, statement
+    assert APP_JS.count("dropMesh()") == 2  # the definition and the one call on a kind change
+
+
+def test_every_row_key_of_the_nut_and_pair_documents_is_unread_by_name_in_the_ui() -> None:
+    # Plans 05-04 to 05-09 added these keys; `m` and `clearance` are fields too (05-10).
+    exact = KINDS["nut"].model_validate({**REQUIRED_VALUES["nut"]})
+    m18 = KINDS["nut"].model_validate(
+        {**REQUIRED_VALUES["nut"], "d": 18.0, "pitch": 2.5, "s": 27.0, "m": 15.8})
+    keys = {row.key for p in (exact, m18) for row in derive(p).rows}
+    assert {"pitch_diameter", "minor_diameter", "m_max", "mw_min", "D1_min", "D2_max",
+            "flank_gap", "axial_play", "nut_pitch_diameter", "engagement_turns"} <= keys
+    assert _field_literals(APP_JS, [*keys, "m", "clearance"]) == []

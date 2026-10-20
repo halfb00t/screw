@@ -14,6 +14,7 @@ let defaults = {};
 const picker = $('#picker');
 const pickerLegend = picker.querySelector('legend');
 const badge = $('#badge');
+const counterpartLink = $('#counterpart');
 const pickerSelects = []; // one select per catalogue axis, in axis order
 let catalogue = null; // the /api/presets body for currentKind; null while there is no picker
 let shownPreset = null; // the preset member of the newest info document, null after a failure
@@ -39,10 +40,12 @@ let meshNotes = [];
 // A checkbox's .value is the constant "on", so every read and write of a control goes through
 // these two: a checkbox reads as 'true' or 'false' and is written from either, any other
 // control by its value (D-09). The link then carries `left_hand=true` and nothing else.
+// A field with no default (the nut's clearance) has `undefined` for one: it is written as an empty
+// control, never as the word "undefined" (RESEARCH P9b).
 const read = (input) => (input.type === 'checkbox' ? String(input.checked) : input.value);
 function write(input, v) {
   if (input.type === 'checkbox') input.checked = String(v) === 'true';
-  else input.value = v;
+  else input.value = v ?? '';
 }
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
@@ -239,6 +242,7 @@ function refuseLink(message) {
   currentKind = null;
   kindSelect.selectedIndex = -1;
   $('#dims').replaceChildren();
+  showCounterpart(null);
   setDownloads(null);
   setStatus('');
   showMessages([message], mesh ? meshWarnings : [], mesh ? meshNotes : []);
@@ -272,6 +276,9 @@ async function navigate() {
   }
 
   if (kind !== currentKind) {
+    // The mesh on screen belongs to the other kind: it goes now, so a part that cannot build yet
+    // (a nut with no clearance typed) is never shown as the last valid part (R10, T-05-23).
+    dropMesh();
     if (!(await buildForm(kind))) return;
     try {
       if (!(await loadPresets(kind))) return;
@@ -376,10 +383,22 @@ function renderInfo(info) {
     lists.get(row.group).append(line);
   }
   $('#dims').replaceChildren(...nodes);
+  showCounterpart(info.counterpart ?? null);
   pendingWarnings = info.warnings ?? [];
   pendingNotes = info.notes ?? [];
   showMessages([], pendingWarnings, pendingNotes);
   showMatch(info.preset ?? null);
+}
+
+// The matching part is a link built from the document alone: the kind and every field the server
+// says carry over, as a hash the page already knows how to open. No kind, field or label is named
+// here, and the clearance is not in it, so a nut opens with that field empty (D-01, D-02).
+function showCounterpart(counterpart) {
+  counterpartLink.hidden = counterpart === null;
+  if (counterpart === null) return;
+  const q = new URLSearchParams({ kind: counterpart.kind, ...counterpart.fields });
+  counterpartLink.href = `#${q}`;
+  counterpartLink.textContent = `Matching ${counterpart.kind}`;
 }
 
 // The page never links a download the server refuses (G-04-3, L02): the info document lists, per
@@ -453,6 +472,7 @@ async function update() {
     if (mine !== seq) return;
     showMessages(errors, mesh ? meshWarnings : [], mesh ? meshNotes : []);
     $('#dims').replaceChildren();
+    showCounterpart(null);
     showMatch(null);
     setStatus(mesh ? 'Showing the last valid part' : '');
   };
@@ -561,6 +581,26 @@ function fit() {
   camera.updateProjectionMatrix();
   controls.target.copy(centre);
   controls.update();
+  render();
+}
+
+/** Forget the mesh and everything that described it, so nothing is drawn until the next part builds. */
+function dropMesh() {
+  if (mesh) {
+    scene.remove(mesh, edges);
+    mesh.geometry.dispose();
+    edges.geometry.dispose();
+  }
+  mesh = null;
+  edges = null;
+  box = null;
+  fitted = false;
+  pendingWarnings = [];
+  meshWarnings = [];
+  pendingNotes = [];
+  meshNotes = [];
+  showMessages([], meshWarnings, meshNotes);
+  placeGrid();
   render();
 }
 
