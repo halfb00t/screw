@@ -40,7 +40,7 @@ import httpx2 as httpx
 import pytest
 from pydantic import ValidationError
 
-from bench import end_cuts
+from bench import end_cuts, mesh_deviation
 from bench import quiet as quiet_module
 from bench.build_time import Timing, load_sweep, report, stl_size
 from bench.corpus import corpus
@@ -4945,3 +4945,84 @@ def test_the_end_cut_probe_agrees_with_its_oracles_on_the_smallest_case_of_each_
         assert abs(row.piece_error) < 1e-2
         assert row.whole_error is not None
         assert abs(row.whole_error) <= screw_thread.T_GATE
+
+
+# --- the D-21 mesh deviation instrument (bench/mesh_deviation.py) ---------------------------
+
+_DEPTH_P1 = 5 / 8 * math.sqrt(3) / 2   # thread depth 5H/8 at pitch 1, written out, not imported
+
+
+# Two facets at the ends (z 0 and 10, one pitch = 1 so the margin is 2 mm) that must be skipped,
+# and two whose centroids are known: (2.9, 0, 5.0) and (0, 2.9, 5.1).
+_END_LOW = ((1.0, 0.0, 0.0), (1.0, 0.1, 0.0), (1.1, 0.0, 0.0))
+_END_HIGH = ((1.0, 0.0, 10.0), (1.0, 0.1, 10.0), (1.1, 0.0, 10.0))
+_ON_CREST_PLANE = ((2.9, 0.3, 5.3), (2.9, -0.3, 5.3), (2.9, 0.0, 4.4))
+_OFF_CREST_PLANE = ((0.3, 2.9, 5.4), (-0.3, 2.9, 5.4), (0.0, 2.9, 4.5))
+
+
+def test_the_deviation_of_a_hand_built_facet_is_the_radial_distance_to_the_surface() -> None:
+    """Centroid (2.9, 0, 5) sits at theta 0 whatever the hand, where the section is the crest at
+    r = 3: deviation 0.1. Centroid (0, 2.9, 5.1) is at phase pi/2 -/+ 10.2 pi: 0.3 pi right-hand,
+    0.7 pi left-hand, so the two hands read different points of the flank (0.28 and 0.92 of the
+    way down), which is what makes the hand sign observable. Hand-computed, not via the module."""
+    stl = _stl([_END_LOW, _ON_CREST_PLANE, _OFF_CREST_PLANE, _END_HIGH])
+    right = mesh_deviation.radial_deviations(stl, 6.0, 1.0, False)
+    left = mesh_deviation.radial_deviations(stl, 6.0, 1.0, True)
+    assert right == pytest.approx([0.1, abs(0.1 - 0.28 * _DEPTH_P1)], abs=1e-5)
+    assert left == pytest.approx([0.1, abs(0.1 - 0.92 * _DEPTH_P1)], abs=1e-5)
+
+
+def test_the_deviation_instrument_reads_vertices_off_the_surface_and_skips_the_ends() -> None:
+    """Vertices (3, 0, 5) are on the crest; (2.9, 0, 5) is 0.1 off it. The end facets are far off
+    the surface and sit inside the two-pitch margin, so they must not count."""
+    facet = ((3.0, 0.0, 5.0), (3.0, 0.0, 5.0), (2.9, 0.0, 5.0))
+    assert mesh_deviation.vertex_error(_stl([_END_LOW, facet, _END_HIGH]), 6.0, 1.0, False) \
+        == pytest.approx(0.1, abs=1e-5)
+    assert mesh_deviation.vertex_error(_stl([_END_LOW, _END_HIGH]), 6.0, 1.0, False) == 0.0
+
+
+def test_the_deviation_instrument_refuses_an_stl_whose_count_disagrees_with_its_length() -> None:
+    stl = _stl([_END_LOW, _ON_CREST_PLANE])
+    with pytest.raises(ValueError, match="claims 2 facets"):
+        mesh_deviation.radial_deviations(stl[:-1], 6.0, 1.0, False)
+
+
+def _deviation_rows(over: dict[tuple[float, str, bool], float] | None = None,
+                    *, drop: tuple[str, bool] | None = None) -> list[mesh_deviation.Row]:
+    """A full ladder grid, every deviation 0.01 mm unless `over` says otherwise."""
+    over = over or {}
+    return [mesh_deviation.Row(size, hand, step, mesh_deviation.ANGULAR_RAD, 100, 5084,
+                               over.get((step, size, hand), 0.01), 0.005)
+            for step in mesh_deviation.LADDER_MM for size in mesh_deviation.SIZES
+            for hand in mesh_deviation.HANDS if (size, hand) != drop or step != 0.0025]
+
+
+def test_the_deviation_bound_is_the_owners_fraction_of_the_proof_clearance() -> None:
+    assert mesh_deviation.FRACTION == 0.5
+    assert mesh_deviation.PROOF_CLEARANCE_MM == 0.05
+    assert pytest.approx(0.025) == mesh_deviation.BOUND_MM
+    assert mesh_deviation.LADDER_MM == (0.01, 0.0075, 0.005, 0.0025)
+
+
+def test_the_deviation_rule_takes_the_largest_step_whose_worst_row_is_within_bound() -> None:
+    assert mesh_deviation.rule(_deviation_rows()) == 0.01
+    # one bad (size, hand) at a step rules the step out for everyone
+    assert mesh_deviation.rule(_deviation_rows({(0.01, "M10", True): 0.0251})) == 0.0075
+    # not monotone: a finer step that fails is skipped only if a coarser one passes first
+    assert mesh_deviation.rule(_deviation_rows({
+        (0.01, "M2", False): 0.03, (0.0075, "M20", True): 0.03})) == 0.005
+    # the bound itself passes: "at most"
+    assert mesh_deviation.rule(_deviation_rows(
+        {(0.01, "M6", False): mesh_deviation.BOUND_MM})) == 0.01
+
+
+def test_the_deviation_rule_selects_nothing_from_a_failed_or_partial_ladder() -> None:
+    everywhere = {(step, size, hand): 0.03 for step in mesh_deviation.LADDER_MM
+                  for size in mesh_deviation.SIZES for hand in mesh_deviation.HANDS}
+    with pytest.raises(ValueError, match="no ladder step meets"):
+        mesh_deviation.rule(_deviation_rows(everywhere))
+    # a missing row at a step the rule must reach: the coarser steps all fail, so it reaches 0.0025
+    coarse = {(step, size, hand): 0.03 for step in (0.01, 0.0075, 0.005)
+              for size in mesh_deviation.SIZES for hand in mesh_deviation.HANDS}
+    with pytest.raises(ValueError, match="does not cover every size and hand"):
+        mesh_deviation.rule(_deviation_rows(coarse, drop=("M3", True)))
