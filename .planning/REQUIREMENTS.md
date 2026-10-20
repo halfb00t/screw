@@ -58,7 +58,7 @@ Requirements for the first release: the mating-pair cut (infra port, thread spik
 - [x] **FRNT-03**: The HTTP API serves info, STL and STEP, schema and health per kind; admission control (bounded queue, `503` + `Retry-After`) lives in the web layer only.
 - [x] **FRNT-04**: The CLI offers `screw serve | info | export | pair` with flags generated from the model; it never imports the web layer.
 - [x] **FRNT-05**: Each kind ships on UI, API and CLI in the same change, with parity proven model-driven (one test over the registry), not by hand.
-- [ ] **FRNT-06**: STL and STEP come from the same modelled-thread solid. The STL chord deviation is explicit, recorded and chosen against the clearance so the mesh never consumes it (`ControlSurfaceDeflection` stays on for downloads); the preview may use a coarser mesh, the numbers may not.
+- [x] **FRNT-06**: STL and STEP come from the same modelled-thread solid. The STL chord deviation is explicit, recorded and chosen against the clearance so the mesh never consumes it (`ControlSurfaceDeflection` stays on for downloads); the preview may use a coarser mesh, the numbers may not.
 
 ### Operability
 
@@ -149,7 +149,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FRNT-03 | Phase 1 | Complete |
 | FRNT-04 | Phase 1 | Complete |
 | FRNT-05 | Phase 1 | Complete |
-| FRNT-06 | Phase 5 | Pending |
+| FRNT-06 | Phase 5 | Complete |
 | OPER-01 | Phase 7 | Pending |
 | OPER-02 | Phase 7 | Pending |
 | OPER-03 | Phase 7 | Pending |

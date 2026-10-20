@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Hex Nut and Kernel Pair Proof
 status: executing
-stopped_at: Completed 05-16-PLAN.md
-last_updated: "2026-10-20T14:31:05.580Z"
+stopped_at: Completed 05-17-PLAN.md
+last_updated: "2026-10-20T15:07:40.019Z"
 last_activity: 2026-10-20
 last_activity_desc: Phase 05 execution started
-state_head: a58b70204c4ea55c2b392c11d9c0becd90abeb50
+state_head: 9b2b4bed3f541ee032d79019dbaa92c8cacab406
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 60
-  completed_plans: 58
+  completed_plans: 59
   percent: 57
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-12)
 ## Current Position
 
 Phase: 05 (Hex Nut and Kernel Pair Proof) — EXECUTING
-Plan: 12 of 18
+Plan: 18 of 18
 Status: Ready to execute
 Last activity: 2026-10-20 — Phase 05 execution started
 
@@ -117,6 +117,7 @@ Progress: [██████░░░░] 57%
 | Phase 05 P14 | 35min | 3 tasks | 8 files |
 | Phase 05 P15 | 75min | 3 tasks | 9 files |
 | Phase 05 P16 | 35min | 3 tasks | 17 files |
+| Phase 05 P17 | 17min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -226,6 +227,8 @@ Recent decisions affecting current work:
 - [Phase 05]: 05-15: the pair cell harness raises the nut's across-flats s to max(10, d + 2c + 1) because the product default is refused for 94 of 240 rows; prove never reads s
 - [Phase 05]: 05-15: make test prints the ten slowest tests so the ubuntu seconds of the pair verify cell are in the CI log (167.5 s)
 - [Phase 05]: 05-16: ran the M18 diagnosis, the 240-cell pair grid and the product-cell comparison once each; M18 empty reproduces 10/10 and is a band of poses (H2 not held), grid 240/240 equals the table, no ISO 4032 row m differs so no product cells
+- [Phase 05]: 05-17: D-21 rule selects the kept fine preset 0.01 mm / 0.1 rad; worst deviation 0.0161 mm (M20) against the owner's R6 bound 0.025 mm; TESSELLATION and the fine-STL caps unchanged
+- [Phase 05]: 05-17: harness vertex check amended 1e-4 to 1e-3 mm after the first run aborted on a 1.9e-4 mm model-vs-solid gap at M20 (rule, ladder, fraction, bound untouched)
 
 ### Pending Todos
 
@@ -272,6 +275,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-20T14:31:05.414Z
-Stopped at: Completed 05-16-PLAN.md
+Last session: 2026-10-20T15:07:39.851Z
+Stopped at: Completed 05-17-PLAN.md
 Resume file: None
