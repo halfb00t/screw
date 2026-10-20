@@ -6699,3 +6699,66 @@ the boolean returns nothing there, locates only one of the band's two edges, and
 macOS arm64 with the host busy. The D-08 escape clause holds: M18 stays `inconclusive` on both hands,
 the label is unchanged, and `screw pair` reads `inconclusive` for the M18 nut until a later
 pre-registered campaign proves it.
+
+
+## Pair tier (Phase 5, D-07)
+
+D-07 pre-registered the expected verdict of every recorded pair cell in `tests/data/pair_expected.tsv`
+(240 rows: the 15 sizes M2 to M20 with M7 included, K = 3, both hands and the mixed pair, clearances
+-0.05 to 0.20 mm), derived from `2026-10-08-a-pair` by the unmodified `cell_verdict` and committed
+before this run. This entry is the one run of the full grid on the product's own bodies
+(`screw.solid.pair.prove` with `shipped=False`, one child process and a 600 s deadline per cell, the
+cell harness of 05-15 including its `s = max(10, d + 2c + 1)` deviation, which `prove` never reads).
+Nothing was re-run, no cell was reclassified, and no rule, constant, body, pose, K or table changed.
+
+Command: `make pair` (that is `.venv/bin/python -m pytest -m pair -n 8 --no-cov`). HEAD
+`22bcd508f3a5e3a6497143589f0924453a4acd2d` (the M18 diagnosis commit, clean apart from two untracked
+planning files), 2026-10-20 (UTC). Host: `bench.machine_facts()` `18 CPUs, arm64, 64.0 GiB RAM`,
+Python 3.12.15, cadquery 2.8.0, cadquery-ocp 7.9.3.1.1; **8 xdist workers** (`PYTEST_WORKERS`, the
+Makefile's clamp of 8 to the CPU count). This is a record of this host, not a quiet-host timing: the
+host is shared with other sessions. `bench.quiet.read_now()` read load1 **5.69** at 14:02:03Z before the
+run and **7.53** at 14:19:37Z after it; load1 sampled every 120 s during the run (nine samples) ran
+from 5.69 to 28.21 (10.85, 10.67, 28.21, 15.97, 12.70, 11.75, 13.13, 12.95 after the first), the run's
+own eight workers included. Wall time **1054.04 s (0:17:34)** by pytest, 17:34.23 by `time`
+(user 7487.6 s, 727 % cpu). The per-cell wall seconds sum to 7955.1 s across the 240 cells (smallest
+1.65 s, an inconclusive-by-definition cell; largest 150.2 s, `M16-right-c0.05`), against the 600 s
+deadline: no cell timed out, crashed or wrote an `error` line.
+
+**Result: 240 of 240 pass.** Every cell's verdict equals its pre-registered verdict: 88 `proven`, 60
+`violated` and 92 `inconclusive` expected, and 88, 60 and 92 read. **No cell mismatches the table.**
+
+Per size (each `pair-<size>.jsonl` holds 16 lines, one per cell: id, expected, the `PairReport`, wall
+seconds; 240 ids, all distinct):
+
+| size | cells | passed | proven | violated | inconclusive | slowest cell, s | sha256 of `pair-<size>.jsonl` |
+|---|---|---|---|---|---|---|---|
+| M2 | 16 | 16 | 4 | 4 | 8 | 52.0 (M2-right-c0.05) | `9b4e25f582920ae2f4b65f9c9f6d22e59cdab6c698b0eb216b920d45331991ca` |
+| M2.5 | 16 | 16 | 6 | 4 | 6 | 31.6 (M2.5-right-c0.2) | `9514a8279e5d690092c7469a6069399efe237b23f483714235f5f012754c16bf` |
+| M3 | 16 | 16 | 4 | 4 | 8 | 26.4 (M3-left-c0.2) | `1e2e2f6d4e13b0d820dfbc5d62e0ef22094f2093e606687f92225892d8aa5659` |
+| M3.5 | 16 | 16 | 8 | 4 | 4 | 30.7 (M3.5-left-c0.05) | `f29c9fad7eeb888354cc0d6c87ff6197ea4beccadca4e4e8c1db0dfd01d0db9f` |
+| M4 | 16 | 16 | 6 | 4 | 6 | 30.9 (M4-right-c0.05) | `11e73c916a4a71d917dc384f555d72df0da002a41a489ce0a99413a29f668874` |
+| M5 | 16 | 16 | 6 | 4 | 6 | 40.6 (M5-right-c0.05) | `b5c0d7e08a2ee2776281bdf79405cac34015e4440df367cb750a3dc9053e38e0` |
+| M6 | 16 | 16 | 8 | 4 | 4 | 69.8 (M6-right-c0.1) | `2c3d45dca7de0ed52fb3161d18c316d5c7c730834758e69aba5d2a8c146cdfce` |
+| M7 | 16 | 16 | 6 | 4 | 6 | 84.6 (M7-left-c0.05) | `8252b8fe60b36c47dbb95d6c846c583f91945cea901b9940cc10769ebaab491f` |
+| M8 | 16 | 16 | 8 | 4 | 4 | 71.5 (M8-right-c0.05) | `4820e9cbdfa01b39419610cbd25e47ddb6a85a6d2098792c6533b2d150502bcb` |
+| M10 | 16 | 16 | 4 | 4 | 8 | 76.5 (M10-right-c0.05) | `8966e7c30721b295462085dfb0ad8d6d26724a13963d75fc43f6a9465bf0f5e3` |
+| M12 | 16 | 16 | 6 | 4 | 6 | 107.9 (M12-right-c0.05) | `9bd5630ffeb6f1d64b396843516271946e3d2f0674df4741fcfd29d36abe8864` |
+| M14 | 16 | 16 | 6 | 4 | 6 | 110.5 (M14-right-c0.05) | `18f87683f409a7f4151ffb37db588766d9dc64fc60157a6d426a0bec38e3ad04` |
+| M16 | 16 | 16 | 8 | 4 | 4 | 150.2 (M16-right-c0.05) | `c0629b9ae51e9db58fe841b8bd0828ae7200a531d7e4299d1a2e7247854d698a` |
+| M18 | 16 | 16 | 0 | 4 | 12 | 114.6 (M18-right-c0.05) | `91f74e43f3b504245913fa0368e6c48e6a79985df02ae5709c6f9f1169107579` |
+| M20 | 16 | 16 | 8 | 4 | 4 | 138.1 (M20-right-c0.05) | `ba27dc1d87f86c3bfe7a9fd43d78977ff7a12bbebe14709bde8bb101a71a87fb` |
+
+**M18.** The recorded M18 empty reproduced inside the grid: all 8 same-hand cells at c = 0.05 to 0.20
+read `inconclusive` with the control empty at theta -2.0944 (right hand) or +2.0944 (left hand) and
+the other two controls non-empty, which is what the table expected and what the diagnosis entry
+above reads at a single cell. The 4 mixed-hand M18 cells read `violated`, the
+12 `inconclusive` M18 cells are those 8 plus the 4 cells at c = 0 and c = -0.05, inconclusive by
+definition (D-11, 1.7 s each, no boolean). M18 has no `proven` cell, as expected.
+
+**What this shows / what it does not.** On this host and kernel the kernel verdict equals the
+recorded one at every one of 240 cells, so the table, the rule and the product's bodies agree with the
+recorded campaign; a cell the rule excludes still reads `inconclusive`, and the control gate does what
+the diagnosis says for M18. It is one run on macOS arm64 at a busy and varying load, not a bound and
+not linux/amd64 (the ubuntu reading is 05-15's single verify cell; the weekly `pair.yml` is the
+other platform's grid), and every cell's `m` is the recorded preview value, so it says nothing about
+the verified ISO 4032 heights (the next entry).
