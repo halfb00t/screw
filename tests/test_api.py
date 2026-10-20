@@ -584,8 +584,10 @@ def test_model_download(fmt: str, ctype: str, magic: bytes | None) -> None:
     r = client.get(f"/api/bolt/model.{fmt}", params={"quality": "preview", "d": 8})
     assert r.status_code == 200
     assert r.headers["content-type"] == ctype
+    # D-22: the preview STL names its quality; the STEP keeps the plain slug.
+    name = "_preview.stl" if fmt == "stl" else ".step"
     assert r.headers["content-disposition"] == (
-        f'attachment; filename="bolt_d8_pitch1_left_hand0_length20_s10_k4_thread_length20.{fmt}"')
+        f'attachment; filename="bolt_d8_pitch1_left_hand0_length20_s10_k4_thread_length20{name}"')
     if magic:
         assert r.content.startswith(magic)
 
@@ -604,10 +606,11 @@ def test_a_left_hand_bolt_downloads_under_its_own_filename_and_is_not_the_right_
     left = client.get("/api/bolt/model.stl", params={"left_hand": "true", "quality": "preview"})
     assert left.status_code == 200
     assert left.headers["content-disposition"] == (
-        'attachment; filename="bolt_d6_pitch1_left_hand1_length20_s10_k4_thread_length20.stl"')
+        'attachment; filename="bolt_d6_pitch1_left_hand1_length20_s10_k4_thread_length20'
+        '_preview.stl"')
     right = client.get("/api/bolt/model.stl", params={"quality": "preview"})
     assert right.headers["content-disposition"].endswith(
-        'left_hand0_length20_s10_k4_thread_length20.stl"')
+        'left_hand0_length20_s10_k4_thread_length20_preview.stl"')
     # The bytes of the left-hand solid the handedness probe proves left-handed
     # (tests/test_solid.py), and not of the right-hand one.
     assert left.content == export(BoltParams(left_hand=True), "stl", "preview")

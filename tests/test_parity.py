@@ -27,9 +27,9 @@ from pydantic_core import PydanticUndefined
 
 from screw import cli
 from screw.app import STATIC, app, build_backend
-from screw.calc import STANDING_WARNING, derive
+from screw.calc import STANDING_WARNING, derive, download_name
 from screw.calc.presets import expand
-from screw.params import DEFAULT_KIND, KINDS, FastenerParams
+from screw.params import DEFAULT_KIND, KINDS, BoltParams, FastenerParams
 from screw.solid import Format, Quality, export
 
 client = TestClient(app)
@@ -884,3 +884,37 @@ def test_every_row_key_of_the_nut_and_pair_documents_is_unread_by_name_in_the_ui
     assert {"pitch_diameter", "minor_diameter", "m_max", "mw_min", "D1_min", "D2_max",
             "flank_gap", "axial_play", "nut_pitch_diameter", "engagement_turns"} <= keys
     assert _field_literals(APP_JS, [*keys, "m", "clearance"]) == []
+
+
+def test_download_name_marks_only_the_preview_stl() -> None:
+    # D-22, R9: the coarse mesh says so in its name; the fine STL and the STEP (which has no
+    # tessellation) keep the plain slug.
+    slug = BoltParams().slug()
+    assert download_name(BoltParams(), "stl", "preview") == f"{slug}_preview.stl"
+    assert download_name(BoltParams(), "stl", "fine") == f"{slug}.stl"
+    assert download_name(BoltParams(), "step", "preview") == f"{slug}.step"
+    assert download_name(BoltParams(), "step", "fine") == f"{slug}.step"
+
+
+@pytest.mark.parametrize("kind", sorted(KINDS))
+@pytest.mark.parametrize(("fmt", "quality"), [
+    ("stl", "preview"), ("stl", "fine"), ("step", "preview"), ("step", "fine")])
+def test_the_api_header_and_the_cli_name_a_download_alike(
+        kind: str, fmt: str, quality: str, tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    # FRNT-05 parity for the file name: `-o <directory>` writes the name the Content-Disposition
+    # header carries. The CLI side is stubbed (its bytes are not under test, and the API side has
+    # just built the same part), so the check costs one build per cell, not two.
+    values = REQUIRED_VALUES.get(kind, {})
+    r = client.get(f"/api/{kind}/model.{fmt}", params={**values, "quality": quality})
+    assert r.status_code == 200
+    header = re.fullmatch(r'attachment; filename="([^"]*)"', r.headers["content-disposition"])
+    assert header, r.headers["content-disposition"]
+
+    def stub(*_: object) -> bytes:
+        return b"x"
+
+    monkeypatch.setattr("screw.solid.export", stub)
+    flags = [item for k, v in values.items() for item in (_flag(k), str(v))]
+    cli.main(["export", kind, "-o", str(tmp_path), "--format", fmt, "--quality", quality, *flags])
+    assert [f.name for f in tmp_path.iterdir()] == [header.group(1)]

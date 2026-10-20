@@ -419,3 +419,26 @@ def test_a_bad_length_beside_a_thread_length_is_the_field_error_not_the_conflict
         capsys: pytest.CaptureFixture[str]) -> None:
     assert _exit_code(["info", "bolt", "--length", "-5", "--thread-length", "10"]) == 2
     assert "error: length: " in capsys.readouterr().err
+
+
+def test_export_into_a_directory_names_the_file_by_its_quality(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    # D-22, R9: a directory is named by `download_name`; a preview STL says so.
+    cli.main(["export", "bolt", "-o", str(tmp_path), "--format", "stl", "--quality", "preview"])
+    assert (tmp_path / f"{BoltParams().slug()}_preview.stl").is_file()
+    assert "preview" in capsys.readouterr().err
+
+
+def test_export_into_a_directory_needs_a_format() -> None:
+    out = _exit_code(["export", "bolt", "-o", str(Path.cwd())])
+    assert out == "error: output is a directory: pass --format stl or --format step"
+
+
+def test_export_to_a_file_path_writes_it_as_given_and_the_wrote_line_names_the_quality(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    out = tmp_path / "x.stl"
+    cli.main(["export", "bolt", "-o", str(out), "--quality", "preview"])
+    assert out.is_file()
+    assert re.search(r"^wrote .*x\.stl \(\d+ KiB, preview\)$", capsys.readouterr().err, re.M)
+    cli.main(["export", "bolt", "-o", str(out)])
+    assert ", fine)" in capsys.readouterr().err

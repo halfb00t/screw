@@ -145,10 +145,13 @@ def cmd_info(ns: argparse.Namespace) -> None:
 
 def cmd_export(ns: argparse.Namespace) -> None:
     out: Path = ns.output
+    # A directory has no extension to read the format from, so it must be named (D-22, R9).
+    if out.is_dir() and not ns.format:
+        raise SystemExit("error: output is a directory: pass --format stl or --format step")
     fmt = ns.format or out.suffix.lower().lstrip(".").replace("stp", "step")
     if fmt not in ("stl", "step"):
         raise SystemExit("error: output must end in .stl or .step (or pass --format)")
-    from .calc import derive, download_refusal
+    from .calc import derive, download_name, download_refusal
 
     p = _params(ns.kind, ns)
     # The same kernel-free rule the API's `_serve` applies (D-02, FRNT-05 parity). Exit 2 like
@@ -168,8 +171,13 @@ def cmd_export(ns: argparse.Namespace) -> None:
         data = export(p, cast("Format", fmt), cast("Quality", quality))   # checked above
     except BuildError as exc:
         raise SystemExit(f"error: {exc}") from None
+    # A directory gets the name the API's Content-Disposition carries; a file path the user typed
+    # is written as given. Only the STL has a quality: the STEP has no tessellation to name.
+    if out.is_dir():
+        out = out / download_name(p, fmt, quality)
     out.write_bytes(data)
-    print(f"wrote {out} ({len(data) / 1024:.0f} KiB)", file=sys.stderr)
+    detail = f", {quality}" if fmt == "stl" else ""
+    print(f"wrote {out} ({len(data) / 1024:.0f} KiB{detail})", file=sys.stderr)
     for warning in derive(p).warnings:
         print(f"warning: {warning}", file=sys.stderr)
 
@@ -254,7 +262,7 @@ def main(argv: list[str] | None = None) -> None:
 
         kp = ek.add_parser(kind, allow_abbrev=False)
         kp.add_argument("-o", "--output", type=Path, required=True, action=_Once,
-                        help="file.stl or file.step")
+                        help="file.stl or file.step, or a directory (with --format)")
         kp.add_argument("--format", choices=["stl", "step"], action=_Once,
                         help="override the file extension")
         # default=None so a repeat is detectable; cmd_export reads `ns.quality or "fine"`.

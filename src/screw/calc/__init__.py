@@ -458,6 +458,20 @@ def download_refusal(p: FastenerParams, fmt: str, quality: str) -> str | None:
     raise TypeError(f"no download rule for kind {p.kind!r}")
 
 
+def download_name(p: FastenerParams, fmt: str, quality: str) -> str:
+    """The file name a download of `p` is saved under: the one rule `app._serve` and
+    `screw export` share (D-22, R9).
+
+    A preview STL carries `_preview` before its extension, because the mesh it holds is the
+    coarse one (INTERIM 0.08 mm deflection against the fine 0.01 mm, `solid.TESSELLATION`) and a
+    file opened a month later has only its name to say so (L02). The fine STL and the STEP keep
+    `<slug>.<ext>`: the STEP has no tessellation, and `quality` does not change it. `slug()` holds
+    only letters, digits and `_.+-` (T-01-06), so the name is filename-safe by construction.
+    """
+    suffix = "_preview" if fmt == "stl" and quality == "preview" else ""
+    return f"{p.slug()}{suffix}.{fmt}"
+
+
 # The page's preference: per format the route's default quality first, then the coarser preview it
 # falls back to (`solid.TESSELLATION`, INTERIM: preview 0.08 mm and 0.5 rad, fine 0.01 mm and
 # 0.1 rad). STEP ignores quality in `solid._write_export`, but the route accepts both, so both are

@@ -41,7 +41,7 @@ from starlette.concurrency import run_in_threadpool
 
 from . import __version__, int_env
 from .build_errors import BuildError, BuildTimeout
-from .calc import PartInfo, derive, download_refusal, explicit_conflict
+from .calc import PartInfo, derive, download_name, download_refusal, explicit_conflict
 from .calc.presets import PresetCatalogue, catalogue_document
 from .params import DEFAULT_KIND, KINDS, BoltParams, FastenerParams, NutParams
 from .pool import BuildPool
@@ -588,7 +588,8 @@ async def _serve(params: FastenerParams, fmt: Literal["stl", "step"], quality: s
         duration_s = time.monotonic() - start
     export_served(request_id, params, fmt, quality, source=source, encoding=encoding,
                   duration_s=duration_s)
-    headers = {"Content-Disposition": f'attachment; filename="{params.slug()}.{fmt}"',
+    name = download_name(params, fmt, quality)
+    headers = {"Content-Disposition": f'attachment; filename="{name}"',
                "Vary": "Accept-Encoding"}
     if wants_gzip:
         # Setting Content-Encoding here is what makes GZipMiddleware's pass-through branch
