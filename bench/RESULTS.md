@@ -6937,3 +6937,144 @@ right-hand equal those 05-RESEARCH F2 recorded for the same rods (49 130, 58 020
   something slightly different there; its script is not in the repository and was not recovered.
   The kernel cross-check above supports this run's metric. The decision does not turn on it: F2's
   largest fine-preset figure, 0.0184 mm, is also under the 0.025 mm bound.
+
+
+## Nut fine-STL caps (Phase 5, R16)
+
+T-05-12 (huge `m`, high) is open in `05-SECURITY.md`: a nut's fine STL plus its gzip copy can pass the
+64 MiB export budget with nothing refusing it, and R12 (option b, 2026-10-20) sent the nut's caps to
+their own run. R16 (`05-OWNER-READS.md`, owner's literal answer `option-a`) fixed how clearance enters:
+the ceiling C is 5.0 mm, and a fine STL above C on a measured key is refused. This entry is that run,
+made by the rule committed before any row was run (`0c349a7`, `bench/nut_fine_caps.py` docstring, run
+id `2026-10-20-nut-fine-caps`). **The rule: for each of the 30 keys (the 15 ISO 262 coarse (d, pitch) by
+both hands), build the nut `NutParams(d, pitch, s = 1e5, m, clearance = 5.0, hand)` for m = 1, 2, 3, ...
+mm (and at the turn cap's own m when 248 pitches is not whole), mesh each by the shipped
+`screw.solid.export(p, "stl", "fine")`, and sum the STL's length and its gzip level-1 copy's. A row fits
+when the sum is at most `BUDGET_BYTES` (64 MiB, the rods' constant, imported from
+`bench.thread_spike.verdict`). The cap is the largest measured m that fits below the first m over; at
+each finite cap five check rows are measured (m = cap; s = 1e5 at clearance -0.05, 0, 0.1 and 2.5; and
+clearance 5 at the slimmest s, d + 11). No cap ships if a check row is over budget or failed, a ladder
+row failed below the crossing, a key has no fitting m, or a cap is below the key's GOST ISO 4032-2014
+`m_max`.** C and s are fixed in the same commit; no step, check or constant was changed after the
+first row ran.
+
+**The run met a stop condition, so no cap ships.** All 30 ladders crossed the budget and all 30 caps
+are measured (table below); no ladder row failed and no cap is below an ISO 4032 `m_max`. But **46 of
+the 150 check rows failed to build**: the shipped nut build raised `BuildError: Geometry kernel produced
+the wrong lead-in countersink` (the D-10 / R11 piece gate, tolerance 0.03 of the piece) at m = cap,
+s = 1e5 and clearance -0.05, 0 or 0.1, on 16, 15 and 15 of the 30 keys respectively. The 104 check rows
+that built all fit the budget (largest sum 0.960 of 64 MiB). By the pre-registered rule a failed check
+is a stop condition, and the executor stopped at the record (L02): the caps below are measurements, not
+shipped constants. What the failed rows are and what to do about them is in "What this shows" and is
+the owner's.
+
+Command: `/usr/bin/time -p timeout 7000 .venv/bin/python -m bench.nut_fine_caps` (one run, exit 0, stdout
+to the session scratch). An earlier launch of the same command with the shell's `time -p` failed in the
+shell before Python started (`command not found: -p`): no row ran, no records file was written, nothing
+was read, and it is not a run. Run on HEAD `0c349a7bc1e3bb6510b21071ad51eb9083aaaf0c` (the instrument
+commit; `git status --porcelain -- src bench tests` empty at the start), 2026-10-20 (UTC). Host:
+`bench.machine_facts()`: `18 CPUs, arm64, 64.0 GiB RAM`, macOS 27.0.1, Python 3.12.15, cadquery 2.8.0,
+cadquery-ocp 7.9.3.1.1. Load before: load1 9.89 at 2026-10-20T16:43:05+00:00 (`uptime`: load averages
+9.89 11.48 9.41); after: load1 9.46 at 2026-10-20T17:33:16+00:00 (`uptime`: 8.87 9.96 11.12; includes
+the run's own meshing load). The host was shared with other sessions throughout and nothing waited for
+it to quiet: the bytes are geometry and do not depend on load, and the rule never reads a time. Wall
+time 3011.1 s in the process (`time -p`: real 3012.79 s, user 12894.22 s, sys 1334.18 s), against the
+7000 s deadline. Records: `bench/results/phase-05/nut-fine-caps.jsonl`, 1238 lines (a header, 1236 row
+lines, an end line), sha256
+`8682c7023253c1320ba6645fd72021e9122bec16c232c9a4064b7219eba92ade`. The 1236 rows are 1086 ladder rows
+(all built) and 150 check rows (104 built, 46 failed).
+
+Caps, with the first m over budget (C = 5 mm, s = 1e5 mm, fine preset (0.01 mm, 0.1 rad)):
+
+| Key | Cap m (mm) | Sum at cap (bytes) | Sum / 64 MiB | First over m | Sum there (bytes) | ISO 4032 m_max |
+|---|---|---|---|---|---|---|
+| d 2 pitch 0.4 right | 12 | 64735640 | 0.965 | 13 | 71005750 | 1.6 |
+| d 2.5 pitch 0.45 right | 13 | 64012922 | 0.954 | 14 | 68428108 | 2.0 |
+| d 3 pitch 0.5 right | 15 | 65547006 | 0.977 | 16 | 69813724 | 2.4 |
+| d 3.5 pitch 0.6 right | 18 | 66734686 | 0.994 | 19 | 70139875 | 2.8 |
+| d 4 pitch 0.7 right | 21 | 66082609 | 0.985 | 22 | 69317498 | 3.2 |
+| d 5 pitch 0.8 right | 24 | 66646189 | 0.993 | 25 | 69542589 | 4.7 |
+| d 6 pitch 1 right | 30 | 64969342 | 0.968 | 31 | 67230121 | 5.2 |
+| d 7 pitch 1 right | 30 | 66135909 | 0.986 | 31 | 68607321 | no row |
+| d 8 pitch 1.25 right | 38 | 65305055 | 0.973 | 39 | 67447673 | 6.8 |
+| d 10 pitch 1.5 right | 36 | 66558142 | 0.992 | 37 | 67794996 | 8.4 |
+| d 12 pitch 1.75 right | 41 | 66221923 | 0.987 | 42 | 68811348 | 10.8 |
+| d 14 pitch 2 right | 46 | 66441517 | 0.990 | 47 | 68790674 | 12.8 |
+| d 16 pitch 2 right | 45 | 66352378 | 0.989 | 46 | 67140351 | 14.8 |
+| d 18 pitch 2.5 right | 54 | 65972568 | 0.983 | 55 | 67148258 | 15.8 |
+| d 20 pitch 2.5 right | 36 | 65858267 | 0.981 | 37 | 67978825 | 18.0 |
+| d 2 pitch 0.4 left | 15 | 64182831 | 0.956 | 16 | 68898904 | 1.6 |
+| d 2.5 pitch 0.45 left | 17 | 65952621 | 0.983 | 18 | 69371877 | 2.0 |
+| d 3 pitch 0.5 left | 19 | 65310127 | 0.973 | 20 | 69714550 | 2.4 |
+| d 3.5 pitch 0.6 left | 22 | 65325736 | 0.973 | 23 | 67933663 | 2.8 |
+| d 4 pitch 0.7 left | 25 | 65102205 | 0.970 | 26 | 67202314 | 3.2 |
+| d 5 pitch 0.8 left | 30 | 66717786 | 0.994 | 31 | 70095896 | 4.7 |
+| d 6 pitch 1 left | 38 | 65483018 | 0.976 | 39 | 67660755 | 5.2 |
+| d 7 pitch 1 left | 38 | 66272445 | 0.988 | 39 | 68903229 | no row |
+| d 8 pitch 1.25 left | 47 | 66449900 | 0.990 | 48 | 67944606 | 6.8 |
+| d 10 pitch 1.5 left | 50 | 66312444 | 0.988 | 51 | 67982376 | 8.4 |
+| d 12 pitch 1.75 left | 56 | 64530454 | 0.962 | 57 | 67196836 | 10.8 |
+| d 14 pitch 2 left | 61 | 66333111 | 0.988 | 62 | 67605348 | 12.8 |
+| d 16 pitch 2 left | 59 | 65240948 | 0.972 | 60 | 67127438 | 14.8 |
+| d 18 pitch 2.5 left | 73 | 66784551 | 0.995 | 74 | 68875260 | 15.8 |
+| d 20 pitch 2.5 left | 47 | 66509248 | 0.991 | 48 | 70049843 | 18.0 |
+
+Checks, as a fraction of 64 MiB at m = cap (the sample points of the rule; FAILED is the shipped build
+refusing the part, no sum exists):
+
+| Key | cap m | c -0.05, s 1e5 | c 0, s 1e5 | c 0.1, s 1e5 | c 2.5, s 1e5 | c 5, s = d + 11 |
+|---|---|---|---|---|---|---|
+| d 2 pitch 0.4 right | 12 | FAILED (piece gate) | FAILED (piece gate) | FAILED (piece gate) | 0.357 | 0.922 |
+| d 2.5 pitch 0.45 right | 13 | FAILED (piece gate) | FAILED (piece gate) | FAILED (piece gate) | 0.491 | 0.911 |
+| d 3 pitch 0.5 right | 15 | FAILED (piece gate) | FAILED (piece gate) | FAILED (piece gate) | 0.662 | 0.935 |
+| d 3.5 pitch 0.6 right | 18 | 0.291 | 0.291 | 0.293 | 0.748 | 0.952 |
+| d 4 pitch 0.7 right | 21 | 0.341 | 0.339 | 0.348 | 0.812 | 0.942 |
+| d 5 pitch 0.8 right | 24 | 0.344 | 0.345 | 0.347 | 0.857 | 0.950 |
+| d 6 pitch 1 right | 30 | 0.361 | 0.364 | 0.368 | 0.926 | 0.925 |
+| d 7 pitch 1 right | 30 | 0.378 | 0.381 | 0.381 | 0.960 | 0.942 |
+| d 8 pitch 1.25 right | 38 | FAILED (piece gate) | FAILED (piece gate) | FAILED (piece gate) | 0.960 | 0.930 |
+| d 10 pitch 1.5 right | 36 | 0.648 | 0.646 | 0.649 | 0.943 | 0.948 |
+| d 12 pitch 1.75 right | 41 | 0.688 | 0.678 | 0.702 | 0.936 | 0.943 |
+| d 14 pitch 2 right | 46 | FAILED (piece gate) | FAILED (piece gate) | FAILED (piece gate) | 0.940 | 0.946 |
+| d 16 pitch 2 right | 45 | FAILED (piece gate) | FAILED (piece gate) | FAILED (piece gate) | 0.932 | 0.945 |
+| d 18 pitch 2.5 right | 54 | FAILED (piece gate) | FAILED (piece gate) | FAILED (piece gate) | 0.934 | 0.939 |
+| d 20 pitch 2.5 right | 36 | 0.543 | 0.549 | 0.542 | 0.661 | 0.938 |
+| d 2 pitch 0.4 left | 15 | FAILED (piece gate) | FAILED (piece gate) | FAILED (piece gate) | 0.368 | 0.914 |
+| d 2.5 pitch 0.45 left | 17 | FAILED (piece gate) | FAILED (piece gate) | FAILED (piece gate) | 0.603 | 0.940 |
+| d 3 pitch 0.5 left | 19 | FAILED (piece gate) | FAILED (piece gate) | FAILED (piece gate) | 0.790 | 0.931 |
+| d 3.5 pitch 0.6 left | 22 | FAILED (piece gate) | 0.299 | 0.291 | 0.774 | 0.930 |
+| d 4 pitch 0.7 left | 25 | FAILED (piece gate) | FAILED (piece gate) | FAILED (piece gate) | 0.784 | 0.927 |
+| d 5 pitch 0.8 left | 30 | 0.328 | 0.326 | 0.329 | 0.849 | 0.951 |
+| d 6 pitch 1 left | 38 | 0.353 | 0.351 | 0.361 | 0.926 | 0.932 |
+| d 7 pitch 1 left | 38 | 0.367 | 0.372 | 0.377 | 0.953 | 0.944 |
+| d 8 pitch 1.25 left | 47 | 0.590 | 0.605 | 0.649 | 0.933 | 0.946 |
+| d 10 pitch 1.5 left | 50 | FAILED (piece gate) | FAILED (piece gate) | FAILED (piece gate) | 0.945 | 0.944 |
+| d 12 pitch 1.75 left | 56 | 0.738 | 0.748 | 0.756 | 0.898 | 0.918 |
+| d 14 pitch 2 left | 61 | FAILED (piece gate) | FAILED (piece gate) | FAILED (piece gate) | 0.914 | 0.945 |
+| d 16 pitch 2 left | 59 | FAILED (piece gate) | FAILED (piece gate) | FAILED (piece gate) | 0.902 | 0.928 |
+| d 18 pitch 2.5 left | 73 | FAILED (piece gate) | FAILED (piece gate) | FAILED (piece gate) | 0.936 | 0.931 |
+| d 20 pitch 2.5 left | 47 | 0.547 | 0.544 | 0.562 | 0.651 | 0.948 |
+
+The 46 failed rows all carry one error, the lead-in countersink piece gate, with relative errors from
+-1.564 to +2.360 against the 0.03 allowed; the smallest in size is -0.0327 (M18 right, clearance -0.05).
+They are the same part at the same s and clearance that the ladder never reached (the ladder runs at
+clearance 5), so the run has no row that says whether a nut at s = 1e5 and a clearance of 0.1 is
+buildable at m below the cap.
+
+**What this shows / what it does not.**
+- It shows 30 measured caps at C = 5 mm and s = 1e5 mm, each the largest whole mm whose fine STL plus
+  its gzip copy fits 64 MiB on this host (0.954 to 0.995 of the budget at the cap, over by 0.03 to
+  5.8 % at cap + 1). The planner's estimate for M20 was 37 to 39 mm; the measured cap is 36 (right) and 47
+  (left). Against the tallest GOST ISO 4032-2014 height in its row, the caps are 2.0 times (M20
+  right, 36 against 18 mm) to 9.4 times (M2 left, 15 against 1.6 mm); M7 has no row.
+- It shows that the clearance and s sampled below C make a smaller file: all 104 built check rows sit at
+  0.291 to 0.960 of the budget against 0.954 to 0.995 at the cap. These are samples, not a proof that
+  the bytes are monotonic in clearance or in s.
+- It does not show that the 46 failed check rows are numerical noise in the gate and not a real
+  defect. The failures sit at the model's largest s (1e5 mm), where the hexagon's volume is about 8.7e9
+  mm^3 per mm of m and a lead-in piece's oracle is 0.1 to 150 mm^3, so a volume difference can lose the piece;
+  that is a reading, not a measurement made here. The ladder at clearance 5 never failed (1086 of 1086
+  built), so the gate is not tripped by m or by the preset alone.
+- It is one run on macOS arm64, not linux/amd64 (Phase 7 re-measures, OPER-02), against the INTERIM
+  64 MiB budget and the 0.01 mm / 0.1 rad fine preset, on a load-shared host.
+- It measures nothing above C = 5 mm, by R16: a fine STL above C is refused, not capped.
