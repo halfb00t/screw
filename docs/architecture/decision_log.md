@@ -897,3 +897,221 @@ the national text, not the interstate one this entry names; the owner accepted i
 prints `r` min per size. It is a download-site copy, so its faithfulness is UNVERIFIED like the rest.
 Every citation names it as read: `ГОСТ Р ИСО 4014-2013` in the record, in ASCII as the plans' `Source`
 strings decide. Path and sha256: `05-OWNER-READS.md`, "Rendering route and the PDFs".
+
+## L15 — Phase 5 ships the ISO 4032 nut with a required radial clearance, the kernel pair proof that cannot say proven when its control is empty, the modelled thread ends and a measured fine mesh
+
+Date: 2026-10-20. Decided by the owner in the Phase 5 discussion (D-01 to D-26, 2026-10-14,
+`05-CONTEXT.md`), by the opening read of 2026-10-14, the rulings R1 to R13 of the same day, the
+2026-10-20 rulings and R14 and R15 (all in `05-OWNER-READS.md`, cited below by R-number). CONTEXT calls
+this entry "L14" (D-08, D-12, D-21 to D-23); that number went to the owner's GOST source decision
+on 2026-10-20, so this one is L15, and the standing warning on every info document already cites L15.
+Every value names its run in `bench/RESULTS.md`, its `05-OWNER-READS.md` line, its probe, or the plan
+summary that measured it. This entry copies no standard value beyond the two frozen defaults and the
+tolerance arithmetic the rulings fixed. L14 is not edited here.
+
+**The nut kind, fields and frozen defaults (D-15; 05-04, 05-06).** `nut` is the second registered kind.
+`NutParams` adds `s` (title `Across flats`, group `Nut`), `m` (`Height`) and `clearance` (`Clearance
+(radial)`, group `Pair`) to `d`, `pitch` and `left_hand`; flags `--s`, `--m`, `--clearance`. The frozen
+defaults are `s = 10.0` and `m = 5.2`, the `s` (nominal = max) and `m` max columns of the M6 row. They were
+first read on 2026-10-14 from a one-page print of a web page that transcribes ISO 4032:2023 (read by
+Claude, not the standard; the owner approved that source and typed `permanent: accepted` the same day,
+`05-OWNER-READS.md`, "ISO 4032:2023 M6 defaults" and the permanence line), and on 2026-10-20 they were
+checked against GOST ISO 4032-2014 Table 1, M6 (`s` 10,00, `m` max 5,20): they match, so D-15's stop-and-ask
+did not fire (`05-OWNER-READS.md`, "2026-10-20: GOST ISO 4032-2014 in hand, the M6 cross-check"). Pinned
+by two tests in `tests/test_params.py`, one on the literals and one on the row (05-06). One-way, like L13's
+bolt defaults: every link that omits `s` or `m` means these values forever.
+
+**The required clearance and its bound (D-01, D-04; 05-04, 05-05).** `clearance` has no default, so an
+omitted one is `422 missing` on the API and exit 2 on the CLI naming the field; it takes any finite
+value up to `INTERIM_MAX_MM` with no lower bound. A default is Phase 6's, from the printed test
+(PAIR-02). The model refuses, naming fields: `pitch_too_coarse` when the nut's void root `d/2 - 5H/8 + c`
+is not above 0 (fields `d`, `pitch`, `clearance`; M2 x 2 is a valid nut at c = 0.5 and refused as a bolt);
+`nut_too_thin` when `s <= d + 2c` (fields `s`, `d`, `clearance`; D-13), so the default nut refuses a
+clearance of 2 mm or more; `turn_cap` when `m + 2 pitch` is past the 250-turn cap (fields `m`, `pitch`;
+judged on the void the builder makes). A clearance of 0 or below builds and warns `clearance <c> is not
+positive: the pair cannot be proven (PAIR-03)`, so the spike's c = 0 and c = -0.05 diagnostic rows
+reproduce through the product. **No fine-STL cap for the nut (R12; 05-05).** R12 reuses `FINE_STL_ROWS` on
+`m` only if the probe's nut bytes fit the 64 MiB budget at each cap and cap + 1 mm does not. The probe
+(`bench/RESULTS.md`, "End-cut probe (Phase 5, D-10)", R12's table) shows it on none of the three sizes it
+measured: M10 right (0.973 at cap + 1) and M20 right (0.936) still fit, and M20 left (1.003) is over at the
+cap itself. So no nut cap exists and `download_refusal` serves every nut download; the owner's sign-off
+on that interim is outstanding. Debt: `docs/tech_debt/active/2026-10-14-nut-fine-stl-caps-unmeasured.md`.
+
+**The nut solid (D-10, D-12, D-13; 05-04, 05-13).** The hex prism (`polygon(6, s, circumscribed=True)`,
+height `m`) less `helical.thread(d, pitch, m + 2 pitch, clearance=c)` shifted down one pitch. The void is
+gated against its closed form first, then each of the four end cuts is judged by the volume it removed
+(`T_PIECE`, below) and the finished nut against `nut_end_closed_volume` at `T_GATE`. Measured: every ISO
+4032 row at c = 0, 0.1 and 0.2 builds as one valid solid, whole-gate error at most 3.3e-06 against
+`T_GATE` 9e-05; the build rose from about 0.15 s to 1.0 to 1.5 s; all 28 catalogue ids (14 rows x 2 hands)
+mesh watertight at the preview, and a countersink that ends on the root radius meshes open (8 open edges,
+M6 right, c = 0.1) though every volume gate passes, which is why the cone is built to cross the root (05-13).
+
+**The counterpart (D-02, D-03; 05-10).** `PartInfo.counterpart` is `{kind, fields}` or null, computed
+kernel-free. A bolt on an exact GOST ISO 4032-2014 row carries `d`, `pitch`, `left_hand`, `s`, `m`; a nut
+on an exact ISO 4017 row carries `d`, `pitch`, `left_hand`, `s`, `k`; `clearance`, `length` and
+`thread_length` never travel. Off a row the document's last warning names what to set on the target
+(`no GOST ISO 4032-2014 (ISO 4032:2012) row for d <d> pitch <P>; set s and m on the nut`, and the bolt-side
+analogue); an ISO 4017 M7 bolt is off the nut rows. The page links it generically and holds no kind name.
+
+**The pair proof (D-05 to D-07, D-24; 05-14, 05-15).** The verdict rule is the spike's `cell_verdict`
+moved byte for byte into kernel-free `screw.calc.pair` (11 moved blocks, each an exact substring of the
+originals at `269feb6`; the spike imports every name back and tests assert identity). The bodies are the
+spike's (`rod_piece`, `blank`, `place`, `check_cover`, `common`) in `screw.solid.pair`. `prove(NutParams)
+-> PairReport` reads the three screw-motion matched poses and their half-pitch controls; at c <= 0 it
+reads nothing and returns `inconclusive` by definition (R8); a mixed-hand pair is read at the matched
+poses only and is `violated` through the rule (R7: the internal keyword `rod_left_hand`, never on the CLI
+or the model). `screw pair nut <flags>` prints the report as JSON and exits 0 `proven`, 1 `violated`, 2
+`inconclusive`; flags are generated from the model, `--preset` is absent, and a nominal rod with no root
+is refused before the kernel loads. It ends in `os._exit` after flushing (the real boolean parks its
+operation and a normal exit dies with 139, RESEARCH F5). The contract "The serving process and its workers
+never import the pair proof" (`screw.app`, `screw.pool` -> `screw.solid.pair`, no indirect imports) landed
+with the module, shown to break when an import is planted, with a fresh-interpreter test as its runtime
+half. The verify cell is M6, right hand, c = 0.10, in a child process: `proven`, as pre-registered. **The
+ubuntu reading (05-15):** CI run 39431329111 on draft PR #18 (head `c374150`, `cadquery 2.8.0`,
+`cadquery-ocp 7.9.3.1.1`) read `proven` in **167.50 s** on ubuntu-latest under four xdist workers, against
+42.55 s alone locally; run 39428789949 read `proven` too (its log carried no durations). The required
+`test (3.12)` job rose from 3 to 7.5 min to 12m26s and 16m28s; debt:
+`docs/tech_debt/active/2026-10-20-ci-test-job-tripled-by-two-pair-tests.md`. The shipped bolt and nut are
+intersected at the matched poses as an evidence row printed beside the verdict, never a verdict input
+(D-05). **Shipped-nut start (R15, 05-14):** the evidence nut starts at the least whole-pitch `z` that clears
+the tip cone by a pitch, 2P for every size, because both threads have phase `2 pi z / P` and a start at
+`tip cone length + P` is half a thread out of phase (8.747 mm3 at all three poses on M6 at c = 0.10, a
+false interference). Only the evidence row's numbers depend on it, not any verdict.
+
+**The expected table and the tiers (D-07; 05-01, 05-15, 05-16).** `tests/data/pair_expected.tsv` holds
+the expected verdict of all 240 recorded K = 3 cells (88 `proven`, 92 `inconclusive`, 60 `violated`),
+derived by `bench/pair_expected.py` from `2026-10-08-a-pair` with the unmodified `cell_verdict`, the
+record pinned by sha256 (`1644650ed5b418fc2b43bfa8fd875d371f0fc4940018f67b5b3241df6c84d9f3`) and
+re-derived by a test in `make verify`; it reached `main` in PR #17 (squash `5d90f3e`) before any Phase 5
+kernel run. The `pair` marker holds the 240 cells (`make pair [SIZE=]`; `.github/workflows/pair.yml`,
+`workflow_dispatch` plus Mondays 04:23 UTC, `contents: read`, no secrets, outside `ci.yml` and
+`required-jobs.txt`). The one full run (`bench/RESULTS.md`, "Pair tier (Phase 5, D-07)", HEAD `22bcd50`,
+macOS arm64, 8 workers, shared host): **240 of 240 equal their pre-registered verdict**, 88/60/92, 1054.04
+s, slowest cell 150.2 s, no timeout. Product cells: the table's `m` equals the GOST ISO 4032-2014 row's
+`m_max` and the pitch equals the row's at all 14 sizes that have a row, so **no cell differs and there are
+no product cells** (M7 has no row; "Product pair cells (Phase 5, D-07)"). The ubuntu grid has not run
+(`pair.yml` can be dispatched only once it is on `main`); debt:
+`docs/tech_debt/active/2026-10-14-first-pair-yml-dispatch.md`.
+
+**M18 (D-08; 05-01, 05-16).** `05-M18-DIAGNOSIS.md` (blob `9544d6f`, on `main` before the run) fixed 36
+readings and five predictions; "M18 control diagnosis (Phase 5, D-08)" in `bench/RESULTS.md` is the one
+run (59.6 s, 36 of 36 built, probe not void, jsonl sha256 `b301560c...ad8fbc`). The finding as recorded:
+**the empty is reproducible** on this host and kernel (10 of 10 fresh processes, both hands as mirror
+images, c = 0.10 and c = -0.05 alike, unaffected by a fuzzy value of 1e-4 mm or by swapping the operands),
+and **it is not pose-local**: it is a band of at least 0.11 rad on each hand (14 of the 16 neighbouring
+readings empty), with one edge between 0.01 and 0.1 rad on the side away from theta 0 and the other edge not
+bracketed. H2 (pose-local) did not hold; H1, H3, H4 and the four harness controls held. **No rule, pose,
+constant, body or label changed.** M18 stays `inconclusive` on both hands, the nut's note reads `kernel pair
+proof inconclusive at K = 3 (2026-10-08-a-pair)` keyed on `(d, pitch) == (18.0, 2.5)` from the record and
+never a kernel call (D-20), and `screw pair` reads `inconclusive` for it, and the grid reproduced that at
+all 8 same-hand M18 cells. One run on macOS arm64 at a busy load; why the boolean returns nothing is not
+established.
+
+**The end models and their oracles (THRD-05, D-09 to D-13; 05-02, 05-11, 05-12, 05-13).** Each end is a
+**cited** value, a **stated model**, or both, and a label says which. All are kernel-free in
+`calc/thread.py` and pinned to identities that do not use them. *Tip* (R2, **stated model**): a cone at
+45 degrees from the end face, starting at the minor diameter, read from `GOST 12414-94 (ISO 4753:1983)`,
+whose figures mark `~45 degrees` and whose chamfered end prints no angle value or length; its note 3 prints
+48 degrees, recorded as an unresolved misprint of the reproduction and not used (owner ruling
+2026-10-20, option a). *Nut countersink* (R3 b, **stated model**): a 90 degree included angle (half-angle
+45), the lower end of the band `GOST ISO 4032-2014 (ISO 4032:2012)` footnote c prints (90 to 120 degrees),
+opening to a face radius of `1.16 d / 2`, the largest `da_max / d` of the 14 rows (M2,5; the smallest is
+1.08 at M10 and M20), owner option A; where `1.16 d / 2 <= d/2 + c` or the radius passes the flats the cone
+cannot cross and is left out with a warning naming `clearance` or `s`. *Nut face chamfer* (R4 a, **stated
+model**): 30 degrees from the inscribed circle `s / 2`, the upper end of the band footnote b prints (15 to 30
+degrees). *Capping* (R5 a): the two cutters on a face are capped at `m / 2` with a warning naming `m`; no
+catalogue row caps (smallest margin M2, 0.38 mm against 0.8). *Under-head fillet* (R1 a, **cited**): the
+radius `r,min` per size from `GOST R ISO 4014-2013 (ISO 4014:2011)` Table 1 and Table 2 (the source the
+owner ruled for on 2026-10-20, option a, in place of the GOST ISO 4014-2014 that L14 names; this answers
+L14's open question), double-entered; neither table prints M7, so an M7 bolt gets no fillet. It is a
+revolved ring fused under the head, never an OCCT fillet, and only where a plain shank at least `r` long
+exists; an ISO 4017 screw gets none and carries the note `no under-head fillet: the thread runs to the head
+(ISO 4017:2022)`. A thread no longer than the tip cone gets no cone and the warning that says so; the
+kernel's intersect fails in a sliver of about 1e-9 mm above that length (debt:
+`docs/tech_debt/active/2026-10-20-tip-cone-degenerate-boolean-at-the-cone-length.md`). *The piece
+tolerance* (R11): `T_PIECE = 0.03`, ten times the largest honest piece error the probe recorded (2.737e-03,
+tip 45 degrees, M2 right) rounded up to one significant figure; each cut is judged by its own volume
+at `T_PIECE` and the whole part at `T_GATE`, because the whole-part gate alone does not see every wrong
+cut on a bolt: on M10 x 200 it misses the dropped ring (6.6e-05) and the 30 degree cone (8.1e-05) against
+9e-05 (05-12), while on a nut it sees all four controls (05-13). The probe's own count is 54 honest rows
+(`bench/RESULTS.md`); R11's text in `05-OWNER-READS.md` says 46, and the recorded maximum is the same.
+The standing warning is now `ends modelled per L15: bolt tip chamfer, under-head fillet on an ISO 4014
+plain shank, nut lead-in countersinks and face chamfers; nominal, not toleranced; not a product build`
+(D-18); "not a product build" stays until Phase 6.
+
+**The table rows read under L14 (D-14, D-16, D-17; 05-06 to 05-09, 05-12).** `NUTS`: 14 rows of `GOST ISO
+4032-2014 (ISO 4032:2012)`, Table 1 (M2, M2,5, M3, M4, M5, M6, M8, M10, M12, M16, M20) and Table 2 (M3,5,
+M14, M18), no M7, with the owner's 2026-10-20 ruling that there are no informative rows (the 2012 text has
+no Annex A, so TYPE-03's label has nothing to label; each row's `Source` records its table) and the owner-copy
+route of the same day (text layer by script, label fixes to keys only, the agent's page-image
+transcription first, a cell-by-cell diff in `make verify`, one relation test per row). Product grade A to
+M16 and B above, from the scope clause confirmed on the rendered page. `BASIC`: 15 coarse basic diameters
+`d2 = D2`, `d1 = D1` from `GOST 24705-2004 (ISO 724:1993, MOD)` Table 1 (M7 included; the owner copy was
+regenerated with M7 after the 05-08 diff found it missing, and for that one row it was generated after the
+other copy was known: the caveat is in `05-OWNER-READS.md`). `TOLERANCES`: 72 printed deviations and
+tolerances from `GOST 16093-2004` Tables 3 to 7 (es of g and EI of H, Td, TD1, Td2, TD2 at the 12 coarse
+pitches). The 6g and 6H limits are **derived**, each the basic value plus a printed value by exact decimal
+addition, 15 rows each, and the label and the source say derived and name both documents, never "ISO 965-2:2024
+Table" (L14). R13 held: the panel's `d2`, `D1`, `D2` are the ISO 68-1:2023 basic profile (`d - 3H/4`,
+`d - 5H/4`) and the table is only a test that they agree. All of it was transcribed from the owner-supplied
+download-site reproductions, which are UNVERIFIED (L14 and the L13 caveat: both copies read the same
+reproduction, so the diff cannot see an error in it). The designation is `Hexagon regular nut GOST ISO 4032 -
+M6` (owner ruling 2026-10-20, option a), withheld for a left-hand nut because the clause gives no form.
+
+**The panel (INFO-01, INFO-02, D-16, D-18 to D-20; 05-07, 05-09).** The nut document groups are `Thread`
+(`d`, `pitch`, thread depth, `D2`, `D1`), the limits group when the size is an exact ISO 262 size, `Nut`,
+`Pair` and `Part`. The limits heading is the single ASCII string `limits for a bought part; this model is
+nominal and not toleranced` on an exact ISO 262 size only, never empty. The eight `Pair` rows in fixed order
+are `clearance`, `clearance_diametral`, `flank_gap`, `axial_play`, the nut's major, pitch and minor diameters
+and `engagement_turns`; the flank-normal gap is `c sin 30 degrees` and the axial play `2 c tan 30 degrees`,
+each pinned against the numeric derivative of `section_radius`, not typed from the research (D-19). The
+kernel verdict never appears on the API or the page.
+
+**The deflection rule and the file name (D-21, D-22, FRNT-06; 05-17, 05-18).** The rule, committed with its
+instrument (`c87aadf`) before any row ran: the fine preset is the largest linear deflection on the ladder
+0.01, 0.0075, 0.005, 0.0025 mm (angular 0.1 rad, absolute) whose worst radial deviation over M2, M3, M6,
+M10, M20, both hands, is at most 0.5 x the 0.05 mm proof clearance (R6 a, the owner's fraction), a bound of
+0.025 mm. "Mesh deviation (Phase 5, D-21)" in `bench/RESULTS.md` (one run, 40.7 s): the worst row at 0.01
+mm is **0.0161 mm** (M20, both hands), 64 % of the bound, so the rule selects `0.01 mm / 0.1 rad`, which
+`TESSELLATION["fine"]` already was; no cap, refused-preset count or M20 x 200 figure moved. The preview
+(0.08 mm, 0.5 rad) reads 0.0587 to 0.1299 mm on the same rods, every row over the bound, which is why a
+preview STL is named. The instrument's first run aborted on its own vertex check (1.9e-04 mm at M20, the
+shipped solid's departure from the model, not the mesh); the check's threshold was widened to 1e-3 mm
+before the recorded run and the abort is in the entry. The deviation is stated on facet centroids of
+8-pitch rods, not on the finished bolt or nut. The kernel's `ControlSurfaceDeflection` is pinned on and the
+fine preset pinned to `(0.01, 0.1)` by `tests/test_mesh.py`, so a later change cannot ship without a recorded
+caps run. **File name (D-22, R9):** `calc.download_name(p, fmt, quality)` is the one rule for the
+`Content-Disposition` header of `app._serve` and for `screw export -o <directory>`: `<slug>_preview.stl`
+for the preview STL, `<slug>.stl` for the fine STL and `<slug>.step` for the STEP (a STEP has no
+tessellation, so quality does not rename it). A file path given to `-o` is written as given; the `wrote`
+line names the quality of an STL. A parity test pins the API's header name equal to the name the CLI writes
+for each kind, format and quality. The idea file moves to Done. A published header, costly to reverse.
+
+**Owner rulings carried (R1 to R15).** R1 to R5, R11 and R13 above; R6 above; R7 and R8 with the pair proof;
+R9 with the file name; R10: switching kind with an empty clearance drops the old mesh and shows nothing
+until a valid nut, placed in `navigate()` so the Matching link reaches it too (05-10); R12 above; R14: the
+local `make verify` measured 101.65 s after 05-12 (3144 passed), over the 90 s threshold, **accepted** with
+the whole 60-id watertight bolt sweep kept in verify (ruled 2026-10-20; later runs on a loaded host read
+128 to 200 s, 05-13 to 05-17, and were not separately ruled; CI time is the debt item above); R15 above.
+
+**Open, filed.** `docs/tech_debt/active/2026-10-14-nut-interim-bounds.md` (the nut's interim ceilings);
+`2026-10-14-nut-fine-stl-caps-unmeasured.md`; `2026-10-14-first-pair-yml-dispatch.md`;
+`2026-10-20-ci-test-job-tripled-by-two-pair-tests.md`;
+`2026-10-20-tip-cone-degenerate-boolean-at-the-cone-length.md`;
+`2026-10-20-iso-standards-not-purchased.md`; `2026-10-14-m18-probe-one-entry-has-no-deadline-during-a-run.md`.
+
+Reason: a pair proof is only worth printing if it can fail and say why, so the verdict is the spike's rule
+unchanged on the spike's bodies, its expectations were written down before any run and on `main` first,
+and the one cell the spike could not read (M18) is labelled from the record and diagnosed without moving
+a rule. Ends that no standard prints as a number are stated models labelled as such, with the
+band they come from, rather than a plausible figure (L02). Choosing the mesh by a rule committed before
+its instrument ran, against the smallest clearance the printed test will use, keeps a download from
+consuming the gap the proof is about.
+
+Reversibility: one-way for the nut's field names, `s` and `m` defaults and the required `clearance` (every
+nut link depends on them; a Phase 6 default adds one without changing a link). Costly for the pair proof's
+bodies, the expected table and the tiers that stand on them, for the info document's `counterpart` and
+`Pair` shapes, for the published CLI and report shape, for the end models (a later change alters every
+part a link means with no field change, acceptable under the standing warning) and for the `_preview`
+file name. Reversible for the fine preset and the sources: a constant with a cited run, and rows re-read
+from the ISO texts when bought (`docs/tech_debt/active/2026-10-20-iso-standards-not-purchased.md`).
