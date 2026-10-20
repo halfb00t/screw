@@ -21,6 +21,7 @@ installed package (`pyproject.toml` ships `src/screw` only) and `tests/conftest.
 from __future__ import annotations
 
 import ast
+import gzip
 import importlib
 import itertools
 import json
@@ -40,7 +41,7 @@ import httpx2 as httpx
 import pytest
 from pydantic import ValidationError
 
-from bench import end_cuts, mesh_deviation
+from bench import end_cuts, mesh_deviation, nut_fine_caps
 from bench import quiet as quiet_module
 from bench.build_time import Timing, load_sweep, report, stl_size
 from bench.corpus import corpus
@@ -131,7 +132,7 @@ from bench.thread_spike.verdict import (
 )
 from screw import solid as screw_solid
 from screw.calc import thread as screw_thread
-from screw.params import BoltParams
+from screw.params import INTERIM_MAX_MM, BoltParams, NutParams
 from screw.solid import helical as screw_helical
 
 
@@ -5037,3 +5038,144 @@ def test_the_deviation_vertex_check_is_far_below_a_wrong_hand_and_far_above_floa
     stl = _stl([_END_LOW, facet, _END_HIGH])
     assert mesh_deviation.vertex_error(stl, 6.0, 1.0, False) < 1e-5
     assert mesh_deviation.vertex_error(stl, 6.0, 1.0, True) > 100 * mesh_deviation.VERTEX_TOL_MM
+
+
+# --- the R16 nut fine-STL cap run (bench/nut_fine_caps.py) -------------------------------------
+
+_NFC_KEY = (20.0, 2.5, False)     # M20 right: GOST ISO 4032 m_max 18 mm
+
+
+def _nfc_row(key: nut_fine_caps.Key, m: float, size: int, *, role: str = "ladder",
+             clearance: float = nut_fine_caps.CLEARANCE_MM, s: float = nut_fine_caps.S_MM,
+             failed: bool = False) -> nut_fine_caps.Row:
+    """One synthetic row whose raw + gzip bytes add up to `size`."""
+    if failed:
+        return nut_fine_caps.Row(role, *key[:2], key[2], m, clearance, s, "failed", "boom", None,
+                                 None, 0.1)
+    return nut_fine_caps.Row(role, key[0], key[1], key[2], m, clearance, s, "built", None,
+                             size - 100, 100, 0.1)
+
+
+def _nfc_rows(over_at: float | None, key: nut_fine_caps.Key = _NFC_KEY, *,
+              check_size: int | None = None, missing_check: bool = False,
+              fail_at: float | None = None) -> list[nut_fine_caps.Row]:
+    """A ladder that fits (exactly at the budget) below `over_at` and is one byte over at it, with
+    the five checks at the cap. `over_at` None: the ladder fits through the turn cap."""
+    rows: list[nut_fine_caps.Row] = []
+    for m in nut_fine_caps.ladder_ms(key[1]):
+        over = over_at is not None and m >= over_at
+        rows.append(_nfc_row(key, m, BUDGET_BYTES + 1 if over else BUDGET_BYTES,
+                             failed=m == fail_at))
+        if over or m == fail_at:
+            break
+    if over_at is not None and fail_at is None:
+        cap = over_at - 1
+        points = nut_fine_caps.check_points(key[0])
+        for clearance, s in points[1:] if missing_check else points:
+            rows.append(_nfc_row(key, cap, check_size if check_size is not None else BUDGET_BYTES,
+                                 role="check", clearance=clearance, s=s))
+    return rows
+
+
+def test_nut_fine_caps_rule_takes_the_largest_fitting_m_below_the_first_over() -> None:
+    verdict = nut_fine_caps.caps(_nfc_rows(40.0), [_NFC_KEY])
+    assert verdict.caps == {_NFC_KEY: 39.0}
+    assert verdict.stops == []
+    # a sum equal to the budget fits (m 39 is exactly BUDGET_BYTES) and one byte more is over (m 40)
+    rows = _nfc_rows(40.0)
+    assert [nut_fine_caps.total(r) for r in rows if r.role == "ladder"][-2:] == [
+        BUDGET_BYTES, BUDGET_BYTES + 1]
+
+
+def test_nut_fine_caps_rule_maps_a_ladder_that_fits_to_the_turn_cap() -> None:
+    key = (2.5, 0.45, False)
+    verdict = nut_fine_caps.caps(_nfc_rows(None, key), [key])
+    assert verdict.caps == {key: math.inf}
+    assert verdict.stops == []
+    assert nut_fine_caps.ladder_ms(0.45)[-2:] == [111.0, 111.6]
+    assert nut_fine_caps.ladder_ms(1.0)[-2:] == [247.0, 248.0]
+
+
+def test_nut_fine_caps_rule_reports_a_ladder_that_stops_short_of_the_turn_cap() -> None:
+    rows = _nfc_rows(None)[:5]
+    verdict = nut_fine_caps.caps(rows, [_NFC_KEY])
+    assert verdict.caps == {}
+    assert "ended before the turn cap" in verdict.stops[0]
+
+
+def test_nut_fine_caps_rule_reports_a_failed_row_below_the_crossing() -> None:
+    verdict = nut_fine_caps.caps(_nfc_rows(40.0, fail_at=7.0), [_NFC_KEY])
+    assert verdict.caps == {}
+    assert len(verdict.stops) == 1
+    assert "m 7 failed: boom" in verdict.stops[0]
+
+
+def test_nut_fine_caps_rule_reports_m_one_already_over_budget() -> None:
+    verdict = nut_fine_caps.caps(_nfc_rows(1.0), [_NFC_KEY])
+    assert verdict.caps == {}
+    assert "m = 1 is already over budget" in verdict.stops[0]
+
+
+def test_nut_fine_caps_rule_reports_a_cap_below_the_iso_4032_m_max() -> None:
+    verdict = nut_fine_caps.caps(_nfc_rows(18.0), [_NFC_KEY])    # cap 17, the row's m_max is 18
+    assert len(verdict.stops) == 1
+    assert "cap 17 is below the ISO 4032 m_max 18" in verdict.stops[0]
+    assert nut_fine_caps.caps(_nfc_rows(19.0), [_NFC_KEY]).stops == []    # cap 18 = m_max
+
+
+def test_nut_fine_caps_rule_reports_a_check_over_budget_a_failed_check_and_a_missing_one() -> None:
+    over = nut_fine_caps.caps(_nfc_rows(40.0, check_size=BUDGET_BYTES + 1), [_NFC_KEY])
+    assert len(over.stops) == 5
+    assert all("is over budget" in stop for stop in over.stops)
+    missing = nut_fine_caps.caps(_nfc_rows(40.0, missing_check=True), [_NFC_KEY])
+    assert len(missing.stops) == 1
+    assert "is missing" in missing.stops[0]
+    rows = _nfc_rows(40.0)
+    rows[-1] = _nfc_row(_NFC_KEY, 39.0, 0, role="check", clearance=rows[-1].clearance,
+                        s=rows[-1].s, failed=True)
+    assert "failed: boom" in nut_fine_caps.caps(rows, [_NFC_KEY]).stops[0]
+
+
+def test_nut_fine_caps_rule_reports_an_unmeasured_key() -> None:
+    verdict = nut_fine_caps.caps([], [_NFC_KEY])
+    assert verdict.caps == {}
+    assert "no fitting m" in verdict.stops[0]
+
+
+def test_nut_fine_caps_ladder_ends_at_the_turn_caps_largest_m() -> None:
+    assert nut_fine_caps.ladder_end(0.45) == 111.6
+    assert nut_fine_caps.ladder_end(0.7) == 173.6
+    for pitch in (0.45, 0.7):
+        end = nut_fine_caps.ladder_end(pitch)
+        NutParams(d=20.0, pitch=pitch, s=40.0, m=end, clearance=0.1, left_hand=False)
+        with pytest.raises(ValidationError, match="turn cap"):
+            NutParams(d=20.0, pitch=pitch, s=40.0, m=math.nextafter(end, math.inf),
+                      clearance=0.1, left_hand=False)
+
+
+def test_nut_fine_caps_constants_are_the_ones_the_rods_and_the_owner_fixed() -> None:
+    assert nut_fine_caps.BUDGET_BYTES is verdict_module.BUDGET_BYTES
+    assert BUDGET_BYTES == 64 * 1024 * 1024
+    assert nut_fine_caps.S_MM == INTERIM_MAX_MM
+    assert nut_fine_caps.CLEARANCE_MM == 5.0    # R16 option-a
+    assert nut_fine_caps.CHECK_CLEARANCES == (-0.05, 0.0, 0.1, 2.5)
+    assert len(nut_fine_caps.KEYS) == 30
+    assert nut_fine_caps.check_points(20.0)[-1] == (5.0, 31.0)
+
+
+def test_nut_fine_caps_row_is_the_shipped_export_path() -> None:
+    """One kernel row: M2 right, m 1 at C, byte for byte what `solid.export` and gzip-1 make."""
+    key = (2.0, 0.4, False)
+    row = nut_fine_caps.measure("ladder", key, 1.0, nut_fine_caps.CLEARANCE_MM,
+                                nut_fine_caps.S_MM)
+    p = NutParams(d=2.0, pitch=0.4, s=nut_fine_caps.S_MM, m=1.0,
+                  clearance=nut_fine_caps.CLEARANCE_MM, left_hand=False)
+    data = screw_solid.export(p, "stl", "fine")
+    assert row.outcome == "built"
+    assert row.raw_bytes == len(data)
+    assert row.gzip1_bytes == len(gzip.compress(data, compresslevel=1))
+    assert nut_fine_caps.total(row) == len(data) + len(gzip.compress(data, compresslevel=1))
+    failed = nut_fine_caps.measure("ladder", key, 1.0, 0.0, 1.0)    # s <= d + 2 c: not a nut
+    assert failed.outcome == "failed"
+    assert failed.error is not None
+    assert failed.raw_bytes is None
