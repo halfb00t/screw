@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import ast
 import json
+import math
 import os
 import subprocess
 import sys
@@ -26,7 +27,8 @@ from bench.thread_spike import maths
 from bench.thread_spike import verdict as spike_verdict
 from bench.thread_spike.verdict import PAIR_BAND, closed_control
 from screw.calc import pair as rule
-from screw.params import NutParams
+from screw.calc.thread import TIP_ANGLE_DEG, tip_cone_length
+from screw.params import BoltParams, FastenerParams, NutParams
 from screw.solid import pair as solid_pair
 from screw.solid import precise_volume
 from screw.solid.helical import DEFAULT_K, SEWING_TOLERANCE
@@ -503,7 +505,7 @@ def proven(bodies: tuple[cq.Solid, cq.Solid]) -> tuple[solid_pair.PairReport, _S
         patch.setattr(solid_pair, "rod_piece", lambda *_a: rod)
         patch.setattr(solid_pair, "blank", lambda *_a: body)
         fake = _Script(*[EMPTY] * 3, *[_fires(M6_CLOSED)] * 3)
-        return solid_pair.prove(_nut(), common=fake), fake
+        return solid_pair.prove(_nut(), shipped=False, common=fake), fake
 
 
 def test_a_pair_whose_matched_poses_are_empty_and_controls_fire_is_proven(
@@ -532,7 +534,7 @@ def test_the_real_blank_is_the_closed_form_the_rule_checks_it_against(
 @pytest.mark.usefixtures("built")
 def test_an_empty_control_is_inconclusive_and_names_the_pose_and_carries_the_clearance() -> None:
     fake = _Script(*[EMPTY] * 3, EMPTY, _fires(M6_CLOSED), _fires(M6_CLOSED))
-    report = solid_pair.prove(_nut(), common=fake)
+    report = solid_pair.prove(_nut(), shipped=False, common=fake)
     assert report.verdict == "inconclusive"
     (reason,) = report.reasons
     assert "control at theta -2.0944 reads empty" in reason
@@ -542,7 +544,7 @@ def test_an_empty_control_is_inconclusive_and_names_the_pose_and_carries_the_cle
 @pytest.mark.usefixtures("built")
 def test_a_failing_boolean_ends_the_cell_inconclusive_and_keeps_the_readings_taken() -> None:
     fake = _Script(*[EMPTY] * 3, RuntimeError("boolean exploded"))
-    report = solid_pair.prove(_nut(), common=fake)
+    report = solid_pair.prove(_nut(), shipped=False, common=fake)
     assert report.verdict == "inconclusive"
     assert report.reasons == ["cell failure: RuntimeError: boolean exploded"]
     assert [r.outcome for r in report.readings] == ["built"] * 3 + ["failure"]
@@ -555,7 +557,7 @@ def test_a_failing_boolean_ends_the_cell_inconclusive_and_keeps_the_readings_tak
 @pytest.mark.parametrize("clearance", [0.0, -0.05])
 def test_at_zero_or_negative_clearance_nothing_is_read(clearance: float) -> None:
     fake = _Script()
-    report = solid_pair.prove(_nut(clearance), common=fake)
+    report = solid_pair.prove(_nut(clearance), shipped=False, common=fake)
     assert report.verdict == "inconclusive"
     assert report.readings == []
     assert report.closed_control is None
@@ -567,7 +569,7 @@ def test_at_zero_or_negative_clearance_nothing_is_read(clearance: float) -> None
 @pytest.mark.usefixtures("built")
 def test_a_rod_of_the_other_hand_is_violated_through_the_rule() -> None:
     fake = _Script(*[(0.5, 1, False, False, 0.1)] * 3)
-    report = solid_pair.prove(_nut(), rod_left_hand=True, common=fake)
+    report = solid_pair.prove(_nut(), rod_left_hand=True, shipped=False, common=fake)
     assert report.verdict == "violated"
     assert (report.rod_left_hand, report.nut_left_hand) == (True, False)
     assert len(fake.calls) == 3  # a mixed pair is read at the matched poses and nothing else
@@ -578,7 +580,7 @@ def test_a_rod_of_the_other_hand_is_violated_through_the_rule() -> None:
 @pytest.mark.usefixtures("built")
 def test_a_left_hand_nut_goes_through_the_same_checks() -> None:
     fake = _Script(*[EMPTY] * 3, *[_fires(M6_CLOSED)] * 3)
-    report = solid_pair.prove(_nut(left_hand=True), common=fake)
+    report = solid_pair.prove(_nut(left_hand=True), shipped=False, common=fake)
     assert (report.verdict, report.rod_left_hand, report.nut_left_hand) == ("proven", True, True)
 
 
@@ -613,3 +615,144 @@ def test_the_pair_proof_is_not_imported_by_the_solid_package() -> None:
              if isinstance(node, ast.Import | ast.ImportFrom)
              for n in (*(a.name for a in node.names), getattr(node, "module", None) or "")}
     assert not {n for n in names if n.split(".")[-1] == "pair"}
+
+
+# --- The shipped-solid evidence row (05-14 task 3) ------------------------------------------------
+
+
+class _Builds:
+    """A fake `solid.build`: records what it was asked for and hands back a stub, a box z 0..7 for
+    a bolt and one z 0..5.2 for a nut, so the placement is read off the shapes `common` gets."""
+
+    def __init__(self) -> None:
+        self.asked: list[FastenerParams] = []
+        self.bolt = cq.Solid.makeBox(1, 1, 7.0)
+        self.nut = cq.Solid.makeBox(1, 1, 5.2)
+
+    def __call__(self, p: FastenerParams) -> cq.Solid:
+        self.asked.append(p)
+        return self.bolt if isinstance(p, BoltParams) else self.nut
+
+
+@pytest.fixture
+def builds(built: None, monkeypatch: pytest.MonkeyPatch) -> _Builds:
+    fake = _Builds()
+    monkeypatch.setattr(solid_pair, "build", fake)
+    return fake
+
+
+SHIPPED = (8.7, 1, False, False, 0.2)
+
+
+def _verdict_script(*after: tuple[float, int, bool, bool, float] | Exception) -> _Script:
+    return _Script(*[EMPTY] * 3, *[_fires(M6_CLOSED)] * 3, *after)
+
+
+def test_the_shipped_row_intersects_the_counterpart_bolt_and_the_nut_at_the_matched_poses(
+        builds: _Builds) -> None:
+    fake = _verdict_script(SHIPPED, SHIPPED, SHIPPED)
+    report = solid_pair.prove(_nut(), common=fake)
+    tip = tip_cone_length(1.0, TIP_ANGLE_DEG)
+    bolt, nut = builds.asked
+    assert isinstance(bolt, BoltParams)
+    assert bolt.length == bolt.thread_length == pytest.approx(tip + 5.2 + 2 * 1.0)
+    assert (bolt.d, bolt.pitch, bolt.left_hand) == (6.0, 1.0, False)
+    assert (bolt.s, bolt.k) == (10.0, 4.0)  # the counterpart's: the M6 ISO 4017 row
+    assert nut == _nut()
+    assert len(fake.calls) == 9  # six for the verdict, then the three matched poses only
+    assert report.shipped is not None
+    assert [(r.theta, r.outcome, r.solids, r.volume, r.seconds, r.error)
+            for r in report.shipped] == [(t, "built", 1, 8.7, 0.2, None)
+                                         for t in rule.MATCHED_POSES]
+    for (rod, placed), theta in zip(fake.calls[6:], rule.MATCHED_POSES, strict=True):
+        assert rod is builds.bolt
+        # a whole number of pitches up, clear of the tip cone by at least a pitch, then the
+        # screw-motion slide of the pose
+        start = placed.BoundingBox().zmin - theta / (2 * math.pi)
+        assert start == pytest.approx(round(start))
+        assert start >= tip + 1.0
+
+
+def test_a_planted_non_empty_shipped_reading_leaves_the_verdict_unchanged(
+        builds: _Builds, proven: tuple[solid_pair.PairReport, _Script]) -> None:
+    baseline, _ = proven
+    report = solid_pair.prove(_nut(), common=_verdict_script(SHIPPED, SHIPPED, SHIPPED))
+    assert (report.verdict, report.reasons) == ("proven", [])
+    assert report.readings == baseline.readings
+    assert report.shipped is not None
+
+
+def test_without_the_shipped_row_no_bolt_is_built(builds: _Builds) -> None:
+    report = solid_pair.prove(_nut(), shipped=False, common=_verdict_script())
+    assert report.shipped is None
+    assert builds.asked == []
+
+
+def test_a_cell_that_did_not_finish_or_read_nothing_takes_no_shipped_row(
+        builds: _Builds) -> None:
+    failed = solid_pair.prove(_nut(), common=_Script(RuntimeError("boom")))
+    assert (failed.verdict, failed.shipped) == ("inconclusive", None)
+    nominal = solid_pair.prove(_nut(0.0), common=_Script())
+    assert (nominal.readings, nominal.shipped) == ([], None)
+    assert builds.asked == []
+
+
+def test_a_shipped_part_that_cannot_be_built_is_three_failures_beside_the_same_verdict(
+        built: None, monkeypatch: pytest.MonkeyPatch) -> None:
+    def refuse(_p: FastenerParams) -> cq.Solid:
+        raise RuntimeError("no kernel today")
+
+    monkeypatch.setattr(solid_pair, "build", refuse)
+    fake = _verdict_script()
+    report = solid_pair.prove(_nut(), common=fake)
+    assert report.verdict == "proven"
+    assert len(fake.calls) == 6
+    assert report.shipped is not None
+    assert [(r.outcome, r.volume, r.error) for r in report.shipped] == [
+        ("failure", None, "RuntimeError: no kernel today")] * 3
+
+
+def test_a_shipped_boolean_that_raises_fails_that_pose_only(builds: _Builds) -> None:
+    report = solid_pair.prove(_nut(), common=_verdict_script(SHIPPED, ValueError("bad"), SHIPPED))
+    assert report.verdict == "proven"
+    assert report.shipped is not None
+    assert [r.outcome for r in report.shipped] == ["built", "failure", "built"]
+    assert report.shipped[1].error == "ValueError: bad"
+
+
+def test_the_shipped_row_is_called_evidence_in_the_docstring() -> None:
+    assert "evidence" in (solid_pair.prove.__doc__ or "")
+
+
+# The placement is measured, not argued: the thread has phase 2 pi z / P on the bolt and on the
+# nut, so only a start that is a whole number of pitches is a matched pose. M3, c = 0.10, the
+# kernel in a child (RESEARCH F5: a process that ran `common` dies at teardown with 139).
+_SHIPPED_CHILD = """
+import json, os, sys
+from screw.calc.thread import TIP_ANGLE_DEG, tip_cone_length
+from screw.params import BoltParams, NutParams
+from screw.solid import build, pair
+
+p = NutParams(d=3.0, pitch=0.5, m=2.4, s=5.5, clearance=0.1)
+tip = tip_cone_length(p.pitch, TIP_ANGLE_DEG)
+length = tip + p.m + 2 * p.pitch
+bolt = build(BoltParams(d=3.0, pitch=0.5, s=5.5, k=2.0, length=length, thread_length=length))
+nut = build(p)
+matched = pair._shipped(p, False, pair.common)
+control = pair.common(bolt, pair.place(nut, 0.0, 2.5, p.pitch, False))
+literal = pair.common(bolt, pair.place(nut, 0.0, (tip + p.pitch) / p.pitch, p.pitch, False))
+print(json.dumps({"matched": [r.model_dump() for r in matched], "control": control[:2],
+                  "literal": literal[:2]}))
+sys.stdout.flush(); sys.stderr.flush(); os._exit(0)
+"""
+
+
+def test_the_real_shipped_pair_is_empty_at_whole_pitch_starts_and_not_off_phase() -> None:
+    done = subprocess.run([sys.executable, "-I", "-c", _SHIPPED_CHILD], capture_output=True,
+                          text=True, timeout=300, check=True)
+    result = json.loads(done.stdout.strip().splitlines()[-1])
+    assert [(r["outcome"], r["solids"]) for r in result["matched"]] == [("built", 0)] * 3
+    # the positive controls: the same pair half a pitch off, and at the start "cone length + P"
+    # the plan named, both interfere, so an empty reading above is the pose and not a blind boolean
+    assert result["control"][1] == 1
+    assert result["literal"][1] == 1

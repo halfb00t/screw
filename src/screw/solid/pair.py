@@ -40,8 +40,10 @@ from screw.calc.pair import (
     closed_control,
 )
 from screw.calc.pair import PairReading as PairReadingRow
-from screw.params import NutParams
-from screw.solid import helical, precise_volume
+from screw.calc.presets import counterpart_for
+from screw.calc.thread import TIP_ANGLE_DEG, tip_cone_length
+from screw.params import BoltParams, NutParams
+from screw.solid import build, helical, precise_volume
 
 # The boolean and its filler are kept for the life of the process: freeing them segfaulted at
 # teardown (exit 139, RESEARCH Pitfall 4, provoked once), which is also why a process that ends
@@ -144,14 +146,30 @@ class PairReading(BaseModel):
     seconds: float | None
 
 
+class ShippedReading(BaseModel):
+    """The shipped bolt against the shipped nut at one matched pose: evidence, never a verdict
+    input. A `failure` carries no measurement and says why in `error`."""
+
+    model_config = ConfigDict(frozen=True)
+
+    theta: float
+    outcome: ReadingOutcome
+    solids: int | None
+    volume: float | None
+    seconds: float | None
+    error: str | None
+
+
 class PairReport(BaseModel):
     """What `prove` found, the document the CLI prints (D-06): the verdict and every reason, the
     pair it judged, each pose's reading in the order taken (matched poses, then controls), the
-    control's closed form and the band around it, and the seconds the proof took.
+    control's closed form and the band around it, the shipped-solid evidence row and the seconds
+    the proof took.
 
     `closed_control` is `None` where no control was read: a mixed-hand pair is read at the matched
     poses only, and at c <= 0 nothing is read (L02: a closed form nobody compared against is not
-    printed).
+    printed). `shipped` is `None` where the row was not taken: it was not asked for, nothing was
+    read (c <= 0) or the cell did not finish.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -168,6 +186,7 @@ class PairReport(BaseModel):
     closed_control: float | None
     band: float
     engagement_turns: float
+    shipped: list[ShippedReading] | None
     seconds: float
 
 
@@ -208,7 +227,46 @@ def _record(cell: PairCell, poses: list[tuple[float, float]], boolean: Boolean) 
             "readings": readings}
 
 
-def prove(p: NutParams, *, rod_left_hand: bool | None = None,
+def _shipped(p: NutParams, rod_hand: bool, boolean: Boolean) -> list[ShippedReading]:
+    """`build(BoltParams)` against `build(NutParams)` at the three matched poses: the counterpart
+    bolt (`counterpart_for`'s fields, the rod's hand, length = thread_length = tip cone length +
+    m + 2 pitch, so the thread fills the bolt and the head sits past it) and the shipped nut.
+
+    The nut starts a whole number of pitches up, the least that clears the tip cone by a pitch:
+    the thread has phase 2 pi z / P on both parts, so a start that is not a multiple of the pitch
+    would put every "matched" pose half a thread out of step (measured on M6, c = 0.10, 2026-10-20:
+    start at the cone length + P reads 8.747 mm3 at all three poses, start at 2 P reads empty).
+    A build or a boolean that raises is a `failure` reading, never a retry and never a zero.
+    """
+    try:
+        counterpart, _ = counterpart_for(p)
+        tip = tip_cone_length(p.pitch, TIP_ANGLE_DEG)
+        length = tip + p.m + 2 * p.pitch
+        bolt = build(BoltParams.model_validate({
+            **counterpart.fields, "left_hand": rod_hand, "length": length,
+            "thread_length": length}))
+        nut = build(p)
+    except Exception as exc:  # a bolt that cannot be built is one recorded failure, not a crash
+        error = f"{type(exc).__name__}: {exc}"
+        return [ShippedReading(theta=theta, outcome="failure", solids=None, volume=None,
+                               seconds=None, error=error) for theta in MATCHED_POSES]
+    start = math.ceil((tip + p.pitch) / p.pitch)
+    readings: list[ShippedReading] = []
+    for theta in MATCHED_POSES:
+        try:
+            volume, solids, _, _, seconds = boolean(bolt, place(nut, theta, start, p.pitch,
+                                                                p.left_hand))
+        except Exception as exc:  # as above, per pose
+            readings.append(ShippedReading(
+                theta=theta, outcome="failure", solids=None, volume=None, seconds=None,
+                error=f"{type(exc).__name__}: {exc}"))
+        else:
+            readings.append(ShippedReading(theta=theta, outcome="built", solids=solids,
+                                           volume=volume, seconds=seconds, error=None))
+    return readings
+
+
+def prove(p: NutParams, *, rod_left_hand: bool | None = None, shipped: bool = True,
           common: Boolean = common) -> PairReport:
     """Whether the nut `p` mates with the nominal rod of its own d, pitch and hand: the spike's
     bodies read at the three matched poses and their half-pitch controls, judged by
@@ -218,6 +276,10 @@ def prove(p: NutParams, *, rod_left_hand: bool | None = None,
     for the rule's mixed-hand cells, never a CLI flag or a model field. A mixed pair is read at
     the matched poses only, as the rule requires. At c <= 0 `prove` reads nothing (R8, D-11): the
     verdict is inconclusive by definition, the readings are empty and `common` is not called.
+    `shipped` adds the evidence row: the shipped bolt and nut intersected at the matched poses,
+    printed in `PairReport.shipped` beside the verdict. It is evidence and never a verdict input,
+    until a later campaign pre-registers expectations for it (D-05); it is taken after the
+    verdict's own readings and only from a cell that finished.
     `common` is the boolean, a seam so the orchestration is tested without the kernel; the real
     one parks its operation in `_KEEP` (see the module docstring for the exit rule).
     """
@@ -230,6 +292,7 @@ def prove(p: NutParams, *, rod_left_hand: bool | None = None,
         "k": helical.DEFAULT_K}
     readings: list[PairReading] = []
     closed: float | None = None
+    evidence: list[ShippedReading] | None = None
     if p.clearance <= 0:
         verdict: PairVerdict = "inconclusive"
         reasons: tuple[str, ...] = (f"c = {p.clearance:g} mm: inconclusive by definition (D-11)",)
@@ -241,8 +304,10 @@ def prove(p: NutParams, *, rod_left_hand: bool | None = None,
         record = _record(cell, poses, common)
         verdict, reasons = cell_verdict(record)
         readings = [_echo(row) for row in record["readings"]]
+        if shipped and record["outcome"] == "built":
+            evidence = _shipped(p, rod_hand, common)
     return PairReport(
         verdict=verdict, reasons=list(reasons), d=p.d, pitch=p.pitch, m=p.m,
         clearance=p.clearance, rod_left_hand=rod_hand, nut_left_hand=p.left_hand,
         readings=readings, closed_control=closed, band=PAIR_BAND,
-        engagement_turns=p.m / p.pitch, seconds=time.perf_counter() - start)
+        engagement_turns=p.m / p.pitch, shipped=evidence, seconds=time.perf_counter() - start)
