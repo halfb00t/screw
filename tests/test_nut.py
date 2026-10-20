@@ -14,7 +14,7 @@ import json
 import math
 import re
 import struct
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -28,12 +28,21 @@ from screw import cli
 from screw.app import app, build_backend
 from screw.build_errors import BuildError
 from screw.calc.thread import (
+    CHAMFER_ANGLE_DEG,
+    COUNTERSINK_HALF_ANGLE_DEG,
     T_GATE,
     closed_volume,
+    countersink_face_radius,
+    countersink_volume,
+    end_depths,
+    face_chamfer_volume,
     nut_closed_volume,
+    nut_end_closed_volume,
+    piece_refusal,
     section_area,
     section_radius,
     thread_depth,
+    volume_check,
 )
 from screw.params import BoltParams, NutParams
 from screw.solid import build, clear_cache, nut, precise_volume
@@ -84,7 +93,7 @@ def test_the_nut_is_one_valid_hex_prism_of_s_across_flats_and_m_high(left_hand: 
 @pytest.mark.parametrize("left_hand", [False, True], ids=["right", "left"])
 def test_the_nuts_precise_volume_is_inside_the_gate_of_its_closed_form(left_hand: bool) -> None:
     p = NutParams(clearance=0.1, left_hand=left_hand)
-    closed = nut_closed_volume(p.d, p.pitch, p.s, p.m, p.clearance)
+    closed = nut_end_closed_volume(p.d, p.pitch, p.s, p.m, p.clearance)
     assert abs(precise_volume(build(p)) / closed - 1.0) <= T_GATE
 
 
@@ -95,15 +104,21 @@ def test_a_nominal_and_an_interference_nut_build(clearance: float) -> None:
     shape = build(p)
     assert len(shape.Solids()) == 1
     assert shape.isValid()
-    closed = nut_closed_volume(p.d, p.pitch, p.s, p.m, clearance)
+    closed = nut_end_closed_volume(p.d, p.pitch, p.s, p.m, clearance)
     assert abs(precise_volume(shape) / closed - 1.0) <= T_GATE
 
 
-def test_a_larger_clearance_removes_the_section_difference_times_m() -> None:
+def test_a_larger_clearance_removes_the_section_difference_times_m_less_the_ends() -> None:
     nominal, loose = NutParams(clearance=0.0), NutParams(clearance=0.1)
     removed = precise_volume(build(nominal)) - precise_volume(build(loose))
-    expected = (section_area(6.0, 1.0, 0.1) - section_area(6.0, 1.0, 0.0)) * nominal.m
-    assert expected > 1.0, "the difference must be big enough to mean something"
+    # The void grows by the section difference times m; the countersinks of the looser nut are
+    # shallower, so they take less of what the void already took. The end-aware closed form
+    # carries both, and the bare section difference alone is the wrong answer by that much.
+    expected = (nut_end_closed_volume(6.0, 1.0, 10.0, 5.2, 0.0)
+                - nut_end_closed_volume(6.0, 1.0, 10.0, 5.2, 0.1))
+    bare = (section_area(6.0, 1.0, 0.1) - section_area(6.0, 1.0, 0.0)) * nominal.m
+    assert bare > 1.0, "the difference must be big enough to mean something"
+    assert abs(expected - bare) > 10 * T_GATE * nut_closed_volume(6.0, 1.0, 10.0, 5.2, 0.0)
     # Judged against the nut, as the gate is: T_GATE of the nut's volume is 0.03 mm3 here, and the
     # difference being measured is about 10 mm3.
     assert abs(removed - expected) <= T_GATE * nut_closed_volume(6.0, 1.0, 10.0, 5.2, 0.0)
@@ -125,8 +140,8 @@ def _scale_void_form(patch: pytest.MonkeyPatch, factor: float) -> None:
 
 def _scale_nut_form(patch: pytest.MonkeyPatch, factor: float) -> None:
     """Make `screw.solid` judge the nut against `factor` times the right closed form."""
-    patch.setattr("screw.solid.nut_closed_volume",
-                  lambda d, pitch, s, m, c: nut_closed_volume(d, pitch, s, m, c) * factor)
+    patch.setattr("screw.solid.nut_end_closed_volume",
+                  lambda d, pitch, s, m, c: nut_end_closed_volume(d, pitch, s, m, c) * factor)
 
 
 def test_a_closed_form_just_inside_the_gate_does_not_refuse_the_void_or_the_nut(
@@ -415,6 +430,142 @@ def test_a_positive_clearance_moves_the_nut_thread_away_from_the_axis_on_both_ha
         assert tight_nut.isInside(point, 1e-6), (left_hand, section_angle)
         assert not loose_nut.isInside(point, 1e-6), (left_hand, section_angle)
     removed = precise_volume(tight_nut) - precise_volume(loose_nut)
-    expected = (section_area(tight.d, tight.pitch, 0.1)
-                - section_area(tight.d, tight.pitch, 0.0)) * tight.m
+    # The looser void also takes shallower countersinks, so the end-aware form is the measure.
+    expected = (nut_end_closed_volume(tight.d, tight.pitch, tight.s, tight.m, 0.0)
+                - nut_end_closed_volume(loose.d, loose.pitch, loose.s, loose.m, 0.1))
     assert abs(removed - expected) <= T_GATE * precise_volume(tight_nut)
+
+
+# ---------------------------------------------------------------- the ends: countersinks, chamfers
+
+
+def _pieces(p: NutParams) -> list[tuple[str, float, float]]:
+    """(piece, volume its cut removed, its oracle) for each cut `nut.finish` makes, in order, from
+    precise volumes before and after: the same measurement the builder judges."""
+    body = nut.assemble(p, nut.void(p))
+    volume = precise_volume(body)
+    csk, chamfer, _ = end_depths(p.d, p.pitch, p.clearance, p.s, p.m)
+    oracles = {
+        "lead-in countersink": 0.0 if csk <= 0 else countersink_volume(
+            p.d, p.pitch, p.clearance, p.s, countersink_face_radius(p.d),
+            COUNTERSINK_HALF_ANGLE_DEG, csk),
+        "face chamfer": face_chamfer_volume(p.s, p.s / 2, CHAMFER_ANGLE_DEG, chamfer),
+    }
+    out = []
+    for what, cut in nut.finish(p, body):
+        after = precise_volume(cut)
+        out.append((what, volume - after, oracles[what]))
+        volume = after
+    return out
+
+
+ENDED = [
+    pytest.param(NutParams(clearance=0.1), id="M6-right"),
+    pytest.param(NutParams(clearance=0.1, left_hand=True), id="M6-left"),
+    pytest.param(NutParams(clearance=0.0), id="c0"),
+    pytest.param(NutParams(clearance=-0.05), id="c-0.05"),
+    # D-12: no row has d 6.5, and its ends come from its fields all the same.
+    pytest.param(NutParams(d=6.5, pitch=1.0, s=11.0, m=5.2, clearance=0.1), id="off-row"),
+    # R5 a: capped at m / 2 (the countersink 0.4 of its 0.92, the chamfer 0.4 of its 0.45).
+    pytest.param(NutParams(clearance=0.1, m=0.8), id="thin-capped"),
+]
+
+
+@pytest.mark.parametrize("p", ENDED)
+def test_each_cut_removes_the_volume_its_oracle_names_to_within_the_piece_tolerance(
+        p: NutParams) -> None:
+    pieces = _pieces(p)
+    assert [what for what, _, _ in pieces] == (
+        ["lead-in countersink"] * 2 + ["face chamfer"] * 2)
+    for what, removed, oracle in pieces:
+        assert piece_refusal(removed, oracle, what) is None
+        assert removed > 0.1, "a real fraction of a mm3, not a cut that removed nothing"
+
+
+@pytest.mark.parametrize("p", ENDED)
+def test_a_nut_with_ends_is_one_valid_solid_inside_the_whole_gate(p: NutParams) -> None:
+    solid = build(p)
+    assert len(solid.Solids()) == 1
+    assert solid.isValid()
+    closed = nut_end_closed_volume(p.d, p.pitch, p.s, p.m, p.clearance)
+    assert abs(precise_volume(solid) / closed - 1.0) <= T_GATE
+
+
+def test_both_hands_get_the_same_ends_to_the_gate() -> None:
+    right, left = (NutParams(clearance=0.1, left_hand=h) for h in (False, True))
+    assert precise_volume(build(right)) == pytest.approx(precise_volume(build(left)), rel=T_GATE)
+
+
+def test_a_countersink_that_cannot_cross_the_void_is_not_cut_and_the_nut_still_builds() -> None:
+    # R3: M2 at clearance 0.2, the cone opens to 1.16 mm inside a 1.2 mm crest radius.
+    p = NutParams(d=2.0, pitch=0.4, s=4.0, m=1.6, clearance=0.2)
+    assert end_depths(p.d, p.pitch, p.clearance, p.s, p.m)[0] == 0.0
+    assert [what for what, _, _ in _pieces(p)] == ["face chamfer"] * 2
+    closed = nut_end_closed_volume(p.d, p.pitch, p.s, p.m, p.clearance)
+    assert abs(precise_volume(build(p)) / closed - 1.0) <= T_GATE
+
+
+def test_the_ends_read_the_fields_and_no_table() -> None:
+    # D-12: a table row gives the nut nothing it does not already take as fields.
+    assert "tables" not in Path(nut.__file__).read_text()
+
+
+def _skip_the_first_countersink(monkeypatch: pytest.MonkeyPatch) -> None:
+    real = nut.countersink
+    calls: list[float] = []
+
+    def cutter(p: NutParams, z_face: float, depth: float) -> cq.Solid:
+        calls.append(z_face)
+        if len(calls) == 1:  # a cutter nowhere near the nut leaves it whole
+            return cq.Solid.makeBox(0.1, 0.1, 0.1, pnt=cq.Vector(100, 100, 100))
+        return real(p, z_face, depth)
+
+    monkeypatch.setattr(nut, "countersink", cutter)
+
+
+def _skip_the_second_chamfer(monkeypatch: pytest.MonkeyPatch) -> None:
+    real = nut.face_chamfer
+    calls: list[float] = []
+
+    def cutter(p: NutParams, z_face: float, depth: float) -> cq.Solid:
+        calls.append(z_face)
+        if len(calls) == 2:
+            return cq.Solid.makeBox(0.1, 0.1, 0.1, pnt=cq.Vector(100, 100, 100))
+        return real(p, z_face, depth)
+
+    monkeypatch.setattr(nut, "face_chamfer", cutter)
+
+
+CONTROLS = [
+    pytest.param(_skip_the_first_countersink, "lead-in countersink", id="countersink-skipped"),
+    pytest.param(_skip_the_second_chamfer, "face chamfer", id="chamfer-skipped"),
+    pytest.param(lambda patch: patch.setattr(nut, "CHAMFER_ANGLE_DEG", 45.0), "face chamfer",
+                 id="chamfer-45-where-30-is-the-model"),
+    pytest.param(lambda patch: patch.setattr(nut, "COUNTERSINK_HALF_ANGLE_DEG", 60.0),
+                 "lead-in countersink", id="countersink-60-where-45-is-the-model"),
+]
+
+
+@pytest.mark.parametrize(("plant", "what"), CONTROLS)
+def test_a_missing_or_wrong_end_is_refused_naming_the_piece(
+        monkeypatch: pytest.MonkeyPatch, plant: Callable[[pytest.MonkeyPatch], object],
+        what: str) -> None:
+    # The positive controls of RESEARCH P8 for the nut: the model is two countersinks of 90 degrees
+    # included and two 30 degree chamfers, and each control builds something else.
+    plant(monkeypatch)
+    with pytest.raises(BuildError, match=f"wrong {what}: the {what} is"):
+        build(NOMINAL)
+
+
+@pytest.mark.parametrize(("plant", "what"), CONTROLS)
+def test_the_whole_nut_gate_alone_sees_each_control_a_nut_is_not_a_long_bolt(
+        monkeypatch: pytest.MonkeyPatch, plant: Callable[[pytest.MonkeyPatch], object],
+        what: str) -> None:
+    # Measured, not predicted (05-13 SUMMARY): a countersink or chamfer is 1 to 2 % of an M6 nut,
+    # against the bolt's tip cone in a 200 mm part (05-12, where the gate alone missed two of
+    # six), so the whole-part gate flags every control here as well. The piece check is still
+    # the one that names which end is wrong.
+    plant(monkeypatch)
+    last = list(nut.finish(NOMINAL, nut.assemble(NOMINAL, nut.void(NOMINAL))))[-1][1]
+    closed = nut_end_closed_volume(NOMINAL.d, NOMINAL.pitch, NOMINAL.s, NOMINAL.m, 0.1)
+    assert volume_check(precise_volume(last), closed) is not None, what

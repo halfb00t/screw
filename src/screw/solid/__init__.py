@@ -35,13 +35,19 @@ if TYPE_CHECKING:
 from screw import int_env
 from screw.build_errors import BuildError
 from screw.calc.thread import (
+    CHAMFER_ANGLE_DEG,
+    COUNTERSINK_HALF_ANGLE_DEG,
     TIP_ANGLE_DEG,
     bolt_end_closed_volume,
     built_thread_length,
     closed_volume,
+    countersink_face_radius,
+    countersink_volume,
+    end_depths,
+    face_chamfer_volume,
     fillet_radius,
     fillet_ring_volume,
-    nut_closed_volume,
+    nut_end_closed_volume,
     piece_refusal,
     tip_cone_fits,
     tip_cone_volume,
@@ -152,9 +158,29 @@ def _build_nut(p: NutParams) -> cq.Solid:
     thread_void = nut.void(p)
     check_solid(thread_void, closed_volume(p.d, p.pitch, p.m + 2 * p.pitch, p.clearance),
                 part="void")
-    cut = nut.assemble(p, thread_void)
-    check_solid(cut, nut_closed_volume(p.d, p.pitch, p.s, p.m, p.clearance))
-    return cut.Solids()[0]
+    body = nut.assemble(p, thread_void)
+    check_structure(body)
+    volume = precise_volume(body)
+    # Each countersink and each chamfer is judged by the volume it removed, against its own
+    # oracle at T_PIECE, before the whole nut is judged at T_GATE: a countersink is under 1 % of
+    # the nut and a skipped one hides inside the gate (P8, D-10). The structure is checked first
+    # so a broken cut is named as one.
+    csk, chamfer, _ = end_depths(p.d, p.pitch, p.clearance, p.s, p.m)
+    oracle = {
+        "lead-in countersink": 0.0 if csk <= 0 else countersink_volume(
+            p.d, p.pitch, p.clearance, p.s, countersink_face_radius(p.d),
+            COUNTERSINK_HALF_ANGLE_DEG, csk),
+        "face chamfer": face_chamfer_volume(p.s, p.s / 2, CHAMFER_ANGLE_DEG, chamfer),
+    }
+    for what, cut in nut.finish(p, body):
+        check_structure(cut)
+        after = precise_volume(cut)
+        piece = piece_refusal(volume - after, oracle[what], what)
+        if piece is not None:
+            raise BuildError(f"Geometry kernel produced the wrong {what}: {piece}.")
+        body, volume = cut, after
+    check_solid(body, nut_end_closed_volume(p.d, p.pitch, p.s, p.m, p.clearance), volume=volume)
+    return body.Solids()[0]
 
 
 def _build_bolt(p: BoltParams) -> cq.Solid:

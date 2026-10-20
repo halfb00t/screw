@@ -696,6 +696,13 @@ def piece_refusal(measured: float, oracle: float, what: str) -> str | None:
     return None
 
 
+def countersink_face_radius(d: float) -> float:
+    """Radius at which the nut lead-in countersink opens on the face: `COUNTERSINK_FACE_FACTOR`
+    times d / 2, from the field `d` alone (D-12), the one place the builder, the oracle and
+    `end_depths` read it."""
+    return COUNTERSINK_FACE_FACTOR * d / 2
+
+
 def end_depths(d: float, pitch: float, clearance: float, s: float,
                m: float) -> tuple[float, float, list[str]]:
     """The countersink depth and the face chamfer depth the builder cuts, and what was capped.
@@ -719,7 +726,7 @@ def end_depths(d: float, pitch: float, clearance: float, s: float,
         raise ValueError(f"m {m:g} mm must be above 0")
     warnings: list[str] = []
     ro, rr = _radii(d, pitch, clearance)
-    face_radius = COUNTERSINK_FACE_FACTOR * d / 2
+    face_radius = countersink_face_radius(d)
     if face_radius <= ro:
         csk = 0.0
         warnings.append(
@@ -746,3 +753,18 @@ def end_depths(d: float, pitch: float, clearance: float, s: float,
             f"m {m:g}: the nut face chamfers are cut {chamfer:.4g} mm deep, not the "
             f"{chamfer_full:.4g} mm of the model, so they do not meet (L15)")
     return csk, chamfer, warnings
+
+
+def nut_end_closed_volume(d: float, pitch: float, s: float, m: float, clearance: float) -> float:
+    """`nut_closed_volume` less the two lead-in countersinks and the two face chamfers: the volume
+    of a nut with its ends (D-12, R3, R4), at the depths `end_depths` returns (R5 caps them).
+
+    A countersink `end_depths` leaves out (depth 0) removes nothing. Each oracle raises
+    `ValueError` outside its validity, so there is no number for a nut they cannot judge (L02).
+    """
+    csk, chamfer, _ = end_depths(d, pitch, clearance, s, m)
+    volume = nut_closed_volume(d, pitch, s, m, clearance)
+    if csk > 0:
+        volume -= 2 * countersink_volume(d, pitch, clearance, s, countersink_face_radius(d),
+                                         COUNTERSINK_HALF_ANGLE_DEG, csk)
+    return volume - 2 * face_chamfer_volume(s, s / 2, CHAMFER_ANGLE_DEG, chamfer)

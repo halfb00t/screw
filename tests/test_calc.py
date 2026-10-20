@@ -31,6 +31,7 @@ from screw.calc.thread import (
     fine_stl_refusal,
     flank_normal_gap,
     nut_closed_volume,
+    nut_end_closed_volume,
     pitch_diameter,
     section_radius,
     thread_depth,
@@ -246,7 +247,7 @@ def test_a_nut_document_has_its_rows_in_groups_the_closed_form_volume_and_its_m6
     assert (values["d"], values["pitch"], values["s"], values["m"], values["clearance"]) == (
         6.0, 1.0, 10.0, 5.2, 0.1)
     assert values["across_corners"] == pytest.approx(10.0 / math.cos(math.pi / 6))
-    assert values["volume"] == nut_closed_volume(6.0, 1.0, 10.0, 5.2, 0.1)
+    assert values["volume"] == nut_end_closed_volume(6.0, 1.0, 10.0, 5.2, 0.1)
     assert info.warnings == [STANDING_WARNING]
 
 
@@ -1218,3 +1219,62 @@ def test_an_iso_4017_screw_notes_that_it_has_no_fillet_and_an_iso_4014_bolt_does
     assert NO_FILLET_NOTE not in derive(M10X80).notes
     # A note, not a warning.
     assert all(NO_FILLET_NOTE not in w for w in derive(BoltParams()).warnings)
+
+
+# --- the nut's ends: the end-aware closed form and its warnings (05-13) ------------------------
+
+
+def test_the_nut_end_closed_form_is_the_nut_less_two_countersinks_and_two_chamfers() -> None:
+    # Written out from the owner's models (R3 1.16 and 90 degrees included, R4 30 degrees from the
+    # inscribed circle), not from the constants, so a changed model cannot change both sides.
+    from screw.calc.thread import countersink_volume, face_chamfer_volume
+
+    face = 1.16 * 6.0 / 2
+    root = 3.0 - thread_depth(1.0) + 0.1
+    csk = countersink_volume(6.0, 1.0, 0.1, 10.0, face, 45.0, face - root)
+    chamfer = face_chamfer_volume(10.0, 5.0, 30.0, (5.0 / math.cos(math.pi / 6) - 5.0)
+                                  * math.tan(math.radians(30.0)))
+    assert csk > 1.0
+    assert chamfer > 1.0
+    assert nut_end_closed_volume(6.0, 1.0, 10.0, 5.2, 0.1) == pytest.approx(
+        nut_closed_volume(6.0, 1.0, 10.0, 5.2, 0.1) - 2 * csk - 2 * chamfer, rel=1e-12)
+
+
+def test_a_countersink_that_cannot_cross_the_void_is_left_out_of_the_volume_and_warned() -> None:
+    # R3: M2 at clearance 0.2 has a crest radius of 1.2 mm and the cone opens to 1.16 mm.
+    from screw.calc.thread import face_chamfer_volume
+
+    chamfer = face_chamfer_volume(4.0, 2.0, 30.0, (2.0 / math.cos(math.pi / 6) - 2.0)
+                                  * math.tan(math.radians(30.0)))
+    assert nut_end_closed_volume(2.0, 0.4, 4.0, 1.6, 0.2) == pytest.approx(
+        nut_closed_volume(2.0, 0.4, 4.0, 1.6, 0.2) - 2 * chamfer, rel=1e-12)
+    info = derive(NutParams(d=2.0, pitch=0.4, s=4.0, m=1.6, clearance=0.2))
+    assert info.warnings[0] == WARNING
+    [named] = [w for w in info.warnings if w.startswith("clearance 0.2:")]
+    assert "left out" in named
+
+
+def test_a_nut_too_thin_for_its_countersinks_is_capped_and_warned_naming_m() -> None:
+    # R5 a: m 0.8 on M6 caps both depths at m / 2, and the volume integrates the capped depth.
+    from screw.calc.thread import countersink_volume, face_chamfer_volume
+
+    info = derive(NutParams(clearance=0.1, m=0.8))
+    named = [w for w in info.warnings if w.startswith("m 0.8:")]
+    assert len(named) == 2
+    assert "countersinks are cut 0.4 mm deep" in named[0]
+    assert "chamfers are cut 0.4 mm deep" in named[1]
+    expected = (nut_closed_volume(6.0, 1.0, 10.0, 0.8, 0.1)
+                - 2 * countersink_volume(6.0, 1.0, 0.1, 10.0, 3.48, 45.0, 0.4)
+                - 2 * face_chamfer_volume(10.0, 5.0, 30.0, 0.4))
+    assert nut_end_closed_volume(6.0, 1.0, 10.0, 0.8, 0.1) == pytest.approx(expected, rel=1e-12)
+
+
+def test_a_nut_with_room_for_its_ends_carries_no_end_warning_and_its_formula_names_them() -> None:
+    info = derive(NutParams(clearance=0.1))
+    assert info.warnings[0] == WARNING
+    assert not any("(L15)" in w for w in info.warnings)
+    assert info.model_dump()["rows"]  # the document is whole
+    broken = derive(NutParams.model_construct(d=math.inf, pitch=1.0, s=10.0, m=5.2, clearance=0.1))
+    text = next(w for w in broken.warnings if w.startswith("volume not reported"))
+    assert "lead-in countersinks" in text
+    assert "face chamfers" in text

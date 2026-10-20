@@ -8,6 +8,7 @@ number (L02, D-15).
 
 from __future__ import annotations
 
+import contextlib
 import math
 from collections.abc import Callable, Mapping
 from typing import Literal, NamedTuple
@@ -21,10 +22,11 @@ from screw.calc.thread import (
     basic_minor_diameter,
     bolt_end_closed_volume,
     built_thread_length,
+    end_depths,
     fillet_radius,
     fine_stl_refusal,
     flank_normal_gap,
-    nut_closed_volume,
+    nut_end_closed_volume,
     pitch_diameter,
     thread_depth,
     thread_length_conflict,
@@ -362,8 +364,10 @@ def _nut(p: NutParams) -> PartInfo:
         ("engagement_turns", PAIR, "Engagement (m / P)", "turns", "m / pitch",
          lambda: turns_of(p.m, p.pitch)),
         ("volume", PART, "Volume (closed form)", "mm³",
-         "the closed form (sqrt(3) / 2) * s^2 * m - section_area(d, pitch, clearance) * m",
-         lambda: nut_closed_volume(p.d, p.pitch, p.s, p.m, p.clearance)),
+         "the closed form (sqrt(3) / 2) * s^2 * m - section_area(d, pitch, clearance) * m, "
+         "less the two lead-in countersinks (90° included, opening to 1.16 * d / 2) and the two "
+         "face chamfers (30° from the face, from s / 2) at the depths this part is cut to",
+         lambda: nut_end_closed_volume(p.d, p.pitch, p.s, p.m, p.clearance)),
     ]
     rows: list[InfoRow] = []
     warnings = [STANDING_WARNING]
@@ -373,6 +377,12 @@ def _nut(p: NutParams) -> PartInfo:
     if p.clearance <= 0:
         warnings.append(f"clearance {p.clearance:g} is not positive: "
                         "the pair cannot be proven (PAIR-03)")
+    # R3, R5, L02: a countersink or chamfer the builder cuts shallower than its model, or leaves
+    # out, because the user's own fields leave no room, is said here, naming the field.
+    # Only a model_construct instance can fail here; the volume row below then says it is not
+    # reported.
+    with contextlib.suppress(OverflowError, ValueError):
+        warnings.extend(end_depths(p.d, p.pitch, p.clearance, p.s, p.m)[2])
     for key, group, label, unit, formula, compute in computed:
         try:
             value = compute()
