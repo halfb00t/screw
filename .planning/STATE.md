@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Hex Nut and Kernel Pair Proof
-status: executing
-stopped_at: Completed 05-17-PLAN.md
-last_updated: "2026-10-20T15:07:40.019Z"
+status: verifying
+stopped_at: Completed 05-18-PLAN.md
+last_updated: "2026-10-20T15:36:39.445Z"
 last_activity: 2026-10-20
 last_activity_desc: Phase 05 execution started
-state_head: 9b2b4bed3f541ee032d79019dbaa92c8cacab406
+state_head: 184d2547708ab8cf82d58d8d20f1cebc01643741
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 60
-  completed_plans: 59
+  completed_plans: 60
   percent: 57
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-10-12)
 
 Phase: 05 (Hex Nut and Kernel Pair Proof) — EXECUTING
 Plan: 18 of 18
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-10-20 — Phase 05 execution started
 
 Progress: [██████░░░░] 57%
@@ -118,6 +118,7 @@ Progress: [██████░░░░] 57%
 | Phase 05 P15 | 75min | 3 tasks | 9 files |
 | Phase 05 P16 | 35min | 3 tasks | 17 files |
 | Phase 05 P17 | 17min | 3 tasks | 7 files |
+| Phase 05 P18 | 30 min | 3 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -229,6 +230,8 @@ Recent decisions affecting current work:
 - [Phase 05]: 05-16: ran the M18 diagnosis, the 240-cell pair grid and the product-cell comparison once each; M18 empty reproduces 10/10 and is a band of poses (H2 not held), grid 240/240 equals the table, no ISO 4032 row m differs so no product cells
 - [Phase 05]: 05-17: D-21 rule selects the kept fine preset 0.01 mm / 0.1 rad; worst deviation 0.0161 mm (M20) against the owner's R6 bound 0.025 mm; TESSELLATION and the fine-STL caps unchanged
 - [Phase 05]: 05-17: harness vertex check amended 1e-4 to 1e-3 mm after the first run aborted on a 1.9e-4 mm model-vs-solid gap at M20 (rule, ladder, fraction, bound untouched)
+- [Phase 05]: 05-18: a preview STL is saved as <slug>_preview.stl (calc.download_name, one rule for the API header and screw export); the phase entry is L15 because L14 is the GOST source decision
+- [Phase 05]: 05-18: the nut has no fine-STL cap (R12 condition not met, 05-05); the owner's sign-off on that interim is outstanding, see docs/tech_debt/active/2026-10-14-nut-fine-stl-caps-unmeasured.md
 
 ### Pending Todos
 
@@ -275,6 +278,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-20T15:07:39.851Z
-Stopped at: Completed 05-17-PLAN.md
+Last session: 2026-10-20T15:36:39.269Z
+Stopped at: Completed 05-18-PLAN.md
 Resume file: None
