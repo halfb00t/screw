@@ -591,6 +591,15 @@ TIP_ANGLE_DEG = 45.0
 # model takes the 90 degree end, so the half angle from the axis is 45 degrees.
 COUNTERSINK_HALF_ANGLE_DEG = 45.0
 
+# Nut lead-in countersink face radius, stated model (R3 b, owner ruling 2026-10-20, option A):
+# the countersink opens to `COUNTERSINK_FACE_FACTOR * d / 2` on the face. GOST ISO 4032-2014
+# (ISO 4032:2012) Figure 1 footnote c names the diameter `da` the countersink runs to, and
+# Tables 1 and 2 print `da max` per size but the figure gives no rule that ties the face to it.
+# The factor is the largest `da_max / d` of the 14 table rows, 1.16 at M2,5 (the smallest is
+# 1.08, at M10 and M20), so the cone opens at least as wide as any printed `da`. A model, not a
+# printed number: any panel row it feeds says "model".
+COUNTERSINK_FACE_FACTOR = 1.16
+
 # Nut face chamfer, stated model (R4 a, read 3: GOST ISO 4032-2014 (ISO 4032:2012), Figure 1
 # footnote b). The figure prints the angle of the hexagon corners' chamfer as a band, 15 to 30
 # degrees from the end face, and no depth; the model takes the 30 degree end, as a cone from the
@@ -622,3 +631,55 @@ def piece_refusal(measured: float, oracle: float, what: str) -> str | None:
         return (f"the {what} is {measured:.6g} mm3 where its oracle says {oracle:.6g} mm3, "
                 f"relative error {rel:+.3e}, allowed {T_PIECE:g} of the piece (D-10, R11)")
     return None
+
+
+def end_depths(d: float, pitch: float, clearance: float, s: float,
+               m: float) -> tuple[float, float, list[str]]:
+    """The countersink depth and the face chamfer depth the builder cuts, and what was capped.
+
+    The countersink is the cone from the face radius `COUNTERSINK_FACE_FACTOR * d / 2` at
+    `COUNTERSINK_HALF_ANGLE_DEG` to the root radius, past which it removes no material: depth
+    (face radius - root radius) / tan(half angle). The chamfer is the cone from the inscribed
+    radius s / 2 at `CHAMFER_ANGLE_DEG`, to the depth it reaches at the hexagon corner. Each
+    is capped, with a warning and never a refusal (L02, R5: the user set neither), where the
+    oracles' validity (P10) would otherwise fail:
+
+    - face radius at most the void's crest radius d/2 + clearance: the cone cannot cross the
+      void, so the countersink is left out (depth 0), naming `clearance`;
+    - face radius past s / 2: it would leave the flats and overlap the chamfer, so the
+      countersink is left out, naming `s`;
+    - 2 * depth above m: the cutters of the two faces would meet, so each depth is capped at
+      m / 2, naming `m`. The oracle caps the chamfer by a flat cut at that depth
+      (`face_chamfer_volume`), so the builder must cut the same shape.
+    """
+    if not m > 0:
+        raise ValueError(f"m {m:g} mm must be above 0")
+    warnings: list[str] = []
+    ro, rr = _radii(d, pitch, clearance)
+    face_radius = COUNTERSINK_FACE_FACTOR * d / 2
+    if face_radius <= ro:
+        csk = 0.0
+        warnings.append(
+            f"clearance {clearance:g}: the nut lead-in countersink opens to {face_radius:.4g} mm "
+            f"radius, which does not pass the void's crest radius d/2 + clearance = {ro:.4g} mm, "
+            f"so it cannot cross the void and is left out (L15)")
+    elif face_radius > s / 2:
+        csk = 0.0
+        warnings.append(
+            f"s {s:g}: the nut lead-in countersink opens to {face_radius:.4g} mm radius, past "
+            f"the flats at s / 2 = {s / 2:.4g} mm, so it is left out (L15)")
+    else:
+        full = (face_radius - rr) / math.tan(math.radians(COUNTERSINK_HALF_ANGLE_DEG))
+        csk = min(full, m / 2)
+        if csk < full:
+            warnings.append(
+                f"m {m:g}: the nut lead-in countersinks are cut {csk:.4g} mm deep, not the "
+                f"{full:.4g} mm of the model, so they do not meet (L15)")
+    corner = s / 2 / math.cos(math.pi / 6)
+    chamfer_full = (corner - s / 2) * math.tan(math.radians(CHAMFER_ANGLE_DEG))
+    chamfer = min(chamfer_full, m / 2)
+    if chamfer < chamfer_full:
+        warnings.append(
+            f"m {m:g}: the nut face chamfers are cut {chamfer:.4g} mm deep, not the "
+            f"{chamfer_full:.4g} mm of the model, so they do not meet (L15)")
+    return csk, chamfer, warnings

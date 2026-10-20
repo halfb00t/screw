@@ -420,3 +420,91 @@ def test_a_piece_with_no_honest_oracle_is_refused_naming_the_piece(oracle: float
     text = t.piece_refusal(1.0, oracle, "countersink")
     assert text is not None
     assert "countersink" in text
+
+
+# --- the countersink face factor and end_depths ------------------------------------------------
+
+
+def test_the_countersink_face_factor_is_the_largest_da_over_d_of_the_owner_s_ruling() -> None:
+    """R3 option A, 2026-10-20: 1.16 (M2,5), labelled a stated model in its comment."""
+    assert t.COUNTERSINK_FACE_FACTOR == 1.16
+    source = Path(t.__file__).read_text()
+    comment = source.split("COUNTERSINK_FACE_FACTOR = 1.16", 1)[0].rsplit("\n\n", 1)[1]
+    assert "stated model" in comment or "A model, not a printed number" in comment
+    assert "M2,5" in comment
+
+
+@pytest.mark.parametrize(("d", "pitch", "s", "m"),
+                         [(2.0, 0.4, 4.0, 1.6), (6.0, 1.0, 10.0, 5.2), (20.0, 2.5, 30.0, 18.0)])
+def test_the_depths_of_a_nut_inside_the_validity_conditions_are_the_full_model_and_unwarned(
+        d: float, pitch: float, s: float, m: float) -> None:
+    c = 0.05
+    csk, chamfer, warnings = t.end_depths(d, pitch, c, s, m)
+    assert warnings == []
+    face = t.COUNTERSINK_FACE_FACTOR * d / 2
+    rr = t._radii(d, pitch, c)[1]
+    assert csk == pytest.approx((face - rr) / math.tan(math.radians(45)), rel=1e-12)
+    corner = s / 2 / math.cos(math.pi / 6)
+    assert chamfer == pytest.approx((corner - s / 2) * math.tan(math.radians(30)), rel=1e-12)
+    assert 2 * csk <= m
+    assert 2 * chamfer <= m
+
+
+def test_a_thin_nut_caps_both_depths_at_half_m_and_warns_naming_m_and_the_oracle_integrates_them(
+) -> None:
+    d, pitch, c, s, m = 6.0, 1.0, 0.05, 10.0, 0.8
+    csk, chamfer, warnings = t.end_depths(d, pitch, c, s, m)
+    assert csk == pytest.approx(m / 2)
+    assert chamfer == pytest.approx(m / 2)
+    assert len(warnings) == 2
+    assert all(w.startswith("m 0.8: ") for w in warnings)
+    full = (1.16 * d / 2 - t._radii(d, pitch, c)[1])
+    assert warnings[0] == (f"m 0.8: the nut lead-in countersinks are cut 0.4 mm deep, not the "
+                           f"{full:.4g} mm of the model, so they do not meet (L15)")
+    # the oracles accept exactly what end_depths returned, and the capped piece is smaller
+    face = t.COUNTERSINK_FACE_FACTOR * d / 2
+    capped = t.countersink_volume(d, pitch, c, s, face, 45.0, csk)
+    uncapped = t.countersink_volume(d, pitch, c, s, face, 45.0, full)
+    assert 0 < capped < uncapped
+    corner = s / 2 / math.cos(math.pi / 6)
+    assert 0 < t.face_chamfer_volume(s, s / 2, 30.0, chamfer) < t.face_chamfer_volume(
+        s, s / 2, 30.0, (corner - s / 2) * math.tan(math.radians(30)))
+
+
+@pytest.mark.parametrize("clearance", [-0.1, 0.0, 0.06, 0.2])
+def test_a_clearance_that_puts_the_crest_past_the_face_radius_drops_the_countersink_and_warns(
+        clearance: float) -> None:
+    """1.16 * d / 2 <= d / 2 + c is c >= 0.08 d: cap and warn naming `clearance`, never an
+    error (R3, L02). M2 puts the edge at c = 0.16."""
+    d = 2.0
+    csk, chamfer, warnings = t.end_depths(d, 0.4, clearance, 4.0, 1.6)
+    if clearance >= 0.08 * d:
+        assert csk == 0.0
+        assert len(warnings) == 1
+        assert warnings[0].startswith(f"clearance {clearance:g}: ")
+    else:
+        assert csk > 0.0
+        assert warnings == []
+    assert chamfer > 0.0
+
+
+def test_the_countersink_is_dropped_at_exactly_the_crest_radius_and_kept_just_inside() -> None:
+    d, pitch = 10.0, 1.5
+    edge = (t.COUNTERSINK_FACE_FACTOR - 1) * d / 2
+    assert t.end_depths(d, pitch, edge, 17.0, 8.0)[0] == 0.0
+    assert t.end_depths(d, pitch, edge - 1e-9, 17.0, 8.0)[0] > 0.0
+
+
+def test_a_face_radius_past_the_flats_drops_the_countersink_and_warns_naming_s() -> None:
+    """s between d + 2 c and 1.16 d is accepted by the model, but the cone would leave the
+    flats; the oracle would raise, so end_depths leaves the cut out and says so."""
+    csk, _, warnings = t.end_depths(10.0, 1.5, 0.0, 11.0, 8.0)
+    assert csk == 0.0
+    assert len(warnings) == 1
+    assert warnings[0].startswith("s 11: ")
+
+
+@pytest.mark.parametrize("m", [0.0, -1.0, math.nan])
+def test_end_depths_refuses_a_nut_height_that_is_not_above_zero_naming_it(m: float) -> None:
+    with pytest.raises(ValueError, match="m "):
+        t.end_depths(6.0, 1.0, 0.05, 10.0, m)
