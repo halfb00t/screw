@@ -360,25 +360,27 @@ def nut_turn_cap_refusal(m: float, pitch: float) -> str | None:
             f"2026-10-08-a-frontier); lower m or raise pitch")
 
 
-# The fine-STL caps of the thirteen (d, pitch, left_hand) rod runs L11 measured (D-03, D-21):
-# (d, pitch, left_hand) -> the largest length in mm whose fine STL plus its gzip level-1 copy
-# still fits the INTERIM 64 MiB export budget. L11 measured rows (`2026-10-08-a-grid`), not ISO
-# rows: each cap is the longest measured length below the first grid rod row whose fine raw STL
-# plus its gzip copy exceeded that budget, at the INTERIM fine preset (0.01 mm, 0.1 rad). The
-# criterion is the sum of the two blobs, not the STL alone: at M8 right L=68 the raw fine STL is
-# 45,659,684 bytes, under the budget. The caps are keyed by hand because the left-hand rods
-# measured smaller files and fit longer (first over-budget length M10 right 57, left 73; the
-# right-hand caps applied to a left-hand part refused lengths L11 had measured inside). The keys
-# are the campaign's run keys (ISO 262 preview pitches, UNVERIFIED as table truth, exact as run
-# keys and exactly representable floats), not ISO rows. This is bench evidence, not a `tables`
-# module, so it does not pre-empt contract 6. It was measured against the 64 MiB budget only and
-# applies unconditionally, even if a deployer changes SCREW_EXPORT_CACHE_MB (03-RESEARCH Open
-# Question 4). A part off these keys gets no cap: a cap from an unmeasured mapping to the
-# nearest row is the plausible number L02 forbids. Phase 7 re-measures the budget and the caps
-# (OPER-02, OPER-03). Turns are derived from the millimetres by `turns_of`, never stored.
+# The fine-STL caps of the thirteen (d, pitch, left_hand) rod runs L11 measured (D-03, D-21): (d,
+# pitch, left_hand) -> the largest length in mm whose fine STL plus its gzip level-1 copy still fits
+# the INTERIM 64 MiB export budget. L11 measured rows (`2026-10-08-a-grid`), not ISO rows: each cap
+# is the longest measured length below the first grid rod row whose fine raw STL plus its gzip copy
+# exceeded that budget, at the fine preset (0.01 mm, 0.1 rad), which the D-21 rule kept
+# (bench/RESULTS.md "Mesh deviation (Phase 5, D-21)": worst deviation 0.0161 mm against the 0.025 mm
+# bound), so no cap was re-derived; tests/test_mesh.py pins the preset the caps were measured at.
+# The criterion is the sum of the two blobs, not the STL alone: at M8 right L=68 the raw fine STL is
+# 45,659,684 bytes, under the budget. The caps are keyed by hand because the left-hand rods measured
+# smaller files and fit longer (first over-budget length M10 right 57, left 73; the right-hand caps
+# applied to a left-hand part refused lengths L11 had measured inside). The keys are the campaign's
+# run keys (ISO 262 preview pitches, UNVERIFIED as table truth, exact as run keys and exactly
+# representable floats), not ISO rows. This is bench evidence, not a `tables` module, so it does not
+# pre-empt contract 6. It was measured against the 64 MiB budget only and applies unconditionally,
+# even if a deployer changes SCREW_EXPORT_CACHE_MB (03-RESEARCH Open Question 4). A part off these
+# keys gets no cap: a cap from an unmeasured mapping to the nearest row is the plausible number L02
+# forbids. Phase 7 re-measures the budget and the caps (OPER-02, OPER-03). Turns are derived from
+# the millimetres by `turns_of`, never stored.
 # D-22: the cap reads the built thread `t`, the part these rods measured. The head and the plain
-# shank add bytes no run measured, bounded and small next to the thread (the head-plus-shank
-# fine bytes are in `bench/RESULTS.md`, Head fuse probe); Phase 7 re-sweeps on the finished bolt.
+# shank add bytes no run measured, bounded and small next to the thread (the head-plus-shank fine
+# bytes are in `bench/RESULTS.md`, Head fuse probe); Phase 7 re-sweeps on the finished bolt.
 FINE_STL_ROWS: dict[tuple[float, float, bool], float] = {
     (8.0, 1.25, False): 67.5,    # first row over budget: M8 right L=68 rod
     (10.0, 1.5, False): 56.0,    # M10 right L=57 rod
