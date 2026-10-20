@@ -182,9 +182,17 @@ section above governs (GOST ISO 4032-2014, L14: no Annex A, no M7, Table 1 and T
 - M3.5 has a row: yes. M7 has a row: yes. Both are non-preferred sizes (printed in parentheses).
 - Columns printed per size on the secondary source: P, c max/min, da max/min, dw min, e min, m max/min,
   mw min, s max/min. Plan 05-06 adjusts its dataclass to the columns the owner copy ends up carrying.
-- Face chamfer clause (read 3): PENDING — needed before plan 05-11 (R3, R4 and the oracle models
-  depend on whether one number, a band or nothing is printed) and plan 05-13. Read from GOST ISO
-  4032-2014 (L14).
+- Face chamfer clause (read 3): answered 2026-10-20 from GOST ISO 4032-2014 Figure 1 (clause 3, PDF
+  page 7), read by the orchestrating session from the rendered page image. The figure prints two
+  angles as **bands**, each in a footnote, and no single number:
+  - footnote b: `β = 15° – 30°`, the face chamfer of the hexagon corners, drawn from the end face
+    (the chamfer starts at the bearing face diameter `dw`, whose minimum the tables print);
+  - footnote c: `θ = 90° – 120°`, the included angle of the countersink of the thread entry, to the
+    diameter `da` (its max and min are printed per size in Tables 1 and 2).
+  No chamfer depth or diameter is printed beyond `dw` and `da`. Consequence for the conditional
+  rulings below: R3 (one number printed for the countersink?) takes `b`; R4 (one number printed for
+  the face chamfer?) takes `a`, labelled a model. The text layer reads the same footnotes
+  (`ЬР = 1 5 °-3 0 °`, `с0 = 90° - 120°`).
 
 ## ISO 724
 
