@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Hex Nut and Kernel Pair Proof
 status: executing
-stopped_at: Completed 05-14-PLAN.md
-last_updated: "2026-10-20T12:51:05.823Z"
+stopped_at: Completed 05-15-PLAN.md
+last_updated: "2026-10-20T13:51:40.222Z"
 last_activity: 2026-10-20
 last_activity_desc: Phase 05 execution started
-state_head: 14e0f0ec254c7bffc578788a7053534780b16d10
+state_head: c374150a5970d674cd90339ee918f7623d545b70
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 60
-  completed_plans: 56
+  completed_plans: 57
   percent: 57
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-12)
 ## Current Position
 
 Phase: 05 (Hex Nut and Kernel Pair Proof) — EXECUTING
-Plan: 10 of 18
+Plan: 11 of 18
 Status: Ready to execute
 Last activity: 2026-10-20 — Phase 05 execution started
 
@@ -115,6 +115,7 @@ Progress: [██████░░░░] 57%
 | Phase 05 P12 | 55 min | 3 tasks | 11 files |
 | Phase 05 P13 | ~1h | 3 tasks | 8 files |
 | Phase 05 P14 | 35min | 3 tasks | 8 files |
+| Phase 05 P15 | 75min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -221,6 +222,8 @@ Recent decisions affecting current work:
 - [Phase 05]: 05-13: nut.finish yields (piece, shape) per cut so each of the four end cuts is gated by its own volume at T_PIECE before the whole nut at T_GATE
 - [Phase 05]: 05-14: the shipped nut in the evidence row starts a whole number of pitches up (2 P), not at tip cone length + P: measured on M6 c=0.10, the plan's start reads 8.747 mm3 at all three matched poses (half a thread out of phase), 2 P reads empty
 - [Phase 05]: 05-14: prove at c <= 0 builds nothing and reads nothing (R8); PairReport.closed_control and .shipped are None where nothing was read (L02)
+- [Phase 05]: 05-15: the pair cell harness raises the nut's across-flats s to max(10, d + 2c + 1) because the product default is refused for 94 of 240 rows; prove never reads s
+- [Phase 05]: 05-15: make test prints the ten slowest tests so the ubuntu seconds of the pair verify cell are in the CI log (167.5 s)
 
 ### Pending Todos
 
@@ -267,6 +270,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-20T12:51:05.672Z
-Stopped at: Completed 05-14-PLAN.md
+Last session: 2026-10-20T13:51:40.055Z
+Stopped at: Completed 05-15-PLAN.md
 Resume file: None
