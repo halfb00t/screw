@@ -6762,3 +6762,50 @@ the diagnosis says for M18. It is one run on macOS arm64 at a busy and varying l
 not linux/amd64 (the ubuntu reading is 05-15's single verify cell; the weekly `pair.yml` is the
 other platform's grid), and every cell's `m` is the recorded preview value, so it says nothing about
 the verified ISO 4032 heights (the next entry).
+
+
+## Product pair cells (Phase 5, D-07)
+
+The D-07 planner alert asks for product cells wherever the verified ISO 4032 nut height differs from the
+height the recorded campaign used: at the row's `m` the product's `screw pair nut` is a different cell
+from the recorded one, so it would be predicted from the recorded verdict at the same size, clearance
+and hand, committed before it runs, and run through `screw pair nut` in its own process. The prediction
+step is a comparison of two tables and needs no kernel, so it was made first, on HEAD
+`80aac99` (2026-10-20): the `m` of every size in `tests/data/pair_expected.tsv` (the recorded preview
+values, derived from `2026-10-08-a-pair`) against the `m_max` of the same size in
+`screw.tables.iso4032.NUTS` (the GOST ISO 4032-2014 rows read in 05-06, owner ruling 2026-10-20), and the
+pitch beside it:
+
+| size | recorded `m` (pair table) | ISO 4032 row `m_max` | recorded pitch | row pitch | differs |
+|---|---|---|---|---|---|
+| M2 | 1.6 | 1.6 | 0.4 | 0.4 | no |
+| M2.5 | 2 | 2 | 0.45 | 0.45 | no |
+| M3 | 2.4 | 2.4 | 0.5 | 0.5 | no |
+| M3.5 | 2.8 | 2.8 | 0.6 | 0.6 | no |
+| M4 | 3.2 | 3.2 | 0.7 | 0.7 | no |
+| M5 | 4.7 | 4.7 | 0.8 | 0.8 | no |
+| M6 | 5.2 | 5.2 | 1 | 1 | no |
+| M7 | 5.6 | no row | 1 | no row | no product cell |
+| M8 | 6.8 | 6.8 | 1.25 | 1.25 | no |
+| M10 | 8.4 | 8.4 | 1.5 | 1.5 | no |
+| M12 | 10.8 | 10.8 | 1.75 | 1.75 | no |
+| M14 | 12.8 | 12.8 | 2 | 2 | no |
+| M16 | 14.8 | 14.8 | 2 | 2 | no |
+| M18 | 15.8 | 15.8 | 2.5 | 2.5 | no |
+| M20 | 18 | 18 | 2.5 | 2.5 | no |
+
+**Result: no size's `m` differs.** All 14 sizes that have an ISO 4032 row (M2 to M20 without M7) carry
+the same `m` as the recorded cell, and the same pitch; the recorded preview heights were already the
+GOST rows' `m_max`. M7 has no row, so it has no product cell, and its 16 recorded grid cells stay in
+the pair tier as the previous entry ran them. So the set of product cells is empty: no prediction file
+was written, no `screw pair nut` process was started, and no shipped-solid evidence readings exist
+for this entry. `bench/product_cells.py` and its test were not added (the plan commits only this entry
+in this case); nothing under `src/` or `tests/data/` changed.
+
+**What this shows / what it does not.** The 240 cells of the previous entry are already cells at the
+verified heights for every size that has a row, and their verdicts equal the pre-registered ones (240
+of 240), so the product's nut heights are covered by that record. It does not run the product's own
+`screw pair nut` command (the CLI path with the default `s`, the rows' `s`, or `--left-hand`) at any
+cell beyond 05-15's single verify cell and the hand run it recorded, and the weekly `pair.yml` is
+outside this entry. If a later edit moves a row's `m_max` (a re-read of the standard), this
+comparison is the one to repeat, with predictions written before the run.
