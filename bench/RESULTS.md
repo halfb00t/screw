@@ -6603,3 +6603,99 @@ heights of 56 to 92 mm, far above any nut height read so far (the largest `m` ab
 runs, macOS arm64, load not controlled (3.84 before, so the host was not idle), not a bound and not
 linux/amd64; every geometry input is an UNVERIFIED preview value and no table value of ISO 4032 or
 ISO 4753 is read here. Phase 7 re-sweeps on linux/amd64 (OPER-02).
+
+
+## M18 control diagnosis (Phase 5, D-08)
+
+The recorded pair campaign (`2026-10-08-a-pair`) read the M18 half-pitch control at theta -2pi/3 (right
+hand) and +2pi/3 (left hand) as 0 solids in every same-hand cell, at every clearance from -0.05 to
+0.20 mm, so M18 is `inconclusive` on both hands. `05-M18-DIAGNOSIS.md` (on `origin/main` before this
+run, blob `9544d6f286d659d4f7cc63ba614bfd43fc7c8d26`, the probe's guard checked it byte for byte)
+fixed 36 readings and five predictions before any of them existed. This entry is the one run of them.
+Nothing was re-run, and no rule, constant, body, pose, K or the M18 label changed.
+
+Command: `.venv/bin/python -m bench.m18_probe`. HEAD `b19348a974434072accbb6d410e9fb133ebc16ef` (clean
+apart from two untracked planning files), 2026-10-20 (UTC). Host: `bench.machine_facts()`: `18 CPUs,
+arm64, 64.0 GiB RAM`, Python 3.12, cadquery 2.8.0, cadquery-ocp 7.9.3.1.1. The host is shared with
+other sessions and was busy: load1 **9.46** before the first child (13:56:35Z) and **12.85** after the
+last (13:57:32Z, includes the run's own load); the probe is non-decisive whatever the load, and
+volumes and solid counts do not depend on it. Wall time **59.6 s** (`time`: real 59.588, user 209.34,
+four children at a time); each reading took 2.89 to 3.70 s against the 130 s deadline, none timed out
+or failed (36 of 36 `built`). The record `bench/results/phase-05/m18-diagnosis.jsonl` (37 lines: the
+header and 36 readings) has sha256 `b301560c784d386dd3d680ad2d52e71b674f7355264218ab9cc397dcf0ad8fbc`.
+The header's `void` is `null`: the harness controls read as predicted, so the probe is not void.
+
+All 36 readings (cell M18: d 18.0, pitch 2.5, m 15.8, K = 3; the closed form of the control is
+336.6316 mm3 at c = 0.10 and 394.0500 mm3 at c = -0.05):
+
+| probe | hand | clearance | theta | delta from failing theta | fuzzy | swapped | outcome | solids | volume mm3 | seconds |
+|---|---|---|---|---|---|---|---|---|---|---|
+| P1 | right | 0.1 | -2.094395 | 0 | none | no | built | 0 | 0.00000 | 3.33 |
+| P1 | right | 0.1 | -2.094395 | 0 | none | no | built | 0 | 0.00000 | 3.34 |
+| P1 | right | 0.1 | -2.094395 | 0 | none | no | built | 0 | 0.00000 | 3.33 |
+| P1 | right | 0.1 | -2.094395 | 0 | none | no | built | 0 | 0.00000 | 3.34 |
+| P1 | right | 0.1 | -2.094395 | 0 | none | no | built | 0 | 0.00000 | 3.47 |
+| P1 | left | 0.1 | 2.094395 | 0 | none | no | built | 0 | 0.00000 | 3.39 |
+| P1 | left | 0.1 | 2.094395 | 0 | none | no | built | 0 | 0.00000 | 3.40 |
+| P1 | left | 0.1 | 2.094395 | 0 | none | no | built | 0 | 0.00000 | 3.37 |
+| P1 | left | 0.1 | 2.094395 | 0 | none | no | built | 0 | 0.00000 | 3.23 |
+| P1 | left | 0.1 | 2.094395 | 0 | none | no | built | 0 | 0.00000 | 3.23 |
+| P2 | right | 0.1 | -2.194395 | -0.1 | none | no | built | 1 | 336.63098 | 3.54 |
+| P2 | right | 0.1 | -2.104395 | -0.01 | none | no | built | 0 | 0.00000 | 3.34 |
+| P2 | right | 0.1 | -2.095395 | -0.001 | none | no | built | 0 | 0.00000 | 3.35 |
+| P2 | right | 0.1 | -2.094495 | -0.0001 | none | no | built | 0 | 0.00000 | 3.34 |
+| P2 | right | 0.1 | -2.094295 | +0.0001 | none | no | built | 0 | 0.00000 | 3.37 |
+| P2 | right | 0.1 | -2.093395 | +0.001 | none | no | built | 0 | 0.00000 | 3.34 |
+| P2 | right | 0.1 | -2.084395 | +0.01 | none | no | built | 0 | 0.00000 | 3.21 |
+| P2 | right | 0.1 | -1.994395 | +0.1 | none | no | built | 0 | 0.00000 | 3.27 |
+| P2 | left | 0.1 | 1.994395 | -0.1 | none | no | built | 0 | 0.00000 | 3.20 |
+| P2 | left | 0.1 | 2.084395 | -0.01 | none | no | built | 0 | 0.00000 | 3.14 |
+| P2 | left | 0.1 | 2.093395 | -0.001 | none | no | built | 0 | 0.00000 | 3.06 |
+| P2 | left | 0.1 | 2.094295 | -0.0001 | none | no | built | 0 | 0.00000 | 3.07 |
+| P2 | left | 0.1 | 2.094495 | +0.0001 | none | no | built | 0 | 0.00000 | 3.07 |
+| P2 | left | 0.1 | 2.095395 | +0.001 | none | no | built | 0 | 0.00000 | 3.09 |
+| P2 | left | 0.1 | 2.104395 | +0.01 | none | no | built | 0 | 0.00000 | 2.95 |
+| P2 | left | 0.1 | 2.194395 | +0.1 | none | no | built | 1 | 336.63099 | 3.11 |
+| P3 | right | -0.05 | -2.094395 | 0 | none | no | built | 0 | 0.00000 | 2.97 |
+| P3 | left | -0.05 | 2.094395 | 0 | none | no | built | 0 | 0.00000 | 2.89 |
+| P4a | right | 0.1 | -2.094395 | 0 | 0.0001 | no | built | 0 | 0.00000 | 3.04 |
+| P4a | left | 0.1 | 2.094395 | 0 | 0.0001 | no | built | 0 | 0.00000 | 2.96 |
+| P4b | right | 0.1 | -2.094395 | 0 | none | yes | built | 0 | 0.00000 | 3.03 |
+| P4b | left | 0.1 | 2.094395 | 0 | none | yes | built | 0 | 0.00000 | 2.93 |
+| H | right | 0.1 | 0.000000 | (control, not the failing pose) | none | no | built | 1 | 336.63033 | 3.50 |
+| H | right | 0.1 | 2.094395 | (control, not the failing pose) | none | no | built | 1 | 336.63005 | 3.62 |
+| H | left | 0.1 | -2.094395 | (control, not the failing pose) | none | no | built | 1 | 336.62996 | 3.63 |
+| H | left | 0.1 | 0.000000 | (control, not the failing pose) | none | no | built | 1 | 336.63007 | 3.70 |
+
+Predictions, each judged on the readings above:
+
+- **H1 held.** All ten P1 readings (five per hand, each in a fresh process) read 0 solids and 0 mm3.
+- **H2 not held.** Of the eight readings at |delta| >= 0.01 rad (delta -0.1, -0.01, +0.01, +0.1 on each
+  hand), only two read non-empty, and they are mirror images (the side away from theta 0): delta -0.1
+  on the right hand (theta -2.1944, 1 solid, 336.63098 mm3, relative error 2.0e-06 against the closed
+  form) and delta +0.1 on the left hand (theta +2.1944, 1 solid, 336.63099 mm3, 1.9e-06). The other
+  six read 0 solids (right and left at +-0.01, and +0.1 right, -0.1 left). The four readings at
+  |delta| = 1e-4 and 1e-3 read 0 on both hands, which H2 left open.
+- **H3 held.** Both P3 readings (c = -0.05, right and left) read 0 solids.
+- **H4 held.** The two P4a readings (fuzzy value 1e-4 mm) and the two P4b readings (operands swapped)
+  read 0 solids and 0 mm3 on both hands, the recorded empty.
+- **H held.** The four harness controls read 1 solid each, at 336.63033, 336.63005, 336.62996 and
+  336.63007 mm3, relative errors 3.9e-06 to 5.0e-06 against 336.6316, far inside `PAIR_BAND` (1e-3).
+
+**Finding.** The empty is reproducible on this host and kernel: the failing control read 0 solids in
+10 of 10 fresh processes, on both hands as mirror images, at c = 0.10 and at c = -0.05 alike, and it
+does not depend on the boolean's fuzzy value or on operand order. It is not local to the one pose: the
+empty spans, on each hand, every reading from 0.01 rad on the side away from theta 0 to 0.1 rad on
+the side toward theta 0 (a band of at least 0.11 rad; 14 of the 16 P2 readings are empty), and a
+healthy reading appears only at 0.1 rad on the away side. One edge of the band therefore lies between
+0.01 and 0.1 rad on the away side, and the other lies beyond 0.1 rad on the toward side without being
+bracketed by this probe (the next non-empty reading there is the harness control at theta 0, more than
+2 rad away).
+
+**What this shows / what it does not.** This is a diagnosis of one cell on one host: it says the
+recorded M18 empty is a property of this kernel and the band of poses around the control, and not
+noise of the single recorded run, the boolean's tolerance or its operand order. It does not say why
+the boolean returns nothing there, locates only one of the band's two edges, and was run once on
+macOS arm64 with the host busy. The D-08 escape clause holds: M18 stays `inconclusive` on both hands,
+the label is unchanged, and `screw pair` reads `inconclusive` for the M18 nut until a later
+pre-registered campaign proves it.
