@@ -377,3 +377,4 @@ read says which read.
   it edits `download_refusal`; this record does not decide between reusing the rod caps and a separate
   nut run.
 - R13 (`d2`, `D1`, `D2` on the panel, D-16): `b`. The basic-profile value everywhere (`d - 3H/4`, `d - 5H/4`), the ISO 724 table only as a test that the two agree. Moot if read 4 finds ISO 724 gives a formula (read 4 PENDING). Applied by plans 05-08 and 05-09.
+- R14 (`make verify` over the 90 s threshold, 05-12 Task 3): `accept`. Measured 101.65 s on this host after 05-12 (3144 passed; 113 s after 05-11). The watertight sweep keeps all 60 ids in verify (62.5 s serial, 13.3 s on 8 workers); nothing moves under `grid`. Ruled 2026-10-20.
