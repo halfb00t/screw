@@ -6809,3 +6809,131 @@ of 240), so the product's nut heights are covered by that record. It does not ru
 cell beyond 05-15's single verify cell and the hand run it recorded, and the weekly `pair.yml` is
 outside this entry. If a later edit moves a row's `m_max` (a re-read of the standard), this
 comparison is the one to repeat, with predictions written before the run.
+
+
+## Mesh deviation (Phase 5, D-21)
+
+FRNT-06 asks that the download mesh's chord deviation be chosen against the 0.05 mm proof clearance
+and not carried from spur (INTERIM, D-01). This entry is that choice, measured by the rule that was
+committed before any row was run (`c87aadf`, `bench/mesh_deviation.py` docstring): **the fine preset
+is the largest linear deflection on the ladder 0.01, 0.0075, 0.005, 0.0025 mm (angular 0.1 rad,
+absolute) whose measured maximum radial deviation over M2, M3, M6, M10, M20, both hands, is at most
+FRACTION x 0.05 mm.** FRACTION is 0.5, the owner's R6 answer (`05-OWNER-READS.md`, "Rulings", R6 `a`:
+"0.5 of the 0.05 mm proof clearance, keep the 0.01 mm fine preset, cite the rule"); the agent did not
+choose it. The bound is **0.025 mm**. The ladder was fixed in the same commit and no step was added or
+removed after a table was seen.
+
+**The step the rule selects: 0.01 mm / 0.1 rad.** The worst row at that step is 0.0161 mm (M20, both
+hands), 64 % of the bound; the rule takes the largest step and stops there. `TESSELLATION["fine"]`
+therefore stays (0.01, 0.1), so no fine-STL cap, refused-preset count or M20 x 200 figure is re-derived
+(Task 3's kept-preset branch).
+
+Command: `.venv/bin/python -m bench.mesh_deviation` (one run, exit 0). Run on HEAD
+`e9698cfb8eb99e1aac390418b378b59ed47a978f` (the instrument as amended below; the working tree had no
+other tracked change), 2026-10-20 (UTC). Host: `bench.machine_facts()`: `18 CPUs, arm64, 64.0 GiB RAM`,
+macOS 27.0.1, Python 3.12.15, cadquery 2.8.0, cadquery-ocp 7.9.3.1.1. Load before: load1 7.01 at
+2026-10-20T14:51:36+00:00; after: load1 6.46 at 2026-10-20T14:52:15+00:00 (the second includes the
+run's own meshing load). The host was shared with other sessions throughout and nothing waited for it
+to quiet: the figures are geometry, not timings, and do not depend on load. Wall time of the whole run
+40.7 s (`time`: user 183.0, system 4.0).
+
+What was measured: each rod is the shipped `screw.solid.helical.thread(d, pitch, 8 pitch)`, one per size
+and hand, meshed by `bench.thread_spike.measure.mesh_stl` (the shipped call, `shape.copy().exportStl(
+..., ascii=False, relative=False)`), at the four ladder steps and, as the positive control, at the
+preview preset (0.08 mm, 0.5 rad). Every facet of the STL is sampled; a facet is skipped when its
+centroid lies within two pitches of either end of the rod. Deviation = |`section_radius(d, pitch, 0,
+atan2(y, x) - hand 2 pi z / pitch)` - `hypot(x, y)`| at the facet centroid, hand +1 right, -1 left;
+"p99" is the nearest-rank 99th percentile over the same facets; "Max vertex gap" is the largest
+distance of any mesh vertex in the window from the modelled surface (the harness check).
+
+| Size | Hand | Preset (lin mm / ang rad) | Triangles | Bytes | Max deviation mm | p99 deviation mm | Max vertex gap mm |
+|---|---|---|---|---|---|---|---|
+| M2 | right | 0.01 / 0.1 | 49130 | 2456584 | 0.0069 | 0.0067 | 5.7e-05 |
+| M2 | right | 0.0075 / 0.1 | 57344 | 2867284 | 0.0069 | 0.0064 | 5.7e-05 |
+| M2 | right | 0.005 / 0.1 | 72492 | 3624684 | 0.0064 | 0.0035 | 5.8e-05 |
+| M2 | right | 0.0025 / 0.1 | 136794 | 6839784 | 0.0036 | 0.0022 | 5.8e-05 |
+| M2 | right | 0.08 / 0.5 | 6010 | 300584 | 0.0789 | 0.0542 | 4.6e-05 |
+| M2 | left | 0.01 / 0.1 | 42864 | 2143284 | 0.0068 | 0.0066 | 5.8e-05 |
+| M2 | left | 0.0075 / 0.1 | 45464 | 2273284 | 0.0068 | 0.0051 | 5.8e-05 |
+| M2 | left | 0.005 / 0.1 | 52730 | 2636584 | 0.0064 | 0.0036 | 5.8e-05 |
+| M2 | left | 0.0025 / 0.1 | 102320 | 5116084 | 0.0036 | 0.0022 | 5.8e-05 |
+| M2 | left | 0.08 / 0.5 | 5146 | 257384 | 0.0587 | 0.0542 | 4.5e-05 |
+| M3 | right | 0.01 / 0.1 | 58020 | 2901084 | 0.0102 | 0.0096 | 8.6e-05 |
+| M3 | right | 0.0075 / 0.1 | 70628 | 3531484 | 0.0102 | 0.0064 | 8.6e-05 |
+| M3 | right | 0.005 / 0.1 | 89176 | 4458884 | 0.0079 | 0.0036 | 8.6e-05 |
+| M3 | right | 0.0025 / 0.1 | 214170 | 10708584 | 0.0026 | 0.0020 | 8.6e-05 |
+| M3 | right | 0.08 / 0.5 | 7054 | 352784 | 0.1237 | 0.0913 | 7.9e-05 |
+| M3 | left | 0.01 / 0.1 | 46844 | 2342284 | 0.0103 | 0.0070 | 8.6e-05 |
+| M3 | left | 0.0075 / 0.1 | 52522 | 2626184 | 0.0103 | 0.0056 | 8.6e-05 |
+| M3 | left | 0.005 / 0.1 | 65272 | 3263684 | 0.0097 | 0.0036 | 8.6e-05 |
+| M3 | left | 0.0025 / 0.1 | 160254 | 8012784 | 0.0026 | 0.0023 | 8.6e-05 |
+| M3 | left | 0.08 / 0.5 | 6192 | 309684 | 0.0888 | 0.0618 | 7.9e-05 |
+| M6 | right | 0.01 / 0.1 | 88846 | 4442384 | 0.0158 | 0.0071 | 5.5e-05 |
+| M6 | right | 0.0075 / 0.1 | 133744 | 6687284 | 0.0158 | 0.0064 | 5.7e-05 |
+| M6 | right | 0.005 / 0.1 | 212452 | 10622684 | 0.0051 | 0.0045 | 5.5e-05 |
+| M6 | right | 0.0025 / 0.1 | 359630 | 17981584 | 0.0036 | 0.0017 | 5.9e-05 |
+| M6 | right | 0.08 / 0.5 | 12348 | 617484 | 0.0775 | 0.0754 | 1.3e-05 |
+| M6 | left | 0.01 / 0.1 | 66248 | 3312484 | 0.0159 | 0.0073 | 5.5e-05 |
+| M6 | left | 0.0075 / 0.1 | 107834 | 5391784 | 0.0159 | 0.0064 | 5.8e-05 |
+| M6 | left | 0.005 / 0.1 | 160550 | 8027584 | 0.0051 | 0.0035 | 5.5e-05 |
+| M6 | left | 0.0025 / 0.1 | 243920 | 12196084 | 0.0036 | 0.0018 | 5.8e-05 |
+| M6 | left | 0.08 / 0.5 | 9712 | 485684 | 0.0797 | 0.0631 | 1.3e-05 |
+| M10 | right | 0.01 / 0.1 | 191924 | 9596284 | 0.0150 | 0.0081 | 9.0e-05 |
+| M10 | right | 0.0075 / 0.1 | 235852 | 11792684 | 0.0081 | 0.0073 | 9.1e-05 |
+| M10 | right | 0.005 / 0.1 | 303458 | 15172984 | 0.0081 | 0.0036 | 9.7e-05 |
+| M10 | right | 0.0025 / 0.1 | 780908 | 39045484 | 0.0025 | 0.0021 | 9.7e-05 |
+| M10 | right | 0.08 / 0.5 | 15520 | 776084 | 0.1268 | 0.0946 | 9.0e-05 |
+| M10 | left | 0.01 / 0.1 | 145516 | 7275884 | 0.0150 | 0.0080 | 9.0e-05 |
+| M10 | left | 0.0075 / 0.1 | 170980 | 8549084 | 0.0081 | 0.0068 | 9.1e-05 |
+| M10 | left | 0.005 / 0.1 | 218420 | 10921084 | 0.0081 | 0.0035 | 9.7e-05 |
+| M10 | left | 0.0025 / 0.1 | 599166 | 29958384 | 0.0029 | 0.0020 | 9.7e-05 |
+| M10 | left | 0.08 / 0.5 | 12344 | 617284 | 0.1299 | 0.0889 | 8.9e-05 |
+| M20 | right | 0.01 / 0.1 | 316938 | 15846984 | 0.0161 | 0.0068 | 1.9e-04 |
+| M20 | right | 0.0075 / 0.1 | 376992 | 18849684 | 0.0127 | 0.0058 | 1.9e-04 |
+| M20 | right | 0.005 / 0.1 | 783488 | 39174484 | 0.0052 | 0.0041 | 1.9e-04 |
+| M20 | right | 0.0025 / 0.1 | 1341052 | 67052684 | 0.0035 | 0.0017 | 1.9e-04 |
+| M20 | right | 0.08 / 0.5 | 42032 | 2101684 | 0.1250 | 0.0648 | 1.8e-04 |
+| M20 | left | 0.01 / 0.1 | 222164 | 11108284 | 0.0161 | 0.0069 | 1.9e-04 |
+| M20 | left | 0.0075 / 0.1 | 253848 | 12692484 | 0.0110 | 0.0058 | 1.9e-04 |
+| M20 | left | 0.005 / 0.1 | 605556 | 30277884 | 0.0060 | 0.0038 | 1.9e-04 |
+| M20 | left | 0.0025 / 0.1 | 905746 | 45287384 | 0.0035 | 0.0017 | 1.9e-04 |
+| M20 | left | 0.08 / 0.5 | 32794 | 1639784 | 0.1233 | 0.0643 | 1.8e-04 |
+
+**Reading it.** The rule selects 0.01 mm at 0.1 rad: the largest deviation on that step in the whole
+grid is 0.0161 mm (M20, right and left), against the 0.025 mm bound. The positive control works: at the
+preview preset every size and both hands read 0.0587 to 0.1299 mm, all over the bound. Triangles at
+the selected step are 42 864 to 316 938 across the grid; the counts for M2, M3, M6, M10 and M20
+right-hand equal those 05-RESEARCH F2 recorded for the same rods (49 130, 58 020, 88 846, 191 924,
+316 938).
+
+**What this shows / what it does not.**
+- The deviation is stated on sampled facet centroids (all of them, on these rods), an upper bound of
+  each sampled point's distance to the surface, not a proven bound of the mesh's global maximum
+  (vertices lie on the surface and read as zero). It is a radial gap: on a flank the distance normal
+  to the surface is about half of it, on a crest or root equal. Checked against the kernel on M3
+  right-hand at 0.01 mm: for the 12 facets tried (the six largest gaps and six at random)
+  `Shape.distance` from the centroid to the solid's boundary faces read 0.498 to 0.521 of the radial
+  gap on flank facets and 1.000 to 1.002 on crest and root facets.
+- It covers the five sizes and both hands named, on 8-pitch rods of the shipped thread, not the
+  finished bolt (head, tip cone, fillet) or the nut (void, countersinks). The head and nut faces are
+  planar or conical and were not sampled.
+- **A vertex departs from the model by up to 1.9e-04 mm at M20** (5.7e-05 at M2, 8.6e-05 at M3,
+  9.0e-05 to 9.7e-05 at M10). It is the same at all five presets of a size, so it is the shipped solid
+  and not the mesh: the order of `helical.SEWING_TOLERANCE` (1e-4 mm). It is 0.8 % of the bound and is
+  not added to the deviations above.
+- **The instrument was amended once, after its first run.** The first run (HEAD `c87aadf`, load1 6.35
+  at 2026-10-20T14:47:19+00:00, 20.6 s) aborted at M20 right-hand, 0.01 mm: its harness check, written
+  at 1e-4 mm from 05-RESEARCH F2's 1.2e-05 read at M6, found a vertex 1.912e-04 mm off the model, and
+  it printed 40 rows (M2 to M10) before the abort. Those 40 rows equal this table's in every column they
+  printed. The cause was diagnosed (above) and the threshold became 1e-3 mm in `e9698cf`, before this
+  run: 540 times below the 0.54 mm a wrong hand misses by, and 4 % of the bound. The rule, the ladder,
+  the fraction and the bound were not touched.
+- **05-RESEARCH F2's maxima are not all reproduced.** Triangle counts match F2 exactly, but F2's
+  sampled maxima (every 5th to 7th facet) are larger than this run's every-facet maxima for some
+  sizes: at 0.01 mm M2 0.0094 against 0.0069, M3 0.0141 against 0.0102, M10 0.0184 against 0.0150
+  (M6 0.0159 against 0.0158 and M20 0.0161 against 0.0161 agree); at 0.005 mm M2 0.0090 against
+  0.0064, M6 0.0056 against 0.0051, M20 0.0059 against 0.0052 (M3 0.0079 and M10 0.0081 agree). A
+  sample cannot exceed the maximum of all its facets for the same metric, so F2's probe measured
+  something slightly different there; its script is not in the repository and was not recovered.
+  The kernel cross-check above supports this run's metric. The decision does not turn on it: F2's
+  largest fine-preset figure, 0.0184 mm, is also under the 0.025 mm bound.
