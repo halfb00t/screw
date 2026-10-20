@@ -13,6 +13,7 @@ from screw import calc
 from screw.calc import (
     NUT_NO_ROW_WARNING,
     STANDING_WARNING,
+    Counterpart,
     Download,
     PartInfo,
     PresetMatch,
@@ -36,6 +37,7 @@ from screw.calc.thread import (
 from screw.params import KINDS, BoltParams, FastenerParams, NutParams
 from screw.tables import iso262
 from screw.tables.gost16093 import BOLT_LIMITS, NUT_LIMITS
+from screw.tables.iso4017 import HEADS
 from screw.tables.iso4032 import NUTS
 from screw.tables.presets import catalogue, expand_nut
 from screw.tables.rows import HexNut
@@ -407,7 +409,10 @@ def test_a_capped_part_warns_about_its_fine_stl_after_the_standing_warning() -> 
 def test_no_fine_stl_warning_at_the_cap_or_off_the_measured_rows() -> None:
     for p in (BoltParams(d=8.0, pitch=1.25, length=67.5, thread_length=67.5),
               BoltParams(d=8.0, pitch=1.0, length=67.6, thread_length=67.6)):
-        assert derive(p).warnings == [STANDING_WARNING, NO_ROW]
+        # M8 at pitch 1.25 is a size; pitch 1.0 is not, so the second also warns on the nut side.
+        assert derive(p).warnings[:2] == [STANDING_WARNING, NO_ROW]
+        assert derive(p).warnings[2:] == ([] if p.pitch == 1.25 else [
+            "no GOST ISO 4032-2014 (ISO 4032:2012) row for d 8 pitch 1; set s and m on the nut"])
 
 
 def test_the_fine_stl_cap_reads_the_built_thread_not_the_length() -> None:
@@ -697,7 +702,10 @@ def test_every_catalogue_row_reports_its_own_stored_values_with_its_own_source()
 def test_a_non_coarse_pitch_builds_with_no_row_value_and_one_honest_warning() -> None:
     info = derive(BoltParams(pitch=0.75))
     assert {r.key for r in info.rows}.isdisjoint(ROW_KEYS)
-    assert info.warnings == [STANDING_WARNING, NO_ROW]
+    # The third is the counterpart's off-row warning: pitch 0.75 is no ISO 262 coarse size.
+    assert info.warnings == [
+        STANDING_WARNING, NO_ROW,
+        "no GOST ISO 4032-2014 (ISO 4032:2012) row for d 6 pitch 0.75; set s and m on the nut"]
     assert info.preset == PresetMatch(status="custom", id=None, display=None)
     assert info.designation is None
     assert {r.group for r in info.rows} == {"Shank and thread", "Head", "Part"}
@@ -707,7 +715,7 @@ def test_an_edited_field_drops_every_row_value_never_the_nearest_row() -> None:
     for change in ({"length": 21.0}, {"s": 10.5}, {"k": 4.1}, {"d": 6.5}, {"thread_length": 19.0}):
         info = derive(BoltParams.model_validate(change))
         assert {r.key for r in info.rows}.isdisjoint(ROW_KEYS), change
-        assert info.warnings[-1] == NO_ROW, change
+        assert NO_ROW in info.warnings, change
 
 
 def test_an_iso_4014_part_with_an_edited_thread_length_reports_no_b_lg_max_or_ls_min() -> None:
@@ -1066,3 +1074,95 @@ def test_the_m18_note_is_derived_without_the_kernel_loaded() -> None:
     out = subprocess.run([sys.executable, "-I", "-c", code], capture_output=True, text=True,
                          check=True).stdout
     assert out.split() == ["True", "False"]
+
+
+# ------------------------------------------------------- the counterpart (TYPE-04, D-02, D-03)
+
+NO_NUT_ROW = "no GOST ISO 4032-2014 (ISO 4032:2012) row for d {d}; set s and m on the nut"
+NO_BOLT_ROW = "no ISO 4017:2022 row for d {d}; set s, k, length and thread_length on the bolt"
+CARRIED = {"d": 6.0, "pitch": 1.0, "left_hand": False}
+
+
+def _counterpart(p: FastenerParams) -> Counterpart:
+    counterpart = derive(p).counterpart
+    assert counterpart is not None
+    return counterpart
+
+
+def test_the_default_bolt_names_its_nut_with_the_iso_4032_m6_row_and_no_warning() -> None:
+    nut = next(n for n in NUTS if n.size == "M6")
+    info = derive(BoltParams())
+    assert _counterpart(BoltParams()) == Counterpart(
+        kind="nut", fields={**CARRIED, "s": nut.s, "m": nut.m_max})
+    assert list(_counterpart(BoltParams()).fields) == ["d", "pitch", "left_hand", "s", "m"]
+    assert not any(w.startswith("no GOST ISO 4032-2014 (ISO 4032:2012) row for") for w in
+                   info.warnings)
+
+
+def test_the_default_nut_names_its_bolt_with_the_iso_4017_m6_head_and_no_warning() -> None:
+    head = BoltParams()
+    nut = NutParams(clearance=0.1)
+    assert _counterpart(nut) == Counterpart(
+        kind="bolt", fields={**CARRIED, "s": head.s, "k": head.k})
+    assert not any(w.startswith("no ISO 4017:2022 row for") for w in derive(nut).warnings)
+
+
+@pytest.mark.parametrize("p", [BoltParams(left_hand=True),
+                               NutParams(left_hand=True, clearance=0.1)])
+def test_left_hand_carries_over_as_a_json_boolean_in_both_directions(p: FastenerParams) -> None:
+    counterpart = _counterpart(p)
+    assert counterpart.fields["left_hand"] is True
+    assert '"left_hand":true' in counterpart.model_dump_json()
+
+
+def test_a_bolt_off_the_nut_rows_carries_d_pitch_and_hand_and_warns_naming_the_row_source() -> None:
+    info = derive(BoltParams(d=6.5))
+    assert _counterpart(BoltParams(d=6.5)) == Counterpart(
+        kind="nut", fields={**CARRIED, "d": 6.5})
+    assert info.warnings[-1] == NO_NUT_ROW.format(d="6.5 pitch 1")
+
+
+def test_an_iso_4017_m7_bolt_is_off_the_nut_rows_because_gost_iso_4032_prints_no_m7() -> None:
+    head = next(h for h in HEADS if h.size == "M7")
+    m7 = BoltParams(d=7.0, pitch=1.0, s=head.s, k=head.k)
+    assert _counterpart(m7) == Counterpart(kind="nut", fields={**CARRIED, "d": 7.0})
+    assert derive(m7).warnings[-1] == NO_NUT_ROW.format(d="7 pitch 1")
+
+
+def test_a_nut_off_the_iso_4017_rows_carries_d_pitch_and_hand_and_warns() -> None:
+    nut = NutParams(d=6.5, clearance=0.1)
+    assert _counterpart(nut) == Counterpart(kind="bolt", fields={**CARRIED, "d": 6.5})
+    assert derive(nut).warnings[-1] == NO_BOLT_ROW.format(d="6.5 pitch 1")
+
+
+def test_a_value_one_float_off_a_row_gets_no_nearest_row() -> None:
+    for p in (BoltParams(d=math.nextafter(6.0, 7.0)), BoltParams(pitch=math.nextafter(1.0, 2.0)),
+              NutParams(d=math.nextafter(6.0, 7.0), clearance=0.1)):
+        assert set(_counterpart(p).fields) == {"d", "pitch", "left_hand"}
+
+
+@pytest.mark.parametrize("p", [
+    BoltParams(), BoltParams(d=6.5), BoltParams(length=30.0, thread_length=18.0),
+    NutParams(clearance=0.1), NutParams(d=6.5, clearance=0.1)])
+def test_clearance_length_and_thread_length_are_never_in_a_counterpart(p: FastenerParams) -> None:
+    assert {"clearance", "length", "thread_length"}.isdisjoint(_counterpart(p).fields)
+
+
+@pytest.mark.parametrize("nut", NUTS, ids=lambda n: n.size)
+def test_following_a_bolts_counterpart_gives_the_nut_row_of_its_size(nut: HexNut) -> None:
+    size = next(s for s in iso262.SIZES if s.label == nut.size)
+    head = next(h for h in HEADS if h.size == nut.size)
+    bolt = BoltParams(d=size.d, pitch=size.pitch, s=head.s, k=head.k, length=40.0,
+                      thread_length=40.0)
+    follow = NutParams.model_validate({**_counterpart(bolt).fields, "clearance": 0.1})
+    assert (follow.d, follow.pitch, follow.s, follow.m) == (size.d, size.pitch, nut.s, nut.m_max)
+    assert follow.clearance == 0.1
+    preset = derive(follow).preset
+    assert preset is not None
+    assert (preset.status, preset.id) == ("exact", f"iso4032:{nut.size}")
+
+
+def test_following_a_nuts_counterpart_gives_a_bolt_with_the_nuts_d_pitch_and_hand() -> None:
+    nut = NutParams(left_hand=True, clearance=0.1)
+    bolt = BoltParams.model_validate(_counterpart(nut).fields)
+    assert (bolt.d, bolt.pitch, bolt.left_hand) == (nut.d, nut.pitch, nut.left_hand)

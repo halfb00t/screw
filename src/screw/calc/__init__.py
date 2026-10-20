@@ -117,6 +117,22 @@ class Download(BaseModel):
                     "`build_error` on every format)")
 
 
+class Counterpart(BaseModel):
+    """The other part that mates with this one: its kind and the fields this part can carry to it.
+
+    `fields` holds the shared d, pitch and left_hand, and the catalogue row's own size values
+    when (d, pitch) is a row of the other kind. Never `clearance`, `length` or `thread_length`:
+    the nut's clearance is required and the user types it (D-02), and a length is the user's
+    choice of bolt (TYPE-04).
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    kind: str
+    # The smart union keeps `left_hand` a JSON boolean instead of coercing it to 1.0 (RESEARCH F6).
+    fields: dict[str, float | bool]
+
+
 class PartInfo(BaseModel):
     """The info document: identical on `/api/<kind>/info` and `screw info <kind>` (D-15)."""
 
@@ -138,6 +154,11 @@ class PartInfo(BaseModel):
         description="every format and quality the model route serves, in the order the page "
                     "offers them (per format the route's default quality first), each with the "
                     "reason the route and `screw export` refuse it, or null")
+    counterpart: Counterpart | None = Field(
+        description="the part this one mates with: a bolt's nut and a nut's bolt, with the "
+                    "shared d, pitch and left_hand and, on a catalogue size, that row's own "
+                    "values; never the clearance, which the user types (D-02); null for a kind "
+                    "without a counterpart")
 
 
 def _thread_length_warning(p: BoltParams, t: float) -> str | None:
@@ -164,7 +185,14 @@ def _bolt(p: BoltParams) -> PartInfo:
     # Imported here, never at module top: importing `screw.calc.thread` runs this file, and a
     # table import above would load the tables behind every rebuilt link (contract 6,
     # tests/test_import_boundaries.py).
-    from screw.calc.presets import bolt_limits_for, designation_for, match, notes, row_values
+    from screw.calc.presets import (
+        bolt_limits_for,
+        counterpart_for,
+        designation_for,
+        match,
+        notes,
+        row_values,
+    )
 
     # One built thread for every row, warning and cap below (D-27): never recomputed.
     t = built_thread_length(p.thread_length, p.length)
@@ -246,6 +274,9 @@ def _bolt(p: BoltParams) -> PartInfo:
     downloads = _downloads(p)
     for reason in dict.fromkeys(e.refusal for e in downloads if e.refusal is not None):
         warnings.append(reason)
+    counterpart, off_row = counterpart_for(p)
+    if off_row is not None:
+        warnings.append(off_row)
     if row is None:
         preset = PresetMatch(status="custom", id=None, display=None)
         designation = None
@@ -255,12 +286,13 @@ def _bolt(p: BoltParams) -> PartInfo:
         designation = designation_for(p, row)
         row_notes = notes(row)
     return PartInfo(kind=p.kind, rows=rows, warnings=warnings, designation=designation,
-                    preset=preset, notes=row_notes, downloads=downloads)
+                    preset=preset, notes=row_notes, downloads=downloads, counterpart=counterpart)
 
 
 def _nut(p: NutParams) -> PartInfo:
     # Imported here for the reason `_bolt` gives (contract 6).
     from screw.calc.presets import (
+        counterpart_for,
         match_nut,
         nut_designation_for,
         nut_limits_for,
@@ -337,14 +369,17 @@ def _nut(p: NutParams) -> PartInfo:
         warnings.append(reason)
     # The M18 note keys on (d, pitch) alone, so it reads on a nut that is no catalogue row too.
     m18 = [M18_NOTE] if (p.d, p.pitch) == M18_KEY else []
+    counterpart, off_row = counterpart_for(p)
+    if off_row is not None:
+        warnings.append(off_row)
     if row is None:
         return PartInfo(kind=p.kind, rows=rows, warnings=warnings, designation=None,
                         preset=PresetMatch(status="custom", id=None, display=None), notes=m18,
-                        downloads=downloads)
+                        downloads=downloads, counterpart=counterpart)
     return PartInfo(kind=p.kind, rows=rows, warnings=warnings,
                     designation=nut_designation_for(p, row),
                     preset=PresetMatch(status="exact", id=row.id, display=row.display),
-                    notes=[*nut_notes(row), *m18], downloads=downloads)
+                    notes=[*nut_notes(row), *m18], downloads=downloads, counterpart=counterpart)
 
 
 def derive(p: FastenerParams) -> PartInfo:

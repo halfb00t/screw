@@ -11,9 +11,9 @@ from functools import lru_cache
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from screw.calc import HEAD, LIMITS, NUT, SHANK, InfoRow
-from screw.params import KINDS, BoltParams, NutParams
-from screw.tables import gost16093, iso262
+from screw.calc import HEAD, LIMITS, NUT, SHANK, Counterpart, InfoRow
+from screw.params import KINDS, BoltParams, FastenerParams, NutParams
+from screw.tables import gost16093, iso262, iso4017, iso4032
 from screw.tables.presets import NutPresetRow, PresetRow, catalogue, expand_nut, nut_catalogue
 from screw.tables.presets import expand as expand_row
 from screw.tables.rows import Source
@@ -197,6 +197,39 @@ def nut_limits_for(d: float, pitch: float) -> list[InfoRow]:
                 ("D2_min", "Pitch diameter, min, 6H", limits.D2_min),
                 ("D2_max", "Pitch diameter, max, 6H", limits.D2_max)])
     return []
+
+
+def counterpart_for(p: FastenerParams) -> tuple[Counterpart, str | None]:
+    """The part that mates with `p` and, off a catalogue size, the warning that says what is left.
+
+    d, pitch and left_hand always carry over. When the exact (d, pitch) is a row of the other
+    kind's standard, that row's across-flats and height carry too: the nut's `s` and `m` (the
+    `m_max` the nut presets take, read 1) for a bolt, the bolt's `s` and `k` for a nut, which
+    are the same in both ISO 4017 grades (04-OWNER-READS.md A3). Never `clearance`, `length` or
+    `thread_length` (D-02, TYPE-04). Off a row there is no nearest row (L02): the fields the
+    counterpart cannot carry stay the target kind's own defaults and the warning names them
+    (D-03). The unit is mm; `:g` prints 6.5 and 1 as the page and the CLI print them.
+    """
+    shared: dict[str, float | bool] = {"d": p.d, "pitch": p.pitch, "left_hand": p.left_hand}
+    label = _size_label(p.d, p.pitch)
+    where = f"d {p.d:g} pitch {p.pitch:g}"
+    if isinstance(p, BoltParams):
+        nut = next((n for n in iso4032.NUTS if n.size == label), None)
+        if nut is None:
+            return (Counterpart(kind=NutParams.kind, fields=shared),
+                    f"no GOST ISO 4032-2014 (ISO 4032:2012) row for {where}; "
+                    "set s and m on the nut")
+        return (Counterpart(kind=NutParams.kind, fields={**shared, "s": nut.s, "m": nut.m_max}),
+                None)
+    if isinstance(p, NutParams):
+        head = next((h for h in iso4017.HEADS if h.size == label), None)
+        if head is None:
+            return (Counterpart(kind=BoltParams.kind, fields=shared),
+                    f"no ISO 4017:2022 row for {where}; "
+                    "set s, k, length and thread_length on the bolt")
+        return (Counterpart(kind=BoltParams.kind, fields={**shared, "s": head.s, "k": head.k}),
+                None)
+    raise TypeError(f"no counterpart for kind {p.kind!r}")
 
 
 # The picker's select labels, in the order a row's `picker` strings answer them (D-10, D-28).

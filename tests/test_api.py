@@ -253,7 +253,8 @@ def test_openapi_documents_the_typed_contracts() -> None:
         "$ref": "#/components/schemas/PartInfo"}
 
     part_info = schema["components"]["schemas"]["PartInfo"]
-    keys = {"kind", "rows", "warnings", "designation", "preset", "notes", "downloads"}
+    keys = {"kind", "rows", "warnings", "designation", "preset", "notes", "downloads",
+            "counterpart"}
     assert set(part_info["properties"]) == keys
     assert set(part_info["required"]) == keys
     preset = schema["components"]["schemas"]["PresetMatch"]
@@ -316,8 +317,9 @@ def test_an_iso_4014_match_and_a_non_row_part_over_the_wire() -> None:
     assert by_key["b"]["group"] == by_key["ls_min"]["group"] == "Shank and thread"
     assert by_key["b"]["label"].startswith("Thread length b, ref (ISO 4014:2022 ")
     custom = client.get("/api/bolt/info", params={"pitch": 0.75}).json()
-    assert custom["warnings"][-1] == (
-        "no ISO 4014:2022 or ISO 4017:2022 row matches these fields; row values not reported")
+    assert custom["warnings"][1:] == [
+        "no ISO 4014:2022 or ISO 4017:2022 row matches these fields; row values not reported",
+        "no GOST ISO 4032-2014 (ISO 4032:2012) row for d 6 pitch 0.75; set s and m on the nut"]
     assert {"s_min", "b"}.isdisjoint(row["key"] for row in custom["rows"])
     assert bolt["notes"] == ["product grade A (ISO 4014:2022: l ≤ 150 mm and l ≤ 10 d)",
                              "wrench size 16 mm (ISO 4014:2022); the withdrawn DIN 931 used 17 mm"]
@@ -1230,3 +1232,17 @@ def test_the_m18_nut_info_carries_the_pair_proof_label_on_the_route() -> None:
     m18 = {"d": 18.0, "pitch": 2.5, "s": 27.0, "m": 14.8, "clearance": 0.1}
     assert label in client.get("/api/nut/info", params=m18).json()["notes"]
     assert label not in client.get("/api/nut/info", params={**m18, "pitch": 2.0}).json()["notes"]
+
+
+def test_the_counterpart_travels_on_the_wire_for_both_kinds_and_keeps_a_boolean() -> None:
+    bolt = client.get("/api/bolt/info", params={"left_hand": "true"}).json()["counterpart"]
+    assert bolt == {"kind": "nut", "fields": {
+        "d": 6.0, "pitch": 1.0, "left_hand": True, "s": 10.0, "m": 5.2}}
+    assert bolt["fields"]["left_hand"] is True
+    nut = client.get("/api/nut/info", params={"clearance": 0.1}).json()["counterpart"]
+    assert nut == {"kind": "bolt", "fields": {
+        "d": 6.0, "pitch": 1.0, "left_hand": False, "s": 10.0, "k": 4.0}}
+    off = client.get("/api/bolt/info", params={"d": 6.5}).json()
+    assert off["counterpart"]["fields"] == {"d": 6.5, "pitch": 1.0, "left_hand": False}
+    assert off["warnings"][-1] == (
+        "no GOST ISO 4032-2014 (ISO 4032:2012) row for d 6.5 pitch 1; set s and m on the nut")

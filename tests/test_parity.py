@@ -788,3 +788,17 @@ def test_a_thread_length_conflict_is_the_same_words_on_the_api_and_the_cli(
                       "--thread-length", str(thread_length)])
         assert stop.value.code == 2
         assert capsys.readouterr().err == f"error: {detail['msg']}\n"
+
+
+@pytest.mark.parametrize(("kind", "other", "params"), [
+    ("bolt", "nut", {}), ("bolt", "nut", {"d": 6.5}),
+    ("nut", "bolt", {"clearance": 0.1}), ("nut", "bolt", {"clearance": 0.1, "d": 6.5})])
+def test_the_cli_and_the_api_print_the_same_counterpart(
+        kind: str, other: str, params: Params, capsys: pytest.CaptureFixture[str]) -> None:
+    cli.main(["info", kind, *[a for k, v in params.items() for a in (_flag(k), repr(v))]])
+    cli_doc = json.loads(capsys.readouterr().out)
+    api_doc = client.get(f"/api/{kind}/info", params=params).json()
+    assert cli_doc["counterpart"] == api_doc["counterpart"]
+    assert cli_doc["counterpart"]["kind"] == other
+    assert cli_doc["warnings"] == api_doc["warnings"]
+    assert "clearance" not in cli_doc["counterpart"]["fields"]
