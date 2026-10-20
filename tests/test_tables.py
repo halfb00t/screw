@@ -15,12 +15,13 @@ import pytest
 from mypy import api as mypy_api
 
 from screw.calc import derive
+from screw.calc.thread import basic_minor_diameter, pitch_diameter
 from screw.params import BoltParams
-from screw.tables import iso4014, iso4032
+from screw.tables import iso724, iso4014, iso4032
 from screw.tables.iso262 import SIZES
 from screw.tables.iso4017 import HEADS, SERIES
 from screw.tables.presets import FIELD_NAMES, PresetRow, catalogue, expand
-from screw.tables.rows import HexHead, HexNut, ShankCell, Size, Source
+from screw.tables.rows import BasicDiameters, HexHead, HexNut, ShankCell, Size, Source
 
 ROOT = Path(__file__).resolve().parents[1]
 TABLES_DIR = ROOT / "src" / "screw" / "tables"
@@ -503,6 +504,7 @@ def test_no_row_in_the_tree_is_unverified() -> None:
     assert unverified([*SIZES, *HEADS, *SERIES, *iso4014.HEADS, *iso4014.CELLS]) == []
     assert unverified(iso4014.BANDS) == []
     assert unverified(iso4032.NUTS) == []
+    assert unverified(iso724.BASIC) == []
     assert [s for s in sources if s.status != "verified"] == []
     # Size, head and length for ISO 4017; size, head, band and cell for ISO 4014.
     assert len(sources) == sum(3 if row.standard == "ISO 4017" else 4 for row in ROWS)
@@ -690,3 +692,35 @@ def test_a_planted_nut_row_that_breaks_a_relation_is_reported_by_size_and_relati
     assert broken_nut_relations(dataclasses.replace(m6, grade="B")) == [
         "M6: grade A up to d = 16, B above"
     ]
+
+
+# GOST 24705-2004 Table 1 (ISO 724:1993, MOD): the basic diameters the 6g and 6H limits add to.
+def test_the_basic_rows_are_the_15_coarse_iso_262_sizes_with_iso_262s_d_and_pitch() -> None:
+    assert [row.size for row in iso724.BASIC] == [size.label for size in SIZES]
+    assert all(row.d == DIAMETER[row.size] and row.pitch == PITCH[row.size] for row in iso724.BASIC)
+
+
+def test_a_basic_row_cites_gost_24705_table_1_at_its_printed_nominal_diameter() -> None:
+    assert {row.source.document() for row in iso724.BASIC} == {
+        "GOST 24705-2004 (ISO 724:1993, MOD)"
+    }
+    assert {row.source.table for row in iso724.BASIC} == {"Table 1"}
+    assert all(row.source.status == "verified" for row in iso724.BASIC)
+    m25 = next(row for row in iso724.BASIC if row.size == "M2.5")
+    assert m25.source.cite() == "GOST 24705-2004 (ISO 724:1993, MOD) Table 1, column 2,5"
+
+
+@pytest.mark.parametrize("row", iso724.BASIC, ids=lambda r: r.size)
+def test_a_printed_d2_and_d1_equal_the_basic_profile_formula_rounded_to_the_printed_decimals(
+    row: object,
+) -> None:
+    # R13: the agreement test only; no panel number comes from the table.
+    assert isinstance(row, BasicDiameters)
+    assert round(pitch_diameter(row.d, row.pitch), 3) == row.d2
+    assert round(basic_minor_diameter(row.d, row.pitch), 3) == row.d1
+
+
+@pytest.mark.parametrize("row", iso724.BASIC, ids=lambda r: r.size)
+def test_basic_relations(row: object) -> None:
+    assert isinstance(row, BasicDiameters)
+    assert row.d1 < row.d2 < row.d

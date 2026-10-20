@@ -15,6 +15,7 @@ from screw.calc.thread import (
     MAX_TURNS,
     MIN_TAIL_MM,
     T_GATE,
+    basic_minor_diameter,
     bolt_closed_volume,
     built_thread_length,
     closed_volume,
@@ -22,6 +23,7 @@ from screw.calc.thread import (
     fundamental_height,
     head_too_small_refusal,
     hex_prism_volume,
+    pitch_diameter,
     root_radius_refusal,
     section_area,
     section_radius,
@@ -379,3 +381,16 @@ def test_a_thread_length_above_the_length_is_a_conflict_with_the_pinned_text() -
 def test_equal_shorter_and_unusable_values_are_no_conflict(
         length: float, thread_length: float) -> None:
     assert thread_length_conflict(length, thread_length) is None
+
+
+def test_the_basic_pitch_and_minor_diameters_are_the_iso_68_1_formulas() -> None:
+    h = fundamental_height(1.0)
+    assert pitch_diameter(6.0, 1.0) == 6.0 - 0.75 * h
+    assert basic_minor_diameter(6.0, 1.0) == 6.0 - 1.25 * h
+
+
+@pytest.mark.parametrize("pitch", [0.4, 1.0, 1.25, 2.5])
+def test_the_basic_minor_diameter_is_the_shank_minor_diameter_row_formula(pitch: float) -> None:
+    assert basic_minor_diameter(10.0, pitch) == pytest.approx(
+        10.0 - 2 * thread_depth(pitch), abs=1e-15
+    )

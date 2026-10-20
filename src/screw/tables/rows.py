@@ -20,7 +20,10 @@ Status = Literal["verified", "unverified"]
 # The ISO edition a GOST designation adopts, for the citation (L14,
 # docs/requirements/standards-sources.md). Closed on purpose: a GOST text not listed here has no
 # recorded ISO equivalent, so citing it as one would be a guess.
-ADOPTED_ISO: dict[str, str] = {"GOST ISO 4032-2014": "ISO 4032:2012"}
+ADOPTED_ISO: dict[str, str] = {
+    "GOST ISO 4032-2014": "ISO 4032:2012",
+    "GOST 24705-2004": "ISO 724:1993, MOD",
+}
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -135,4 +138,19 @@ class ShankCell:
     grade: Literal["A", "B"]
     ls_min: float
     lg_max: float
+    source: Source
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class BasicDiameters:
+    """The basic diameters of one coarse size as GOST 24705-2004 Table 1 prints them, in mm.
+
+    `d2` is the one printed column for D2 and d2, `d1` the one for D1 and d1.
+    """
+
+    size: str
+    pitch: float
+    d: float
+    d2: float
+    d1: float
     source: Source

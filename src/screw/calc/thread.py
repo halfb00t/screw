@@ -47,6 +47,25 @@ def thread_depth(pitch: float) -> float:
     return 5 / 8 * fundamental_height(pitch)
 
 
+def pitch_diameter(d: float, pitch: float) -> float:
+    """d2 = D2 = d - 3H/4: the basic pitch diameter of the ISO 68-1:2023 basic profile (R13).
+
+    This is the number the info panel prints. The GOST 24705-2004 (ISO 724:1993, MOD) Table 1
+    value is not a source of it: the table is only what the shipped values are tested to agree
+    with, rounded to the table's printed decimals.
+    """
+    return d - 3 / 4 * fundamental_height(pitch)
+
+
+def basic_minor_diameter(d: float, pitch: float) -> float:
+    """d1 = D1 = d - 5H/4: the basic minor diameter of the ISO 68-1:2023 basic profile (R13).
+
+    The same value as the shank's `minor_diameter` row (d - 2 * 5H/8), under the name the nut's
+    D1 uses. Tested against GOST 24705-2004 Table 1 only; no panel number comes from the table.
+    """
+    return d - 5 / 4 * fundamental_height(pitch)
+
+
 def _radii(d: float, pitch: float, clearance: float) -> tuple[float, float]:
     """(crest radius, root radius) with the radial clearance added to both."""
     return d / 2 + clearance, d / 2 - thread_depth(pitch) + clearance

@@ -14,7 +14,7 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
-from screw.tables import iso4014, iso4032
+from screw.tables import iso724, iso4014, iso4032
 from screw.tables.iso262 import SIZES
 from screw.tables.iso4017 import HEADS, SERIES
 
@@ -43,6 +43,7 @@ _SHAPE: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
         ("pitch", "c_max", "c_min", "da_max", "da_min", "dw_min", "e_min", "m_max", "m_min",
          "mw_min", "s", "s_min"),
     ),
+    "iso724.tsv": (("size",), ("pitch", "d", "d2", "d1")),
 }
 
 
@@ -164,6 +165,17 @@ def shipped() -> dict[str, Rows]:
             }
             for nut in iso4032.NUTS
         },
+        "iso724.tsv": {
+            (row.size,): {
+                "pitch": row.pitch,
+                "d": row.d,
+                "d2": row.d2,
+                "d1": row.d1,
+                "table": row.source.table,
+                "column": row.source.column,
+            }
+            for row in iso724.BASIC
+        },
     }
 
 
@@ -204,6 +216,7 @@ def test_the_owner_copy_is_not_vacuous() -> None:
     assert len(read_owner(OWNER_DIR, "iso4014_bands.tsv")) == 15
     assert len(read_owner(OWNER_DIR, "iso4014_lengths.tsv")) == 108
     assert len(read_owner(OWNER_DIR, "iso4032.tsv")) == 14
+    assert len(read_owner(OWNER_DIR, "iso724.tsv")) == 15
 
 
 def test_one_changed_cell_is_one_disagreement_naming_file_key_column_and_both_values() -> None:
@@ -245,3 +258,13 @@ def test_a_dash_in_the_owner_band_file_is_none_and_one_changed_band_is_one_disag
     assert line == (
         "iso4014_bands.tsv (M12) column b_long: owner 36.0, shipped None; go read the standard"
     )
+
+
+def test_one_changed_basic_cell_names_the_file_the_size_the_column_and_both_values() -> None:
+    owner = read_owner(OWNER_DIR, "iso724.tsv")
+    changed = {key: dict(cells) for key, cells in owner.items()}
+    changed["M7",]["d2"] = 6.351
+
+    (line,) = diff("iso724.tsv", changed, shipped()["iso724.tsv"])
+
+    assert line == "iso724.tsv (M7) column d2: owner 6.351, shipped 6.35; go read the standard"
