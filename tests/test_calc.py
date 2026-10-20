@@ -20,13 +20,18 @@ from screw.calc import (
 )
 from screw.calc.presets import WITHDRAWN_DIN_WRENCH_MM, designation_for, match
 from screw.calc.thread import (
+    basic_minor_diameter,
     bolt_closed_volume,
     fine_stl_refusal,
     nut_closed_volume,
+    pitch_diameter,
     section_radius,
+    thread_depth,
     thread_length_conflict,
 )
 from screw.params import KINDS, BoltParams, FastenerParams, NutParams
+from screw.tables import iso262
+from screw.tables.gost16093 import BOLT_LIMITS, NUT_LIMITS
 from screw.tables.iso4032 import NUTS
 from screw.tables.presets import catalogue, expand_nut
 from screw.tables.rows import HexNut
@@ -42,9 +47,12 @@ GOST = "GOST ISO 4032-2014 (ISO 4032:2012)"
 NUT_CITED_KEYS = ["s_min", "e_min", "m_max", "m_min", "mw_min", "dw_min"]
 ROW_KEYS = ["s_min", "e_min", "k_max", "k_min", "dw_min", "b", "lg_max", "ls_min"]
 # The default part is the ISO 4017 M6 x 20 row, so it carries that row's five head values.
+# M6 x 1 is an exact ISO 262 size, so the default part carries the 6g limits group (INFO-02).
+LIMITS_KEYS = ["d_max", "d_min", "d2_max", "d2_min"]
+NUT_LIMITS_KEYS = ["D1_min", "D1_max", "D2_min", "D2_max"]
 KEYS = ["d", "pitch", "length", "thread_length", "shank_length", "turns", "thread_depth",
-        "minor_diameter", "s", "across_corners", "k", "s_min", "e_min", "k_max", "k_min",
-        "dw_min", "volume"]
+        "minor_diameter", "pitch_diameter", *LIMITS_KEYS, "s", "across_corners", "k", "s_min",
+        "e_min", "k_max", "k_min", "dw_min", "volume"]
 
 
 def _rows(p: BoltParams) -> dict[str, float]:
@@ -56,8 +64,7 @@ def test_the_default_document_lists_the_inputs_the_thread_the_head_then_the_volu
     assert info.kind == "bolt"
     assert [r.key for r in info.rows] == KEYS
     assert [r.unit for r in info.rows] == [
-        "mm", "mm", "mm", "mm", "mm", "", "mm", "mm", "mm", "mm", "mm", "mm", "mm", "mm", "mm",
-        "mm", "mm³"]
+        "mm", "mm", "mm", "mm", "mm", "", *["mm"] * 15, "mm³"]
 
 
 def test_the_default_thread_numbers_come_from_the_pinned_profile() -> None:
@@ -147,7 +154,7 @@ def test_the_derived_rows_name_the_profile_and_the_hand_is_not_a_row() -> None:
     by_key = {r.key: r for r in derive(BoltParams()).rows}
     assert PROFILE in by_key["thread_depth"].label
     assert PROFILE in by_key["minor_diameter"].label
-    assert not any("pitch diameter" in r.label.lower() for r in by_key.values())
+    assert PROFILE in by_key["pitch_diameter"].label  # INFO-01 adds d2 beside the minor diameter
 
 
 def test_turns_is_the_exact_decimal_quotient_not_a_float_division() -> None:
@@ -214,7 +221,10 @@ def test_a_nut_document_has_its_rows_in_groups_the_closed_form_volume_and_its_m6
     assert info.kind == "nut"
     # The cited values follow the across-corners row, inside the Nut group (D-17).
     assert [(r.key, r.group) for r in info.rows] == [
-        ("d", "Thread"), ("pitch", "Thread"), ("s", "Nut"), ("across_corners", "Nut"),
+        ("d", "Thread"), ("pitch", "Thread"), ("thread_depth", "Thread"),
+        ("pitch_diameter", "Thread"), ("minor_diameter", "Thread"),
+        *[(key, calc.LIMITS) for key in NUT_LIMITS_KEYS],
+        ("s", "Nut"), ("across_corners", "Nut"),
         *[(key, "Nut") for key in NUT_CITED_KEYS],
         ("m", "Nut"), ("clearance", "Pair"), ("volume", "Part")]
     values = {r.key: r.value for r in info.rows}
@@ -600,9 +610,10 @@ def _groups(info: PartInfo) -> list[tuple[str, str]]:
 def test_the_rows_sit_in_three_groups_in_server_order() -> None:
     info = derive(BoltParams())
     shank = ["d", "pitch", "length", "thread_length", "shank_length", "turns", "thread_depth",
-             "minor_diameter"]
+             "minor_diameter", "pitch_diameter"]
     head = ["s", "across_corners", "k", "s_min", "e_min", "k_max", "k_min", "dw_min"]
     assert _groups(info) == ([("Shank and thread", k) for k in shank]
+                             + [(calc.LIMITS, k) for k in LIMITS_KEYS]
                              + [("Head", k) for k in head] + [("Part", "volume")])
 
 
@@ -610,7 +621,7 @@ def test_an_iso_4014_match_adds_b_lg_max_and_ls_min_to_the_shank_group() -> None
     info = derive(M10X80)
     shank = [k for g, k in _groups(info) if g == "Shank and thread"]
     assert shank == ["d", "pitch", "length", "thread_length", "shank_length", "turns",
-                     "thread_depth", "minor_diameter", "b", "lg_max", "ls_min"]
+                     "thread_depth", "minor_diameter", "pitch_diameter", "b", "lg_max", "ls_min"]
     assert [k for g, k in _groups(info) if g == "Head"] == [
         "s", "across_corners", "k", "s_min", "e_min", "k_max", "k_min", "dw_min"]
 
@@ -807,3 +818,121 @@ def test_the_bolt_rule_needs_both_values_as_floats() -> None:
     assert explicit_conflict("bolt", {"length": 10.0}) is None
     assert explicit_conflict("bolt", {"thread_length": 30.0}) is None
     assert explicit_conflict("bolt", {"length": 10.0, "thread_length": "30"}) is None
+
+
+# --- the nominal diameters and the bought-part limits (INFO-01, INFO-02, D-16, L14) ------------
+
+LIMITS_HEADING = "limits for a bought part; this model is nominal and not toleranced"
+LIMITS_LABEL_SOURCE = ("(derived: GOST 24705-2004 (ISO 724:1993, MOD) + "
+                       "GOST 16093-2004 (based on ISO 965-1:1998 and ISO 965-3:1998))")
+JUST_ABOVE_M6 = math.nextafter(6.0, math.inf)
+
+
+def _limit_rows(info: PartInfo) -> list[tuple[str, str, float, str]]:
+    return [(r.key, r.label, r.value, r.unit) for r in info.rows if r.group == LIMITS_HEADING]
+
+
+def test_the_limits_heading_is_the_ascii_text_of_info_02() -> None:
+    assert calc.LIMITS == LIMITS_HEADING
+    assert LIMITS_HEADING.encode("ascii") == (
+        b"limits for a bought part; this model is nominal and not toleranced")
+
+
+def test_the_pitch_diameter_follows_the_minor_diameter_on_the_bolt() -> None:
+    info = derive(BoltParams())
+    keys = [r.key for r in info.rows]
+    assert keys[keys.index("minor_diameter") + 1] == "pitch_diameter"
+    row = next(r for r in info.rows if r.key == "pitch_diameter")
+    assert row.label == f"Pitch diameter d2 ({PROFILE})"
+    assert (row.value, row.unit, row.group) == (pitch_diameter(6.0, 1.0), "mm", "Shank and thread")
+
+
+def test_the_nut_thread_group_reads_d_pitch_depth_pitch_diameter_and_minor_diameter() -> None:
+    info = derive(NutParams(clearance=0.1))
+    thread = [r for r in info.rows if r.group == "Thread"]
+    assert [r.key for r in thread] == ["d", "pitch", "thread_depth", "pitch_diameter",
+                                       "minor_diameter"]
+    by_key = {r.key: r for r in thread}
+    assert by_key["pitch_diameter"].label == f"Pitch diameter D2 ({PROFILE})"
+    assert by_key["minor_diameter"].label == f"Minor diameter D1 ({PROFILE})"
+    assert by_key["pitch_diameter"].value == pitch_diameter(6.0, 1.0)
+    assert by_key["minor_diameter"].value == basic_minor_diameter(6.0, 1.0)
+    assert by_key["thread_depth"].value == thread_depth(1.0)
+
+
+def test_the_m6_bolt_carries_its_four_6g_rows_with_the_derived_label() -> None:
+    limits = next(b for b in BOLT_LIMITS if b.size == "M6")
+    assert _limit_rows(derive(BoltParams())) == [
+        ("d_max", f"Major diameter, max, 6g {LIMITS_LABEL_SOURCE}", limits.d_max, "mm"),
+        ("d_min", f"Major diameter, min, 6g {LIMITS_LABEL_SOURCE}", limits.d_min, "mm"),
+        ("d2_max", f"Pitch diameter, max, 6g {LIMITS_LABEL_SOURCE}", limits.d2_max, "mm"),
+        ("d2_min", f"Pitch diameter, min, 6g {LIMITS_LABEL_SOURCE}", limits.d2_min, "mm")]
+
+
+def test_the_m6_nut_carries_its_four_6h_rows_with_the_derived_label() -> None:
+    limits = next(n for n in NUT_LIMITS if n.size == "M6")
+    assert _limit_rows(derive(NutParams(clearance=0.1))) == [
+        ("D1_min", f"Minor diameter, min, 6H {LIMITS_LABEL_SOURCE}", limits.D1_min, "mm"),
+        ("D1_max", f"Minor diameter, max, 6H {LIMITS_LABEL_SOURCE}", limits.D1_max, "mm"),
+        ("D2_min", f"Pitch diameter, min, 6H {LIMITS_LABEL_SOURCE}", limits.D2_min, "mm"),
+        ("D2_max", f"Pitch diameter, max, 6H {LIMITS_LABEL_SOURCE}", limits.D2_max, "mm")]
+
+
+def test_every_iso_262_size_shows_its_own_stored_limits_on_both_kinds() -> None:
+    for size in iso262.SIZES:
+        bolt = {k: v for k, _, v, _ in _limit_rows(
+            derive(BoltParams.model_construct(d=size.d, pitch=size.pitch)))}
+        nut = {k: v for k, _, v, _ in _limit_rows(derive(NutParams(
+            d=size.d, pitch=size.pitch, s=size.d + 5.0, m=size.d, clearance=0.1)))}
+        stored_bolt = next(b for b in BOLT_LIMITS if b.size == size.label)
+        stored_nut = next(n for n in NUT_LIMITS if n.size == size.label)
+        assert bolt == {"d_max": stored_bolt.d_max, "d_min": stored_bolt.d_min,
+                        "d2_max": stored_bolt.d2_max, "d2_min": stored_bolt.d2_min}, size.label
+        assert nut == {"D1_min": stored_nut.D1_min, "D1_max": stored_nut.D1_max,
+                       "D2_min": stored_nut.D2_min, "D2_max": stored_nut.D2_max}, size.label
+
+
+def test_the_limits_do_not_depend_on_the_hand_the_clearance_or_the_catalogue_row() -> None:
+    base = _limit_rows(derive(NutParams(clearance=0.1)))
+    assert base
+    for clearance in (0.0, 0.05, 0.1, 0.25, -0.05):
+        for hand in (False, True):
+            nut = derive(NutParams(clearance=clearance, left_hand=hand))
+            assert _limit_rows(nut) == base, (clearance, hand)
+    bolt = _limit_rows(derive(BoltParams()))
+    assert _limit_rows(derive(BoltParams(left_hand=True))) == bolt
+    # A size that is no catalogue row still has the limits: they depend on (d, pitch) alone.
+    assert _limit_rows(derive(BoltParams(length=21.0, thread_length=21.0))) == bolt
+    assert _limit_rows(derive(NutParams(s=11.0, clearance=0.1))) == base
+
+
+@pytest.mark.parametrize("fields", [
+    {"d": JUST_ABOVE_M6}, {"d": 6.0001}, {"pitch": 0.9}, {"pitch": math.nextafter(1.0, math.inf)},
+])
+def test_off_an_exact_iso_262_size_there_is_no_limits_group_and_the_no_row_warning(
+        fields: dict[str, float]) -> None:
+    bolt = derive(BoltParams.model_validate(fields))
+    nut = derive(NutParams.model_validate({**fields, "clearance": 0.1}))
+    for info, no_row in ((bolt, NO_ROW), (nut, NUT_NO_ROW)):
+        # INFO-02: no group, no empty heading, and the row list holds no row of that group.
+        assert _limit_rows(info) == []
+        assert LIMITS_HEADING not in {r.group for r in info.rows}
+        assert no_row in info.warnings
+
+
+def test_at_the_exact_m6_size_the_limits_are_present_on_both_hands_and_every_clearance() -> None:
+    for hand in (False, True):
+        assert len(_limit_rows(derive(BoltParams(left_hand=hand)))) == 4
+        for clearance in (-0.05, 0.0, 0.05, 0.1, 0.5):
+            assert len(_limit_rows(derive(NutParams(left_hand=hand, clearance=clearance)))) == 4
+
+
+def test_the_limit_labels_name_both_gost_texts_and_never_an_unread_edition() -> None:
+    for info in (derive(BoltParams()), derive(NutParams(clearance=0.1))):
+        for row in info.rows:
+            if row.group != LIMITS_HEADING:
+                continue
+            assert "GOST 24705-2004 (ISO 724:1993, MOD)" in row.label
+            assert "GOST 16093-2004 (based on ISO 965-1:1998 and ISO 965-3:1998)" in row.label
+            assert "ISO 724:2023" not in row.label
+            assert "965-2" not in row.label

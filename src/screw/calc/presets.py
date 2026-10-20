@@ -11,8 +11,9 @@ from functools import lru_cache
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from screw.calc import HEAD, NUT, SHANK, InfoRow
+from screw.calc import HEAD, LIMITS, NUT, SHANK, InfoRow
 from screw.params import KINDS, BoltParams, NutParams
+from screw.tables import gost16093, iso262
 from screw.tables.presets import NutPresetRow, PresetRow, catalogue, expand_nut, nut_catalogue
 from screw.tables.presets import expand as expand_row
 from screw.tables.rows import Source
@@ -146,6 +147,56 @@ def nut_notes(row: NutPresetRow) -> list[str]:
     """
     limit = "D \u2264 16 mm" if row.nut.grade == "A" else "D > 16 mm"
     return [f"product grade {row.nut.grade} ({row.nut.source.document()}: {limit})"]
+
+
+# L14: the 6g and 6H limits are derived, not read: the GOST 24705-2004 basic value plus the printed
+# GOST 16093-2004 terms. The label names both designations and the ISO editions they rest on, and
+# no label names ISO 724:2023 or ISO 965-2:2024, which nobody read (L14 Citations).
+LIMITS_SOURCE = ("derived: GOST 24705-2004 (ISO 724:1993, MOD) + "
+                 "GOST 16093-2004 (based on ISO 965-1:1998 and ISO 965-3:1998)")
+
+
+def _size_label(d: float, pitch: float) -> str | None:
+    """The ISO 262 label whose d and pitch both equal these exactly, or None (INFO-02, L02).
+
+    Exact float equality, no tolerance and no nearest size: a limit printed for a part that is
+    one float off the size would be a number someone cuts metal to (T-05-20).
+    """
+    for size in iso262.SIZES:
+        if size.d == d and size.pitch == pitch:
+            return size.label
+    return None
+
+
+def _limit_rows(values: list[tuple[str, str, float]]) -> list[InfoRow]:
+    return [InfoRow(key=key, label=f"{sense} ({LIMITS_SOURCE})", value=value, unit="mm",
+                    group=LIMITS) for key, sense, value in values]
+
+
+def bolt_limits_for(d: float, pitch: float) -> list[InfoRow]:
+    """The four 6g rows of the exact ISO 262 size (d, pitch), or [] off a size or a limits row."""
+    label = _size_label(d, pitch)
+    for limits in gost16093.BOLT_LIMITS:
+        if limits.size == label:
+            return _limit_rows([
+                ("d_max", "Major diameter, max, 6g", limits.d_max),
+                ("d_min", "Major diameter, min, 6g", limits.d_min),
+                ("d2_max", "Pitch diameter, max, 6g", limits.d2_max),
+                ("d2_min", "Pitch diameter, min, 6g", limits.d2_min)])
+    return []
+
+
+def nut_limits_for(d: float, pitch: float) -> list[InfoRow]:
+    """The four 6H rows of the exact ISO 262 size (d, pitch), or [] off a size or a limits row."""
+    label = _size_label(d, pitch)
+    for limits in gost16093.NUT_LIMITS:
+        if limits.size == label:
+            return _limit_rows([
+                ("D1_min", "Minor diameter, min, 6H", limits.D1_min),
+                ("D1_max", "Minor diameter, max, 6H", limits.D1_max),
+                ("D2_min", "Pitch diameter, min, 6H", limits.D2_min),
+                ("D2_max", "Pitch diameter, max, 6H", limits.D2_max)])
+    return []
 
 
 # The picker's select labels, in the order a row's `picker` strings answer them (D-10, D-28).

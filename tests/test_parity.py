@@ -346,6 +346,18 @@ def test_the_cli_and_the_api_print_the_same_document(
             "plain-cut thread ends, no tip chamfer or under-head fillet; not a product build")
 
 
+def test_the_limits_heading_is_the_same_ascii_string_on_the_cli_and_the_api(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    # INFO-02: byte for byte, semicolon and spaces included, on an exact ISO 262 size of each kind.
+    heading = "limits for a bought part; this model is nominal and not toleranced"
+    for kind, extra in (("bolt", []), ("nut", ["--clearance", "0.1"])):
+        cli.main(["info", kind, *extra])
+        cli_groups = {r["group"] for r in json.loads(capsys.readouterr().out)["rows"]}
+        api = client.get(f"/api/{kind}/info", params={"clearance": 0.1} if extra else {})
+        assert heading in cli_groups
+        assert heading in {r["group"] for r in api.json()["rows"]}
+
+
 def test_the_downloads_of_iso_4017_m8_x_70_are_one_sentence_on_the_cli_the_api_and_export(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     # G-04-3, FRNT-05: the document, the model route and `screw export` read one rule, so the

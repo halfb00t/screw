@@ -331,10 +331,13 @@ def test_the_default_info_document() -> None:
     assert body["kind"] == "bolt"
     assert [row["key"] for row in body["rows"]] == [
         "d", "pitch", "length", "thread_length", "shank_length", "turns", "thread_depth",
-        "minor_diameter", "s", "across_corners", "k", "s_min", "e_min", "k_max", "k_min", "dw_min",
-        "volume"]
+        "minor_diameter", "pitch_diameter", "d_max", "d_min", "d2_max", "d2_min", "s",
+        "across_corners", "k", "s_min", "e_min", "k_max", "k_min", "dw_min", "volume"]
+    # INFO-02: the heading is one ASCII string, compared with `==` and not by substring.
     assert [row["group"] for row in body["rows"]] == (
-        ["Shank and thread"] * 8 + ["Head"] * 8 + ["Part"])
+        ["Shank and thread"] * 9
+        + ["limits for a bought part; this model is nominal and not toleranced"] * 4
+        + ["Head"] * 8 + ["Part"])
     values = {row["key"]: row["value"] for row in body["rows"]}
     assert values["d"] == 6.0
     assert values["pitch"] == 1.0

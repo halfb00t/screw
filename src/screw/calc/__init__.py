@@ -16,10 +16,12 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from screw.calc.thread import (
     MIN_TAIL_MM,
+    basic_minor_diameter,
     bolt_closed_volume,
     built_thread_length,
     fine_stl_refusal,
     nut_closed_volume,
+    pitch_diameter,
     thread_depth,
     thread_length_conflict,
     turns_of,
@@ -46,6 +48,10 @@ PART = "Part"
 THREAD = "Thread"
 NUT = "Nut"
 PAIR = "Pair"
+# The bought-part limits' heading (INFO-02): compared byte for byte on the API, the CLI and the
+# parity test, so it is one ASCII string, semicolon and spaces included. It appears only on an
+# exact ISO 262 size with a 05-08 limits row and never as an empty heading.
+LIMITS = "limits for a bought part; this model is nominal and not toleranced"
 
 # The one warning for a part that is no catalogue row (INFO-03, D-18, L02).
 NO_ROW_WARNING = ("no ISO 4014:2022 or ISO 4017:2022 row matches these fields; "
@@ -147,15 +153,18 @@ def _bolt(p: BoltParams) -> PartInfo:
     # Imported here, never at module top: importing `screw.calc.thread` runs this file, and a
     # table import above would load the tables behind every rebuilt link (contract 6,
     # tests/test_import_boundaries.py).
-    from screw.calc.presets import designation_for, match, notes, row_values
+    from screw.calc.presets import bolt_limits_for, designation_for, match, notes, row_values
 
     # One built thread for every row, warning and cap below (D-27): never recomputed.
     t = built_thread_length(p.thread_length, p.length)
     row = match(p)
     # The cited values of the matched row, spliced in after the row each belongs beside (D-18):
-    # the thread's after minor_diameter, the head's after k. A part that is no row gets none.
+    # the thread's after the pitch diameter, the head's after k. A part that is no row gets none.
+    # The limits group follows the thread's rows and precedes the head's, so it is one contiguous
+    # heading; it depends on (d, pitch) alone, so an ISO 262 size that is no catalogue row has it.
     cited = [] if row is None else row_values(row)
-    after = {"minor_diameter": [r for r in cited if r.group == SHANK],
+    after = {"pitch_diameter": [r for r in cited if r.group == SHANK]
+             + bolt_limits_for(p.d, p.pitch),
              "k": [r for r in cited if r.group != SHANK]}
     rows = [
         InfoRow(key="d", label="Diameter", value=p.d, unit="mm", group=SHANK),
@@ -180,6 +189,8 @@ def _bolt(p: BoltParams) -> PartInfo:
          "5H/8 with H = (sqrt(3) / 2) * pitch", lambda: thread_depth(p.pitch)),
         ("minor_diameter", SHANK, f"Minor diameter ({PROFILE})", "mm", "d - 2 * (5H/8)",
          lambda: p.d - 2 * thread_depth(p.pitch)),
+        ("pitch_diameter", SHANK, f"Pitch diameter d2 ({PROFILE})", "mm",
+         "d - 3H/4 with H = (sqrt(3) / 2) * pitch", lambda: pitch_diameter(p.d, p.pitch)),
         ("s", HEAD, "Across flats", "mm", "s", lambda: p.s),
         ("across_corners", HEAD, "Across corners, geometric (s / cos 30°)", "mm", "s / cos 30°",
          lambda: p.s / math.cos(math.pi / 6)),
@@ -238,7 +249,13 @@ def _bolt(p: BoltParams) -> PartInfo:
 
 def _nut(p: NutParams) -> PartInfo:
     # Imported here for the reason `_bolt` gives (contract 6).
-    from screw.calc.presets import match_nut, nut_designation_for, nut_notes, nut_row_values
+    from screw.calc.presets import (
+        match_nut,
+        nut_designation_for,
+        nut_limits_for,
+        nut_notes,
+        nut_row_values,
+    )
 
     # Same contract as `_bolt` (D-15): every number is a reading of the user's own fields or the
     # closed form, never the kernel's Volume(), and none that is not finite leaves this function.
@@ -246,10 +263,18 @@ def _nut(p: NutParams) -> PartInfo:
     # The cited values of the matched row follow the across-corners row (D-17); a nut that is no
     # row gets none, and no nearest row stands in for it (L02).
     cited = [] if row is None else nut_row_values(row)
-    after = {"across_corners": cited}
+    # The limits group follows the Thread rows, on the exact ISO 262 size alone (INFO-02).
+    after = {"across_corners": cited, "minor_diameter": nut_limits_for(p.d, p.pitch)}
     computed: list[tuple[str, str, str, str, str, Callable[[], float]]] = [
         ("d", THREAD, "Diameter", "mm", "d", lambda: p.d),
         ("pitch", THREAD, "Pitch", "mm", "pitch", lambda: p.pitch),
+        ("thread_depth", THREAD, f"Thread depth ({PROFILE})", "mm",
+         "5H/8 with H = (sqrt(3) / 2) * pitch", lambda: thread_depth(p.pitch)),
+        ("pitch_diameter", THREAD, f"Pitch diameter D2 ({PROFILE})", "mm",
+         "D2 = d - 3H/4 with H = (sqrt(3) / 2) * pitch", lambda: pitch_diameter(p.d, p.pitch)),
+        ("minor_diameter", THREAD, f"Minor diameter D1 ({PROFILE})", "mm",
+         "D1 = d - 5H/4 with H = (sqrt(3) / 2) * pitch",
+         lambda: basic_minor_diameter(p.d, p.pitch)),
         ("s", NUT, "Across flats", "mm", "s", lambda: p.s),
         ("across_corners", NUT, "Across corners, geometric (s / cos 30°)", "mm", "s / cos 30°",
          lambda: p.s / math.cos(math.pi / 6)),
