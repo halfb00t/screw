@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import math
+import subprocess
+import sys
 from collections.abc import Callable
 
 import pytest
@@ -305,7 +307,9 @@ def test_every_nut_row_reads_back_as_its_own_exact_row(nut: HexNut) -> None:
                if r.key in NUT_CITED_KEYS)
     above_m16 = nut.size in {"M18", "M20"}
     limit = "D > 16 mm" if above_m16 else "D \u2264 16 mm"
-    assert info.notes == [f"product grade {'B' if above_m16 else 'A'} ({GOST}: {limit})"]
+    # D-20: M18's row also carries the pair-proof label, after the grade note.
+    assert info.notes == [f"product grade {'B' if above_m16 else 'A'} ({GOST}: {limit})",
+                          *([calc.M18_NOTE] if nut.size == "M18" else [])]
 
 
 def test_the_grade_note_changes_at_m16_and_the_second_choice_rows_cite_table_2() -> None:
@@ -315,7 +319,7 @@ def test_the_grade_note_changes_at_m16_and_the_second_choice_rows_cite_table_2()
         return derive(NutParams.model_validate({**fields, "clearance": 0.1})).notes
 
     assert nut("M16") == [f"product grade A ({GOST}: D \u2264 16 mm)"]
-    assert nut("M18") == [f"product grade B ({GOST}: D > 16 mm)"]
+    assert nut("M18") == [f"product grade B ({GOST}: D > 16 mm)", calc.M18_NOTE]
     fields = expand_nut("iso4032:M3.5")
     assert fields is not None
     labels = [r.label for r in derive(NutParams.model_validate({**fields, "clearance": 0.1})).rows
@@ -1007,3 +1011,58 @@ def test_a_pair_value_that_is_not_finite_is_left_out_with_a_warning() -> None:
                                             left_hand=False))
     assert "engagement_turns" not in [r.key for r in info.rows]
     assert any(w.startswith("engagement_turns not reported") for w in info.warnings)
+
+
+# --- the M18 label (D-20, SC6): from the cited record, keyed on the size alone -----------------
+
+M18_TEXT = "kernel pair proof inconclusive at K = 3 (2026-10-08-a-pair)"
+
+
+def test_the_m18_note_text_and_key_are_the_campaigns() -> None:
+    assert calc.M18_NOTE == M18_TEXT
+    assert calc.M18_KEY == (18.0, 2.5)
+
+
+@pytest.mark.parametrize("clearance", [0.05, 0.1, -0.05])
+@pytest.mark.parametrize("hand", [False, True])
+def test_an_m18_nut_carries_the_note_exactly_once_whatever_the_hand_and_clearance(
+        clearance: float, hand: bool) -> None:
+    nut = NutParams(d=18.0, pitch=2.5, s=27.0, m=14.8, clearance=clearance, left_hand=hand)
+    notes = derive(nut).notes
+    assert notes.count(M18_TEXT) == 1
+    assert notes[-1] == M18_TEXT
+
+
+def test_the_m18_row_keeps_its_grade_note_before_the_label() -> None:
+    row = expand_nut("iso4032:M18")
+    assert row is not None
+    info = derive(NutParams.model_validate({**row, "clearance": 0.1}))
+    assert info.preset == PresetMatch(status="exact", id="iso4032:M18", display="ISO 4032 (M18)")
+    assert info.notes == [f"product grade B ({GOST}: D > 16 mm)", M18_TEXT]
+
+
+def test_a_nut_that_is_no_row_still_carries_the_m18_note() -> None:
+    info = derive(NutParams(d=18.0, pitch=2.5, s=30.0, m=10.0, clearance=0.1))
+    assert info.preset == PresetMatch(status="custom", id=None, display=None)
+    assert info.notes == [M18_TEXT]
+
+
+def test_only_the_exact_m18_key_carries_the_note() -> None:
+    above = math.nextafter(18.0, math.inf)
+    for nut in (NutParams(d=above, pitch=2.5, s=27.0, m=14.8, clearance=0.1),
+                NutParams(d=18.0, pitch=2.0, s=27.0, m=14.8, clearance=0.1),
+                NutParams(d=18.0, pitch=math.nextafter(2.5, math.inf), s=27.0, m=14.8,
+                          clearance=0.1),
+                NutParams(clearance=0.1)):
+        assert M18_TEXT not in derive(nut).notes
+    # The bolt gets no note (SC6: the label is on the nut's pair section).
+    assert M18_TEXT not in derive(BoltParams(d=18.0, pitch=2.5, s=27.0, k=11.0)).notes
+
+
+def test_the_m18_note_is_derived_without_the_kernel_loaded() -> None:
+    code = ("import sys; from screw.calc import derive; from screw.params import NutParams; "
+            "i = derive(NutParams(d=18.0, pitch=2.5, s=27.0, m=14.8, clearance=0.1)); "
+            f"print({M18_TEXT!r} in i.notes, 'cadquery' in sys.modules)")
+    out = subprocess.run([sys.executable, "-I", "-c", code], capture_output=True, text=True,
+                         check=True).stdout
+    assert out.split() == ["True", "False"]

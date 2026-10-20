@@ -1222,3 +1222,11 @@ def test_a_length_below_the_floor_is_a_warned_info_document_and_a_422_build_erro
     detail = r.json()["detail"][0]
     assert detail["type"] == "build_error"
     assert detail["msg"].startswith("thread_length and length: ")
+
+
+def test_the_m18_nut_info_carries_the_pair_proof_label_on_the_route() -> None:
+    # D-20, SC6: read from the cited record, so the route needs no kernel and no clearance rule.
+    label = "kernel pair proof inconclusive at K = 3 (2026-10-08-a-pair)"
+    m18 = {"d": 18.0, "pitch": 2.5, "s": 27.0, "m": 14.8, "clearance": 0.1}
+    assert label in client.get("/api/nut/info", params=m18).json()["notes"]
+    assert label not in client.get("/api/nut/info", params={**m18, "pitch": 2.0}).json()["notes"]

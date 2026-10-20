@@ -65,6 +65,14 @@ NO_ROW_WARNING = ("no ISO 4014:2022 or ISO 4017:2022 row matches these fields; "
 NUT_NO_ROW_WARNING = ("no GOST ISO 4032-2014 (ISO 4032:2012) row matches these fields; "
                       "row values not reported")
 
+# The label for a nut at M18, read from the cited record and never from a kernel call (D-20, SC4,
+# SC6). The campaign `2026-10-08-a-pair` (K = 3) found size M18 not falsifiable on either hand, and
+# L11's revision direction keeps the pair verdict `inconclusive` there, so the panel says so before
+# anybody runs the proof. The key is the campaign's own, compared exactly: 18.0 and 2.5 are the
+# ISO 262 M18 literals, and a nut one float off the size is not the size the campaign measured.
+M18_KEY = (18.0, 2.5)
+M18_NOTE = "kernel pair proof inconclusive at K = 3 (2026-10-08-a-pair)"
+
 
 class InfoRow(BaseModel):
     """One labelled number. The UI renders rows generically; it never reads a row by key."""
@@ -123,8 +131,9 @@ class PartInfo(BaseModel):
     preset: PresetMatch | None = Field(
         description="whether the part is a catalogue row; null for a kind without a catalogue")
     notes: list[str] = Field(
-        description="one-line notes about the matched row, present only on an exact match; the "
-                    "page shows them after the warnings in their own style (D-20)")
+        description="one-line notes about the matched row, present only on an exact match, and "
+                    "for a nut the M18 pair-proof label, keyed on the size alone; the page "
+                    "shows them after the warnings in their own style (D-20)")
     downloads: list[Download] = Field(
         description="every format and quality the model route serves, in the order the page "
                     "offers them (per format the route's default quality first), each with the "
@@ -326,14 +335,16 @@ def _nut(p: NutParams) -> PartInfo:
     downloads = _downloads(p)
     for reason in dict.fromkeys(e.refusal for e in downloads if e.refusal is not None):
         warnings.append(reason)
+    # The M18 note keys on (d, pitch) alone, so it reads on a nut that is no catalogue row too.
+    m18 = [M18_NOTE] if (p.d, p.pitch) == M18_KEY else []
     if row is None:
         return PartInfo(kind=p.kind, rows=rows, warnings=warnings, designation=None,
-                        preset=PresetMatch(status="custom", id=None, display=None), notes=[],
+                        preset=PresetMatch(status="custom", id=None, display=None), notes=m18,
                         downloads=downloads)
     return PartInfo(kind=p.kind, rows=rows, warnings=warnings,
                     designation=nut_designation_for(p, row),
                     preset=PresetMatch(status="exact", id=row.id, display=row.display),
-                    notes=nut_notes(row), downloads=downloads)
+                    notes=[*nut_notes(row), *m18], downloads=downloads)
 
 
 def derive(p: FastenerParams) -> PartInfo:
