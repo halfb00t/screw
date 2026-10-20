@@ -137,14 +137,19 @@ access" above).
 
 ## Designation
 
-Designation: PENDING — needed before plan 05-07. The form, with the property class left out (expected
-`Hexagon nut ISO 4032 - M6`), is not on the secondary source's page.
+Designation: `Hexagon regular nut GOST ISO 4032 - M6` (property class left out). Owner ruling
+2026-10-20, option a.
 
-- Decimal-size form: PENDING — needed before plan 05-07 (not on the page).
-- Left-hand form: PENDING — needed before plan 05-07 (not on the page).
-- Source (L14, 2026-10-20): the three answers above are read from the designation clause of GOST ISO
-  4032-2014. If that clause prints the noun in Russian, the owner states the ASCII English noun the
-  product prints, or rules the designation null; the agent does not translate it.
+- Source: clause 5 of GOST ISO 4032-2014, read by the orchestrating session from the rendered image of
+  PDF page 9 (2026-10-20). It prints one example only, with the noun in Russian and em-dashes:
+  `Гайка шестигранная нормальная ГОСТ ISO 4032 — M12 — 8`. The ASCII noun `Hexagon regular nut` is the
+  owner's choice (the wording of ISO 4032's English title), not a translation by the agent.
+- Decimal-size form: a decimal comma, so `M3,5` and `M2,5`. The clause prints no decimal size; the
+  tables print every size with a comma, and phase 4 wrote it the same way.
+- Left-hand form: `none`. The clause gives no left-hand form, so the designation is withheld for
+  left-hand parts, as in phase 4.
+- Typography: the clause prints em-dashes; the tool prints ASCII `-`, as in phase 4. The standard is
+  named `GOST ISO 4032` in ASCII; the property class is left out, as in phase 4.
 
 ## ISO 4032 sizes and columns
 
