@@ -13,7 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from screw.calc import HEAD, SHANK, InfoRow
 from screw.params import KINDS, BoltParams, NutParams
-from screw.tables.presets import PresetRow, catalogue
+from screw.tables.presets import PresetRow, catalogue, expand_nut, nut_catalogue
 from screw.tables.presets import expand as expand_row
 from screw.tables.rows import Source
 
@@ -115,7 +115,7 @@ class PresetEntry(BaseModel):
     display: str = Field(description="the row's text for the badge and the info panel; "
                                      "second-choice sizes are bracketed")
     designation: str = Field(description="the standard's designation of the row, ASCII")
-    picker: list[str] = Field(description="the row's three display strings, one per axis")
+    picker: list[str] = Field(description="the row's display strings, one per axis")
     fields: dict[str, float] = Field(description="the millimetre values picking the row writes")
     citation: str = Field(description="the standards, tables and columns the row came from")
 
@@ -139,12 +139,15 @@ def catalogue_document(kind: str) -> PresetCatalogue:
     """The catalogue document of `kind`; TypeError for a kind without one, like `derive`.
 
     Built from in-memory rows and cached per kind, so the route costs nothing per request
-    and starts no kernel (T-04-20). The frozen result is safe to share between callers. The nut's
-    document has no rows yet: no ISO 4032 row has shipped (plan 05-07 fills it).
+    and starts no kernel (T-04-20). The frozen result is safe to share between callers.
     """
     model = KINDS.get(kind)
     if model is NutParams:
-        return PresetCatalogue(kind=kind, axes=NUT_AXES, rows=[])
+        return PresetCatalogue(kind=kind, axes=NUT_AXES, rows=[
+            PresetEntry(id=row.id, display=row.display, designation=row.designation,
+                        picker=list(row.picker), fields=dict(row.fields),
+                        citation=row.citation())
+            for row in nut_catalogue()])
     if model is not BoltParams:
         raise TypeError(f"no preset catalogue for kind {kind!r}")
     return PresetCatalogue(kind=kind, axes=AXES, rows=[
@@ -156,11 +159,11 @@ def catalogue_document(kind: str) -> PresetCatalogue:
 def expand(kind: str, preset_id: str) -> dict[str, float] | None:
     """The millimetre fields of one row of `kind`'s catalogue, or None for an unknown id.
 
-    The nut has no row yet, so every id is unknown for it (plan 05-07 fills the table).
+    A bolt's id is unknown to the nut and the other way round: each kind looks in its own table.
     """
     model = KINDS.get(kind)
     if model is NutParams:
-        return None
+        return expand_nut(preset_id)
     if model is not BoltParams:
         raise TypeError(f"no preset catalogue for kind {kind!r}")
     return expand_row(preset_id)

@@ -284,12 +284,7 @@ def test_the_cli_and_the_api_print_the_same_preset_catalogue(
     assert json.loads(printed) == json.loads(api.content)
     assert list(json.loads(printed)) == list(json.loads(api.content))
     assert json.loads(printed)["kind"] == kind
-    if kind == "nut":
-        # No ISO 4032 row has shipped; plan 05-07 replaces this with the non-empty rule for
-        # every kind.
-        assert json.loads(printed) == {"kind": "nut", "axes": ["Standard", "Size"], "rows": []}
-    else:
-        assert json.loads(printed)["rows"], kind
+    assert json.loads(printed)["rows"], kind
 
 
 @pytest.mark.parametrize("kind", list(KINDS))
