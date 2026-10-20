@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Hex Nut and Kernel Pair Proof
 status: executing
-stopped_at: Completed 05-09-PLAN.md
-last_updated: "2026-10-20T09:32:53.822Z"
+stopped_at: Completed 05-10-PLAN.md
+last_updated: "2026-10-20T09:51:03.412Z"
 last_activity: 2026-10-20
 last_activity_desc: Phase 05 execution started
-state_head: 89d720fb5ca53b49cf1933202ac50eb374d5fcf1
+state_head: 65f74f45487470d8e6dc327c76e66e5f7079f6fe
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 60
-  completed_plans: 51
+  completed_plans: 52
   percent: 57
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-12)
 ## Current Position
 
 Phase: 05 (Hex Nut and Kernel Pair Proof) — EXECUTING
-Plan: 5 of 18
+Plan: 6 of 18
 Status: Ready to execute
 Last activity: 2026-10-20 — Phase 05 execution started
 
@@ -110,6 +110,7 @@ Progress: [██████░░░░] 57%
 | Phase 05 P07 | 10 min | 2 tasks | 7 files |
 | Phase 05 P08 | 35min | 2 tasks | 9 files |
 | Phase 05 P09 | 40min | 3 tasks | 7 files |
+| Phase 05 P10 | 35min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -207,6 +208,9 @@ Recent decisions affecting current work:
 - [Phase 05]: 05-08: 6g and 6H limits derived by exact Decimal sums of printed GOST 24705-2004 and GOST 16093-2004 values; a size missing a printed term gets no row (L14)
 - [Phase 05]: 05-08: iso724.tsv regenerated with M7 by the owner's ruling; the M7 owner row was generated after the other copy was known (caveat recorded)
 - [Phase 05]: 05-09: limits rows cite the two GOST texts they derive from; nominal d2/D2/D1 rows cite the ISO 68-1:2023 basic profile; the M18 note keys on (d, pitch) alone so it also reads on a nut that is no catalogue row
+- [Phase 05]: 05-10: the counterpart is computed kernel-free from the exact ISO 262 size; off a row it carries d, pitch and hand and the source document warns which fields to set (D-03)
+- [Phase 05]: 05-10: R10 applied in navigate()'s kind-change branch so the Matching link drops the stale mesh as the selector does
+- [Phase 05]: 05-10: the matching-part link is muted Caption text, the accent stays reserved for primary actions and invalid fields
 
 ### Pending Todos
 
@@ -253,6 +257,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-20T09:32:53.693Z
-Stopped at: Completed 05-09-PLAN.md
+Last session: 2026-10-20T09:51:03.279Z
+Stopped at: Completed 05-10-PLAN.md
 Resume file: None
