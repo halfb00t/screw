@@ -17,6 +17,11 @@ from typing import Literal
 
 Status = Literal["verified", "unverified"]
 
+# The ISO edition a GOST designation adopts, for the citation (L14,
+# docs/requirements/standards-sources.md). Closed on purpose: a GOST text not listed here has no
+# recorded ISO equivalent, so citing it as one would be a guess.
+ADOPTED_ISO: dict[str, str] = {"GOST ISO 4032-2014": "ISO 4032:2012"}
+
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class Source:
@@ -32,9 +37,19 @@ class Source:
     column: str
     status: Status
 
+    def document(self) -> str:
+        """`ISO 4017:2022`, or `GOST ISO 4032-2014 (ISO 4032:2012)` for a GOST text."""
+        if self.standard.startswith("ISO "):
+            return f"{self.standard}:{self.edition}"
+        if self.standard.startswith("GOST "):
+            designation = f"{self.standard}-{self.edition}"
+            if designation in ADOPTED_ISO:
+                return f"{designation} ({ADOPTED_ISO[designation]})"
+        raise ValueError(f"no citation form for the standard {self.standard!r}:{self.edition!r}")
+
     def cite(self) -> str:
         """`ISO 4017:2022 Table 2, column M6`."""
-        return f"{self.standard}:{self.edition} {self.table}, column {self.column}"
+        return f"{self.document()} {self.table}, column {self.column}"
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -62,6 +77,27 @@ class HexHead:
     k_min: float
     k_max: float
     dw_min: float
+    source: Source
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class HexNut:
+    """The values of one hex nut size: every column the standard prints, `s` nominal = max."""
+
+    size: str
+    grade: Literal["A", "B"]  # not a printed column: the scope clause's rule
+    pitch: float
+    s: float
+    s_min: float
+    e_min: float
+    m_max: float
+    m_min: float
+    mw_min: float
+    dw_min: float
+    c_max: float
+    c_min: float
+    da_max: float
+    da_min: float
     source: Source
 
 

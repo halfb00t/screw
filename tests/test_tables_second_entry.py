@@ -4,6 +4,9 @@
 shipped rows in `screw.tables` were transcribed independently from page images, before the
 owner copy was opened. Every disagreement is "go read the standard": never a majority vote and
 never an edit of either copy to make them agree.
+
+Phase 5's rows are read from the free GOST texts L14 names, with the owner copy generated from
+their text layer (05-OWNER-READS.md, 2026-10-20).
 """
 
 from __future__ import annotations
@@ -11,7 +14,7 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
-from screw.tables import iso4014
+from screw.tables import iso4014, iso4032
 from screw.tables.iso262 import SIZES
 from screw.tables.iso4017 import HEADS, SERIES
 
@@ -35,6 +38,11 @@ _SHAPE: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     ),
     "iso4014_bands.tsv": (("size",), ("b_short", "b_long")),
     "iso4014_lengths.tsv": (("size", "length"), ("ls_min", "lg_max")),
+    "iso4032.tsv": (
+        ("size",),
+        ("pitch", "c_max", "c_min", "da_max", "da_min", "dw_min", "e_min", "m_max", "m_min",
+         "mw_min", "s", "s_min"),
+    ),
 }
 
 
@@ -137,6 +145,25 @@ def shipped() -> dict[str, Rows]:
             }
             for cell in iso4014.CELLS
         },
+        "iso4032.tsv": {
+            (nut.size,): {
+                "pitch": nut.pitch,
+                "c_max": nut.c_max,
+                "c_min": nut.c_min,
+                "da_max": nut.da_max,
+                "da_min": nut.da_min,
+                "dw_min": nut.dw_min,
+                "e_min": nut.e_min,
+                "m_max": nut.m_max,
+                "m_min": nut.m_min,
+                "mw_min": nut.mw_min,
+                "s": nut.s,
+                "s_min": nut.s_min,
+                "table": nut.source.table,
+                "column": nut.source.column,
+            }
+            for nut in iso4032.NUTS
+        },
     }
 
 
@@ -176,6 +203,7 @@ def test_the_owner_copy_is_not_vacuous() -> None:
     assert len(read_owner(OWNER_DIR, "iso4014_heads.tsv")) == 18
     assert len(read_owner(OWNER_DIR, "iso4014_bands.tsv")) == 15
     assert len(read_owner(OWNER_DIR, "iso4014_lengths.tsv")) == 108
+    assert len(read_owner(OWNER_DIR, "iso4032.tsv")) == 14
 
 
 def test_one_changed_cell_is_one_disagreement_naming_file_key_column_and_both_values() -> None:

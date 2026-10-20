@@ -5,6 +5,7 @@ One pure-data relation test per catalogue row (D-14, TABL-03); none builds a sol
 
 from __future__ import annotations
 
+import dataclasses
 import math
 import re
 from collections.abc import Iterable
@@ -15,11 +16,11 @@ from mypy import api as mypy_api
 
 from screw.calc import derive
 from screw.params import BoltParams
-from screw.tables import iso4014
+from screw.tables import iso4014, iso4032
 from screw.tables.iso262 import SIZES
 from screw.tables.iso4017 import HEADS, SERIES
 from screw.tables.presets import FIELD_NAMES, PresetRow, catalogue, expand
-from screw.tables.rows import HexHead, ShankCell, Size, Source
+from screw.tables.rows import HexHead, HexNut, ShankCell, Size, Source
 
 ROOT = Path(__file__).resolve().parents[1]
 TABLES_DIR = ROOT / "src" / "screw" / "tables"
@@ -501,6 +502,7 @@ def test_no_row_in_the_tree_is_unverified() -> None:
     sources = [source for row in ROWS for source in row.sources]
     assert unverified([*SIZES, *HEADS, *SERIES, *iso4014.HEADS, *iso4014.CELLS]) == []
     assert unverified(iso4014.BANDS) == []
+    assert unverified(iso4032.NUTS) == []
     assert [s for s in sources if s.status != "verified"] == []
     # Size, head and length for ISO 4017; size, head, band and cell for ISO 4014.
     assert len(sources) == sum(3 if row.standard == "ISO 4017" else 4 for row in ROWS)
@@ -561,3 +563,99 @@ def test_a_row_without_source_fails_mypy_strict_naming_source_and_the_same_row_w
     ), stdout
     assert not any(str(good) in line for line in errors), stdout
 
+
+
+# Source.document() and the nut rows (L14): a GOST text is cited with the ISO edition it adopts.
+def test_the_nut_rows_are_the_14_gost_iso_4032_rows_with_their_table_and_no_m7() -> None:
+    sizes = [nut.size for nut in iso4032.NUTS]
+    assert sizes == [
+        "M2", "M2.5", "M3", "M3.5", "M4", "M5", "M6", "M8", "M10", "M12", "M14", "M16", "M18",
+        "M20",
+    ]
+    assert {nut.size for nut in iso4032.NUTS if nut.source.table == "Table 2"} == {
+        "M3.5", "M14", "M18",
+    }
+    assert {nut.source.table for nut in iso4032.NUTS} == {"Table 1", "Table 2"}
+    assert all(
+        nut.source.standard == "GOST ISO 4032"
+        and nut.source.edition == "2014"
+        and nut.source.status == "verified"
+        for nut in iso4032.NUTS
+    )
+
+
+def test_the_nut_row_has_exactly_the_printed_columns_the_size_the_grade_and_the_source() -> None:
+    assert [f.name for f in dataclasses.fields(HexNut)] == [
+        "size", "grade", "pitch", "s", "s_min", "e_min", "m_max", "m_min", "mw_min", "dw_min",
+        "c_max", "c_min", "da_max", "da_min", "source",
+    ]
+
+
+def test_a_nut_row_cites_the_gost_text_with_the_iso_edition_it_adopts() -> None:
+    assert {nut.source.document() for nut in iso4032.NUTS} == {"GOST ISO 4032-2014 (ISO 4032:2012)"}
+    m6 = next(nut for nut in iso4032.NUTS if nut.size == "M6")
+    assert m6.source.cite() == "GOST ISO 4032-2014 (ISO 4032:2012) Table 1, column M6"
+    assert (m6.source.table, m6.source.column) == ("Table 1", "M6")
+
+
+def test_every_phase_4_row_cites_exactly_as_before() -> None:
+    sources = [
+        *(row.source for row in SIZES),
+        *(row.source for row in HEADS),
+        *(row.source for row in SERIES),
+        *(row.source for row in iso4014.HEADS),
+        *(row.source for row in iso4014.BANDS),
+        *(row.source for row in iso4014.CELLS),
+    ]
+    assert sources
+    for source in sources:
+        assert source.document() == f"{source.standard}:{source.edition}"
+        assert source.cite() == (
+            f"{source.standard}:{source.edition} {source.table}, column {source.column}"
+        )
+    head = next(row for row in HEADS if row.size == "M6")
+    assert head.source.document() == "ISO 4017:2022"
+    assert head.source.cite() == "ISO 4017:2022 Table 1, column M6"
+
+
+@pytest.mark.parametrize("standard", ["GOST 99999", "GOST ISO 9999", "DIN 934", ""])
+def test_a_standard_with_no_citation_form_is_refused_by_name(standard: str) -> None:
+    source = Source(standard=standard, edition="2014", table="Table 1", column="M6",
+                    status="verified")
+    with pytest.raises(ValueError, match="no citation form"):
+        source.document()
+
+
+_NUT_BAD_AND_GOOD = '''\
+from screw.tables.rows import HexNut, Source
+
+SOURCE = Source(
+    standard="GOST ISO 4032", edition="2014", table="Table 1", column="M6", status="verified"
+)
+{call}(
+    size="M6", grade="A", pitch=1.0, s=10.0, s_min=9.78, e_min=11.05, m_max=5.2, m_min=4.9,
+    mw_min=3.9, dw_min=8.9, c_max=0.5, c_min=0.15, da_max=6.75, da_min=6.0{source}
+)
+'''
+
+
+def test_a_nut_row_without_source_fails_mypy_strict_naming_source(tmp_path: Path) -> None:
+    bad = tmp_path / "bad_nut.py"
+    bad_text = _NUT_BAD_AND_GOOD.format(call="BAD = HexNut", source="")
+    bad.write_text(bad_text, encoding="utf-8")
+    good = tmp_path / "good_nut.py"
+    good.write_text(
+        _NUT_BAD_AND_GOOD.format(call="GOOD = HexNut", source=",\n    source=SOURCE"),
+        encoding="utf-8",
+    )
+    stdout, _, status = mypy_api.run([
+        "--config-file", str(ROOT / "pyproject.toml"), "--strict",
+        "--cache-dir", str(tmp_path / "mypy-cache"), str(bad), str(good),
+    ])
+    bad_line = 1 + bad_text[: bad_text.index("BAD = HexNut")].count("\n")
+    assert status == 1, stdout
+    assert any(
+        line.startswith(f"{bad}:{bad_line}:") and '"source"' in line
+        for line in stdout.splitlines()
+    ), stdout
+    assert not any(str(good) in line for line in stdout.splitlines()), stdout

@@ -6,8 +6,10 @@ do not reproduce clause wording, notes, figures or the printed table layout (D-1
 purchased PDFs and their page renders never enter git; `.gitignore` refuses `*.pdf`.
 
 Every row is entered twice, independently, and the two copies are diffed cell by cell in
-`make verify` (D-14, `tests/test_tables_second_entry.py`). A row marked `unverified` cannot
-pass that gate (D-15). Nothing here depends on `screw.params`, `screw.calc`, the kernel or a web
-framework (module-boundary contract 7), and `params` and `calc.thread` never reach this package
-(contract 6): a link rebuilds a part from its millimetre fields without consulting a table.
+`make verify` (D-14, `tests/test_tables_second_entry.py`). Phase 5's rows are read from the free
+GOST texts L14 names, with the owner copy generated from their text layer. A row marked
+`unverified` cannot pass that gate (D-15). Nothing here depends on `screw.params`, `screw.calc`,
+the kernel or a web framework (module-boundary contract 7), and `params` and `calc.thread` never
+reach this package (contract 6): a link rebuilds a part from its millimetre fields without
+consulting a table.
 """
