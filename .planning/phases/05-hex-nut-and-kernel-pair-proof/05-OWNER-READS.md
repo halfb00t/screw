@@ -267,8 +267,25 @@ computed (L14).
 
 ## ISO 4753
 
-PENDING — needed before plan 05-11 and plan 05-12 (read 6: the tip end form ISO 4014/4017 reference,
-its angle and length rule, single number or band). R2 depends on the answer.
+Read 6, answered 2026-10-20 from GOST 12414-94 (ISO 4753-83), read by the orchestrating session from
+the rendered pages 4 and 5 and their text layer:
+
+- **The end ISO 4014 references:** ГОСТ Р ИСО 4014-2013 Figure 1, footnote b: the end is chamfered,
+  or may be unchamfered (rolled end) for threads up to M4, per ISO 4753. ISO 4017 was not re-read
+  here.
+- **The chamfered end ("Конец с фаской", clause 2 figures, PDF page 4)** prints only the end face
+  diameter `D` and the length `u`; it marks no angle and prints no chamfer length. Note 1: `u = 2P`,
+  the incomplete thread. Note 2: the largest end face diameter `D` must be less than the thread minor
+  diameter. Table 1 prints no value for this end.
+- **The angle.** Note 3, as printed in this copy: "Угол 48° относится только к части конца меньше
+  внутреннего диаметра резьбы" (the 48° angle applies only to the part of the end below the minor
+  diameter). Every end figure that marks an angle marks `≈45°`. Whether "48°" is a misprint of this
+  reproduction or of the GOST text is UNRESOLVED (L14: the copy is a download-site copy).
+  **Owner ruling 2026-10-20 (option a):** the tip angle is 45°, as the figures mark it; the "48°" of
+  note 3 is recorded as an unresolved misprint, not used.
+- **Consequence for R2:** no single number is printed for the chamfered end, so R2 takes the stated
+  model: 45° from the end face, starting at the minor diameter, labelled a model.
+- A correction sheet (IUS No. 6 2010) is bound in; it corrects a Table 1 column head only.
 
 L14 (2026-10-20): read 6 is read from GOST 12414-94, the ISO 4753:1983 text, with its readable path and
 rendering route. Its two extra stepped ends (cone, sphere) are not ISO ends and are out of scope.
@@ -296,9 +313,11 @@ scratch directory); the 05-06 executor read files in this folder without a refus
 - `GOST ISO 4014-2013.pdf`, sha256
   `e44006afb521ad624b21cd3d72c76a6f35b1614b1fc943dfe83bce9a8d67fb47`, 21 pages. **Evidence conflict:**
   its title is ГОСТ Р ИСО 4014-2013, the Russian national standard, not the interstate GOST ISO
-  4014-2014 that L14 names for plan 05-12. Plan 05-12 stops on it until the owner rules.
-
-GOST 12414-94 (read 6, plans 05-11 and 05-12): PENDING, not in the folder.
+  4014-2014 that L14 names for plan 05-12. **Owner ruling 2026-10-20 (option a):** ГОСТ Р ИСО
+  4014-2013 is the source for R1's fillet `r,min` in place of GOST ISO 4014-2014 (amendment to L14).
+  Its Table 1 prints `r` "не менее" (min) per size; Table 2 continues it for the additional sizes.
+- `GOST 12414-94.pdf`, sha256 `22e54c38106f170af53f0e5a468930266cceba30e596f7b52a83b45bb3d818cb`,
+  8 pages, with one correction sheet bound in (see "ISO 4753"). Read by plans 05-11 and 05-12.
 
 ## Rulings
 
@@ -307,9 +326,9 @@ answers follow, each with the plan that applies it. A ruling whose answer is con
 read says which read.
 
 - R1 (fillet radius `r`, D-11): `a`. One `r,min` per size typed in `calc/thread.py` keyed on exact (d, pitch), double-entered and pinned by a test, no fillet off a row. Applied by plans 05-11 and 05-12.
-- R2 (tip end, D-09): the single number if printed, else the stated model ("<angle> from the end face, starting at the minor diameter"). Conditional on read 6 (PENDING). Applied by plans 05-11 and 05-12.
-- R3 (nut lead-in countersink, D-09, D-12): `a` if one number is printed, else `b`. Conditional on read 3 (PENDING). Either way the face radius must exceed the void's crest radius `d/2 + c` so the cone crosses the void (F8). Applied by plans 05-11 and 05-13.
-- R4 (face chamfer, D-12): `b` if one number is printed, else `a` (labelled a model). Conditional on read 3 (PENDING). Applied by plans 05-11 and 05-12.
+- R2 (tip end, D-09): the single number if printed, else the stated model ("<angle> from the end face, starting at the minor diameter"). Conditional on read 6 (answered 2026-10-20: no number is printed, so the stated model, with the angle 45° by owner ruling; see "ISO 4753"). Applied by plans 05-11 and 05-12.
+- R3 (nut lead-in countersink, D-09, D-12): `a` if one number is printed, else `b`. Conditional on read 3 (answered 2026-10-20: a band is printed, so `b`; see "ISO 4032 sizes and columns"). Either way the face radius must exceed the void's crest radius `d/2 + c` so the cone crosses the void (F8). Applied by plans 05-11 and 05-13.
+- R4 (face chamfer, D-12): `b` if one number is printed, else `a` (labelled a model). Conditional on read 3 (answered 2026-10-20: a band is printed, so `a`; see "ISO 4032 sizes and columns"). Applied by plans 05-11 and 05-12.
 - R5 (small `m` where the cutters would overlap, P10): `a`. Cap the countersink depth to the validity limit and warn naming `m` (L02 cap-and-warn). Applied by plans 05-11 and 05-13.
 - R6 (FRNT-06 fraction): `a`. 0.5 of the 0.05 mm proof clearance, keep the 0.01 mm fine preset, cite the rule. The owner answered the fraction without the agent choosing it. Applied by plan 05-17.
 - R7 (mixed-hand cells, P3): `yes`. An internal keyword `rod_left_hand` on `prove`, never on the CLI or the model. Applied by plan 05-14.

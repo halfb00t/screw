@@ -889,3 +889,11 @@ Reversibility: reversible for the source choice: buying the ISO texts re-reads a
 and the double-entry diff shows every change. One-way for any frozen default a GOST row confirms
 (D-15), hence the stop-and-ask on a mismatch. Costly for the published citation text on the panel.
 Revisit: `docs/tech_debt/active/2026-10-20-iso-standards-not-purchased.md`.
+
+**Amendment (2026-10-20, owner ruling at plan 05-12's precondition).** The open question is answered:
+R1's fillet `r,min` is read from ГОСТ Р ИСО 4014-2013 (the Russian national adoption of ISO 4014:2011),
+not from the owner's ISO 4014:2022 copy and not from GOST ISO 4014-2014. The copy the owner supplied is
+the national text, not the interstate one this entry names; the owner accepted it (option a). Its Table 1
+prints `r` min per size. It is a download-site copy, so its faithfulness is UNVERIFIED like the rest.
+Every citation names it as read: `ГОСТ Р ИСО 4014-2013` in the record, in ASCII as the plans' `Source`
+strings decide. Path and sha256: `05-OWNER-READS.md`, "Rendering route and the PDFs".
