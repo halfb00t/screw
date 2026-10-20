@@ -19,7 +19,7 @@ Requirements for the first release: the mating-pair cut (infra port, thread spik
 
 ### Mating Pair
 
-- [ ] **PAIR-01**: User sets one `clearance` field, on the nut, in radial millimetres; a positive value moves the nut's thread surfaces away from the axis (larger hole, material removed from the nut). The bolt is built to nominal. The info panel shows both the radial and the diametral value.
+- [x] **PAIR-01**: User sets one `clearance` field, on the nut, in radial millimetres; a positive value moves the nut's thread surfaces away from the axis (larger hole, material removed from the nut). The bolt is built to nominal. The info panel shows both the radial and the diametral value.
 - [ ] **PAIR-02**: The default `clearance` is set once, before the first release, from a recorded FDM printed test (M6–M12 matrix, owner checkpoint) and cited in the decision log; it is never taken from a forum or vendor figure. Until the test is recorded, no default ships.
 - [ ] **PAIR-03**: A kernel-level interference check proves a bolt/nut pair at the chosen clearance and returns `proven | violated | inconclusive` with its control: a half-pitch axial offset of the same pair must collide, or the verdict is `inconclusive`, never `proven`. Clearance ≤ 0 is `inconclusive` by definition.
 - [ ] **PAIR-04**: The pair check is exposed as a function in the solid package, a `screw pair` CLI subcommand and a slow-tier test (one size in `make verify`, the full grid in a CI job). It is not an API endpoint; the API and UI show closed-form flank gaps instead.
@@ -45,8 +45,8 @@ Requirements for the first release: the mating-pair cut (infra port, thread spik
 
 ### Info Panel
 
-- [ ] **INFO-01**: The info panel shows, from the pure-maths module without touching the kernel: head (`s` nominal/max/min, across-corners geometric and `e,min` labelled separately, `k`, `dw,min`, wrench size), shank/thread (`l`, `b`, `ls`, `lg`, `d`, `P`, `d2`, `D1`, thread depth), nut (`s`, `e`, `m`, `mw`, `dw`, `D1`, `D2`), pair (clearance radial and diametral, resulting nut diameters, engagement in turns).
-- [ ] **INFO-02**: 6g (bolt) and 6H (nut) min/max limits from ISO 965-2:2024 are shown with the explicit label "limits for a bought part; this model is nominal and not toleranced". Amended 2026-10-20 (L14): the limits are derived from the GOST 24705-2004 basic diameters plus the GOST 16093-2004 printed deviations and tolerances, and each row says derived and names both.
+- [x] **INFO-01**: The info panel shows, from the pure-maths module without touching the kernel: head (`s` nominal/max/min, across-corners geometric and `e,min` labelled separately, `k`, `dw,min`, wrench size), shank/thread (`l`, `b`, `ls`, `lg`, `d`, `P`, `d2`, `D1`, thread depth), nut (`s`, `e`, `m`, `mw`, `dw`, `D1`, `D2`), pair (clearance radial and diametral, resulting nut diameters, engagement in turns).
+- [x] **INFO-02**: 6g (bolt) and 6H (nut) min/max limits from ISO 965-2:2024 are shown with the explicit label "limits for a bought part; this model is nominal and not toleranced". Amended 2026-10-20 (L14): the limits are derived from the GOST 24705-2004 basic diameters plus the GOST 16093-2004 printed deviations and tolerances, and each row says derived and names both.
 - [x] **INFO-03**: Every number on the panel is traceable to an explicit mm field or to a cited row with a test; a value that cannot be computed honestly is a warning and no number. Any volume shown comes from the closed form, never from the kernel's default `Volume()`.
 - [ ] **INFO-04**: Sizes and pitches below the printable threshold get a cap-and-warn printability warning citing its source; the threshold is a constant set from the owner's printed test, not from vendor guides.
 - [x] **INFO-05**: Where the wrench size differs from the withdrawn DIN equivalent (M10, M12 and M14 only, D-20) the panel shows the ISO value with a one-line note.
@@ -122,7 +122,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | THRD-03 | Phase 4 | Complete |
 | THRD-04 | Phase 3 | Complete |
 | THRD-05 | Phase 5 | Pending |
-| PAIR-01 | Phase 5 | Pending |
+| PAIR-01 | Phase 5 | Complete |
 | PAIR-02 | Phase 6 | Pending |
 | PAIR-03 | Phase 5 | Pending |
 | PAIR-04 | Phase 5 | Pending |
@@ -139,8 +139,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TABL-05 | Phase 4 | Complete |
 | TABL-06 | Phase 4 | Complete |
 | TABL-07 | Phase 4 | Complete |
-| INFO-01 | Phase 5 | Pending |
-| INFO-02 | Phase 5 | Pending |
+| INFO-01 | Phase 5 | Complete |
+| INFO-02 | Phase 5 | Complete |
 | INFO-03 | Phase 4 | Complete |
 | INFO-04 | Phase 6 | Pending |
 | INFO-05 | Phase 4 | Complete |
