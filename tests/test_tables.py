@@ -9,6 +9,7 @@ import dataclasses
 import math
 import re
 from collections.abc import Iterable
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -17,11 +18,21 @@ from mypy import api as mypy_api
 from screw.calc import derive
 from screw.calc.thread import basic_minor_diameter, pitch_diameter
 from screw.params import BoltParams
-from screw.tables import iso724, iso4014, iso4032
+from screw.tables import gost16093, iso724, iso4014, iso4032
 from screw.tables.iso262 import SIZES
 from screw.tables.iso4017 import HEADS, SERIES
 from screw.tables.presets import FIELD_NAMES, PresetRow, catalogue, expand
-from screw.tables.rows import BasicDiameters, HexHead, HexNut, ShankCell, Size, Source
+from screw.tables.rows import (
+    BasicDiameters,
+    BoltLimits,
+    HexHead,
+    HexNut,
+    NutLimits,
+    ShankCell,
+    Size,
+    Source,
+    Tolerance,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 TABLES_DIR = ROOT / "src" / "screw" / "tables"
@@ -505,6 +516,7 @@ def test_no_row_in_the_tree_is_unverified() -> None:
     assert unverified(iso4014.BANDS) == []
     assert unverified(iso4032.NUTS) == []
     assert unverified(iso724.BASIC) == []
+    assert unverified(gost16093.TOLERANCES) == []
     assert [s for s in sources if s.status != "verified"] == []
     # Size, head and length for ISO 4017; size, head, band and cell for ISO 4014.
     assert len(sources) == sum(3 if row.standard == "ISO 4017" else 4 for row in ROWS)
@@ -724,3 +736,178 @@ def test_a_printed_d2_and_d1_equal_the_basic_profile_formula_rounded_to_the_prin
 def test_basic_relations(row: object) -> None:
     assert isinstance(row, BasicDiameters)
     assert row.d1 < row.d2 < row.d
+
+
+# GOST 16093-2004 deviations and tolerances, and the 6g and 6H limits derived from them (L14).
+_G16093 = "GOST 16093-2004 (based on ISO 965-1:1998 and ISO 965-3:1998)"
+_G24705 = "GOST 24705-2004 (ISO 724:1993, MOD)"
+_BASIC = {row.size: row for row in iso724.BASIC}
+_UM = Decimal("0.001")
+
+
+def test_every_printed_term_is_verified_gost_16093_and_there_are_72_unique_ones() -> None:
+    terms = gost16093.TOLERANCES
+    assert len(terms) == 72
+    assert {t.source.document() for t in terms} == {_G16093}
+    assert {t.source.edition for t in terms} == {"2004"}
+    assert {t.unit for t in terms} == {"um"}
+    keys = [(t.quantity, t.grade, t.pitch, t.d_over, t.d_upto) for t in terms]
+    assert len(set(keys)) == len(keys)
+    # Tables 5 and 6 are keyed by range; the others by pitch alone.
+    assert {t.quantity for t in terms if t.d_over is not None} == {"Td2", "TD2"}
+    assert all(t.pitch in {b.pitch for b in iso724.BASIC} for t in terms)
+
+
+def test_the_limits_are_one_row_per_size_with_iso_262s_pitch() -> None:
+    labels = [size.label for size in SIZES]
+    assert [b.size for b in gost16093.BOLT_LIMITS] == labels
+    assert [n.size for n in gost16093.NUT_LIMITS] == labels
+    assert all(b.pitch == PITCH[b.size] for b in gost16093.BOLT_LIMITS)
+    assert all(n.pitch == PITCH[n.size] for n in gost16093.NUT_LIMITS)
+
+
+def _printed(quantity: str, grade: str, row: BasicDiameters) -> Decimal:
+    """The printed term of a size in mm, found by a different walk than the module's."""
+    (term,) = (
+        t for t in gost16093.TOLERANCES
+        if (t.quantity, t.grade, t.pitch) == (quantity, grade, row.pitch)
+        and (t.d_over is None or t.d_over < row.d <= (t.d_upto or 0))
+    )
+    return Decimal(repr(term.value)) * _UM
+
+
+def _decimal(value: float) -> Decimal:
+    return Decimal(repr(value))
+
+
+def test_each_limit_is_the_exact_decimal_sum_of_its_printed_addends() -> None:
+    for bolt in gost16093.BOLT_LIMITS:
+        row = _BASIC[bolt.size]
+        es = _printed("es", "g", row)
+        want = {
+            "d_max": _decimal(row.d) + es,
+            "d_min": _decimal(row.d) + es - _printed("Td", "6", row),
+            "d2_max": _decimal(row.d2) + es,
+            "d2_min": _decimal(row.d2) + es - _printed("Td2", "6", row),
+        }
+        for name, total in want.items():
+            # repr round-trips through Decimal to the exact sum: no float error is in the limit.
+            assert _decimal(getattr(bolt, name)) == total, (bolt.size, name)
+    for nut in gost16093.NUT_LIMITS:
+        row = _BASIC[nut.size]
+        ei = _printed("EI", "H", row)
+        want = {
+            "D1_min": _decimal(row.d1) + ei,
+            "D1_max": _decimal(row.d1) + ei + _printed("TD1", "6", row),
+            "D2_min": _decimal(row.d2) + ei,
+            "D2_max": _decimal(row.d2) + ei + _printed("TD2", "6", row),
+        }
+        for name, total in want.items():
+            assert _decimal(getattr(nut, name)) == total, (nut.size, name)
+
+
+def test_a_limit_row_cites_derived_and_names_both_gost_texts_once_per_addend() -> None:
+    m6 = next(b for b in gost16093.BOLT_LIMITS if b.size == "M6")
+    assert m6.sources == (
+        _BASIC["M6"].source,
+        *(
+            t.source for t in gost16093.TOLERANCES
+            if (t.quantity, t.pitch) in {("es", 1.0), ("Td", 1.0), ("Td2", 1.0)} and t.grade != "H"
+        ),
+    )
+    assert m6.citation().startswith("derived: ")
+    assert _G24705 in m6.citation()
+    assert _G16093 in m6.citation()
+    assert m6.citation().split(" + ") == [
+        f"derived: {_G24705} Table 1, column 6",
+        f"{_G16093} Table 7, column g",
+        f"{_G16093} Table 3, column 6",
+        f"{_G16093} Table 5, column 6",
+    ]
+    for nut in gost16093.NUT_LIMITS:
+        assert nut.citation().startswith("derived: ")
+        assert _G24705 in nut.citation()
+        assert _G16093 in nut.citation()
+        assert len(nut.sources) == 4
+
+
+def broken_limit_relations(
+    basic: BasicDiameters, bolt: BoltLimits, nut: NutLimits
+) -> list[str]:
+    """The relations a derived limit row breaks, each named; empty for a sound row."""
+    checks = {
+        "d_min < d_max": bolt.d_min < bolt.d_max,
+        "d_max < d": bolt.d_max < basic.d,
+        "d2_min < d2_max": bolt.d2_min < bolt.d2_max,
+        "d2_max < d2": bolt.d2_max < basic.d2,
+        "D1 <= D1_min": basic.d1 <= nut.D1_min,
+        "D1_min < D1_max": nut.D1_min < nut.D1_max,
+        "D2 <= D2_min": basic.d2 <= nut.D2_min,
+        "D2_min < D2_max": nut.D2_min < nut.D2_max,
+    }
+    return [f"{basic.size}: {name}" for name, holds in checks.items() if not holds]
+
+
+@pytest.mark.parametrize("size", [size.label for size in SIZES])
+def test_limit_relations(size: str) -> None:
+    bolt = next(b for b in gost16093.BOLT_LIMITS if b.size == size)
+    nut = next(n for n in gost16093.NUT_LIMITS if n.size == size)
+    assert broken_limit_relations(_BASIC[size], bolt, nut) == []
+
+
+def test_a_planted_limit_row_that_breaks_a_relation_is_reported_by_size_and_relation() -> None:
+    bolt = next(b for b in gost16093.BOLT_LIMITS if b.size == "M6")
+    nut = next(n for n in gost16093.NUT_LIMITS if n.size == "M6")
+    assert broken_limit_relations(
+        _BASIC["M6"], dataclasses.replace(bolt, d_max=6.0), nut
+    ) == ["M6: d_max < d"]
+    assert broken_limit_relations(
+        _BASIC["M6"], bolt, dataclasses.replace(nut, D2_min=_BASIC["M6"].d2 - 0.001)
+    ) == ["M6: D2 <= D2_min"]
+
+
+def _limits_of(terms: Iterable[Tolerance]) -> dict[str, tuple[float, ...]]:
+    bolts, nuts = gost16093.derive_limits(iso724.BASIC, terms)
+    return {
+        **{f"bolt {b.size}": (b.d_max, b.d_min, b.d2_max, b.d2_min) for b in bolts},
+        **{f"nut {n.size}": (n.D1_min, n.D1_max, n.D2_min, n.D2_max) for n in nuts},
+    }
+
+
+def test_a_planted_term_moves_exactly_the_limits_that_add_it() -> None:
+    before = _limits_of(gost16093.TOLERANCES)
+    planted = tuple(
+        dataclasses.replace(t, value=t.value + 1)
+        if (t.quantity, t.pitch) == ("Td2", 1.0) else t
+        for t in gost16093.TOLERANCES
+    )
+    after = _limits_of(planted)
+    # Td2 at pitch 1 is read by the 6g d2_min of M6 and M7 and nothing else.
+    assert {k for k in before if before[k] != after[k]} == {"bolt M6", "bolt M7"}
+    for size in ("M6", "M7"):
+        assert after[f"bolt {size}"][3] == round(before[f"bolt {size}"][3] - 0.001, 3)
+        assert after[f"bolt {size}"][:3] == before[f"bolt {size}"][:3]
+
+
+def test_a_size_missing_a_needed_term_gets_no_row_and_the_other_side_keeps_its_row() -> None:
+    no_es = tuple(t for t in gost16093.TOLERANCES if (t.quantity, t.pitch) != ("es", 1.75))
+    bolts, nuts = gost16093.derive_limits(iso724.BASIC, no_es)
+    assert "M12" not in {b.size for b in bolts}
+    assert "M12" in {n.size for n in nuts}
+    assert (len(bolts), len(nuts)) == (14, 15)
+    no_range = tuple(t for t in gost16093.TOLERANCES if (t.quantity, t.pitch) != ("TD2", 2.5))
+    assert {n.size for n in gost16093.derive_limits(iso724.BASIC, no_range)[1]} == {
+        n.size for n in gost16093.NUT_LIMITS
+    } - {"M18", "M20"}
+
+
+def test_the_range_bounds_are_over_x_up_to_y() -> None:
+    # No shipped size lies on a bound (read 5), so the convention is pinned on a planted size:
+    # 2.8 belongs to "over 1.4 up to 2.8" (pitch 0.4 has a term there), 1.4 does not.
+    def bolts_of(d: float) -> tuple[BoltLimits, ...]:
+        row = dataclasses.replace(_BASIC["M2"], d=d, size="planted")
+        return gost16093.derive_limits([row], gost16093.TOLERANCES)[0]
+
+    assert len(bolts_of(2.8)) == 1
+    assert bolts_of(1.4) == ()
+    assert bolts_of(2.8001) == ()

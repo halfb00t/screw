@@ -23,6 +23,7 @@ Status = Literal["verified", "unverified"]
 ADOPTED_ISO: dict[str, str] = {
     "GOST ISO 4032-2014": "ISO 4032:2012",
     "GOST 24705-2004": "ISO 724:1993, MOD",
+    "GOST 16093-2004": "based on ISO 965-1:1998 and ISO 965-3:1998",
 }
 
 
@@ -154,3 +155,61 @@ class BasicDiameters:
     d2: float
     d1: float
     source: Source
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class Tolerance:
+    """One printed GOST 16093-2004 deviation or tolerance, in the unit the table prints.
+
+    `quantity` is `es`, `EI`, `Td`, `TD1`, `Td2` or `TD2`; `grade` is the tolerance position
+    (`g`, `H`) for a deviation and the tolerance grade (`6`) for a tolerance. `d_over` and
+    `d_upto` are the "over X up to Y" bounds of a diameter range (Tables 5 and 6), None where the
+    table is keyed by pitch alone.
+    """
+
+    quantity: str
+    grade: str
+    pitch: float
+    d_over: float | None
+    d_upto: float | None
+    value: int
+    unit: str
+    source: Source
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class BoltLimits:
+    """The 6g limits of one coarse size in mm, derived (L14): printed basic value plus printed
+    deviation and tolerance. `sources` are the addends' Sources, the basic row's first."""
+
+    size: str
+    pitch: float
+    d_max: float
+    d_min: float
+    d2_max: float
+    d2_min: float
+    sources: tuple[Source, ...]
+
+    def citation(self) -> str:
+        return _derived(self.sources)
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class NutLimits:
+    """The 6H limits of one coarse size in mm, derived (L14), as `BoltLimits`."""
+
+    size: str
+    pitch: float
+    D1_min: float
+    D1_max: float
+    D2_min: float
+    D2_max: float
+    sources: tuple[Source, ...]
+
+    def citation(self) -> str:
+        return _derived(self.sources)
+
+
+def _derived(sources: tuple[Source, ...]) -> str:
+    """`derived: ` and the addends' distinct citations, in order, so both GOST texts are named."""
+    return "derived: " + " + ".join(dict.fromkeys(source.cite() for source in sources))
