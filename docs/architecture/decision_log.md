@@ -818,3 +818,74 @@ request-boundary mechanism, and the geometry (a later head chamfer changes the p
 link means with no field change, acceptable while the standing warning says "not a product build",
 a superseding entry after release). Reversible for the caps and `MIN_TAIL_MM`: constants that Phase 7
 replaces with measured values (OPER-01, OPER-02, OPER-03).
+
+## L14 — Phase 5 reads its table values from free GOST texts that adopt the ISO standards; buying the ISO texts is deferred debt (narrows TABL-04 and 05 D-14 to D-16)
+
+Date: 2026-10-20. Decided by the owner after the web research of 2026-10-19. The owner's reply, verbatim:
+"put this table description and sources into a document and choose second option. I don't want to
+spend $400 for MVP so lets put ISO into a techdebt". Option 2 is GOST only: one source family, every
+text free to read, every edition 2012 or older, so each one lags the ISO edition the plans name. The full
+map, the URLs and the rejected alternatives are in `docs/requirements/standards-sources.md`. This
+entry copies no standard value.
+
+**The map.** GOST ISO 4032-2014 (IDT ISO 4032:2012) for the nut. GOST 24705-2004 (MOD ISO 724:1993)
+for basic d2, D1, D2. GOST 16093-2004 (based on ISO 965-1:1998 and ISO 965-3:1998) for the 6g and 6H
+deviations and tolerances. GOST 12414-94 (the ISO 4753-83 text plus two non-ISO ends, out of scope) for
+the tip end. GOST ISO 4014-2014 (ISO 4014:2011) for a new ISO 4014 value, under the conditional rule in
+the open question below. DIN 934 and GOST 5915-70 are never a source.
+
+**What it narrows.** TABL-04 ("a table row ships only against a purchased copy of its standard"): for
+the documents in the map, the free GOST text stands in for the purchased ISO copy. 05 D-14's
+precondition (purchased copies of all four) reads: the owner has the free GOST text of each. D-15's
+frozen-default source and D-16's ISO 965-2 rows read through this entry. The ROADMAP Phase 5
+precondition and the REQUIREMENTS.md TABL-04 text are amended with the plan amendments (below), not in
+this entry's commit. Phase 4's ISO 262:2023, ISO 4017:2022 and ISO 4014:2022 rows stay exactly as L13
+records them.
+
+**Double entry still applies (ruling B).** The owner copy is generated from the free GOST text (its text
+layer or page text). The agent's independent read is from rendered images of the same pages. The
+cell-by-cell diff runs in `make verify`, with one relation test per row, and UNVERIFIED rows are
+refused, all as L13. L13's caveat carries over: both copies read the same reproduction, so the diff
+cannot catch an error in it. The reproductions are not publisher copies, and their faithfulness is
+UNVERIFIED.
+
+**The 6g and 6H limits are derived.** Each limit is the GOST 24705-2004 basic dimension plus the
+GOST 16093-2004 printed deviation or tolerance. Only printed values are added. A value given only as a
+formula is a stop-and-ask at plan 05-08 (the ISO 965-1 formulas stay rejected, 05-CONTEXT). The Source
+and the panel label say "derived" and name both designations, never "ISO 965-2:2024 Table". D-16's
+relation tests still apply. R13 stands, with the "ISO 724 table" read as GOST 24705-2004.
+
+**Citations.** Every row's Source and every panel label names the GOST designation and the ISO edition
+that designation adopts. The exact strings are set by the plan amendments. The shipped
+`NUT_NO_ROW_WARNING` in `src/screw/calc/__init__.py` names ISO 4032:2023; it is reworded when the nut
+rows land (plan 05-07). This entry does not change code.
+
+**Edition gaps and the M6 cross-check.** Whether any value Phase 5 uses differs between the five
+edition pairs (ISO 4032 2012 and 2023, ISO 724 1993 and 2023, ISO 965 1998 and 2024, ISO 4753 1983 and
+2011, ISO 4014 2011 and 2022) is UNVERIFIED, and nothing here claims it does not. The frozen nut
+defaults s 10.0 and m 5.2 (`05-OWNER-READS.md`, from a GlobalFastener print of ISO 4032:2023,
+permanent: accepted 2026-10-14, shipped by plan 05-04) are compared with the GOST ISO 4032-2014 M6
+grade-A coarse row in the columns they took (s max, m max) before plan 05-06 lands. A match is
+recorded in `05-OWNER-READS.md`. A mismatch is a stop-and-ask, because D-15 is one-way.
+
+**Pending plans.** Plans 05-06 to 05-18 name ISO editions (counted 2026-10-20). They read each named
+ISO document as its GOST equivalent from this entry. Their preconditions are amended when the phase
+resumes, before 05-06 executes: 05-06's ISO 4032:2023 page render and its "never transcribe from any
+other source" clause, 05-08's ISO 965-2 and ISO 724 owner copy, 05-11 and 05-12's ISO 4753 read and
+ISO 4014 fillet copy. The pending reads 3 to 7 of `05-OWNER-READS.md` are read from the GOST texts.
+
+**Open question.** The owner's purchase list names ISO 4014:2022. L13 records Phase 4's ISO 4014:2022
+rows as read from the purchased copy, with the agent's second copy taken from preview pages under
+ruling A-3 (`04-OWNER-READS.md`). Nothing records why ISO 4014:2022 is on the list. The rule for a new
+ISO 4014 value (R1's fillet r,min, plan 05-12) is: read it from the owner's ISO 4014:2022 copy if that
+copy holds it, else from GOST ISO 4014-2014. Which applies is asked at 05-12's precondition. Phase 4's
+shipped rows are untouched.
+
+Reason: the owner's call, not to spend about $400 (the owner's figure) on the MVP. GOST was chosen over
+mixing national sources because it is one family, freely readable. The cost is edition age, which is why
+every citation names the edition actually read and the purchase has a named trigger.
+
+Reversibility: reversible for the source choice: buying the ISO texts re-reads and re-cites the rows,
+and the double-entry diff shows every change. One-way for any frozen default a GOST row confirms
+(D-15), hence the stop-and-ask on a mismatch. Costly for the published citation text on the panel.
+Revisit: `docs/tech_debt/active/2026-10-20-iso-standards-not-purchased.md`.

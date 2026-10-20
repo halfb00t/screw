@@ -4,6 +4,14 @@ Record of the owner's opening read and rulings for phase 5 (plan 05-02, Task 2 c
 2026-10-14). It carries the owner's answers, the two M6 defaults and paths only; no clause wording,
 page render, PDF or table row is copied here (D-16, TABL-04). Plans 05-04 to 05-18 read it.
 
+**2026-10-20: the sources change (L14).** The owner chose free GOST texts in place of purchased ISO
+copies; the map is `docs/requirements/standards-sources.md`. Where this record names ISO 4032, ISO 724,
+ISO 965-2 or ISO 4753, the pending reads and the owner copy read the GOST equivalent L14 names; the
+owner-copy file names stay as written until the plan amendments. The recorded s and m, the permanence
+line and the rulings R1 to R13 are unchanged. Before plan 05-06, s and m are cross-checked against the
+GOST ISO 4032-2014 M6 row, and a mismatch is a stop-and-ask (D-15). The ISO purchase is debt:
+`docs/tech_debt/active/2026-10-20-iso-standards-not-purchased.md`.
+
 **This record is partial, and its one source is secondary.** Read this section before relying on any
 line below.
 
