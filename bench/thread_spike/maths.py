@@ -86,9 +86,10 @@ TIP_CHAMFER_DEG = 30.0
 DEPTH_FRACTIONS: tuple[int, ...] = (4, 8, 16, 32)
 LADDER_ANGULAR = 0.5
 
-# INTERIM (Phase 1 D-01): (linear deflection mm, angular deflection rad), carried from spur
-# model.py:53. Equal to `screw.solid.TESSELLATION`; tests/test_bench.py pins the equality so
-# this kernel-free module need not import the kernel to read it.
+# (linear deflection mm, angular deflection rad) the spike's campaign 2026-10-08-a was measured
+# with, carried from spur model.py:53. Kernel-free, so it need not import the kernel to read
+# them. These are history, not the product's preset: tests/test_bench.py pins the literal, and
+# `screw.solid.TESSELLATION["fine"]` is chosen by the Phase 5 D-21 rule (bench/mesh_deviation.py).
 INTERIM_PRESETS: dict[str, tuple[float, float]] = {"preview": (0.08, 0.5), "fine": (0.01, 0.1)}
 
 

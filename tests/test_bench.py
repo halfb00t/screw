@@ -132,7 +132,6 @@ from bench.thread_spike.verdict import (
 from screw import solid as screw_solid
 from screw.calc import thread as screw_thread
 from screw.params import BoltParams
-from screw.solid import TESSELLATION
 from screw.solid import helical as screw_helical
 
 
@@ -514,10 +513,11 @@ def test_the_spike_covers_the_15_sizes_in_numeric_order() -> None:
     assert diameters == sorted(diameters)
 
 
-def test_the_interim_presets_equal_the_ones_the_service_ships() -> None:
-    """The kernel-free spike module copies the INTERIM presets so it need not import the
-    kernel to read them; this pins that the copy cannot drift from `screw.solid`."""
-    assert maths.INTERIM_PRESETS == TESSELLATION
+def test_the_interim_presets_are_the_literal_the_spike_measured_with() -> None:
+    """The spike's campaign (2026-10-08-a) was measured at these presets, so its kernel-free copy
+    is history, not the product's preset: it is pinned to the literal and no longer follows
+    `screw.solid.TESSELLATION`, whose fine value D-21 chooses by its own rule (FRNT-06)."""
+    assert maths.INTERIM_PRESETS == {"preview": (0.08, 0.5), "fine": (0.01, 0.1)}
 
 
 # The D-03 grid per size under the owner's R2 reading (lower bound min(P, 1 mm)); RESEARCH
