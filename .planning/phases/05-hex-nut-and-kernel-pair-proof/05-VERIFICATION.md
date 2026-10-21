@@ -1,10 +1,11 @@
 ---
 phase: 05-hex-nut-and-kernel-pair-proof
-verified: 2026-10-21T12:10:00Z
+verified: 2026-10-21T16:10:00Z
 status: gaps_found
-score: 19/20 must-haves verified
+score: 28/29 must-haves verified
 covered_files:
   - .github/workflows/pair.yml
+  - .planning/phases/01-runtime-port-and-walking-skeleton/01-UI-SPEC.md
   - .planning/phases/05-hex-nut-and-kernel-pair-proof/05-01-PLAN.md
   - .planning/phases/05-hex-nut-and-kernel-pair-proof/05-01-SUMMARY.md
   - .planning/phases/05-hex-nut-and-kernel-pair-proof/05-02-PLAN.md
@@ -49,6 +50,8 @@ covered_files:
   - .planning/phases/05-hex-nut-and-kernel-pair-proof/05-21-SUMMARY.md
   - .planning/phases/05-hex-nut-and-kernel-pair-proof/05-22-PLAN.md
   - .planning/phases/05-hex-nut-and-kernel-pair-proof/05-22-SUMMARY.md
+  - .planning/phases/05-hex-nut-and-kernel-pair-proof/05-23-PLAN.md
+  - .planning/phases/05-hex-nut-and-kernel-pair-proof/05-23-SUMMARY.md
   - Makefile
   - bench/RESULTS.md
   - docs/architecture/decision_log.md
@@ -70,149 +73,188 @@ covered_files:
   - src/screw/tables/iso724.py
   - tests/data/pair_expected.tsv
   - tests/test_parity.py
-covered_digest: "v3:sha256:9429d998c1c37ccccc050694ec8c2dfcbc98cbdab2dfb571ad66c84c2f5140a5"
+covered_digest: "v3:sha256:a1735b7637f03a85ed555e093ec9effe7acbf062e8ade411dc632af3c68a0432"
 behavior_unverified: 0
 overrides_applied: 0
 re_verification:
-  previous_status: human_needed
-  previous_score: 6/7
+  previous_status: gaps_found
+  previous_score: 19/20
   gaps_closed:
-    - "G-05-1: with an empty clearance the nut preset picks hold (plan 05-21), re-run in a real browser"
-    - "G-05-3: the bolt's Matching nut link carries the clearance last typed (plan 05-22), re-run in a real browser"
+    - "WR-07 (05-22 truth 3 and the L15 amendment): the typed-clearance memory is keyed by formKind; the nut's Matching bolt link no longer carries the clearance, update() holds while a kind switch loads, Back rebuilds the bolt"
+    - "WR-08 (partial): Reset and a link that writes another value forget the remembered clearance"
+    - "IN-05 and IN-06 (rowOfFields guard, source pins): resolved as findings"
   gaps_remaining:
-    - "WR-07: the typed-clearance memory is keyed by the wrong kind during a kind switch"
-  regressions:
-    - "05-22 truth 3 and the L15 amendment: 'the value never enters the bolt's hash' is false on the WR-07 path"
+    - "WR-09 / 05-23 truth 'IN-06: no page error during the kind-switch window': a pick in the old kind's picker throws during the window"
+  regressions: []
 gaps:
-  - truth: "05-22 must-have 3 and the L15 amendment of 2026-10-21: the remembered clearance never reaches the bolt (not its hash, a bolt request or a download link); with it, must-have 1 (type 0.1 on a nut, follow Matching bolt, then Matching nut: the nut opens at 0.1 and builds)"
-    status: failed
-    reason: "rememberTyped keys the memory by currentKind, which is assigned only after await loadPresets() in navigate(), while buildForm() has already put the new kind's form on screen. A clearance typed in that window is stored under the old kind ('bolt'). The nut's memory misses it, and the nut page's Matching bolt link is built from lastTyped.get('bolt'), so it reads #kind=bolt&clearance=0.1&... . Following it puts the clearance in the bolt's hash and navigate() refuses the link: 'Unknown field \"clearance\" for kind \"bolt\"'. Nothing clears the entry, because every bolt field has a default and so never writes the memory: the nut's Matching bolt link stays broken for the rest of the page session. Reproduced in a headless browser (see Behavioral Spot-Checks). The window is one request on localhost, so it is narrow, but it breaks the stated invariant and the failure is persistent once hit. It fails closed: no wrong part is built, no bolt API request carries the value, and the refusal names the field."
-    artifacts:
-      - path: "src/screw/static/app.js"
-        issue: "rememberTyped (lines 678-686) uses currentKind (assigned at line 315); buildForm (line 87) replaces the form and defaults earlier, so the key and the form disagree for the length of loadPresets"
-    missing:
-      - "Key the memory by the kind the form was built for: set a formKind in buildForm in the same synchronous block as defaults, clear it in clearForm, and use it in rememberTyped (05-REVIEW.md WR-07 gives the patch)"
-      - "A source pin that lastTyped.set( is keyed by formKind, not currentKind (05-REVIEW.md IN-05 asks for the pin); and a guard in rowOfFields for a control the form lacks (IN-06, same window, same cause)"
-      - "Owner re-run of UAT test 3 after the fix"
-  - truth: "05-22 plan prose, UI-SPEC rule 37 and the code comment at app.js:675-677: 'a link never carries an empty or stale number'"
+  - truth: "05-23 must-have: 'IN-06: no page error during the kind-switch window. rowOfFields treats a catalogue row naming a field the form lacks as not held, and never throws'"
     status: partial
-    reason: "Only an input event touches the memory. Reset empties the clearance field without an event, and a link or Back writes the hash value into it without one. Reproduced in a headless browser: type 0.1 on a nut, press Reset (field empty, nut does not build), switch to the bolt; its Matching nut link is #kind=nut&clearance=0.1&... and opens a nut at a clearance the user cleared. This follows the owner's literal ruling (0.1 is the clearance last typed on a nut, the value is the user's own, the nut shows it when it opens, nothing is invented), so it is not an L02 silent change and no listed truth fails on it. It does contradict the word 'stale' in the plan, rule 37 and the code comment, and rule 37 names Reset as a non-writer, not as a non-clearer. Partial, not a blocker. The owner should pick: make Reset (and a link that overwrites with a different value) forget the entry, or amend the wording to 'the clearance last typed'."
+    reason: "The second sentence holds (rowOfFields is guarded and cannot be reached in the window, because update() returns first). The first sentence, 'no page error during the kind-switch window', is false on one path, WR-09. buildForm replaces the controls at once but the old kind's preset picker and catalogue stay on screen and live until loadPresets lands (app.js:323-325). A pick there runs pick(), which does write(fields.get(name).input, value) at app.js:234 with no guard. Bolt rows carry length, which the nut form lacks, so it throws 'Cannot read properties of undefined (reading 'input')'. Reproduced by me in a headless browser on HEAD 791e232: bolt page, Kind to nut with api/presets?kind=nut held, the stale Size select changed. Result: one pageerror, and the nut's controls briefly read d 6, pitch 1 (the bolt row's values) before the finished navigation rewrote them (after load: d 6, pitch 1, s 10, m 5.2, picker ISO 4032 / M6, nothing wrong persisted). No api request carried the value, the hash stayed #kind=nut, and the memory is untouched (a programmatic write is not an input event). So no wrong part, link, hash or download results; the effect is a console error and a few hundred ms of the old row's numbers in the controls, on a window that is one request long on localhost. The plan's own probe never touched the picker, so it did not see this, and nothing in the gate can."
     artifacts:
       - path: "src/screw/static/app.js"
-        issue: "Reset handler (lines 698-701) and navigate's write loop (line 325) change a field with no default without updating lastTyped; showCounterpart (line 428) reads it"
+        issue: "pick() (line 234) dereferences fields.get(name) unguarded; navigate()'s rebuild block (lines 315-331) leaves the old picker and catalogue live until loadPresets lands"
     missing:
-      - "Either forget the entry when Reset or a link overwrites it (05-REVIEW.md WR-08 gives forgetUntyped), or amend rule 37, the code comment and the L15 amendment to say the link carries the clearance last typed even after Reset or a link replaced it"
+      - "Call clearPicker() in navigate()'s rebuild block next to dropMesh(), so no picker or catalogue of the old kind is on screen while the new form is (05-REVIEW.md WR-09 gives the patch); or make pick() return while formKind !== currentKind"
+      - "A source pin that the rebuild block clears the picker before awaiting buildForm(kind)"
+      - "A line in the L15 amendment or UI-SPEC rule 36 only if the behaviour described changes; the stated invariant (no wrong part, hash, request or link) already holds"
 ---
 
 # Phase 5: Hex Nut and Kernel Pair Proof Verification Report
 
 **Phase Goal:** For any bolt a user can get the matching ISO 4032 nut at a chosen radial clearance, see the pair's numbers on the info panel, and get a kernel verdict on whether the pair mates, one that cannot report `proven` when its own control did not fire.
-**Verified:** 2026-10-21T12:10:00Z
+**Verified:** 2026-10-21T16:10:00Z
 **Status:** gaps_found
-**Re-verification:** Yes, after gap closure plans 05-21 (G-05-1) and 05-22 (G-05-3). HEAD 53988f4. Since the prior report (e7ac42e) only `src/screw/static/app.js` and `tests/test_parity.py` changed under `src/`, `tests/`, `Makefile`, `pyproject.toml`, `bench/` and `.github/`. The kernel, calc, tables and API are untouched, so the prior kernel evidence (M6 `proven`, M18 `inconclusive`, planted-reading checks, 240 of 240 grid cells) stands, and I ran a regression sample on top of it.
+**Re-verification:** Yes, after gap closure plan 05-23 (WR-07, WR-08). HEAD 791e232.
 
 ## Verdict in one paragraph
 
-The phase goal is achieved: the nut, the pair numbers and the kernel verdict all work, and the verdict still cannot
-be `proven` when a control did not fire. Both UAT gaps are closed and I re-ran their two tests in a real headless
-browser: with an empty clearance, ISO 4032 then M6 stays picked and nothing builds (G-05-1); a clearance typed on a
-nut rides the bolt's Matching nut link and the nut opens at 0.1 and builds (G-05-3). The status moves from
-`human_needed` to `gaps_found` for one reason. The 05-22 change breaks one of its own stated invariants on a narrow
-path (WR-07, below): the remembered clearance can reach the bolt's hash, and the nut's Matching bolt link is then
-refused for the rest of the page session. It fails closed and the trigger is a keystroke inside the one-request
-window after a kind switch, so no success criterion fails on the ordinary path. A contradicted must-have is a gap
-all the same, and the fix is a few lines of page code. WR-08 is a second, softer divergence and is recorded as partial.
+The phase goal is achieved and 05-23 did what it set out to do. The previous gap (WR-07, a clearance typed in the
+kind-switch window reaching the bolt's hash) is closed, and so is the softer one (WR-08, Reset and links leaving a
+stale clearance in the memory). I re-ran both in a real headless browser on HEAD. One of 05-23's own truths is still
+false as worded: "IN-06: no page error during the kind-switch window". The reviewer's WR-09 is real, I reproduced
+it, and it fails that truth. It does not fail the phase goal or any roadmap success criterion, and it breaks no L02
+rule (no wrong part, hash, request, link or printed measurement results). Because a must-have truth is contradicted
+and the status tree has no "minor" setting, the status is `gaps_found`, not `passed`. The fix is one call in
+`navigate()` and a pin.
 
-## Decision on WR-07 and WR-08
+## Decision on WR-09
 
-- **WR-07 defeats a 05-22 must-have truth** (truth 3, "never reaches the bolt: not its hash", and the L15 amendment that repeats it), and with it truth 1 on that path. I reproduced it, so this is not read from the review alone. It does not defeat a roadmap success criterion: SC1's "matching part both ways from the same d, pitch, hand" holds on every path except a clearance typed before the kind switch has finished loading, and the broken link refuses whole with a message naming the field (L02-safe). So: gap, but not a phase-goal failure. 05-UI-REVIEW.md rates it BLOCKER and 05-SECURITY.md judges it fail-closed; both are right about different things. Fail-closed means no wrong part. It does not mean the invariant holds.
-- **WR-08 does not defeat a listed must-have.** It follows the owner's ruling read literally, and rule 37 says Reset does not write the memory. It contradicts the "no stale number" wording, so it is a partial gap and an owner choice (fix the code or amend the words).
+**Does WR-09 fail 05-23's truth "IN-06: no page error during the kind-switch window ..."? Yes, on the first sentence.**
+I did not take the reviewer's word. I read `app.js` and ran it.
+
+- Source. `navigate()` line 322-331: `dropMesh()`, then `buildForm(kind)` (replaces `fields`, sets `formKind`), then
+  `await loadPresets(kind)`. Only `refuseLink` calls `clearPicker()`. So from the moment `buildForm` returns until
+  `loadPresets` returns, `pickerSelects`, their `change` listeners and `catalogue` belong to the old kind while `fields`
+  belongs to the new one. `pick()` at line 234 does `write(fields.get(name).input, value)` for each field of the old
+  row. The nut form has no `length` (and a bolt form has no `m`), so the lookup is `undefined` and it throws.
+- Browser. `probe.py` (scratch, not in the repo): bolt page, nut presets request held, Kind select to nut, stale
+  Size select changed. Output: `pageerrors in window after stale pick: ["Cannot read properties of undefined
+  (reading 'input')"]`; controls in the window went from `d '', pitch ''` to `d '6', pitch '1'`; hash stayed `#kind=nut`;
+  the only api requests were `schema?kind=nut`, `presets?kind=nut` and `nut/info?` (the last after the load); after the
+  load the controls were `d 6, pitch 1, s 10, m 5.2`, picker `ISO 4032 / M6`, and the one error shown was the expected
+  `Clearance (radial): Field required`. The reviewer's account matches in every detail.
+- Scope of the truth. The truth is labelled IN-06 and its second sentence names `rowOfFields`, and that half is true
+  and pinned. The first sentence is unqualified ("no page error"), and the plan's probe step is named "no page error
+  while the kind switch loads (IN-06)". A page error does occur in the window, so the sentence as written is
+  contradicted. I do not read it narrowly to rescue the score. The IN-06 finding itself said the same stale
+  catalogue was the cause and that clearing it where the form is replaced was the better fix; 05-23 chose the
+  smaller guard and left `pick()` open.
+- Goal impact. None found. The goal is a nut at a chosen clearance, the pair numbers, and an honest kernel verdict.
+  Nothing in WR-09 touches those: the `update()` guard (05-23) means no request or hash is produced in the window, the
+  throw happens before `presetBasis` or `update()` are reached, the memory is not written, and the finished
+  navigation overwrites every control. It is a transient wrong number in a form control the user just set from a
+  stale picker, not a number the tool prints for cutting.
+- Severity. Status is `gaps_found` because a must-have is contradicted. By effect it is a warning: narrow trigger (one
+  localhost request), self-healing, fails before any side effect. It is not filed as debt (grep of `docs/` and
+  `.planning/` finds WR-09 only in 05-REVIEW.md and its disposition), so the owner's choice is: close it with a
+  small plan (recommended; the fix is one line and a pin), or accept it with an override that narrows the truth to
+  its `rowOfFields` sentence. I do not suggest the override, because the deviation does not look intentional.
 
 ## Goal Achievement
 
 ### Observable Truths
 
-Roadmap success criteria SC1 to SC6, none dropped; the page truth from the first report; then the must-haves of 05-21 (A) and 05-22 (B).
+Roadmap success criteria SC1 to SC6 and the page truth (1 to 7), then 05-21 (A1 to A6), 05-22 (B1 to B7) and the
+nine must-have truths of 05-23 (C1 to C9). The prior report's 20 truths carry forward; B3 is now VERIFIED.
 
 | # | Truth | Status | Evidence |
 |---|-------|--------|----------|
-| 1 | SC1: ISO 4032 nut M2-M20 from a preset or mm fields on API and CLI; matching part both ways from the same d, pitch, hand; lead-ins; parity green | VERIFIED | Unchanged since the prior report. `tests/test_presets.py`, `tests/test_nut.py`, `tests/test_mesh.py`, `tests/test_import_boundaries.py` re-run: 480 passed. The page half of "both ways" is covered by truths B1 and B3 |
-| 2 | SC2: `clearance` is radial mm, positive enlarges the nut thread, no default; panel shows the INFO-01 set and the 6g/6H limits under the required label | VERIFIED | Unchanged (calc and API untouched). In the browser the nut with clearance empty makes zero `model.stl` requests (A1) |
-| 3 | SC3: `proven \| violated \| inconclusive` with the control; an empty control is `inconclusive`, never `proven`; c <= 0 inconclusive; both hands; full grid pre-registered | VERIFIED | Unchanged (no change under `calc/pair.py`, `solid/pair.py`, `cli.py` since the prior report, which ran the real kernel and planted readings). `tests/data/pair_expected.tsv` and `bench/RESULTS.md` unchanged |
-| 4 | SC4: the pair proof is not an API endpoint; import-linter forbids `app` and `pool` importing it | VERIFIED | `make lint-imports`: 10 contracts kept, 0 broken |
-| 5 | SC5: STL and STEP from the same solid; chord deviation explicit and recorded; `ControlSurfaceDeflection` on | VERIFIED | Unchanged; `tests/test_mesh.py` passes |
-| 6 | SC6: the M18 empty control diagnosed in one bounded task; no verdict rule changed; M18 ships `inconclusive` | VERIFIED | Unchanged; UAT test 5 (owner, browser) passed the M18 note |
-| 7 | The page: preset pick, empty clearance with no stale part, matching-part link, kind switch, pair rows, M18 note render and behave | VERIFIED | Owner UAT 2026-10-21: tests 2, 4, 5, 6 passed in a browser; tests 1 and 3 failed and are the two gaps, now re-run below. Previously PRESENT_BEHAVIOR_UNVERIFIED; the owner's UAT plus my probe now exercise it. The owner's own re-run of tests 1 and 3 on the fixed build is still the end-of-phase confirmation |
-| A1 | 05-21: kind nut, clearance empty, ISO 4032 then M6 leaves the selects on ISO 4032 / M6, fields at d 6 pitch 1 s 10 m 5.2, 422 missing clearance, nothing builds | VERIFIED | My headless probe: opening `#kind=nut` showed selects `["ISO 4032","M6"]`; picking ISO 4032 then M6 gave `["ISO 4032","M6"]`, fields `d 6, pitch 1, s 10, m 5.2, clearance ""`, 0 `model.stl` requests, empty status. Before the fix the SUMMARY records the same probe failing at exactly the three predicted steps |
-| A2 | 05-21: after a failed update the selects show the first catalogue row whose every field the form holds exactly, else blank; the server's rule and order | VERIFIED | `rowOfFields()` (app.js:199-204) uses `Number(held) === value`, `held !== ''`, first row in catalogue order, no tolerance. Pinned by `test_after_a_failed_update_the_selects_show_the_row_the_fields_hold_exactly` (passes). Caveat IN-06: `fields.get(name).input` is unguarded while the catalogue can belong to the previous kind (same window as WR-07); a console error, not a wrong part |
-| A3 | 05-21: the badge reads only an info document; `presetBasis` set only by a pick or an exact info document | VERIFIED | `showMatch`: `if (preset === null) badge.textContent = ''`; `presetBasis` assigned only in `pick` and the `exact` branch |
-| A4 | 05-21: a successful info document drives selects and badge from `info.preset` exactly as before | VERIFIED | The `exact` branch still finds the row by `preset.id`; the `rowOfFields` path is taken only for `preset === null` |
-| A5 | 05-21: the diagnosis was reproduced before the fix; RED and GREEN outputs in the SUMMARY | VERIFIED | 05-21-SUMMARY.md lines 105 (`RESULT FAIL` with three steps) and 131 (`RESULT PASS []`); the missing RED exit code is disclosed |
-| A6 | 05-21: 01-UI-SPEC.md amended; the browser test in the gate is filed as an idea | VERIFIED | UI-SPEC amendment note dated 2026-10-21 (plan 05-21) present; `docs/ideas/2026-10-21-browser-test-of-the-page-in-the-gate.md` exists and has its INDEX row |
-| B1 | 05-22: type 0.1 on a nut, follow Matching bolt, then Matching nut: the nut opens at 0.1 and builds; the link reads `#kind=nut&clearance=0.1&d=6&pitch=1&left_hand=false&s=10&m=5.2` | VERIFIED (normal path; fails on the WR-07 path, see B3) | My probe: typed 0.1 on the M6 nut (one `model.stl` request); bolt link `#kind=bolt&d=6&pitch=1&left_hand=false&s=10&k=4`; after Matching bolt, the nut link read exactly `#kind=nut&clearance=0.1&d=6&pitch=1&left_hand=false&s=10&m=5.2`; following it left clearance `0.1` and a second nut `model.stl` request |
-| B2 | 05-22: with nothing typed the link is as before and the nut opens empty and builds nothing; typing the field empty forgets the value; nothing invented | VERIFIED | With nothing typed the link read `#kind=nut&d=6&pitch=1&left_hand=false&s=10&m=5.2`. `rememberTyped` deletes the entry on `value === ''`. No default is introduced |
-| B3 | 05-22: the remembered value never reaches the bolt: not its hash, a bolt request, a download link, never the bolt API; page memory only | FAILED | Bolt API, requests and downloads: never carry it (the auditor's probe and the source: `lastTyped` is read only at app.js:428). The bolt's hash: reached on the WR-07 path. Reproduced: kind switched to nut with the nut catalogue request held back, 0.1 typed inside the window, 0.2 retyped after load. The nut's Matching bolt link read `#kind=bolt&clearance=0.1&d=6&pitch=1&left_hand=false&s=10&k=4`; clicking it put that in the URL and the page answered `Unknown field "clearance" for kind "bolt"`. See Gaps |
-| B4 | 05-22: `PartInfo.counterpart` never carries `clearance`; calc, app.py, cli.py unchanged | VERIFIED | `git diff e7ac42e HEAD` over `src/` and `tests/` touches only `app.js` and `test_parity.py`; the contract test `test_a_bolts_matching_nut_link_with_a_typed_clearance_opens_a_nut_that_builds` passes with `tests/test_parity.py` (69 passed) |
-| B5 | 05-22: app.js names no field or kind; the memory is generic; the server's fields win | VERIFIED | `{ kind, ...lastTyped.get(counterpart.kind), ...counterpart.fields }` at app.js:428; the naming test in `test_parity.py` passes |
-| B6 | 05-22: L15 amendment in the same change; UI-SPEC rule 37 and the amended rule 34 | VERIFIED (text of the amendment is contradicted by B3 on the WR-07 path) | `docs/architecture/decision_log.md` carries the 2026-10-21 amendment naming G-05-3; UI-SPEC rule 37 and the dated note are present |
-| B7 | 05-22: reproduced before the change, RED and GREEN outputs in the SUMMARY | VERIFIED | 05-22-SUMMARY.md line 118 (`RESULT FAIL`, two predicted steps) and 143 (`RESULT PASS []`) |
+| 1 | SC1: ISO 4032 nut M2-M20 from a preset or mm fields on API and CLI; matching part both ways from the same d, pitch, hand; lead-ins; parity green | VERIFIED | Kernel, calc, tables, API and CLI unchanged since the prior report: `git diff e7ac42e HEAD` over `src/ tests/ Makefile pyproject.toml bench/ .github/` touches only `src/screw/static/app.js` and `tests/test_parity.py`. `tests/test_parity.py` 71 passed (my run, `make test PYTEST_ARGS="tests/test_parity.py -q -n0 --no-cov"`); the orchestrator's `make verify` gave 3465 passed, exit 0 |
+| 2 | SC2: `clearance` is radial mm, positive enlarges the nut thread, no default; panel shows the INFO-01 set and the 6g/6H limits | VERIFIED | Unchanged. In the browser the nut with clearance empty issues no `model.stl` request and shows `Clearance (radial): Field required` |
+| 3 | SC3: `proven \| violated \| inconclusive` with the control; an empty control is `inconclusive`, never `proven`; c <= 0 inconclusive; both hands; full grid pre-registered | VERIFIED | Unchanged (no file under `calc/pair.py`, `solid/pair.py`, `cli.py` changed). Prior report ran the real kernel with planted readings; its evidence stands. Not re-run |
+| 4 | SC4: the pair proof is not an API endpoint; import-linter forbids `app` and `pool` importing it | VERIFIED | Unchanged files; part of `make verify` (orchestrator, exit 0) |
+| 5 | SC5: STL and STEP from the same solid; chord deviation recorded; `ControlSurfaceDeflection` on | VERIFIED | Unchanged; in the green gate |
+| 6 | SC6: the M18 empty control diagnosed in one bounded task; no verdict rule changed; M18 ships `inconclusive` | VERIFIED | Unchanged; owner UAT test 5 passed |
+| 7 | The page: preset pick, empty clearance with no stale part, matching-part link, kind switch, pair rows, M18 note render and behave | VERIFIED | Owner UAT tests 2, 4, 5, 6 passed; tests 1 and 3 re-run by me in a browser (A1, B1). The owner's own re-run of tests 1 and 3 on the final build is still the end-of-phase confirmation (05-UAT.md; browser behaviour is not in the gate, L01) |
+| A1 | 05-21: empty clearance, ISO 4032 then M6 holds the selects, nothing builds | VERIFIED | Unchanged since the prior browser run; `probe.py` here: after the load with clearance empty the picker reads `['ISO 4032','M6']`, fields `d 6, pitch 1, s 10, m 5.2`, error `Field required`, no `nut/model.stl` |
+| A2 | 05-21: after a failed update the selects show the first row the fields hold exactly, else blank | VERIFIED | `rowOfFields` (app.js:206-215), pinned and passing; the 05-23 guard (`control === undefined` returns false) only adds a case |
+| A3 | 05-21: the badge reads only an info document | VERIFIED | `showMatch` line 197 unchanged |
+| A4 | 05-21: a successful info document drives selects and badge from `info.preset` | VERIFIED | `exact` branch unchanged |
+| A5 | 05-21: diagnosis reproduced before the fix | VERIFIED | 05-21-SUMMARY (prior report) |
+| A6 | 05-21: UI-SPEC amended; browser test idea filed | VERIFIED | unchanged |
+| B1 | 05-22: type 0.1 on a nut, Matching bolt, Matching nut: the nut opens at 0.1 and builds | VERIFIED | `probe.py` on HEAD: typed 0.1; bolt link `#kind=bolt&d=6&pitch=1&left_hand=false&s=10&k=4`; following it, the bolt's Matching nut link `#kind=nut&clearance=0.1&d=6&pitch=1&left_hand=false&s=10&m=5.2`; following that, hash `#kind=nut&clearance=0.1`, controls `d 6, pitch 1, s 10, m 5.2, clearance 0.1`, no errors, no pageerror |
+| B2 | 05-22: with nothing typed the link is as before; typing empty forgets; nothing invented | VERIFIED | `rememberTyped` deletes on `''` (app.js:705); no default introduced |
+| B3 | 05-22: the remembered value never reaches the bolt: not its hash, a bolt request, a download link | VERIFIED | Was FAILED. `probe2.py`: nut catalogue held, d, pitch and clearance 0.1 typed inside the window; requests in the window were `schema?kind=nut` and the held `presets?kind=nut` only, hash `#kind=nut`; after the load 0.2 typed; the nut's Matching bolt link read `#kind=bolt&d=6&pitch=1&left_hand=false&s=10&k=4`, following it left no error, and the bolt's Matching nut link read `#kind=nut&clearance=0.2&d=6&...&m=5.2`. `lastTyped.get`/`set` are read/written only in `showCounterpart` and `rememberTyped`/`forgetUntyped` |
+| B4 | 05-22: `PartInfo.counterpart` never carries `clearance`; calc, app.py, cli.py unchanged | VERIFIED | `git diff` over `src/`: `app.js` only |
+| B5 | 05-22: app.js names no field or kind; the server's fields win | VERIFIED | app.js:444 `{ kind, ...lastTyped.get(counterpart.kind), ...counterpart.fields }`; grep of app.js for `clearance`, `bolt`, `nut` outside comments returns nothing; naming test passes |
+| B6 | 05-22: L15 amendment; UI-SPEC rule 37 | VERIFIED | present; its claim that the value never reaches the bolt's hash now holds (B3) |
+| B7 | 05-22: RED and GREEN in the SUMMARY | VERIFIED | prior report |
+| C1 | 05-23 WR-07: a clearance typed while a kind switch loads is remembered under the kind of the form on screen; the nut's Matching bolt link is the plain bolt link, following it builds, and the bolt's Matching nut link carries the clearance typed after load (0.2) | VERIFIED | Same run as B3. Source: `formKind = kind` directly after `clearForm()` in `buildForm` (line 99-100), `formKind = null` in `clearForm` (81), `rememberTyped` keyed by `formKind` (701-708); `lastTyped.set(` occurs once |
+| C2 | 05-23 window, owner choice (a): while `formKind !== currentKind` `update()` returns before the hash or a request; only `schema?kind=nut` in the window; hash stays `#kind=nut` | VERIFIED | app.js:504 `if (currentKind === null \|\| formKind !== currentKind) return;` is the first statement. `probe2.py` window requests `['api/schema?kind=nut', 'api/presets?kind=nut']` (the presets request is the held catalogue fetch, not an `info`), hash `#kind=nut`, no pageerror |
+| C3 | 05-23 owner choice "fix in navigate": navigate rebuilds when `kind !== currentKind \|\| kind !== formKind`; Back before the catalogue loads reopens the bolt with its own seven controls, Kind on bolt, one `bolt/model.stl` 200 | VERIFIED | app.js:315 holds the condition. `probe2.py` Back case: names `['d','pitch','length','left_hand','thread_length','s','k']`, kind `bolt`, `bolt/model.stl` statuses `[200, 200]` (the initial build and the rebuilt one), no pageerror, no error message |
+| C4 | 05-23 IN-06: no page error during the kind-switch window. `rowOfFields` treats a catalogue row naming a field the form lacks as not held, and never throws | FAILED (partial) | Second sentence: VERIFIED (app.js:210-211, pinned, and unreachable in the window because `update()` returns first). First sentence: a stale-picker pick throws `Cannot read properties of undefined (reading 'input')` in the window (WR-09). Reproduced, see Decision on WR-09 and Gaps |
+| C5 | 05-23 WR-08 (owner ruling): type 0.1 on a nut, Reset, switch to the bolt: its Matching nut link is `#kind=nut&d=6&pitch=1&left_hand=false&s=10&m=5.2`; a link that writes another value forgets 0.1 | VERIFIED | `probe.py`: after Reset and Kind select to bolt, link `#kind=nut&d=6&pitch=1&left_hand=false&s=10&m=5.2`. The link-overwrite case is in the plan's probe and the SUMMARY (`link:` step PASS); source: `forgetUntyped` after the write loop (app.js:341) and in Reset (729). I did not re-run the link-overwrite case separately |
+| C6 | 05-23: the 05-22 round trip and the 05-21 pick are unchanged | VERIFIED | B1 and A1 above; a link that writes the same 0.1 keeps it (the round trip reaching `clearance=0.1` after Matching nut) |
+| C7 | 05-23: typing is the only writer; `rememberTyped(` twice, `lastTyped.set(` once, `forgetUntyped` only deletes; app.js names no field or kind; nothing persisted; `counterpart` unchanged; calc, app.py, cli.py, index.html untouched | VERIFIED | grep: `lastTyped.set(` 1, `rememberTyped(` defined once and called once (the definition and the call are the two occurrences), `forgetUntyped` defined and called twice; `forgetUntyped` body (709-714) only `delete`s; no storage API; `git diff e30b919 HEAD` touches only `app.js`, `test_parity.py`, `decision_log.md` under `src/ tests/ docs/` |
+| C8 | 05-23: the L15 amendment (one dated paragraph naming WR-07, the update guard, WR-08) and UI-SPEC rules 14, 19, 32, 35, 36, 37 in the code's commit | VERIFIED | `docs/architecture/decision_log.md`: one added paragraph, 27 insertions, 0 deletions (`git diff e30b919 HEAD`), its description matches the source and the probe. 01-UI-SPEC.md carries the dated plan 05-23 note and rules 36, 37, E16 text. The amendment's sentence "on every path neither the remembered value nor the form's value reaches the bolt's hash, a bolt request or a download link" holds on the paths I ran, including the WR-09 path (no request, hash unchanged) |
+| C9 | 05-23: reproduced before the fix; RED, mid, GREEN outputs in the SUMMARY | VERIFIED | 05-23-SUMMARY.md lines 175 (`RESULT FAIL` nine steps), 192 (`RESULT FAIL` two WR-08 steps), 203 (`RESULT PASS []`) |
 
-**Score:** 19/20 truths verified (0 present, behavior-unverified). The one failure is B3.
+**Score:** 28/29 truths verified (0 present, behavior-unverified). The one failure is C4.
+
+### Prohibitions (05-23 `must_haves.prohibitions`)
+
+| Prohibition | Tier | Status | Evidence |
+|-------------|------|--------|----------|
+| No writer of `lastTyped` other than `rememberTyped`; `forgetUntyped` only deletes | test | HELD | source above; the pins `test_the_typed_memory_is_keyed_by_the_kind_of_the_form_on_screen` and `test_reset_and_a_navigation_forget_a_typed_value_the_field_no_longer_holds` are in the 71 passing |
+| `update()` changed only on its first-line condition; `partQuery`, `writeHash`, `setDownloads`, `refuseLink`, `pick` unchanged; navigate changed only by the rebuild condition and the forget line | test | HELD (pick unchanged, and that is exactly WR-09) | diff read; the pinned write-loop statement is byte for byte (line 340) |
+| No change to calc, app.py, cli.py, index.html; `counterpart` keeps D-02's shape | test | HELD | `git diff e7ac42e HEAD` over `src/` |
+| No field or kind named in app.js, nothing persisted, no existing decision-log line edited, no WR-08 code without the L15 paragraph and UI-SPEC rules | test | HELD | 0 deleted lines in `decision_log.md`; grep of app.js; L15 paragraph and rules in the same range (58bbc9f) |
+| No `--no-verify`; `.planning/HANDOFF.json` and `.continue-here.md` not staged | judgment | HELD, NON-AUTHORITATIVE | `git status` shows both still untracked, not committed; the commit hooks cannot be seen from the tree. Flagged for a human glance, not green |
 
 ### Deferred Items
 
-None. WR-07 and WR-08 are not addressed by Phase 6 or later. PAIR-02 (the default clearance) is Phase 6 by REQUIREMENTS.md and is correctly not claimed here.
+None. WR-09 is not addressed by Phase 6 or later (ROADMAP has no stale-picker or kind-switch item). PAIR-02 (the default clearance) is Phase 6 and is not claimed here.
 
 ### Advisory (New Scope, Unevidenced)
 
-None. The two findings above are carried forward from 05-REVIEW.md and are evidenced by a reproduction.
+None. WR-09 is evidenced by a reproduction.
 
 ### Required Artifacts
 
 | Artifact | Expected | Status | Details |
 |----------|----------|--------|---------|
-| `src/screw/static/app.js` | `rowOfFields`, `lastTyped`, `rememberTyped`, composed counterpart link | VERIFIED for 05-21; WIRED WITH DEFECT for 05-22 | `rowOfFields` and the failed-update branch present and working in a browser. `lastTyped`/`rememberTyped` present, wired to the form `input` listener and `showCounterpart`, with the key defect of WR-07 |
-| `tests/test_parity.py` | source pins and the link contract test | VERIFIED | 69 passed. They pin source text and cannot see WR-07 or WR-08 (IN-05) |
-| `docs/architecture/decision_log.md` | L15 amendment | VERIFIED | present, dated, names G-05-3 |
-| `01-UI-SPEC.md` | rules 32, 34, 35, 37 | VERIFIED | amendment notes present |
-| `docs/ideas/2026-10-21-browser-test-of-the-page-in-the-gate.md` | owner decision filed | VERIFIED | file and INDEX row present |
-| Phase 5 kernel, calc, tables, API, CLI artifacts | as in the prior report | VERIFIED | unchanged; regression sample passed |
+| `src/screw/static/app.js` | `formKind`, update guard, navigate rebuild condition, guarded `rowOfFields`, key `rememberTyped` by `formKind`, `forgetUntyped` and its two call sites | VERIFIED for every item 05-23 lists; WIRED WITH ONE GAP | all six present at the stated lines; `pick()` and the stale picker are the WR-09 gap |
+| `tests/test_parity.py` | the WR-07, WR-08 source tests and updated pins | VERIFIED | 71 passed. They pin source text, so they cannot see WR-09 (IN-05's remaining half, the owner's browser-test idea) |
+| `docs/architecture/decision_log.md` | L15 amendment of plan 05-23 | VERIFIED | one paragraph, dated, names WR-07, the guard, WR-08 |
+| `01-UI-SPEC.md` | rules 14, 19, 32, 35, 36, 37, E16, Verification status, extension rule 3, dated note | VERIFIED | rules 36 and 37, the dated note, Verification status line and extension rule 3 read; the other numbered rules were not re-read line by line |
+| Phase 5 kernel, calc, tables, API, CLI | as in the prior reports | VERIFIED | unchanged since e7ac42e |
 
 ### Key Link Verification
 
 | From | To | Via | Status | Details |
 |------|----|-----|--------|---------|
-| `update()` `fail()` | `showMatch` | `showMatch(null)` | WIRED | still called on every failure |
-| `showMatch` | `rowOfFields` | `preset === null ? rowOfFields() : undefined` | WIRED | line 185 |
-| `rowOfFields` | `/api/presets` rows | `catalogue.rows`, `read()` | WIRED | live in the browser |
-| form `input` | `rememberTyped` | `rememberTyped(e.target)` | WIRED, wrong key during a kind switch | WR-07 |
-| `showCounterpart` | `lastTyped` | `lastTyped.get(counterpart.kind)` | WIRED | composed link observed |
-| composed nut link | `/api/nut/info`, `model.stl` | navigate writes the hash, `partQuery` sends it | WIRED | nut built from the link in the browser |
+| `buildForm` | `formKind` | `clearForm(); formKind = kind;` | WIRED | lines 99-100 |
+| `update` | hash and requests | first-line return while `formKind !== currentKind` | WIRED | line 504; observed in the window |
+| `navigate` | `dropMesh`, `buildForm`, `loadPresets` | rebuild when `kind !== currentKind \|\| kind !== formKind` | WIRED | line 315; Back case observed |
+| `rememberTyped` | `lastTyped` | `lastTyped.set(formKind, typed)` | WIRED | line 707 |
+| navigate write loop and Reset | `forgetUntyped` | `for (const { input } of fields.values()) forgetUntyped(input);` | WIRED | lines 341 and 729 |
+| `rowOfFields` | `fields` | `control === undefined` returns false | WIRED | lines 210-211 |
+| old picker | `pick` | `select` `change` listener, `catalogue` | NOT GUARDED | stays live across `navigate`'s rebuild until `loadPresets` lands (WR-09) |
 
 ### Data-Flow Trace (Level 4)
 
 | Artifact | Data variable | Source | Real data | Status |
 |----------|---------------|--------|-----------|--------|
-| Picker selects after a failed update | `rowOfFields()` | `catalogue.rows` from `GET /api/presets?kind=` and the live form values | yes | FLOWING |
-| Matching-part link | `lastTyped` + `info.counterpart` | the user's `input` events and the info document | yes, keyed wrongly on the WR-07 path | FLOWING (defect noted) |
-| Nut info panel, `PairReport` | as the prior report | unchanged | yes | FLOWING |
+| Matching-part link | `lastTyped` + `info.counterpart` | the user's `input` events and the info document | yes, keyed by the form on screen | FLOWING |
+| Picker selects | `catalogue`, `rowOfFields()` | `GET /api/presets?kind=` and the form | yes; stale for one request after a kind switch | FLOWING (WR-09 window) |
+| Nut info panel, `PairReport` | as the prior reports | unchanged | yes | FLOWING |
 
 ### Behavioral Spot-Checks
 
-Scratch Playwright probes against `screw serve` on port 8019 (spur's Playwright, headless shell; not in the repo, L01; the server is stopped). Probe files are in the session scratch directory.
+Scratch Playwright probes against `.venv/bin/screw serve --port 8061` (spur's Playwright, headless shell), in
+`/private/tmp/claude-501/-Users-half-git-halfb00t-screw/1390206a-030d-4e4c-b605-e2cc70f8b492/scratchpad/verify/`, not in the repo (L01). The server is stopped.
 
 | Behavior | Command | Result | Status |
 |----------|---------|--------|--------|
-| UAT 1: empty clearance, pick ISO 4032 then M6 | `probe.py` against `#kind=nut` | selects `[ISO 4032, M6]`, fields M6, 0 `model.stl` requests | PASS |
-| UAT 3 (owner ruling): type 0.1, Matching bolt, Matching nut | `probe.py` | link `#kind=nut&clearance=0.1&d=6&pitch=1&left_hand=false&s=10&m=5.2`; nut opens at 0.1 and builds | PASS |
-| WR-08 case 1: type 0.1, Reset, switch to bolt | `probe.py` | field empty after Reset; bolt's Matching nut link still `#kind=nut&clearance=0.1&...` | CONFIRMED (partial gap) |
-| WR-07: type inside the kind-switch window, retype after load | `probe7.py`, nut catalogue request delayed 1.5 s | nut's Matching bolt link `#kind=bolt&clearance=0.1&...`; click gives `Unknown field "clearance" for kind "bolt"` | CONFIRMED (gap). The delay is mine, to make the window a person can hit; on localhost it is one request |
-| Page source assertions | `pytest tests/test_parity.py --no-cov` | 69 passed | PASS |
-| Nut, presets, import boundaries, mesh | `pytest tests/test_nut.py tests/test_presets.py tests/test_import_boundaries.py tests/test_mesh.py --no-cov` | 480 passed, 103 s | PASS |
-| Import contracts | `make lint-imports` | 10 kept, 0 broken | PASS |
-| Full gate | not re-run; the 05-22 SUMMARY records `make verify` on the final tree: 3463 passed, exit 0, and no `src/` or `tests/` file has changed since | accepted | PASS |
+| WR-09: stale-picker pick during the kind-switch window | `probe.py` | pageerror `Cannot read properties of undefined (reading 'input')`; controls `d 6, pitch 1` for a moment; hash `#kind=nut`; no bad request; state healed after load | CONFIRMED (gap) |
+| Round trip, UAT 3: 0.1, Matching bolt, Matching nut | `probe.py` | `#kind=nut&clearance=0.1&d=6&pitch=1&left_hand=false&s=10&m=5.2`, nut at 0.1 | PASS |
+| WR-08: 0.1, Reset, switch to bolt | `probe.py` | link `#kind=nut&d=6&pitch=1&left_hand=false&s=10&m=5.2` (no clearance) | PASS |
+| WR-07: type in the window, retype after load | `probe2.py` | window requests only schema and the held presets; nut->bolt link plain; bolt link builds; bolt->nut link `clearance=0.2` | PASS |
+| Back before the catalogue loads | `probe2.py` | bolt rebuilt with seven controls, `bolt/model.stl` 200, no error | PASS |
+| Page source assertions | `make test PYTEST_ARGS="tests/test_parity.py -q -n0 --no-cov"` | 71 passed | PASS |
+| Full gate | not re-run by me; orchestrator: `make verify` at HEAD, 3465 passed, exit 0 | accepted | PASS |
 
-I did not re-run the real-kernel `screw pair` runs: nothing under `calc/pair.py`, `solid/` or `cli.py` changed since the prior report, which ran them.
+I did not re-run the real-kernel `screw pair` runs or the nut, mesh and presets suites: nothing under `calc/`, `solid/`, `tables/`, `cli.py` or `app.py` changed since the prior report, which ran them.
 
 ### Probe Execution
 
@@ -220,12 +262,12 @@ No `scripts/*/tests/probe-*.sh` is declared by the phase. SKIPPED.
 
 ### Requirements Coverage
 
-All nine IDs are claimed by at least one PLAN's `requirements:` frontmatter (05-21 claims TYPE-03, 05-22 claims TYPE-04, the rest as in the first report), and REQUIREMENTS.md maps each to Phase 5, marked Complete. PAIR-02 maps to Phase 6 (Pending) and no Phase 5 plan claims it. No orphans.
+Every ID in the phase list is claimed by at least one PLAN's `requirements:` frontmatter (05-23 claims TYPE-04; the rest as in the earlier reports) and each maps to Phase 5 in REQUIREMENTS.md. PAIR-02 maps to Phase 6 and no Phase 5 plan claims it. No orphans. REQUIREMENTS.md currently reads `Gaps Found` for the nine rows (f0c73e8 reverted them); it needs to read Complete only when the phase passes.
 
 | Requirement | Source plans | Status | Evidence |
 |-------------|--------------|--------|----------|
-| TYPE-03 | 05-02, 04, 05, 06, 07, 13, 18, 19, 20, 21 | SATISFIED | 14 cited rows; the page picks them with an empty clearance (A1) |
-| TYPE-04 | 05-10, 05-18, 05-22 | SATISFIED on every path but one; gap WR-07 | `counterpart` both ways on the API/CLI; on the page the link round-trips d, pitch, hand and the typed clearance (B1). The nut's Matching bolt link breaks on the WR-07 path (fails closed). The requirement itself holds (API and CLI both ways); only the page's nut-to-bolt link is affected, and only on that path |
+| TYPE-03 | 05-02, 04, 05, 06, 07, 13, 18, 19, 20, 21 | SATISFIED | 14 cited rows; page picks hold with an empty clearance (A1) |
+| TYPE-04 | 05-10, 05-18, 05-22, 05-23 | SATISFIED | API and CLI both ways; the page's link round trip works (B1, B3, C1) and no longer breaks on the WR-07 path. WR-09 does not touch the link |
 | THRD-05 | 05-02, 11, 12, 13, 18, 20 | SATISFIED | unchanged |
 | PAIR-01 | 05-04, 05, 09, 10, 18 | SATISFIED | unchanged |
 | PAIR-03 | 05-01, 03, 05, 09, 14, 15, 16, 18, 20 | SATISFIED | unchanged; kernel evidence stands |
@@ -238,34 +280,33 @@ All nine IDs are claimed by at least one PLAN's `requirements:` frontmatter (05-
 
 | File | Line | Pattern | Severity | Impact |
 |------|------|---------|----------|--------|
-| `src/screw/static/app.js` | 678-686 | memory keyed by `currentKind`, not the kind of the form on screen | Blocker for B3 (gap 1) | persistent broken Matching bolt link after a kind-switch keystroke |
-| `src/screw/static/app.js` | 698-701, 325, 428 | Reset and links change the field, not the memory | Warning (gap 2) | the bolt's Matching nut link carries a clearance the nut no longer shows |
-| `src/screw/static/app.js` | 199-204 | `fields.get(name).input` unguarded while the catalogue is the previous kind's | Warning (IN-06) | console error inside `fail` in the same window; not a wrong part |
-| `tests/test_parity.py` | 687-708, 884-905 | tests pin source text; none runs the page | Info (IN-05) | cannot see WR-07 or WR-08; the browser test is the owner's open idea |
+| `src/screw/static/app.js` | 234, 315-331 | `pick()` dereferences `fields.get(name)` unguarded while the old kind's picker is live | Warning (WR-09; fails 05-23 truth C4) | console error and a transient wrong number in the controls; no wrong part, hash, request or link |
+| `tests/test_parity.py` | pins on page source | tests pin source text and none runs the page | Info (IN-05, owner's open idea) | cannot see WR-09 |
 
-No unreferenced TBD/FIXME/XXX; `make no-fake-done` passed at the 05-22 gate.
+No TBD, FIXME, XXX, TODO or HACK in `app.js`.
 
 ### Known debt that bears on the goal (unchanged)
 
-Filed under `docs/tech_debt/active/`; none breaks a success criterion on the sizes the goal names: first ubuntu dispatch of `pair.yml` (must), `screw pair` exit codes 1 and 2 collide with failure exits (must), fillet ring can overhang the head flats (must), the countersink-cutter and lead-in-gate items at coarse pitch or huge s (must), interim nut bounds and the unpurchased ISO standards.
+Filed under `docs/tech_debt/active/`; none breaks a success criterion on the sizes the goal names: first ubuntu dispatch of `pair.yml` (must), `screw pair` exit codes 1 and 2 collide with failure exits (must), fillet ring can overhang the head flats (must), the countersink-cutter and lead-in-gate items (must), interim nut bounds, the unpurchased ISO standards. IN-07 (the nut narrow-s test band) stays open in the review disposition; it is a test gap with no defect found, outside the page.
 
-### Human Verification Required (after the fix)
+### Human Verification Required
 
 Not frontmatter items, because `gaps_found` takes precedence. The owner's end-of-phase re-run stands.
 
-1. **UAT test 1 on the fixed build.** `make serve`, kind nut, leave clearance empty, pick ISO 4032 then M6. Expected: selects hold, fields M6, nothing builds, panel empty. My headless run agrees; no human has looked.
-2. **UAT test 3 on the fixed build.** Type 0.1 on the nut, follow Matching bolt, then Matching nut. Expected: the nut opens at 0.1 and builds. Repeat after WR-07 is fixed with a kind switch and an immediate keystroke, and after Reset (per the WR-08 choice).
+1. **UAT test 1 on the final build.** `make serve`, kind nut, clearance empty, pick ISO 4032 then M6. Expected: selects hold, fields M6, nothing builds. My headless run agrees; no human has looked.
+2. **UAT test 3 on the final build.** Type 0.1 on the nut, Matching bolt, Matching nut. Expected: the nut opens at 0.1 and builds. Also: type 0.1, Reset, switch to the bolt, and confirm its Matching nut link carries no clearance.
 
 ### Gaps Summary
 
-Two page-only defects in plan 05-22's memory, both from tying the memory to the wrong lifecycle. WR-07 is a failed
-must-have (the value can reach the bolt's hash; the nut's Matching bolt link breaks for the session; fails closed). The fix
-is to key `rememberTyped` by a `formKind` set where the form is built; it also removes the cause of IN-06. WR-08 is
-partial and needs an owner choice: forget on Reset/link, or reword rule 37, the comment and the L15 amendment. Both
-fit one small closure plan that touches `app.js`, `tests/test_parity.py` and the two contract texts. No kernel, calc,
-API or CLI work is needed, and no earlier truth regressed.
+One gap, page only, and small: the old kind's preset picker is left live while a kind switch loads, so a pick in it
+throws and briefly writes the old kind's row into the new kind's controls (WR-09). It contradicts the first sentence
+of 05-23's IN-06 truth. It is not a phase-goal failure: the nut, the pair numbers and the kernel verdict, and the
+`proven`-only-when-the-control-fired rule, all hold, and no L02 rule is broken. WR-07 and WR-08 are closed and
+re-run in a browser, and no earlier truth regressed. The fix is one `clearPicker()` call in `navigate()`'s rebuild
+block (or a guard in `pick()`) with a source pin, and the owner's re-run of UAT tests 1 and 3. No kernel, calc, API
+or CLI work is needed.
 
 ---
 
-_Verified: 2026-10-21T12:10:00Z_
+_Verified: 2026-10-21T16:10:00Z_
 _Verifier: Claude (gsd-verifier)_
