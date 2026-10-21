@@ -35,6 +35,7 @@ from screw.params import BoltParams, FastenerParams, NutParams
 from screw.solid import pair as solid_pair
 from screw.solid import precise_volume
 from screw.solid.helical import DEFAULT_K, SEWING_TOLERANCE
+from screw.tables import iso262
 
 PROOF_CLEARANCES = (0.05, 0.10, 0.15, 0.20)
 
@@ -688,6 +689,36 @@ def test_at_zero_or_negative_clearance_nothing_is_read(clearance: float) -> None
     assert fake.calls == []
     # the reason is the rule's own for a same-hand cell, so the two cannot drift apart
     assert tuple(report.reasons) == rule.cell_verdict(_record(clearance))[1]
+
+
+@pytest.mark.parametrize("rod_left", [None, True], ids=["same hand", "mixed"])
+@pytest.mark.parametrize("clearance", [3.0, 3.5])
+def test_a_clearance_of_half_the_diameter_or_more_cannot_hold_the_void_and_reads_nothing(
+        clearance: float, rod_left: bool | None) -> None:
+    # WR-04: the proof body is a cylinder of radius d, so at c >= d / 2 the void's crest reaches
+    # its surface and the closed-form nut body is not a volume (-39.6362 mm3 at d 6, c 3.5).
+    p = NutParams(d=6.0, pitch=1.0, s=20.0, m=5.2, clearance=clearance)
+    fake = _Script()
+    report = solid_pair.prove(p, rod_left_hand=rod_left, common=fake)
+    assert report.verdict == "inconclusive"
+    assert report.readings == []
+    assert report.closed_control is None
+    assert report.shipped is None
+    assert fake.calls == []
+    (reason,) = report.reasons
+    assert reason.startswith("d and clearance: ")
+    assert "inconclusive by definition" in reason
+    assert "closed form" not in reason
+    assert re.search(r"(?<![\w.])-\d", reason) is None
+
+
+def test_the_nut_body_is_a_volume_just_below_the_clearance_that_cannot_hold_the_void() -> None:
+    # The branch above starts at d / 2 because the closed form is positive just below it, at
+    # every ISO 262 coarse size; kernel-free.
+    for size in iso262.SIZES:
+        cell = _cell(math.nextafter(size.d / 2, 0.0))
+        cell["d"], cell["pitch"], cell["m"] = size.d, size.pitch, 1.0
+        assert rule._nut_body(cell) > 0.0, size.label
 
 
 @pytest.mark.usefixtures("built")

@@ -288,8 +288,9 @@ def prove(p: NutParams, *, rod_left_hand: bool | None = None, shipped: bool = Tr
 
     `rod_left_hand` is the rod's hand when it differs from the nut's (owner ruling R7): internal,
     for the rule's mixed-hand cells, never a CLI flag or a model field. A mixed pair is read at
-    the matched poses only, as the rule requires. At c <= 0 `prove` reads nothing (R8, D-11): the
-    verdict is inconclusive by definition, the readings are empty and `common` is not called.
+    the matched poses only, as the rule requires. At c <= 0 and at c >= d / 2, where the proof
+    body of radius d cannot hold the void, `prove` reads nothing (R8, D-11): the verdict is
+    inconclusive by definition, the readings are empty and `common` is not called.
     `shipped` adds the evidence row: the shipped bolt and nut intersected at the matched poses,
     printed in `PairReport.shipped` beside the verdict. It is evidence and never a verdict input,
     until a later campaign pre-registers expectations for it (D-05); it is taken after the
@@ -310,6 +311,20 @@ def prove(p: NutParams, *, rod_left_hand: bool | None = None, shipped: bool = Tr
     if p.clearance <= 0:
         verdict: PairVerdict = "inconclusive"
         reasons: tuple[str, ...] = (f"c = {p.clearance:g} mm: inconclusive by definition (D-11)",)
+    elif p.clearance >= p.d / 2:
+        # `_nut_body` is the blank's volume only while the void's crest radius d / 2 + c stays
+        # inside the blank's radius d, that is c < d / 2: at d 6, pitch 1, c 3.5 it reads
+        # -39.6362 mm3. The blank stays radius d (D-05, the table stands on it), and a larger one
+        # could not change the verdict: for every nut the CLI accepts (the nominal rod has a
+        # root, d / 2 > 5H / 8) c >= d / 2 exceeds the thread depth 5H / 8, so the void's root
+        # clears the rod's crest at every phase, the control's closed form is 0 and the rule would
+        # read inconclusive by its own "cannot fire by geometry" clause. Same shape as c <= 0 (R8).
+        verdict = "inconclusive"
+        reasons = (f"d and clearance: the proof body is a cylinder of radius d {p.d:g} mm (D-05) "
+                   f"and a clearance of {p.clearance:g} mm, at least d / 2, grows the void's crest "
+                   f"radius d / 2 + clearance to {p.d / 2 + p.clearance:g} mm, at or past the "
+                   f"body's surface: the body cannot hold the void, so the cell is inconclusive "
+                   f"by definition and nothing was read",)
     else:
         poses = [(theta, 0.0) for theta in MATCHED_POSES]
         if not mixed:

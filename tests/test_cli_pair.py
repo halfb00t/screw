@@ -65,6 +65,17 @@ def test_a_zero_clearance_is_inconclusive_by_definition_and_exits_2() -> None:
     assert done.stderr == ""
 
 
+def test_a_clearance_that_cannot_hold_the_void_is_inconclusive_by_definition_and_exits_2() -> None:
+    done = _screw("nut", "--d", "6", "--pitch", "1", "--s", "20", "--clearance", "3.5")
+    assert done.returncode == 2
+    assert done.stderr == ""
+    report = solid_pair.PairReport.model_validate_json(done.stdout)
+    assert report.verdict == "inconclusive"
+    assert report.readings == []
+    assert report.closed_control is None
+    assert report.reasons[0].startswith("d and clearance: ")
+
+
 def test_no_clearance_exits_2_naming_it() -> None:
     done = _screw("nut")
     assert done.returncode == 2
