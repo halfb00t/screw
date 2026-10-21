@@ -160,14 +160,23 @@ function showPicks(picks) {
 
 /**
  * The selects and the badge follow the fields (D-12, D-09): the matching catalogue row when the
- * newest info document says exact, blank selects when it says custom or the update failed. The
- * badge text composes from preset.status and preset.display alone; the id only finds the row.
+ * newest info document says exact, blank selects when it says custom. When no document arrived
+ * (the update failed) the selects show the row the fields hold exactly, else blank, and the badge
+ * is empty, because it reads only a document. The badge text composes from preset.status and
+ * preset.display alone; the id only finds the row.
+ *
+ * Measured, UAT 2026-10-21 test 1 (G-05-1): a nut with its clearance empty answers every info
+ * request with a 422 that carries no preset. Blank selects after that failure undid every pick:
+ * the first Standard wrote the smallest row (diameter 2, pitch 0.4, width 4, height 1.6) and went
+ * blank with Size empty, so the next size could not be picked.
  */
 function showMatch(preset) {
   if (catalogue === null) return;
   shownPreset = preset;
   const exact = preset !== null && preset.status === 'exact';
-  const entry = exact ? catalogue.rows.find((row) => row.id === preset.id) : undefined;
+  const entry = exact
+    ? catalogue.rows.find((row) => row.id === preset.id)
+    : preset === null ? rowOfFields() : undefined;
   showPicks(entry ? entry.picker : pickerSelects.map(() => ''));
   // The last exact match is the basis, not only a pick: after Reset, or after an edit that lands
   // on another row, a later edit is "based on" the row the part really was (never a guess, D-09).
@@ -175,6 +184,17 @@ function showMatch(preset) {
   if (preset === null) badge.textContent = '';
   else if (exact) badge.textContent = `matches ${preset.display}`;
   else badge.textContent = presetBasis ? `custom, based on ${presetBasis.display}` : 'custom';
+}
+
+// rowOfFields is the server's rule and order (calc.presets.match and match_nut: exact float
+// equality, first row in catalogue order), so the page never names a row the server would not,
+// and never a nearest one (L02). An empty control is no value: Number('') is 0 (rule 35).
+/** The first catalogue row whose every field the form holds exactly, or undefined. */
+function rowOfFields() {
+  return catalogue.rows.find((row) => Object.entries(row.fields).every(([name, value]) => {
+    const held = read(fields.get(name).input);
+    return held !== '' && Number(held) === value;
+  }));
 }
 
 /**

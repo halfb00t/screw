@@ -684,6 +684,29 @@ def test_the_badge_composes_from_the_status_and_the_display_and_the_basis_stays_
     assert "location.hash" not in _function_body("pick")
 
 
+def test_after_a_failed_update_the_selects_show_the_row_the_fields_hold_exactly() -> None:
+    # G-05-1, D-12, D-09, L02: a nut with its clearance empty answers every info request with a
+    # 422 that carries no preset, and blank selects after that undid every pick. With no info
+    # document the selects show the first catalogue row the form holds exactly (the rule and
+    # the order of calc.presets.match), else blank; the badge stays empty (it reads a document).
+    row_of_fields = _squash(_function_body("rowOfFields"))
+    assert "catalogue.rows.find((row) => Object.entries(row.fields).every(" in row_of_fields
+    assert "read(fields.get(name).input)" in row_of_fields
+    assert "!== ''" in row_of_fields  # an empty control is no value: Number('') is 0
+    assert "Number(held) === value" in row_of_fields  # exact, as the server compares
+    assert "Math." not in row_of_fields  # no tolerance, no nearest row
+    show_match = _squash(_function_body("showMatch"))
+    assert "preset === null ? rowOfFields() : undefined" in show_match
+    assert "if (preset === null) badge.textContent = '';" in show_match
+    # The definition and the one call: nothing else reaches the match.
+    assert APP_JS.count("rowOfFields()") == 2
+    # Every failure still goes through showMatch(null).
+    assert "showMatch(null);" in _function_body("update")
+    # The match never reaches the link (D-09).
+    for name in ("partQuery", "writeHash"):
+        assert "rowOfFields" not in _function_body(name), name
+
+
 def test_the_ui_builds_nodes_from_text_only() -> None:
     assert "textContent" in APP_JS
     for sink in ("innerHTML", "outerHTML", "insertAdjacentHTML"):
