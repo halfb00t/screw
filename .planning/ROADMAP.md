@@ -309,7 +309,7 @@ Plans:
 - [x] 05-22-PLAN.md — G-05-3 (UAT test 3, owner ruling 2026-10-21): the bolt's Matching nut link carries the clearance last typed on a nut in this page, never in the bolt's hash or requests; the L15 amendment in the same commit; UI contract rule 37
 
 **Wave 23** *(gap closure; blocked on Wave 22 completion)*
-- [ ] 05-23-PLAN.md — WR-07 and WR-08 (re-verification gaps): the typed-clearance memory keyed by the kind of the form on screen (formKind, the IN-06 guard, the IN-05 pins), and forgotten on Reset and on a link that writes another value (owner ruling 2026-10-21); reproduced first with a scratch browser probe; L15 amendment and UI contract rules 19, 32, 35 and 37 in the code's commit; the kind-switch window's update loop filed as debt for the owner
+- [ ] 05-23-PLAN.md — WR-07 and WR-08 (re-verification gaps): the typed-clearance memory keyed by the kind of the form on screen (formKind, the IN-06 guard, the IN-05 pins), update() held while a kind switch loads (owner choice (a)), and the memory forgotten on Reset and on a link that writes another value (owner ruling 2026-10-21); reproduced first with a scratch browser probe; L15 amendment and UI contract rules 14, 19, 32, 35 and 37 in the code's commit
 
 **UI hint**: yes
 
