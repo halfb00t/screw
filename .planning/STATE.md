@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Hex Nut and Kernel Pair Proof
 status: verifying
-stopped_at: Completed 05-19-PLAN.md
-last_updated: "2026-10-21T02:51:54.005Z"
+stopped_at: Completed 05-20-PLAN.md
+last_updated: "2026-10-21T07:39:46.539Z"
 last_activity: 2026-10-20
 last_activity_desc: Phase 05 execution started
-state_head: 568051d93b335bafe2f2ad2feed1d773545d79df
+state_head: 88cb31dc8b5da5b89ed773fc4e03266760315178
 progress:
   total_phases: 7
   completed_phases: 4
-  total_plans: 61
-  completed_plans: 61
+  total_plans: 62
+  completed_plans: 62
   percent: 57
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-12)
 ## Current Position
 
 Phase: 05 (Hex Nut and Kernel Pair Proof) — EXECUTING
-Plan: 18 of 18
+Plan: 20 of 20
 Status: Phase complete — ready for verification
 Last activity: 2026-10-20 — Phase 05 execution started
 
@@ -120,6 +120,7 @@ Progress: [██████░░░░] 57%
 | Phase 05 P17 | 17min | 3 tasks | 7 files |
 | Phase 05 P18 | 30 min | 3 tasks | 15 files |
 | Phase 05 P19 | about 3h with two 50 min runs | 3 tasks | 26 files |
+| Phase 05 P20 | 48 min | 4 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -234,6 +235,9 @@ Recent decisions affecting current work:
 - [Phase 05]: 05-18: a preview STL is saved as <slug>_preview.stl (calc.download_name, one rule for the API header and screw export); the phase entry is L15 because L14 is the GOST source decision
 - [Phase 05]: 05-18: the nut has no fine-STL cap (R12 condition not met, 05-05); the owner's sign-off on that interim is outstanding, see docs/tech_debt/active/2026-10-14-nut-fine-stl-caps-unmeasured.md
 - [Phase 05]: 05-19: the nut's fine STL is capped on m per (d, pitch, hand) from run 2026-10-21-nut-fine-caps-amended at clearance 5.0 mm and s 1e5 mm; a clearance above 5.0 mm is refused (R16, R17, L16)
+- [Phase 05]: 05-20: the face-chamfer cutter overshoots by min(0.5, (s/2) tan 30 deg / 2) mm so a nut under sqrt(3) mm across flats builds; the model gained no floor on s; shipped nuts are byte-identical
+- [Phase 05]: 05-20: a non-finite volume is never believed (negated <= in the rule, refused at the reading boundary in prove); a planted matched NaN stays violated as 02-SPIKE Rules is written; the 240-cell table re-derives byte for byte
+- [Phase 05]: 05-20: at c >= d/2 prove reads nothing and is inconclusive by definition (R8 shape), the D-05 blank does not grow; the report prints only a closed form the rule compared (cell_judgement)
 
 ### Pending Todos
 
@@ -280,6 +284,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-21T02:51:53.841Z
-Stopped at: Completed 05-19-PLAN.md
+Last session: 2026-10-21T07:39:19.718Z
+Stopped at: Completed 05-20-PLAN.md
 Resume file: None
