@@ -239,7 +239,7 @@ Plans:
   5. STL and STEP downloads come from the same modelled-thread solid; the STL chord deviation is explicit, measured against the clearances the printed test will use, and recorded and cited in a decision entry, with `ControlSurfaceDeflection` on for downloads; the preview may mesh coarser, the numbers may not.
   6. The M18 control that reads empty at theta -2π/3 (right hand) and +2π/3 (left hand) at every clearance in `2026-10-08-a-pair` (0 solids, no boolean error or warning) is diagnosed in one bounded task whose method is committed before it runs; the finding is recorded in a decision entry and changes no verdict rule. Until a later campaign proves M18, the M18 nut ships (criterion 1), `screw pair` reads `inconclusive` for it, and the info panel's pair section labels M18 "kernel pair proof inconclusive at K = 3 (`2026-10-08-a-pair`)" from the cited record, not from a kernel call (criterion 4).
 
-**Plans**: 20/20 plans executed (sequential waves 1-20; the pre-registration lands as its own PR first)
+**Plans**: 20/22 plans executed (sequential waves 1-22; the pre-registration lands as its own PR first)
 
 Plans:
 **Wave 1**
@@ -301,6 +301,12 @@ Plans:
 
 **Wave 20** *(gap closure; blocked on Wave 19 completion)*
 - [x] 05-20-PLAN.md — The Phase 5 code review fixes (WR-01 to WR-06, IN-01): the narrow nut's face-chamfer cutter, non-finite readings never believed, the compared closed form, the d / 2 proof body, the exact engagement, the off-row evidence bolt; IN-02 to IN-04 and the countersink-cutter defect filed as debt
+
+**Wave 21** *(gap closure; blocked on Wave 20 completion)*
+- [ ] 05-21-PLAN.md — G-05-1 (UAT test 1): with the nut's clearance empty a preset pick holds its row; after a failed update the selects show the row the fields hold exactly (D-12, D-09); reproduced first with a scratch browser probe; UI contract; the browser-test-in-the-gate decision filed for the owner
+
+**Wave 22** *(gap closure; blocked on Wave 21 completion)*
+- [ ] 05-22-PLAN.md — G-05-3 (UAT test 3, owner ruling 2026-10-21): the bolt's Matching nut link carries the clearance last typed on a nut in this page, never in the bolt's hash or requests; the L15 amendment in the same commit; UI contract rule 37
 
 **UI hint**: yes
 
