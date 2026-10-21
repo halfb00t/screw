@@ -165,8 +165,15 @@ def _poses_ok(readings: list[PairReading]) -> bool:
 
 
 def cell_verdict(record: PairRecord) -> tuple[PairVerdict, tuple[str, ...]]:
+    """The pre-registered rule for one cell, and why: `cell_judgement` less the closed form."""
+    verdict, reasons, _ = cell_judgement(record)
+    return verdict, reasons
+
+
+def cell_judgement(
+        record: PairRecord) -> tuple[PairVerdict, tuple[str, ...], float | None]:
     """The pre-registered rule for one cell, and why (D-12, D-14; owner ruling R1 left D-14
-    exactly as written).
+    exactly as written), with the closed form it judged the controls against.
 
     A cell that did not finish is inconclusive. So is a built cell, of either hand pairing,
     whose nut body (precise volume) misses pi d^2 m - A(c) m by more than `T_PASS`: a nut whose
@@ -180,10 +187,16 @@ def cell_verdict(record: PairRecord) -> tuple[PairVerdict, tuple[str, ...]]:
     non-empty within `PAIR_BAND` of the closed form. Anything else is inconclusive, with every
     reason. A volume that is not finite is never within `T_PASS` or `PAIR_BAND`. The diagnostic
     columns are never read.
+
+    The third element is `closed_control(record)` where the rule got as far as the controls (a
+    `proven` cell, an empty or off-band control, a control that cannot fire by geometry) and
+    `None` where it ended before them: a cell that did not finish, a nut body off its closed
+    form, a mixed-hand pair, c <= 0, poses that are not the pre-registered ones, a non-empty
+    matched pose. A closed form nobody compared against is not reported (L02).
     """
     outcome = record["outcome"]
     if outcome != "built":
-        return "inconclusive", (f"cell {outcome}: {record['error']}",)
+        return "inconclusive", (f"cell {outcome}: {record['error']}",), None
     nut_volume = record["nut_volume"]
     if nut_volume is None:
         raise ValueError("a built pair record must carry its nut_volume")
@@ -192,31 +205,33 @@ def cell_verdict(record: PairRecord) -> tuple[PairVerdict, tuple[str, ...]]:
     # positive form (`> T_PASS`) read a NaN body as on its closed form.
     if not abs(nut_volume / body - 1.0) <= T_PASS:
         return "inconclusive", (f"the nut body is {nut_volume:.6g} mm3, not the closed form "
-                                f"{body:.6g} mm3 within {T_PASS:g}: no reading is believed",)
+                                f"{body:.6g} mm3 within {T_PASS:g}: no reading is believed",), None
     matched, controls = _matched(record), _controls(record)
     if _is_mixed(record):
         if controls or not _poses_ok(matched):
             return "inconclusive", ("the poses are not the pre-registered ones: a mixed-hand "
-                                    "cell is read at the matched poses and nothing else (D-12)",)
+                                    "cell is read at the matched poses and nothing else "
+                                    "(D-12)",), None
         reads = [r for r in matched if not _is_empty(r)]
         if len(reads) == len(matched):
-            return "violated", (f"mixed-hand pair: all {len(matched)} matched poses non-empty",)
+            return ("violated", (f"mixed-hand pair: all {len(matched)} matched poses non-empty",),
+                    None)
         return "inconclusive", (f"mixed-hand pair: {len(matched) - len(reads)} of "
-                                f"{len(matched)} matched poses empty",)
+                                f"{len(matched)} matched poses empty",), None
     clearance = record["clearance"]
     if clearance <= 0:
-        return "inconclusive", (f"c = {clearance:g} mm: inconclusive by definition (D-11)",)
+        return "inconclusive", (f"c = {clearance:g} mm: inconclusive by definition (D-11)",), None
     if not (_poses_ok(matched) and _poses_ok(controls)):
         return "inconclusive", ("the poses are not the pre-registered ones: no verdict is "
-                                "drawn from poses chosen after the fact (D-12)",)
+                                "drawn from poses chosen after the fact (D-12)",), None
     reads = [r for r in matched if not _is_empty(r)]
     if reads:
-        return "violated", tuple(f"matched pose theta {r['theta']:+.4f} reads {r['volume']:.6g} mm3"
-                                 for r in reads)
+        return ("violated", tuple(f"matched pose theta {r['theta']:+.4f} reads "
+                                  f"{r['volume']:.6g} mm3" for r in reads), None)
     closed = closed_control(record)
     if closed <= EMPTY_MM3:
         return "inconclusive", (f"control cannot fire by geometry: its closed form is "
-                                f"{closed:.3g} mm3, at or below {EMPTY_MM3:g}",)
+                                f"{closed:.3g} mm3, at or below {EMPTY_MM3:g}",), closed
     reasons: list[str] = []
     for r in controls:
         if _is_empty(r):
@@ -226,4 +241,4 @@ def cell_verdict(record: PairRecord) -> tuple[PairVerdict, tuple[str, ...]]:
             reasons.append(f"control at theta {r['theta']:+.4f} reads {r['volume']:.6g} mm3, "
                            f"{_off_by(r, closed):.2e} off the closed form {closed:.6g} mm3: "
                            f"outside the band {PAIR_BAND:g}")
-    return ("inconclusive", tuple(reasons)) if reasons else ("proven", ())
+    return ("inconclusive", tuple(reasons), closed) if reasons else ("proven", (), closed)

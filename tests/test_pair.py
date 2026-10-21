@@ -479,6 +479,37 @@ def test_a_matched_pose_that_is_not_finite_is_never_proven() -> None:
     assert verdict == "violated"
 
 
+def _judged_cases() -> list[tuple[str, rule.PairRecord, float | None]]:
+    cell = _cell()
+    closed = rule.closed_control(cell)
+    removed = _record()
+    removed["readings"] = removed["readings"][:-1]
+    scaled = _record()
+    scaled["nut_volume"] = (scaled["nut_volume"] or 0.0) * 1.01
+    return [
+        ("proven", _record(), closed),
+        ("an empty control", _record(controls=(0.0, closed, closed)), closed),
+        ("a control that cannot fire", _record(0.6), 0.0),
+        ("a cell that did not finish", _not_built("failure"), None),
+        ("a nut body off its closed form", scaled, None),
+        ("a mixed-hand pair", _record(rod_left=True, matched=(1.0, 1.0, 1.0)), None),
+        ("no reading at c = 0", _record(0.0), None),
+        ("a non-empty matched pose", _record(matched=(0.0, 0.5, 0.0)), None),
+        ("a missing control", removed, None),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("record", "compared"), [pytest.param(r, c, id=name) for name, r, c in _judged_cases()])
+def test_the_rule_returns_the_compared_closed_form_or_none_where_it_ended_first(
+        record: rule.PairRecord, compared: float | None) -> None:
+    # WR-03: `prove` printed `closed_control` whenever it was computed, on a failure and on a
+    # violation too, a number no reading was ever judged against.
+    verdict, reasons, closed = rule.cell_judgement(record)
+    assert (verdict, reasons) == rule.cell_verdict(record)
+    assert closed == compared
+
+
 def test_the_pair_rule_module_loads_no_kernel() -> None:
     code = "import sys, screw.calc.pair; print('cadquery' in sys.modules, 'OCP' in sys.modules)"
     out = subprocess.run([sys.executable, "-I", "-c", code], capture_output=True, text=True,
@@ -630,6 +661,21 @@ def test_a_nut_body_volume_that_is_not_finite_reads_nothing(
     assert "not a finite number" in reason
     assert report.readings == []
     assert fake.calls == []
+
+
+@pytest.mark.usefixtures("built")
+def test_a_report_prints_the_compared_closed_form_only_where_the_controls_were_judged() -> None:
+    failed = solid_pair.prove(
+        _nut(), shipped=False, common=_Script(*[EMPTY] * 3, RuntimeError("boolean exploded")))
+    assert (failed.verdict, failed.closed_control) == ("inconclusive", None)
+    violated = solid_pair.prove(
+        _nut(), shipped=False, common=_Script(*[(0.5, 1, False, False, 0.1)] * 3, *[EMPTY] * 3))
+    assert (violated.verdict, violated.closed_control) == ("violated", None)
+    empty = solid_pair.prove(_nut(), shipped=False, common=_Script(
+        *[EMPTY] * 3, EMPTY, _fires(M6_CLOSED), _fires(M6_CLOSED)))
+    assert empty.verdict == "inconclusive"
+    assert empty.closed_control == pytest.approx(M6_CLOSED)
+    assert f"{M6_CLOSED:.6g}" in empty.reasons[0]
 
 
 @pytest.mark.parametrize("clearance", [0.0, -0.05])

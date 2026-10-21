@@ -36,8 +36,7 @@ from screw.calc.pair import (
     PairRecord,
     PairVerdict,
     ReadingOutcome,
-    cell_verdict,
-    closed_control,
+    cell_judgement,
 )
 from screw.calc.pair import PairReading as PairReadingRow
 from screw.calc.presets import counterpart_for
@@ -166,8 +165,11 @@ class PairReport(BaseModel):
     control's closed form and the band around it, the shipped-solid evidence row and the seconds
     the proof took.
 
-    `closed_control` is `None` where no control was read: a mixed-hand pair is read at the matched
-    poses only, and at c <= 0 nothing is read (L02: a closed form nobody compared against is not
+    `closed_control` is present where the rule judged the control readings against it, or found it
+    at or below `EMPTY_MM3` and so a control that cannot fire; it is then the number every reason
+    that quotes a closed form quotes. It is `None` where the rule ended before the controls:
+    nothing was read (c <= 0), a mixed-hand pair, a cell that did not finish, a nut body off its
+    closed form, or a non-empty matched pose (L02: a closed form nobody compared against is not
     printed). `shipped` is `None` where the row was not taken: it was not asked for, nothing was
     read (c <= 0) or the cell did not finish.
     """
@@ -282,7 +284,7 @@ def prove(p: NutParams, *, rod_left_hand: bool | None = None, shipped: bool = Tr
           common: Boolean = common) -> PairReport:
     """Whether the nut `p` mates with the nominal rod of its own d, pitch and hand: the spike's
     bodies read at the three matched poses and their half-pitch controls, judged by
-    `screw.calc.pair.cell_verdict`.
+    `screw.calc.pair.cell_judgement`.
 
     `rod_left_hand` is the rod's hand when it differs from the nut's (owner ruling R7): internal,
     for the rule's mixed-hand cells, never a CLI flag or a model field. A mixed pair is read at
@@ -312,9 +314,8 @@ def prove(p: NutParams, *, rod_left_hand: bool | None = None, shipped: bool = Tr
         poses = [(theta, 0.0) for theta in MATCHED_POSES]
         if not mixed:
             poses += [(theta, CONTROL_OFFSET_PITCHES) for theta in MATCHED_POSES]
-            closed = closed_control(cell)
         record = _record(cell, poses, common)
-        verdict, reasons = cell_verdict(record)
+        verdict, reasons, closed = cell_judgement(record)
         readings = [_echo(row) for row in record["readings"]]
         if shipped and record["outcome"] == "built":
             evidence = _shipped(p, rod_hand, common)
