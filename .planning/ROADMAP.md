@@ -239,7 +239,7 @@ Plans:
   5. STL and STEP downloads come from the same modelled-thread solid; the STL chord deviation is explicit, measured against the clearances the printed test will use, and recorded and cited in a decision entry, with `ControlSurfaceDeflection` on for downloads; the preview may mesh coarser, the numbers may not.
   6. The M18 control that reads empty at theta -2π/3 (right hand) and +2π/3 (left hand) at every clearance in `2026-10-08-a-pair` (0 solids, no boolean error or warning) is diagnosed in one bounded task whose method is committed before it runs; the finding is recorded in a decision entry and changes no verdict rule. Until a later campaign proves M18, the M18 nut ships (criterion 1), `screw pair` reads `inconclusive` for it, and the info panel's pair section labels M18 "kernel pair proof inconclusive at K = 3 (`2026-10-08-a-pair`)" from the cited record, not from a kernel call (criterion 4).
 
-**Plans**: 22/22 plans executed (sequential waves 1-22; the pre-registration lands as its own PR first)
+**Plans**: 22/23 plans executed (sequential waves 1-23; the pre-registration lands as its own PR first)
 
 Plans:
 **Wave 1**
@@ -307,6 +307,9 @@ Plans:
 
 **Wave 22** *(gap closure; blocked on Wave 21 completion)*
 - [x] 05-22-PLAN.md — G-05-3 (UAT test 3, owner ruling 2026-10-21): the bolt's Matching nut link carries the clearance last typed on a nut in this page, never in the bolt's hash or requests; the L15 amendment in the same commit; UI contract rule 37
+
+**Wave 23** *(gap closure; blocked on Wave 22 completion)*
+- [ ] 05-23-PLAN.md — WR-07 and WR-08 (re-verification gaps): the typed-clearance memory keyed by the kind of the form on screen (formKind, the IN-06 guard, the IN-05 pins), and forgotten on Reset and on a link that writes another value (owner ruling 2026-10-21); reproduced first with a scratch browser probe; L15 amendment and UI contract rules 19, 32, 35 and 37 in the code's commit; the kind-switch window's update loop filed as debt for the owner
 
 **UI hint**: yes
 
