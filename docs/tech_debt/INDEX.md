@@ -16,6 +16,10 @@ Severity (grep-able `Severity:` field):
 
 | Severity | Item | Trigger to revisit |
 |---|---|---|
+| must | [The nut's countersink cutter ends at a negative radius at a coarse pitch and the kernel refuses a valid nut](active/2026-10-21-nut-countersink-cutter-crosses-the-axis-at-a-coarse-pitch.md) | before the nut's pitch or clearance range is relied on, or with the root-radius floor item |
+| nice | [Three pair and CLI tests couple to prose, internal names and a wall-clock bound](active/2026-10-21-brittle-pair-and-cli-tests.md) | the first time the 5 s assertion fails, or the next edit to the pair orchestration tests |
+| must | [screw pair's verdict exit codes 1 and 2 are also what a crash and a refused parameter return](active/2026-10-21-screw-pair-exit-codes-collide-with-failure-exits.md) | before any script, workflow or doc branches on the exit code, or the Phase 6 release |
+| must | [A bolt's under-head fillet ring can overhang the head's flats with no warning](active/2026-10-21-fillet-ring-can-overhang-the-head-flats.md) | before the Phase 6 release, or when the fillet or the head next changes |
 | must | [The required CI test job tripled: two pair tests run 20x slower on the runner than locally](active/2026-10-20-ci-test-job-tripled-by-two-pair-tests.md) | phase 5 close, or the `test (3.12)` job passing 20 min |
 | must | [The ISO standards Phase 5 reads are not purchased: rows come from free GOST texts of older editions](active/2026-10-20-iso-standards-not-purchased.md) | before the Phase 6 release, or any public release that claims ISO conformance |
 | nice | [The tip cut fails in the sliver of thread_length just above the cone's axial length](active/2026-10-20-tip-cone-degenerate-boolean-at-the-cone-length.md) | revisit if a real size meets the window, or when the tip length is next changed |
