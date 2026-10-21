@@ -98,8 +98,10 @@ created: "2026-10-14"
 | 05-21-01 | 21 | 21 | TYPE-03 | T-05-60, T-05-61, T-05-62 | With the nut's clearance empty, a preset pick holds its row in the selects (G-05-1) | tracer tdd | `make test PYTEST_ARGS="tests/test_parity.py -q -n0 --no-cov"` (source assertions); browser behaviour by a scratch Playwright probe | yes | ✅ green — 69 passed (re-run 2026-10-21); behaviour in a browser is manual-only (below) |
 | 05-21-02 | 21 | 21 | TYPE-03 | T-05-60 | The UI contract says the selects follow the fields after a failed update | auto | `grep -q 'plan 05-21, gap G-05-1' 01-UI-SPEC.md` and the plan's greps | n/a | ✅ green |
 | 05-21-03 | 21 | 21 | TYPE-03 | — | The owner gets the open decision on a browser test in the gate | auto | `test -f docs/ideas/2026-10-21-browser-test-of-the-page-in-the-gate.md` and INDEX grep | n/a | ✅ green |
-| 05-22-01 | 22 | 22 | TYPE-04 | T-05-63..T-05-68 | A clearance typed on a nut rides the bolt's Matching nut link, with the L15 amendment (G-05-3) | tracer tdd | `make test PYTEST_ARGS="tests/test_parity.py -q -n0 --no-cov"`; `lastTyped` / no-storage greps | yes | ✅ green (source assertions); review WR-07 (memory keyed by the old kind during a kind switch) and WR-08 (memory outlives Reset or a link) are open behaviour defects the source tests cannot see (IN-05) |
+| 05-22-01 | 22 | 22 | TYPE-04 | T-05-63..T-05-68 | A clearance typed on a nut rides the bolt's Matching nut link, with the L15 amendment (G-05-3) | tracer tdd | `make test PYTEST_ARGS="tests/test_parity.py -q -n0 --no-cov"`; `lastTyped` / no-storage greps | yes | ✅ green (source assertions); review WR-07 and WR-08 closed by plan 05-23 (rows below) |
 | 05-22-02 | 22 | 22 | TYPE-04 | T-05-67 | The UI contract describes the matching-part link as built | auto | `grep -q 'plan 05-22, gap G-05-3' 01-UI-SPEC.md` and the plan's greps | n/a | ✅ green |
+| 05-23-01 | 23 | 23 | TYPE-04 | T-05-69, T-05-71, T-05-72, T-05-75 | A clearance typed during a kind switch is kept under the form on screen; update() waits for the switch; navigate rebuilds a form that is not the link's kind (WR-07, IN-06, IN-05) | tracer tdd | `make test PYTEST_ARGS="tests/test_parity.py -q -n0 --no-cov"` (source assertions); browser behaviour by the plan's scratch Playwright probe (9 FAIL at BASE, 2 after Task 1, PASS after Task 2, outputs in 05-23-SUMMARY.md) | yes | ✅ green — 71 passed (re-run 2026-10-21); behaviour in a browser is manual-only (below) |
+| 05-23-02 | 23 | 23 | TYPE-04 | T-05-70, T-05-73, T-05-74 | Reset and a link forget a remembered value the field no longer holds; L15 amendment and UI-SPEC rules describe it (WR-08) | tdd | `make test PYTEST_ARGS="tests/test_parity.py -q -n0 --no-cov -k forget"`; the plan's decision-log difflib and UI-SPEC greps | yes | ✅ green — included in the 71 passed above |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -125,7 +127,7 @@ Framework: existing pytest infrastructure; no install.
 | Owner read of ISO 4032, 724, 965-2, 4753 and the rulings | TYPE-03, THRD-05, INFO-02, FRNT-06 | purchased standards, owner decisions (D-14); since 2026-10-20 the pending reads are of the free GOST texts L14 maps | 05-02 Task 2 checkpoint; the preconditions of 05-06, 05-07, 05-08, 05-11 and 05-12 |
 | Owner copies generated from the GOST text layer, labels fixed by the owner | TYPE-03, INFO-02, THRD-05 | owner action outside the executor's session, so the agent's image transcription stays independent (05-OWNER-READS.md, 2026-10-20) | the preconditions of 05-06, 05-08 and 05-12 check the file and its header line only |
 | Codex review of the pre-registration PR | PAIR-03 | the author never reviews (HOW_TO_DEVELOP section 8) | 05-03 Task 1 checkpoint |
-| The page: counterpart link, empty clearance, kind switch; the selects after a failed update (G-05-1, 05-21); the typed clearance on the Matching nut link (G-05-3, 05-22) | TYPE-03, TYPE-04, PAIR-01 | no browser in the gate (L01); source assertions cover the code text only; the 05-21/05-22 Playwright probes ran from a scratch dir on spur's venv; a browser test in the gate is an open owner decision (`docs/ideas/2026-10-21-browser-test-of-the-page-in-the-gate.md`) | end-of-phase human check in `/gsd-verify-work`; include review WR-07 (type a clearance while switching bolt to nut) and WR-08 (type 0.1, Reset, open the bolt, read its Matching nut link) |
+| The page: counterpart link, empty clearance, kind switch; the selects after a failed update (G-05-1, 05-21); the typed clearance on the Matching nut link (G-05-3, 05-22) | TYPE-03, TYPE-04, PAIR-01 | no browser in the gate (L01); source assertions cover the code text only; the 05-21/05-22 Playwright probes ran from a scratch dir on spur's venv; a browser test in the gate is an open owner decision (`docs/ideas/2026-10-21-browser-test-of-the-page-in-the-gate.md`) | end-of-phase human check in `/gsd-verify-work`; re-check WR-07 (type a clearance while switching bolt to nut; Back before the catalogue loads) and WR-08 (type 0.1, Reset, open the bolt, read its Matching nut link), both fixed by 05-23 |
 | Verify cell on ubuntu-latest | PAIR-04 | platform difference possible (L11) | 05-15 Task 3 reads the CI log |
 
 ---
@@ -142,6 +144,8 @@ Framework: existing pytest infrastructure; no install.
 **Approval:** validated 2026-10-20 (validate-phase audit: 9/9 requirements covered by passing automated tests; per-task quick commands re-run)
 
 **Re-audit:** 2026-10-21 after plans 05-19 to 05-22 — 12 task rows added, every automated command re-run green; no requirement without automated coverage; the page's browser behaviour stays manual-only (L01).
+
+**Re-audit:** 2026-10-21 after plan 05-23 — 2 task rows added, `tests/test_parity.py` re-run green (71 passed); WR-07/WR-08 browser behaviour stays manual-only (L01), proven by the plan's scratch probe.
 
 ## Validation Audit 2026-10-20
 
