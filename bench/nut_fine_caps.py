@@ -19,7 +19,8 @@ THE RULE (stated here, in the commit that adds this module, before any row is ru
     slimmest s the model admits there).
 
     STOP CONDITIONS. Any of these means NO CAP SHIPS and the executor commits the record and
-    stops (L02): a check row over budget or failed; a ladder row that failed below the key's first
+    stops (L02): a check row over budget or failed (a check the shipped build REFUSES is not a
+    stop, see AMENDMENT 1); a ladder row that failed or was refused below the key's first
     over-budget m; a key with no fitting m (m = 1 already over, or no row at all); a ladder that
     ended before `ladder_end` without crossing the budget; a finite cap below the key's GOST ISO
     4032-2014 m_max (`screw.tables.iso4032.NUTS`; M7 has no row); a missing check row.
@@ -38,6 +39,20 @@ service ships on; Phase 7 re-measures, OPER-02). The bytes are geometry and do n
 the seconds are recorded and the rule never reads them. The checks are samples: they do not prove
 that the bytes are monotonic in clearance or in s, only that the five sampled points at each cap
 fit.
+
+AMENDMENT 1 (R17, owner ruling 2026-10-21; applies to run `2026-10-21-nut-fine-caps-amended` and
+not to the first run). The first run, `2026-10-20-nut-fine-caps` (HEAD 0c349a7, records
+`bench/results/phase-05/nut-fine-caps.jsonl`, `bench/RESULTS.md`, "Nut fine-STL caps (Phase 5,
+R16)"), stopped on 46 check rows that the shipped build refused with `BuildError: Geometry kernel
+produced the wrong lead-in countersink` (s = 1e5, clearance -0.05, 0 and 0.1). The amendment: a
+check row on which the shipped build raises `BuildError` is a REFUSED row, recorded with its error,
+counted as "not a file" and not a stop. The row outcome is "refused" (a `BuildError`) as opposed to
+"failed" (any other exception, still a stop). Every other stop condition is unchanged: a ladder row
+that is refused or failed below the crossing is still a stop, and so are a check over budget, a
+check that fails otherwise, a missing check, a key with no fitting m, a ladder that ends short of
+the turn cap and a cap below the ISO 4032 `m_max`. The rule's ladder, C, s, the checks and the
+budget are untouched. The run id is new and the records go to their own file; the first run's
+records and entry are never rewritten.
 
 AMENDMENT. An instrument defect is amended here, in this docstring and in the RESULTS.md entry,
 with the rule, the ladder, C, s and the checks untouched, and a re-run gets a new `RUN_ID`. A run
@@ -69,14 +84,16 @@ from bench.quiet import Reading, read_now
 from bench.thread_spike.measure import gzip1
 from bench.thread_spike.verdict import BUDGET_BYTES as BUDGET_BYTES
 from screw import solid
+from screw.build_errors import BuildError
 from screw.calc.thread import MAX_TURNS
 from screw.params import NutParams
 from screw.solid import TESSELLATION
 from screw.tables.iso262 import SIZES
 from screw.tables.iso4032 import NUTS
 
-RUN_ID = "2026-10-20-nut-fine-caps"
-RECORDS = Path("bench/results/phase-05/nut-fine-caps.jsonl")
+RUN_ID = "2026-10-21-nut-fine-caps-amended"
+FIRST_RUN_ID = "2026-10-20-nut-fine-caps"    # stopped on refused checks; R17 amends the rule
+RECORDS = Path("bench/results/phase-05/nut-fine-caps-amended.jsonl")
 
 CLEARANCE_MM = 5.0    # C, R16 option-a
 S_MM = 1e5            # equal to params INTERIM_MAX_MM
@@ -96,7 +113,7 @@ class Row:
     m: float
     clearance: float
     s: float
-    outcome: str         # "built" or "failed"
+    outcome: str         # "built", "refused" (the shipped build raised BuildError) or "failed"
     error: str | None
     raw_bytes: int | None
     gzip1_bytes: int | None
@@ -111,6 +128,7 @@ class Row:
 class Verdict:
     caps: dict[Key, float]    # a key with no cap is absent
     stops: list[str]
+    refused: list[str]        # check rows the build refused: "not a file", not a stop (R17)
 
 
 def total(r: Row) -> int | None:
@@ -156,6 +174,7 @@ def caps(rows: Sequence[Row], keys: Sequence[Key] = KEYS) -> Verdict:
     """THE RULE: each key's cap and every stop condition met. A key with a stop gets no cap."""
     found: dict[Key, float] = {}
     stops: list[str] = []
+    refused: list[str] = []
     for key in keys:
         mine = [r for r in rows if r.key == key]
         ladder = sorted((r for r in mine if r.role == "ladder"), key=lambda r: r.m)
@@ -166,7 +185,7 @@ def caps(rows: Sequence[Row], keys: Sequence[Key] = KEYS) -> Verdict:
         bad = False
         for r in ladder:
             if r.outcome != "built" and r.m < first_over:
-                stops.append(f"{_label(key)}: ladder row m {r.m:g} failed: {r.error}")
+                stops.append(f"{_label(key)}: ladder row m {r.m:g} {r.outcome}: {r.error}")
                 bad = True
         if first_over == 1.0:
             stops.append(f"{_label(key)}: m = 1 is already over budget")
@@ -196,13 +215,16 @@ def caps(rows: Sequence[Row], keys: Sequence[Key] = KEYS) -> Verdict:
                              "is missing")
                 continue
             t = total(hit[0])
-            if t is None:
+            if hit[0].outcome == "refused":
+                refused.append(f"{_label(key)}: check row (clearance {clearance:g}, s {s:g}) "
+                               f"refused: {hit[0].error}")
+            elif t is None:
                 stops.append(f"{_label(key)}: check row (clearance {clearance:g}, s {s:g}) "
                              f"failed: {hit[0].error}")
             elif t > BUDGET_BYTES:
                 stops.append(f"{_label(key)}: check row (clearance {clearance:g}, s {s:g}) "
                              f"is over budget: {t} bytes")
-    return Verdict(found, stops)
+    return Verdict(found, stops, refused)
 
 
 def measure(role: str, key: Key, m: float, clearance: float, s: float) -> Row:
@@ -214,7 +236,8 @@ def measure(role: str, key: Key, m: float, clearance: float, s: float) -> Row:
         data = solid.export(p, "stl", "fine")
         gz, _ = gzip1(data)
     except Exception as exc:
-        return Row(role, d, pitch, left_hand, m, clearance, s, "failed",
+        outcome = "refused" if isinstance(exc, BuildError) else "failed"
+        return Row(role, d, pitch, left_hand, m, clearance, s, outcome,
                    f"{type(exc).__name__}: {exc}", None, None, time.perf_counter() - t0)
     finally:
         solid.clear_cache()
@@ -301,7 +324,8 @@ def main() -> int:
     with RECORDS.open("w", encoding="utf-8") as fh:
         _emit(fh, {"kind": "header", "run_id": RUN_ID, "head": head, "host": machine_facts(),
                    "python": sys.version.split()[0], "cadquery": cq.__version__,
-                   "cadquery_ocp": version("cadquery-ocp"), "budget_bytes": BUDGET_BYTES,
+                   "cadquery_ocp": version("cadquery-ocp"), "amends": FIRST_RUN_ID,
+                   "budget_bytes": BUDGET_BYTES,
                    "preset": list(TESSELLATION["fine"]), "clearance_mm": CLEARANCE_MM,
                    "s_mm": S_MM, "check_clearances": list(CHECK_CLEARANCES),
                    "load1_before": before.load1, "load_before_utc": before.utc})
@@ -331,13 +355,16 @@ def main() -> int:
                              "cap_mm": None if v == math.inf else v,
                              "bound_by": "turn_cap" if v == math.inf else "budget"}
                             for k, v in verdict.caps.items()],
-                   "stop_conditions": verdict.stops})
+                   "stop_conditions": verdict.stops, "refused_checks": verdict.refused})
     print(f"after: {_load(after)} (includes the run's own meshing load)")
     print(f"wall: {wall:.1f} s")
     print("\n".join(_tables(rows, verdict)))
     print("\nstop conditions: " + ("none" if not verdict.stops else ""))
     for stop in verdict.stops:
         print(f"- {stop}")
+    print(f"\ncheck rows the build refused (not a file, not a stop; R17): {len(verdict.refused)}")
+    for line in verdict.refused:
+        print(f"- {line}")
     return 0
 
 

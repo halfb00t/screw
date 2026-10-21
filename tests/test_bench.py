@@ -5047,11 +5047,12 @@ _NFC_KEY = (20.0, 2.5, False)     # M20 right: GOST ISO 4032 m_max 18 mm
 
 def _nfc_row(key: nut_fine_caps.Key, m: float, size: int, *, role: str = "ladder",
              clearance: float = nut_fine_caps.CLEARANCE_MM, s: float = nut_fine_caps.S_MM,
-             failed: bool = False) -> nut_fine_caps.Row:
+             failed: bool = False, refused: bool = False) -> nut_fine_caps.Row:
     """One synthetic row whose raw + gzip bytes add up to `size`."""
-    if failed:
-        return nut_fine_caps.Row(role, *key[:2], key[2], m, clearance, s, "failed", "boom", None,
-                                 None, 0.1)
+    if failed or refused:
+        return nut_fine_caps.Row(role, *key[:2], key[2], m, clearance, s,
+                                 "refused" if refused else "failed",
+                                 "BuildError: boom" if refused else "boom", None, None, 0.1)
     return nut_fine_caps.Row(role, key[0], key[1], key[2], m, clearance, s, "built", None,
                              size - 100, 100, 0.1)
 
@@ -5136,6 +5137,24 @@ def test_nut_fine_caps_rule_reports_a_check_over_budget_a_failed_check_and_a_mis
     assert "failed: boom" in nut_fine_caps.caps(rows, [_NFC_KEY]).stops[0]
 
 
+def test_nut_fine_caps_rule_counts_a_check_the_build_refuses_as_not_a_file() -> None:
+    """R17: a refused check is recorded, not a stop; a ladder row the build refuses still is one."""
+    rows = _nfc_rows(40.0)
+    for i in (-5, -4, -3):    # the three small-clearance checks at s = 1e5
+        rows[i] = _nfc_row(_NFC_KEY, 39.0, 0, role="check", clearance=rows[i].clearance,
+                           s=rows[i].s, refused=True)
+    verdict = nut_fine_caps.caps(rows, [_NFC_KEY])
+    assert verdict.caps == {_NFC_KEY: 39.0}
+    assert verdict.stops == []
+    assert len(verdict.refused) == 3
+    assert "refused: BuildError: boom" in verdict.refused[0]
+    ladder = _nfc_rows(40.0)
+    ladder[6] = _nfc_row(_NFC_KEY, 7.0, 0, refused=True)
+    stopped = nut_fine_caps.caps(ladder, [_NFC_KEY])
+    assert stopped.caps == {}
+    assert "m 7 refused: BuildError: boom" in stopped.stops[0]
+
+
 def test_nut_fine_caps_rule_reports_an_unmeasured_key() -> None:
     verdict = nut_fine_caps.caps([], [_NFC_KEY])
     assert verdict.caps == {}
@@ -5158,6 +5177,8 @@ def test_nut_fine_caps_constants_are_the_ones_the_rods_and_the_owner_fixed() -> 
     assert BUDGET_BYTES == 64 * 1024 * 1024
     assert nut_fine_caps.S_MM == INTERIM_MAX_MM
     assert nut_fine_caps.CLEARANCE_MM == 5.0    # R16 option-a
+    assert nut_fine_caps.RUN_ID == "2026-10-21-nut-fine-caps-amended"    # R17
+    assert nut_fine_caps.RECORDS.name == "nut-fine-caps-amended.jsonl"
     assert nut_fine_caps.CHECK_CLEARANCES == (-0.05, 0.0, 0.1, 2.5)
     assert len(nut_fine_caps.KEYS) == 30
     assert nut_fine_caps.check_points(20.0)[-1] == (5.0, 31.0)
@@ -5179,3 +5200,14 @@ def test_nut_fine_caps_row_is_the_shipped_export_path() -> None:
     assert failed.outcome == "failed"
     assert failed.error is not None
     assert failed.raw_bytes is None
+
+
+def test_nut_fine_caps_row_the_build_refuses_is_refused_not_failed() -> None:
+    """The first run's refusal, reproduced as a scratch reading: M2 right m 12 at s = 1e5 and
+    clearance 0.1 is refused by the lead-in countersink piece gate (R17); a bad parameter is not."""
+    row = nut_fine_caps.measure("check", (2.0, 0.4, False), 12.0, 0.1, nut_fine_caps.S_MM)
+    assert row.outcome == "refused"
+    assert row.error is not None
+    assert row.error.startswith(
+        "BuildError: Geometry kernel produced the wrong lead-in countersink")
+    assert nut_fine_caps.total(row) is None
