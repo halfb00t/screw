@@ -239,7 +239,7 @@ Plans:
   5. STL and STEP downloads come from the same modelled-thread solid; the STL chord deviation is explicit, measured against the clearances the printed test will use, and recorded and cited in a decision entry, with `ControlSurfaceDeflection` on for downloads; the preview may mesh coarser, the numbers may not.
   6. The M18 control that reads empty at theta -2π/3 (right hand) and +2π/3 (left hand) at every clearance in `2026-10-08-a-pair` (0 solids, no boolean error or warning) is diagnosed in one bounded task whose method is committed before it runs; the finding is recorded in a decision entry and changes no verdict rule. Until a later campaign proves M18, the M18 nut ships (criterion 1), `screw pair` reads `inconclusive` for it, and the info panel's pair section labels M18 "kernel pair proof inconclusive at K = 3 (`2026-10-08-a-pair`)" from the cited record, not from a kernel call (criterion 4).
 
-**Plans**: 23/24 plans executed (sequential waves 1-24; the pre-registration lands as its own PR first)
+**Plans**: 24/24 plans executed (sequential waves 1-24; the pre-registration lands as its own PR first)
 
 Plans:
 **Wave 1**
@@ -312,7 +312,7 @@ Plans:
 - [x] 05-23-PLAN.md — WR-07 and WR-08 (re-verification gaps): the typed-clearance memory keyed by the kind of the form on screen (formKind, the IN-06 guard, the IN-05 pins), update() held while a kind switch loads (owner choice (a)), navigate rebuilding when the form on screen is not the requested kind (owner choice 2026-10-21), and the memory forgotten on Reset and on a link that writes another value (owner ruling 2026-10-21); reproduced first with a scratch browser probe; L15 amendment and UI contract rules 14, 19, 32, 35, 36 and 37 in the code's commit
 
 **Wave 24** *(gap closure; blocked on Wave 23 completion)*
-- [ ] 05-24-PLAN.md — WR-09 (re-verification gap): a kind switch clears the old kind's form and preset picker (catalogue and badge with it) directly after the mesh drop, before the new schema is fetched. So no stale pick throws or writes one kind's row into another's controls, and no old control rebuilds the old part under the new kind; Back during the switch reopens the old kind whole. Reproduced first with a scratch browser probe (four placements measured); source pin; UI contract rules 30, 32 and 36; WR-09 recorded fixed in the review disposition
+- [x] 05-24-PLAN.md — WR-09 (re-verification gap): a kind switch clears the old kind's form and preset picker (catalogue and badge with it) directly after the mesh drop, before the new schema is fetched. So no stale pick throws or writes one kind's row into another's controls, and no old control rebuilds the old part under the new kind; Back during the switch reopens the old kind whole. Reproduced first with a scratch browser probe (four placements measured); source pin; UI contract rules 30, 32 and 36; WR-09 recorded fixed in the review disposition
 
 **UI hint**: yes
 
@@ -357,6 +357,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 2 
 | 2. Thread Spike | 8/8 | Complete    | 2026-10-09 |
 | 3. Real Helical Thread | 7/7 | Complete    | 2026-10-11 |
 | 4. ISO Hex Bolts and Screws | 17/17 | Complete    | 2026-10-12 |
-| 5. Hex Nut and Kernel Pair Proof | 23/23 | In Progress | - |
+| 5. Hex Nut and Kernel Pair Proof | 24/24 | In Progress | - |
 | 6. Printed Pair Acceptance | 0/TBD | Not started | - |
 | 7. Operability Re-sweep | 0/TBD | Not started | - |

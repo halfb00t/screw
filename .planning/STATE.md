@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Hex Nut and Kernel Pair Proof
 status: executing
-stopped_at: Completed 05-23-PLAN.md
-last_updated: "2026-10-21T16:25:55.446Z"
+stopped_at: Completed 05-24-PLAN.md
+last_updated: "2026-10-21T17:46:30.882Z"
 last_activity: 2026-10-21
 last_activity_desc: Phase 05 execution started
-state_head: e0150ca68b0371451cb2b74fdce280b50f1e8a27
+state_head: 56f50bfa1799fa40e0279fc3489ff2a4264c72f3
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 66
-  completed_plans: 65
+  completed_plans: 66
   percent: 57
 ---
 
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-10-12)
 
 ## Current Position
 
-Phase: 05 (Hex Nut and Kernel Pair Proof) — READY TO EXECUTE
-Plan: 23 of 23 complete (gap closure 05-23 done; WR-07 and WR-08 await re-verification and the owner's UAT re-run)
-Status: Ready to execute
-Last activity: 2026-10-21 — Completed 05-23-PLAN.md
+Phase: 05 (Hex Nut and Kernel Pair Proof) — READY FOR RE-VERIFICATION
+Plan: 24 of 24 complete (gap closure 05-24 done; WR-09 awaits re-verification and the owner's browser steps)
+Status: Ready for re-verification
+Last activity: 2026-10-21 — Completed 05-24-PLAN.md
 
 Progress: [██████░░░░] 57%
 
@@ -124,6 +124,7 @@ Progress: [██████░░░░] 57%
 | Phase 05 P21 | 40 min | 3 tasks | 5 files |
 | Phase 05 P22 | 12 min | 2 tasks | 4 files |
 | Phase 05 P23 | 16 min | 2 tasks | 4 files |
+| Phase 05 P24 | 45 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -246,6 +247,7 @@ Recent decisions affecting current work:
 - [Phase 05]: 05-22: the bolt's Matching nut link carries the clearance last typed on a nut in this page; generic per-kind memory of fields with no default, input-event only, page memory, server fields win; L15 amendment 2026-10-21
 - [Phase 05]: 05-23: the typed-value memory is keyed by formKind (the kind of the controls on screen); update() returns while formKind !== currentKind; navigate rebuilds when kind !== currentKind || kind !== formKind (WR-07, owner choices (a) and fix in navigate, 2026-10-21)
 - [Phase 05]: 05-23: forgetUntyped deletes a remembered entry the field no longer holds, after navigate's write loop and on Reset; typing stays the only writer (WR-08, owner ruling forget on Reset and on a link, 2026-10-21; L15 amendment)
+- [Phase 05]: 05-24: kind switch clears the old form and picker (clearForm + clearPicker) directly after dropMesh, before buildForm; picker-only and post-buildForm placements measured worse (WR-09)
 
 ### Pending Todos
 
@@ -292,6 +294,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-21T14:12:24.271Z
-Stopped at: Completed 05-23-PLAN.md
+Last session: 2026-10-21T17:46:30.653Z
+Stopped at: Completed 05-24-PLAN.md
 Resume file: None

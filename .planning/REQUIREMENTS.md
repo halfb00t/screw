@@ -31,7 +31,7 @@ Requirements for the first release: the mating-pair cut (infra port, thread spik
 - [x] **TYPE-01**: User can generate a hex head bolt per ISO 4014:2022 (partial thread): across-flats `s`, across-corners `e`, head height `k`, bearing face `dw`, thread length `b` by length band, unthreaded shank `ls`/grip `lg`, product grade A/B boundary (A for d ≤ M24 and l ≤ 10d or 150 mm). The chamfered point and the under-head fillet are THRD-05's (Phase 5, ISO 4753).
 - [x] **TYPE-02**: User can generate a hex head screw per ISO 4017:2022 (threaded to the head), lengths to the standard's 200 mm cap.
 - [ ] **TYPE-03**: User can generate a hex nut per ISO 4032:2023 (style 1): `s`, `e`, height `m`, wrench height `mw`, `dw`, chamfers on both faces; M5–M20 from the normative tables, M2–M4 from informative Annex A labelled "informative / historical" in the preset and on the info panel. Amended 2026-10-20 (L14): the rows are read from GOST ISO 4032-2014 (ISO 4032:2012), which has no Annex A, so by the owner's ruling every size M2–M20 it prints (Table 1 and Table 2; no M7) ships as a normative row citing its table and none is labelled informative. *(Evidence, Phase 5: the 14 GOST ISO 4032-2014 rows and their relation tests in `tests/test_tables.py`, the frozen defaults pinned to the M6 row in `tests/test_params.py`, the catalogue and exact match in `tests/test_presets.py` and `tests/test_calc.py`; no row is labelled informative by the owner's 2026-10-20 ruling, `05-OWNER-READS.md`.)*
-- [ ] **TYPE-04**: For any generated bolt the user can get the matching nut, and vice versa, derived from the same `d`, pitch, hand and clearance. *(Evidence, Phase 5: `tests/test_calc.py::test_following_a_bolts_counterpart_gives_the_nut_row_of_its_size`, `test_following_a_nuts_counterpart_gives_a_bolt_with_the_nuts_d_pitch_and_hand` and `tests/test_parity.py::test_the_cli_and_the_api_print_the_same_counterpart`.)*
+- [x] **TYPE-04**: For any generated bolt the user can get the matching nut, and vice versa, derived from the same `d`, pitch, hand and clearance. *(Evidence, Phase 5: `tests/test_calc.py::test_following_a_bolts_counterpart_gives_the_nut_row_of_its_size`, `test_following_a_nuts_counterpart_gives_a_bolt_with_the_nuts_d_pitch_and_hand` and `tests/test_parity.py::test_the_cli_and_the_api_print_the_same_counterpart`.)*
 
 ### ISO Tables and Presets
 
@@ -131,7 +131,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TYPE-01 | Phase 4 | Complete |
 | TYPE-02 | Phase 4 | Complete |
 | TYPE-03 | Phase 5 | Gaps Found |
-| TYPE-04 | Phase 5 | Gaps Found |
+| TYPE-04 | Phase 5 | Complete |
 | TABL-01 | Phase 4 | Complete |
 | TABL-02 | Phase 4 | Complete |
 | TABL-03 | Phase 4 | Complete |
