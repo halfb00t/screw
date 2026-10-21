@@ -935,7 +935,7 @@ reproduce through the product. **No fine-STL cap for the nut (R12; 05-05).** R12
 (`bench/RESULTS.md`, "End-cut probe (Phase 5, D-10)", R12's table) shows it on none of the three sizes it
 measured: M10 right (0.973 at cap + 1) and M20 right (0.936) still fit, and M20 left (1.003) is over at the
 cap itself. So no nut cap exists and `download_refusal` serves every nut download; the owner's sign-off
-on that interim is outstanding. Debt: `docs/tech_debt/active/2026-10-14-nut-fine-stl-caps-unmeasured.md`.
+on that interim is outstanding. Debt: `docs/tech_debt/active/2026-10-14-nut-fine-stl-caps-unmeasured.md`. Superseded by L16 (plan 05-19).
 
 **The nut solid (D-10, D-12, D-13; 05-04, 05-13).** The hex prism (`polygon(6, s, circumscribed=True)`,
 height `m`) less `helical.thread(d, pitch, m + 2 pitch, clearance=c)` shifted down one pitch. The void is
@@ -1115,3 +1115,70 @@ bodies, the expected table and the tiers that stand on them, for the info docume
 part a link means with no field change, acceptable under the standing warning) and for the `_preview`
 file name. Reversible for the fine preset and the sources: a constant with a cited run, and rows re-read
 from the ISO texts when bought (`docs/tech_debt/active/2026-10-20-iso-standards-not-purchased.md`).
+
+## L16 — The nut's fine STL is capped on m per (d, pitch, hand) from run 2026-10-21-nut-fine-caps-amended, measured at clearance 5.0 mm and s 1e5 mm; a clearance above 5.0 mm is refused
+
+Date: 2026-10-21. Decided by the owner on 2026-10-20 (R16, `option-a`) and 2026-10-21 (R17), recorded in
+`.planning/phases/05-hex-nut-and-kernel-pair-proof/05-OWNER-READS.md`. This entry supersedes L15's nut
+fine-STL paragraph (R12; 05-05).
+
+**Why clearance is part of the key.** The rod's cap is keyed on (d, pitch, hand) to a length, and only
+the length moves a rod's fine bytes. A nut's fine bytes also move with its clearance, a required free
+field. The planner's scratch probe of 2026-10-20 (plan 05-19, Task 1; not a record, evidence about the
+key only) read M20 right m 20 s 30 at 17.1 MB (clearance 0.1) against 22.4 MB (2.0) and 34.2 MB (4.9),
+and m 40 at clearance 4.9 over the budget (1.018 of 64 MiB) where clearance 0.1 was 37,986,035 bytes;
+at clearance 50 and m 20 it read 1.84 of the budget. A cap keyed on (d, pitch, hand) alone at one small
+clearance would pass a nut over budget. The owner chose a ceiling C = 5.0 mm, the largest clearance
+any GOST ISO 4032-2014 row's own s admits ((30 - 20) / 2 at M20, since s > d + 2c), and a refusal above
+it, which closes T-05-12 on both m and clearance. Not chosen: C = 1.0 mm (option b, larger m caps, a
+loose fit on a catalogue nut refused) and a ceiling that serves above it uncapped (option c, leaves
+clearance 50 at 1.84 of the budget).
+
+**The rule, fixed before any row ran** (`bench/nut_fine_caps.py` docstring, committed in `0c349a7`):
+for each of the 30 keys (the 15 ISO 262 coarse (d, pitch) by both hands), the nut `NutParams(d, pitch,
+s = 1e5, m, clearance = 5.0, hand)` for m = 1, 2, 3, ... mm, built and meshed by the shipped
+`screw.solid.export(p, "stl", "fine")` at the fine preset (0.01 mm, 0.1 rad); a row fits when its STL
+plus its gzip level-1 copy is at most 64 MiB (`BUDGET_BYTES`, the rods' constant); the cap is the
+largest m that fits below the first that does not. Five checks at each cap: s = 1e5 at clearances
+-0.05, 0, 0.1 and 2.5, and clearance 5.0 at the slimmest s (d + 11). s = 1e5 is `INTERIM_MAX_MM`; s
+adds a near-constant number of bytes that does not grow with m (the planner's probe), so a cap at the
+largest s holds for every s.
+
+**Two runs.** The first run, `2026-10-20-nut-fine-caps` (HEAD `0c349a7`), measured all 30 caps and
+stopped on 46 check rows the shipped build refused with `BuildError: Geometry kernel produced the wrong
+lead-in countersink` (s = 1e5 and clearance -0.05, 0 or 0.1). The owner ruled (R17) that a check the
+build refuses is "not a file", recorded with its error and not a stop, every other stop condition
+unchanged, under a new run id. The amended run, `2026-10-21-nut-fine-caps-amended` (HEAD `63c22a6`, the
+instrument amended in `9b4fbb7` before any of its rows), met no stop condition and reproduced the
+first run's 1236 rows with identical bytes: 1086 ladder rows built, 104 checks built and fit (largest
+0.960 of 64 MiB), 46 refused. The refusal is filed:
+`docs/tech_debt/active/2026-10-21-nut-lead-in-gate-refuses-a-valid-nut-at-huge-s.md`. Records:
+`bench/results/phase-05/nut-fine-caps.jsonl` and `nut-fine-caps-amended.jsonl`; entries in
+`bench/RESULTS.md`.
+
+**Caps** (`NUT_FINE_STL_ROWS`, the largest whole mm that fits; each is 0.954 to 0.995 of the budget and
+cap + 1 is over it). Right hand: M2 12, M2.5 13, M3 15, M3.5 18, M4 21, M5 24, M6 30, M7 30, M8 38,
+M10 36, M12 41, M14 46, M16 45, M18 54, M20 36 mm. Left hand: M2 15, M2.5 17, M3 19, M3.5 22, M4 25,
+M5 30, M6 38, M7 38, M8 47, M10 50, M12 56, M14 61, M16 59, M18 73, M20 47 mm. The smallest margin over
+a GOST ISO 4032-2014 height is M20 right, 36 mm against 18 mm; every catalogue row is served at its
+own s and m_max (a test). The values are proven against both runs' records by
+`tests/test_thread_maths.py::test_nut_fine_stl_every_cap_is_recomputed_from_the_committed_records`,
+which also compares each header's preset with `screw.solid.TESSELLATION["fine"]`, so a preset change
+fails until the caps are re-measured; no cap is typed to match.
+
+**Behaviour.** `calc.thread.nut_fine_stl_refusal(d, pitch, m, clearance, left_hand)` is called by the
+nut branch of `download_refusal`, before the cache, the admission slot and the pool: API 422
+`fine_stl_cap` (loc `["query"]`), CLI exit 2 with nothing written, and the same sentence on the info
+document's stl/fine download entry and in its warnings. The clearance is judged first. A sentence
+beginning `clearance: ` is returned for a clearance above 5.0 mm on a measured key; one beginning
+`m: ` for an m past the key's cap. Both name the run and offer the preview STL and the STEP, which are
+never refused. A nut off the 30 keys gets no cap: the rods' `FINE_STL_ROWS` is never applied to a nut
+and no nearest row is used (D-03, L02). Nothing is trimmed (L02, D-02).
+
+Reason: the cap is a number someone will cut metal against, so it comes from a recorded run whose rule
+preceded its rows, per key, and a request outside what was measured is refused naming the field and
+not served on a guess. The owner's choice of a refusal above C over serving uncapped is the
+difference between closing T-05-12 and carrying it.
+
+Reversibility: reversible. The caps and the ceiling are constants with a cited run; Phase 7 re-measures
+on linux/amd64 (OPER-02), and the clearance ceiling can be raised by a new run.
