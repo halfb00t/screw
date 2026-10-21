@@ -978,6 +978,29 @@ the tip cone by a pitch, 2P for every size, because both threads have phase `2 p
 `tip cone length + P` is half a thread out of phase (8.747 mm3 at all three poses on M6 at c = 0.10, a
 false interference). Only the evidence row's numbers depend on it, not any verdict.
 
+**Review fixes (plan 05-20, 05-REVIEW.md).** *WR-01*: the nut's face-chamfer cutter overshoots the face by
+`min(0.5, (s / 2) tan 30 deg / 2)` mm, so its first profile radius stays at `s / 4` or more and a nut
+narrower than `sqrt(3)` mm across flats builds; from `2 sqrt(3)` mm up (every GOST ISO 4032-2014 row) it
+is the old 0.5 mm, and the default and M2 nuts' preview STLs are byte-identical across the change. The
+model gained no floor on `s`. *WR-02*: the pair rule's two tolerance comparisons are negated `<=`, as the
+written rule's "within `T_PASS`" and "within `PAIR_BAND`" require, so a NaN nut body or control is
+`inconclusive`; `prove` refuses a non-finite kernel volume where it reads one (the blank, each boolean,
+each evidence pose) as a failure, the boundary the spike's record parser `_num` holds. The rule's
+clauses, their order and every recorded verdict are unchanged, and a planted matched NaN stays
+`violated` as 02-SPIKE Rules is written (a NaN is not empty). *WR-03*: `cell_judgement` returns the rule's
+verdict and reasons with the closed form it judged the controls against (`cell_verdict` returns the first
+two); `PairReport.closed_control` is that form, present where the rule reached the controls and null
+where it ended first. *WR-04*: at a clearance of d / 2 or more the radius-d proof body cannot hold the
+void, `prove` reads nothing and is `inconclusive` by definition (the R8 shape), and its reason prints no
+closed form (the nut-body form reads -39.6362 mm3 at d 6, pitch 1, c 3.5). The blank does not grow (D-05):
+for any nut the CLI accepts, c >= d / 2 exceeds the thread depth 5H / 8, so the control's closed form is 0
+and the rule would read `inconclusive` whatever the blank. *WR-05*: `engagement_turns` is
+`turns_of(m, pitch)`, as the info document's. *WR-06*: off an ISO 4017 row the evidence bolt takes the
+nut's own `s` (above d + 2c, so above d) and the bolt's frozen `k`; the head starts `tip - P / 3` above
+the nut's top at the highest matched pose, so neither enters a reading, and on a row nothing changes.
+"The unmodified `cell_verdict`" in the next paragraph describes 05-01's derivation; the 05-20
+re-derivation of the 240-cell table by the amended rule is byte-identical.
+
 **The expected table and the tiers (D-07; 05-01, 05-15, 05-16).** `tests/data/pair_expected.tsv` holds
 the expected verdict of all 240 recorded K = 3 cells (88 `proven`, 92 `inconclusive`, 60 `violated`),
 derived by `bench/pair_expected.py` from `2026-10-08-a-pair` with the unmodified `cell_verdict`, the
