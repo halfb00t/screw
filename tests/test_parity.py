@@ -995,6 +995,34 @@ def test_a_kind_change_drops_the_old_mesh_and_what_described_it() -> None:
     assert APP_JS.count("dropMesh()") == 2  # the definition and the one call on a kind change
 
 
+def test_a_kind_change_clears_the_old_form_and_picker_before_it_fetches_the_new_ones() -> None:
+    # Review WR-09, 2026-10-21, reproduced in a headless browser: buildForm put the nut's controls
+    # on screen while the bolt's picker, its change listeners and its catalogue stayed live until
+    # loadPresets landed. A pick there wrote the bolt row's diameter and pitch into the nut's
+    # controls and threw on a field the nut form lacks. During the schema fetch the same pick ran
+    # the bolt's update after the mesh was dropped, and the nut opened over the rebuilt bolt as the
+    # last valid part (rule 36, R10; measured, plan 05-24). The form and the picker go with the
+    # mesh, before the fetch. Clearing the picker alone there left the bolt with no picker after
+    # Back during the schema fetch; with the form cleared too, formKind is null and the rebuild
+    # condition reopens the bolt whole (measured, plan 05-24).
+    nav = _squash(_function_body("navigate"))
+    assert ("dropMesh(); clearForm(); clearPicker(); "
+            "if (!(await buildForm(kind))) return; try {") in nav
+    assert nav.count("clearForm();") == 1
+    assert nav.count("clearPicker();") == 1
+    # Definitions excluded by pattern: who else clears the form (buildForm, refuseLink) and the
+    # picker (refuseLink) is unchanged.
+    assert re.findall(r"(?<!function )clearForm\(", APP_JS) == ["clearForm("] * 3
+    assert re.findall(r"(?<!function )clearPicker\(", APP_JS) == ["clearPicker("] * 2
+    clear = _function_body("clearPicker")
+    for statement in ("picker.hidden = true;", "picker.replaceChildren(pickerLegend);",
+                      "pickerSelects.length = 0;", "catalogue = null;", "shownPreset = null;",
+                      "badge.textContent = '';"):
+        assert statement in clear, statement
+    for statement in ("form.replaceChildren();", "fields.clear();", "formKind = null;"):
+        assert statement in _function_body("clearForm"), statement
+
+
 def test_every_row_key_of_the_nut_and_pair_documents_is_unread_by_name_in_the_ui() -> None:
     # Plans 05-04 to 05-09 added these keys; `m` and `clearance` are fields too (05-10).
     exact = KINDS["nut"].model_validate({**REQUIRED_VALUES["nut"]})

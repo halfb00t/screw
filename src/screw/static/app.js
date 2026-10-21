@@ -205,8 +205,9 @@ function showMatch(preset) {
 /** The first catalogue row whose every field the form holds exactly, or undefined. */
 function rowOfFields() {
   return catalogue.rows.find((row) => Object.entries(row.fields).every(([name, value]) => {
-    // The catalogue is the old kind's until a kind switch's fetch lands, and its rows can name a field
-    // the new form lacks; a control that is not there does not hold the row (review IN-06).
+    // A row names a field the form lacks only when the catalogue is another kind's. navigate takes the
+    // old catalogue off screen before a kind switch fetches the new form (review WR-09), so this is the
+    // second line: a control that is not there does not hold the row and never throws (review IN-06).
     const control = fields.get(name);
     if (control === undefined) return false;
     const held = read(control.input);
@@ -319,7 +320,16 @@ async function navigate() {
     // switch's catalogue loaded leaves the overtaken navigation's form on screen while currentKind
     // still names the kind the link asks for. Measured: a bolt built under the nut's controls, then
     // a silent page once update() waits for the form (owner choice 2026-10-21, plan 05-23).
+    // The old kind's form and picker go with the mesh, before the new schema is fetched. Measured,
+    // left live: a pick in the old picker wrote a bolt row's diameter and pitch into the nut's
+    // controls once the nut's form arrived, then threw on a field the nut lacks (review WR-09,
+    // 2026-10-21); during the schema fetch it ran the bolt's update, so the nut opened over a
+    // rebuilt bolt as the last valid part (measured, plan 05-24). formKind stays null until the new
+    // form is built, so update waits, and a navigation that overtakes this one rebuilds the kind it
+    // names (the condition above).
     dropMesh();
+    clearForm();
+    clearPicker();
     if (!(await buildForm(kind))) return;
     try {
       if (!(await loadPresets(kind))) return;
