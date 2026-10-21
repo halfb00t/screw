@@ -88,6 +88,18 @@ created: "2026-10-14"
 | 05-18-01 | 18 | 18 | FRNT-06, TYPE-03, TYPE-04, THRD-05, PAIR-01, PAIR-03, PAIR-04, INFO-01, INFO-02 | T-05-40, T-05-41, T-05-42 | The preview download names its quality, on the API and the CLI | tdd | `make test PYTEST_ARGS="tests/test_parity.py tests/test_cli.py tests/test_api.py -q -n0 --no-cov -...` | yes | ✅ green |
 | 05-18-02 | 18 | 18 | FRNT-06, TYPE-03, TYPE-04, THRD-05, PAIR-01, PAIR-03, PAIR-04, INFO-01, INFO-02 | T-05-40, T-05-41, T-05-42 | L15, the overview and the UI contract's remaining strings | auto | `grep -c '^## L15' docs/architecture/decision_log.md && ! grep -q 'No nut yet' docs/architecture/o...` | n/a | ✅ green |
 | 05-18-03 | 18 | 18 | FRNT-06, TYPE-03, TYPE-04, THRD-05, PAIR-01, PAIR-03, PAIR-04, INFO-01, INFO-02 | T-05-40, T-05-41, T-05-42 | Requirement, roadmap and state lines, and the debt the phase leaves | auto | `test -f docs/tech_debt/active/2026-10-14-first-pair-yml-dispatch.md && grep -q '2026-10-14-first-...` | n/a | ✅ green |
+| 05-19-01 | 19 | 19 | TYPE-03 | T-05-46 | Owner decides how the nut's fine-STL cap treats clearance (R16) | checkpoint | `owner reply, verified read-only` | n/a | ✅ done (R16 in 05-OWNER-READS.md) |
+| 05-19-02 | 19 | 19 | TYPE-03 | T-05-47, T-05-49, T-05-50 | Pre-register and run the nut fine-STL cap measurement, and record it | auto | `make test PYTEST_ARGS="tests/test_bench.py -q -n0 --no-cov -k nut_fine_caps"`; records check (30 ladder keys); sha256 in RESULTS.md | yes | ✅ green — 13 passed; records ok (1238 lines); sha256 cited once (re-run 2026-10-21) |
+| 05-19-03 | 19 | 19 | TYPE-03 | T-05-45, T-05-46, T-05-48 | Encode the measured caps as the nut's fine-STL refusal, resolve the debt, record L16 | tdd | `make test PYTEST_ARGS="tests/test_thread_maths.py tests/test_calc.py tests/test_api.py tests/test_cli.py -q -n0 --no-cov -k nut_fine_stl"` | yes | ✅ green — 40 passed (re-run 2026-10-21) |
+| 05-20-01 | 20 | 20 | TYPE-03 | T-05-56, T-05-57 | A nut narrower than sqrt(3) mm across flats builds; no shipped nut changes (WR-01) | tdd | `make test PYTEST_ARGS="tests/test_nut.py -q -n0 --no-cov -k narrow_nut"` | yes | ✅ green — 9 passed (re-run 2026-10-21); s in (1.732, 3.464) not built by a test, review IN-07 |
+| 05-20-02 | 20 | 20 | PAIR-03, PAIR-04 | T-05-52, T-05-53, T-05-54, T-05-55 | The pair rule and the report never believe or print what was not measured (WR-02..04) | tdd | `make test PYTEST_ARGS="tests/test_pair.py tests/test_cli_pair.py -q -n0 --no-cov -k 'not_finite or compared_closed_form or cannot_hold_the_void or re_derived'"`; table re-derivation identical | yes | ✅ green — 36 passed; table identical (re-run 2026-10-21) |
+| 05-20-03 | 20 | 20 | PAIR-03, THRD-05 | T-05-58 | Engagement as the exact quotient, the evidence bolt, the countersink comment (WR-05, WR-06, IN-01) | tdd | `make test PYTEST_ARGS="tests/test_pair.py tests/test_end_oracles.py -q -n0 --no-cov -k 'exact_quotient or evidence_bolt or smallest_and_largest_da_over_d or shipped'"` | yes | ✅ green — 24 passed (re-run 2026-10-21) |
+| 05-20-04 | 20 | 20 | PAIR-04 | T-05-59 | Record the fixes in L15, file the deferred findings, set every disposition | auto | disposition and debt greps from the plan | n/a | ✅ done — the disposition check was point-in-time: the 2026-10-21 re-review added WR-07, WR-08, IN-05..IN-07 rows (open), so its exact-set assertion no longer holds by design |
+| 05-21-01 | 21 | 21 | TYPE-03 | T-05-60, T-05-61, T-05-62 | With the nut's clearance empty, a preset pick holds its row in the selects (G-05-1) | tracer tdd | `make test PYTEST_ARGS="tests/test_parity.py -q -n0 --no-cov"` (source assertions); browser behaviour by a scratch Playwright probe | yes | ✅ green — 69 passed (re-run 2026-10-21); behaviour in a browser is manual-only (below) |
+| 05-21-02 | 21 | 21 | TYPE-03 | T-05-60 | The UI contract says the selects follow the fields after a failed update | auto | `grep -q 'plan 05-21, gap G-05-1' 01-UI-SPEC.md` and the plan's greps | n/a | ✅ green |
+| 05-21-03 | 21 | 21 | TYPE-03 | — | The owner gets the open decision on a browser test in the gate | auto | `test -f docs/ideas/2026-10-21-browser-test-of-the-page-in-the-gate.md` and INDEX grep | n/a | ✅ green |
+| 05-22-01 | 22 | 22 | TYPE-04 | T-05-63..T-05-68 | A clearance typed on a nut rides the bolt's Matching nut link, with the L15 amendment (G-05-3) | tracer tdd | `make test PYTEST_ARGS="tests/test_parity.py -q -n0 --no-cov"`; `lastTyped` / no-storage greps | yes | ✅ green (source assertions); review WR-07 (memory keyed by the old kind during a kind switch) and WR-08 (memory outlives Reset or a link) are open behaviour defects the source tests cannot see (IN-05) |
+| 05-22-02 | 22 | 22 | TYPE-04 | T-05-67 | The UI contract describes the matching-part link as built | auto | `grep -q 'plan 05-22, gap G-05-3' 01-UI-SPEC.md` and the plan's greps | n/a | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -113,7 +125,7 @@ Framework: existing pytest infrastructure; no install.
 | Owner read of ISO 4032, 724, 965-2, 4753 and the rulings | TYPE-03, THRD-05, INFO-02, FRNT-06 | purchased standards, owner decisions (D-14); since 2026-10-20 the pending reads are of the free GOST texts L14 maps | 05-02 Task 2 checkpoint; the preconditions of 05-06, 05-07, 05-08, 05-11 and 05-12 |
 | Owner copies generated from the GOST text layer, labels fixed by the owner | TYPE-03, INFO-02, THRD-05 | owner action outside the executor's session, so the agent's image transcription stays independent (05-OWNER-READS.md, 2026-10-20) | the preconditions of 05-06, 05-08 and 05-12 check the file and its header line only |
 | Codex review of the pre-registration PR | PAIR-03 | the author never reviews (HOW_TO_DEVELOP section 8) | 05-03 Task 1 checkpoint |
-| The page: counterpart link, empty clearance, kind switch | TYPE-04, PAIR-01 | no browser in the gate (L01); source assertions cover the code | end-of-phase human check in `/gsd-verify-work` |
+| The page: counterpart link, empty clearance, kind switch; the selects after a failed update (G-05-1, 05-21); the typed clearance on the Matching nut link (G-05-3, 05-22) | TYPE-03, TYPE-04, PAIR-01 | no browser in the gate (L01); source assertions cover the code text only; the 05-21/05-22 Playwright probes ran from a scratch dir on spur's venv; a browser test in the gate is an open owner decision (`docs/ideas/2026-10-21-browser-test-of-the-page-in-the-gate.md`) | end-of-phase human check in `/gsd-verify-work`; include review WR-07 (type a clearance while switching bolt to nut) and WR-08 (type 0.1, Reset, open the bolt, read its Matching nut link) |
 | Verify cell on ubuntu-latest | PAIR-04 | platform difference possible (L11) | 05-15 Task 3 reads the CI log |
 
 ---
@@ -128,6 +140,8 @@ Framework: existing pytest infrastructure; no install.
 - [x] `nyquist_compliant: true` set in frontmatter
 
 **Approval:** validated 2026-10-20 (validate-phase audit: 9/9 requirements covered by passing automated tests; per-task quick commands re-run)
+
+**Re-audit:** 2026-10-21 after plans 05-19 to 05-22 — 12 task rows added, every automated command re-run green; no requirement without automated coverage; the page's browser behaviour stays manual-only (L01).
 
 ## Validation Audit 2026-10-20
 
