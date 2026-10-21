@@ -507,6 +507,34 @@ def test_a_countersink_that_cannot_cross_the_void_is_not_cut_and_the_nut_still_b
     assert abs(precise_volume(build(p)) / closed - 1.0) <= T_GATE
 
 
+@pytest.mark.parametrize("left_hand", [False, True], ids=["right", "left"])
+@pytest.mark.parametrize("s", [1.5, 1.7, 1.11])
+def test_a_narrow_nut_below_root_three_across_flats_builds_inside_the_gate(
+        s: float, left_hand: bool) -> None:
+    """WR-01: the face-chamfer cutter's fixed 0.5 mm overshoot put its first profile point at a
+    negative radius below sqrt(3) mm across flats, and the kernel refused a valid nut with
+    `Standard_Failure`. s 1.11 is just above d + 2 c (1.1), the smallest the model accepts here.
+    `build` runs every piece gate, so a passing build means each cut met its oracle."""
+    p = NutParams(d=1.0, pitch=0.25, s=s, m=1.0, clearance=0.05, left_hand=left_hand)
+    solid = build(p)
+    assert len(solid.Solids()) == 1
+    assert solid.isValid()
+    closed = nut_end_closed_volume(p.d, p.pitch, p.s, p.m, p.clearance)
+    assert abs(precise_volume(solid) / closed - 1.0) <= T_GATE
+
+
+@pytest.mark.parametrize("p", [
+    pytest.param(NutParams(d=2.0, pitch=0.4, s=3.5, m=1.6, clearance=0.1), id="s3.5"),
+    pytest.param(NutParams(d=2.0, pitch=0.4, s=4.0, m=1.6, clearance=0.1), id="s4.0-M2"),
+    pytest.param(NutParams(clearance=0.1), id="s10-default"),
+])
+def test_a_narrow_nut_fix_leaves_the_cutter_every_shipped_nut_was_cut_with(p: NutParams) -> None:
+    """From s = 2 sqrt(3) mm up the overshoot is the old 0.5 mm, so a catalogue nut is unchanged
+    (L02): the cutter reaches 0.5 mm below the face."""
+    _, chamfer, _ = end_depths(p.d, p.pitch, p.clearance, p.s, p.m)
+    assert nut.face_chamfer(p, 0.0, chamfer).BoundingBox().zmin == pytest.approx(-0.5, abs=1e-6)
+
+
 def test_the_ends_read_the_fields_and_no_table() -> None:
     # D-12: a table row gives the nut nothing it does not already take as fields.
     assert "tables" not in Path(nut.__file__).read_text()

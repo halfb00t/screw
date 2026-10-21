@@ -101,9 +101,17 @@ def face_chamfer(p: NutParams, z_face: float, depth: float) -> cq.Solid:
     r0 = p.s / 2
     outer = r0 / math.cos(math.pi / 6) + PAST_FACE
     sign = _inward(p, z_face)
-    below = z_face - sign * 0.5
+    # How far the cutter reaches past the face, mm. A fixed 0.5 put the profile's first point at
+    # r0 - 0.5 / tan 30 deg = s / 2 - 0.866 mm, which is negative below s = sqrt(3) mm = 1.732: the
+    # kernel refused those valid nuts with `Standard_Failure` (plan 05-20 RED run: s 1.5, 1.7 and
+    # 1.11 at d 1, pitch 0.25, m 1, c 0.05; the planner's probe saw 1.5, 1.7 and 1.732 fail and
+    # 1.7321 build). Capping it at half r0 tan 30 deg keeps that radius at r0 / 2 or more. The
+    # overshoot lies outside the nut, so it removes nothing and `face_chamfer_volume` does not see
+    # it; from s = 2 sqrt(3) mm up (every catalogue nut) it is the old 0.5 mm exactly.
+    overshoot = min(0.5, r0 * tan_beta / 2)
+    below = z_face - sign * overshoot
     flat = z_face + sign * depth
-    return _revolved([(r0 - 0.5 / tan_beta, below), (outer, below),
+    return _revolved([(r0 - overshoot / tan_beta, below), (outer, below),
                       (outer, flat), (r0 + depth / tan_beta, flat)])
 
 
