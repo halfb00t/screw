@@ -12,7 +12,7 @@ created: "2026-10-20"
 
 > Per-phase security contract: threat register, accepted risks, and audit trail.
 
-Register origin: all 20 plans carry a `<threat_model>` block (authored at plan time); 51 unique threat IDs from the plans (05-19 adds T-05-45 to T-05-50 and T-05-SC), none shared between plans, plus T-05-51, which the re-audit at `d7234e8` raised and the owner accepted, plus T-05-52 to T-05-59 from gap plan 05-20 (its T-05-SC is merged into the existing row). The gsd-security-auditor verified the declared mitigations at `9acbfbd`, and re-verified them at `d7234e8` after gap plan 05-19 and at `eeb49b5` after gap plan 05-20 (05-20: `make lint-imports` 10 kept; targeted `52 passed`; pair table re-derived identical at every 05-20 commit; default and M2 nut preview STL sha256 unchanged; read-only: `make lint-imports` 10 kept / 0 broken; targeted `-k "nut_fine_stl or nut_fine_caps or tall_nut"` `53 passed`; scratch probe of M20 at m=600 through calc, API and CLI) (read-only: `make lint-imports` 10 kept / 0 broken; targeted mitigation tests `123 passed`; `git status` unchanged). Every SUMMARY `## Threat Flags` entry is `None` or maps to an existing ID (05-14's `screw.solid.pair` → `screw.calc.presets` import maps to T-05-30; the `screw pair` CLI to T-05-33 and T-05-35). Evidence is a file, line, test or document in this repository at the audited commit.
+Register origin: all 20 plans carry a `<threat_model>` block (authored at plan time); 51 unique threat IDs from the plans (05-19 adds T-05-45 to T-05-50 and T-05-SC), none shared between plans, plus T-05-51, which the re-audit at `d7234e8` raised and the owner accepted, plus T-05-52 to T-05-59 from gap plan 05-20 (its T-05-SC is merged into the existing row), plus T-05-60 to T-05-62 from gap plan 05-21 and T-05-63 to T-05-68 from gap plan 05-22. The gsd-security-auditor verified the declared mitigations at `9acbfbd`, and re-verified them at `d7234e8` after gap plan 05-19 at `eeb49b5` after gap plan 05-20, and at `c552974` after gap plans 05-21 and 05-22 (05-21/05-22: targeted `test_parity.py` 12 passed; the L15 amendment difflib check additive; a scratch Playwright probe against `screw serve`; `git status` unchanged; 05-20: `make lint-imports` 10 kept; targeted `52 passed`; pair table re-derived identical at every 05-20 commit; default and M2 nut preview STL sha256 unchanged; read-only: `make lint-imports` 10 kept / 0 broken; targeted `-k "nut_fine_stl or nut_fine_caps or tall_nut"` `53 passed`; scratch probe of M20 at m=600 through calc, API and CLI) (read-only: `make lint-imports` 10 kept / 0 broken; targeted mitigation tests `123 passed`; `git status` unchanged). Every SUMMARY `## Threat Flags` entry is `None` or maps to an existing ID (05-14's `screw.solid.pair` → `screw.calc.presets` import maps to T-05-30; the `screw pair` CLI to T-05-33 and T-05-35). Evidence is a file, line, test or document in this repository at the audited commit.
 
 ---
 
@@ -32,6 +32,8 @@ Register origin: all 20 plans carry a `<threat_model>` block (authored at plan t
 | preset id (URL/CLI) → fields | the id is looked up in a closed set (05-07) | preset id |
 | calc → page and API | every printed number may be cut to metal (05-09) | printed dimensions |
 | info document → page link | server data becomes a URL fragment (05-10) | counterpart href |
+| page catalogue → preset selects | the selects must name only a row the fields hold exactly (05-21) | preset label |
+| typed input → page memory → counterpart link | a typed value may ride the other kind's link, never the part's own hash, requests or downloads (05-22) | clearance |
 | oracle → gate | a wrong oracle passes a wrong part or refuses a right one (05-11) | volumes |
 | solid → download | an open or wrong mesh would reach a printer (05-12, 05-13) | STL/STEP |
 | kernel volume → pair rule | a non-finite reading must never be believed (05-20) | volumes |
@@ -111,6 +113,15 @@ Register origin: all 20 plans carry a `<threat_model>` block (authored at plan t
 | T-05-57 | Tampering | WR-01 change altering a shipped nut | medium | mitigate | test_nut.py:531 cutter zmin -0.5 at s 3.5, 4, 10; default nut preview `755e9cc7…0048` and M2 `866188a9…38d8` identical at 9180bee and eeb49b5 (re-audit rebuild) | closed |
 | T-05-58 | Repudiation | off-row evidence bolt built from an unset dimension | low | mitigate | `fields.setdefault("s", p.s)` with frozen k (solid/pair.py:259-270); L15 decision_log.md:998-1000; test_pair.py:910,933,939,946 | closed |
 | T-05-59 | Repudiation | `screw pair` exit codes shared with crash and refusal | low | accept | debt `2026-10-21-screw-pair-exit-codes-collide-with-failure-exits.md` (INDEX row, 42b6811); report JSON printed only with a verdict (cli.py:197-202) | closed (AR-05-05) |
+| T-05-60 | Tampering | app.js `rowOfFields`: selects name a row the fields do not hold | medium | mitigate | `held !== ''` and exact `Number(held) === value`, no `Math.` (static/app.js:199-204), called only when preset is null (:183-185); test_parity.py:692-707; server rule the same exact `==` (calc/presets.py:41,113). Note: review IN-06, a kind-switch window can throw, never names a wrong row | closed |
+| T-05-61 | Repudiation | app.js badge for a part that did not build | low | mitigate | badge branches app.js:190-192 unchanged since 0d1895a; test_parity.py:700; `presetBasis` set only at :24, :189 (exact), :224 (pick), :288 (navigate) | closed |
+| T-05-62 | Spoofing | stale mesh shown as the part the selects name (R10) | medium | mitigate | update, fail, dropMesh, navigate unchanged since 0d1895a; kind change drops the mesh (app.js:307; test_parity.py:934); 05-21-SUMMARY probe. Note: after a failed same-kind update the last valid mesh stays under "Showing the last valid part" (standing label, pre-05-21) | closed |
+| T-05-63 | Info disclosure | `lastTyped` leaking into the part's hash, requests or downloads | medium | mitigate | read only at app.js:428; test_parity.py:900-902 pins eight functions free of it; auditor probe: bolt hash and requests carry no clearance. Note: review WR-07 puts it on the nut page's Matching bolt link; navigate refuses that link whole (app.js:318-323) | closed |
+| T-05-64 | Tampering | memory carrying a number the user did not type (default, link, Reset) | high | mitigate | one writer app.js:678-686 from the input listener only (pins test_parity.py:898-899); defaulted fields skipped (:679); empty typed value deletes (:682); write() fires no event (:52-55); no schema default, nothing typed still 422 (test_parity.py:921-925). Note: review WR-08 (open) — the user's own earlier typed value outlives Reset or a link, contradicting the comment at app.js:675-677 | closed |
+| T-05-65 | Tampering | remembered value overriding a server counterpart field | medium | mitigate | server fields spread last (app.js:428; test_parity.py:869-870); defaulted fields skipped (:679). Note: review WR-07 stores under the old kind during a kind switch; server fields still win, the link fails closed | closed |
+| T-05-66 | Tampering | href built from a typed string | low | mitigate | `URLSearchParams`, href set as a property (app.js:428-429), label by `textContent` (:430); no innerHTML (test_parity.py:710-713); number input (:117) | closed |
+| T-05-67 | Repudiation | D-01/D-02 consequence with no decision record | medium | mitigate | L15 amendment decision_log.md:1142-1157 in the same commit as the code (a2e1f07); difflib vs a64f9c7: one insert inside L15 | closed |
+| T-05-68 | Tampering | persisting the remembered value | low | mitigate | no localStorage, sessionStorage, document.cookie or indexedDB in app.js or index.html; test_parity.py:903-904 | closed |
 
 *Status: open · closed · open — below high threshold (non-blocking)*
 *Severity: critical > high > medium > low — only open threats at or above workflow.security_block_on count toward threats_open*
@@ -139,6 +150,7 @@ Register origin: all 20 plans carry a `<threat_model>` block (authored at plan t
 | 2026-10-20 | 44 | 42 | 2 (1 blocking: T-05-12) | gsd-security-auditor at 9acbfbd |
 | 2026-10-21 | 52 | 52 | 0 | gsd-security-auditor at d7234e8 (after 05-19); T-05-51 accepted by owner |
 | 2026-10-21 | 60 | 60 | 0 | gsd-security-auditor at eeb49b5 (after 05-20); T-05-59 accepted by owner |
+| 2026-10-21 | 69 | 69 | 0 | gsd-security-auditor at c552974 (after 05-21, 05-22); review WR-07/WR-08 noted on T-05-63..65, non-blocking |
 
 ---
 
@@ -146,7 +158,7 @@ Register origin: all 20 plans carry a `<threat_model>` block (authored at plan t
 
 - [x] All threats have a disposition (mitigate / accept / transfer)
 - [x] Accepted risks documented in Accepted Risks Log
-- [x] `threats_open: 0` confirmed (re-audits at d7234e8 and eeb49b5)
+- [x] `threats_open: 0` confirmed (re-audits at d7234e8, eeb49b5 and c552974)
 - [x] `status: verified` set in frontmatter
 
 **Approval:** verified 2026-10-21
@@ -165,4 +177,12 @@ Register origin: all 20 plans carry a `<threat_model>` block (authored at plan t
 |---|---|
 | Threats found | 60 |
 | Closed | 60 |
+| Open | 0 |
+
+## Security Audit 2026-10-21
+
+| Metric | Count |
+|---|---|
+| Threats found | 69 |
+| Closed | 69 |
 | Open | 0 |
