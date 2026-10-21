@@ -22,6 +22,12 @@ let shownPreset = null; // the preset member of the newest info document, null a
 // badge. Page-session state only (D-09): navigate() clears it, and no request, hash or query
 // ever reads it, so a link carries millimetres and never a preset.
 let presetBasis = null;
+// Per kind, the value last typed in this page into each field that has no default (today the
+// nut's clearance), kept so the matching-part link can carry it (owner ruling 2026-10-21, L15
+// amendment, G-05-3). Typed means an input event: a link, Reset or a kind change never writes it,
+// so the page never carries a number the user did not type (L02). Page memory only, so a reload
+// or a new tab forgets it. No request, hash or download ever reads it.
+const lastTyped = new Map();
 // Warnings belong to a mesh, not to the last info fetch (D-11). update() fetches info first,
 // so by the time a model.stl request fails the newest info document describes the part that
 // did not build while the mesh on screen is an older one. A rendered info document waits in
@@ -410,13 +416,16 @@ function renderInfo(info) {
   showMatch(info.preset ?? null);
 }
 
-// The matching part is a link built from the document alone: the kind and every field the server
-// says carry over, as a hash the page already knows how to open. No kind, field or label is named
-// here, and the clearance is not in it, so a nut opens with that field empty (D-01, D-02).
+// The matching part is a link built from the document and the page's own typing: the kind and every
+// field the server says carry over, as a hash the page already knows how to open. The server never
+// names a field that has no default (D-02), so the page adds the target kind's typed values (lastTyped)
+// before the server's fields, and the server's fields win. With nothing typed in this page the nut
+// opens with its clearance empty and builds nothing (D-01, R10). No kind, field or label is named here
+// (L15 amendment 2026-10-21, G-05-3).
 function showCounterpart(counterpart) {
   counterpartLink.hidden = counterpart === null;
   if (counterpart === null) return;
-  const q = new URLSearchParams({ kind: counterpart.kind, ...counterpart.fields });
+  const q = new URLSearchParams({ kind: counterpart.kind, ...lastTyped.get(counterpart.kind), ...counterpart.fields });
   counterpartLink.href = `#${q}`;
   counterpartLink.textContent = `Matching ${counterpart.kind}`;
 }
@@ -663,7 +672,18 @@ function resize() {
 const reportLoadError = (err) => showMessages([`Could not load the part: ${err.message}`], mesh ? meshWarnings : [], mesh ? meshNotes : []);
 
 form.addEventListener('submit', (e) => e.preventDefault());
-form.addEventListener('input', scheduleUpdate);
+// A field with a default is never remembered: carrying a typed value of one would override the
+// counterpart's row values (D-02, D-03). Typing a field empty forgets it, so a link never carries
+// an empty or stale number.
+function rememberTyped(input) {
+  if (defaults[input.name] !== undefined) return;
+  const typed = { ...lastTyped.get(currentKind) };
+  const value = read(input);
+  if (value === '') delete typed[input.name];
+  else typed[input.name] = value;
+  lastTyped.set(currentKind, typed);
+}
+form.addEventListener('input', (e) => { rememberTyped(e.target); scheduleUpdate(); });
 window.addEventListener('hashchange', () => navigate().catch(reportLoadError));
 kindSelect.addEventListener('change', () => {
   const q = new URLSearchParams();

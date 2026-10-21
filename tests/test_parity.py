@@ -864,7 +864,10 @@ def test_the_ui_reads_the_counterpart_by_kind_and_fields_only_and_names_no_kind(
     # fragment (never innerHTML), and the page quotes no kind, field or label of its own.
     assert set(re.findall(r"\bcounterpart\.(\w+)", APP_JS)) == {"kind", "fields"}
     body = _function_body("showCounterpart")
-    assert "new URLSearchParams({ kind: counterpart.kind, ...counterpart.fields })" in body
+    # G-05-3, L15 amendment of 2026-10-21: the value last typed into the target kind's fields
+    # with no default goes in before the server's fields, so the server's fields win.
+    assert ("new URLSearchParams({ kind: counterpart.kind, ...lastTyped.get(counterpart.kind), "
+            "...counterpart.fields })") in body
     assert "counterpartLink.href = `#${q}`;" in body
     assert "`Matching ${counterpart.kind}`" in body
     assert "counterpartLink.hidden = counterpart === null;" in body
@@ -876,6 +879,50 @@ def test_the_ui_reads_the_counterpart_by_kind_and_fields_only_and_names_no_kind(
         assert re.findall(rf"""(['"`]){kind_name}\1""", APP_JS) == [], kind_name
     html = (STATIC / "index.html").read_text()
     assert re.search(r'<p id="badge"[^>]*></p>\s*<a id="counterpart" hidden></a>', html)
+
+
+def test_the_matching_link_carries_only_a_value_typed_in_this_page_into_a_field_with_no_default(
+) -> None:
+    # G-05-3, owner ruling 2026-10-21 (L15 amendment): the page remembers what was typed, per
+    # kind, into a field that has no default, and only a typed input event writes it. A link,
+    # Reset or a kind change never does (L02: no number the user did not type), and nothing
+    # reads it but the matching-part link, so it is never in a hash, a request or a download.
+    source = _squash(APP_JS)
+    assert "const lastTyped = new Map();" in APP_JS
+    remember = _function_body("rememberTyped")
+    for statement in ("defaults[input.name] !== undefined", "read(input)", "delete ",
+                      "lastTyped.set(currentKind, "):
+        assert statement in remember, statement
+    assert ("form.addEventListener('input', (e) => { rememberTyped(e.target); "
+            "scheduleUpdate(); });") in source
+    assert APP_JS.count("rememberTyped(") == 2  # the definition and the listener
+    assert APP_JS.count("lastTyped.set(") == 1
+    for reader in ("partQuery", "writeHash", "update", "setDownloads", "navigate", "refuseLink",
+                   "pick", "renderInfo"):
+        assert "lastTyped" not in _function_body(reader), reader
+    for storage in ("localStorage", "sessionStorage", "document.cookie"):
+        assert storage not in APP_JS, storage
+
+
+def test_a_bolts_matching_nut_link_with_a_typed_clearance_opens_a_nut_that_builds() -> None:
+    # G-05-3, the server half of UAT test 3: the page adds the typed clearance to the fields
+    # the bolt's document names, and the nut that link opens builds. Nothing typed is still refused.
+    counterpart = client.get("/api/bolt/info").json()["counterpart"]
+    assert counterpart["kind"] == "nut"
+    fields = counterpart["fields"]
+    assert "clearance" not in fields  # D-02's published shape is unchanged
+    linked = {**fields, "clearance": "0.1"}
+    info = client.get("/api/nut/info", params=linked)
+    assert info.status_code == 200
+    assert info.json()["preset"]["id"] == "iso4032:M6"
+    stl = client.get("/api/nut/model.stl", params={**linked, "quality": "preview"})
+    assert stl.status_code == 200
+    assert len(stl.content) > 84  # a binary STL header and count, then triangles
+    refused = client.get("/api/nut/info", params=fields)
+    assert refused.status_code == 422
+    (detail,) = refused.json()["detail"]
+    assert detail["type"] == "missing"
+    assert detail["loc"] == ["query", "clearance"]
 
 
 def test_a_field_with_no_default_is_written_empty_never_as_the_word_undefined() -> None:

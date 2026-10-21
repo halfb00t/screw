@@ -1139,6 +1139,23 @@ part a link means with no field change, acceptable under the standing warning) a
 file name. Reversible for the fine preset and the sources: a constant with a cited run, and rows re-read
 from the ISO texts when bought (`docs/tech_debt/active/2026-10-20-iso-standards-not-purchased.md`).
 
+**Amendment (2026-10-21, owner ruling at 05-UAT.md test 3, gap G-05-3).** The bolt's `Matching nut` link opened
+a nut with its clearance empty, so the nut did not render (the counterpart paragraph above, D-01, D-02). The
+owner asked for the link to carry one ("Yes, I do want.") and ruled, option "last typed clearance": "The page
+remembers the clearance last typed on a nut in this tab and carries it on the bolt's Matching nut link; with
+none typed the link stays empty. No invented number." What changes is the page only. `app.js` keeps, per
+kind, the value last typed (an `input` event) into each field that has no default; today that is only the
+nut's `clearance`, because the page names no field or kind (D-10). `showCounterpart` adds it to the link
+before the server's fields, so the server's fields win. A value a link, Reset or a kind change wrote is not
+typed, typing the field empty forgets it, and a reload or a new tab forgets it, because nothing is persisted.
+What does not change: `PartInfo.counterpart` still never carries `clearance` (D-02's shape; the API,
+`screw info` and the parity test are unchanged); the value never enters the bolt's hash, a bolt request or a
+download link; with nothing typed, the link and the nut are as before, the field empty and nothing built
+(D-01, R10); no default is introduced (L02, PAIR-02), the value is the user's own. It amends the counterpart
+paragraph's consequence that a bolt's link opens a nut with the clearance empty, for the case where one was
+typed in this page. Plan 05-22 names the two new tests and the probe record in 05-22-SUMMARY.md.
+Reversibility: reversible. It is page state; no published shape changed.
+
 ## L16 — The nut's fine STL is capped on m per (d, pitch, hand) from run 2026-10-21-nut-fine-caps-amended, measured at clearance 5.0 mm and s 1e5 mm; a clearance above 5.0 mm is refused
 
 Date: 2026-10-21. Decided by the owner on 2026-10-20 (R16, `option-a`) and 2026-10-21 (R17), recorded in
