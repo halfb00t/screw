@@ -1,53 +1,77 @@
 ---
-status: testing
+status: complete
 phase: 05-hex-nut-and-kernel-pair-proof
 source: [05-VERIFICATION.md]
 started: 2026-10-21T08:05:16Z
-updated: 2026-10-21T08:05:16Z
+updated: 2026-10-21T09:05:17.878Z
 ---
 
 ## Current Test
 
-number: 1
-name: Nut preset with an empty clearance shows no part
-expected: |
-  Run `make serve` and open http://127.0.0.1:8000. Choose kind nut and pick the preset ISO 4032 M6. Leave clearance empty.
-  The empty clearance field blocks the build, and no stale part is shown.
-awaiting: user response
+[testing complete]
 
 ## Tests
 
 ### 1. Nut preset with an empty clearance shows no part
 expected: Choosing kind nut, preset ISO 4032 M6 and an empty clearance blocks the build. No stale part is shown.
-result: [pending]
+result: issue
+reported: "after selecting nut, I can't choose standard, size with empty Clearance"
+severity: major
+note: "Screenshot: Standard and Size selects are empty after switching kind to nut. GET /api/presets?kind=nut returns rows (ISO 4032 M2...), so the picker is not populated client-side."
 
 ### 2. Clearance 0.1 renders the nut and its panel
 expected: Typing 0.1 renders a hex nut with a lead-in countersink and chamfered faces. The Pair group shows radial 0.1 mm, diametral 0.2 mm, the nut major, pitch and minor diameters, and 5.2 turns. The 6g/6H limits group carries the label "limits for a bought part; this model is nominal and not toleranced".
-result: [pending]
+result: pass
+note: \"M6 values typed by hand (d 6, pitch 1, s 10, m 5.2); preset picker broken, see test 1.\"
 
 ### 3. Matching-part link round-trips both ways
 expected: "Matching bolt" on the nut opens a bolt with the same d, pitch and hand. "Matching nut" on that bolt opens a nut with the same d, pitch and hand.
-result: [pending]
+result: issue
+severity: major
+owner_request: "Yes, I do want." (the bolt-to-nut link should carry a clearance)
+reported: "1. yes 2. opened the nut, but clearence was empty so nut wasn't rendered; left-hande check worked"
+note: "d, pitch and hand round-trip both ways (pass). The issue is the owner's request that the bolt-to-nut link carry a clearance. That conflicts with locked D-01 / L15 (clearance has no default before Phase 6, PAIR-02), so it needs an owner ruling or an L15 amendment before any fix plan."
 
 ### 4. Kind switch drops the previous mesh
 expected: Switching kind while a mesh is on screen removes the old mesh before the new form builds.
-result: [pending]
+result: pass
 
 ### 5. M18 note
 expected: Picking the M18 nut preset shows "kernel pair proof inconclusive at K = 3 (2026-10-08-a-pair)" on the panel. No kernel pair proof is run.
-result: [pending]
+result: pass
+note: "M18 values typed by hand (d 18, pitch 2.5, s 27, m 15.8); preset picker broken, see test 1."
 
 ### 6. Download buttons
-expected: The nut's preview STL, fine STL and STEP buttons download. The preview STL's filename contains "preview".
-result: [pending]
+expected: The nut's "Download STL" and "Download STEP" links download the fine builds; neither filename contains "preview". A link falls back to preview, labelled "(preview)", only when the server refuses fine (D-10, G-04-3).
+result: pass
+note: "The original expected text named three buttons (preview STL, fine STL, STEP). The user reported: I don't see any preview stl and fine stl, just download stl and download step. That is the intended two-link UI (D-10), so the expected text was corrected and the test re-run."
 
 ## Summary
 
 total: 6
-passed: 0
-issues: 0
-pending: 6
+passed: 4
+issues: 2
+pending: 0
 skipped: 0
 blocked: 0
 
 ## Gaps
+
+- gap_id: G-05-1
+  truth: "Choosing kind nut, preset ISO 4032 M6 and an empty clearance blocks the build. No stale part is shown."
+  status: failed
+  reason: "User reported: after selecting nut, I can't choose standard, size with empty Clearance"
+  severity: major
+  test: 1
+  artifacts: []
+  missing: []
+
+- gap_id: G-05-3
+  truth: "The bolt-to-nut matching link opens a nut that renders, which means the link carries a clearance."
+  status: failed
+  reason: "User reported: opened the nut, but clearence was empty so nut wasn't rendered. Owner then asked for the link to carry a clearance: Yes, I do want."
+  severity: major
+  test: 3
+  decision_conflict: "D-01 / L15: clearance is required with no default before Phase 6 (PAIR-02). A fix needs an owner ruling on which value the link carries, then an L15 amendment."
+  artifacts: []
+  missing: []
