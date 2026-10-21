@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Hex Nut and Kernel Pair Proof
 status: executing
-stopped_at: Completed 05-21-PLAN.md
-last_updated: "2026-10-21T10:38:25.093Z"
+stopped_at: Completed 05-22-PLAN.md
+last_updated: "2026-10-21T10:55:24.498Z"
 last_activity: 2026-10-21
 last_activity_desc: Phase 05 execution started
-state_head: c65f6e5bc308f85c6696bbe9033abe2a72c618db
+state_head: 98e7864a6f4fdd8db327cee5bb630035b8d8a411
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 64
-  completed_plans: 63
+  completed_plans: 64
   percent: 57
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-12)
 ## Current Position
 
 Phase: 05 (Hex Nut and Kernel Pair Proof) — EXECUTING
-Plan: 21 of 22 complete (next: 05-22)
+Plan: 22 of 22 complete (next: 05-22)
 Status: Ready to execute
 Last activity: 2026-10-21 — Phase 05 execution started
 
@@ -122,6 +122,7 @@ Progress: [██████░░░░] 57%
 | Phase 05 P19 | about 3h with two 50 min runs | 3 tasks | 26 files |
 | Phase 05 P20 | 48 min | 4 tasks | 16 files |
 | Phase 05 P21 | 40 min | 3 tasks | 5 files |
+| Phase 05 P22 | 12 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -241,6 +242,7 @@ Recent decisions affecting current work:
 - [Phase 05]: 05-20: at c >= d/2 prove reads nothing and is inconclusive by definition (R8 shape), the D-05 blank does not grow; the report prints only a closed form the rule compared (cell_judgement)
 - [Phase 05]: 05-21: after a failed update the picker selects show the first catalogue row the form holds exactly (server rule and order), else blank; badge and presetBasis unchanged (G-05-1, D-12, D-09)
 - [Phase 05]: 05-21: a browser test in the gate is filed as an owner decision (docs/ideas/2026-10-21-browser-test-of-the-page-in-the-gate.md); the G-05-1 probe stays in scratch
+- [Phase 05]: 05-22: the bolt's Matching nut link carries the clearance last typed on a nut in this page; generic per-kind memory of fields with no default, input-event only, page memory, server fields win; L15 amendment 2026-10-21
 
 ### Pending Todos
 
@@ -287,6 +289,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-21T10:38:24.874Z
-Stopped at: Completed 05-21-PLAN.md
+Last session: 2026-10-21T10:55:24.263Z
+Stopped at: Completed 05-22-PLAN.md
 Resume file: None
