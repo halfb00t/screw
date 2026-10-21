@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Hex Nut and Kernel Pair Proof
-status: executing
-stopped_at: Completed 05-22-PLAN.md
-last_updated: "2026-10-21T13:40:51.118Z"
+status: verifying
+stopped_at: Completed 05-23-PLAN.md
+last_updated: "2026-10-21T14:12:24.612Z"
 last_activity: 2026-10-21
 last_activity_desc: Phase 05 execution started
-state_head: 3a6ee0f9e5af3f2c5d64a73203c910010e57d2ac
+state_head: a375980ca915d9de73eb17cb47f6461425356884
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 65
-  completed_plans: 64
+  completed_plans: 65
   percent: 57
 ---
 
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-10-12)
 
 ## Current Position
 
-Phase: 05 (Hex Nut and Kernel Pair Proof) — READY TO EXECUTE
-Plan: 22 of 22 complete (next: 05-22)
-Status: Ready to execute
-Last activity: 2026-10-21 — Phase 05 execution started
+Phase: 05 (Hex Nut and Kernel Pair Proof) — ALL PLANS EXECUTED, READY TO RE-VERIFY
+Plan: 23 of 23 complete (gap closure 05-23 done; WR-07 and WR-08 await re-verification and the owner's UAT re-run)
+Status: Phase complete — ready for verification
+Last activity: 2026-10-21 — Completed 05-23-PLAN.md
 
 Progress: [██████░░░░] 57%
 
@@ -123,6 +123,7 @@ Progress: [██████░░░░] 57%
 | Phase 05 P20 | 48 min | 4 tasks | 16 files |
 | Phase 05 P21 | 40 min | 3 tasks | 5 files |
 | Phase 05 P22 | 12 min | 2 tasks | 4 files |
+| Phase 05 P23 | 16 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -243,6 +244,8 @@ Recent decisions affecting current work:
 - [Phase 05]: 05-21: after a failed update the picker selects show the first catalogue row the form holds exactly (server rule and order), else blank; badge and presetBasis unchanged (G-05-1, D-12, D-09)
 - [Phase 05]: 05-21: a browser test in the gate is filed as an owner decision (docs/ideas/2026-10-21-browser-test-of-the-page-in-the-gate.md); the G-05-1 probe stays in scratch
 - [Phase 05]: 05-22: the bolt's Matching nut link carries the clearance last typed on a nut in this page; generic per-kind memory of fields with no default, input-event only, page memory, server fields win; L15 amendment 2026-10-21
+- [Phase 05]: 05-23: the typed-value memory is keyed by formKind (the kind of the controls on screen); update() returns while formKind !== currentKind; navigate rebuilds when kind !== currentKind || kind !== formKind (WR-07, owner choices (a) and fix in navigate, 2026-10-21)
+- [Phase 05]: 05-23: forgetUntyped deletes a remembered entry the field no longer holds, after navigate's write loop and on Reset; typing stays the only writer (WR-08, owner ruling forget on Reset and on a link, 2026-10-21; L15 amendment)
 
 ### Pending Todos
 
@@ -289,6 +292,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-21T10:55:24.263Z
-Stopped at: Completed 05-22-PLAN.md
+Last session: 2026-10-21T14:12:24.271Z
+Stopped at: Completed 05-23-PLAN.md
 Resume file: None
