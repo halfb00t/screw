@@ -2,7 +2,8 @@
 phase: 05-hex-nut-and-kernel-pair-proof
 reviewed: 2026-10-21T00:00:00Z
 rereviewed: 2026-10-21
-rereview_base: ad09d46
+rereview_base: e30b919
+rereview_base_previous: ad09d46
 depth: standard
 files_reviewed: 70
 files_reviewed_list:
@@ -78,6 +79,11 @@ files_reviewed_list:
   - tests/test_thread_maths.py
 findings:
   critical: 0
+  warning: 1
+  info: 1
+  total: 2
+findings_at_e30b919:
+  critical: 0
   warning: 2
   info: 3
   total: 5
@@ -92,7 +98,7 @@ status: issues_found
 # Phase 5: Code Review Report
 
 **Reviewed:** 2026-10-21
-**Re-reviewed:** 2026-10-21 (diff base ad09d46, after plans 05-20, 05-21, 05-22)
+**Re-reviewed:** 2026-10-21 (diff base ad09d46, after plans 05-20, 05-21, 05-22); 2026-10-21 again (diff base e30b919, after plan 05-23)
 **Depth:** standard
 **Files Reviewed:** 70
 **Status:** issues_found
@@ -132,6 +138,18 @@ tests/test_end_oracles.py tests/test_cli_pair.py` gave 326 passed, 240 deselecte
 the `grid` and `pair` marked tests the default config skips, never part of `make verify`); `node --check` on `app.js` parses; 52 real-kernel
 nut builds (s 1.11 to 3.5, both hands, d 0.5 and 1.0) all one valid solid; 60 off-row nuts at d 10 to
 200 produce a valid evidence `BoltParams`.
+
+**Second re-review verdict (2026-10-21, plan 05-23, diff base e30b919, commits 53cd338 and 58bbc9f).**
+05-23 resolves WR-07, WR-08, IN-05 and IN-06 as findings, each by the fix asked for, with the
+owner's two choices on top (the `update()` guard and the `navigate` rebuild). I found no regression in
+the WR-07 and WR-08 paths. One new warning (WR-09): the old kind's preset picker stays live, and
+unguarded, for the whole kind-switch window, so a pick there throws a `TypeError` and writes the old
+kind's row into the new kind's controls. That contradicts the plan's own truth "no page error during
+the kind-switch window". Open now: WR-09 and IN-07 (IN-07 is in `tests/test_nut.py`, outside this
+delta, unchanged). No critical issue. Evidence I ran: `node --check src/screw/static/app.js` parses;
+`pytest tests/test_parity.py -n0 --no-cov` gave 71 passed (not `make verify`, which I did not run);
+two headless-Chromium probes against `screw serve` (spur's Playwright, scripts in the session
+scratchpad, not in the repo), whose results are quoted under each finding.
 
 ## Warnings
 
@@ -328,7 +346,20 @@ Add a test with an off-row d >= 10 nut.
 
 ### WR-07: The typed-clearance memory is written under the wrong kind while the page switches kinds
 
-**Status: new, open (re-review of 05-22).**
+**Status after 05-23: resolved (53cd338).** `formKind` is declared at `app.js:17`, set at `:100`
+directly after `clearForm()` (`:99`) with no `await` between that and the end of `buildForm`
+(the function has one `await` pair, both before `:99`), and cleared in `clearForm` (`:81`).
+`rememberTyped` returns while `formKind === null` and keys both the read and the write by `formKind`
+(`:702-707`); `currentKind` no longer appears in it. The owner's two additions hold in the source:
+`update()` returns at `:504` (its first statement) while `formKind !== currentKind`, and `navigate`
+rebuilds on `kind !== currentKind || kind !== formKind` (`:315`). Probe, run by me: switch the Kind
+select to `nut` with `api/presets?kind=nut` held 1.5 s, type clearance 0.1 in the window. The hash read
+`#kind=nut`, no request contained `clearance`, no page error. After the load the finished navigation
+wrote the link's empty clearance over the typing (`:340`, field `''`, unchanged behaviour, and
+`forgetUntyped` then drops the entry). Typing 0.2 after the load gave the nut's `Matching bolt` link
+`#kind=bolt&d=6&pitch=1&left_hand=false&s=10&k=4`. The Back case (the `navigate` rebuild) I verified by
+reading `:315-331` only; the plan's own probe record is in 05-23-SUMMARY.md and I did not re-run it.
+Original finding follows.
 
 **File:** `src/screw/static/app.js:678-686` (`rememberTyped` and the `input` listener), with `currentKind` assigned only at `:315`
 **Issue:** `rememberTyped` keys the memory by `currentKind`. In `navigate()` the new kind's form is
@@ -371,7 +402,20 @@ Add a source pin that `lastTyped.set(` is keyed by `formKind`, not `currentKind`
 
 ### WR-08: The remembered clearance outlives the field after Reset or a link, so the Matching nut link carries a number the nut no longer shows
 
-**Status: new, open (re-review of 05-22).**
+**Status after 05-23: resolved (58bbc9f).** `forgetUntyped(input)` (`app.js:709-714`) reads
+`lastTyped.get(formKind)` and deletes an entry whose control now reads differently. It has two call
+sites: `navigate` at `:341`, directly after the write loop (`:340`) and before the unreadable-value
+refusal (`:346-352`) can return, and the Reset handler at `:729`, directly after its write loop. It only
+deletes (`lastTyped.set(` still occurs once, in `rememberTyped`), so typing stays the one writer. Probes,
+run by me: (1) type 0.2 on a nut, Reset, switch the Kind select to the bolt: its `Matching nut` link is
+`#kind=nut&d=6&pitch=1&left_hand=false&s=10&m=5.2`, no clearance. (2) Type 0.3, follow `Matching bolt`,
+then `Matching nut`: the nut opens at 0.3 and the link keeps it (the round trip). (3) Open
+`#kind=nut&clearance=0.4`, then the bolt: its `Matching nut` link carries no clearance. Two properties
+to know, neither a defect: the comparison is by string, so an external link that spells the same number
+differently (`0.10` for a typed `0.1`) drops the entry, which errs toward carrying nothing; and a Kind
+select round trip nut, bolt, nut writes the empty hash value into the clearance and so forgets it,
+where the `Matching` link keeps it, as the amendment says ("the kind selector"). Original finding
+follows.
 
 **File:** `src/screw/static/app.js:698-701` (Reset), `:325` (`navigate` writes every control), `:428` (`showCounterpart`); comment at `:675-677`
 **Issue:** The code comment says "Typing a field empty forgets it, so a link never carries an empty
@@ -406,6 +450,38 @@ function forgetUntyped(name, written) {          // write() for a field with no 
 
 If the owner prefers "the clearance the nut last held", the plan already records that as a one-line
 move of the writer into `update()`; surface it in the amendment either way.
+
+### WR-09: The old kind's preset picker stays live during a kind switch, and a pick there throws and writes the old kind's row into the new kind's controls
+
+**Status: new, open (re-review of 05-23).**
+
+**File:** `src/screw/static/app.js:234` (`pick`, `write(fields.get(name).input, value)`), with the stale
+picker kept by `:315-331` (`navigate`, `buildForm` at `:99`) and cleared only by `clearPicker` (`:84`,
+called from `refuseLink`, `:278`); pinned as source text at `tests/test_parity.py:656`
+**Issue:** `buildForm` replaces the controls and `formKind` at once, but the picker and `catalogue`
+stay the old kind's until `loadPresets` lands (`:325`). In that window `pick(i)` takes a row of the old
+catalogue and writes each of its fields into `fields.get(name)`, and the new form lacks some of them.
+Bolt rows carry `d, pitch, length, s, k, thread_length`; the nut form has `d, pitch, left_hand, m,
+clearance, s`. The loop writes `d` and `pitch`, then throws on `length`. 05-23 closed the same window
+for `update()` (the guard at `:504`) and for `rowOfFields` (`:210-211`) but not for `pick`, and this
+is the "stale catalogue" cause IN-06 named.
+
+Reproduced, run by me: bolt page loaded, Kind select to `nut` with `api/presets?kind=nut` held 1.5 s, then
+the stale picker's Size select set to `M2.5`. Result: page error `Cannot read properties of undefined
+(reading 'input')`, and the nut's controls read `d 2.5, pitch 0.45`, the bolt row's values, until the
+finished navigation rewrote them (`:340`; after the load `d 6, pitch 1, s 10, m 5.2`). No request went to
+the API (the `update()` guard holds), and the hash stayed `#kind=nut`. So the effect is a console
+error and a few hundred milliseconds of the wrong numbers in the controls, not a wrong part or link.
+It contradicts the 05-23 truth "no page error during the kind-switch window" and the SUMMARY's D4, whose
+probe never touched the picker. Nothing in the gate can see it.
+
+**Fix:** do not leave the old picker on screen when the form it filled goes. Smallest: call
+`clearPicker()` in `navigate`'s rebuild block, next to `dropMesh()` (`:322`), so the selects are hidden and
+`catalogue` is `null` (`showMatch` and the `pick` handlers then have nothing to act on), and `loadPresets`
+rebuilds them. `clearPicker` also blanks the badge and `shownPreset`, which a kind switch means anyway.
+Failing that, make `pick` return while `formKind !== currentKind`, and update the `write(fields.get(name)
+.input, value)` pin at `tests/test_parity.py:656` only if the lookup itself changes. Add a source pin that
+the rebuild block clears the picker before `await buildForm(kind)`.
 
 ## Info
 
@@ -516,7 +592,20 @@ dropped on a kind change. Two defects found in how the memory is keyed and clear
 
 ### IN-05: The new page tests pin source text, so the claims they name are not exercised, and two of the pins are fragile
 
-**Status: new, open.**
+**Status after 05-23: resolved for the fixes the finding asked for (53cd338); the browser-run gap stays
+with the owner's idea entry.** Done: the call count is `re.findall(r"(?<!function )rowOfFields\(", APP_JS)
+== ["rowOfFields("]` (`tests/test_parity.py:705-707`); the `remember` pin is `delete typed[input.name]`
+exactly, `lastTyped.get(formKind)` and `lastTyped.set(formKind, typed)`, with `currentKind` asserted
+absent (`:896-903`); the no-reader loop now includes `showMatch`, `buildForm` and `write` (`:908-910`).
+Two new tests pin the `formKind` set and clear and the `update()` guard as its first statement
+(`:915-930`) and the `forgetUntyped` call sites (`:932-950`). 71 pass. Two remarks. The test comment at
+`:705-706` says the pattern means "a comment that names the function cannot hide a second call", which is
+not what it does: the regex still matches `rowOfFields(` inside a comment (I appended
+`// see rowOfFields() for why` to a copy of `app.js` and it returned two matches), so a comment naming
+the call still fails the gate; it now also catches a call with arguments, which the old
+`count("rowOfFields()")` missed. The comment is inaccurate, the gate is no worse. And the spread-order
+and anonymous-handler bullets are unchanged: the Reset and Kind-select handlers cannot be named, and
+`:874` pins the spread order as source text.
 
 **File:** `tests/test_parity.py:687-708` (`test_after_a_failed_update_the_selects_show_the_row_the_fields_hold_exactly`), `:884-905` (`test_the_matching_link_carries_only_a_value_typed_in_this_page_into_a_field_with_no_default`)
 **Issue:** The G-05-1 and G-05-3 tests assert that substrings occur in `app.js`. None runs the page,
@@ -542,7 +631,13 @@ the first three tests.
 
 ### IN-06: `rowOfFields` dereferences `fields.get(name)` unguarded while the catalogue can belong to the previous kind
 
-**Status: new, open.**
+**Status after 05-23: resolved for `rowOfFields` (53cd338); the cause it names is only half removed, see
+WR-09.** `rowOfFields` now reads `const control = fields.get(name); if (control === undefined) return
+false;` (`app.js:210-211`), pinned at `tests/test_parity.py:694-698`. The trigger the finding traced, a
+failed update in the window, can no longer happen: `update()` returns first (`:504`). The finding's
+"better" fix (clear `catalogue` and the picker where the form is replaced) was not made, and the same
+stale catalogue is still reachable through `pick()`, which has the same unguarded lookup (`:234`). Original
+finding follows.
 
 **File:** `src/screw/static/app.js:199-204` (`rowOfFields`), with the stale window at `:304-316`
 **Issue:** On a kind change `navigate()` rebuilds the form (`buildForm`) but leaves `catalogue`
@@ -582,9 +677,38 @@ differs from its pre-05-20 shape and no test says it still passes its piece gate
 `s` parameters (the name then should say "narrow", not "below root three"), and assert the cutter's
 `zmin` equals `-min(0.5, s / 2 * tan30 / 2)` at 3.4 and 3.5 so the cap's switch point is pinned.
 
+## Re-review after 05-23 (diff base e30b919)
+
+Scope: `git diff e30b919 HEAD` over `src/screw/static/app.js`, `tests/test_parity.py` and
+`docs/architecture/decision_log.md` (commits 53cd338 and 58bbc9f; 126 insertions, 19 deletions across the
+three). The whole of `app.js` was read for context. Checked against 05-23-PLAN.md's truths and the L02
+rules.
+
+**WR-07: resolved. WR-08: resolved. IN-05: resolved (the asked-for fixes). IN-06: resolved (the guard).**
+Evidence is under each finding. Points I traced that found no defect: (a) `navigate`'s rebuild condition
+can never skip a form that is not the link's kind, because `formKind !== currentKind` and
+`kind === currentKind` and `kind === formKind` cannot all hold, so no overtaken navigation leaves the
+`update()` guard closed; the one remaining way to a closed guard is an overtaking navigation whose schema
+fetch throws, which shows "Could not load the part" and leaves the nut form with no updates, an error
+path and no longer a silent wrong request; (b) `forgetUntyped` runs only after `buildForm` has set
+`formKind` to `kind`, and the one `await` between (`loadPresets`) is guarded by `formSeq`, so
+`lastTyped.get(formKind)` is the entry of the form being written; (c) `forgetUntyped` runs before
+`navigate`'s unreadable-value refusal, so a refused link still forgets; (d) `rememberTyped` copies the
+entry and `showCounterpart` spreads it, so `forgetUntyped`'s in-place delete cannot alias a link already
+built; (e) the picker is outside `#params` (`index.html:20`, `:23`), so a picker `input` event never
+reaches `rememberTyped`; (f) the decision log amendment's description of the code (the rebuild
+condition, the guard, `forgetUntyped`, the two new tests) matches the source. Two behaviours worth
+knowing and not findings: typing into a field in the kind-switch window is overwritten by the finished
+navigation and forgotten (as before 05-23, now consistent between field and memory), and
+`update()`'s early return does not clear the debounce a window keystroke queued, so a duplicate
+update runs after the load and aborts the first (pre-existing, harmless).
+
+**New:** WR-09. IN-07 is untouched by this delta and stays open.
+
 ---
 
 _Reviewed: 2026-10-21_
 _Re-reviewed: 2026-10-21 (base ad09d46)_
+_Re-reviewed: 2026-10-21 (base e30b919, plan 05-23)_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
