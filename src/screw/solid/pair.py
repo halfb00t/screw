@@ -40,7 +40,7 @@ from screw.calc.pair import (
 )
 from screw.calc.pair import PairReading as PairReadingRow
 from screw.calc.presets import counterpart_for
-from screw.calc.thread import TIP_ANGLE_DEG, tip_cone_length
+from screw.calc.thread import TIP_ANGLE_DEG, tip_cone_length, turns_of
 from screw.params import BoltParams, NutParams
 from screw.solid import build, helical, precise_volume
 
@@ -338,4 +338,5 @@ def prove(p: NutParams, *, rod_left_hand: bool | None = None, shipped: bool = Tr
         verdict=verdict, reasons=list(reasons), d=p.d, pitch=p.pitch, m=p.m,
         clearance=p.clearance, rod_left_hand=rod_hand, nut_left_hand=p.left_hand,
         readings=readings, closed_control=closed, band=PAIR_BAND,
-        engagement_turns=p.m / p.pitch, shipped=evidence, seconds=time.perf_counter() - start)
+        engagement_turns=turns_of(p.m, p.pitch), shipped=evidence,
+        seconds=time.perf_counter() - start)

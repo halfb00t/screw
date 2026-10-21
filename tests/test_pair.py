@@ -29,6 +29,7 @@ from bench import m18_probe, pair_expected
 from bench.thread_spike import maths
 from bench.thread_spike import verdict as spike_verdict
 from bench.thread_spike.verdict import PAIR_BAND, closed_control
+from screw.calc import derive
 from screw.calc import pair as rule
 from screw.calc.thread import TIP_ANGLE_DEG, tip_cone_length
 from screw.params import BoltParams, FastenerParams, NutParams
@@ -719,6 +720,16 @@ def test_the_nut_body_is_a_volume_just_below_the_clearance_that_cannot_hold_the_
         cell = _cell(math.nextafter(size.d / 2, 0.0))
         cell["d"], cell["pitch"], cell["m"] = size.d, size.pitch, 1.0
         assert rule._nut_body(cell) > 0.0, size.label
+
+
+def test_the_reported_engagement_is_the_info_documents_exact_quotient() -> None:
+    # WR-05: `m / pitch` is 9.000000000000002 for m 5.4, pitch 0.6; `screw info` prints 9.0.
+    # Clearance 0 reads nothing, so no kernel boolean runs.
+    p = NutParams(d=3.5, pitch=0.6, s=6.0, m=5.4, clearance=0.0)
+    report = solid_pair.prove(p, shipped=False, common=_Script())
+    [row] = [r for r in derive(p).rows if r.key == "engagement_turns"]
+    assert report.engagement_turns == 9.0
+    assert report.engagement_turns == row.value
 
 
 @pytest.mark.usefixtures("built")
