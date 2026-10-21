@@ -1,8 +1,8 @@
 ---
 phase: 05-hex-nut-and-kernel-pair-proof
-verified: 2026-10-21T08:15:00Z
-status: human_needed
-score: 6/7 must-haves verified
+verified: 2026-10-21T12:10:00Z
+status: gaps_found
+score: 19/20 must-haves verified
 covered_files:
   - .github/workflows/pair.yml
   - .planning/phases/05-hex-nut-and-kernel-pair-proof/05-01-PLAN.md
@@ -45,8 +45,13 @@ covered_files:
   - .planning/phases/05-hex-nut-and-kernel-pair-proof/05-19-SUMMARY.md
   - .planning/phases/05-hex-nut-and-kernel-pair-proof/05-20-PLAN.md
   - .planning/phases/05-hex-nut-and-kernel-pair-proof/05-20-SUMMARY.md
+  - .planning/phases/05-hex-nut-and-kernel-pair-proof/05-21-PLAN.md
+  - .planning/phases/05-hex-nut-and-kernel-pair-proof/05-21-SUMMARY.md
+  - .planning/phases/05-hex-nut-and-kernel-pair-proof/05-22-PLAN.md
+  - .planning/phases/05-hex-nut-and-kernel-pair-proof/05-22-SUMMARY.md
   - Makefile
   - bench/RESULTS.md
+  - docs/architecture/decision_log.md
   - pyproject.toml
   - src/screw/app.py
   - src/screw/calc/__init__.py
@@ -64,169 +69,203 @@ covered_files:
   - src/screw/tables/iso4032.py
   - src/screw/tables/iso724.py
   - tests/data/pair_expected.tsv
-covered_digest: "v3:sha256:6ad99eb6dcff5f8789037c7db20844785a3a14c95bac643569228a692fa67b47"
+  - tests/test_parity.py
+covered_digest: "v3:sha256:9429d998c1c37ccccc050694ec8c2dfcbc98cbdab2dfb571ad66c84c2f5140a5"
+behavior_unverified: 0
 overrides_applied: 0
-behavior_unverified: 1
-behavior_unverified_items:
-  - truth: "The page (UI) lets a user pick an ISO 4032 nut preset, leaves the nut's clearance empty with no default, shows the matching-part link, drops the mesh on a kind switch, and shows the pair rows and the M18 note"
-    test: "Serve the app (`make serve`), open the page, choose kind nut, pick a preset (e.g. ISO 4032 M6), leave clearance empty, then type 0.1; follow the 'Matching bolt' link, then the 'Matching nut' link on the bolt; switch kinds with a mesh on screen; pick (M18) and read the panel"
-    expected: "Empty clearance field blocks a build and shows no stale part; typing 0.1 renders the nut and a Pair group with radial 0.1 mm and diametral 0.2 mm, nut major/pitch/minor diameters and 5.2 turns; the 6g/6H limits group carries the label 'limits for a bought part; this model is nominal and not toleranced'; the counterpart link round-trips d, pitch and hand; a kind switch drops the previous mesh; M18 shows 'kernel pair proof inconclusive at K = 3 (2026-10-08-a-pair)' and no kernel call is made"
-    why_human: "No browser exists in the gate (L01); 05-UI-REVIEW.md is code-only with no screenshots and 05-VALIDATION.md lists this check as manual-only for TYPE-04 and PAIR-01. Source assertions and the API/CLI info documents (which I ran) show the data is right; they cannot show the page renders and switches state correctly"
-human_verification:
-  - test: "Page walk-through of the nut UI (see behavior_unverified_items): preset pick, empty clearance, matching-part link both ways, kind switch, pair rows, 6H/6g limits label, M18 note, live 3D preview of a nut and its STL/STEP buttons"
-    expected: "As stated above; the 3D preview shows a hex nut with a lead-in countersink and chamfered faces, and the download buttons name the quality ('preview' in the preview STL's filename)"
-    why_human: "Rendered browser behaviour, not exercised by any test or by the UI audit"
+re_verification:
+  previous_status: human_needed
+  previous_score: 6/7
+  gaps_closed:
+    - "G-05-1: with an empty clearance the nut preset picks hold (plan 05-21), re-run in a real browser"
+    - "G-05-3: the bolt's Matching nut link carries the clearance last typed (plan 05-22), re-run in a real browser"
+  gaps_remaining:
+    - "WR-07: the typed-clearance memory is keyed by the wrong kind during a kind switch"
+  regressions:
+    - "05-22 truth 3 and the L15 amendment: 'the value never enters the bolt's hash' is false on the WR-07 path"
+gaps:
+  - truth: "05-22 must-have 3 and the L15 amendment of 2026-10-21: the remembered clearance never reaches the bolt (not its hash, a bolt request or a download link); with it, must-have 1 (type 0.1 on a nut, follow Matching bolt, then Matching nut: the nut opens at 0.1 and builds)"
+    status: failed
+    reason: "rememberTyped keys the memory by currentKind, which is assigned only after await loadPresets() in navigate(), while buildForm() has already put the new kind's form on screen. A clearance typed in that window is stored under the old kind ('bolt'). The nut's memory misses it, and the nut page's Matching bolt link is built from lastTyped.get('bolt'), so it reads #kind=bolt&clearance=0.1&... . Following it puts the clearance in the bolt's hash and navigate() refuses the link: 'Unknown field \"clearance\" for kind \"bolt\"'. Nothing clears the entry, because every bolt field has a default and so never writes the memory: the nut's Matching bolt link stays broken for the rest of the page session. Reproduced in a headless browser (see Behavioral Spot-Checks). The window is one request on localhost, so it is narrow, but it breaks the stated invariant and the failure is persistent once hit. It fails closed: no wrong part is built, no bolt API request carries the value, and the refusal names the field."
+    artifacts:
+      - path: "src/screw/static/app.js"
+        issue: "rememberTyped (lines 678-686) uses currentKind (assigned at line 315); buildForm (line 87) replaces the form and defaults earlier, so the key and the form disagree for the length of loadPresets"
+    missing:
+      - "Key the memory by the kind the form was built for: set a formKind in buildForm in the same synchronous block as defaults, clear it in clearForm, and use it in rememberTyped (05-REVIEW.md WR-07 gives the patch)"
+      - "A source pin that lastTyped.set( is keyed by formKind, not currentKind (05-REVIEW.md IN-05 asks for the pin); and a guard in rowOfFields for a control the form lacks (IN-06, same window, same cause)"
+      - "Owner re-run of UAT test 3 after the fix"
+  - truth: "05-22 plan prose, UI-SPEC rule 37 and the code comment at app.js:675-677: 'a link never carries an empty or stale number'"
+    status: partial
+    reason: "Only an input event touches the memory. Reset empties the clearance field without an event, and a link or Back writes the hash value into it without one. Reproduced in a headless browser: type 0.1 on a nut, press Reset (field empty, nut does not build), switch to the bolt; its Matching nut link is #kind=nut&clearance=0.1&... and opens a nut at a clearance the user cleared. This follows the owner's literal ruling (0.1 is the clearance last typed on a nut, the value is the user's own, the nut shows it when it opens, nothing is invented), so it is not an L02 silent change and no listed truth fails on it. It does contradict the word 'stale' in the plan, rule 37 and the code comment, and rule 37 names Reset as a non-writer, not as a non-clearer. Partial, not a blocker. The owner should pick: make Reset (and a link that overwrites with a different value) forget the entry, or amend the wording to 'the clearance last typed'."
+    artifacts:
+      - path: "src/screw/static/app.js"
+        issue: "Reset handler (lines 698-701) and navigate's write loop (line 325) change a field with no default without updating lastTyped; showCounterpart (line 428) reads it"
+    missing:
+      - "Either forget the entry when Reset or a link overwrites it (05-REVIEW.md WR-08 gives forgetUntyped), or amend rule 37, the code comment and the L15 amendment to say the link carries the clearance last typed even after Reset or a link replaced it"
 ---
 
 # Phase 5: Hex Nut and Kernel Pair Proof Verification Report
 
 **Phase Goal:** For any bolt a user can get the matching ISO 4032 nut at a chosen radial clearance, see the pair's numbers on the info panel, and get a kernel verdict on whether the pair mates, one that cannot report `proven` when its own control did not fire.
-**Verified:** 2026-10-21T08:15:00Z
-**Status:** human_needed
-**Re-verification:** No, initial verification (HEAD e7ac42e; code and tests unchanged since eeb49b5, only 05-SECURITY.md differs)
+**Verified:** 2026-10-21T12:10:00Z
+**Status:** gaps_found
+**Re-verification:** Yes, after gap closure plans 05-21 (G-05-1) and 05-22 (G-05-3). HEAD 53988f4. Since the prior report (e7ac42e) only `src/screw/static/app.js` and `tests/test_parity.py` changed under `src/`, `tests/`, `Makefile`, `pyproject.toml`, `bench/` and `.github/`. The kernel, calc, tables and API are untouched, so the prior kernel evidence (M6 `proven`, M18 `inconclusive`, planted-reading checks, 240 of 240 grid cells) stands, and I ran a regression sample on top of it.
 
 ## Verdict in one paragraph
 
-The goal is achieved in the codebase on every path that can be exercised without a browser. I ran the real
-CLI proof on M6 (`proven`, exit 0, controls at 12.2130 mm3 against a closed form of 12.2130) and on M18
-(`inconclusive`, exit 2, "control at theta -2.0944 reads empty (closed form 336.632 mm3)"), served the nut
-through the API (info, preview STL, fine STL, STEP, hand, missing-clearance 422), fed the verdict rule five
-planted control readings (it refused `proven` for an empty, NaN, off-band and all-empty control), and ran
-the pair, CLI-pair and import-boundary tests (150 passed) plus end-oracle, mesh, parity, presets and calc
-tests (677 passed). The one open item is the rendered page, which no test or audit has looked at; it is the
-single reason the status is `human_needed` and not `passed`. No truth FAILED.
+The phase goal is achieved: the nut, the pair numbers and the kernel verdict all work, and the verdict still cannot
+be `proven` when a control did not fire. Both UAT gaps are closed and I re-ran their two tests in a real headless
+browser: with an empty clearance, ISO 4032 then M6 stays picked and nothing builds (G-05-1); a clearance typed on a
+nut rides the bolt's Matching nut link and the nut opens at 0.1 and builds (G-05-3). The status moves from
+`human_needed` to `gaps_found` for one reason. The 05-22 change breaks one of its own stated invariants on a narrow
+path (WR-07, below): the remembered clearance can reach the bolt's hash, and the nut's Matching bolt link is then
+refused for the rest of the page session. It fails closed and the trigger is a keystroke inside the one-request
+window after a kind switch, so no success criterion fails on the ordinary path. A contradicted must-have is a gap
+all the same, and the fix is a few lines of page code. WR-08 is a second, softer divergence and is recorded as partial.
+
+## Decision on WR-07 and WR-08
+
+- **WR-07 defeats a 05-22 must-have truth** (truth 3, "never reaches the bolt: not its hash", and the L15 amendment that repeats it), and with it truth 1 on that path. I reproduced it, so this is not read from the review alone. It does not defeat a roadmap success criterion: SC1's "matching part both ways from the same d, pitch, hand" holds on every path except a clearance typed before the kind switch has finished loading, and the broken link refuses whole with a message naming the field (L02-safe). So: gap, but not a phase-goal failure. 05-UI-REVIEW.md rates it BLOCKER and 05-SECURITY.md judges it fail-closed; both are right about different things. Fail-closed means no wrong part. It does not mean the invariant holds.
+- **WR-08 does not defeat a listed must-have.** It follows the owner's ruling read literally, and rule 37 says Reset does not write the memory. It contradicts the "no stale number" wording, so it is a partial gap and an owner choice (fix the code or amend the words).
 
 ## Goal Achievement
 
-### Observable Truths (ROADMAP success criteria, none dropped; plan must-haves add detail)
+### Observable Truths
+
+Roadmap success criteria SC1 to SC6, none dropped; the page truth from the first report; then the must-haves of 05-21 (A) and 05-22 (B).
 
 | # | Truth | Status | Evidence |
 |---|-------|--------|----------|
-| 1 | SC1: an ISO 4032 nut M2-M20 from a preset or mm fields on the API and CLI; matching part both ways from the same d, pitch, hand; lead-ins; parity green | VERIFIED | `screw presets nut` returns 14 rows (M2..M20, no M7), each citing its GOST ISO 4032-2014 table; the M6/M8/M10/M12/M16/M20 s and m equal the ISO 4032 values I know. `/api/nut/info`, `/api/nut/model.{stl,step}` return 200 (preview 335 KB, fine 2.3 MB, STEP 626 KB, left-hand 200). `counterpart` is on the nut and the bolt info (`{'kind': 'nut', 'fields': {'d': 8.0, 'pitch': 1.25, 'left_hand': False, 's': 13.0, 'm': 6.8}}` from an M8 bolt). Lead-ins: `solid/nut.py` `countersink`/`face_chamfer` on both faces, `solid/__init__.py` tip cone and fillet gates. `tests/test_parity.py` and `tests/test_presets.py` pass. The M2-M4 "informative" label is amended away (L14, owner ruling 2026-10-20, ROADMAP SC1 text records it) |
-| 2 | SC2: `clearance` is radial mm, positive enlarges the nut thread, no default; panel shows the INFO-01 set and the 6g/6H limits under the required label | VERIFIED | `/api/nut/info` without `clearance` is a 422 `Field required`; the CLI help reads `[required]`. Info rows at c = 0.1, M6: radial 0.1, diametral 0.2, nut major 6.2, pitch diameter 5.5505, minor 5.1175, engagement 5.2 turns, flank gap 0.05 (= c sin 30), axial play 0.1155 (= 2c tan 30). 6H limits D1 4.917-5.153, D2 5.350-5.500 equal the ISO 965-2 6H M6 figures; group name is exactly "limits for a bought part; this model is nominal and not toleranced"; each label says derived and names both GOST sources. `tests/test_nut.py::test_a_positive_clearance_moves_the_nut_thread_away_from_the_axis_on_both_hands` exists and passes under `make verify` |
-| 3 | SC3: `screw pair` and the solid function return `proven \| violated \| inconclusive` with the control; an empty control is `inconclusive` naming pose and clearance, never `proven`; c <= 0 inconclusive; both hands; one size in `make verify`; full grid in CI against pre-registered verdicts | VERIFIED | Behavioural, not presence. Real kernel: `screw pair nut --d 6 --pitch 1 --s 10 --m 5.2 --clearance 0.1` gave `proven`, exit 0, three matched poses 0 solids, three controls 12.21304/12.21304/12.21299 mm3 against closed form 12.21303. `screw pair nut --d 18 --pitch 2.5 --s 27 --m 15.8 --clearance 0.1` gave `inconclusive`, exit 2, reason "control at theta -2.0944 reads empty (closed form 336.632 mm3)", the other two controls 336.630 and 336.630. Rule fed planted readings (`calc/pair.py` `cell_judgement`): all fire gives proven; one empty, one NaN, one 1 % off band, all empty each give inconclusive. Source: `proven` requires every matched pose empty AND every control non-empty within `PAIR_BAND`, with NaN refused (negated comparisons) and the nut body checked against its closed form. `prove()` reads nothing at c <= 0 and at c >= d/2. Tests `test_an_empty_control_at_any_pose_is_inconclusive_and_names_that_pose` (both hands, three poses), `test_the_verify_cell_is_proven_as_pre_registered` (in `make verify`; ubuntu reading `proven`, 167.5 s, CI run 39431329111 per 05-15) pass. The expected table `tests/data/pair_expected.tsv` was added in 5d90f3e (PR #17, 2026-10-14), six days before the 2026-10-20 grid run; `bench/RESULTS.md` "Pair tier (Phase 5, D-07)": 240 of 240 equal, 88 proven / 60 violated / 92 inconclusive, M18 has 0 proven |
-| 4 | SC4: the pair proof is not an API endpoint; API/UI show closed-form flank gaps; import-linter forbids `app` and `pool` importing the pair module | VERIFIED | `app.routes` has no `pair` path and `GET /api/pair/nut` is 404; `flank_gap` and `axial_play` rows are on the info document. `make lint-imports`: 10 contracts kept, 0 broken, including "The serving process and its workers never import the pair proof" (`source_modules = [screw.app, screw.pool]`, `allow_indirect_imports = false`), with a runtime half in `tests/test_import_boundaries.py` (passes) |
-| 5 | SC5: STL and STEP from the same modelled-thread solid; STL chord deviation explicit, measured against the clearances, cited in a decision entry; `ControlSurfaceDeflection` on for downloads | VERIFIED | `solid/__init__.py` `_write_export` meshes a copy of the one built solid for STL and writes STEP from the same shape; `TESSELLATION["fine"] = (0.01, 0.1)`; `bench/RESULTS.md` "Mesh deviation (Phase 5, D-21)": rule committed in c87aadf before the rows, worst 0.0161 mm against a 0.025 mm bound (R6: 0.5 of the 0.05 mm proof clearance); `tests/test_mesh.py` pins `ControlSurfaceDeflection is True` and the preset (pass); decision log L15. Caveat: the pin asserts the OCP default holds, it does not set the flag |
-| 6 | SC6: the M18 empty control is diagnosed in one bounded task whose method was committed first; finding recorded; no verdict rule changed; M18 ships, reads `inconclusive`, panel labels M18 from the cited record | VERIFIED | `05-M18-DIAGNOSIS.md` landed on main in PR #17 before the probe; `bench/RESULTS.md` "M18 control diagnosis": 36 of 36 readings built, the empty reproduced in 10 of 10 fresh processes on both hands, H1/H3/H4/H harness controls held, H2 not held (recorded as such, nothing re-run). `calc/pair.py` constants unchanged from the spike (`tests/test_pair.py::test_the_moved_constants_have_the_values_the_spike_registered`). `screw info nut --d 18 --pitch 2.5 --s 27 --m 15.8 --clearance 0.1` carries the note "kernel pair proof inconclusive at K = 3 (2026-10-08-a-pair)" without calling the kernel; the live proof above is `inconclusive` |
-| 7 | The page (UI): preset pick, empty clearance with no stale part, matching-part link, kind switch, pair rows and M18 note render and behave | PRESENT_BEHAVIOR_UNVERIFIED | `static/app.js` has `showCounterpart` (builds `#kind=...&fields` link, text "Matching <kind>"), an empty-clearance guard (line ~280, "never shown as the last valid part"), `showCounterpart(null)` on kind change; `index.html` has `#counterpart`. 05-UI-REVIEW.md scored 24/24 from code only, no screenshots. 05-VALIDATION.md lists this as manual-only. No test drives a browser. Routed to human verification |
+| 1 | SC1: ISO 4032 nut M2-M20 from a preset or mm fields on API and CLI; matching part both ways from the same d, pitch, hand; lead-ins; parity green | VERIFIED | Unchanged since the prior report. `tests/test_presets.py`, `tests/test_nut.py`, `tests/test_mesh.py`, `tests/test_import_boundaries.py` re-run: 480 passed. The page half of "both ways" is covered by truths B1 and B3 |
+| 2 | SC2: `clearance` is radial mm, positive enlarges the nut thread, no default; panel shows the INFO-01 set and the 6g/6H limits under the required label | VERIFIED | Unchanged (calc and API untouched). In the browser the nut with clearance empty makes zero `model.stl` requests (A1) |
+| 3 | SC3: `proven \| violated \| inconclusive` with the control; an empty control is `inconclusive`, never `proven`; c <= 0 inconclusive; both hands; full grid pre-registered | VERIFIED | Unchanged (no change under `calc/pair.py`, `solid/pair.py`, `cli.py` since the prior report, which ran the real kernel and planted readings). `tests/data/pair_expected.tsv` and `bench/RESULTS.md` unchanged |
+| 4 | SC4: the pair proof is not an API endpoint; import-linter forbids `app` and `pool` importing it | VERIFIED | `make lint-imports`: 10 contracts kept, 0 broken |
+| 5 | SC5: STL and STEP from the same solid; chord deviation explicit and recorded; `ControlSurfaceDeflection` on | VERIFIED | Unchanged; `tests/test_mesh.py` passes |
+| 6 | SC6: the M18 empty control diagnosed in one bounded task; no verdict rule changed; M18 ships `inconclusive` | VERIFIED | Unchanged; UAT test 5 (owner, browser) passed the M18 note |
+| 7 | The page: preset pick, empty clearance with no stale part, matching-part link, kind switch, pair rows, M18 note render and behave | VERIFIED | Owner UAT 2026-10-21: tests 2, 4, 5, 6 passed in a browser; tests 1 and 3 failed and are the two gaps, now re-run below. Previously PRESENT_BEHAVIOR_UNVERIFIED; the owner's UAT plus my probe now exercise it. The owner's own re-run of tests 1 and 3 on the fixed build is still the end-of-phase confirmation |
+| A1 | 05-21: kind nut, clearance empty, ISO 4032 then M6 leaves the selects on ISO 4032 / M6, fields at d 6 pitch 1 s 10 m 5.2, 422 missing clearance, nothing builds | VERIFIED | My headless probe: opening `#kind=nut` showed selects `["ISO 4032","M6"]`; picking ISO 4032 then M6 gave `["ISO 4032","M6"]`, fields `d 6, pitch 1, s 10, m 5.2, clearance ""`, 0 `model.stl` requests, empty status. Before the fix the SUMMARY records the same probe failing at exactly the three predicted steps |
+| A2 | 05-21: after a failed update the selects show the first catalogue row whose every field the form holds exactly, else blank; the server's rule and order | VERIFIED | `rowOfFields()` (app.js:199-204) uses `Number(held) === value`, `held !== ''`, first row in catalogue order, no tolerance. Pinned by `test_after_a_failed_update_the_selects_show_the_row_the_fields_hold_exactly` (passes). Caveat IN-06: `fields.get(name).input` is unguarded while the catalogue can belong to the previous kind (same window as WR-07); a console error, not a wrong part |
+| A3 | 05-21: the badge reads only an info document; `presetBasis` set only by a pick or an exact info document | VERIFIED | `showMatch`: `if (preset === null) badge.textContent = ''`; `presetBasis` assigned only in `pick` and the `exact` branch |
+| A4 | 05-21: a successful info document drives selects and badge from `info.preset` exactly as before | VERIFIED | The `exact` branch still finds the row by `preset.id`; the `rowOfFields` path is taken only for `preset === null` |
+| A5 | 05-21: the diagnosis was reproduced before the fix; RED and GREEN outputs in the SUMMARY | VERIFIED | 05-21-SUMMARY.md lines 105 (`RESULT FAIL` with three steps) and 131 (`RESULT PASS []`); the missing RED exit code is disclosed |
+| A6 | 05-21: 01-UI-SPEC.md amended; the browser test in the gate is filed as an idea | VERIFIED | UI-SPEC amendment note dated 2026-10-21 (plan 05-21) present; `docs/ideas/2026-10-21-browser-test-of-the-page-in-the-gate.md` exists and has its INDEX row |
+| B1 | 05-22: type 0.1 on a nut, follow Matching bolt, then Matching nut: the nut opens at 0.1 and builds; the link reads `#kind=nut&clearance=0.1&d=6&pitch=1&left_hand=false&s=10&m=5.2` | VERIFIED (normal path; fails on the WR-07 path, see B3) | My probe: typed 0.1 on the M6 nut (one `model.stl` request); bolt link `#kind=bolt&d=6&pitch=1&left_hand=false&s=10&k=4`; after Matching bolt, the nut link read exactly `#kind=nut&clearance=0.1&d=6&pitch=1&left_hand=false&s=10&m=5.2`; following it left clearance `0.1` and a second nut `model.stl` request |
+| B2 | 05-22: with nothing typed the link is as before and the nut opens empty and builds nothing; typing the field empty forgets the value; nothing invented | VERIFIED | With nothing typed the link read `#kind=nut&d=6&pitch=1&left_hand=false&s=10&m=5.2`. `rememberTyped` deletes the entry on `value === ''`. No default is introduced |
+| B3 | 05-22: the remembered value never reaches the bolt: not its hash, a bolt request, a download link, never the bolt API; page memory only | FAILED | Bolt API, requests and downloads: never carry it (the auditor's probe and the source: `lastTyped` is read only at app.js:428). The bolt's hash: reached on the WR-07 path. Reproduced: kind switched to nut with the nut catalogue request held back, 0.1 typed inside the window, 0.2 retyped after load. The nut's Matching bolt link read `#kind=bolt&clearance=0.1&d=6&pitch=1&left_hand=false&s=10&k=4`; clicking it put that in the URL and the page answered `Unknown field "clearance" for kind "bolt"`. See Gaps |
+| B4 | 05-22: `PartInfo.counterpart` never carries `clearance`; calc, app.py, cli.py unchanged | VERIFIED | `git diff e7ac42e HEAD` over `src/` and `tests/` touches only `app.js` and `test_parity.py`; the contract test `test_a_bolts_matching_nut_link_with_a_typed_clearance_opens_a_nut_that_builds` passes with `tests/test_parity.py` (69 passed) |
+| B5 | 05-22: app.js names no field or kind; the memory is generic; the server's fields win | VERIFIED | `{ kind, ...lastTyped.get(counterpart.kind), ...counterpart.fields }` at app.js:428; the naming test in `test_parity.py` passes |
+| B6 | 05-22: L15 amendment in the same change; UI-SPEC rule 37 and the amended rule 34 | VERIFIED (text of the amendment is contradicted by B3 on the WR-07 path) | `docs/architecture/decision_log.md` carries the 2026-10-21 amendment naming G-05-3; UI-SPEC rule 37 and the dated note are present |
+| B7 | 05-22: reproduced before the change, RED and GREEN outputs in the SUMMARY | VERIFIED | 05-22-SUMMARY.md line 118 (`RESULT FAIL`, two predicted steps) and 143 (`RESULT PASS []`) |
 
-**Score:** 6/7 truths verified (1 present, behavior-unverified)
-
-The behavior-dependent truth (3, cancellation of `proven` when a control is empty) was upgraded to VERIFIED by
-named tests and by two real-kernel runs, not by symbol presence.
+**Score:** 19/20 truths verified (0 present, behavior-unverified). The one failure is B3.
 
 ### Deferred Items
 
-None. PAIR-02 (the default clearance) is Phase 6 by REQUIREMENTS.md and ROADMAP and is correctly not claimed here.
+None. WR-07 and WR-08 are not addressed by Phase 6 or later. PAIR-02 (the default clearance) is Phase 6 by REQUIREMENTS.md and is correctly not claimed here.
+
+### Advisory (New Scope, Unevidenced)
+
+None. The two findings above are carried forward from 05-REVIEW.md and are evidenced by a reproduction.
 
 ### Required Artifacts
 
 | Artifact | Expected | Status | Details |
 |----------|----------|--------|---------|
-| `src/screw/calc/pair.py` | kernel-free pair rule | VERIFIED | 244 lines, no kernel import (`test_the_pair_rule_module_loads_no_kernel`), used by `solid/pair.py` and the spike |
-| `src/screw/solid/pair.py` | bodies, `prove()`, report | VERIFIED | 352 lines, wired from `cli.cmd_pair`; `_KEEP`/`os._exit` teardown handled |
-| `src/screw/solid/nut.py` | hex prism less L11 void, countersinks, face chamfers | VERIFIED | built and meshed through the API in both hands |
-| `src/screw/solid/bolt.py` + `solid/__init__.py` | tip cone, under-head fillet, gates | VERIFIED | gates `piece_refusal` on tip cone and fillet ring; `test_end_oracles.py` passes |
-| `src/screw/tables/iso4032.py`, `gost16093.py`, `iso724.py` | cited rows, derived limits | VERIFIED | 14 rows; derived 6H M6 limits match ISO 965-2 |
-| `src/screw/cli.py` `pair` | subcommand, exit codes 0/1/2 | VERIFIED | run live; collision of codes 1/2 with failure exits is filed debt |
-| `tests/data/pair_expected.tsv` | 240 pre-registered verdicts | VERIFIED | added before the run (5d90f3e vs 22bcd50) |
-| `.github/workflows/pair.yml`, `make pair` | slow tier | VERIFIED (not yet run on ubuntu) | `workflow_dispatch` + weekly, no PR trigger; first ubuntu grid run is filed debt |
-| `bench/RESULTS.md` entries | recorded runs | VERIFIED | M18 diagnosis, pair tier, product cells, mesh deviation, nut fine caps |
+| `src/screw/static/app.js` | `rowOfFields`, `lastTyped`, `rememberTyped`, composed counterpart link | VERIFIED for 05-21; WIRED WITH DEFECT for 05-22 | `rowOfFields` and the failed-update branch present and working in a browser. `lastTyped`/`rememberTyped` present, wired to the form `input` listener and `showCounterpart`, with the key defect of WR-07 |
+| `tests/test_parity.py` | source pins and the link contract test | VERIFIED | 69 passed. They pin source text and cannot see WR-07 or WR-08 (IN-05) |
+| `docs/architecture/decision_log.md` | L15 amendment | VERIFIED | present, dated, names G-05-3 |
+| `01-UI-SPEC.md` | rules 32, 34, 35, 37 | VERIFIED | amendment notes present |
+| `docs/ideas/2026-10-21-browser-test-of-the-page-in-the-gate.md` | owner decision filed | VERIFIED | file and INDEX row present |
+| Phase 5 kernel, calc, tables, API, CLI artifacts | as in the prior report | VERIFIED | unchanged; regression sample passed |
 
 ### Key Link Verification
 
 | From | To | Via | Status | Details |
 |------|----|-----|--------|---------|
-| `cli.cmd_pair` | `solid.pair.prove` | lazy import, `os._exit(PAIR_EXIT[verdict])` | WIRED | ran live |
-| `solid.pair.prove` | `calc.pair.cell_judgement` | `_record` then judge | WIRED | verdict and `closed_control` come from the rule, not recomputed |
-| `solid.pair.prove` | shipped bolt/nut | `_shipped`, `counterpart_for` | WIRED | evidence only, shown zero solids at all three poses for M6 |
-| `app` / `pool` | `solid.pair` | forbidden | NOT IMPORTED (intended) | import-linter + runtime probe |
-| nut info document | `calc` pair rows, limits, counterpart | `derive()` | WIRED | rows printed above |
-| `static/app.js` | `info.counterpart` | `showCounterpart` | WIRED in source; rendering unverified | human item |
+| `update()` `fail()` | `showMatch` | `showMatch(null)` | WIRED | still called on every failure |
+| `showMatch` | `rowOfFields` | `preset === null ? rowOfFields() : undefined` | WIRED | line 185 |
+| `rowOfFields` | `/api/presets` rows | `catalogue.rows`, `read()` | WIRED | live in the browser |
+| form `input` | `rememberTyped` | `rememberTyped(e.target)` | WIRED, wrong key during a kind switch | WR-07 |
+| `showCounterpart` | `lastTyped` | `lastTyped.get(counterpart.kind)` | WIRED | composed link observed |
+| composed nut link | `/api/nut/info`, `model.stl` | navigate writes the hash, `partQuery` sends it | WIRED | nut built from the link in the browser |
 
 ### Data-Flow Trace (Level 4)
 
 | Artifact | Data variable | Source | Real data | Status |
 |----------|---------------|--------|-----------|--------|
-| Nut info panel | pair rows, nut diameters, limits | `calc` closed forms and `tables` rows | yes (values checked against hand arithmetic and ISO figures) | FLOWING |
-| `PairReport.readings` | volumes, solids | `BRepAlgoAPI_Common` on the built rod and blank | yes (non-zero controls, zero matched) | FLOWING |
-| Page counterpart link | `info.counterpart` | API info JSON | yes in the API; page not rendered | see human item |
+| Picker selects after a failed update | `rowOfFields()` | `catalogue.rows` from `GET /api/presets?kind=` and the live form values | yes | FLOWING |
+| Matching-part link | `lastTyped` + `info.counterpart` | the user's `input` events and the info document | yes, keyed wrongly on the WR-07 path | FLOWING (defect noted) |
+| Nut info panel, `PairReport` | as the prior report | unchanged | yes | FLOWING |
 
 ### Behavioral Spot-Checks
 
+Scratch Playwright probes against `screw serve` on port 8019 (spur's Playwright, headless shell; not in the repo, L01; the server is stopped). Probe files are in the session scratch directory.
+
 | Behavior | Command | Result | Status |
 |----------|---------|--------|--------|
-| M6 pair proof | `screw pair nut --d 6 --pitch 1 --s 10 --m 5.2 --clearance 0.1` | proven, exit 0, 57 s | PASS |
-| M18 pair proof | `screw pair nut --d 18 --pitch 2.5 --s 27 --m 15.8 --clearance 0.1` | inconclusive, exit 2, empty control named | PASS |
-| Rule refuses `proven` on bad controls | scratch script over `cell_verdict` | empty, NaN, off-band, all-empty all inconclusive | PASS |
-| Nut over the API | TestClient with lifespan | info 200, 422 without clearance, STL preview/fine, STEP, left-hand 200, `/api/pair/*` 404 | PASS |
-| Pair, CLI-pair, import boundaries | `pytest tests/test_pair.py tests/test_cli_pair.py tests/test_import_boundaries.py --no-cov` | 150 passed, 240 grid cells deselected, 127 s | PASS |
-| Ends, mesh, parity, presets, calc | `pytest tests/test_end_oracles.py tests/test_mesh.py tests/test_parity.py tests/test_presets.py tests/test_calc.py --no-cov` | 677 passed, 21 s | PASS |
-| Import contracts, unfinished-work scan | `make lint-imports no-fake-done` | 10 kept, 0 broken; scan rc 0 | PASS |
-| Full gate | not re-run; orchestrator `make verify` at eeb49b5: 3460 passed, exit 0; HEAD differs only by 05-SECURITY.md | accepted | PASS |
+| UAT 1: empty clearance, pick ISO 4032 then M6 | `probe.py` against `#kind=nut` | selects `[ISO 4032, M6]`, fields M6, 0 `model.stl` requests | PASS |
+| UAT 3 (owner ruling): type 0.1, Matching bolt, Matching nut | `probe.py` | link `#kind=nut&clearance=0.1&d=6&pitch=1&left_hand=false&s=10&m=5.2`; nut opens at 0.1 and builds | PASS |
+| WR-08 case 1: type 0.1, Reset, switch to bolt | `probe.py` | field empty after Reset; bolt's Matching nut link still `#kind=nut&clearance=0.1&...` | CONFIRMED (partial gap) |
+| WR-07: type inside the kind-switch window, retype after load | `probe7.py`, nut catalogue request delayed 1.5 s | nut's Matching bolt link `#kind=bolt&clearance=0.1&...`; click gives `Unknown field "clearance" for kind "bolt"` | CONFIRMED (gap). The delay is mine, to make the window a person can hit; on localhost it is one request |
+| Page source assertions | `pytest tests/test_parity.py --no-cov` | 69 passed | PASS |
+| Nut, presets, import boundaries, mesh | `pytest tests/test_nut.py tests/test_presets.py tests/test_import_boundaries.py tests/test_mesh.py --no-cov` | 480 passed, 103 s | PASS |
+| Import contracts | `make lint-imports` | 10 kept, 0 broken | PASS |
+| Full gate | not re-run; the 05-22 SUMMARY records `make verify` on the final tree: 3463 passed, exit 0, and no `src/` or `tests/` file has changed since | accepted | PASS |
+
+I did not re-run the real-kernel `screw pair` runs: nothing under `calc/pair.py`, `solid/` or `cli.py` changed since the prior report, which ran them.
 
 ### Probe Execution
 
-No `scripts/*/tests/probe-*.sh` is declared by the phase. The phase's own probes (`bench/m18_probe.py`,
-`bench/end_cuts.py`) are recorded runs, read in `bench/RESULTS.md`; I did not re-run them. SKIPPED.
+No `scripts/*/tests/probe-*.sh` is declared by the phase. SKIPPED.
 
 ### Requirements Coverage
 
-All nine IDs in the task are claimed by at least one PLAN's `requirements:` frontmatter, and REQUIREMENTS.md
-maps each to Phase 5, marked Complete. PAIR-02 maps to Phase 6 (Pending) and is not claimed by any Phase 5
-plan. No orphans.
+All nine IDs are claimed by at least one PLAN's `requirements:` frontmatter (05-21 claims TYPE-03, 05-22 claims TYPE-04, the rest as in the first report), and REQUIREMENTS.md maps each to Phase 5, marked Complete. PAIR-02 maps to Phase 6 (Pending) and no Phase 5 plan claims it. No orphans.
 
-| Requirement | Source plans | Description | Status | Evidence |
-|-------------|--------------|-------------|--------|----------|
-| TYPE-03 | 05-02, 04, 05, 06, 07, 13, 18, 19, 20 | ISO 4032 hex nut with chamfers | SATISFIED | 14 cited rows, nut builds on API/CLI, tests in `test_tables.py`, `test_nut.py`; M2-M4 informative label amended by L14 and the owner |
-| TYPE-04 | 05-10, 05-18 | matching part from the same d, pitch, hand (and clearance) | SATISFIED (page unverified) | `counterpart` on both kinds, `test_parity` same-counterpart test. Bolt-to-nut link carries no clearance because a bolt has none; the nut opens with the field empty (D-01/D-02) |
-| THRD-05 | 05-02, 11, 12, 13, 18, 20 | lead-in chamfers, tip, fillet | SATISFIED | tip cone (GOST 12414-94), fillet ring, nut countersinks, gated by piece, watertight sweeps |
-| PAIR-01 | 05-04, 05, 09, 10, 18 | one radial `clearance` on the nut | SATISFIED | required, no default, radial and diametral on the panel |
-| PAIR-03 | 05-01, 03, 05, 09, 14, 15, 16, 18, 20 | kernel check with control, never proven on an empty control | SATISFIED | live runs, planted-reading checks, 240/240 grid |
-| PAIR-04 | 05-01, 03, 14, 15, 16, 18, 20 | solid function, `screw pair`, slow tier, not an endpoint | SATISFIED | CLI, `make pair`, `pair.yml`, import contract. First ubuntu grid run unrecorded (debt) |
-| INFO-01 | 05-02, 06, 07, 08, 09, 18 | numbers from pure maths, no kernel | SATISFIED | `screw info nut` prints them; "serving process never imports the kernel" contract kept |
-| INFO-02 | 05-02, 08, 09, 18 | 6g/6H limits with the label | SATISFIED | derived values and exact label confirmed (amended source per L14) |
-| FRNT-06 | 05-02, 17, 18 | same solid for STL/STEP, explicit recorded chord deviation | SATISFIED | RESULTS entry, `test_mesh.py`, L15 |
+| Requirement | Source plans | Status | Evidence |
+|-------------|--------------|--------|----------|
+| TYPE-03 | 05-02, 04, 05, 06, 07, 13, 18, 19, 20, 21 | SATISFIED | 14 cited rows; the page picks them with an empty clearance (A1) |
+| TYPE-04 | 05-10, 05-18, 05-22 | SATISFIED on every path but one; gap WR-07 | `counterpart` both ways on the API/CLI; on the page the link round-trips d, pitch, hand and the typed clearance (B1). The nut's Matching bolt link breaks on the WR-07 path (fails closed). The requirement itself holds (API and CLI both ways); only the page's nut-to-bolt link is affected, and only on that path |
+| THRD-05 | 05-02, 11, 12, 13, 18, 20 | SATISFIED | unchanged |
+| PAIR-01 | 05-04, 05, 09, 10, 18 | SATISFIED | unchanged |
+| PAIR-03 | 05-01, 03, 05, 09, 14, 15, 16, 18, 20 | SATISFIED | unchanged; kernel evidence stands |
+| PAIR-04 | 05-01, 03, 14, 15, 16, 18, 20 | SATISFIED | unchanged; first ubuntu grid run is filed debt |
+| INFO-01 | 05-02, 06, 07, 08, 09, 18 | SATISFIED | unchanged |
+| INFO-02 | 05-02, 08, 09, 18 | SATISFIED | unchanged |
+| FRNT-06 | 05-02, 17, 18 | SATISFIED | unchanged |
 
 ### Anti-Patterns Found
 
-None blocking. TBD/FIXME/XXX scan over `src tests bench Makefile .github` finds nothing unreferenced;
-`make no-fake-done` exits 0.
+| File | Line | Pattern | Severity | Impact |
+|------|------|---------|----------|--------|
+| `src/screw/static/app.js` | 678-686 | memory keyed by `currentKind`, not the kind of the form on screen | Blocker for B3 (gap 1) | persistent broken Matching bolt link after a kind-switch keystroke |
+| `src/screw/static/app.js` | 698-701, 325, 428 | Reset and links change the field, not the memory | Warning (gap 2) | the bolt's Matching nut link carries a clearance the nut no longer shows |
+| `src/screw/static/app.js` | 199-204 | `fields.get(name).input` unguarded while the catalogue is the previous kind's | Warning (IN-06) | console error inside `fail` in the same window; not a wrong part |
+| `tests/test_parity.py` | 687-708, 884-905 | tests pin source text; none runs the page | Info (IN-05) | cannot see WR-07 or WR-08; the browser test is the owner's open idea |
 
-### Known debt that bears on the goal (reported as such, not hidden gaps)
+No unreferenced TBD/FIXME/XXX; `make no-fake-done` passed at the 05-22 gate.
 
-All filed under `docs/tech_debt/active/`, none breaks a success criterion on the sizes the goal names:
+### Known debt that bears on the goal (unchanged)
 
-| Item | Bearing |
-|------|---------|
-| `2026-10-14-first-pair-yml-dispatch.md` (must) | The full 240-cell grid has run on macOS arm64 only; the ubuntu per-size times and verdicts are unrecorded because `pair.yml` can be dispatched only from `main`. SC3 asks for the CI job to exist and to assert against the pre-registered table, which it does; the run on ubuntu is the next step after merge |
-| `2026-10-21-screw-pair-exit-codes-collide-with-failure-exits.md` (must) | `violated` = 1 and `inconclusive` = 2 are also a crash and a refused parameter. The JSON on stdout is the discriminator today. Does not make a `proven` untrue (only exit 0 is `proven`) but a script that trusts the code alone could misread; owner decision before Phase 6 |
-| `2026-10-21-fillet-ring-can-overhang-the-head-flats.md` (must) | A bolt with s barely above d can carry a fillet wider than its head with no warning. An L02 near-miss (silent geometry), off the ISO rows |
-| `2026-10-21-nut-countersink-cutter-crosses-the-axis-at-a-coarse-pitch.md` (must), `2026-10-21-nut-lead-in-gate-refuses-a-valid-nut-at-huge-s.md` (must) | The model accepts a nut the kernel then refuses with an error naming no field. Tool refuses rather than serves a wrong part (L02-safe); no ISO 262 coarse size is affected |
-| `2026-10-14-nut-interim-bounds.md`, `2026-10-20-iso-standards-not-purchased.md` | Bounds are interim until Phase 7; table sources are GOST texts by owner decision L14, the ISO purchase is debt |
-| 05-REVIEW.md | 7 findings fixed (WR-01 to WR-06, IN-01), 3 deferred to debt (IN-02 to IN-04), open 0 |
+Filed under `docs/tech_debt/active/`; none breaks a success criterion on the sizes the goal names: first ubuntu dispatch of `pair.yml` (must), `screw pair` exit codes 1 and 2 collide with failure exits (must), fillet ring can overhang the head flats (must), the countersink-cutter and lead-in-gate items at coarse pitch or huge s (must), interim nut bounds and the unpurchased ISO standards.
 
-### Housekeeping note
+### Human Verification Required (after the fix)
 
-`.planning/ROADMAP.md` line 30 still shows Phase 5 unticked (`- [ ]`) although the phase section reads
-20/20 plans executed. It is for the orchestrator to flip at completion; it does not bear on the goal.
+Not frontmatter items, because `gaps_found` takes precedence. The owner's end-of-phase re-run stands.
 
-### Human Verification Required
-
-#### 1. The nut page in a browser
-
-**Test:** `make serve`, open the page; choose kind nut; pick ISO 4032 M6; leave clearance empty, then enter 0.1; follow "Matching bolt", then "Matching nut" on the bolt; switch kinds with a mesh on screen; pick (M18) and read the panel; toggle the left-hand box.
-**Expected:** An empty clearance builds nothing and shows no stale part. At 0.1 the nut renders with its lead-in countersink and chamfered faces, and the panel shows a Pair group (0.1 radial, 0.2 diametral, 6.2 / 5.5505 / 5.1175 mm, 5.2 turns, flank gap 0.05), plus the 6H limits group under its exact label. Links round-trip d, pitch and hand. A kind switch drops the previous mesh. M18 shows the "kernel pair proof inconclusive at K = 3" note. Preview and fine STL buttons name their quality.
-**Why human:** no browser in the gate; the UI audit was code-only and the validation plan marks this check manual-only.
+1. **UAT test 1 on the fixed build.** `make serve`, kind nut, leave clearance empty, pick ISO 4032 then M6. Expected: selects hold, fields M6, nothing builds, panel empty. My headless run agrees; no human has looked.
+2. **UAT test 3 on the fixed build.** Type 0.1 on the nut, follow Matching bolt, then Matching nut. Expected: the nut opens at 0.1 and builds. Repeat after WR-07 is fixed with a kind switch and an immediate keystroke, and after Reset (per the WR-08 choice).
 
 ### Gaps Summary
 
-No gaps. Every roadmap success criterion is met on the API and CLI, and the headline guarantee (the verdict
-cannot be `proven` when a control read empty) holds against the real kernel and against planted readings.
-Phase 5 is ready to proceed once the owner has looked at the page, and the first ubuntu dispatch of
-`pair.yml` after merge is the filed follow-up for platform confidence.
+Two page-only defects in plan 05-22's memory, both from tying the memory to the wrong lifecycle. WR-07 is a failed
+must-have (the value can reach the bolt's hash; the nut's Matching bolt link breaks for the session; fails closed). The fix
+is to key `rememberTyped` by a `formKind` set where the form is built; it also removes the cause of IN-06. WR-08 is
+partial and needs an owner choice: forget on Reset/link, or reword rule 37, the comment and the L15 amendment. Both
+fit one small closure plan that touches `app.js`, `tests/test_parity.py` and the two contract texts. No kernel, calc,
+API or CLI work is needed, and no earlier truth regressed.
 
 ---
 
-_Verified: 2026-10-21T08:15:00Z_
+_Verified: 2026-10-21T12:10:00Z_
 _Verifier: Claude (gsd-verifier)_
