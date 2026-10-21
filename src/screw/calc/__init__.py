@@ -27,6 +27,7 @@ from screw.calc.thread import (
     fine_stl_refusal,
     flank_normal_gap,
     nut_end_closed_volume,
+    nut_fine_stl_refusal,
     pitch_diameter,
     thread_depth,
     thread_length_conflict,
@@ -447,13 +448,9 @@ def download_refusal(p: FastenerParams, fmt: str, quality: str) -> str | None:
                 p.d, p.pitch, built_thread_length(p.thread_length, p.length), p.left_hand)
         return None
     if isinstance(p, NutParams):
-        # No fine-STL rule for the nut, on purpose and not by omission. R12 (05-OWNER-READS.md)
-        # reuses `FINE_STL_ROWS` on `m` only if the probe's nut bytes fit the 64 MiB budget at
-        # each cap and not at cap + 1 mm. They do not: M10 right (0.973) and M20 right (0.936) still
-        # fit at cap + 1, and M20 left is over at the cap itself (1.003). So the ruling's other
-        # branch applies, "measure nut caps in their own run", and until that run lands no number
-        # here is a measured one: a rod cap applied to a nut is the plausible number L02 forbids.
-        # Open item: docs/tech_debt/active/2026-10-14-nut-fine-stl-caps-unmeasured.md.
+        # The nut's own caps (run 2026-10-21-nut-fine-caps-amended, R16 and R17), never the rods'.
+        if fmt == "stl" and quality == "fine":
+            return nut_fine_stl_refusal(p.d, p.pitch, p.m, p.clearance, p.left_hand)
         return None
     raise TypeError(f"no download rule for kind {p.kind!r}")
 

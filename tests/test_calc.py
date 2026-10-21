@@ -32,6 +32,7 @@ from screw.calc.thread import (
     flank_normal_gap,
     nut_closed_volume,
     nut_end_closed_volume,
+    nut_fine_stl_refusal,
     pitch_diameter,
     section_radius,
     thread_depth,
@@ -357,17 +358,39 @@ def test_a_nut_with_a_positive_clearance_has_no_clearance_warning(clearance: flo
     assert info.warnings == [STANDING_WARNING]
 
 
-def test_a_nut_download_is_never_refused_until_the_nut_fine_stl_caps_are_measured() -> None:
-    # R12 (05-OWNER-READS.md): the probe does not show the rod caps hold on a nut, so no cap is
-    # applied. The M10 right rod cap is 56 mm of thread; a nut that tall is served, and the rod's
-    # rule is not routed through the nut. This test moves with the open debt item
-    # docs/tech_debt/active/2026-10-14-nut-fine-stl-caps-unmeasured.md.
-    tall = NutParams(d=10.0, pitch=1.5, s=17.0, m=57.0, clearance=0.1)
-    for fmt, quality in (("stl", "fine"), ("stl", "preview"), ("step", "fine"),
-                         ("step", "preview")):
+def test_a_tall_nut_fine_stl_is_refused_by_the_nuts_cap_and_nothing_else_is() -> None:
+    # R16, R17: the M10 x 1.5 nut's cap is 36 mm (not the rod's 56): a nut one mm above it is
+    # refused on its fine STL, with the sentence the info document and the warnings carry.
+    tall = NutParams(d=10.0, pitch=1.5, s=16.0, m=37.0, clearance=0.1)
+    sentence = nut_fine_stl_refusal(10.0, 1.5, 37.0, 0.1, False)
+    assert sentence is not None
+    assert sentence.startswith("m: ")
+    assert download_refusal(tall, "stl", "fine") == sentence
+    for fmt, quality in (("stl", "preview"), ("step", "fine"), ("step", "preview")):
         assert download_refusal(tall, fmt, quality) is None
-    assert fine_stl_refusal(10.0, 1.5, 57.0, False) is not None, "the rod cap is the control"
-    assert all(entry.refusal is None for entry in derive(tall).downloads)
+    info = derive(tall)
+    refusals = {(e.format, e.quality): e.refusal for e in info.downloads}
+    assert refusals == {("stl", "fine"): sentence, ("stl", "preview"): None,
+                        ("step", "fine"): None, ("step", "preview"): None}
+    assert info.warnings.count(sentence) == 1
+    at_cap = NutParams(d=10.0, pitch=1.5, s=16.0, m=36.0, clearance=0.1)
+    assert download_refusal(at_cap, "stl", "fine") is None
+    assert sentence not in derive(at_cap).warnings
+    # a clearance above the ceiling is refused on the fine STL too, naming the clearance
+    loose = NutParams(d=10.0, pitch=1.5, s=26.0, m=5.0, clearance=5.5)
+    loose_refusal = download_refusal(loose, "stl", "fine")
+    assert loose_refusal is not None
+    assert loose_refusal.startswith("clearance: ")
+
+
+@pytest.mark.parametrize("left_hand", [False, True])
+def test_nut_fine_stl_serves_every_catalogue_row_at_its_own_s_and_m_max(left_hand: bool) -> None:
+    """No cap lands below a GOST ISO 4032-2014 catalogue height (plan 05-19, stop condition)."""
+    diameters = {size.label: size.d for size in iso262.SIZES}
+    for row in NUTS:
+        nut = NutParams(d=diameters[row.size], pitch=row.pitch, s=row.s, m=row.m_max,
+                        clearance=0.1, left_hand=left_hand)
+        assert download_refusal(nut, "stl", "fine") is None, row.size
 
 
 def test_the_nut_closed_form_is_the_prism_less_the_section_times_the_height() -> None:

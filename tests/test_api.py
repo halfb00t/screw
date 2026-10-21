@@ -1059,6 +1059,34 @@ def test_a_fine_stl_l11_measured_over_budget_is_a_422_and_never_reaches_the_back
     assert calls == 0
 
 
+NUT_CAPPED: Params = {"d": 10, "pitch": 1.5, "s": 16, "m": 37, "clearance": 0.1}
+
+
+def test_a_nut_fine_stl_past_its_measured_cap_is_a_422_and_never_reaches_the_backend() -> None:
+    """R16, R17: refused before the cache, the admission slot and the pool, like the rod's."""
+    calls = 0
+
+    async def counting_backend(p: FastenerParams, fmt: str, quality: str) -> bytes:
+        nonlocal calls
+        calls += 1
+        return b"served"
+
+    with _backend(counting_backend):
+        r = client.get("/api/nut/model.stl", params=NUT_CAPPED)    # quality defaults to fine
+        assert r.status_code == 422
+        (detail,) = r.json()["detail"]
+        assert detail["type"] == "fine_stl_cap"
+        assert detail["loc"] == ["query"]
+        assert detail["msg"].startswith("m: ")
+        for fragment in ("right-hand", "above m 36 mm", "fine STL plus its gzip copy",
+                         "64 MiB export budget", "2026-10-21-nut-fine-caps-amended"):
+            assert fragment in detail["msg"]
+        assert calls == 0
+        preview = client.get("/api/nut/model.stl", params={**NUT_CAPPED, "quality": "preview"})
+        assert preview.status_code == 200
+        assert calls == 1
+
+
 def test_the_same_part_is_served_on_the_preview_stl_the_step_and_the_info_route() -> None:
     preview = client.get("/api/bolt/model.stl", params={**CAPPED, "quality": "preview"})
     assert preview.status_code == 200

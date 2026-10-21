@@ -340,6 +340,18 @@ def test_a_fine_stl_l11_measured_over_budget_exits_2_and_writes_nothing(
     assert not out.exists()
 
 
+def test_a_nut_fine_stl_past_its_measured_cap_exits_2_and_writes_nothing(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    out = tmp_path / "x.stl"
+    argv = ["export", "nut", "--d", "10", "--pitch", "1.5", "--s", "16", "--m", "37",
+            "--clearance", "0.1", "-o", str(out)]
+    assert _exit_code(argv) == 2
+    err = capsys.readouterr().err
+    assert "error: m: " in err
+    assert "2026-10-21-nut-fine-caps-amended" in err
+    assert not out.exists()
+
+
 def test_the_same_part_is_exported_as_a_step_and_as_a_preview_stl(tmp_path: Path) -> None:
     step = tmp_path / "x.step"
     cli.main(["export", "bolt", *CAPPED, "-o", str(step)])

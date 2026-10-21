@@ -419,6 +419,70 @@ def fine_stl_refusal(d: float, pitch: float, t: float, left_hand: bool) -> str |
             f"capped")
 
 
+# The fine-STL caps of the thirty nut keys (the 15 ISO 262 coarse (d, pitch) by both hands), R16
+# and R17: (d, pitch, left_hand) -> the largest whole-mm nut height m whose fine STL plus its gzip
+# level-1 copy still fits the INTERIM 64 MiB export budget. Measured by bench/nut_fine_caps.py,
+# run `2026-10-21-nut-fine-caps-amended` (bench/RESULTS.md "Nut fine-STL caps, amended re-run
+# (Phase 5, R17)"), which repeated run `2026-10-20-nut-fine-caps` row for row with identical
+# bytes. The rule, fixed before any row ran: the shipped `screw.solid.export(p, "stl", "fine")` of
+# a nut at m = 1, 2, 3, ... mm, the cap the largest m that fits below the first that does not. The
+# fine preset is (0.01 mm, 0.1 rad), the one tests/test_mesh.py pins and the cap records header
+# carries (a test compares them, so a preset change fails until the caps are re-measured). The run
+# measured at clearance NUT_FINE_STL_CLEARANCE (5.0 mm, the owner's R16 answer: the largest
+# clearance any GOST ISO 4032-2014 row's own s admits) and at s 1e5 mm (INTERIM_MAX_MM, the
+# largest s the model admits). Because s adds a near-constant number of bytes that does not grow
+# with m (the planner's 05-19 probe), a cap measured at the largest s holds for every s; the run's
+# checks at clearances -0.05, 0, 0.1 and 2.5 and at the slimmest s at 5.0 all fit the budget where
+# the shipped build made the part (it refuses the others, which are no file:
+# docs/tech_debt/active/2026-10-21-nut-lead-in- gate-refuses-a-valid-nut-at-huge-s.md). A nut off
+# these 30 keys gets no cap: the rods' FINE_STL_ROWS is never applied to a nut (R12) and a cap
+# from an unmeasured mapping to the nearest row is the plausible number L02 forbids (D-03). The
+# numbers are macOS arm64 and the INTERIM budget; Phase 7 re-measures on linux/amd64 (OPER-02).
+NUT_FINE_STL_RUN = "2026-10-21-nut-fine-caps-amended"
+NUT_FINE_STL_CLEARANCE = 5.0
+NUT_FINE_STL_ROWS: dict[tuple[float, float, bool], float] = {
+    (2.0, 0.4, False): 12.0, (2.5, 0.45, False): 13.0, (3.0, 0.5, False): 15.0,
+    (3.5, 0.6, False): 18.0, (4.0, 0.7, False): 21.0, (5.0, 0.8, False): 24.0,
+    (6.0, 1.0, False): 30.0, (7.0, 1.0, False): 30.0, (8.0, 1.25, False): 38.0,
+    (10.0, 1.5, False): 36.0, (12.0, 1.75, False): 41.0, (14.0, 2.0, False): 46.0,
+    (16.0, 2.0, False): 45.0, (18.0, 2.5, False): 54.0, (20.0, 2.5, False): 36.0,
+    (2.0, 0.4, True): 15.0, (2.5, 0.45, True): 17.0, (3.0, 0.5, True): 19.0,
+    (3.5, 0.6, True): 22.0, (4.0, 0.7, True): 25.0, (5.0, 0.8, True): 30.0,
+    (6.0, 1.0, True): 38.0, (7.0, 1.0, True): 38.0, (8.0, 1.25, True): 47.0,
+    (10.0, 1.5, True): 50.0, (12.0, 1.75, True): 56.0, (14.0, 2.0, True): 61.0,
+    (16.0, 2.0, True): 59.0, (18.0, 2.5, True): 73.0, (20.0, 2.5, True): 47.0,
+}
+
+
+def nut_fine_stl_refusal(d: float, pitch: float, m: float, clearance: float,
+                         left_hand: bool) -> str | None:
+    """None unless (d, pitch, left_hand) is one of the 30 measured nut keys and either the clearance
+    is above the ceiling the run measured at or `m` is past the key's fine-STL cap.
+
+    The clearance is judged first: the cap holds only at or below `NUT_FINE_STL_CLEARANCE`, so a
+    larger clearance has no measured cap to be judged against (R16). The text begins `clearance: `
+    or `m: ` so the CLI, which prints no `loc` for a model-level error, still names the field. No
+    braces in the text: pydantic formats a custom error from its context.
+    """
+    cap = NUT_FINE_STL_ROWS.get((d, pitch, left_hand))
+    if cap is None:
+        return None
+    if clearance > NUT_FINE_STL_CLEARANCE:
+        return (f"clearance: the fine STL of a nut with d {d:g} and pitch {pitch:g} was measured "
+                f"only at a clearance of {NUT_FINE_STL_CLEARANCE:g} mm or less (run "
+                f"{NUT_FINE_STL_RUN}), and a larger clearance makes a larger file; the clearance "
+                f"asked for is {clearance:g} mm. Use a clearance of {NUT_FINE_STL_CLEARANCE:g} mm "
+                f"or less, or ask for the preview STL or the STEP, which are not capped")
+    if m <= cap:
+        return None
+    hand = "left-hand" if left_hand else "right-hand"
+    return (f"m: the fine STL of a {hand} nut with d {d:g} and pitch {pitch:g} is refused above m "
+            f"{cap:g} mm, the tallest run {NUT_FINE_STL_RUN} measured whose fine STL plus its gzip "
+            f"copy fit the 64 MiB export budget (at a clearance of {NUT_FINE_STL_CLEARANCE:g} mm "
+            f"and s 1e5 mm); the m asked for is {m:g} mm. Lower m, or ask for the preview STL or "
+            f"the STEP, which are not capped")
+
+
 # --- the end-cut oracles (05-RESEARCH F4, P10; probed in `bench/RESULTS.md`, End-cut probe) -----
 #
 # The transverse section of a thread is the same at every z and rotation-invariant, so for a
