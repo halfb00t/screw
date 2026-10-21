@@ -178,7 +178,8 @@ def cell_verdict(record: PairRecord) -> tuple[PairVerdict, tuple[str, ...]]:
     (D-11); poses other than the pre-registered ones are refused; any matched pose non-empty is
     `violated`; otherwise `proven` only when every matched pose is empty AND every control is
     non-empty within `PAIR_BAND` of the closed form. Anything else is inconclusive, with every
-    reason. The diagnostic columns are never read.
+    reason. A volume that is not finite is never within `T_PASS` or `PAIR_BAND`. The diagnostic
+    columns are never read.
     """
     outcome = record["outcome"]
     if outcome != "built":
@@ -187,7 +188,9 @@ def cell_verdict(record: PairRecord) -> tuple[PairVerdict, tuple[str, ...]]:
     if nut_volume is None:
         raise ValueError("a built pair record must carry its nut_volume")
     body = _nut_body(record)
-    if abs(nut_volume / body - 1.0) > T_PASS:
+    # Negated `<=`, the `volume_check` pattern: every comparison with NaN is False, so the
+    # positive form (`> T_PASS`) read a NaN body as on its closed form.
+    if not abs(nut_volume / body - 1.0) <= T_PASS:
         return "inconclusive", (f"the nut body is {nut_volume:.6g} mm3, not the closed form "
                                 f"{body:.6g} mm3 within {T_PASS:g}: no reading is believed",)
     matched, controls = _matched(record), _controls(record)
@@ -219,7 +222,7 @@ def cell_verdict(record: PairRecord) -> tuple[PairVerdict, tuple[str, ...]]:
         if _is_empty(r):
             reasons.append(f"control at theta {r['theta']:+.4f} reads empty "
                            f"(closed form {closed:.6g} mm3)")
-        elif _off_by(r, closed) > PAIR_BAND:
+        elif not _off_by(r, closed) <= PAIR_BAND:  # negated, as above: a NaN control is outside
             reasons.append(f"control at theta {r['theta']:+.4f} reads {r['volume']:.6g} mm3, "
                            f"{_off_by(r, closed):.2e} off the closed form {closed:.6g} mm3: "
                            f"outside the band {PAIR_BAND:g}")

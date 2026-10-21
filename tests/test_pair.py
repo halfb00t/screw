@@ -444,6 +444,41 @@ def test_a_nut_body_that_is_not_the_closed_form_believes_no_reading() -> None:
     assert "no reading is believed" in reasons[0]
 
 
+NOT_FINITE = pytest.param(math.nan, id="nan"), pytest.param(math.inf, id="inf"), \
+    pytest.param(-math.inf, id="-inf")
+
+
+@pytest.mark.parametrize("value", NOT_FINITE)
+def test_a_nut_body_that_is_not_finite_believes_no_reading(value: float) -> None:
+    # WR-02: `abs(nan / body - 1) > T_PASS` is False, so the positive form read a NaN body as on
+    # its closed form and went on to prove the cell.
+    record = _record()
+    record["nut_volume"] = value
+    verdict, reasons = rule.cell_verdict(record)
+    assert verdict == "inconclusive"
+    assert "no reading is believed" in reasons[0]
+
+
+@pytest.mark.parametrize("pose", range(3))
+@pytest.mark.parametrize("value", NOT_FINITE)
+def test_a_control_that_is_not_finite_is_inconclusive_and_names_its_pose(
+        value: float, pose: int) -> None:
+    closed = rule.closed_control(_cell())
+    controls = tuple(value if i == pose else closed for i in range(3))
+    verdict, reasons = rule.cell_verdict(_record(controls=controls))
+    assert verdict == "inconclusive"
+    assert any(f"control at theta {rule.MATCHED_POSES[pose]:+.4f}" in r for r in reasons)
+
+
+def test_a_matched_pose_that_is_not_finite_is_never_proven() -> None:
+    # 02-SPIKE Rules call a reading empty only at 0 solids or |volume| <= 1e-6, so a NaN is
+    # non-empty and the pose is `violated`, the written rule's answer. Reading it as anything
+    # else would amend the pre-registered rule. The product never hands the rule one: `prove`
+    # refuses a non-finite kernel volume where it reads it (`not_finite` tests below).
+    verdict, _ = rule.cell_verdict(_record(matched=(0.0, math.nan, 0.0)))
+    assert verdict == "violated"
+
+
 def test_the_pair_rule_module_loads_no_kernel() -> None:
     code = "import sys, screw.calc.pair; print('cadquery' in sys.modules, 'OCP' in sys.modules)"
     out = subprocess.run([sys.executable, "-I", "-c", code], capture_output=True, text=True,
@@ -555,6 +590,46 @@ def test_a_failing_boolean_ends_the_cell_inconclusive_and_keeps_the_readings_tak
     assert (last.theta, last.offset_pitches) == (rule.MATCHED_POSES[0], 0.5)
     assert (last.solids, last.volume, last.seconds) == (None, None, None)
     assert len(fake.calls) == 4
+
+
+@pytest.mark.usefixtures("built")
+@pytest.mark.parametrize("value", [math.nan, math.inf], ids=["nan", "inf"])
+def test_a_control_volume_that_is_not_finite_ends_the_cell_as_a_failure(value: float) -> None:
+    fake = _Script(*[EMPTY] * 3, (value, 1, False, False, 0.1))
+    report = solid_pair.prove(_nut(), shipped=False, common=fake)
+    assert report.verdict == "inconclusive"
+    (reason,) = report.reasons
+    assert reason.startswith("cell failure: ValueError: ")
+    assert "not a finite number" in reason
+    assert [r.outcome for r in report.readings] == ["built"] * 3 + ["failure"]
+    assert len(fake.calls) == 4
+
+
+@pytest.mark.usefixtures("built")
+@pytest.mark.parametrize("value", [math.nan, math.inf], ids=["nan", "inf"])
+def test_a_matched_volume_that_is_not_finite_is_a_failure_never_a_violation(
+        value: float) -> None:
+    fake = _Script((value, 1, False, False, 0.1))
+    report = solid_pair.prove(_nut(), shipped=False, common=fake)
+    assert report.verdict == "inconclusive"
+    assert "not a finite number" in report.reasons[0]
+    assert [r.outcome for r in report.readings] == ["failure"]
+    assert len(fake.calls) == 1
+
+
+@pytest.mark.usefixtures("built")
+def test_a_nut_body_volume_that_is_not_finite_reads_nothing(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(solid_pair, "precise_volume", lambda _shape: math.nan)
+    fake = _Script()
+    report = solid_pair.prove(_nut(), shipped=False, common=fake)
+    assert report.verdict == "inconclusive"
+    (reason,) = report.reasons
+    assert reason.startswith("cell failure: ValueError: ")
+    assert "nut body" in reason
+    assert "not a finite number" in reason
+    assert report.readings == []
+    assert fake.calls == []
 
 
 @pytest.mark.parametrize("clearance", [0.0, -0.05])
@@ -721,6 +796,16 @@ def test_a_shipped_boolean_that_raises_fails_that_pose_only(builds: _Builds) -> 
     assert report.shipped is not None
     assert [r.outcome for r in report.shipped] == ["built", "failure", "built"]
     assert report.shipped[1].error == "ValueError: bad"
+
+
+def test_a_shipped_volume_that_is_not_finite_fails_that_pose_only(builds: _Builds) -> None:
+    report = solid_pair.prove(
+        _nut(), common=_verdict_script(SHIPPED, (math.nan, 1, False, False, 0.2), SHIPPED))
+    assert report.verdict == "proven"
+    assert report.shipped is not None
+    assert [r.outcome for r in report.shipped] == ["built", "failure", "built"]
+    assert report.shipped[1].volume is None
+    assert "not a finite number" in (report.shipped[1].error or "")
 
 
 def test_the_shipped_row_is_called_evidence_in_the_docstring() -> None:

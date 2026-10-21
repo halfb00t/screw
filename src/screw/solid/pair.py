@@ -194,6 +194,16 @@ def _echo(row: PairReadingRow) -> PairReading:
     return PairReading.model_validate(row)
 
 
+def _finite(volume: float, what: str) -> float:
+    """`volume`, or a `ValueError` naming `what` when it is NaN or infinite. A kernel `Mass()` on a
+    degenerate boolean can be NaN, and a NaN compares as inside every tolerance, so it is refused
+    where it is read, as the spike's record parser refuses one at its boundary
+    (`bench/thread_spike/verdict.py` `_num`, L02)."""
+    if not math.isfinite(volume):
+        raise ValueError(f"{what} read {volume!r}, not a finite number")
+    return volume
+
+
 def _record(cell: PairCell, poses: list[tuple[float, float]], boolean: Boolean) -> PairRecord:
     """Build the rod and the blank once, record the blank's precise volume, then read every
     (theta, offset) as a placed blank, a cover check and one boolean. A Python exception ends the
@@ -206,12 +216,13 @@ def _record(cell: PairCell, poses: list[tuple[float, float]], boolean: Boolean) 
         rod = rod_piece(cell["d"], cell["pitch"], cell["m"], cell["rod_left_hand"], cell["k"])
         body = blank(cell["d"], cell["pitch"], cell["m"], cell["clearance"],
                      cell["nut_left_hand"], cell["k"])
-        nut_volume = precise_volume(body)
+        nut_volume = _finite(precise_volume(body), "the nut body's precise volume")
         for pose in poses:
             theta, offset = pose
             placed = place(body, theta, offset, cell["pitch"], cell["nut_left_hand"])
             check_cover(rod, placed)
             volume, solids, errors, warnings, seconds = boolean(rod, placed)
+            _finite(volume, f"the boolean at theta {theta:+.4f}, {offset:g} pitches")
             readings.append({
                 "theta": theta, "offset_pitches": offset, "outcome": "built", "solids": solids,
                 "volume": volume, "diag_errors": errors, "diag_warnings": warnings,
@@ -256,6 +267,7 @@ def _shipped(p: NutParams, rod_hand: bool, boolean: Boolean) -> list[ShippedRead
         try:
             volume, solids, _, _, seconds = boolean(bolt, place(nut, theta, start, p.pitch,
                                                                 p.left_hand))
+            _finite(volume, f"the shipped boolean at theta {theta:+.4f}")
         except Exception as exc:  # as above, per pose
             readings.append(ShippedReading(
                 theta=theta, outcome="failure", solids=None, volume=None, seconds=None,
