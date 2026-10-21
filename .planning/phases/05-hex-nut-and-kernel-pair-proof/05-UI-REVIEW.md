@@ -1,7 +1,7 @@
 # Phase 05 — UI Review
 
 **Audited:** 2026-10-21
-**Baseline:** 01-UI-SPEC.md (amendments by Phase 5 plans 05-10, 05-18, 05-19)
+**Baseline:** 01-UI-SPEC.md (amendments by Phase 5 plans 05-10, 05-18, 05-19, 05-21, 05-22)
 **Screenshots:** Not captured (no dev server on localhost:3000, 5173, 8080)
 **Interaction captures:** off (workflow.ui_interaction_capture is false)
 
@@ -16,15 +16,19 @@
 | 3. Color | 4/4 | Counterpart link is muted Caption text; accent reserved for primary actions; no hardcoded colors |
 | 4. Typography | 4/4 | Counterpart link uses Caption role (.85rem); no new sizes or weights added to scale |
 | 5. Spacing | 4/4 | All spacing uses declared tokens; counterpart margins conform to scale |
-| 6. Experience Design | 4/4 | Clearance field empty by design; mesh drops on kind change; refusal blocks download; state handling complete |
+| 6. Experience Design | 2/4 | lastTyped memory keyed by wrong kind during switch (WR-07); Reset/link do not clear stale values (WR-08) |
 
-**Overall: 24/24**
+**Overall: 21/24**
 
 ---
 
 ## Top 3 Priority Fixes
 
-None. All pillars score 4/4 against the UI-SPEC baseline.
+1. **WR-07: BLOCKER — Typed clearance stored under old kind during kind switch** — User can trigger `Unknown field "clearance" for kind "bolt"` error if they switch kinds while typing. Use `formKind` (set in `buildForm`) as the memory key instead of `currentKind` (which updates after async `loadPresets`).
+
+2. **WR-08: WARNING — Reset and links don't clear stale memory values** — After Reset, the Matching nut link carries a clearance the field no longer shows. Implement `forgetUntyped(name, written)` to delete memory entries when Reset or a link overwrites a field with a different value.
+
+3. **Update UI-SPEC rule 37** — Add clarification that `lastTyped` should be keyed by the kind whose form is on screen (not `currentKind`), and that entries should be deleted when Reset or a link writes a field empty or to a new value, to match the contract's "stale number" language.
 
 ---
 
@@ -44,7 +48,7 @@ All Phase 5 copywriting from the contract is present and exact:
    - `PAIR = "Pair"` — group heading for pair-specific rows
    - `LIMITS = "limits for a bought part; this model is nominal and not toleranced"` — exactly matches UI-SPEC Copywriting line 225
 
-3. **Matching-part link** (`src/screw/static/app.js:401`)
+3. **Matching-part link** (`src/screw/static/app.js:401` in 05-22)
    - Text: `'Matching ${counterpart.kind}'` — dynamic, no hardcoded kind name
    - No field names, group names or labels in `app.js` per contract rule 29
 
@@ -189,11 +193,28 @@ Spacing verified against UI-SPEC Spacing Scale and plan 05-10 amendments:
 
 ---
 
-### Pillar 6: Experience Design (4/4)
+### Pillar 6: Experience Design (2/4)
 
-**Evidence:**
+**Re-audited after plans 05-21 and 05-22.** Initial findings (lines 198–244 below) remain valid for 05-21's rowOfFields behavior. However, 05-22's `lastTyped` memory implementation diverges from the amended UI-SPEC contract in two ways, both documented in the code review as WR-07 and WR-08 and confirmed by browser probes in the security audit scratch directory.
 
-State handling and interaction verified against UI-SPEC Interaction rules and plans 05-10, 05-18, 05-19:
+**WR-07: BLOCKER — Typed clearance keyed by wrong kind during kind switch** (`src/screw/static/app.js:678–686`, `:315`)
+
+- **Contract promise (UI-SPEC rule 37):** `lastTyped` maps a kind to values last typed into fields of that kind
+- **Actual behavior:** `rememberTyped(e.target)` uses `currentKind` as the key. In `navigate()`, the new kind's form is built first (`:308`, replacing controls and defaults synchronously) and `currentKind` is assigned only after `await loadPresets(kind)` (`:315`, a network round-trip). An input event during this window runs `rememberTyped` with the new form's control but the old `currentKind`, storing the value under the wrong kind.
+- **Impact:** User switches bolt→nut and types clearance at once. Value is stored as `lastTyped.set('bolt', {clearance: '0.1'})`. Later on the nut page, `Matching bolt` reads `lastTyped.get('bolt')` and builds link `#kind=bolt&clearance=0.1&...`. Click triggers `navigate()` refusal at `:318–323`: `Unknown field "clearance" for kind "bolt"`. Nothing clears the stale entry; every bolt field has a default, so `rememberTyped` never writes bolt's key again.
+- **Probe evidence:** `probe_wr07_cd.out` (session scratchpad), line 4: "C nut Matching bolt href "#kind=bolt&clearance=0.1&..."; line 5: "Unknown field \"clearance\" for kind \"bolt\"... error".
+- **Fix:** Set `formKind` in `buildForm` (where controls are built) and `clearForm` (to null). Use `formKind` as the memory key instead of `currentKind`.
+
+**WR-08: WARNING — Reset and links don't clear stale memory values** (`src/screw/static/app.js:698–701`, `:325`, `:428`)
+
+- **Contract promise (UI-SPEC rule 35, 37):** "an empty typed value deletes the entry, so a link never carries an empty or stale number"; "A value a link, Reset or a kind change wrote is not typed and is not remembered"
+- **Actual behavior:** Only the form's `input` event runs `rememberTyped`, which writes the memory. `reset()` calls `write(input, defaults[name])` directly (`:698–701`, no input event). `navigate()` writes each control from the hash (`:325`, no input event). After Reset clears a field or a link writes a new value, the memory keeps the old entry.
+- **Impact — Case 1 (Reset):** User types clearance 0.1 on a nut (stored). Presses Reset; field is now empty. Switches to bolt: `Matching nut` link is `#kind=nut&clearance=0.1&...` and opens a nut at 0.1, a value the user cleared. UI-SPEC rule 35 says Reset "still opens the field empty", implying the link should too.
+- **Impact — Case 2 (Link):** User types 0.1 on a nut, opens `Matching bolt`. Returns via a shared link or browser Back, opening a nut at clearance 0.3. Field shows 0.3, memory holds 0.1, bolt's link carries 0.1. This is the "typed means an input event" rule (plan 05-22-PLAN.md line 472), but it also violates "stale number" if the user was shown the 0.3 value and expects the link to reflect it.
+- **Probe evidence:** `probe_wr07_wr08.out` (session scratchpad), line 50: "A bolt Matching nut href "#kind=nut&clearance=0.1..." (after Reset on line 49: field is now empty); lines 53–54: after link changes clearance to 0.3, bolt's link still carries 0.1 ("B bolt Matching nut href "#kind=nut&clearance=0.1...").
+- **Fix:** Implement `forgetUntyped(name, written)` to delete memory entries when `reset()` or `navigate()`'s write loop empties a field or overwrites it with a value different from what's remembered.
+
+**Original findings (05-10, 05-18, 05-19):**
 
 1. **Clearance field: required, empty on load**
    - Schema from `/api/schema?kind=nut` marks `clearance` as required (no `default`)
@@ -236,24 +257,53 @@ State handling and interaction verified against UI-SPEC Interaction rules and pl
    - Order and refusal text come from backend (calc/__init__.py `_nut()`)
    - No format names, no quality preference hardcoded (plan 04-16, D-10)
 
-7. **Reset leaves clearance empty**
+7. **Reset leaves clearance empty** (05-21)
    - `reset()` writes each field from `defaults[name]`
    - Clearance default is `undefined`, so `write()` sets empty string
    - After Reset, nut form is empty again (plan 05-10, rule 35 note)
 
-**No issues found.** All state handling follows the contract. Clearance field empty-by-design, 422 error handling, mesh drop on kind change, counterpart link hiding, fine-STL refusal, and download disabling are all implemented correctly.
+8. **After failed update, selects show the row the fields hold exactly** (05-21)
+   - Plan 05-21 added `rowOfFields()` (line 676) to match the catalogue row client-side on failure
+   - Exact `Number(held) === value` with `held !== ''`, no tolerance, no `Math.`
+   - `showMatch(null)` in `fail()` takes the row the fields hold (rule 15, 32, D-12)
+   - Source pin: `test_after_a_failed_update_the_selects_show_the_row_the_fields_hold_exactly` passes
+   - Probe in 05-21-SUMMARY.md confirms: with nut clearance empty, pick ISO 4032 then M6 leaves the selects at ISO 4032 / M6
+
+---
+
+## Re-audit after 05-21 and 05-22
+
+**Plans 05-21 and 05-22** amended 01-UI-SPEC.md and changed only `src/screw/static/app.js` and `tests/test_parity.py`. No HTML or CSS changes.
+
+**Plan 05-21 changes (commits a22734e, 18d896a):** Added `rowOfFields()` function to implement rule 32's "selects follow the fields after a failed update" contract. Verified by source pin and Playwright probe in RED→GREEN format. No contract violations found; Pillar 6 remains 4/4 for this plan's changes.
+
+**Plan 05-22 changes (commits a2e1f07, 98e7864):** Added `lastTyped` Map and `rememberTyped()` to carry the clearance typed on a nut on the bolt's Matching nut link (rule 37, L15 amendment). Amended 01-UI-SPEC.md rule 34, 35, new rule 37. Code review identified two defects (WR-07, WR-08) confirmed by browser probes in the security audit session. Both violations diverge from what rules 35 and 37 promise:
+
+1. **Rule 35** says "a link, Reset and a kind change still open the field empty", implying the Matching nut link should carry no stale value after Reset or a kind change.
+2. **Rule 37** says `lastTyped` is "written only by the form's `input` event" and "a value a link, Reset or a kind change wrote is not typed and is not remembered", so values not typed should not persist in the link.
+
+Both promises are violated:
+- WR-07: Values are keyed by `currentKind` (wrong kind during switch), not by the kind whose form is shown, causing the link to carry a value for a kind that doesn't have the field, triggering a refusal.
+- WR-08: Reset and links write the form but don't update memory, so the link carries stale values the field no longer shows.
+
+**Severity assessment:**
+- WR-07 is BLOCKER: user can hit the "Unknown field" error path, breaking the link's contract.
+- WR-08 is WARNING: the link carries a stale value, violating rule 35's promise that Reset clears it and rule 37's "no stale number" language, but it does not break a path—just confuses the user about which value the link will use.
+
+**Re-score Pillar 6:** From 4/4 to 2/4 (notable gaps, contract partially met). The 05-21 changes hold the 4/4 baseline for their parts; the 05-22 changes degrade the pillar by introducing two bugs that violate the contract the plans themselves wrote.
 
 ---
 
 ## Files Audited
 
 - `src/screw/static/index.html` (HTML structure, no Phase 5 changes)
-- `src/screw/static/app.js` (generic form/panel rendering, counterpart link, write() function, kind change, dropMesh)
+- `src/screw/static/app.js` (form/panel rendering, counterpart link, clearance field, kind change, 05-21 rowOfFields, 05-22 lastTyped and rememberTyped)
 - `src/screw/static/style.css` (counterpart link styling, no new scale additions)
 - `src/screw/calc/__init__.py` (Clearance field, Pair group, Limits heading, M18 note, standing warning, nut fine-STL refusal routing)
 - `src/screw/calc/thread.py` (nut_fine_stl_refusal function with clearance and m sentences)
 - `src/screw/params.py` (NutParams class, required clearance field)
+- `.planning/phases/01-runtime-port-and-walking-skeleton/01-UI-SPEC.md` (amended rules 15, 32, 34, 35, 37 and UI Considerations for 05-21 and 05-22)
 
 ---
 
-**No blocker issues found. All 6 pillars score 4/4. The Phase 5 frontend implementation is complete and matches the UI-SPEC baseline exactly.**
+**Blocking issue found: WR-07.** Pillar 6 scores 2/4 after 05-22 due to contract violations in the `lastTyped` memory implementation. Plan 05-21's `rowOfFields` implementation and all other Phase 5 frontend features meet their contract. The overall score is 21/24.
