@@ -1,8 +1,10 @@
 ---
 phase: 05-hex-nut-and-kernel-pair-proof
 reviewed: 2026-10-21T00:00:00Z
+rereviewed: 2026-10-21
+rereview_base: ad09d46
 depth: standard
-files_reviewed: 65
+files_reviewed: 70
 files_reviewed_list:
   - .github/workflows/pair.yml
   - Makefile
@@ -19,6 +21,7 @@ files_reviewed_list:
   - docs/architecture/decision_log.md
   - docs/architecture/overview.md
   - docs/ideas/2026-10-12-preview-stl-download-names-its-quality.md
+  - docs/ideas/2026-10-21-browser-test-of-the-page-in-the-gate.md
   - docs/ideas/INDEX.md
   - docs/tech_debt/INDEX.md
   - docs/tech_debt/active/2026-10-14-first-pair-yml-dispatch.md
@@ -26,7 +29,11 @@ files_reviewed_list:
   - docs/tech_debt/active/2026-10-14-nut-interim-bounds.md
   - docs/tech_debt/active/2026-10-20-iso-standards-not-purchased.md
   - docs/tech_debt/active/2026-10-20-tip-cone-degenerate-boolean-at-the-cone-length.md
+  - docs/tech_debt/active/2026-10-21-brittle-pair-and-cli-tests.md
+  - docs/tech_debt/active/2026-10-21-fillet-ring-can-overhang-the-head-flats.md
+  - docs/tech_debt/active/2026-10-21-nut-countersink-cutter-crosses-the-axis-at-a-coarse-pitch.md
   - docs/tech_debt/active/2026-10-21-nut-lead-in-gate-refuses-a-valid-nut-at-huge-s.md
+  - docs/tech_debt/active/2026-10-21-screw-pair-exit-codes-collide-with-failure-exits.md
   - docs/tech_debt/resolved/2026-10-14-nut-fine-stl-caps-unmeasured.md
   - pyproject.toml
   - src/screw/app.py
@@ -71,6 +78,11 @@ files_reviewed_list:
   - tests/test_thread_maths.py
 findings:
   critical: 0
+  warning: 2
+  info: 3
+  total: 5
+findings_initial:
+  critical: 0
   warning: 6
   info: 4
   total: 10
@@ -80,8 +92,9 @@ status: issues_found
 # Phase 5: Code Review Report
 
 **Reviewed:** 2026-10-21
+**Re-reviewed:** 2026-10-21 (diff base ad09d46, after plans 05-20, 05-21, 05-22)
 **Depth:** standard
-**Files Reviewed:** 65
+**Files Reviewed:** 70
 **Status:** issues_found
 
 ## Summary
@@ -109,9 +122,26 @@ Defects found, no BLOCKER:
 The known, already-filed debt (huge-s lead-in gate, interim bounds, first `pair.yml` dispatch) is not
 re-reported.
 
+**Re-review verdict (2026-10-21).** All six warnings and IN-01 are closed by plan 05-20, each by the
+fix the finding asked for, and none introduced a regression I could find. IN-02 to IN-04 are filed
+as debt with the owner's sign-off. Plans 05-21 and 05-22 (page only) add two new warnings, both in
+`app.js`: the typed-clearance memory is written under the wrong kind during a kind switch (WR-07), and
+it outlives the field it describes after Reset or a link (WR-08). Three smaller items follow
+(IN-05 to IN-07). No critical issue. Evidence I ran: `pytest tests/test_parity.py tests/test_pair.py
+tests/test_end_oracles.py tests/test_cli_pair.py` gave 326 passed, 240 deselected (the deselected are
+the `grid` and `pair` marked tests the default config skips, never part of `make verify`); `node --check` on `app.js` parses; 52 real-kernel
+nut builds (s 1.11 to 3.5, both hands, d 0.5 and 1.0) all one valid solid; 60 off-row nuts at d 10 to
+200 produce a valid evidence `BoltParams`.
+
 ## Warnings
 
 ### WR-01: A valid nut with across-flats below 1.73 mm fails to build with an unactionable error
+
+**Status after 05-20: fixed in 4edaf3e.** `face_chamfer` now overshoots by `min(0.5, r0 * tan_beta / 2)`,
+so the first profile radius stays at `s / 4` or more. Verified: 52 real-kernel builds (s 1.11, 1.2, 1.5,
+1.7, 1.7320508, 1.74, 2.0, 2.5, 3.0, 3.4, 3.46, 3.47, 3.5; d 1.0 and 0.5; both hands; m 0.3 to 2) all
+gave one valid solid. The same class of defect remains for the countersink cutter at a coarse pitch,
+filed as debt (`docs/tech_debt/active/2026-10-21-nut-countersink-cutter-crosses-the-axis-at-a-coarse-pitch.md`).
 
 **File:** `src/screw/solid/nut.py:96-108` (the profile's first point is `(r0 - 0.5 / tan_beta, below)`)
 **Issue:** `face_chamfer` starts its revolve profile `0.5 / tan(30 deg) = 0.866` mm inside the
@@ -150,6 +180,12 @@ model naming `s`, not in the kernel.
 
 ### WR-02: `cell_verdict` returns `proven` when a control reading, or the nut body, is NaN
 
+**Status after 05-20: fixed in fcdc0ab.** Both comparisons are negated `<=` in `cell_judgement`
+(`calc/pair.py`), and `prove` refuses a non-finite volume at the three places it reads one
+(`_finite` in `solid/pair.py`: the blank, each boolean, each evidence pose). Tests cover NaN, inf and
+-inf for the body and for each of the three controls; a planted matched NaN stays `violated` as the
+02-SPIKE rule is written (a NaN is not empty), which the docstring and a test pin.
+
 **File:** `src/screw/calc/pair.py:190` and `:222` (`_off_by` at `:144-148`)
 **Issue:** `abs(nut_volume / body - 1.0) > T_PASS` and `_off_by(r, closed) > PAIR_BAND` are positive
 comparisons. Every comparison with NaN is False, so a NaN is treated as inside the tolerance.
@@ -182,6 +218,14 @@ Also reject a non-finite `volume` in `_off_by`. Add a test with a NaN control an
 
 ### WR-03: `prove` prints a `closed_control` it never compared, against its own contract
 
+**Status after 05-20: fixed in 4aa0126.** `cell_judgement` returns `(verdict, reasons, closed)` with
+`closed` set only where the rule reached the controls (a proven cell, an empty or off-band control, a
+control that cannot fire) and `None` where it ended first; `cell_verdict` is a two-element wrapper.
+`prove` prints that third element. Nine parametrized cases pin the rule, and an orchestration test
+pins the failure, violation and empty-control reports. The choice made differs slightly from the
+suggested one-liner (it also prints the form for an empty or out-of-band control, because the reasons
+quote it), and the `PairReport` docstring was rewritten to match.
+
 **File:** `src/screw/solid/pair.py:299-303` (set before the cell runs) and the `PairReport` docstring at `:177-181`
 **Issue:** The `PairReport` docstring says "`closed_control` is `None` where no control was read ... (L02: a
 closed form nobody compared against is not printed)". But `closed = closed_control(cell)` is assigned
@@ -201,6 +245,13 @@ too the number is not used, so use `proven` only if the docstring is kept as wri
 rule in a test.
 
 ### WR-04: At clearance of about d/2 or more the proof prints a negative "closed form" volume as its reason
+
+**Status after 05-20: fixed in 0db1b73.** `prove` now has a `c >= d / 2` branch, the R8 shape: it reads
+nothing, calls no `common`, is `inconclusive` by definition, and the reason names `d and clearance`
+and prints no closed form. The blank is not grown (D-05); the argument that the verdict could not
+change is sound (c >= d/2 exceeds the thread depth 5H/8 for any nut the CLI accepts, so the control's
+closed form is 0). A kernel-free test shows the nut-body form is positive at `nextafter(d/2, 0)` for
+every ISO 262 coarse size, and a CLI test pins exit 2 with the reason.
 
 **File:** `src/screw/solid/pair.py:126-137` (`blank` uses a plain cylinder of radius d) and `src/screw/calc/pair.py:190-192`
 **Issue:** The proof body is a cylinder of radius `d`, not the hex nut. The void's crest radius is
@@ -224,6 +275,9 @@ blank with radius `max(d, d/2 + c + d/4)` and update the closed form to match.
 
 ### WR-05: `engagement_turns` in the pair report is float division; `screw info` uses the exact quotient
 
+**Status after 05-20: fixed in 946e730.** `engagement_turns=turns_of(p.m, p.pitch)`. The new test runs
+m 5.4, pitch 0.6 and asserts the report equals both `9.0` and the info document's row.
+
 **File:** `src/screw/solid/pair.py:313`
 **Issue:** `engagement_turns=p.m / p.pitch` is plain float division. The info document deliberately
 uses `turns_of(p.m, p.pitch)` for the same quantity: the exact decimal quotient. Its docstring gives
@@ -238,6 +292,14 @@ solved. `solid.pair` already imports from `screw.calc`, so `turns_of` is in reac
 with a test at m 5.4, pitch 0.6.
 
 ### WR-06: The shipped-solid evidence row fails for any off-row nut with d >= 10 mm
+
+**Status after 05-20: fixed in 83e5b77.** `_shipped` does `fields.setdefault("s", p.s)`. Verified:
+60 off-row nuts (d 10 to 200, fine pitches, c 0.05 to 2.0, s = d + 2c + 0.01) all produce a valid
+`BoltParams`; the new real-kernel test builds the M12 x 1.5 case through `build` and reads three
+`built` poses. The comment's claim that ISO 4017 and ISO 4032 print the same `s` at the 14 shared sizes
+holds against the tables (checked: no difference). The "neither s nor k enters a reading" argument
+(nut top at the highest matched pose lies below the head) is pinned kernel-free for every ISO 262
+coarse size and holds for any pitch, because the tip cone length is a constant 0.5413 P.
 
 **File:** `src/screw/solid/pair.py:240-250` (`_shipped` builds the bolt from `counterpart.fields`)
 **Issue:** `counterpart_for` returns only `d`, `pitch` and `left_hand` for a nut that is not on an ISO
@@ -264,9 +326,94 @@ bolt = build(BoltParams.model_validate({**fields, "left_hand": rod_hand, "length
 
 Add a test with an off-row d >= 10 nut.
 
+### WR-07: The typed-clearance memory is written under the wrong kind while the page switches kinds
+
+**Status: new, open (re-review of 05-22).**
+
+**File:** `src/screw/static/app.js:678-686` (`rememberTyped` and the `input` listener), with `currentKind` assigned only at `:315`
+**Issue:** `rememberTyped` keys the memory by `currentKind`. In `navigate()` the new kind's form is
+built first (`buildForm`, `:308`, which replaces the fields and `defaults` synchronously) and
+`currentKind = kind` is assigned only after `await loadPresets(kind)` (`:310`, `:315`), a network round
+trip. For that whole window the screen shows the new kind's form while `currentKind` still names the
+old kind (or is `null` on first load and after a refused link). An `input` event in the window runs
+`rememberTyped` with the new form's `input.name` and `defaults`, and writes under the old key.
+
+Trace, bolt to nut: the user switches the Kind select to `nut` and types a clearance at once.
+`defaults.clearance` is `undefined`, so the guard at `:679` passes, and the value is stored by
+`lastTyped.set('bolt', { clearance: '0.1' })`. Two consequences:
+
+- The nut's memory misses the value, so a later bolt's `Matching nut` link opens the nut empty although
+  the user typed a clearance (the case 05-22 exists to fix).
+- On the nut page, `Matching bolt` is built from `lastTyped.get('bolt')`, which now holds `clearance`.
+  The link becomes `#kind=bolt&clearance=0.1&...`, and `navigate()` refuses it with `Unknown field
+  "clearance" for kind "bolt"` (`:318-323`). Nothing clears that entry for the rest of the page session,
+  because every bolt field has a default and so never writes the memory.
+
+The window is one request on localhost, so it is narrow, but the failure is persistent once hit and
+nothing in the gate can observe it (see IN-05). I read this from the code; I did not run a browser.
+
+**Fix:** key by the kind the form was built for, not by the kind of the last finished navigation.
+Set a `formKind` in `buildForm` next to `defaults`, in the same synchronous block, and use it:
+
+```js
+let formKind = null; // the kind of the controls on screen; set where the controls are built
+// buildForm(), after clearForm():  formKind = kind;
+// clearForm():                     formKind = null;
+function rememberTyped(input) {
+  if (formKind === null || defaults[input.name] !== undefined) return;
+  const typed = { ...lastTyped.get(formKind) };
+  ...
+  lastTyped.set(formKind, typed);
+}
+```
+
+Add a source pin that `lastTyped.set(` is keyed by `formKind`, not `currentKind`.
+
+### WR-08: The remembered clearance outlives the field after Reset or a link, so the Matching nut link carries a number the nut no longer shows
+
+**Status: new, open (re-review of 05-22).**
+
+**File:** `src/screw/static/app.js:698-701` (Reset), `:325` (`navigate` writes every control), `:428` (`showCounterpart`); comment at `:675-677`
+**Issue:** The code comment says "Typing a field empty forgets it, so a link never carries an empty
+or stale number", and the plan's truth is "never an empty or stale number". Only an `input` event
+touches the memory. Reset writes `defaults[name]` (`undefined`, so empty) into the clearance control
+without an event, and `navigate` writes the hash value into it without one. The memory keeps the old
+number in both:
+
+1. On a nut, type 0.1, press Reset. The field is empty and the nut does not build (R10). Switch to the
+   bolt: `Matching nut` is `#kind=nut&clearance=0.1&...` and opens a nut at 0.1, a value the user
+   cleared.
+2. On a nut, type 0.1, then open a shared link or press Back to a nut at 0.3. The field shows 0.3, the
+   memory holds 0.1, and the bolt's link carries 0.1.
+
+Case 2 is the "typed means an input event" rule the plan states on purpose (05-22-PLAN.md line 472 and
+the amendment). Case 1 is not named in the amendment, which says only that Reset "never writes" the
+memory, and the owner's ruling was "last typed on a nut". The number is the user's own, so L02's
+"plausible number" test does not fail, but a user who pressed Reset reads the cleared field as
+forgotten, and the link contradicts it. It is the L02 failure shape the plan's threat T-05-64 names.
+
+**Fix:** make Reset forget what it empties, which keeps "typed" literal and the owner's ruling intact
+(the field is empty, so there is nothing to carry), and drop an entry a link overwrote with a different
+value:
+
+```js
+function forgetUntyped(name, written) {          // write() for a field with no default
+  const typed = lastTyped.get(formKind);
+  if (typed && name in typed && String(written ?? '') !== typed[name]) delete typed[name];
+}
+// Reset handler and navigate's write loop: call it for each field with defaults[name] === undefined.
+```
+
+If the owner prefers "the clearance the nut last held", the plan already records that as a one-line
+move of the writer into `update()`; surface it in the amendment either way.
+
 ## Info
 
 ### IN-01: The countersink-factor comment misstates the smallest `da_max / d`
+
+**Status after 05-20: fixed in 4218e54.** The comment now says "the smallest is 1.079, at M14: 15.1 / 14",
+the decision log carries an inline erratum, and `test_the_countersink_comment_cites_the_smallest_and_largest_da_over_d_of_the_table`
+recomputes both extremes from `iso4032.NUTS` and reads them in the comment.
 
 **File:** `src/screw/calc/thread.py:664-665`
 **Issue:** The comment says "the smallest is 1.08, at M10 and M20". From the table in
@@ -276,6 +423,11 @@ It is a comment that carries a number the next reader will trust.
 **Fix:** "the smallest is 1.079, at M14".
 
 ### IN-02: A fillet ring can overhang the head's flats with no warning
+
+**Status after 05-20: filed as debt** `docs/tech_debt/active/2026-10-21-fillet-ring-can-overhang-the-head-flats.md`
+(severity must, indexed). The entry's arithmetic matches this finding. Note for the next reader: after
+WR-06 the evidence bolt of an off-row nut takes the nut's own `s`, which can sit just above `d + 2c`, so
+the evidence row can also build a bolt with an overhanging ring. It does not enter any reading.
 
 **File:** `src/screw/solid/bolt.py:69-78` (`fillet_ring`) with `calc/thread.py:699-708` (`fillet_radius`)
 **Issue:** `fillet_radius` is keyed on `(d, pitch)` alone, and `head_too_small` only requires `s > d`.
@@ -291,6 +443,11 @@ for the nut's countersink, or add the case to the standing "ends modelled" warni
 
 ### IN-03: `screw pair` exit codes collide with the exit codes of failures
 
+**Status after 05-20: filed as debt** `docs/tech_debt/active/2026-10-21-screw-pair-exit-codes-collide-with-failure-exits.md`
+(severity must, indexed, flagged as an owner decision because D-06's codes are published). Plan 05-20's
+new inconclusive-by-definition case (c >= d/2) still prints its JSON and exits 2, so the stdout
+discriminator the entry relies on holds there too.
+
 **File:** `src/screw/cli.py:186` and `:209`
 **Issue:** `PAIR_EXIT` maps `violated` to 1 and `inconclusive` to 2. Exit 2 is also what every refused
 parameter returns, with empty stdout. Exit 1 is also what Python returns after an uncaught exception.
@@ -303,6 +460,12 @@ verdicts distinct codes and let crashes keep 1. Wrapping `prove` and exiting wit
 {0, 1, 2} on an unexpected exception is cheap.
 
 ### IN-04: Brittle or low-value tests in the pair and CLI suites
+
+**Status after 05-20: filed as debt** `docs/tech_debt/active/2026-10-21-brittle-pair-and-cli-tests.md`
+(severity nice, indexed). One claim in this finding is withdrawn: the second bullet said a rename
+"silently passes". `monkeypatch.setattr` defaults to `raising=True`, so a rename fails the fixture
+loudly; the cost is coupling, not a silent pass, as the debt entry corrects. The docstring test
+(`test_the_shipped_row_is_called_evidence_in_the_docstring`) is still in `tests/test_pair.py`.
 
 **File:** `tests/test_pair.py:726`, `tests/test_pair.py:493-496`, `tests/test_cli_pair.py:41`
 **Issue:**
@@ -318,8 +481,110 @@ verdicts distinct codes and let crashes keep 1. Wrapping `prove` and exiting wit
 **Fix:** drop the docstring test, keep the seam but pass `rod`/`blank` through `prove`'s parameters if
 a seam is wanted, and drop the timing assertion.
 
+## Re-review after 05-20, 05-21, 05-22 (diff base ad09d46)
+
+Scope: `git diff ad09d46..HEAD` over `src/screw/static/app.js`, `src/screw/calc/{pair,thread}.py`,
+`src/screw/solid/{nut,pair}.py`, the five touched test files, the decision log, the idea entry and the
+four debt entries. Checked against 05-20, 05-21 and 05-22 PLAN must-haves and threat models and the
+L02 rules.
+
+**05-20.** Each fix closes its finding (statuses are on the findings above) and I found no
+regression. Points I checked specifically: the negated `<=` does not turn a legitimate inconclusive
+into a different verdict (the written rule's clause order is intact, and the 240-cell expected table
+re-derives byte-identically per the decision log); `_finite` raises inside `_record`'s `try`, so a NaN
+body or boolean ends the cell as a recorded `failure` with the readings taken so far; the new `c >= d/2`
+branch sits after `c <= 0` and before the mixed-hand split, so it covers both pairings; the overshoot
+formula returns the old 0.5 mm exactly for `s >= 2 sqrt(3)` (a test pins `zmin == -0.5` at s 3.5, 4.0
+and 10).
+
+**05-21 (selects follow the fields after a failed update).** `rowOfFields` is exact (`held !== ''`,
+`Number(held) === value`, no `Math.`), matches the server rule and order (`calc.presets.match` and
+`match_nut` compare row fields only, `left_hand` and `clearance` excluded, as the page does), is
+reachable only with a null preset, and a successful info document always carries a preset member
+(`app.py:307`, `:311`, `:413`, `:417`), so a successful part cannot take this branch. The badge
+branch is unchanged and stays empty after a failure. A failed update that does not touch the row
+fields (the nut's missing clearance) now keeps the pick, which is the G-05-1 claim. No finding beyond
+IN-06.
+
+**05-22 (matching nut link carries the clearance last typed).** Checked: the server's fields are spread
+last, so a remembered value cannot override `d`, `pitch`, `s`, `m` or the hand; only fields with no
+default are remembered (`defaults[input.name] !== undefined` returns); `URLSearchParams` encodes keys
+and values and a number control returns a valid float or empty, so there is no link injection; nothing
+is persisted (no `localStorage`, `sessionStorage` or `document.cookie`); `lastTyped` is read only in
+`showCounterpart`; `PartInfo.counterpart` still never carries `clearance`; a stale mesh is still
+dropped on a kind change. Two defects found in how the memory is keyed and cleared (WR-07, WR-08).
+
+### IN-05: The new page tests pin source text, so the claims they name are not exercised, and two of the pins are fragile
+
+**Status: new, open.**
+
+**File:** `tests/test_parity.py:687-708` (`test_after_a_failed_update_the_selects_show_the_row_the_fields_hold_exactly`), `:884-905` (`test_the_matching_link_carries_only_a_value_typed_in_this_page_into_a_field_with_no_default`)
+**Issue:** The G-05-1 and G-05-3 tests assert that substrings occur in `app.js`. None runs the page,
+so none would catch the two defects above, a wrong spread order that still contains the pinned
+substring, or a regression of the UAT symptom itself. The owner already holds the underlying decision
+(a browser test in the gate, `docs/ideas/2026-10-21-browser-test-of-the-page-in-the-gate.md`), so the
+gap is known; the following are separate and cheap:
+
+- `assert APP_JS.count("rowOfFields()") == 2` counts every occurrence including comments and
+  docstrings, so a comment that writes `rowOfFields()` fails the gate for no behavioural reason.
+- `assert "delete " in remember` is satisfied by any `delete`, including one on the wrong object.
+- The "no reader" loop covers eight named functions but not `showMatch`, `buildForm` or `write`, and
+  the Reset and kind-select handlers are anonymous so cannot be named at all.
+- `test_a_bolts_matching_nut_link_with_a_typed_clearance_opens_a_nut_that_builds` composes the link in
+  Python (`{**fields, "clearance": "0.1"}`). It is the honest server half, and it cannot show that the
+  page orders the spread so the server's fields win.
+
+**Fix:** until the owner decides on a browser test, count `rowOfFields(` calls with the definition
+excluded by pattern (`re.findall(r"(?<!function )rowOfFields\(", ...)`), pin `delete typed[input.name]`
+exactly, and add `lastTyped.set(formKind, typed)` to the pin when WR-07 is fixed. If the owner takes
+option (a) of the idea entry, the Reset, back-navigation and kind-switch cases in WR-07 and WR-08 are
+the first three tests.
+
+### IN-06: `rowOfFields` dereferences `fields.get(name)` unguarded while the catalogue can belong to the previous kind
+
+**Status: new, open.**
+
+**File:** `src/screw/static/app.js:199-204` (`rowOfFields`), with the stale window at `:304-316`
+**Issue:** On a kind change `navigate()` rebuilds the form (`buildForm`) but leaves `catalogue`
+holding the old kind's rows until `loadPresets` resolves; `clearPicker` runs only from `refuseLink`.
+`rowOfFields` calls `read(fields.get(name).input)` for every field of every old-kind row. If an update
+fails in that window (an `input` event before `currentKind` is set queues one, and it fetches the old
+kind's route with the new form's fields, so it answers a 422), `showMatch(null)` runs, and a bolt row
+field the nut form lacks (`k`, say) makes `fields.get('k')` `undefined`: a `TypeError` thrown inside
+`fail`, which is itself inside `update`'s `try`, so the `catch` calls `fail` again and the rejection
+escapes `update()` to the timer. Before 05-21, `showMatch(null)` only blanked the selects and could not
+throw here. The effect is a console error, not a wrong part, because the next navigation's `update`
+replaces the state; it is the same window as WR-07 and the same fix removes the cause.
+
+**Fix:** guard the lookup, and treat a missing control as "does not hold the row":
+
+```js
+const control = fields.get(name);
+if (control === undefined) return false;
+const held = read(control.input);
+```
+
+Better, clear `catalogue` and the picker where the form is replaced, so the two are never out of step.
+
+### IN-07: The nut narrow-s tests do not cover the band where the chamfer overshoot changed from 0.5 mm
+
+**Status: new, open.**
+
+**File:** `tests/test_nut.py:510-536`
+**Issue:** The overshoot is `min(0.5, r0 * tan 30 / 2)`, which is 0.5 mm for `s >= 2 sqrt(3) = 3.4641`
+and smaller below it. The build tests use s 1.11, 1.5 and 1.7 (all below `sqrt(3) = 1.732`, where the
+old code failed), and the "unchanged" test uses s 3.5, 4.0 and 10. Nothing builds a nut in
+`1.732 <= s < 3.464`, the band where the cutter changed (overshoot 0.43 to 0.5 mm) although the old
+code built there. I built s 1.74, 2.0, 2.5, 3.0, 3.4, 3.46 and 3.47 in the scratch run, both hands in
+the sampled set, and all pass, so no defect; but the band is the only place a shipped build's cutter
+differs from its pre-05-20 shape and no test says it still passes its piece gate.
+**Fix:** add `2.0, 2.5, 3.4` to `test_a_narrow_nut_below_root_three_across_flats_builds_inside_the_gate`'s
+`s` parameters (the name then should say "narrow", not "below root three"), and assert the cutter's
+`zmin` equals `-min(0.5, s / 2 * tan30 / 2)` at 3.4 and 3.5 so the cap's switch point is pinned.
+
 ---
 
 _Reviewed: 2026-10-21_
+_Re-reviewed: 2026-10-21 (base ad09d46)_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
