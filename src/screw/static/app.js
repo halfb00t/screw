@@ -29,8 +29,9 @@ let presetBasis = null;
 // Per kind, the value last typed in this page into each field that has no default (today the
 // nut's clearance), kept so the matching-part link can carry it (owner ruling 2026-10-21, L15
 // amendment, G-05-3). Typed means an input event: a link, Reset or a kind change never writes it,
-// so the page never carries a number the user did not type (L02). Page memory only, so a reload
-// or a new tab forgets it. No request, hash or download ever reads it.
+// so the page never carries a number the user did not type (L02). Reset or a navigation that leaves
+// the field holding another value forgets it (owner ruling 2026-10-21, WR-08). Page memory only, so
+// a reload or a new tab forgets it. No request, hash or download ever reads it.
 const lastTyped = new Map();
 // Warnings belong to a mesh, not to the last info fetch (D-11). update() fetches info first,
 // so by the time a model.stl request fails the newest info document describes the part that
@@ -337,6 +338,7 @@ async function navigate() {
   }
   kindSelect.value = kind;
   for (const [name, { input }] of fields) write(input, h.get(name) ?? defaults[name]);
+  for (const { input } of fields.values()) forgetUntyped(input);
   // A checkbox holds only true or false. Any other control hands back '' for a value it
   // cannot hold (a number input given "abc") or was given empty (`#d=`), and partQuery() would
   // skip it and open the default part under a link that named the field. The API answers `?d=`
@@ -692,9 +694,10 @@ const reportLoadError = (err) => showMessages([`Could not load the part: ${err.m
 
 form.addEventListener('submit', (e) => e.preventDefault());
 // A field with a default is never remembered: carrying a typed value of one would override the
-// counterpart's row values (D-02, D-03). Typing a field empty forgets it, so a link never carries
-// an empty or stale number. The memory is keyed by formKind, the kind of the controls the user typed
-// into, never by currentKind (WR-07).
+// counterpart's row values (D-02, D-03). Typing a field empty forgets it, and a write that is not
+// typing (Reset, a link, Back, a kind change) forgets a value the field no longer holds, so a link
+// never carries an empty or stale number (owner ruling 2026-10-21, review WR-08). The memory is keyed
+// by formKind, the kind of the controls the user typed into, never by currentKind (WR-07).
 function rememberTyped(input) {
   if (formKind === null || defaults[input.name] !== undefined) return;
   const typed = { ...lastTyped.get(formKind) };
@@ -702,6 +705,12 @@ function rememberTyped(input) {
   if (value === '') delete typed[input.name];
   else typed[input.name] = value;
   lastTyped.set(formKind, typed);
+}
+function forgetUntyped(input) {
+  const typed = lastTyped.get(formKind);
+  if (typed !== undefined && input.name in typed && read(input) !== typed[input.name]) {
+    delete typed[input.name];
+  }
 }
 form.addEventListener('input', (e) => { rememberTyped(e.target); scheduleUpdate(); });
 window.addEventListener('hashchange', () => navigate().catch(reportLoadError));
@@ -717,6 +726,7 @@ new ResizeObserver(resize).observe(canvas.parentElement);
 $('#fit').addEventListener('click', fit);
 $('#reset').addEventListener('click', () => {
   for (const [name, { input }] of fields) write(input, defaults[name]);
+  for (const { input } of fields.values()) forgetUntyped(input);
   update();
 });
 $('#copy-link').addEventListener('click', async (e) => {

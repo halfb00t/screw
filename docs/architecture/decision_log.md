@@ -1156,6 +1156,33 @@ paragraph's consequence that a bolt's link opens a nut with the clearance empty,
 typed in this page. Plan 05-22 names the two new tests and the probe record in 05-22-SUMMARY.md.
 Reversibility: reversible. It is page state; no published shape changed.
 
+**Amendment (2026-10-21, plan 05-23, review findings WR-07 and WR-08, owner ruling "forget on Reset and on a link").**
+Two corrections to the page memory of the typed clearance. WR-07: the amendment above says the value never
+enters the bolt's hash, and that was false on one path. The memory was keyed by `currentKind`, which a kind
+switch sets only after its catalogue fetch while the new form is already on screen, so a clearance typed in
+that window was stored under the bolt, and the nut's `Matching bolt` link carried it and was refused
+(`Unknown field "clearance" for kind "bolt"`) for the rest of the page session. It is now keyed by
+`formKind`, set in `buildForm` with the controls and `defaults` and cleared with them. In the same window the
+form's own update ran for the old kind: it wrote the hash `#clearance=0.1`, a bolt link, and requested
+`bolt/info?clearance=0.1`. By the owner's choice (a) of 2026-10-21, `update()` now returns while `formKind`
+differs from `currentKind`, so in that window only the schema request is sent and the hash stays
+`#kind=nut`. With the guard alone, Back before the switch had loaded left the nut's form on screen under
+the bolt the link names, because `navigate` rebuilt only on a changed kind: at HEAD that built the default
+bolt under the nut's controls, and with the guard alone it built nothing and said nothing. By the owner's
+choice "fix in navigate" of 2026-10-21, `navigate` also rebuilds when the form on screen is not the link's
+kind (`kind !== currentKind || kind !== formKind`), so Back reopens the bolt, which builds. So on every path
+neither the remembered value nor the form's value reaches the bolt's hash, a bolt request or a download
+link. WR-08, the owner's ruling of 2026-10-21, "forget on Reset and on a link": Reset forgets the remembered
+value of a field it empties; a navigation (a link, Back or the kind selector) that leaves such a field
+holding a different value drops the entry (`forgetUntyped`), so the link never carries an empty or stale
+number; a link that writes the same value back, as on the round trip from bolt to nut, keeps it. "Typed"
+still means an input event, and only typing writes the memory. This amends the amendment above where that
+one says only that a value a link, Reset or a kind change wrote is not typed: such a write now also forgets
+the entry of the field it changed. What does not change: `PartInfo.counterpart` (D-02), the API,
+`screw info`, no default (D-01, L02, PAIR-02), page memory only. Plan 05-23 names the two new tests and the
+probe record in 05-23-SUMMARY.md.
+Reversibility: reversible. It is page state; no published shape changed.
+
 ## L16 — The nut's fine STL is capped on m per (d, pitch, hand) from run 2026-10-21-nut-fine-caps-amended, measured at clearance 5.0 mm and s 1e5 mm; a clearance above 5.0 mm is refused
 
 Date: 2026-10-21. Decided by the owner on 2026-10-20 (R16, `option-a`) and 2026-10-21 (R17), recorded in

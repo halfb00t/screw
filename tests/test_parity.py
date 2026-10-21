@@ -929,6 +929,27 @@ def test_the_typed_memory_is_keyed_by_the_kind_of_the_form_on_screen() -> None:
         "if (currentKind === null || formKind !== currentKind) return;")
 
 
+def test_reset_and_a_navigation_forget_a_typed_value_the_field_no_longer_holds() -> None:
+    # Review WR-08 and the owner's ruling of 2026-10-21 ("forget on Reset and on a link"): a write
+    # that is not typing drops the remembered entry when the field then holds another value, so the
+    # matching-part link never carries a number the field does not show. A link that writes the
+    # same value back (the round trip of UAT test 3) keeps it.
+    forget = _function_body("forgetUntyped")
+    for statement in ("lastTyped.get(formKind)", "read(input) !== typed[input.name]",
+                      "delete typed[input.name]"):
+        assert statement in forget, statement
+    assert "lastTyped.set(" not in forget  # it only forgets; typing is the one writer
+    assert "currentKind" not in forget  # keyed like the writer
+    assert APP_JS.count("forgetUntyped(") == 3  # the definition, navigate and Reset
+    each = "for (const { input } of fields.values()) forgetUntyped(input);"
+    pinned_write = ("for (const [name, { input }] of fields) "
+                    "write(input, h.get(name) ?? defaults[name]);")
+    reset_write = "for (const [name, { input }] of fields) write(input, defaults[name]);"
+    # The forget follows the write directly, before a refusal can return.
+    assert f"{pinned_write} {each}" in _squash(_function_body("navigate"))
+    assert f"{reset_write} {each} update();" in _squash(APP_JS)
+
+
 def test_a_bolts_matching_nut_link_with_a_typed_clearance_opens_a_nut_that_builds() -> None:
     # G-05-3, the server half of UAT test 3: the page adds the typed clearance to the fields
     # the bolt's document names, and the nut that link opens builds. Nothing typed is still refused.
