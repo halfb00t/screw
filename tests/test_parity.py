@@ -691,15 +691,20 @@ def test_after_a_failed_update_the_selects_show_the_row_the_fields_hold_exactly(
     # the order of calc.presets.match), else blank; the badge stays empty (it reads a document).
     row_of_fields = _squash(_function_body("rowOfFields"))
     assert "catalogue.rows.find((row) => Object.entries(row.fields).every(" in row_of_fields
-    assert "read(fields.get(name).input)" in row_of_fields
+    # IN-06: the catalogue is the old kind's until a kind switch's fetch lands, so a row can name
+    # a field the new form lacks; a missing control does not hold the row and never throws.
+    for statement in ("const control = fields.get(name);",
+                      "if (control === undefined) return false;", "read(control.input)"):
+        assert statement in row_of_fields, statement
     assert "!== ''" in row_of_fields  # an empty control is no value: Number('') is 0
     assert "Number(held) === value" in row_of_fields  # exact, as the server compares
     assert "Math." not in row_of_fields  # no tolerance, no nearest row
     show_match = _squash(_function_body("showMatch"))
     assert "preset === null ? rowOfFields() : undefined" in show_match
     assert "if (preset === null) badge.textContent = '';" in show_match
-    # The definition and the one call: nothing else reaches the match.
-    assert APP_JS.count("rowOfFields()") == 2
+    # The definition and the one call: nothing else reaches the match. Counted by pattern, so a
+    # comment that names the function cannot hide a second call (IN-05).
+    assert re.findall(r"(?<!function )rowOfFields\(", APP_JS) == ["rowOfFields("]
     # Every failure still goes through showMatch(null).
     assert "showMatch(null);" in _function_body("update")
     # The match never reaches the link (D-09).
@@ -886,22 +891,42 @@ def test_the_matching_link_carries_only_a_value_typed_in_this_page_into_a_field_
     # G-05-3, owner ruling 2026-10-21 (L15 amendment): the page remembers what was typed, per
     # kind, into a field that has no default, and only a typed input event writes it. A link,
     # Reset or a kind change never does (L02: no number the user did not type), and nothing
-    # reads it but the matching-part link, so it is never in a hash, a request or a download.
+    # reads it but the matching-part link, so it is never in a hash, a request or a download. The
+    # memory is keyed by formKind, the kind of the controls typed into (review WR-07, IN-05).
     source = _squash(APP_JS)
     assert "const lastTyped = new Map();" in APP_JS
     remember = _function_body("rememberTyped")
-    for statement in ("defaults[input.name] !== undefined", "read(input)", "delete ",
-                      "lastTyped.set(currentKind, "):
+    for statement in ("formKind === null", "defaults[input.name] !== undefined",
+                      "lastTyped.get(formKind)", "read(input)", "delete typed[input.name]",
+                      "lastTyped.set(formKind, typed)"):
         assert statement in remember, statement
+    assert "currentKind" not in remember
     assert ("form.addEventListener('input', (e) => { rememberTyped(e.target); "
             "scheduleUpdate(); });") in source
     assert APP_JS.count("rememberTyped(") == 2  # the definition and the listener
     assert APP_JS.count("lastTyped.set(") == 1
     for reader in ("partQuery", "writeHash", "update", "setDownloads", "navigate", "refuseLink",
-                   "pick", "renderInfo"):
+                   "pick", "renderInfo", "showMatch", "buildForm", "write"):
         assert "lastTyped" not in _function_body(reader), reader
     for storage in ("localStorage", "sessionStorage", "document.cookie"):
         assert storage not in APP_JS, storage
+
+
+def test_the_typed_memory_is_keyed_by_the_kind_of_the_form_on_screen() -> None:
+    # WR-07, 2026-10-21, reproduced in a headless browser: currentKind is set only after a kind
+    # switch's catalogue fetch, while buildForm has the new controls on screen. A clearance typed
+    # in that window went under the old kind, and the nut's Matching bolt link carried it. The key
+    # is formKind, set with the controls and defaults in one synchronous block, cleared with them.
+    assert "let formKind = null;" in APP_JS
+    build = _squash(_function_body("buildForm"))
+    assert "if (mine !== formSeq) return false; clearForm(); formKind = kind;" in build
+    assert "await" not in build[build.index("formKind = kind;"):]
+    assert "formKind = null;" in _function_body("clearForm")
+    assert re.findall(r"(?<!let )\bformKind = (\w+);", APP_JS) == ["null", "kind"]
+    # Owner choice (a), 2026-10-21: in that window update() neither writes the hash nor requests
+    # the old kind's route with the new form's fields, because the guard is its first statement.
+    assert _function_body("update").strip().startswith(
+        "if (currentKind === null || formKind !== currentKind) return;")
 
 
 def test_a_bolts_matching_nut_link_with_a_typed_clearance_opens_a_nut_that_builds() -> None:
@@ -936,7 +961,11 @@ def test_a_kind_change_drops_the_old_mesh_and_what_described_it() -> None:
     # bolt mesh, its warnings and its notes must not stay on screen under "last valid part".
     nav = _squash(_function_body("navigate"))
     assert nav.index("dropMesh();") < nav.index("await buildForm(kind)")
-    assert nav.index("if (kind !== currentKind) {") < nav.index("dropMesh();")
+    # Plan 05-23, owner choice "fix in navigate": navigate also rebuilds when the form on screen
+    # is not the link's kind. Back before a kind switch's catalogue loaded left the overtaken
+    # navigation's form on screen and the same-kind check kept it. Measured: a silent bolt under
+    # the nut's controls, then nothing at all once update() waited for the form.
+    assert nav.index("if (kind !== currentKind || kind !== formKind) {") < nav.index("dropMesh();")
     drop = _function_body("dropMesh")
     for statement in ("scene.remove(mesh, edges);", "mesh = null;", "edges = null;",
                       "meshWarnings = [];", "meshNotes = [];", "pendingWarnings = [];",

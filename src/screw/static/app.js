@@ -8,9 +8,13 @@ const $ = (sel) => document.querySelector(sel);
 const form = $('#params');
 const kindSelect = $('#kind');
 let kinds = { default: null, kinds: [] }; // the /api/kinds body
-let currentKind = null; // the kind the form below was built for; null while none is valid
+let currentKind = null; // the kind the last finished navigation loaded (form and picker); null while none is valid
 const fields = new Map(); // name -> { input, wrap, title }
 let defaults = {};
+// The kind of the controls on screen, set with them and with defaults in buildForm. currentKind lags it
+// for the whole catalogue fetch of a kind switch, and a value typed in that window was remembered under
+// the old kind and reached the bolt's link (review WR-07, 2026-10-21, reproduced in a headless browser).
+let formKind = null;
 const picker = $('#picker');
 const pickerLegend = picker.querySelector('legend');
 const badge = $('#badge');
@@ -73,6 +77,7 @@ function clearForm() {
   form.replaceChildren();
   fields.clear();
   defaults = {};
+  formKind = null;
 }
 
 function clearPicker() {
@@ -91,6 +96,7 @@ async function buildForm(kind) {
   const schema = await res.json();
   if (mine !== formSeq) return false;
   clearForm();
+  formKind = kind;
   const groups = new Map();
 
   for (const [name, prop] of Object.entries(schema.properties)) {
@@ -198,7 +204,11 @@ function showMatch(preset) {
 /** The first catalogue row whose every field the form holds exactly, or undefined. */
 function rowOfFields() {
   return catalogue.rows.find((row) => Object.entries(row.fields).every(([name, value]) => {
-    const held = read(fields.get(name).input);
+    // The catalogue is the old kind's until a kind switch's fetch lands, and its rows can name a field
+    // the new form lacks; a control that is not there does not hold the row (review IN-06).
+    const control = fields.get(name);
+    if (control === undefined) return false;
+    const held = read(control.input);
     return held !== '' && Number(held) === value;
   }));
 }
@@ -301,9 +311,13 @@ async function navigate() {
     return refuseLink(`Unknown kind "${kind}". Known kinds: ${kinds.kinds.join(', ')}.`);
   }
 
-  if (kind !== currentKind) {
+  if (kind !== currentKind || kind !== formKind) {
     // The mesh on screen belongs to the other kind: it goes now, so a part that cannot build yet
     // (a nut with no clearance typed) is never shown as the last valid part (R10, T-05-23).
+    // The form is also rebuilt when the form on screen is not the link's kind: Back before a kind
+    // switch's catalogue loaded leaves the overtaken navigation's form on screen while currentKind
+    // still names the kind the link asks for. Measured: a bolt built under the nut's controls, then
+    // a silent page once update() waits for the form (owner choice 2026-10-21, plan 05-23).
     dropMesh();
     if (!(await buildForm(kind))) return;
     try {
@@ -479,8 +493,13 @@ const setStatus = (text) => { $('#status').textContent = text; };
 let seq = 0;
 let inflight = null;
 
+// While a kind switch's catalogue fetch is in flight the form on screen is the new kind's and
+// currentKind is still the old one. An update then would write the old kind's hash and send the new
+// form's fields to the old kind's route. Measured: `#clearance=0.1` and `bolt/info?clearance=0.1`.
+// navigate runs the update once the switch has loaded (review WR-07, owner choice (a), 2026-10-21).
+// So the guard is the first statement below, with nothing before it that writes or requests.
 async function update() {
-  if (currentKind === null) return;
+  if (currentKind === null || formKind !== currentKind) return;
   const q = partQuery();
   // kind= is written only when it differs from the registry's default, so a link to the
   // default kind stays as short as the fields that differ (D-09).
@@ -674,14 +693,15 @@ const reportLoadError = (err) => showMessages([`Could not load the part: ${err.m
 form.addEventListener('submit', (e) => e.preventDefault());
 // A field with a default is never remembered: carrying a typed value of one would override the
 // counterpart's row values (D-02, D-03). Typing a field empty forgets it, so a link never carries
-// an empty or stale number.
+// an empty or stale number. The memory is keyed by formKind, the kind of the controls the user typed
+// into, never by currentKind (WR-07).
 function rememberTyped(input) {
-  if (defaults[input.name] !== undefined) return;
-  const typed = { ...lastTyped.get(currentKind) };
+  if (formKind === null || defaults[input.name] !== undefined) return;
+  const typed = { ...lastTyped.get(formKind) };
   const value = read(input);
   if (value === '') delete typed[input.name];
   else typed[input.name] = value;
-  lastTyped.set(currentKind, typed);
+  lastTyped.set(formKind, typed);
 }
 form.addEventListener('input', (e) => { rememberTyped(e.target); scheduleUpdate(); });
 window.addEventListener('hashchange', () => navigate().catch(reportLoadError));
