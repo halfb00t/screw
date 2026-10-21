@@ -29,11 +29,11 @@ findings:
     title: "The shipped-solid evidence row fails for any off-row nut with d >= 10 mm"
   - id: WR-07
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "The typed-clearance memory is written under the wrong kind while the page switches kinds"
   - id: WR-08
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "The remembered clearance outlives the field after Reset or a link, so the Matching nut link carries a number the nut no longer shows"
   - id: WR-09
     severity: warning
@@ -57,11 +57,11 @@ findings:
     title: "Brittle or low-value tests in the pair and CLI suites"
   - id: IN-05
     severity: info
-    disposition: open
+    disposition: fixed
     title: "The new page tests pin source text, so the claims they name are not exercised, and two of the pins are fragile"
   - id: IN-06
     severity: info
-    disposition: open
+    disposition: fixed
     title: "`rowOfFields` dereferences `fields.get(name)` unguarded while the catalogue can belong to the previous kind"
   - id: IN-07
     severity: info
@@ -82,15 +82,15 @@ recorded: 2026-10-21T15:00:36.915Z
 | WR-04 | warning | fixed | 0db1b73 fix(05-20): read nothing when the proof body cannot hold the void |
 | WR-05 | warning | fixed | 946e730 fix(05-20): report the pair's engagement as the exact quotient |
 | WR-06 | warning | fixed | 83e5b77 fix(05-20): give an off-row nut's evidence bolt the nut's own s |
-| WR-07 | warning | open | - |
-| WR-08 | warning | open | - |
+| WR-07 | warning | fixed | 53cd338 fix(05-23): key the typed-value memory by the form on screen and hold the update until a kind switch loads |
+| WR-08 | warning | fixed | 58bbc9f fix(05-23): forget a remembered value on Reset and on a link that writes another |
 | WR-09 | warning | open | - |
 | IN-01 | info | fixed | 4218e54 docs(05-20): correct the smallest da_max / d the countersink factor cites |
 | IN-02 | info | deferred | docs/tech_debt/active/2026-10-21-fillet-ring-can-overhang-the-head-flats.md (must) |
 | IN-03 | info | deferred | docs/tech_debt/active/2026-10-21-screw-pair-exit-codes-collide-with-failure-exits.md (must) |
 | IN-04 | info | deferred | docs/tech_debt/active/2026-10-21-brittle-pair-and-cli-tests.md (nice) |
-| IN-05 | info | open | - |
-| IN-06 | info | open | - |
+| IN-05 | info | fixed | 53cd338 fix(05-23) (pins tightened; re-review at e30b919..HEAD) |
+| IN-06 | info | fixed | 53cd338 fix(05-23) (rowOfFields guard) |
 | IN-07 | info | open | - |
 
 Dispositions: `open` (recorded, not yet triaged), `fixed`, `skipped`, `deferred`.
