@@ -33,6 +33,7 @@ from screw.calc import derive
 from screw.calc import pair as rule
 from screw.calc.thread import TIP_ANGLE_DEG, tip_cone_length
 from screw.params import BoltParams, FastenerParams, NutParams
+from screw.solid import build as real_build
 from screw.solid import pair as solid_pair
 from screw.solid import precise_volume
 from screw.solid.helical import DEFAULT_K, SEWING_TOLERANCE
@@ -894,6 +895,63 @@ def test_a_shipped_volume_that_is_not_finite_fails_that_pose_only(builds: _Build
     assert [r.outcome for r in report.shipped] == ["built", "failure", "built"]
     assert report.shipped[1].volume is None
     assert "not a finite number" in (report.shipped[1].error or "")
+
+
+def _asked_bolt(p: NutParams, monkeypatch: pytest.MonkeyPatch) -> BoltParams:
+    """The bolt `_shipped` asks `build` for, with `build` replaced by a recorder."""
+    fake = _Builds()
+    monkeypatch.setattr(solid_pair, "build", fake)
+    solid_pair._shipped(p, False, _Script(*[EMPTY] * 3))
+    bolt = fake.asked[0]
+    assert isinstance(bolt, BoltParams)
+    return bolt
+
+
+def test_the_evidence_bolt_of_an_off_row_nut_with_d_of_ten_or_more_builds_through_the_kernel(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    # WR-06: off an ISO 4017 row the counterpart carries no s, and the bolt's frozen s of 10 mm
+    # is refused for d >= 10 (`head_too_small`), so every such nut's evidence row was three
+    # failures. M12 x 1.5 is a fine pitch: no ISO 4017 row, though the nut is a valid one.
+    p = NutParams(d=12.0, pitch=1.5, s=19.0, m=10.0, clearance=0.1)
+    asked: list[BoltParams] = []
+
+    def build_bolt(q: FastenerParams) -> cq.Solid:
+        if isinstance(q, BoltParams):
+            asked.append(q)
+            return real_build(q)
+        return cq.Solid.makeBox(1, 1, 10.0)
+
+    monkeypatch.setattr(solid_pair, "build", build_bolt)
+    readings = solid_pair._shipped(p, False, _Script(*[EMPTY] * 3))
+    assert [(r.outcome, r.error) for r in readings] == [("built", None)] * 3
+    [bolt] = asked
+    assert (bolt.d, bolt.pitch, bolt.left_hand) == (12.0, 1.5, False)
+    assert bolt.s == 19.0
+    assert bolt.k == BoltParams.model_fields["k"].default
+
+
+def test_the_evidence_bolt_of_a_nut_on_an_iso_4017_row_keeps_the_rows_s_and_k(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    bolt = _asked_bolt(NutParams(d=10.0, pitch=1.5, s=17.0, m=8.4, clearance=0.1), monkeypatch)
+    assert (bolt.s, bolt.k) == (16.0, 6.4)  # the ISO 4017 M10 row, not the nut's 17
+
+
+def test_the_evidence_bolt_of_an_off_row_nut_below_ten_takes_the_nuts_s(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    bolt = _asked_bolt(NutParams(d=6.0, pitch=0.75, s=11.0, m=5.2, clearance=0.1), monkeypatch)
+    assert bolt.s == 11.0
+    assert bolt.k == BoltParams.model_fields["k"].default
+
+
+def test_the_evidence_bolt_head_lies_above_the_nut_at_every_coarse_size() -> None:
+    # Kernel-free: the bolt's length is tip + m + 2 P and the nut starts `ceil((tip + P) / P)`
+    # pitches up, so at the highest matched pose (slide P / 3) its top is below the bolt's end
+    # by more than tip - P / 3 = 0.208 P. The head starts there: neither s nor k enters a reading.
+    for size in iso262.SIZES:
+        pitch, m = size.pitch, 1.0
+        tip = tip_cone_length(pitch, TIP_ANGLE_DEG)
+        start = math.ceil((tip + pitch) / pitch)
+        assert tip + m + 2 * pitch > start * pitch + pitch / 3 + m, size.label
 
 
 def test_the_shipped_row_is_called_evidence_in_the_docstring() -> None:

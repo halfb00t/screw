@@ -242,8 +242,9 @@ def _record(cell: PairCell, poses: list[tuple[float, float]], boolean: Boolean) 
 
 def _shipped(p: NutParams, rod_hand: bool, boolean: Boolean) -> list[ShippedReading]:
     """`build(BoltParams)` against `build(NutParams)` at the three matched poses: the counterpart
-    bolt (`counterpart_for`'s fields, the rod's hand, length = thread_length = tip cone length +
-    m + 2 pitch, so the thread fills the bolt and the head sits past it) and the shipped nut.
+    bolt (`counterpart_for`'s fields, the nut's own across flats `s` where the counterpart carries
+    none, the rod's hand, length = thread_length = tip cone length + m + 2 pitch, so the thread
+    fills the bolt and the head sits past it) and the shipped nut.
 
     The nut starts a whole number of pitches up, the least that clears the tip cone by a pitch:
     the thread has phase 2 pi z / P on both parts, so a start that is not a multiple of the pitch
@@ -255,9 +256,18 @@ def _shipped(p: NutParams, rod_hand: bool, boolean: Boolean) -> list[ShippedRead
         counterpart, _ = counterpart_for(p)
         tip = tip_cone_length(p.pitch, TIP_ANGLE_DEG)
         length = tip + p.m + 2 * p.pitch
+        # Off an ISO 4017 row `counterpart_for` carries no s or k (D-03), and the bolt's frozen s
+        # of 10 mm is refused for d >= 10 (`head_too_small`): the evidence row was three failures
+        # for every such nut (M12 x 1.5 in the review). The nut's own s is a value the user set and
+        # lies above d + 2 c, so above d at every c > 0 where this row is taken; ISO 4017:2022 and
+        # GOST ISO 4032-2014 print the same s at all 14 sizes they share. k stays the bolt's
+        # frozen default. Neither enters a reading: the nut starts a whole pitch above the cone,
+        # so at the highest matched pose its top is tip - P / 3 (0.208 P) below where the head
+        # starts (pinned kernel-free in tests/test_pair.py). On a row nothing changes.
+        fields = {**counterpart.fields}
+        fields.setdefault("s", p.s)
         bolt = build(BoltParams.model_validate({
-            **counterpart.fields, "left_hand": rod_hand, "length": length,
-            "thread_length": length}))
+            **fields, "left_hand": rod_hand, "length": length, "thread_length": length}))
         nut = build(p)
     except Exception as exc:  # a bolt that cannot be built is one recorded failure, not a crash
         error = f"{type(exc).__name__}: {exc}"
