@@ -2,8 +2,8 @@
 phase: 05-hex-nut-and-kernel-pair-proof
 reviewed: 2026-10-21T00:00:00Z
 rereviewed: 2026-10-21
-rereview_base: e30b919
-rereview_base_previous: ad09d46
+rereview_base: d4cd532
+rereview_base_previous: e30b919
 depth: standard
 files_reviewed: 70
 files_reviewed_list:
@@ -80,6 +80,11 @@ files_reviewed_list:
 findings:
   critical: 0
   warning: 1
+  info: 2
+  total: 3
+findings_at_d4cd532:
+  critical: 0
+  warning: 1
   info: 1
   total: 2
 findings_at_e30b919:
@@ -98,7 +103,7 @@ status: issues_found
 # Phase 5: Code Review Report
 
 **Reviewed:** 2026-10-21
-**Re-reviewed:** 2026-10-21 (diff base ad09d46, after plans 05-20, 05-21, 05-22); 2026-10-21 again (diff base e30b919, after plan 05-23)
+**Re-reviewed:** 2026-10-21 (diff base ad09d46, after plans 05-20, 05-21, 05-22); 2026-10-21 again (diff base e30b919, after plan 05-23); 2026-10-21 a third time (diff base d4cd532, after plan 05-24)
 **Depth:** standard
 **Files Reviewed:** 70
 **Status:** issues_found
@@ -150,6 +155,16 @@ delta, unchanged). No critical issue. Evidence I ran: `node --check src/screw/st
 `pytest tests/test_parity.py -n0 --no-cov` gave 71 passed (not `make verify`, which I did not run);
 two headless-Chromium probes against `screw serve` (spur's Playwright, scripts in the session
 scratchpad, not in the repo), whose results are quoted under each finding.
+
+**Third re-review verdict (2026-10-21, plan 05-24, diff base d4cd532, commit 63835c8).** 05-24 closes
+WR-09 as asked, and a bit wider: `navigate` clears the old form and the old picker right after
+`dropMesh()`, before the schema fetch. I found no regression of the 05-23 behaviour (update guard,
+rebuild condition, typed memory, Back and matching-part round trip). The fix has one side effect the
+plan did not weigh: a schema fetch that fails now leaves a blank page (WR-10). The new test is a
+source pin and proves no behaviour (IN-08). Open now: WR-10, IN-07, IN-08. No critical issue. Evidence
+I ran: `.venv/bin/python -m pytest tests/test_parity.py -n0 --no-cov` gave 72 passed (not
+`make verify`, which I did not run); `node --check` parses; a headless-Chromium probe against
+`screw serve` (scratchpad, not in the repo) whose results are under WR-10.
 
 ## Warnings
 
@@ -453,7 +468,10 @@ move of the writer into `update()`; surface it in the amendment either way.
 
 ### WR-09: The old kind's preset picker stays live during a kind switch, and a pick there throws and writes the old kind's row into the new kind's controls
 
-**Status: new, open (re-review of 05-23).**
+**Status after 05-24: fixed (63835c8).** `navigate` now runs `dropMesh(); clearForm(); clearPicker();`
+before `await buildForm(kind)`; see the re-review section after 05-24. Original finding below.
+
+**Status when found: new, open (re-review of 05-23).**
 
 **File:** `src/screw/static/app.js:234` (`pick`, `write(fields.get(name).input, value)`), with the stale
 picker kept by `:315-331` (`navigate`, `buildForm` at `:99`) and cleared only by `clearPicker` (`:84`,
@@ -482,6 +500,46 @@ rebuilds them. `clearPicker` also blanks the badge and `shownPreset`, which a ki
 Failing that, make `pick` return while `formKind !== currentKind`, and update the `write(fields.get(name)
 .input, value)` pin at `tests/test_parity.py:656` only if the lookup itself changes. Add a source pin that
 the rebuild block clears the picker before `await buildForm(kind)`.
+
+### WR-10: A failed schema fetch on a kind switch now leaves a blank page with the old part's panel, downloads and matching-part link
+
+**Status: new, open (re-review of 05-24).**
+
+**File:** `src/screw/static/app.js:331-333` (`navigate`: `clearForm()` then the unwrapped
+`await buildForm(kind)`); the catch is `reportLoadError` at `:703`, `refuseLink` is `:277-289`
+**Issue:** `buildForm` throws when `api/schema` is not ok (`:96`). Before 05-24 the old kind's form
+and picker were still on screen and live, with `currentKind === formKind`, so the page stayed usable
+(a field edit rewrote the hash to the old kind). Now `clearForm()` and `clearPicker()` have already
+run, `formKind` is `null`, and nothing rebuilds them. The `.catch(reportLoadError)` only adds the
+message. Unlike `refuseLink` (the other "cannot honour this" exit, which also clears `#dims`, the
+counterpart link and the downloads) and unlike the `loadPresets` catch beside it (which calls
+`refuseLink`), this path leaves `currentKind` at the old kind and everything else of the old part in
+place.
+
+Reproduced, run by me (headless Chromium, `api/schema?kind=nut` answered 500 after a bolt loaded, Kind
+select to `nut`): `{inputs: 0, dims: 9, counterpart hidden: false, downloads:
+[api/bolt/model.stl?quality=fine, api/bolt/model.step?quality=fine], messages: ["Could not load the part:
+500 Internal Server Error"], kind select: nut, hash: #kind=nut}`. So the page shows no controls and no
+mesh, but the bolt's nine info rows, a `Matching nut` link and two live bolt download links, under a Kind
+select that reads `nut`. Re-picking `nut` fires no `change` event in a real browser, so the user has to
+pick another kind and come back, or reload. The same stale panel, link and downloads also show during a
+slow schema fetch (the held-request probe: `dims: 9`, link visible, bolt downloads linked, while
+`inputs: 0`); that part predates 05-24, and the plan's truth is worded about controls and picker, so I
+count it with this finding and not on its own. L02: the downloads are the bolt's own valid links, so
+no wrong number is printed; the defect is a recoverability regression and a panel that contradicts the
+page.
+**Fix:** wrap the call, as `loadPresets` is wrapped, so the one error exit clears everything:
+```js
+    let built;
+    try { built = await buildForm(kind); } catch (err) {
+      return refuseLink(`Could not load the part: ${err.message}`);
+    }
+    if (!built) return;
+```
+`refuseLink` sets `currentKind = null` and `kindSelect.selectedIndex = -1`, so re-picking any kind
+fires `change` again. Add a probe-or-pin for the schema-500 path. If the owner prefers a minimal diff,
+at least clear `#dims`, the counterpart link and the downloads in the window so the panel matches the
+blank form.
 
 ## Info
 
@@ -677,6 +735,27 @@ differs from its pre-05-20 shape and no test says it still passes its piece gate
 `s` parameters (the name then should say "narrow", not "below root three"), and assert the cutter's
 `zmin` equals `-min(0.5, s / 2 * tan30 / 2)` at 3.4 and 3.5 so the cap's switch point is pinned.
 
+### IN-08: The WR-09 test pins source text, not the behaviour it names, and its file-wide call counts are fragile
+
+**Status: new, open (re-review of 05-24).**
+
+**File:** `tests/test_parity.py:998-1023`
+**Issue:** The behaviour WR-09 describes (no select to pick in, no row written into another kind's
+controls, no page error, no old-kind update in the schema window) is not run by any gate test. The test
+asserts that `app.js` contains `dropMesh(); clearForm(); clearPicker(); if (!(await buildForm(kind)))
+return; try {` after `_squash`, plus the statements inside `clearForm` and `clearPicker`. It passes
+for any code that contains those strings: a `clearPicker` whose body assigned to a shadowing local
+would still satisfy the statement checks, and a reformat (a line break, a `const built = await ...`
+split, which WR-10's fix needs) breaks the first assertion without a behaviour change. The two
+`re.findall(...) == ["clearForm("] * 3` and `* 2` assertions count call sites file-wide, so adding a
+legitimate fourth `clearForm()` elsewhere fails the test for no behavioural reason. This is IN-05's
+class (source pins), repeated; the owner's open idea
+`docs/ideas/2026-10-21-browser-test-of-the-page-in-the-gate.md` is the real fix, and the plan's probe
+(scratch, not committed) is the only run evidence.
+**Fix:** until a browser test exists, keep one ordering assertion in `navigate` (that `clearForm` and
+`clearPicker` come before the first `await`) and drop the file-wide counts and the re-assertion of the
+two helper bodies; or move the probe into the idea's browser test when it lands.
+
 ## Re-review after 05-23 (diff base e30b919)
 
 Scope: `git diff e30b919 HEAD` over `src/screw/static/app.js`, `tests/test_parity.py` and
@@ -705,10 +784,43 @@ update runs after the load and aborts the first (pre-existing, harmless).
 
 **New:** WR-09. IN-07 is untouched by this delta and stays open.
 
+## Re-review after 05-24 (diff base d4cd532)
+
+Scope: `git diff d4cd532 HEAD -- src/screw/static/app.js tests/test_parity.py` (commit 63835c8): two
+statements added to `navigate`, a rewritten comment in `rowOfFields`, one new test. The whole of
+`app.js` was read for context. Checked against 05-24-PLAN.md's truths and the L02 rules.
+
+**WR-09: fixed.** After `dropMesh()` the rebuild block runs `clearForm()` and `clearPicker()` before the
+first `await`, so for the whole switch `formKind` is `null`, `catalogue` is `null`, `#picker` holds no
+select, and the old kind's change listeners are off the DOM with their selects. `pick` cannot run, and
+`showMatch` returns on `catalogue === null` before it reads anything. The schema half of the window
+(planner's measurement: the old form live, a pick running the old kind's update after `dropMesh`) is
+closed by the same clear: no old input exists to fire `scheduleUpdate`, and `update()` returns on
+`formKind !== currentKind` anyway.
+
+Points I traced that found no defect: (a) an overtaking navigation: `formKind` is `null` or the
+overtaken kind's, so `kind !== formKind` is true and the rebuild runs whole. That covers Back during the
+schema fetch, which is the case clearing the picker alone broke, and Back during the catalogue fetch;
+(b) an overtaken `loadPresets` cannot build a picker: `navigate` bumps `formSeq` before it clears, and
+`loadPresets` re-checks it after its fetch; (c) the clear drops no typed memory: `lastTyped` is not
+touched by `clearForm`, `rememberTyped` returns while `formKind` is `null`, and `forgetUntyped` still
+runs only after `buildForm` has set `formKind`; (d) `clearPicker` blanks `badge` and `shownPreset`,
+which the next `renderInfo` or `fail` writes again, and `presetBasis` was already reset at the top of
+`navigate`; (e) the debounce a window keystroke queued is gone, since `navigate` clears it first and no
+control exists to queue another; (f) no new `formKind = ` assignment (the 05-23 pin counts them) and
+the new comment mentions `clearForm` and `clearPicker` without a paren, so the call-count pins hold;
+(g) `rowOfFields`' guard is now a second line that the first line makes unreachable. The plan chose to
+keep it, and its comment says so truthfully.
+
+**New:** WR-10 (the failed-schema path, caused by the same clear), IN-08 (the test). IN-07 is untouched
+by this delta and stays open. The new test passes (72 in `test_parity.py`); it does prove the order of
+the three statements in `navigate`, but nothing about behaviour (IN-08).
+
 ---
 
 _Reviewed: 2026-10-21_
 _Re-reviewed: 2026-10-21 (base ad09d46)_
 _Re-reviewed: 2026-10-21 (base e30b919, plan 05-23)_
+_Re-reviewed: 2026-10-21 (base d4cd532, plan 05-24)_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_

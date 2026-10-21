@@ -39,6 +39,10 @@ findings:
     severity: warning
     disposition: fixed
     title: "The old kind's preset picker stays live during a kind switch, and a pick there throws and writes the old kind's row into the new kind's controls"
+  - id: WR-10
+    severity: warning
+    disposition: open
+    title: "A failed schema fetch on a kind switch now leaves a blank page with the old part's panel, downloads and matching-part link"
   - id: IN-01
     severity: info
     disposition: fixed
@@ -67,9 +71,13 @@ findings:
     severity: info
     disposition: open
     title: "The nut narrow-s tests do not cover the band where the chamfer overshoot changed from 0.5 mm"
-open: 6
-total: 16
-recorded: 2026-10-21T15:00:36.915Z
+  - id: IN-08
+    severity: info
+    disposition: open
+    title: "The WR-09 test pins source text, not the behaviour it names, and its file-wide call counts are fragile"
+open: 3
+total: 18
+recorded: 2026-10-21T17:57:32.000Z
 ---
 
 # Phase 05: Code Review Disposition
@@ -85,6 +93,7 @@ recorded: 2026-10-21T15:00:36.915Z
 | WR-07 | warning | fixed | 53cd338 fix(05-23): key the typed-value memory by the form on screen and hold the update until a kind switch loads |
 | WR-08 | warning | fixed | 58bbc9f fix(05-23): forget a remembered value on Reset and on a link that writes another |
 | WR-09 | warning | fixed | 63835c8 fix(05-24): clear the old kind's form and picker before a kind switch fetches the new ones |
+| WR-10 | warning | open | - |
 | IN-01 | info | fixed | 4218e54 docs(05-20): correct the smallest da_max / d the countersink factor cites |
 | IN-02 | info | deferred | docs/tech_debt/active/2026-10-21-fillet-ring-can-overhang-the-head-flats.md (must) |
 | IN-03 | info | deferred | docs/tech_debt/active/2026-10-21-screw-pair-exit-codes-collide-with-failure-exits.md (must) |
@@ -92,6 +101,7 @@ recorded: 2026-10-21T15:00:36.915Z
 | IN-05 | info | fixed | 53cd338 fix(05-23) (pins tightened; re-review at e30b919..HEAD) |
 | IN-06 | info | fixed | 53cd338 fix(05-23) (rowOfFields guard) |
 | IN-07 | info | open | - |
+| IN-08 | info | open | - |
 
 Dispositions: `open` (recorded, not yet triaged), `fixed`, `skipped`, `deferred`.
 Set `deferred` by hand and put the reason in the Source cell; both are preserved. A `|` in the reason is kept as prose and escaped on the next run.
