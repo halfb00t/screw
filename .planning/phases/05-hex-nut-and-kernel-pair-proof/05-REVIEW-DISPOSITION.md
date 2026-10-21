@@ -37,7 +37,7 @@ findings:
     title: "The remembered clearance outlives the field after Reset or a link, so the Matching nut link carries a number the nut no longer shows"
   - id: WR-09
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "The old kind's preset picker stays live during a kind switch, and a pick there throws and writes the old kind's row into the new kind's controls"
   - id: IN-01
     severity: info
@@ -84,7 +84,7 @@ recorded: 2026-10-21T15:00:36.915Z
 | WR-06 | warning | fixed | 83e5b77 fix(05-20): give an off-row nut's evidence bolt the nut's own s |
 | WR-07 | warning | fixed | 53cd338 fix(05-23): key the typed-value memory by the form on screen and hold the update until a kind switch loads |
 | WR-08 | warning | fixed | 58bbc9f fix(05-23): forget a remembered value on Reset and on a link that writes another |
-| WR-09 | warning | open | - |
+| WR-09 | warning | fixed | 63835c8 fix(05-24): clear the old kind's form and picker before a kind switch fetches the new ones |
 | IN-01 | info | fixed | 4218e54 docs(05-20): correct the smallest da_max / d the countersink factor cites |
 | IN-02 | info | deferred | docs/tech_debt/active/2026-10-21-fillet-ring-can-overhang-the-head-flats.md (must) |
 | IN-03 | info | deferred | docs/tech_debt/active/2026-10-21-screw-pair-exit-codes-collide-with-failure-exits.md (must) |
