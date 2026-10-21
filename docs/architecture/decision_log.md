@@ -1017,7 +1017,7 @@ whose figures mark `~45 degrees` and whose chamfered end prints no angle value o
 45), the lower end of the band `GOST ISO 4032-2014 (ISO 4032:2012)` footnote c prints (90 to 120 degrees),
 opening to a face radius of `1.16 d / 2`, the largest `da_max / d` of the 14 rows (M2,5; the smallest is
 1.08 at M10 and M20), owner option A; where `1.16 d / 2 <= d/2 + c` or the radius passes the flats the cone
-cannot cross and is left out with a warning naming `clearance` or `s`. *Nut face chamfer* (R4 a, **stated
+cannot cross and is left out with a warning naming `clearance` or `s`. Erratum (plan 05-20, review IN-01): the smallest `da_max / d` of the 14 rows is 1.079, at M14 (15.1 / 14), not 1.08 at M10 and M20; the factor is the largest ratio and does not depend on it. *Nut face chamfer* (R4 a, **stated
 model**): 30 degrees from the inscribed circle `s / 2`, the upper end of the band footnote b prints (15 to 30
 degrees). *Capping* (R5 a): the two cutters on a face are capped at `m / 2` with a warning naming `m`; no
 catalogue row caps (smallest margin M2, 0.38 mm against 0.8). *Under-head fillet* (R1 a, **cited**): the

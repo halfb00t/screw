@@ -661,9 +661,9 @@ COUNTERSINK_HALF_ANGLE_DEG = 45.0
 # the countersink opens to `COUNTERSINK_FACE_FACTOR * d / 2` on the face. GOST ISO 4032-2014
 # (ISO 4032:2012) Figure 1 footnote c names the diameter `da` the countersink runs to, and
 # Tables 1 and 2 print `da max` per size but the figure gives no rule that ties the face to it.
-# The factor is the largest `da_max / d` of the 14 table rows, 1.16 at M2,5 (the smallest is
-# 1.08, at M10 and M20), so the cone opens at least as wide as any printed `da`. A model, not a
-# printed number: any panel row it feeds says "model".
+# The factor is the largest `da_max / d` of the 14 table rows, 1.16 at M2,5
+# (the smallest is 1.079, at M14: 15.1 / 14), so the cone opens at least as wide as any printed
+# `da`. A model, not a printed number: any panel row it feeds says "model".
 COUNTERSINK_FACE_FACTOR = 1.16
 
 # Nut face chamfer, stated model (R4 a, read 3: GOST ISO 4032-2014 (ISO 4032:2012), Figure 1

@@ -16,6 +16,7 @@ from pathlib import Path
 import pytest
 
 from screw.calc import thread as t
+from screw.tables import iso4032
 
 SECTIONS = ((2.0, 0.4), (6.0, 1.0), (10.0, 1.5), (20.0, 2.5))
 # The quadrature must be invisible next to the gate that reads the piece (05-11 truth).
@@ -432,6 +433,19 @@ def test_the_countersink_face_factor_is_the_largest_da_over_d_of_the_owner_s_rul
     comment = source.split("COUNTERSINK_FACE_FACTOR = 1.16", 1)[0].rsplit("\n\n", 1)[1]
     assert "stated model" in comment or "A model, not a printed number" in comment
     assert "M2,5" in comment
+
+
+def test_the_countersink_comment_cites_the_smallest_and_largest_da_over_d_of_the_table() -> None:
+    """IN-01: the comment said the smallest was 1.08 at M10 and M20; the table's is 1.079, at M14
+    (15.1 / 14). The factor is the largest ratio, so no number it feeds moved."""
+    ratios = {n.size: n.da_max / float(n.size.removeprefix("M")) for n in iso4032.NUTS}
+    smallest, largest = min(ratios, key=ratios.__getitem__), max(ratios, key=ratios.__getitem__)
+    assert (smallest, round(ratios[smallest], 3)) == ("M14", 1.079)
+    assert (largest, round(ratios[largest], 3)) == ("M2.5", 1.16)
+    source = Path(t.__file__).read_text()
+    comment = source.split("COUNTERSINK_FACE_FACTOR = 1.16", 1)[0].rsplit("\n\n", 1)[1]
+    assert "1.079" in comment
+    assert "M14" in comment
 
 
 @pytest.mark.parametrize(("d", "pitch", "s", "m"),
