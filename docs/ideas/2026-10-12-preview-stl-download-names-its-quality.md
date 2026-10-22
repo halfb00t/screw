@@ -1,6 +1,7 @@
 # A saved preview STL should name its quality in the file name
 
 Date: 2026-10-12
+Status: done — Phase 5, D-22 and owner ruling R9 (plan 05-18): `calc.download_name`, one rule for the `Content-Disposition` header and `screw export -o <directory>`
 Source: plan 04-16 (gap G-04-3, the owner's ruling on review item IN-02)
 Related files:
 - src/screw/app.py (`_serve`, the `Content-Disposition` header)

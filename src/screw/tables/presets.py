@@ -15,7 +15,8 @@ from typing import Literal
 from screw.tables import iso4014
 from screw.tables.iso262 import SIZES
 from screw.tables.iso4017 import HEADS, SERIES
-from screw.tables.rows import HexHead, ShankCell, Size, Source, ThreadBand
+from screw.tables.iso4032 import NUTS
+from screw.tables.rows import HexHead, HexNut, ShankCell, Size, Source, ThreadBand
 
 # Every key `expand` returns; a test asserts each is a `BoltParams` field so a rename cannot
 # drift silently.
@@ -135,9 +136,75 @@ def _by_id() -> dict[str, PresetRow]:
 
 
 def expand(preset_id: str) -> dict[str, float] | None:
-    """The millimetre fields of one row, or None for an id that is not in the catalogue.
+    """The millimetre fields of one bolt row, or None for an id that is not in the catalogue.
 
     Ids are case-sensitive: `iso4017:M6x20` is a row, `iso4017:m6x20` is not.
     """
     row = _by_id().get(preset_id)
+    return None if row is None else dict(row.fields)
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class NutPresetRow:
+    """One GOST ISO 4032-2014 nut size as the picker, the match and the panel read it."""
+
+    id: str
+    size: str
+    choice: Literal[1, 2]
+    display: str
+    designation: str
+    picker: tuple[str, str]
+    fields: tuple[tuple[str, float], ...]
+    nut: HexNut
+    sources: tuple[Source, ...]
+
+    def citation(self) -> str:
+        """The distinct `Source.cite()` strings of the row, in order, joined with `; `."""
+        return "; ".join(dict.fromkeys(source.cite() for source in self.sources))
+
+
+def _nut_row(size: Size, nut: HexNut) -> NutPresetRow:
+    # Every nut row is normative (owner ruling 2026-10-20: the 2012 text has no Annex A), so the
+    # display carries brackets for an ISO 262 second-choice size and no suffix of any kind.
+    shown = f"({size.label})" if size.choice == 2 else size.label
+    return NutPresetRow(
+        id=f"iso4032:{size.label}",
+        size=size.label,
+        choice=size.choice,
+        display=f"ISO 4032 {shown}",
+        # The owner's form (05-OWNER-READS.md, Designation): the noun is the owner's ASCII choice,
+        # the decimal sign is the comma the tables print, the property class is left out.
+        designation=f"Hexagon regular nut GOST ISO 4032 - {size.label.replace('.', ',')}",
+        picker=("ISO 4032", shown),
+        fields=(
+            ("d", size.d),
+            ("pitch", size.pitch),
+            ("s", nut.s),
+            # m max, the column the owner chose for the height (read 1, option a).
+            ("m", nut.m_max),
+        ),
+        nut=nut,
+        sources=(size.source, nut.source),
+    )
+
+
+@cache
+def nut_catalogue() -> tuple[NutPresetRow, ...]:
+    """Every GOST ISO 4032-2014 row (14: the text prints no M7), by diameter ascending."""
+    sizes = {size.label: size for size in SIZES}
+    return tuple(_nut_row(sizes[nut.size], nut)
+                 for nut in sorted(NUTS, key=lambda n: sizes[n.size].d))
+
+
+@cache
+def _nut_by_id() -> dict[str, NutPresetRow]:
+    return {row.id: row for row in nut_catalogue()}
+
+
+def expand_nut(preset_id: str) -> dict[str, float] | None:
+    """The millimetre fields of one nut row, or None for an id that is not in its catalogue.
+
+    Ids are case-sensitive, and a bolt's id is not a nut's: `iso4017:M6x20` is None here.
+    """
+    row = _nut_by_id().get(preset_id)
     return None if row is None else dict(row.fields)

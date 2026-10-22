@@ -22,29 +22,42 @@ from fractions import Fraction
 from typing import Literal, NoReturn, TypedDict
 
 from bench.thread_spike.maths import (
-    CONTROL_OFFSET_PITCHES,
-    DIAGNOSTIC_CLEARANCES,
     FRONTIER_MAX_TURNS,
     INTERIM_PRESETS,
     K_CANDIDATES,
-    MATCHED_POSES,
-    PAIR_CLEARANCES,
     PITCH,
     VOID_CLEARANCE,
     closed_volume,
     depth_presets,
     frontier_turns,
-    interference_area,
     lengths,
-    section_area,
     standard_max,
     turns_of,
 )
-
-# Relative tolerance of the precise volume against the closed form. The research maximum was
-# 7.6e-6 over 576 sewn rows (R10) and the naive construction's defect is about 0.76, so 1e-4
-# neither flaps nor hides a 1e-3 defect. Fixed before any data (D-09); never tuned toward a pass.
-T_PASS = 1e-4
+from screw.calc.pair import CONTROL_OFFSET_PITCHES as CONTROL_OFFSET_PITCHES
+from screw.calc.pair import DIAGNOSTIC_CLEARANCES as DIAGNOSTIC_CLEARANCES
+from screw.calc.pair import EMPTY_MM3 as EMPTY_MM3
+from screw.calc.pair import MATCHED_POSES as MATCHED_POSES
+from screw.calc.pair import PAIR_BAND as PAIR_BAND
+from screw.calc.pair import PAIR_CLEARANCES as PAIR_CLEARANCES
+from screw.calc.pair import T_PASS as T_PASS
+from screw.calc.pair import Outcome as Outcome
+from screw.calc.pair import PairCell as PairCell
+from screw.calc.pair import PairReading as PairReading
+from screw.calc.pair import PairRecord as PairRecord
+from screw.calc.pair import PairRequest as PairRequest
+from screw.calc.pair import PairVerdict as PairVerdict
+from screw.calc.pair import ReadingOutcome as ReadingOutcome
+from screw.calc.pair import _controls as _controls
+from screw.calc.pair import _is_empty as _is_empty
+from screw.calc.pair import _is_mixed as _is_mixed
+from screw.calc.pair import _matched as _matched
+from screw.calc.pair import _nut_body as _nut_body
+from screw.calc.pair import _off_by as _off_by
+from screw.calc.pair import _poses_ok as _poses_ok
+from screw.calc.pair import cell_verdict as cell_verdict
+from screw.calc.pair import closed_control as closed_control
+from screw.calc.pair import interference_area as interference_area
 
 # Four times the 30 s INTERIM build-plus-mesh budget, so an over-budget row is measured rather
 # than killed (RESEARCH Pattern 3). A protocol input.
@@ -73,7 +86,6 @@ GATE_FACTOR = 10
 ESTIMATOR_TIE = 2.0
 
 RowClass = Literal["ok", "silent_wrong", "failure", "timeout", "worker_died"]
-Outcome = Literal["built", "failure", "timeout", "worker_died"]
 Preset = tuple[str, float, float]
 # One level of L19's gzip table: (level, output bytes, single-threaded median ms, 10-concurrent
 # wall median ms). A tuple like `Preset`, so a record equals its parse.
@@ -1335,65 +1347,9 @@ def block_gaps(block: str, header: HeaderRecord, rows: Sequence[RowRecord], *,
 
 # --- Pair check (question 3, D-11 to D-14) ---
 
-# Relative band of a control reading around the closed form: 100x the research's worst agreement
-# of a non-empty reading (1e-5, RESEARCH R7), fixed before any data (D-14).
-PAIR_BAND = 1e-3
-# A pair reading is empty when it has 0 solids or abs(volume) <= this: the c = 0 garbage read
-# -0.0000 in one solid (RESEARCH R4), which a plain `volume == 0` would call non-empty.
-EMPTY_MM3 = 1e-6
 # One pair cell is one request: a full M20 body took 16-121 s per boolean (STACK section C) and
 # a cell is six of them, so the cell gets its own deadline.
 PAIR_TIMEOUT_S = 600.0
-
-ReadingOutcome = Literal["built", "failure"]
-PairVerdict = Literal["proven", "violated", "inconclusive"]
-
-
-class PairReading(TypedDict):
-    """One pose's boolean. `offset_pitches` is 0 for a matched pose and `CONTROL_OFFSET_PITCHES`
-    for a control. `outcome` is "failure" when the boolean raised, and then every measurement is
-    `None`; the diagnostics are columns, never verdict inputs (they missed every false-empty in
-    research, Pitfall 4)."""
-
-    theta: float
-    offset_pitches: float
-    outcome: ReadingOutcome
-    solids: int | None
-    volume: float | None
-    diag_errors: bool | None
-    diag_warnings: bool | None
-    seconds: float | None
-
-
-class PairCell(TypedDict):
-    """What names a pair cell: the rod of one hand against a nut of one hand at one clearance."""
-
-    size: str
-    d: float
-    pitch: float
-    m: float
-    clearance: float
-    rod_left_hand: bool
-    nut_left_hand: bool
-    k: int
-
-
-class PairRequest(PairCell):
-    """One cell to read: `poses` are (theta, offset in pitches), read in order."""
-
-    poses: list[tuple[float, float]]
-
-
-class PairRecord(PairCell):
-    """The cell echoed plus what happened. A built cell has an `nut_volume` and no error; any
-    other outcome has an error and no readings unless the worker itself reported them (a
-    "failure" keeps the readings taken so far, the last of them the one that raised)."""
-
-    outcome: Outcome
-    error: str | None
-    nut_volume: float | None
-    readings: list[PairReading]
-
 
 _PAIR_CELL_KEYS = ("size", "d", "pitch", "m", "clearance", "rod_left_hand", "nut_left_hand", "k")
 _PAIR_REQUEST_KEYS = (*_PAIR_CELL_KEYS, "poses")
@@ -1532,116 +1488,12 @@ def failed_pair_record(request: PairRequest, outcome: Outcome, error: str) -> Pa
     }
 
 
-def closed_control(record: PairCell) -> float:
-    """The closed-form volume in mm3 of the half-pitch control: engaged length times the
-    interference area at phase pi. The band's centre for every control reading (D-14)."""
-    return record["m"] * interference_area(record["d"], record["pitch"], record["clearance"],
-                                           math.pi)
-
-
 def _closed_matched(record: PairCell) -> float:
     return record["m"] * interference_area(record["d"], record["pitch"], record["clearance"], 0.0)
 
 
-def _nut_body(record: PairCell) -> float:
-    """pi d^2 m - A(c) m: the plain blank less the void thread through all of it (STACK § C:
-    within 1.1e-6)."""
-    d = record["d"]
-    return (math.pi * d * d - section_area(d, record["pitch"], record["clearance"])) * record["m"]
-
-
-def _is_empty(reading: PairReading) -> bool:
-    volume = reading["volume"]
-    return reading["solids"] == 0 or volume is None or abs(volume) <= EMPTY_MM3
-
-
-def _off_by(reading: PairReading, closed: float) -> float:
-    volume = reading["volume"]
-    if volume is None:
-        raise ValueError("a built reading must carry its volume")
-    return abs(volume / closed - 1.0)
-
-
-def _matched(record: PairRecord) -> list[PairReading]:
-    return [r for r in record["readings"] if r["offset_pitches"] == 0.0]
-
-
-def _controls(record: PairRecord) -> list[PairReading]:
-    return [r for r in record["readings"] if r["offset_pitches"] == CONTROL_OFFSET_PITCHES]
-
-
-def _is_mixed(record: PairCell) -> bool:
-    return record["rod_left_hand"] != record["nut_left_hand"]
-
-
 def _hand(record: PairCell) -> str:
     return "left" if record["rod_left_hand"] else "right"
-
-
-def _poses_ok(readings: list[PairReading]) -> bool:
-    return tuple(r["theta"] for r in readings) == MATCHED_POSES
-
-
-def cell_verdict(record: PairRecord) -> tuple[PairVerdict, tuple[str, ...]]:
-    """The pre-registered rule for one cell, and why (D-12, D-14; owner ruling R1 left D-14
-    exactly as written).
-
-    A cell that did not finish is inconclusive. So is a built cell, of either hand pairing,
-    whose nut body (precise volume) misses pi d^2 m - A(c) m by more than `T_PASS`: a nut whose
-    void cut failed reads non-empty at every pose, so no reading is believed, a violation
-    included. A mixed-hand cell whose poses are exactly `MATCHED_POSES` and nothing else is
-    `violated` when every matched pose reads non-empty, else inconclusive: an empty read at a
-    pair that cannot thread proves nothing either way, and one reading at a pose chosen after the
-    fact proves nothing at all. For a same-hand cell: c <= 0 is inconclusive by definition
-    (D-11); poses other than the pre-registered ones are refused; any matched pose non-empty is
-    `violated`; otherwise `proven` only when every matched pose is empty AND every control is
-    non-empty within `PAIR_BAND` of the closed form. Anything else is inconclusive, with every
-    reason. The diagnostic columns are never read.
-    """
-    outcome = record["outcome"]
-    if outcome != "built":
-        return "inconclusive", (f"cell {outcome}: {record['error']}",)
-    nut_volume = record["nut_volume"]
-    if nut_volume is None:
-        raise ValueError("a built pair record must carry its nut_volume")
-    body = _nut_body(record)
-    if abs(nut_volume / body - 1.0) > T_PASS:
-        return "inconclusive", (f"the nut body is {nut_volume:.6g} mm3, not the closed form "
-                                f"{body:.6g} mm3 within {T_PASS:g}: no reading is believed",)
-    matched, controls = _matched(record), _controls(record)
-    if _is_mixed(record):
-        if controls or not _poses_ok(matched):
-            return "inconclusive", ("the poses are not the pre-registered ones: a mixed-hand "
-                                    "cell is read at the matched poses and nothing else (D-12)",)
-        reads = [r for r in matched if not _is_empty(r)]
-        if len(reads) == len(matched):
-            return "violated", (f"mixed-hand pair: all {len(matched)} matched poses non-empty",)
-        return "inconclusive", (f"mixed-hand pair: {len(matched) - len(reads)} of "
-                                f"{len(matched)} matched poses empty",)
-    clearance = record["clearance"]
-    if clearance <= 0:
-        return "inconclusive", (f"c = {clearance:g} mm: inconclusive by definition (D-11)",)
-    if not (_poses_ok(matched) and _poses_ok(controls)):
-        return "inconclusive", ("the poses are not the pre-registered ones: no verdict is "
-                                "drawn from poses chosen after the fact (D-12)",)
-    reads = [r for r in matched if not _is_empty(r)]
-    if reads:
-        return "violated", tuple(f"matched pose theta {r['theta']:+.4f} reads {r['volume']:.6g} mm3"
-                                 for r in reads)
-    closed = closed_control(record)
-    if closed <= EMPTY_MM3:
-        return "inconclusive", (f"control cannot fire by geometry: its closed form is "
-                                f"{closed:.3g} mm3, at or below {EMPTY_MM3:g}",)
-    reasons: list[str] = []
-    for r in controls:
-        if _is_empty(r):
-            reasons.append(f"control at theta {r['theta']:+.4f} reads empty "
-                           f"(closed form {closed:.6g} mm3)")
-        elif _off_by(r, closed) > PAIR_BAND:
-            reasons.append(f"control at theta {r['theta']:+.4f} reads {r['volume']:.6g} mm3, "
-                           f"{_off_by(r, closed):.2e} off the closed form {closed:.6g} mm3: "
-                           f"outside the band {PAIR_BAND:g}")
-    return ("inconclusive", tuple(reasons)) if reasons else ("proven", ())
 
 
 def _same_hand(cells: list[PairRecord]) -> list[PairRecord]:

@@ -15,18 +15,21 @@ from __future__ import annotations
 import argparse
 import json
 import re
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import cast
 
 import pytest
+from conftest import REQUIRED_VALUES
 from fastapi.testclient import TestClient
+from pydantic import Field
+from pydantic_core import PydanticUndefined
 
 from screw import cli
 from screw.app import STATIC, app, build_backend
-from screw.calc import STANDING_WARNING, derive
+from screw.calc import STANDING_WARNING, derive, download_name
 from screw.calc.presets import expand
-from screw.params import DEFAULT_KIND, KINDS, FastenerParams
+from screw.params import DEFAULT_KIND, KINDS, BoltParams, FastenerParams
 from screw.solid import Format, Quality, export
 
 client = TestClient(app)
@@ -177,6 +180,29 @@ def _info_row_problems(css: str) -> list[str]:
     return problems
 
 
+@pytest.mark.parametrize("kind", list(KINDS))
+def test_the_required_fields_are_exactly_the_ones_the_samples_name(kind: str) -> None:
+    # A positive rule (P6): a field is required only when `REQUIRED_VALUES` names it, and every
+    # other field carries a default, so a planted required field fails here instead of silently
+    # breaking every `model()` call and "default document" assumption in the suite.
+    fields = KINDS[kind].model_fields
+    required = {name for name, field in fields.items() if field.is_required()}
+    assert required == set(REQUIRED_VALUES.get(kind, {}))
+    assert all(field.default is not PydanticUndefined
+               for name, field in fields.items() if name not in required)
+
+
+def test_a_planted_required_field_fails_the_required_field_rule() -> None:
+    # The teeth of the rule above: a model with one more required field than the samples name.
+    class Planted(FastenerParams):
+        kind = "planted"
+        extra_required: float = Field(...)
+
+    required = {name for name, field in Planted.model_fields.items() if field.is_required()}
+    assert required == {"extra_required"}
+    assert required != set(REQUIRED_VALUES.get("planted", {}))
+
+
 def test_the_registry_is_not_empty_and_holds_the_default() -> None:
     # First, so an empty registry fails here instead of passing every parametrised test
     # below with nothing to iterate (Pitfall 2).
@@ -213,7 +239,9 @@ def test_the_api_query_is_the_model(kind: str) -> None:
 
 @pytest.mark.parametrize("kind", list(KINDS))
 def test_a_foreign_field_is_refused_on_every_route(kind: str) -> None:
-    query: Params = {FOREIGN: 1}
+    # The required values ride along: a request missing one reports that first, and this test is
+    # about the foreign key being named.
+    query: Params = {FOREIGN: 1, **REQUIRED_VALUES.get(kind, {})}
     for path in (f"/api/{kind}/info", f"/api/{kind}/model.stl"):
         res = client.get(path, params=query)
         assert res.status_code == 422, path
@@ -227,6 +255,36 @@ def test_the_cli_flags_are_the_model(kind: str, capsys: pytest.CaptureFixture[st
     # fields, so a stray flag fails here instead of being filtered out.
     for command, hand_written in HAND_WRITTEN.items():
         assert _cli_flags(kind, command, capsys) == ["--help", *hand_written, *fields]
+
+
+# `screw pair` has no hand-written flag at all (no --preset: a preset is metadata of info and
+# export, D-09) and is offered only for kinds whose model declares a clearance, so it is judged
+# apart from HAND_WRITTEN, whose commands exist for every kind.
+PAIR_KINDS = [kind for kind, model in KINDS.items() if "clearance" in model.model_fields]
+
+
+def test_the_pair_command_is_offered_for_nut_only() -> None:
+    assert PAIR_KINDS == ["nut"]
+
+
+@pytest.mark.parametrize("kind", PAIR_KINDS)
+def test_the_pair_flags_are_the_model_and_nothing_else(
+        kind: str, capsys: pytest.CaptureFixture[str]) -> None:
+    assert _cli_flags(kind, "pair", capsys) == ["--help", *_expected_flags(kind)]
+
+
+def test_a_stray_flag_makes_the_pair_flag_comparison_fail(
+        monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    real = cli._add_args
+
+    def plant(ap: argparse.ArgumentParser, kind: str, model: type[FastenerParams]) -> None:
+        real(ap, kind, model)
+        ap.add_argument("--stray", default=None)
+
+    monkeypatch.setattr(cli, "_add_args", plant)
+    flags = _cli_flags("nut", "pair", capsys)
+    assert "--stray" in flags
+    assert flags != ["--help", *_expected_flags("nut")]
 
 
 def test_a_stray_flag_makes_the_flag_comparison_fail(
@@ -281,12 +339,19 @@ def test_a_foreign_or_abbreviated_flag_exits_2(kind: str,
 def test_the_cli_and_the_api_print_the_same_document(
         kind: str, capsys: pytest.CaptureFixture[str]) -> None:
     model = KINDS[kind]
-    cases: list[Params] = [{}]
+    # A required field has no default to move off, so its value comes from the samples and every
+    # case carries it: a request without it is refused, not an info document.
+    required: Params = {**REQUIRED_VALUES.get(kind, {})}
+    cases: list[Params] = [{**required}]
     for name, field in model.model_fields.items():
+        if name in required:
+            continue
         if isinstance(field.default, bool):
-            cases.append({name: not field.default})
+            cases.append({**required, name: not field.default})
         elif isinstance(field.default, float):
-            cases.append({name: field.default * 1.5})
+            cases.append({**required, name: field.default * 1.5})
+    for name, value in REQUIRED_VALUES.get(kind, {}).items():
+        cases.append({**required, name: value * 1.5})
     assert len(cases) > 1, "no float field to move off its default"
 
     def argv(values: Params) -> list[str]:
@@ -308,7 +373,21 @@ def test_the_cli_and_the_api_print_the_same_document(
         assert api_doc["warnings"][0] == STANDING_WARNING
         # The literal too, so rewording the constant fails here and not only in test_calc (D-04).
         assert api_doc["warnings"][0] == (
-            "plain-cut thread ends, no tip chamfer or under-head fillet; not a product build")
+            "ends modelled per L15: bolt tip chamfer, under-head fillet on an ISO 4014 plain "
+            "shank, nut lead-in countersinks and face chamfers; nominal, not toleranced; "
+            "not a product build")
+
+
+def test_the_limits_heading_is_the_same_ascii_string_on_the_cli_and_the_api(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    # INFO-02: byte for byte, semicolon and spaces included, on an exact ISO 262 size of each kind.
+    heading = "limits for a bought part; this model is nominal and not toleranced"
+    for kind, extra in (("bolt", []), ("nut", ["--clearance", "0.1"])):
+        cli.main(["info", kind, *extra])
+        cli_groups = {r["group"] for r in json.loads(capsys.readouterr().out)["rows"]}
+        api = client.get(f"/api/{kind}/info", params={"clearance": 0.1} if extra else {})
+        assert heading in cli_groups
+        assert heading in {r["group"] for r in api.json()["rows"]}
 
 
 def test_the_downloads_of_iso_4017_m8_x_70_are_one_sentence_on_the_cli_the_api_and_export(
@@ -343,15 +422,18 @@ def test_the_downloads_of_iso_4017_m8_x_70_are_one_sentence_on_the_cli_the_api_a
 def test_the_no_flag_is_a_value_and_agrees_with_the_omitted_default(
         kind: str, capsys: pytest.CaptureFixture[str]) -> None:
     # `--no-x` is a real value (False), not "not given", and agrees with the omitted default.
-    cli.main(["info", kind])
+    required = [word for name, value in REQUIRED_VALUES.get(kind, {}).items()
+                for word in (_flag(name), repr(value))]
+    cli.main(["info", kind, *required])
     default_doc = capsys.readouterr().out
-    cli.main(["info", kind, "--no-left-hand"])
+    cli.main(["info", kind, *required, "--no-left-hand"])
     assert capsys.readouterr().out == default_doc
 
 
 @pytest.mark.parametrize("kind", list(KINDS))
-def test_every_row_key_is_unread_by_name_in_the_ui(kind: str) -> None:
-    keys = [row.key for row in derive(KINDS[kind]()).rows]
+def test_every_row_key_is_unread_by_name_in_the_ui(
+        kind: str, part_of: Callable[[str], FastenerParams]) -> None:
+    keys = [row.key for row in derive(part_of(kind)).rows]
     assert keys, "derive() produced no rows to check"
     assert _field_literals(APP_JS, keys) == []
 
@@ -422,13 +504,15 @@ def test_the_ui_round_trips_every_field_through_generic_code() -> None:
 
 
 @pytest.mark.parametrize("kind", list(KINDS))
-def test_the_form_has_a_size_fieldset_then_a_thread_one_then_a_head_one(kind: str) -> None:
+def test_the_form_has_a_fieldset_per_group_in_first_seen_order(kind: str) -> None:
     # Rule 1: one fieldset per group in first-seen order, so `left_hand` (declared between
-    # pitch and length) opens a `Thread` fieldset after `Size` and `length` stays in `Size`; `s`
-    # and `k` open a `Head` fieldset last (04-03).
+    # pitch and length) opens a `Thread` fieldset after `Size` and `length` stays in `Size`; the
+    # bolt's `s` and `k` open a `Head` fieldset last (04-03); the nut's `s` and `m` open `Nut`
+    # and its `clearance` opens `Pair` (05-04).
     properties = client.get("/api/schema", params={"kind": kind}).json()["properties"]
     groups = list(dict.fromkeys(prop["group"] for prop in properties.values()))
-    assert groups == ["Size", "Thread", "Head"]
+    assert groups == {"bolt": ["Size", "Thread", "Head"],
+                      "nut": ["Size", "Thread", "Nut", "Pair"]}[kind]
     assert properties["left_hand"]["type"] == "boolean"
     assert properties["left_hand"]["default"] is False
 
@@ -600,6 +684,34 @@ def test_the_badge_composes_from_the_status_and_the_display_and_the_basis_stays_
     assert "location.hash" not in _function_body("pick")
 
 
+def test_after_a_failed_update_the_selects_show_the_row_the_fields_hold_exactly() -> None:
+    # G-05-1, D-12, D-09, L02: a nut with its clearance empty answers every info request with a
+    # 422 that carries no preset, and blank selects after that undid every pick. With no info
+    # document the selects show the first catalogue row the form holds exactly (the rule and
+    # the order of calc.presets.match), else blank; the badge stays empty (it reads a document).
+    row_of_fields = _squash(_function_body("rowOfFields"))
+    assert "catalogue.rows.find((row) => Object.entries(row.fields).every(" in row_of_fields
+    # IN-06: the catalogue is the old kind's until a kind switch's fetch lands, so a row can name
+    # a field the new form lacks; a missing control does not hold the row and never throws.
+    for statement in ("const control = fields.get(name);",
+                      "if (control === undefined) return false;", "read(control.input)"):
+        assert statement in row_of_fields, statement
+    assert "!== ''" in row_of_fields  # an empty control is no value: Number('') is 0
+    assert "Number(held) === value" in row_of_fields  # exact, as the server compares
+    assert "Math." not in row_of_fields  # no tolerance, no nearest row
+    show_match = _squash(_function_body("showMatch"))
+    assert "preset === null ? rowOfFields() : undefined" in show_match
+    assert "if (preset === null) badge.textContent = '';" in show_match
+    # The definition and the one call: nothing else reaches the match. Counted by pattern, so a
+    # comment that names the function cannot hide a second call (IN-05).
+    assert re.findall(r"(?<!function )rowOfFields\(", APP_JS) == ["rowOfFields("]
+    # Every failure still goes through showMatch(null).
+    assert "showMatch(null);" in _function_body("update")
+    # The match never reaches the link (D-09).
+    for name in ("partQuery", "writeHash"):
+        assert "rowOfFields" not in _function_body(name), name
+
+
 def test_the_ui_builds_nodes_from_text_only() -> None:
     assert "textContent" in APP_JS
     for sink in ("innerHTML", "outerHTML", "insertAdjacentHTML"):
@@ -613,7 +725,7 @@ def test_the_ui_builds_both_download_links_from_the_info_document_and_names_no_q
     assert "setDownloads(q, info.downloads)" in _function_body("update")
     assert "downloadLinks" in APP_JS
     assert set(re.findall(r"\binfo\.(\w+)", APP_JS)) == {
-        "designation", "rows", "warnings", "notes", "preset", "downloads"}
+        "designation", "rows", "warnings", "notes", "preset", "downloads", "counterpart"}
     assert set(re.findall(r"\bdownload\.(\w+)", APP_JS)) == {"format", "quality", "refusal"}
     body = _function_body("setDownloads")
     assert "qs.set('quality', download.quality)" in body
@@ -736,3 +848,238 @@ def test_a_thread_length_conflict_is_the_same_words_on_the_api_and_the_cli(
                       "--thread-length", str(thread_length)])
         assert stop.value.code == 2
         assert capsys.readouterr().err == f"error: {detail['msg']}\n"
+
+
+@pytest.mark.parametrize(("kind", "other", "params"), [
+    ("bolt", "nut", {}), ("bolt", "nut", {"d": 6.5}),
+    ("nut", "bolt", {"clearance": 0.1}), ("nut", "bolt", {"clearance": 0.1, "d": 6.5})])
+def test_the_cli_and_the_api_print_the_same_counterpart(
+        kind: str, other: str, params: Params, capsys: pytest.CaptureFixture[str]) -> None:
+    cli.main(["info", kind, *[a for k, v in params.items() for a in (_flag(k), repr(v))]])
+    cli_doc = json.loads(capsys.readouterr().out)
+    api_doc = client.get(f"/api/{kind}/info", params=params).json()
+    assert cli_doc["counterpart"] == api_doc["counterpart"]
+    assert cli_doc["counterpart"]["kind"] == other
+    assert cli_doc["warnings"] == api_doc["warnings"]
+    assert "clearance" not in cli_doc["counterpart"]["fields"]
+
+
+def test_the_ui_reads_the_counterpart_by_kind_and_fields_only_and_names_no_kind() -> None:
+    # D-01, D-02, T-05-22: the link is composed from `info.counterpart` alone, as text in a hash
+    # fragment (never innerHTML), and the page quotes no kind, field or label of its own.
+    assert set(re.findall(r"\bcounterpart\.(\w+)", APP_JS)) == {"kind", "fields"}
+    body = _function_body("showCounterpart")
+    # G-05-3, L15 amendment of 2026-10-21: the value last typed into the target kind's fields
+    # with no default goes in before the server's fields, so the server's fields win.
+    assert ("new URLSearchParams({ kind: counterpart.kind, ...lastTyped.get(counterpart.kind), "
+            "...counterpart.fields })") in body
+    assert "counterpartLink.href = `#${q}`;" in body
+    assert "`Matching ${counterpart.kind}`" in body
+    assert "counterpartLink.hidden = counterpart === null;" in body
+    assert "showCounterpart(info.counterpart ?? null);" in _function_body("renderInfo")
+    # A failed update and a refused link take the link away with the panel it belongs to.
+    assert "showCounterpart(null);" in _function_body("refuseLink")
+    assert "showCounterpart(null);" in _function_body("update")
+    for kind_name in KINDS:
+        assert re.findall(rf"""(['"`]){kind_name}\1""", APP_JS) == [], kind_name
+    html = (STATIC / "index.html").read_text()
+    assert re.search(r'<p id="badge"[^>]*></p>\s*<a id="counterpart" hidden></a>', html)
+
+
+def test_the_matching_link_carries_only_a_value_typed_in_this_page_into_a_field_with_no_default(
+) -> None:
+    # G-05-3, owner ruling 2026-10-21 (L15 amendment): the page remembers what was typed, per
+    # kind, into a field that has no default, and only a typed input event writes it. A link,
+    # Reset or a kind change never does (L02: no number the user did not type), and nothing
+    # reads it but the matching-part link, so it is never in a hash, a request or a download. The
+    # memory is keyed by formKind, the kind of the controls typed into (review WR-07, IN-05).
+    source = _squash(APP_JS)
+    assert "const lastTyped = new Map();" in APP_JS
+    remember = _function_body("rememberTyped")
+    for statement in ("formKind === null", "defaults[input.name] !== undefined",
+                      "lastTyped.get(formKind)", "read(input)", "delete typed[input.name]",
+                      "lastTyped.set(formKind, typed)"):
+        assert statement in remember, statement
+    assert "currentKind" not in remember
+    assert ("form.addEventListener('input', (e) => { rememberTyped(e.target); "
+            "scheduleUpdate(); });") in source
+    assert APP_JS.count("rememberTyped(") == 2  # the definition and the listener
+    assert APP_JS.count("lastTyped.set(") == 1
+    for reader in ("partQuery", "writeHash", "update", "setDownloads", "navigate", "refuseLink",
+                   "pick", "renderInfo", "showMatch", "buildForm", "write"):
+        assert "lastTyped" not in _function_body(reader), reader
+    for storage in ("localStorage", "sessionStorage", "document.cookie"):
+        assert storage not in APP_JS, storage
+
+
+def test_the_typed_memory_is_keyed_by_the_kind_of_the_form_on_screen() -> None:
+    # WR-07, 2026-10-21, reproduced in a headless browser: currentKind is set only after a kind
+    # switch's catalogue fetch, while buildForm has the new controls on screen. A clearance typed
+    # in that window went under the old kind, and the nut's Matching bolt link carried it. The key
+    # is formKind, set with the controls and defaults in one synchronous block, cleared with them.
+    assert "let formKind = null;" in APP_JS
+    build = _squash(_function_body("buildForm"))
+    assert "if (mine !== formSeq) return false; clearForm(); formKind = kind;" in build
+    assert "await" not in build[build.index("formKind = kind;"):]
+    assert "formKind = null;" in _function_body("clearForm")
+    assert re.findall(r"(?<!let )\bformKind = (\w+);", APP_JS) == ["null", "kind"]
+    # Owner choice (a), 2026-10-21: in that window update() neither writes the hash nor requests
+    # the old kind's route with the new form's fields, because the guard is its first statement.
+    assert _function_body("update").strip().startswith(
+        "if (currentKind === null || formKind !== currentKind) return;")
+
+
+def test_reset_and_a_navigation_forget_a_typed_value_the_field_no_longer_holds() -> None:
+    # Review WR-08 and the owner's ruling of 2026-10-21 ("forget on Reset and on a link"): a write
+    # that is not typing drops the remembered entry when the field then holds another value, so the
+    # matching-part link never carries a number the field does not show. A link that writes the
+    # same value back (the round trip of UAT test 3) keeps it.
+    forget = _function_body("forgetUntyped")
+    for statement in ("lastTyped.get(formKind)", "read(input) !== typed[input.name]",
+                      "delete typed[input.name]"):
+        assert statement in forget, statement
+    assert "lastTyped.set(" not in forget  # it only forgets; typing is the one writer
+    assert "currentKind" not in forget  # keyed like the writer
+    assert APP_JS.count("forgetUntyped(") == 3  # the definition, navigate and Reset
+    each = "for (const { input } of fields.values()) forgetUntyped(input);"
+    pinned_write = ("for (const [name, { input }] of fields) "
+                    "write(input, h.get(name) ?? defaults[name]);")
+    reset_write = "for (const [name, { input }] of fields) write(input, defaults[name]);"
+    # The forget follows the write directly, before a refusal can return.
+    assert f"{pinned_write} {each}" in _squash(_function_body("navigate"))
+    assert f"{reset_write} {each} update();" in _squash(APP_JS)
+
+
+def test_a_bolts_matching_nut_link_with_a_typed_clearance_opens_a_nut_that_builds() -> None:
+    # G-05-3, the server half of UAT test 3: the page adds the typed clearance to the fields
+    # the bolt's document names, and the nut that link opens builds. Nothing typed is still refused.
+    counterpart = client.get("/api/bolt/info").json()["counterpart"]
+    assert counterpart["kind"] == "nut"
+    fields = counterpart["fields"]
+    assert "clearance" not in fields  # D-02's published shape is unchanged
+    linked = {**fields, "clearance": "0.1"}
+    info = client.get("/api/nut/info", params=linked)
+    assert info.status_code == 200
+    assert info.json()["preset"]["id"] == "iso4032:M6"
+    stl = client.get("/api/nut/model.stl", params={**linked, "quality": "preview"})
+    assert stl.status_code == 200
+    assert len(stl.content) > 84  # a binary STL header and count, then triangles
+    refused = client.get("/api/nut/info", params=fields)
+    assert refused.status_code == 422
+    (detail,) = refused.json()["detail"]
+    assert detail["type"] == "missing"
+    assert detail["loc"] == ["query", "clearance"]
+
+
+def test_a_field_with_no_default_is_written_empty_never_as_the_word_undefined() -> None:
+    # RESEARCH P9b: the nut's clearance has no default, so `defaults[name]` is undefined.
+    assert "else input.value = v ?? '';" in _function_body("write")
+    assert "input.value = v;" not in APP_JS
+
+
+def test_a_kind_change_drops_the_old_mesh_and_what_described_it() -> None:
+    # R10, T-05-23 (05-OWNER-READS.md): a nut with no clearance typed builds nothing, so the old
+    # bolt mesh, its warnings and its notes must not stay on screen under "last valid part".
+    nav = _squash(_function_body("navigate"))
+    assert nav.index("dropMesh();") < nav.index("await buildForm(kind)")
+    # Plan 05-23, owner choice "fix in navigate": navigate also rebuilds when the form on screen
+    # is not the link's kind. Back before a kind switch's catalogue loaded left the overtaken
+    # navigation's form on screen and the same-kind check kept it. Measured: a silent bolt under
+    # the nut's controls, then nothing at all once update() waited for the form.
+    assert nav.index("if (kind !== currentKind || kind !== formKind) {") < nav.index("dropMesh();")
+    drop = _function_body("dropMesh")
+    for statement in ("scene.remove(mesh, edges);", "mesh = null;", "edges = null;",
+                      "meshWarnings = [];", "meshNotes = [];", "pendingWarnings = [];",
+                      "pendingNotes = [];", "fitted = false;"):
+        assert statement in drop, statement
+    assert APP_JS.count("dropMesh()") == 2  # the definition and the one call on a kind change
+
+
+def _rebuild_block() -> str:
+    """navigate's kind-change block, comment lines dropped and whitespace squashed, so the wording
+    of a comment or a line break neither satisfies nor breaks a pin on it (review IN-08)."""
+    code = "\n".join(line for line in _function_body("navigate").splitlines()
+                     if not line.strip().startswith("//"))
+    nav = _squash(code)
+    start = nav.index("if (kind !== currentKind || kind !== formKind) {")
+    return nav[start:nav.index("currentKind = kind;", start)]
+
+
+def test_a_kind_change_clears_the_old_form_and_picker_before_it_fetches_the_new_ones() -> None:
+    # Reviews WR-09 (plan 05-24) and WR-10 (plan 05-25), 2026-10-21, each reproduced in a
+    # headless browser: what a kind change left on screen while it fetched the new kind was live
+    # or described the old part. The old picker wrote a bolt row into the nut's controls and
+    # threw; the old form rebuilt the bolt after its mesh was dropped; the bolt's rows, its
+    # Matching link, two live bolt downloads and a failed bolt's "last valid part" status stayed
+    # beside the blank form, for good when the schema fetch failed. So every piece goes before
+    # the first await. One ordering assertion and no file-wide count, so a split await, a comment
+    # between the clears or another caller of a clear elsewhere breaks nothing (review IN-08).
+    head = _rebuild_block().split("await ", 1)[0]
+    for clear in ("dropMesh();", "clearForm();", "clearPicker();", "$('#dims').replaceChildren();",
+                  "showCounterpart(null);", "setDownloads(null);", "setStatus('');"):
+        assert clear in head, clear
+
+
+def test_a_kind_change_whose_fetch_fails_is_refused_whole_unless_overtaken() -> None:
+    # Review WR-10, 2026-10-21, reproduced: the schema fetch sat outside the catalogue fetch's
+    # try, so a 500 left a blank form under a selector that read the new kind, and a select
+    # reports no change when the option it shows is picked again. Both fetches now share the try
+    # whose catch refuses the switch whole, which deselects the selector, so picking any kind
+    # retries. The catch first drops the failure of a navigation a newer one overtook: refusing
+    # there wiped the bolt the user had switched back to (measured, plan 05-25).
+    head, rest = _rebuild_block().split("try {", 1)
+    assert "await" not in head
+    attempt, caught = rest.split("} catch (err) {", 1)
+    assert "await buildForm(kind)" in attempt
+    assert "await loadPresets(kind)" in attempt
+    guard = "if (mine !== formSeq) return;"
+    refusal = "return refuseLink(`Could not load the part: ${err.message}`);"
+    assert guard in caught
+    assert refusal in caught
+    assert caught.index(guard) < caught.index(refusal)
+    assert "const mine = ++formSeq;" in _squash(_function_body("navigate"))
+
+
+def test_every_row_key_of_the_nut_and_pair_documents_is_unread_by_name_in_the_ui() -> None:
+    # Plans 05-04 to 05-09 added these keys; `m` and `clearance` are fields too (05-10).
+    exact = KINDS["nut"].model_validate({**REQUIRED_VALUES["nut"]})
+    m18 = KINDS["nut"].model_validate(
+        {**REQUIRED_VALUES["nut"], "d": 18.0, "pitch": 2.5, "s": 27.0, "m": 15.8})
+    keys = {row.key for p in (exact, m18) for row in derive(p).rows}
+    assert {"pitch_diameter", "minor_diameter", "m_max", "mw_min", "D1_min", "D2_max",
+            "flank_gap", "axial_play", "nut_pitch_diameter", "engagement_turns"} <= keys
+    assert _field_literals(APP_JS, [*keys, "m", "clearance"]) == []
+
+
+def test_download_name_marks_only_the_preview_stl() -> None:
+    # D-22, R9: the coarse mesh says so in its name; the fine STL and the STEP (which has no
+    # tessellation) keep the plain slug.
+    slug = BoltParams().slug()
+    assert download_name(BoltParams(), "stl", "preview") == f"{slug}_preview.stl"
+    assert download_name(BoltParams(), "stl", "fine") == f"{slug}.stl"
+    assert download_name(BoltParams(), "step", "preview") == f"{slug}.step"
+    assert download_name(BoltParams(), "step", "fine") == f"{slug}.step"
+
+
+@pytest.mark.parametrize("kind", sorted(KINDS))
+@pytest.mark.parametrize(("fmt", "quality"), [
+    ("stl", "preview"), ("stl", "fine"), ("step", "preview"), ("step", "fine")])
+def test_the_api_header_and_the_cli_name_a_download_alike(
+        kind: str, fmt: str, quality: str, tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    # FRNT-05 parity for the file name: `-o <directory>` writes the name the Content-Disposition
+    # header carries. The CLI side is stubbed (its bytes are not under test, and the API side has
+    # just built the same part), so the check costs one build per cell, not two.
+    values = REQUIRED_VALUES.get(kind, {})
+    r = client.get(f"/api/{kind}/model.{fmt}", params={**values, "quality": quality})
+    assert r.status_code == 200
+    header = re.fullmatch(r'attachment; filename="([^"]*)"', r.headers["content-disposition"])
+    assert header, r.headers["content-disposition"]
+
+    def stub(*_: object) -> bytes:
+        return b"x"
+
+    monkeypatch.setattr("screw.solid.export", stub)
+    flags = [item for k, v in values.items() for item in (_flag(k), str(v))]
+    cli.main(["export", kind, "-o", str(tmp_path), "--format", fmt, "--quality", quality, *flags])
+    assert [f.name for f in tmp_path.iterdir()] == [header.group(1)]

@@ -87,7 +87,7 @@ def test_the_grid_is_the_measured_7160_row_corpus() -> None:
 def test_the_grid_marker_is_registered_and_deselected_by_default() -> None:
     options = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text())["tool"]["pytest"][
         "ini_options"]
-    assert "-m 'not grid'" in options["addopts"]
+    assert "-m 'not grid and not pair'" in options["addopts"]
     assert any(m.startswith("grid:") for m in options["markers"])
 
 

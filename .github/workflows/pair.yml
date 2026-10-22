@@ -1,0 +1,49 @@
+name: pair
+
+# The slow pair tier (D-07): the 240 pre-registered cells of the kernel pair proof, each in its
+# own child process, every verdict asserted against tests/data/pair_expected.tsv
+# (tests/test_pair.py). It records and never gates `main`: a cell whose verdict differs from the
+# table is a finding to write up, never a flake to retry or a row to reclassify.
+#
+# It is not in ci.yml on purpose, for the reason grid.yml is not (L08): every job in ci.yml is
+# required green on a PR head, so a slow recording-only tier there would gate every merge.
+# `.github/workflows/required-jobs.txt` is unchanged and `make pr.land` reads ci.yml runs only.
+# The one cell that is in ci.yml is the verify cell, inside `make verify`.
+#
+# No `pull_request` or branch-push trigger: no untrusted code runs with this token, and the
+# token reads the repository and nothing else (T-05-34). tests/test_pair.py pins all three.
+on:
+  workflow_dispatch:
+  schedule:
+    # Weekly, Monday 04:23 UTC, an hour after grid.yml. GitHub may disable a schedule after 60
+    # days without repository activity; `workflow_dispatch` still works.
+    - cron: "23 4 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  pair:
+    runs-on: ubuntu-latest
+    # Sizing is UNVERIFIED on GitHub runners: the slowest recorded cell is 137.3 s on the host
+    # that recorded it, and a runner is slower. The first run's wall time is recorded, never
+    # asserted.
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        size: [M2, M2.5, M3, M3.5, M4, M5, M6, M7, M8, M10, M12, M14, M16, M18, M20]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: make pair PYTHON=python SIZE=${{ matrix.size }}
+      # `.venv` exists only once make pair has made it; `if: always()` keeps the pair in the
+      # log of a red run too.
+      - name: kernel pair this run resolved
+        if: always()
+        run: >-
+          .venv/bin/python -c "from importlib.metadata import version;
+          print('cadquery', version('cadquery'), 'cadquery-ocp', version('cadquery-ocp'))"

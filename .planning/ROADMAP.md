@@ -27,7 +27,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Thread Spike** - a pre-registered measurement picks the thread construction, volume estimator and turn cap before any thread field exists (completed 2026-10-09)
 - [x] **Phase 3: Real Helical Thread** - the bolt kind carries a real ISO 68-1 helical thread, right- or left-hand, behind a postcondition gate (completed 2026-10-11)
 - [x] **Phase 4: ISO Hex Bolts and Screws** - ISO 4014 and 4017 presets from cited, tested table rows fill explicit mm fields; a traceable info panel for the bolt (completed 2026-10-12)
-- [ ] **Phase 5: Hex Nut and Kernel Pair Proof** - ISO 4032 nut with a clearance field, matching-part derivation and a kernel pair proof that can fail
+- [x] **Phase 5: Hex Nut and Kernel Pair Proof** - ISO 4032 nut with a clearance field, matching-part derivation and a kernel pair proof that can fail (completed 2026-10-22)
 - [ ] **Phase 6: Printed Pair Acceptance** - the owner's printed test sets the clearance default and the printability threshold; a printed pair threads together by hand
 - [ ] **Phase 7: Operability Re-sweep** - every runtime bound measured on the full grid on linux/amd64 and cited; every allowed configuration builds inside the timeout
 
@@ -228,17 +228,95 @@ Plans:
 **Mode:** mvp
 **Depends on**: Phase 4
 **Precondition (owner checkpoint)**: owner holds purchased copies of ISO 4014:2022, 4017:2022, 4032:2023, 262:2023, 724:2023, 965-2:2024, and ISO 4753 (bolt ends, D-02). The ISO 4032 and ISO 965-2 rows ship here (TABL-04); ISO 4753 is read here for THRD-05.
+**Precondition as amended by L14 (2026-10-20)**: for the documents L14 maps, the free GOST text stands in for the purchased ISO copy: GOST ISO 4032-2014 (ISO 4032:2012) for the nut rows; GOST 24705-2004 (ISO 724:1993, MOD) and GOST 16093-2004 for the 6g/6H limits, which are derived (no GOST prints ISO 965-2's limit tables); GOST 12414-94 (ISO 4753:1983) for the tip end; and, for a new ISO 4014 value, the owner's ISO 4014:2022 copy if it holds it, else GOST ISO 4014-2014 (asked at plan 05-12). The Phase 4 ISO 262:2023, 4017:2022 and 4014:2022 rows stand as L13 records them. Buying the ISO texts is debt (`docs/tech_debt/active/2026-10-20-iso-standards-not-purchased.md`).
 **Revision (L11 escape clause, 2026-10-13)**: M18 is not falsifiable on either hand in `2026-10-08-a-pair` (one control pose reads empty at every clearance). Owner's direction: scope the proof, M18 reads `inconclusive`. The D-14 rule stands as PAIR-03 writes it; no rule or constant is changed toward a `proven`. Phase 5 is plannable on this revision (decision log L11, revision direction).
 **Requirements**: TYPE-03, TYPE-04, THRD-05, PAIR-01, PAIR-03, PAIR-04, INFO-01, INFO-02, FRNT-06
 **Success Criteria** (what must be TRUE):
-  1. A user can generate an ISO 4032 hex nut M2–M20 from a preset or mm fields on the UI, API and CLI (`s`, `e`, `m`, `mw`, `dw`, chamfers on both faces), with M2–M4 labelled "informative / historical" in the preset and on the panel; for any bolt the user gets the matching nut, and vice versa, from the same `d`, pitch, hand and clearance; the nut thread and the bolt tip carry lead-in chamfers; the parity test is green with both kinds.
-  2. The nut's `clearance` field is radial millimetres, a positive value enlarges the nut's thread while the bolt stays nominal, and no default for it ships before Phase 6 records the printed test; the info panel shows the full INFO-01 set (clearance radial and diametral, resulting nut diameters, engagement in turns) and the 6g/6H limits from ISO 965-2:2024 under the label "limits for a bought part; this model is nominal and not toleranced".
+  1. A user can generate an ISO 4032 hex nut M2–M20 from a preset or mm fields on the UI, API and CLI (`s`, `e`, `m`, `mw`, `dw`, chamfers on both faces), with M2–M4 labelled "informative / historical" in the preset and on the panel (amended 2026-10-20: the rows are read from GOST ISO 4032-2014 under L14, whose 2012 edition has no Annex A, so by the owner's ruling no row is labelled informative and each row cites its Table 1 or Table 2; the presets are its 14 sizes from M2 to M20, which include no M7, and an M7 nut is built from mm fields); for any bolt the user gets the matching nut, and vice versa, from the same `d`, pitch, hand and clearance; the nut thread and the bolt tip carry lead-in chamfers; the parity test is green with both kinds.
+  2. The nut's `clearance` field is radial millimetres, a positive value enlarges the nut's thread while the bolt stays nominal, and no default for it ships before Phase 6 records the printed test; the info panel shows the full INFO-01 set (clearance radial and diametral, resulting nut diameters, engagement in turns) and the 6g/6H limits from ISO 965-2:2024 (amended 2026-10-20, L14: derived from the GOST 24705-2004 basic diameters and the GOST 16093-2004 printed deviations and tolerances, labelled derived) under the label "limits for a bought part; this model is nominal and not toleranced".
   3. `screw pair` and the solid-package function return `proven | violated | inconclusive` with the control result: a half-pitch axial offset of the same pair must collide at every matched pose, or the verdict is `inconclusive` naming the pose and clearance whose control read empty, never `proven`; clearance ≤ 0 is `inconclusive` by definition; right- and left-hand pairs go through the same checks; one size runs in `make verify`, the full grid in a CI job against expected verdicts pre-registered from `2026-10-08-a-pair` before the first run (M18 `inconclusive` on both hands at K = 3; each size's excluded clearances outside its proven set), and no rule or constant is changed to turn an `inconclusive` into a `proven`.
   4. The pair proof is not an API endpoint: the API and UI show closed-form flank gaps instead, and import-linter forbids `app` and `pool` from importing the pair module.
   5. STL and STEP downloads come from the same modelled-thread solid; the STL chord deviation is explicit, measured against the clearances the printed test will use, and recorded and cited in a decision entry, with `ControlSurfaceDeflection` on for downloads; the preview may mesh coarser, the numbers may not.
   6. The M18 control that reads empty at theta -2π/3 (right hand) and +2π/3 (left hand) at every clearance in `2026-10-08-a-pair` (0 solids, no boolean error or warning) is diagnosed in one bounded task whose method is committed before it runs; the finding is recorded in a decision entry and changes no verdict rule. Until a later campaign proves M18, the M18 nut ships (criterion 1), `screw pair` reads `inconclusive` for it, and the info panel's pair section labels M18 "kernel pair proof inconclusive at K = 3 (`2026-10-08-a-pair`)" from the cited record, not from a kernel call (criterion 4).
 
-**Plans**: TBD
+**Plans**: 25/25 plans complete (sequential waves 1-25; the pre-registration lands as its own PR first)
+
+Plans:
+**Wave 1**
+- [x] 05-01-PLAN.md — Pre-registration PR: expected pair verdicts derived from `2026-10-08-a-pair` by the unmodified rule, and the M18 diagnosis protocol with its probe (D-07, D-08)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [x] 05-02-PLAN.md — D-10 end-cut probe, then the owner read of ISO 4032, 724, 965-2, 4753 and the phase rulings, recorded in 05-OWNER-READS.md (D-14)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [x] 05-03-PLAN.md — Codex reviews the pre-registration PR; it lands on main; the phase branch merges origin/main
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [x] 05-04-PLAN.md — Tracer: the nut kind with a required clearance on every front end, hex prism less the L11 void, two gates (D-01, D-15)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [x] 05-05-PLAN.md — Nut rules: root radius with clearance, nut_too_thin, turn cap on m + 2P, the non-positive clearance warning, the nut fine-STL rule (D-04, D-13)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [x] 05-06-PLAN.md — GOST ISO 4032-2014 (ISO 4032:2012) nut rows double-entered (L14), relation tests, the frozen nut defaults pinned to the M6 row
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [x] 05-07-PLAN.md — The ISO 4032 catalogue and the nut's exact match, cited values, designation and grade note (D-17 as ruled 2026-10-20)
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [x] 05-08-PLAN.md — GOST 24705-2004 basic diameters and GOST 16093-2004 deviations double-entered, the 6g/6H limits derived from them (D-16, L14)
+
+**Wave 9** *(blocked on Wave 8 completion)*
+- [x] 05-09-PLAN.md — The panel: pitch and minor diameters, the INFO-02 limits group, the pair rows, the M18 note (D-16, D-19, D-20)
+
+**Wave 10** *(blocked on Wave 9 completion)*
+- [x] 05-10-PLAN.md — The matching part (counterpart) on every info document and the page link; UI contract amendments (D-02, D-03)
+
+**Wave 11** *(blocked on Wave 10 completion)*
+- [x] 05-11-PLAN.md — TDD: kernel-free end-cut oracles, end models, capped depths and the piece tolerance (D-09, D-10)
+
+**Wave 12** *(blocked on Wave 11 completion)*
+- [x] 05-12-PLAN.md — Bolt ends: the tip cone read from GOST 12414-94 (ISO 4753, L14) and the ISO 4014 under-head fillet ring, gated whole and by piece, watertight sweep (D-09, D-11)
+
+**Wave 13** *(blocked on Wave 12 completion)*
+- [x] 05-13-PLAN.md — Nut ends: lead-in countersinks and face chamfers on both faces, watertight sweep; the standing warning rewritten (D-12, D-18)
+
+**Wave 14** *(blocked on Wave 13 completion)*
+- [x] 05-14-PLAN.md — The pair proof: the rule moved into calc/pair.py, the bodies and prove() in solid/pair.py, the shipped-solid evidence row, the server-side contract (D-05, D-06, D-24)
+
+**Wave 15** *(blocked on Wave 14 completion)*
+- [x] 05-15-PLAN.md — `screw pair` with exit codes, the verify cell, the pair-marked grid, `make pair`, pair.yml; the ubuntu reading of the verify cell (D-06, D-07)
+
+**Wave 16** *(blocked on Wave 15 completion)*
+- [x] 05-16-PLAN.md — Kernel runs: the M18 diagnosis, the full pair grid, the product cells at the verified nut height (D-07, D-08)
+
+**Wave 17** *(blocked on Wave 16 completion)*
+- [x] 05-17-PLAN.md — FRNT-06: the fine STL deflection by the owner's rule, ControlSurfaceDeflection and deviation pinned, caps re-derived if the preset moved (D-21)
+
+**Wave 18** *(blocked on Wave 17 completion)*
+- [x] 05-18-PLAN.md — The preview download names its quality (D-22); L15 (the phase entry; L14 is the GOST source decision), the overview, the UI contract, requirement and state lines, the phase's debt (D-23)
+
+**Wave 19** *(gap closure; blocked on Wave 18 completion)*
+- [x] 05-19-PLAN.md — The nut's own fine-STL cap (T-05-12, R12 b, R16, R17): a pre-registered run per ISO 262 coarse size and hand, `nut_fine_stl_refusal`, the debt resolved, L16
+
+**Wave 20** *(gap closure; blocked on Wave 19 completion)*
+- [x] 05-20-PLAN.md — The Phase 5 code review fixes (WR-01 to WR-06, IN-01): the narrow nut's face-chamfer cutter, non-finite readings never believed, the compared closed form, the d / 2 proof body, the exact engagement, the off-row evidence bolt; IN-02 to IN-04 and the countersink-cutter defect filed as debt
+
+**Wave 21** *(gap closure; blocked on Wave 20 completion)*
+- [x] 05-21-PLAN.md — G-05-1 (UAT test 1): with the nut's clearance empty a preset pick holds its row; after a failed update the selects show the row the fields hold exactly (D-12, D-09); reproduced first with a scratch browser probe; UI contract; the browser-test-in-the-gate decision filed for the owner
+
+**Wave 22** *(gap closure; blocked on Wave 21 completion)*
+- [x] 05-22-PLAN.md — G-05-3 (UAT test 3, owner ruling 2026-10-21): the bolt's Matching nut link carries the clearance last typed on a nut in this page, never in the bolt's hash or requests; the L15 amendment in the same commit; UI contract rule 37
+
+**Wave 23** *(gap closure; blocked on Wave 22 completion)*
+- [x] 05-23-PLAN.md — WR-07 and WR-08 (re-verification gaps): the typed-clearance memory keyed by the kind of the form on screen (formKind, the IN-06 guard, the IN-05 pins), update() held while a kind switch loads (owner choice (a)), navigate rebuilding when the form on screen is not the requested kind (owner choice 2026-10-21), and the memory forgotten on Reset and on a link that writes another value (owner ruling 2026-10-21); reproduced first with a scratch browser probe; L15 amendment and UI contract rules 14, 19, 32, 35, 36 and 37 in the code's commit
+
+**Wave 24** *(gap closure; blocked on Wave 23 completion)*
+- [x] 05-24-PLAN.md — WR-09 (re-verification gap): a kind switch clears the old kind's form and preset picker (catalogue and badge with it) directly after the mesh drop, before the new schema is fetched. So no stale pick throws or writes one kind's row into another's controls, and no old control rebuilds the old part under the new kind; Back during the switch reopens the old kind whole. Reproduced first with a scratch browser probe (four placements measured); source pin; UI contract rules 30, 32 and 36; WR-09 recorded fixed in the review disposition
+
+**Wave 25** *(gap closure; blocked on Wave 24 completion)*
+- [x] 05-25-PLAN.md — WR-10 (review finding, owner scope 2026-10-22): a kind switch also clears the old part's info panel, matching-part link, downloads and status, and a failed schema or catalogue fetch refuses the switch whole (one error, the Kind select deselected, picking any kind retries) unless a newer navigation overtook it. Reproduced first with a scratch browser probe (five versions measured); the 05-24 pin re-bodied and one new pin, without file-wide counts (IN-08, mutant check); UI contract rows and rules 14, 30, 34 and 36; WR-10 and IN-08 recorded fixed in the review disposition
+
 **UI hint**: yes
 
 ### Phase 6: Printed Pair Acceptance
@@ -282,6 +360,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 2 
 | 2. Thread Spike | 8/8 | Complete    | 2026-10-09 |
 | 3. Real Helical Thread | 7/7 | Complete    | 2026-10-11 |
 | 4. ISO Hex Bolts and Screws | 17/17 | Complete    | 2026-10-12 |
-| 5. Hex Nut and Kernel Pair Proof | 0/TBD | Not started | - |
+| 5. Hex Nut and Kernel Pair Proof | 25/25 | Complete    | 2026-10-22 |
 | 6. Printed Pair Acceptance | 0/TBD | Not started | - |
 | 7. Operability Re-sweep | 0/TBD | Not started | - |

@@ -8,14 +8,28 @@ logger for every test that runs afterwards, including tests with no interest in 
 at all. Snapshotting the handler list and level before each test and restoring them
 after is also what lets each `configure()`-touching test in tests/test_records.py start
 from a genuinely unconfigured root logger, rather than depending on test execution order.
+
+`REQUIRED_VALUES` and `part_of` are the one place a test learns a valid value for a required
+field (the nut's `clearance`): a registry-wide test builds `part_of(kind)` instead of `model()`.
 """
 
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 
 import pytest
+
+from screw.params import KINDS, FastenerParams
+
+# A test input for each required field, never a product default (D-01, PAIR-01): the product has
+# none, and test_parity pins that this table names exactly the required fields of every kind.
+REQUIRED_VALUES: dict[str, dict[str, float]] = {"nut": {"clearance": 0.1}}
+
+
+@pytest.fixture
+def part_of() -> Callable[[str], FastenerParams]:
+    return lambda kind: KINDS[kind].model_validate(REQUIRED_VALUES.get(kind, {}))
 
 
 @pytest.fixture(autouse=True)

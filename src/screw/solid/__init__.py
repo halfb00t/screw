@@ -35,21 +35,42 @@ if TYPE_CHECKING:
 from screw import int_env
 from screw.build_errors import BuildError
 from screw.calc.thread import (
-    bolt_closed_volume,
+    CHAMFER_ANGLE_DEG,
+    COUNTERSINK_HALF_ANGLE_DEG,
+    TIP_ANGLE_DEG,
+    bolt_end_closed_volume,
     built_thread_length,
     closed_volume,
+    countersink_face_radius,
+    countersink_volume,
+    end_depths,
+    face_chamfer_volume,
+    fillet_radius,
+    fillet_ring_volume,
+    nut_end_closed_volume,
+    piece_refusal,
+    tip_cone_fits,
+    tip_cone_volume,
     volume_check,
 )
-from screw.params import BoltParams, FastenerParams
-from screw.solid import bolt
+from screw.params import BoltParams, FastenerParams, NutParams
+from screw.solid import bolt, nut
 
 Format = Literal["stl", "step"]
 Quality = Literal["preview", "fine"]
 
-# INTERIM (D-01): (linear deflection mm, angular deflection rad) for STL tessellation.
-# Carried from spur model.py:53 (preview 0.08/0.5, fine 0.01/0.1), where the absolute
-# deviation was chosen for gears; not measured for screw. Phase 5 re-chooses it against
-# the pair clearance (FRNT-06); Phase 7 re-sweeps (OPER-02).
+# (linear deflection mm, angular deflection rad) for STL tessellation, absolute millimetres
+# (`relative=False` in `_write_export`). The "fine" value is the Mesh deviation (Phase 5, D-21)
+# rule's, not spur's: the largest step on the ladder 0.01, 0.0075, 0.005, 0.0025 mm (0.1 rad)
+# whose measured maximum radial deviation over M2, M3, M6, M10, M20, both hands, is at most
+# 0.5 x the 0.05 mm proof clearance (the owner's R6 fraction), 0.025 mm. The rule and the ladder
+# were committed in bench/mesh_deviation.py before the run; bench/RESULTS.md "Mesh deviation
+# (Phase 5, D-21)" selects 0.01 mm, worst row 0.0161 mm (M20), 64 % of the bound, and the
+# triangles and bytes at every step. It is the value `2026-10-08-a-ladder` and every fine-STL cap
+# in calc/thread.py (FINE_STL_ROWS) were measured at, so the rule kept the caps. The preview is
+# coarser on purpose: 0.0587 to 0.1299 mm measured, up to 2.6 x the whole clearance, which is why
+# no number on the panel comes from a mesh (FRNT-06). tests/test_mesh.py pins the fine bound and
+# that the preview breaks it.
 TESSELLATION: dict[str, tuple[float, float]] = {"preview": (0.08, 0.5), "fine": (0.01, 0.1)}
 
 _LOCK = threading.RLock()
@@ -99,38 +120,117 @@ def precise_volume(shape: cq.Shape) -> float:
     return float(props.Mass())
 
 
-def check_solid(shape: cq.Shape, closed: float, part: str = "solid") -> None:
-    """The THRD-04 postcondition (D-08, L11): exactly one solid, valid, and the right volume.
-
-    `part` names what was judged in the volume message (`thread` for the bare thread gate).
-
-    `_build` runs it inside the function `lru_cache` wraps, so a refusal is never cached or
-    exported; tests and `bench/` call it on shapes no parameter set builds (the positive
-    controls, the void). The checks run in this order and the first failure is the one named.
-    """
+def check_structure(shape: cq.Shape) -> None:
+    """Exactly one solid and valid: the checks `check_solid` runs before it reads a volume."""
     count = len(shape.Solids())
     if count != 1:
         raise BuildError(f"Geometry kernel produced {count} solids for these parameters, "
                          "expected exactly 1.")
     if not shape.isValid():
         raise BuildError("Geometry kernel produced an invalid solid for these parameters.")
-    refusal = volume_check(precise_volume(shape), closed)
+
+
+def check_solid(shape: cq.Shape, closed: float, part: str = "solid",
+                volume: float | None = None) -> float:
+    """The THRD-04 postcondition (D-08, L11): exactly one solid, valid, and the right volume.
+
+    `part` names what was judged in the volume message (`thread` for the bare thread gate).
+    `volume` is a precise volume the caller already measured of this same shape (the end pieces
+    are judged from it too), so the kernel integrates it once; it is read after the structural
+    checks, never before. Returns the volume judged, for the same reason.
+
+    `_build` runs it inside the function `lru_cache` wraps, so a refusal is never cached or
+    exported; tests and `bench/` call it on shapes no parameter set builds (the positive
+    controls, the void). The checks run in this order and the first failure is the one named.
+    """
+    check_structure(shape)
+    measured = precise_volume(shape) if volume is None else volume
+    refusal = volume_check(measured, closed)
     if refusal is not None:
         raise BuildError(f"Geometry kernel produced the wrong {part}: {refusal}.")
+    return measured
 
 
 def _build(p: FastenerParams) -> cq.Solid:
-    if not isinstance(p, BoltParams):
-        raise TypeError(f"no solid builder for kind {p.kind!r}")
+    if isinstance(p, BoltParams):
+        return _build_bolt(p)
+    if isinstance(p, NutParams):
+        return _build_nut(p)
+    raise TypeError(f"no solid builder for kind {p.kind!r}")
+
+
+def _build_nut(p: NutParams) -> cq.Solid:
+    # The void is gated against the bare section first, like the bolt's thread: it is the whole
+    # of what the nut subtracts, so an error in it is not diluted by the prism (D-13, RESEARCH F3).
+    # The sign of the nut's volume is kept: an inverted result reads about -1 times the form.
+    thread_void = nut.void(p)
+    check_solid(thread_void, closed_volume(p.d, p.pitch, p.m + 2 * p.pitch, p.clearance),
+                part="void")
+    body = nut.assemble(p, thread_void)
+    check_structure(body)
+    volume = precise_volume(body)
+    # Each countersink and each chamfer is judged by the volume it removed, against its own
+    # oracle at T_PIECE, before the whole nut is judged at T_GATE: a countersink is under 1 % of
+    # the nut and a skipped one hides inside the gate (P8, D-10). The structure is checked first
+    # so a broken cut is named as one.
+    csk, chamfer, _ = end_depths(p.d, p.pitch, p.clearance, p.s, p.m)
+    oracle = {
+        "lead-in countersink": 0.0 if csk <= 0 else countersink_volume(
+            p.d, p.pitch, p.clearance, p.s, countersink_face_radius(p.d),
+            COUNTERSINK_HALF_ANGLE_DEG, csk),
+        "face chamfer": face_chamfer_volume(p.s, p.s / 2, CHAMFER_ANGLE_DEG, chamfer),
+    }
+    for what, cut in nut.finish(p, body):
+        check_structure(cut)
+        after = precise_volume(cut)
+        piece = piece_refusal(volume - after, oracle[what], what)
+        if piece is not None:
+            raise BuildError(f"Geometry kernel produced the wrong {what}: {piece}.")
+        body, volume = cut, after
+    check_solid(body, nut_end_closed_volume(p.d, p.pitch, p.s, p.m, p.clearance), volume=volume)
+    return body.Solids()[0]
+
+
+def _build_bolt(p: BoltParams) -> cq.Solid:
     t = built_thread_length(p.thread_length, p.length)
     bare_thread = bolt.thread(p)
     # Gate the bare thread first (RESEARCH Alert 5): it is 0.19 to 0.57 of the whole volume, so a
     # thread error the whole-part gate dilutes below T_GATE (1.1e-4 to 1.4e-4 at M6 x 20 is
     # passed by the fused check alone) is caught here. Cost: one more precise volume, at most
     # 0.82 s over the grid (`2026-10-08-a-grid` volume_s).
-    check_solid(bare_thread, closed_volume(p.d, p.pitch, t), part="thread")
-    fused = bolt.assemble(p, bare_thread)
-    check_solid(fused, bolt_closed_volume(p.d, p.pitch, p.length, p.s, p.k, t))
+    before = check_solid(bare_thread, closed_volume(p.d, p.pitch, t), part="thread")
+    tip = tip_cone_fits(p.pitch, t)
+    thread = bare_thread
+    if tip:
+        # The cone is cut from the bare thread and judged twice: the volume it removed against
+        # its own oracle at T_PIECE (checked first, so a skipped or wrong-angle cut is named as
+        # the tip and not as a thread that is off), then the cut thread against the closed form
+        # less the cone at T_GATE.
+        thread = bolt.tip_cut(p, bare_thread)
+        check_structure(thread)
+        after = precise_volume(thread)
+        piece = piece_refusal(before - after, tip_cone_volume(p.d, p.pitch, TIP_ANGLE_DEG),
+                              "tip cone")
+        if piece is not None:  # R11, P8: the whole-part gate dilutes a piece this small
+            raise BuildError(f"Geometry kernel produced the wrong tip cone: {piece}.")
+        check_solid(thread, closed_volume(p.d, p.pitch, t)
+                    - tip_cone_volume(p.d, p.pitch, TIP_ANGLE_DEG), part="thread", volume=after)
+    plain = bolt.assemble(p, thread)
+    r = fillet_radius(p.d, p.pitch, p.length, t)
+    fused = plain
+    volume: float | None = None
+    if r is not None:
+        # The ring is judged by the volume it added, from precise volumes before and after.
+        # The structure is checked first so a broken fuse is named as one.
+        fused = bolt.add_fillet(p, plain, r)
+        check_structure(fused)
+        volume = precise_volume(fused)
+        piece = piece_refusal(volume - precise_volume(plain), fillet_ring_volume(p.d, r),
+                              "fillet ring")
+        if piece is not None:
+            raise BuildError(f"Geometry kernel produced the wrong fillet ring: {piece}.")
+    check_solid(fused, bolt_end_closed_volume(p.d, p.pitch, p.length, p.s, p.k, t, tip, r),
+                volume=volume)
     return fused.Solids()[0]
 
 
@@ -142,8 +242,11 @@ def _build_checked(p: FastenerParams) -> cq.Solid:
         # registry test catches; it must not be reworded as a user-facing kernel failure.
         raise
     except Exception as exc:  # OCCT raises assorted Standard_Failure subclasses
+        # The model's own fields, in declaration order, so a nut's failure never sends the user to a
+        # bolt's `length` and `k`.
+        names = list(type(p).model_fields)
         raise BuildError(f"Geometry kernel failed ({type(exc).__name__}); "
-                         "check d, pitch, length, thread_length, s and k.") from exc
+                         f"check {', '.join(names[:-1])} and {names[-1]}.") from exc
 
 
 # INTERIM (D-01): 4 solids per worker, carried from spur model.py:561 where it sized a

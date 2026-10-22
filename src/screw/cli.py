@@ -1,4 +1,5 @@
-"""Command line: `screw serve`, `screw info <kind>`, `screw export <kind>`, `screw presets <kind>`.
+"""Command line: `screw serve`, `screw info <kind>`, `screw export <kind>`, `screw presets <kind>`,
+`screw pair <kind>`.
 
 Each kind's options are generated from its registered model, so they always match the API.
 """
@@ -16,7 +17,7 @@ from pydantic import ValidationError
 
 from . import __version__, int_env
 from .calc import explicit_conflict
-from .params import KINDS, FastenerParams
+from .params import KINDS, FastenerParams, NutParams
 from .records import configure
 
 
@@ -53,7 +54,8 @@ def _add_args(ap: argparse.ArgumentParser, kind: str, model: type[FastenerParams
     g = ap.add_argument_group(f"{kind} parameters (defaults in brackets)")
     for name, field in model.model_fields.items():
         flag = "--" + name.replace("_", "-")
-        help_text = f"{field.description} [{field.default}]".replace("%", "%%")
+        shown = "required" if field.is_required() else field.default
+        help_text = f"{field.description} [{shown}]".replace("%", "%%")
         # pydantic gives every declared field an annotation; this check exists only to narrow
         # `field.annotation`'s `type | None` to a real type for argparse's `type=`, not because
         # a field can actually lack one. Before the `is bool` test: mypy otherwise narrows the
@@ -143,10 +145,13 @@ def cmd_info(ns: argparse.Namespace) -> None:
 
 def cmd_export(ns: argparse.Namespace) -> None:
     out: Path = ns.output
+    # A directory has no extension to read the format from, so it must be named (D-22, R9).
+    if out.is_dir() and not ns.format:
+        raise SystemExit("error: output is a directory: pass --format stl or --format step")
     fmt = ns.format or out.suffix.lower().lstrip(".").replace("stp", "step")
     if fmt not in ("stl", "step"):
         raise SystemExit("error: output must end in .stl or .step (or pass --format)")
-    from .calc import derive, download_refusal
+    from .calc import derive, download_name, download_refusal
 
     p = _params(ns.kind, ns)
     # The same kernel-free rule the API's `_serve` applies (D-02, FRNT-05 parity). Exit 2 like
@@ -166,10 +171,42 @@ def cmd_export(ns: argparse.Namespace) -> None:
         data = export(p, cast("Format", fmt), cast("Quality", quality))   # checked above
     except BuildError as exc:
         raise SystemExit(f"error: {exc}") from None
+    # A directory gets the name the API's Content-Disposition carries; a file path the user typed
+    # is written as given. Only the STL has a quality: the STEP has no tessellation to name.
+    if out.is_dir():
+        out = out / download_name(p, fmt, quality)
     out.write_bytes(data)
-    print(f"wrote {out} ({len(data) / 1024:.0f} KiB)", file=sys.stderr)
+    detail = f", {quality}" if fmt == "stl" else ""
+    print(f"wrote {out} ({len(data) / 1024:.0f} KiB{detail})", file=sys.stderr)
     for warning in derive(p).warnings:
         print(f"warning: {warning}", file=sys.stderr)
+
+
+# Exit codes of `screw pair`: the verdict, readable by a script without parsing the JSON.
+PAIR_EXIT = {"proven": 0, "violated": 1, "inconclusive": 2}
+
+
+def cmd_pair(ns: argparse.Namespace) -> None:
+    p = _params(ns.kind, ns)
+    # The proof mates the nut with the nominal rod of its own d and pitch, a rod the nut's own
+    # validator does not judge (it judges the void, which a positive clearance widens): refuse
+    # here, before the kernel loads, as exit 2 like every other refused parameter.
+    from .calc.thread import root_radius_refusal
+
+    if (refusal := root_radius_refusal(p.d, p.pitch)) is not None:
+        print(f"error: pair: the nominal rod {refusal}", file=sys.stderr)
+        raise SystemExit(2)
+    from .solid.pair import prove
+
+    report = prove(cast("NutParams", p))    # `pair` is offered only for kinds with a clearance
+    print(report.model_dump_json(indent=2))
+    # The last statement, and never a plain return: the real boolean parks its operation for
+    # the life of the process and a normal interpreter exit then dies in OpenCascade's teardown
+    # with status 139 after the JSON is already out (RESEARCH F5, 3 of 3 runs). os._exit skips
+    # the teardown, so the streams are flushed by hand first.
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(PAIR_EXIT[report.verdict])
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -205,8 +242,19 @@ def main(argv: list[str] | None = None) -> None:
     prk = pr.add_subparsers(dest="kind", required=True)
     pr.set_defaults(func=cmd_presets)
 
+    pa = sub.add_parser("pair", help="prove with the kernel whether a nut mates its bolt; "
+                                     "exit 0 proven, 1 violated, 2 inconclusive",
+                        allow_abbrev=False)
+    pak = pa.add_subparsers(dest="kind", required=True)
+    pa.set_defaults(func=cmd_pair)
+
     for kind, model in KINDS.items():
         prk.add_parser(kind, allow_abbrev=False)
+
+        if "clearance" in model.model_fields:    # the model decides which kinds have a pair
+            kp = pak.add_parser(kind, allow_abbrev=False)
+            kp.set_defaults(preset=None)    # no --preset: `_params` reads it, the command has none
+            _add_args(kp, kind, model)
 
         kp = ik.add_parser(kind, allow_abbrev=False)
         _add_preset(kp)
@@ -214,7 +262,7 @@ def main(argv: list[str] | None = None) -> None:
 
         kp = ek.add_parser(kind, allow_abbrev=False)
         kp.add_argument("-o", "--output", type=Path, required=True, action=_Once,
-                        help="file.stl or file.step")
+                        help="file.stl or file.step, or a directory (with --format)")
         kp.add_argument("--format", choices=["stl", "step"], action=_Once,
                         help="override the file extension")
         # default=None so a repeat is detectable; cmd_export reads `ns.quality or "fine"`.

@@ -6432,3 +6432,773 @@ arm64, load not controlled (2.83 before, so the host was not idle), not a bound 
 linux/amd64. The head values (`s`, `k`) and the thread lengths `t` of the cases are UNVERIFIED
 preview readings used as probe inputs, not table rows. Phase 7 re-sweeps on linux/amd64
 (OPER-02).
+
+
+## End-cut probe (Phase 5, D-10)
+
+Phase 4 left both thread ends plain (04 D-01, D-02), and Phase 5 adds a tip cone on the bolt, a
+fillet ring under the head, and a countersink and a face chamfer on the nut before ISO 4753 and
+ISO 4032 are read. Nothing had measured whether those cutters keep the solid count, validity, mesh
+closedness and export size, or whether the volume gate can see them. D-10 asks for that record before
+any end model or tolerance is fixed, so this is it: `bench/end_cuts.py` builds every case through the
+shipped `screw.solid.helical.thread` (rod and void) and the shipped `screw.solid.bolt.thread` and
+`assemble`, never a copy, adds the cutters (the tip as the `2026-10-08-a-trim` intersect recipe, the
+ring fused under the head, the countersinks and chamfers cut from the nut), and judges each cut against
+a kernel-free oracle of the volume it removes or adds (05-RESEARCH F4; `tests/test_bench.py` checks each
+oracle against an identity that does not use it). Three comparisons per row: the **piece error** is the
+kernel's removed or added volume against the oracle piece, relative to the piece; the **whole error** is
+`precise_volume` of the finished part against its closed form less (or plus) the oracle pieces; the
+open edges come from `stl_check` on the preview and the fine mesh.
+
+Command: `.venv/bin/python -m bench.end_cuts` (one run, exit 0). Run on HEAD
+`54a0ca5a077c23d5c3267762c866719b75f18ad4` plus the uncommitted probe module and its oracle tests (both
+land in the commit that adds this entry), 2026-10-14 (UTC). Host: `bench.machine_facts()`: `18 CPUs,
+arm64, 64.0 GiB RAM`, macOS 27.0.1, Python 3.12.15, cadquery 2.8.0, cadquery-ocp 7.9.3.1.1. Load reading
+before the run: 3.84 at 2026-10-14T12:04:13+00:00; after: 6.79 at 2026-10-14T12:05:48+00:00 (the second
+includes the run's own meshing load). Wall time of the whole run 96.4 s (`time -p`: real 96.39, user
+279.38, sys 30.22).
+
+Every angle, radius, `s`, `m` and `r` below is an UNVERIFIED probe input chosen to span the sizes, not
+a table row and not a clause of ISO 4753 or ISO 4032: tip cones at 30 and 45 degrees from the face,
+meeting it at the minor radius; countersinks of 90 degrees included from radius `d/2 + c + P/2` at the
+face, a crossing cone ending 0.3 thread depths below the root radius and the grazing cone ending exactly
+on it; face chamfers of 30 degrees from the face starting at the inscribed circle `s/2`; nut clearance
+0.1 mm; nut `s` 4.0, 10.0, 16.0, 30.0 for M2, M6, M10, M20 with `m` the spike's preview heights 1.6, 5.2,
+8.4, 18.0; ring radii 0.25, 0.4, 0.8; the bolts' `s`, `k` and `t` the Head fuse probe's preview readings
+(M20 x 100: `s` 30, `k` 12.5, `t` 46). The two bolt-tip rows use 30 degrees on M6 x 20 and 45 on
+M10 x 80. Bare threads are 8 pitches long; the controls use M6 and M10 rods of 60 and 200 mm.
+
+| Case | build+cut s | solids | isValid | piece rel. error | whole rel. error | open edges preview / fine | fine mesh s | peak RSS so far (bytes, macOS) |
+|---|---|---|---|---|---|---|---|---|
+| tip 30 M2 right | 0.16 | 1 | True | -7.71e-05 | -3.81e-06 | 0 / 0 | 0.07 | 695697408 |
+| tip 45 M2 right | 0.18 | 1 | True | +2.74e-03 | -1.97e-05 | 0 / 0 | 0.06 | 722501632 |
+| tip 30 M6 right | 0.19 | 1 | True | +2.34e-05 | +4.15e-07 | 0 / 0 | 0.16 | 846577664 |
+| tip 45 M6 right | 0.20 | 1 | True | +2.06e-05 | +3.83e-07 | 0 / 0 | 0.13 | 881229824 |
+| tip 30 M10 right | 0.21 | 1 | True | +2.60e-05 | +3.80e-07 | 0 / 0 | 0.32 | 1122959360 |
+| tip 45 M10 right | 0.22 | 1 | True | +2.01e-05 | +3.59e-07 | 0 / 0 | 0.28 | 1151811584 |
+| tip 30 M20 right | 0.24 | 1 | True | +3.50e-06 | +5.32e-07 | 0 / 0 | 0.52 | 1378271232 |
+| tip 45 M20 right | 0.22 | 1 | True | +1.15e-04 | +1.53e-07 | 0 / 0 | 0.46 | 1398931456 |
+| tip 30 M2 left | 0.15 | 1 | True | +8.98e-04 | -7.02e-06 | 0 / 0 | 0.06 | 1398931456 |
+| tip 45 M2 left | 0.18 | 1 | True | +1.28e-03 | -1.14e-05 | 0 / 0 | 0.05 | 1398931456 |
+| tip 30 M6 left | 0.18 | 1 | True | +1.47e-05 | +4.38e-07 | 0 / 0 | 0.11 | 1398931456 |
+| tip 45 M6 left | 0.21 | 1 | True | +1.40e-05 | +4.14e-07 | 0 / 0 | 0.10 | 1398931456 |
+| tip 30 M10 left | 0.20 | 1 | True | +1.66e-05 | +4.02e-07 | 0 / 0 | 0.24 | 1398931456 |
+| tip 45 M10 left | 0.21 | 1 | True | +1.59e-05 | +3.76e-07 | 0 / 0 | 0.23 | 1398931456 |
+| tip 30 M20 left | 0.23 | 1 | True | -2.07e-05 | +5.79e-07 | 0 / 0 | 0.40 | 1398931456 |
+| tip 45 M20 left | 0.22 | 1 | True | +5.44e-05 | +3.57e-07 | 0 / 0 | 0.36 | 1398931456 |
+| tip 30 bolt M6 x 20 | 0.29 | 1 | True | -5.17e-07 | -2.00e-08 | 0 / 0 | 0.25 | 1398931456 |
+| tip 45 bolt M10 x 80 | 0.38 | 1 | True | +5.80e-05 | -1.48e-07 | 0 / 0 | 0.42 | 1595490304 |
+| ring r 0.25 M6 x 30 | 0.23 | 1 | True | +1.77e-05 | -7.41e-08 | 0 / 0 | 0.20 | 1595490304 |
+| ring r 0.4 M10 x 80 | 0.21 | 1 | True | -1.50e-05 | -7.88e-08 | 0 / 0 | 0.39 | 1626423296 |
+| ring r 0.8 M20 x 100 | 0.18 | 1 | True | -1.63e-04 | -1.64e-08 | 0 / 0 | 0.69 | 1950416896 |
+| ring r 0.25 M6 x 30 left | 0.23 | 1 | True | +1.77e-05 | -7.41e-08 | 0 / 0 | 0.15 | 1950416896 |
+| nut M2 right none | 0.12 | 1 | True | - | +1.70e-06 | 0 / 0 | 0.05 | 1950416896 |
+| nut M2 right countersinks | 0.36 | 1 | True | +5.00e-06 | +1.56e-06 | 0 / 0 | 0.04 | 1950416896 |
+| nut M2 right face chamfers | 0.19 | 1 | True | -1.49e-07 | +1.72e-06 | 0 / 0 | 0.05 | 1950416896 |
+| nut M2 right both | 0.42 | 1 | True | +3.98e-06 | +1.58e-06 | 0 / 0 | 0.04 | 1950416896 |
+| nut M6 right none | 0.16 | 1 | True | - | -1.79e-07 | 0 / 0 | 0.12 | 1950416896 |
+| nut M6 right countersinks | 0.47 | 1 | True | -1.92e-06 | -1.05e-07 | 0 / 0 | 0.11 | 1950416896 |
+| nut M6 right face chamfers | 0.26 | 1 | True | +4.72e-07 | -1.83e-07 | 0 / 0 | 0.13 | 1950416896 |
+| nut M6 right both | 0.55 | 1 | True | -1.68e-06 | -1.05e-07 | 0 / 0 | 0.13 | 1950416896 |
+| nut M10 right none | 0.17 | 1 | True | - | -2.09e-07 | 0 / 0 | 0.28 | 1950416896 |
+| nut M10 right countersinks | 0.50 | 1 | True | -2.83e-06 | -1.08e-07 | 0 / 0 | 0.22 | 1950416896 |
+| nut M10 right face chamfers | 0.23 | 1 | True | +5.65e-07 | -2.15e-07 | 0 / 0 | 0.26 | 1950416896 |
+| nut M10 right both | 0.57 | 1 | True | -2.51e-06 | -1.03e-07 | 0 / 0 | 0.23 | 1950416896 |
+| nut M20 right none | 0.18 | 1 | True | - | +1.96e-08 | 0 / 0 | 0.43 | 1950416896 |
+| nut M20 right countersinks | 0.58 | 1 | True | +5.58e-06 | -1.48e-07 | 0 / 0 | 0.37 | 1950416896 |
+| nut M20 right face chamfers | 0.26 | 1 | True | -1.51e-07 | +2.07e-08 | 0 / 0 | 0.43 | 1950416896 |
+| nut M20 right both | 0.65 | 1 | True | +4.62e-06 | -1.51e-07 | 0 / 0 | 0.38 | 1950416896 |
+| nut M2 left none | 0.12 | 1 | True | - | +1.70e-06 | 0 / 0 | 0.05 | 1950416896 |
+| nut M2 left countersinks | 0.36 | 1 | True | +5.00e-06 | +1.56e-06 | 0 / 0 | 0.03 | 1950416896 |
+| nut M2 left face chamfers | 0.18 | 1 | True | -1.49e-07 | +1.72e-06 | 0 / 0 | 0.05 | 1950416896 |
+| nut M2 left both | 0.43 | 1 | True | +3.98e-06 | +1.58e-06 | 0 / 0 | 0.03 | 1950416896 |
+| nut M6 left none | 0.16 | 1 | True | - | -1.79e-07 | 0 / 0 | 0.10 | 1950416896 |
+| nut M6 left countersinks | 0.47 | 1 | True | -2.80e-06 | -6.84e-08 | 0 / 0 | 0.09 | 1950416896 |
+| nut M6 left face chamfers | 0.25 | 1 | True | +4.72e-07 | -1.83e-07 | 0 / 0 | 0.10 | 1950416896 |
+| nut M6 left both | 0.53 | 1 | True | -2.43e-06 | -6.73e-08 | 0 / 0 | 0.09 | 1950416896 |
+| nut M10 left none | 0.15 | 1 | True | - | -2.09e-07 | 0 / 0 | 0.23 | 1950416896 |
+| nut M10 left countersinks | 0.49 | 1 | True | -3.33e-06 | -8.81e-08 | 0 / 0 | 0.19 | 1950416896 |
+| nut M10 left face chamfers | 0.23 | 1 | True | +5.65e-07 | -2.15e-07 | 0 / 0 | 0.22 | 1950416896 |
+| nut M10 left both | 0.57 | 1 | True | -2.79e-06 | -8.97e-08 | 0 / 0 | 0.20 | 1950416896 |
+| nut M20 left none | 0.18 | 1 | True | - | +1.96e-08 | 0 / 0 | 0.37 | 1950416896 |
+| nut M20 left countersinks | 0.60 | 1 | True | +5.00e-06 | -1.31e-07 | 0 / 0 | 0.32 | 1950416896 |
+| nut M20 left face chamfers | 0.26 | 1 | True | -1.51e-07 | +2.07e-08 | 0 / 0 | 0.38 | 1950416896 |
+| nut M20 left both | 0.81 | 1 | True | +3.82e-06 | -1.22e-07 | 0 / 0 | 0.31 | 1950416896 |
+| nut M6 right countersinks grazing | 0.60 | 1 | True | - | -1.28e-07 | 8 / 4 | 7.02 | 1950416896 |
+| nut M6 left countersinks grazing | 0.56 | 1 | True | - | -9.07e-08 | 9 / 752 | 0.09 | 1950416896 |
+| control tip cut skipped M6 L60 | 0.13 | 1 | True | -1.00e+00 | +3.55e-04 | 0 / - | - | 1950416896 |
+| control tip 45 built, 30 expected M6 L60 | 0.43 | 1 | True | +7.32e-01 | -2.61e-04 | 0 / - | - | 1950416896 |
+| control tip cut skipped M10 L200 | 0.28 | 1 | True | -1.00e+00 | +1.41e-04 | 0 / - | - | 1950416896 |
+| control tip 45 built, 30 expected M10 L200 | 0.76 | 1 | True | +7.33e-01 | -1.05e-04 | 0 / - | - | 1950416896 |
+| ring dropped r 0.25 M6 x 60 | 0.19 | 1 | True | -1.00e+00 | -1.32e-04 | 0 / - | - | 1950416896 |
+| ring dropped r 0.4 M10 x 200 | 0.18 | 1 | True | -1.00e+00 | -6.55e-05 | 0 / - | - | 1950416896 |
+
+Fine STL of a finished nut (countersinks and chamfers, both faces) at the `FINE_STL_ROWS` cap of the
+same (d, pitch, hand) and at the cap + 1 mm, with its gzip level-1 copy, against the 64 MiB (67 108 864
+byte) export budget the caps were measured against (`sum / 64 MiB` above 1.000 is over budget):
+
+| Case | build s | solids | isValid | whole rel. error | fine STL bytes | gzip-1 bytes | sum | sum / 64 MiB | fine mesh s | gzip s | peak RSS so far (bytes, macOS) |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| nut M10 right m 56 | 0.88 | 1 | True | +6.89e-08 | 43774484 | 20407813 | 64182297 | 0.956 | 0.79 | 0.32 | 1950416896 |
+| nut M10 right m 57 | 0.91 | 1 | True | +3.61e-08 | 44518584 | 20760539 | 65279123 | 0.973 | 0.80 | 0.33 | 1950416896 |
+| nut M20 right m 64 | 0.85 | 1 | True | -2.21e-07 | 42345984 | 19456785 | 61802769 | 0.921 | 0.86 | 0.31 | 2072117248 |
+| nut M20 right m 65 | 0.86 | 1 | True | +2.60e-07 | 43056184 | 19762089 | 62818273 | 0.936 | 0.88 | 0.31 | 2079916032 |
+| nut M20 left m 91 | 0.94 | 1 | True | -1.13e-07 | 45604884 | 21713461 | 67318345 | 1.003 | 0.96 | 0.35 | 2110341120 |
+| nut M20 left m 92 | 0.99 | 1 | True | -2.52e-08 | 46292084 | 22059153 | 68351237 | 1.019 | 1.01 | 0.35 | 2111094784 |
+
+Positive controls: a tip cut skipped, a 45 degree cone built where 30 is expected, a ring dropped, each
+judged by the piece comparison and by the whole-part comparison at `T_GATE` 9e-05. The piece gate used
+for the flag is the arithmetic of the rule R11 as proposed to the owner (10 times the largest honest
+piece error rounded up to one significant figure), printed here to show what it would flag; it is not
+adopted and no tolerance is chosen by this entry:
+
+| Control | piece rel. error | piece flagged at that gate | whole rel. error | whole flagged at T_GATE |
+|---|---|---|---|---|
+| control tip cut skipped M6 L60 | -1.00e+00 | True | +3.55e-04 | True |
+| control tip 45 built, 30 expected M6 L60 | +7.32e-01 | True | -2.61e-04 | True |
+| control tip cut skipped M10 L200 | -1.00e+00 | True | +1.41e-04 | True |
+| control tip 45 built, 30 expected M10 L200 | +7.33e-01 | True | -1.05e-04 | True |
+| ring dropped r 0.25 M6 x 60 | -1.00e+00 | True | -1.32e-04 | True |
+| ring dropped r 0.4 M10 x 200 | -1.00e+00 | True | -6.55e-05 | False |
+
+Largest honest piece errors (absolute values; the grazing rows and the controls are not honest rows):
+
+```
+largest |piece error| tip: 2.737e-03 over 16 rows
+largest |piece error| tip-bolt: 5.803e-05 over 2 rows
+largest |piece error| ring: 1.627e-04 over 4 rows
+largest |piece error| nut: 5.578e-06 over 24 rows
+largest |piece error| overall: 2.737e-03 over 46 rows
+```
+
+Columns: `build+cut s` is the rod or void, the cutters and the fuse, nothing else (the volume estimates and
+the meshes are after it). `piece rel. error` is `-` where no piece exists (the no-cutter nut) or none was
+computed (the grazing rows). `peak RSS so far` is `ru_maxrss` after the case, the peak of the whole
+process so far, so a row reads the largest case run before it and not its own. `open edges` is `-` where
+that quality was not meshed (the controls mesh the preview only; the cap rows do not read the fine mesh).
+
+**What this shows / what it does not.** All 54 honest rows (16 bare tips, 2 bolt tips, 4 rings, 32 nuts)
+are one valid solid with 0 open edges at the preview and the fine mesh, and their whole-part error is at
+most 1.97e-05 (tip 45 M2 right) against `T_GATE` 9e-05. The largest piece error is 2.737e-03, tip 45
+degrees on the M2 right-hand rod, a piece of 0.0444 mm3 whose absolute error is about 1.2e-04 mm3; the
+M2 rows set the tip maximum (the next largest tip errors are M2 left 45 and 30 degrees at 1.28e-03 and
+8.98e-04, then M20 right 45 degrees at 1.15e-04, and every M6 and M10 tip is at most 2.6e-05), the two bolt tips are at most
+5.80e-05, the rings at most 1.63e-04 (M20 x 100, r 0.8) and the 24 nut pieces at most 5.58e-06. The
+cutters' piece errors therefore do not grow with the part, the noise is the absolute volume noise of the
+kernel on a small piece, and the input of the differential-tolerance ruling is **2.737e-03**, read as one
+single-run maximum over 46 rows, not a bound. A cone that ends exactly on the root radius is valid
+and has the right volume (M6 grazing: -1.28e-07 right, -9.07e-08 left against the closed form) but
+meshes open: 8 open edges at the preview and 4 at the fine mesh on the right-hand nut (fine mesh 7.02 s,
+against 0.11 to 0.13 s for the crossing variants of that nut), 9 and 752 on the left-hand nut; neither
+`isValid()` nor the volume comparison sees it, which is why every countersink in the nut rows crosses the
+root radius and all 32 of those rows are watertight. The positive controls: the piece comparison flags
+all six, the whole-part comparison at `T_GATE` flags five of six and does not see the dropped ring on
+M10 x 200 (6.55e-05, 0.73 of `T_GATE`), the dilution P8 predicted. The nut fine STL at the caps: a nut of
+M10 right at m 56 and 57 and M20 right at m 64 and 65 fits the budget (0.921 to 0.973), including at
+cap + 1 where the rod of that length was over it (the rod rows of `2026-10-08-a-grid` at L = 56, 57, 64,
+65 are 66 414 767, 67 426 226, 66 578 235 and 70 089 640 bytes for raw plus gzip), while M20 left at
+m 91 is already over (67 318 345 bytes, 1.003; the rod at L = 91 was 66 845 877). The cap rows are nut
+heights of 56 to 92 mm, far above any nut height read so far (the largest `m` above is the M20 preview
+18.0), so they say what the rod caps would do on a nut, not what a nut costs. This is a probe: single
+runs, macOS arm64, load not controlled (3.84 before, so the host was not idle), not a bound and not
+linux/amd64; every geometry input is an UNVERIFIED preview value and no table value of ISO 4032 or
+ISO 4753 is read here. Phase 7 re-sweeps on linux/amd64 (OPER-02).
+
+
+## M18 control diagnosis (Phase 5, D-08)
+
+The recorded pair campaign (`2026-10-08-a-pair`) read the M18 half-pitch control at theta -2pi/3 (right
+hand) and +2pi/3 (left hand) as 0 solids in every same-hand cell, at every clearance from -0.05 to
+0.20 mm, so M18 is `inconclusive` on both hands. `05-M18-DIAGNOSIS.md` (on `origin/main` before this
+run, blob `9544d6f286d659d4f7cc63ba614bfd43fc7c8d26`, the probe's guard checked it byte for byte)
+fixed 36 readings and five predictions before any of them existed. This entry is the one run of them.
+Nothing was re-run, and no rule, constant, body, pose, K or the M18 label changed.
+
+Command: `.venv/bin/python -m bench.m18_probe`. HEAD `b19348a974434072accbb6d410e9fb133ebc16ef` (clean
+apart from two untracked planning files), 2026-10-20 (UTC). Host: `bench.machine_facts()`: `18 CPUs,
+arm64, 64.0 GiB RAM`, Python 3.12, cadquery 2.8.0, cadquery-ocp 7.9.3.1.1. The host is shared with
+other sessions and was busy: load1 **9.46** before the first child (13:56:35Z) and **12.85** after the
+last (13:57:32Z, includes the run's own load); the probe is non-decisive whatever the load, and
+volumes and solid counts do not depend on it. Wall time **59.6 s** (`time`: real 59.588, user 209.34,
+four children at a time); each reading took 2.89 to 3.70 s against the 130 s deadline, none timed out
+or failed (36 of 36 `built`). The record `bench/results/phase-05/m18-diagnosis.jsonl` (37 lines: the
+header and 36 readings) has sha256 `b301560c784d386dd3d680ad2d52e71b674f7355264218ab9cc397dcf0ad8fbc`.
+The header's `void` is `null`: the harness controls read as predicted, so the probe is not void.
+
+All 36 readings (cell M18: d 18.0, pitch 2.5, m 15.8, K = 3; the closed form of the control is
+336.6316 mm3 at c = 0.10 and 394.0500 mm3 at c = -0.05):
+
+| probe | hand | clearance | theta | delta from failing theta | fuzzy | swapped | outcome | solids | volume mm3 | seconds |
+|---|---|---|---|---|---|---|---|---|---|---|
+| P1 | right | 0.1 | -2.094395 | 0 | none | no | built | 0 | 0.00000 | 3.33 |
+| P1 | right | 0.1 | -2.094395 | 0 | none | no | built | 0 | 0.00000 | 3.34 |
+| P1 | right | 0.1 | -2.094395 | 0 | none | no | built | 0 | 0.00000 | 3.33 |
+| P1 | right | 0.1 | -2.094395 | 0 | none | no | built | 0 | 0.00000 | 3.34 |
+| P1 | right | 0.1 | -2.094395 | 0 | none | no | built | 0 | 0.00000 | 3.47 |
+| P1 | left | 0.1 | 2.094395 | 0 | none | no | built | 0 | 0.00000 | 3.39 |
+| P1 | left | 0.1 | 2.094395 | 0 | none | no | built | 0 | 0.00000 | 3.40 |
+| P1 | left | 0.1 | 2.094395 | 0 | none | no | built | 0 | 0.00000 | 3.37 |
+| P1 | left | 0.1 | 2.094395 | 0 | none | no | built | 0 | 0.00000 | 3.23 |
+| P1 | left | 0.1 | 2.094395 | 0 | none | no | built | 0 | 0.00000 | 3.23 |
+| P2 | right | 0.1 | -2.194395 | -0.1 | none | no | built | 1 | 336.63098 | 3.54 |
+| P2 | right | 0.1 | -2.104395 | -0.01 | none | no | built | 0 | 0.00000 | 3.34 |
+| P2 | right | 0.1 | -2.095395 | -0.001 | none | no | built | 0 | 0.00000 | 3.35 |
+| P2 | right | 0.1 | -2.094495 | -0.0001 | none | no | built | 0 | 0.00000 | 3.34 |
+| P2 | right | 0.1 | -2.094295 | +0.0001 | none | no | built | 0 | 0.00000 | 3.37 |
+| P2 | right | 0.1 | -2.093395 | +0.001 | none | no | built | 0 | 0.00000 | 3.34 |
+| P2 | right | 0.1 | -2.084395 | +0.01 | none | no | built | 0 | 0.00000 | 3.21 |
+| P2 | right | 0.1 | -1.994395 | +0.1 | none | no | built | 0 | 0.00000 | 3.27 |
+| P2 | left | 0.1 | 1.994395 | -0.1 | none | no | built | 0 | 0.00000 | 3.20 |
+| P2 | left | 0.1 | 2.084395 | -0.01 | none | no | built | 0 | 0.00000 | 3.14 |
+| P2 | left | 0.1 | 2.093395 | -0.001 | none | no | built | 0 | 0.00000 | 3.06 |
+| P2 | left | 0.1 | 2.094295 | -0.0001 | none | no | built | 0 | 0.00000 | 3.07 |
+| P2 | left | 0.1 | 2.094495 | +0.0001 | none | no | built | 0 | 0.00000 | 3.07 |
+| P2 | left | 0.1 | 2.095395 | +0.001 | none | no | built | 0 | 0.00000 | 3.09 |
+| P2 | left | 0.1 | 2.104395 | +0.01 | none | no | built | 0 | 0.00000 | 2.95 |
+| P2 | left | 0.1 | 2.194395 | +0.1 | none | no | built | 1 | 336.63099 | 3.11 |
+| P3 | right | -0.05 | -2.094395 | 0 | none | no | built | 0 | 0.00000 | 2.97 |
+| P3 | left | -0.05 | 2.094395 | 0 | none | no | built | 0 | 0.00000 | 2.89 |
+| P4a | right | 0.1 | -2.094395 | 0 | 0.0001 | no | built | 0 | 0.00000 | 3.04 |
+| P4a | left | 0.1 | 2.094395 | 0 | 0.0001 | no | built | 0 | 0.00000 | 2.96 |
+| P4b | right | 0.1 | -2.094395 | 0 | none | yes | built | 0 | 0.00000 | 3.03 |
+| P4b | left | 0.1 | 2.094395 | 0 | none | yes | built | 0 | 0.00000 | 2.93 |
+| H | right | 0.1 | 0.000000 | (control, not the failing pose) | none | no | built | 1 | 336.63033 | 3.50 |
+| H | right | 0.1 | 2.094395 | (control, not the failing pose) | none | no | built | 1 | 336.63005 | 3.62 |
+| H | left | 0.1 | -2.094395 | (control, not the failing pose) | none | no | built | 1 | 336.62996 | 3.63 |
+| H | left | 0.1 | 0.000000 | (control, not the failing pose) | none | no | built | 1 | 336.63007 | 3.70 |
+
+Predictions, each judged on the readings above:
+
+- **H1 held.** All ten P1 readings (five per hand, each in a fresh process) read 0 solids and 0 mm3.
+- **H2 not held.** Of the eight readings at |delta| >= 0.01 rad (delta -0.1, -0.01, +0.01, +0.1 on each
+  hand), only two read non-empty, and they are mirror images (the side away from theta 0): delta -0.1
+  on the right hand (theta -2.1944, 1 solid, 336.63098 mm3, relative error 2.0e-06 against the closed
+  form) and delta +0.1 on the left hand (theta +2.1944, 1 solid, 336.63099 mm3, 1.9e-06). The other
+  six read 0 solids (right and left at +-0.01, and +0.1 right, -0.1 left). The four readings at
+  |delta| = 1e-4 and 1e-3 read 0 on both hands, which H2 left open.
+- **H3 held.** Both P3 readings (c = -0.05, right and left) read 0 solids.
+- **H4 held.** The two P4a readings (fuzzy value 1e-4 mm) and the two P4b readings (operands swapped)
+  read 0 solids and 0 mm3 on both hands, the recorded empty.
+- **H held.** The four harness controls read 1 solid each, at 336.63033, 336.63005, 336.62996 and
+  336.63007 mm3, relative errors 3.9e-06 to 5.0e-06 against 336.6316, far inside `PAIR_BAND` (1e-3).
+
+**Finding.** The empty is reproducible on this host and kernel: the failing control read 0 solids in
+10 of 10 fresh processes, on both hands as mirror images, at c = 0.10 and at c = -0.05 alike, and it
+does not depend on the boolean's fuzzy value or on operand order. It is not local to the one pose: the
+empty spans, on each hand, every reading from 0.01 rad on the side away from theta 0 to 0.1 rad on
+the side toward theta 0 (a band of at least 0.11 rad; 14 of the 16 P2 readings are empty), and a
+healthy reading appears only at 0.1 rad on the away side. One edge of the band therefore lies between
+0.01 and 0.1 rad on the away side, and the other lies beyond 0.1 rad on the toward side without being
+bracketed by this probe (the next non-empty reading there is the harness control at theta 0, more than
+2 rad away).
+
+**What this shows / what it does not.** This is a diagnosis of one cell on one host: it says the
+recorded M18 empty is a property of this kernel and the band of poses around the control, and not
+noise of the single recorded run, the boolean's tolerance or its operand order. It does not say why
+the boolean returns nothing there, locates only one of the band's two edges, and was run once on
+macOS arm64 with the host busy. The D-08 escape clause holds: M18 stays `inconclusive` on both hands,
+the label is unchanged, and `screw pair` reads `inconclusive` for the M18 nut until a later
+pre-registered campaign proves it.
+
+
+## Pair tier (Phase 5, D-07)
+
+D-07 pre-registered the expected verdict of every recorded pair cell in `tests/data/pair_expected.tsv`
+(240 rows: the 15 sizes M2 to M20 with M7 included, K = 3, both hands and the mixed pair, clearances
+-0.05 to 0.20 mm), derived from `2026-10-08-a-pair` by the unmodified `cell_verdict` and committed
+before this run. This entry is the one run of the full grid on the product's own bodies
+(`screw.solid.pair.prove` with `shipped=False`, one child process and a 600 s deadline per cell, the
+cell harness of 05-15 including its `s = max(10, d + 2c + 1)` deviation, which `prove` never reads).
+Nothing was re-run, no cell was reclassified, and no rule, constant, body, pose, K or table changed.
+
+Command: `make pair` (that is `.venv/bin/python -m pytest -m pair -n 8 --no-cov`). HEAD
+`22bcd508f3a5e3a6497143589f0924453a4acd2d` (the M18 diagnosis commit, clean apart from two untracked
+planning files), 2026-10-20 (UTC). Host: `bench.machine_facts()` `18 CPUs, arm64, 64.0 GiB RAM`,
+Python 3.12.15, cadquery 2.8.0, cadquery-ocp 7.9.3.1.1; **8 xdist workers** (`PYTEST_WORKERS`, the
+Makefile's clamp of 8 to the CPU count). This is a record of this host, not a quiet-host timing: the
+host is shared with other sessions. `bench.quiet.read_now()` read load1 **5.69** at 14:02:03Z before the
+run and **7.53** at 14:19:37Z after it; load1 sampled every 120 s during the run (nine samples) ran
+from 5.69 to 28.21 (10.85, 10.67, 28.21, 15.97, 12.70, 11.75, 13.13, 12.95 after the first), the run's
+own eight workers included. Wall time **1054.04 s (0:17:34)** by pytest, 17:34.23 by `time`
+(user 7487.6 s, 727 % cpu). The per-cell wall seconds sum to 7955.1 s across the 240 cells (smallest
+1.65 s, an inconclusive-by-definition cell; largest 150.2 s, `M16-right-c0.05`), against the 600 s
+deadline: no cell timed out, crashed or wrote an `error` line.
+
+**Result: 240 of 240 pass.** Every cell's verdict equals its pre-registered verdict: 88 `proven`, 60
+`violated` and 92 `inconclusive` expected, and 88, 60 and 92 read. **No cell mismatches the table.**
+
+Per size (each `pair-<size>.jsonl` holds 16 lines, one per cell: id, expected, the `PairReport`, wall
+seconds; 240 ids, all distinct):
+
+| size | cells | passed | proven | violated | inconclusive | slowest cell, s | sha256 of `pair-<size>.jsonl` |
+|---|---|---|---|---|---|---|---|
+| M2 | 16 | 16 | 4 | 4 | 8 | 52.0 (M2-right-c0.05) | `9b4e25f582920ae2f4b65f9c9f6d22e59cdab6c698b0eb216b920d45331991ca` |
+| M2.5 | 16 | 16 | 6 | 4 | 6 | 31.6 (M2.5-right-c0.2) | `9514a8279e5d690092c7469a6069399efe237b23f483714235f5f012754c16bf` |
+| M3 | 16 | 16 | 4 | 4 | 8 | 26.4 (M3-left-c0.2) | `1e2e2f6d4e13b0d820dfbc5d62e0ef22094f2093e606687f92225892d8aa5659` |
+| M3.5 | 16 | 16 | 8 | 4 | 4 | 30.7 (M3.5-left-c0.05) | `f29c9fad7eeb888354cc0d6c87ff6197ea4beccadca4e4e8c1db0dfd01d0db9f` |
+| M4 | 16 | 16 | 6 | 4 | 6 | 30.9 (M4-right-c0.05) | `11e73c916a4a71d917dc384f555d72df0da002a41a489ce0a99413a29f668874` |
+| M5 | 16 | 16 | 6 | 4 | 6 | 40.6 (M5-right-c0.05) | `b5c0d7e08a2ee2776281bdf79405cac34015e4440df367cb750a3dc9053e38e0` |
+| M6 | 16 | 16 | 8 | 4 | 4 | 69.8 (M6-right-c0.1) | `2c3d45dca7de0ed52fb3161d18c316d5c7c730834758e69aba5d2a8c146cdfce` |
+| M7 | 16 | 16 | 6 | 4 | 6 | 84.6 (M7-left-c0.05) | `8252b8fe60b36c47dbb95d6c846c583f91945cea901b9940cc10769ebaab491f` |
+| M8 | 16 | 16 | 8 | 4 | 4 | 71.5 (M8-right-c0.05) | `4820e9cbdfa01b39419610cbd25e47ddb6a85a6d2098792c6533b2d150502bcb` |
+| M10 | 16 | 16 | 4 | 4 | 8 | 76.5 (M10-right-c0.05) | `8966e7c30721b295462085dfb0ad8d6d26724a13963d75fc43f6a9465bf0f5e3` |
+| M12 | 16 | 16 | 6 | 4 | 6 | 107.9 (M12-right-c0.05) | `9bd5630ffeb6f1d64b396843516271946e3d2f0674df4741fcfd29d36abe8864` |
+| M14 | 16 | 16 | 6 | 4 | 6 | 110.5 (M14-right-c0.05) | `18f87683f409a7f4151ffb37db588766d9dc64fc60157a6d426a0bec38e3ad04` |
+| M16 | 16 | 16 | 8 | 4 | 4 | 150.2 (M16-right-c0.05) | `c0629b9ae51e9db58fe841b8bd0828ae7200a531d7e4299d1a2e7247854d698a` |
+| M18 | 16 | 16 | 0 | 4 | 12 | 114.6 (M18-right-c0.05) | `91f74e43f3b504245913fa0368e6c48e6a79985df02ae5709c6f9f1169107579` |
+| M20 | 16 | 16 | 8 | 4 | 4 | 138.1 (M20-right-c0.05) | `ba27dc1d87f86c3bfe7a9fd43d78977ff7a12bbebe14709bde8bb101a71a87fb` |
+
+**M18.** The recorded M18 empty reproduced inside the grid: all 8 same-hand cells at c = 0.05 to 0.20
+read `inconclusive` with the control empty at theta -2.0944 (right hand) or +2.0944 (left hand) and
+the other two controls non-empty, which is what the table expected and what the diagnosis entry
+above reads at a single cell. The 4 mixed-hand M18 cells read `violated`, the
+12 `inconclusive` M18 cells are those 8 plus the 4 cells at c = 0 and c = -0.05, inconclusive by
+definition (D-11, 1.7 s each, no boolean). M18 has no `proven` cell, as expected.
+
+**What this shows / what it does not.** On this host and kernel the kernel verdict equals the
+recorded one at every one of 240 cells, so the table, the rule and the product's bodies agree with the
+recorded campaign; a cell the rule excludes still reads `inconclusive`, and the control gate does what
+the diagnosis says for M18. It is one run on macOS arm64 at a busy and varying load, not a bound and
+not linux/amd64 (the ubuntu reading is 05-15's single verify cell; the weekly `pair.yml` is the
+other platform's grid), and every cell's `m` is the recorded preview value, so it says nothing about
+the verified ISO 4032 heights (the next entry).
+
+
+## Product pair cells (Phase 5, D-07)
+
+The D-07 planner alert asks for product cells wherever the verified ISO 4032 nut height differs from the
+height the recorded campaign used: at the row's `m` the product's `screw pair nut` is a different cell
+from the recorded one, so it would be predicted from the recorded verdict at the same size, clearance
+and hand, committed before it runs, and run through `screw pair nut` in its own process. The prediction
+step is a comparison of two tables and needs no kernel, so it was made first, on HEAD
+`80aac99` (2026-10-20): the `m` of every size in `tests/data/pair_expected.tsv` (the recorded preview
+values, derived from `2026-10-08-a-pair`) against the `m_max` of the same size in
+`screw.tables.iso4032.NUTS` (the GOST ISO 4032-2014 rows read in 05-06, owner ruling 2026-10-20), and the
+pitch beside it:
+
+| size | recorded `m` (pair table) | ISO 4032 row `m_max` | recorded pitch | row pitch | differs |
+|---|---|---|---|---|---|
+| M2 | 1.6 | 1.6 | 0.4 | 0.4 | no |
+| M2.5 | 2 | 2 | 0.45 | 0.45 | no |
+| M3 | 2.4 | 2.4 | 0.5 | 0.5 | no |
+| M3.5 | 2.8 | 2.8 | 0.6 | 0.6 | no |
+| M4 | 3.2 | 3.2 | 0.7 | 0.7 | no |
+| M5 | 4.7 | 4.7 | 0.8 | 0.8 | no |
+| M6 | 5.2 | 5.2 | 1 | 1 | no |
+| M7 | 5.6 | no row | 1 | no row | no product cell |
+| M8 | 6.8 | 6.8 | 1.25 | 1.25 | no |
+| M10 | 8.4 | 8.4 | 1.5 | 1.5 | no |
+| M12 | 10.8 | 10.8 | 1.75 | 1.75 | no |
+| M14 | 12.8 | 12.8 | 2 | 2 | no |
+| M16 | 14.8 | 14.8 | 2 | 2 | no |
+| M18 | 15.8 | 15.8 | 2.5 | 2.5 | no |
+| M20 | 18 | 18 | 2.5 | 2.5 | no |
+
+**Result: no size's `m` differs.** All 14 sizes that have an ISO 4032 row (M2 to M20 without M7) carry
+the same `m` as the recorded cell, and the same pitch; the recorded preview heights were already the
+GOST rows' `m_max`. M7 has no row, so it has no product cell, and its 16 recorded grid cells stay in
+the pair tier as the previous entry ran them. So the set of product cells is empty: no prediction file
+was written, no `screw pair nut` process was started, and no shipped-solid evidence readings exist
+for this entry. `bench/product_cells.py` and its test were not added (the plan commits only this entry
+in this case); nothing under `src/` or `tests/data/` changed.
+
+**What this shows / what it does not.** The 240 cells of the previous entry are already cells at the
+verified heights for every size that has a row, and their verdicts equal the pre-registered ones (240
+of 240), so the product's nut heights are covered by that record. It does not run the product's own
+`screw pair nut` command (the CLI path with the default `s`, the rows' `s`, or `--left-hand`) at any
+cell beyond 05-15's single verify cell and the hand run it recorded, and the weekly `pair.yml` is
+outside this entry. If a later edit moves a row's `m_max` (a re-read of the standard), this
+comparison is the one to repeat, with predictions written before the run.
+
+
+## Mesh deviation (Phase 5, D-21)
+
+FRNT-06 asks that the download mesh's chord deviation be chosen against the 0.05 mm proof clearance
+and not carried from spur (INTERIM, D-01). This entry is that choice, measured by the rule that was
+committed before any row was run (`c87aadf`, `bench/mesh_deviation.py` docstring): **the fine preset
+is the largest linear deflection on the ladder 0.01, 0.0075, 0.005, 0.0025 mm (angular 0.1 rad,
+absolute) whose measured maximum radial deviation over M2, M3, M6, M10, M20, both hands, is at most
+FRACTION x 0.05 mm.** FRACTION is 0.5, the owner's R6 answer (`05-OWNER-READS.md`, "Rulings", R6 `a`:
+"0.5 of the 0.05 mm proof clearance, keep the 0.01 mm fine preset, cite the rule"); the agent did not
+choose it. The bound is **0.025 mm**. The ladder was fixed in the same commit and no step was added or
+removed after a table was seen.
+
+**The step the rule selects: 0.01 mm / 0.1 rad.** The worst row at that step is 0.0161 mm (M20, both
+hands), 64 % of the bound; the rule takes the largest step and stops there. `TESSELLATION["fine"]`
+therefore stays (0.01, 0.1), so no fine-STL cap, refused-preset count or M20 x 200 figure is re-derived
+(Task 3's kept-preset branch).
+
+Command: `.venv/bin/python -m bench.mesh_deviation` (one run, exit 0). Run on HEAD
+`e9698cfb8eb99e1aac390418b378b59ed47a978f` (the instrument as amended below; the working tree had no
+other tracked change), 2026-10-20 (UTC). Host: `bench.machine_facts()`: `18 CPUs, arm64, 64.0 GiB RAM`,
+macOS 27.0.1, Python 3.12.15, cadquery 2.8.0, cadquery-ocp 7.9.3.1.1. Load before: load1 7.01 at
+2026-10-20T14:51:36+00:00; after: load1 6.46 at 2026-10-20T14:52:15+00:00 (the second includes the
+run's own meshing load). The host was shared with other sessions throughout and nothing waited for it
+to quiet: the figures are geometry, not timings, and do not depend on load. Wall time of the whole run
+40.7 s (`time`: user 183.0, system 4.0).
+
+What was measured: each rod is the shipped `screw.solid.helical.thread(d, pitch, 8 pitch)`, one per size
+and hand, meshed by `bench.thread_spike.measure.mesh_stl` (the shipped call, `shape.copy().exportStl(
+..., ascii=False, relative=False)`), at the four ladder steps and, as the positive control, at the
+preview preset (0.08 mm, 0.5 rad). Every facet of the STL is sampled; a facet is skipped when its
+centroid lies within two pitches of either end of the rod. Deviation = |`section_radius(d, pitch, 0,
+atan2(y, x) - hand 2 pi z / pitch)` - `hypot(x, y)`| at the facet centroid, hand +1 right, -1 left;
+"p99" is the nearest-rank 99th percentile over the same facets; "Max vertex gap" is the largest
+distance of any mesh vertex in the window from the modelled surface (the harness check).
+
+| Size | Hand | Preset (lin mm / ang rad) | Triangles | Bytes | Max deviation mm | p99 deviation mm | Max vertex gap mm |
+|---|---|---|---|---|---|---|---|
+| M2 | right | 0.01 / 0.1 | 49130 | 2456584 | 0.0069 | 0.0067 | 5.7e-05 |
+| M2 | right | 0.0075 / 0.1 | 57344 | 2867284 | 0.0069 | 0.0064 | 5.7e-05 |
+| M2 | right | 0.005 / 0.1 | 72492 | 3624684 | 0.0064 | 0.0035 | 5.8e-05 |
+| M2 | right | 0.0025 / 0.1 | 136794 | 6839784 | 0.0036 | 0.0022 | 5.8e-05 |
+| M2 | right | 0.08 / 0.5 | 6010 | 300584 | 0.0789 | 0.0542 | 4.6e-05 |
+| M2 | left | 0.01 / 0.1 | 42864 | 2143284 | 0.0068 | 0.0066 | 5.8e-05 |
+| M2 | left | 0.0075 / 0.1 | 45464 | 2273284 | 0.0068 | 0.0051 | 5.8e-05 |
+| M2 | left | 0.005 / 0.1 | 52730 | 2636584 | 0.0064 | 0.0036 | 5.8e-05 |
+| M2 | left | 0.0025 / 0.1 | 102320 | 5116084 | 0.0036 | 0.0022 | 5.8e-05 |
+| M2 | left | 0.08 / 0.5 | 5146 | 257384 | 0.0587 | 0.0542 | 4.5e-05 |
+| M3 | right | 0.01 / 0.1 | 58020 | 2901084 | 0.0102 | 0.0096 | 8.6e-05 |
+| M3 | right | 0.0075 / 0.1 | 70628 | 3531484 | 0.0102 | 0.0064 | 8.6e-05 |
+| M3 | right | 0.005 / 0.1 | 89176 | 4458884 | 0.0079 | 0.0036 | 8.6e-05 |
+| M3 | right | 0.0025 / 0.1 | 214170 | 10708584 | 0.0026 | 0.0020 | 8.6e-05 |
+| M3 | right | 0.08 / 0.5 | 7054 | 352784 | 0.1237 | 0.0913 | 7.9e-05 |
+| M3 | left | 0.01 / 0.1 | 46844 | 2342284 | 0.0103 | 0.0070 | 8.6e-05 |
+| M3 | left | 0.0075 / 0.1 | 52522 | 2626184 | 0.0103 | 0.0056 | 8.6e-05 |
+| M3 | left | 0.005 / 0.1 | 65272 | 3263684 | 0.0097 | 0.0036 | 8.6e-05 |
+| M3 | left | 0.0025 / 0.1 | 160254 | 8012784 | 0.0026 | 0.0023 | 8.6e-05 |
+| M3 | left | 0.08 / 0.5 | 6192 | 309684 | 0.0888 | 0.0618 | 7.9e-05 |
+| M6 | right | 0.01 / 0.1 | 88846 | 4442384 | 0.0158 | 0.0071 | 5.5e-05 |
+| M6 | right | 0.0075 / 0.1 | 133744 | 6687284 | 0.0158 | 0.0064 | 5.7e-05 |
+| M6 | right | 0.005 / 0.1 | 212452 | 10622684 | 0.0051 | 0.0045 | 5.5e-05 |
+| M6 | right | 0.0025 / 0.1 | 359630 | 17981584 | 0.0036 | 0.0017 | 5.9e-05 |
+| M6 | right | 0.08 / 0.5 | 12348 | 617484 | 0.0775 | 0.0754 | 1.3e-05 |
+| M6 | left | 0.01 / 0.1 | 66248 | 3312484 | 0.0159 | 0.0073 | 5.5e-05 |
+| M6 | left | 0.0075 / 0.1 | 107834 | 5391784 | 0.0159 | 0.0064 | 5.8e-05 |
+| M6 | left | 0.005 / 0.1 | 160550 | 8027584 | 0.0051 | 0.0035 | 5.5e-05 |
+| M6 | left | 0.0025 / 0.1 | 243920 | 12196084 | 0.0036 | 0.0018 | 5.8e-05 |
+| M6 | left | 0.08 / 0.5 | 9712 | 485684 | 0.0797 | 0.0631 | 1.3e-05 |
+| M10 | right | 0.01 / 0.1 | 191924 | 9596284 | 0.0150 | 0.0081 | 9.0e-05 |
+| M10 | right | 0.0075 / 0.1 | 235852 | 11792684 | 0.0081 | 0.0073 | 9.1e-05 |
+| M10 | right | 0.005 / 0.1 | 303458 | 15172984 | 0.0081 | 0.0036 | 9.7e-05 |
+| M10 | right | 0.0025 / 0.1 | 780908 | 39045484 | 0.0025 | 0.0021 | 9.7e-05 |
+| M10 | right | 0.08 / 0.5 | 15520 | 776084 | 0.1268 | 0.0946 | 9.0e-05 |
+| M10 | left | 0.01 / 0.1 | 145516 | 7275884 | 0.0150 | 0.0080 | 9.0e-05 |
+| M10 | left | 0.0075 / 0.1 | 170980 | 8549084 | 0.0081 | 0.0068 | 9.1e-05 |
+| M10 | left | 0.005 / 0.1 | 218420 | 10921084 | 0.0081 | 0.0035 | 9.7e-05 |
+| M10 | left | 0.0025 / 0.1 | 599166 | 29958384 | 0.0029 | 0.0020 | 9.7e-05 |
+| M10 | left | 0.08 / 0.5 | 12344 | 617284 | 0.1299 | 0.0889 | 8.9e-05 |
+| M20 | right | 0.01 / 0.1 | 316938 | 15846984 | 0.0161 | 0.0068 | 1.9e-04 |
+| M20 | right | 0.0075 / 0.1 | 376992 | 18849684 | 0.0127 | 0.0058 | 1.9e-04 |
+| M20 | right | 0.005 / 0.1 | 783488 | 39174484 | 0.0052 | 0.0041 | 1.9e-04 |
+| M20 | right | 0.0025 / 0.1 | 1341052 | 67052684 | 0.0035 | 0.0017 | 1.9e-04 |
+| M20 | right | 0.08 / 0.5 | 42032 | 2101684 | 0.1250 | 0.0648 | 1.8e-04 |
+| M20 | left | 0.01 / 0.1 | 222164 | 11108284 | 0.0161 | 0.0069 | 1.9e-04 |
+| M20 | left | 0.0075 / 0.1 | 253848 | 12692484 | 0.0110 | 0.0058 | 1.9e-04 |
+| M20 | left | 0.005 / 0.1 | 605556 | 30277884 | 0.0060 | 0.0038 | 1.9e-04 |
+| M20 | left | 0.0025 / 0.1 | 905746 | 45287384 | 0.0035 | 0.0017 | 1.9e-04 |
+| M20 | left | 0.08 / 0.5 | 32794 | 1639784 | 0.1233 | 0.0643 | 1.8e-04 |
+
+**Reading it.** The rule selects 0.01 mm at 0.1 rad: the largest deviation on that step in the whole
+grid is 0.0161 mm (M20, right and left), against the 0.025 mm bound. The positive control works: at the
+preview preset every size and both hands read 0.0587 to 0.1299 mm, all over the bound. Triangles at
+the selected step are 42 864 to 316 938 across the grid; the counts for M2, M3, M6, M10 and M20
+right-hand equal those 05-RESEARCH F2 recorded for the same rods (49 130, 58 020, 88 846, 191 924,
+316 938).
+
+**What this shows / what it does not.**
+- The deviation is stated on sampled facet centroids (all of them, on these rods), an upper bound of
+  each sampled point's distance to the surface, not a proven bound of the mesh's global maximum
+  (vertices lie on the surface and read as zero). It is a radial gap: on a flank the distance normal
+  to the surface is about half of it, on a crest or root equal. Checked against the kernel on M3
+  right-hand at 0.01 mm: for the 12 facets tried (the six largest gaps and six at random)
+  `Shape.distance` from the centroid to the solid's boundary faces read 0.498 to 0.521 of the radial
+  gap on flank facets and 1.000 to 1.002 on crest and root facets.
+- It covers the five sizes and both hands named, on 8-pitch rods of the shipped thread, not the
+  finished bolt (head, tip cone, fillet) or the nut (void, countersinks). The head and nut faces are
+  planar or conical and were not sampled.
+- **A vertex departs from the model by up to 1.9e-04 mm at M20** (5.7e-05 at M2, 8.6e-05 at M3,
+  9.0e-05 to 9.7e-05 at M10). It is the same at all five presets of a size, so it is the shipped solid
+  and not the mesh: the order of `helical.SEWING_TOLERANCE` (1e-4 mm). It is 0.8 % of the bound and is
+  not added to the deviations above.
+- **The instrument was amended once, after its first run.** The first run (HEAD `c87aadf`, load1 6.35
+  at 2026-10-20T14:47:19+00:00, 20.6 s) aborted at M20 right-hand, 0.01 mm: its harness check, written
+  at 1e-4 mm from 05-RESEARCH F2's 1.2e-05 read at M6, found a vertex 1.912e-04 mm off the model, and
+  it printed 40 rows (M2 to M10) before the abort. Those 40 rows equal this table's in every column they
+  printed. The cause was diagnosed (above) and the threshold became 1e-3 mm in `e9698cf`, before this
+  run: 540 times below the 0.54 mm a wrong hand misses by, and 4 % of the bound. The rule, the ladder,
+  the fraction and the bound were not touched.
+- **05-RESEARCH F2's maxima are not all reproduced.** Triangle counts match F2 exactly, but F2's
+  sampled maxima (every 5th to 7th facet) are larger than this run's every-facet maxima for some
+  sizes: at 0.01 mm M2 0.0094 against 0.0069, M3 0.0141 against 0.0102, M10 0.0184 against 0.0150
+  (M6 0.0159 against 0.0158 and M20 0.0161 against 0.0161 agree); at 0.005 mm M2 0.0090 against
+  0.0064, M6 0.0056 against 0.0051, M20 0.0059 against 0.0052 (M3 0.0079 and M10 0.0081 agree). A
+  sample cannot exceed the maximum of all its facets for the same metric, so F2's probe measured
+  something slightly different there; its script is not in the repository and was not recovered.
+  The kernel cross-check above supports this run's metric. The decision does not turn on it: F2's
+  largest fine-preset figure, 0.0184 mm, is also under the 0.025 mm bound.
+
+
+## Nut fine-STL caps (Phase 5, R16)
+
+T-05-12 (huge `m`, high) is open in `05-SECURITY.md`: a nut's fine STL plus its gzip copy can pass the
+64 MiB export budget with nothing refusing it, and R12 (option b, 2026-10-20) sent the nut's caps to
+their own run. R16 (`05-OWNER-READS.md`, owner's literal answer `option-a`) fixed how clearance enters:
+the ceiling C is 5.0 mm, and a fine STL above C on a measured key is refused. This entry is that run,
+made by the rule committed before any row was run (`0c349a7`, `bench/nut_fine_caps.py` docstring, run
+id `2026-10-20-nut-fine-caps`). **The rule: for each of the 30 keys (the 15 ISO 262 coarse (d, pitch) by
+both hands), build the nut `NutParams(d, pitch, s = 1e5, m, clearance = 5.0, hand)` for m = 1, 2, 3, ...
+mm (and at the turn cap's own m when 248 pitches is not whole), mesh each by the shipped
+`screw.solid.export(p, "stl", "fine")`, and sum the STL's length and its gzip level-1 copy's. A row fits
+when the sum is at most `BUDGET_BYTES` (64 MiB, the rods' constant, imported from
+`bench.thread_spike.verdict`). The cap is the largest measured m that fits below the first m over; at
+each finite cap five check rows are measured (m = cap; s = 1e5 at clearance -0.05, 0, 0.1 and 2.5; and
+clearance 5 at the slimmest s, d + 11). No cap ships if a check row is over budget or failed, a ladder
+row failed below the crossing, a key has no fitting m, or a cap is below the key's GOST ISO 4032-2014
+`m_max`.** C and s are fixed in the same commit; no step, check or constant was changed after the
+first row ran.
+
+**The run met a stop condition, so no cap ships.** All 30 ladders crossed the budget and all 30 caps
+are measured (table below); no ladder row failed and no cap is below an ISO 4032 `m_max`. But **46 of
+the 150 check rows failed to build**: the shipped nut build raised `BuildError: Geometry kernel produced
+the wrong lead-in countersink` (the D-10 / R11 piece gate, tolerance 0.03 of the piece) at m = cap,
+s = 1e5 and clearance -0.05, 0 or 0.1, on 16, 15 and 15 of the 30 keys respectively. The 104 check rows
+that built all fit the budget (largest sum 0.960 of 64 MiB). By the pre-registered rule a failed check
+is a stop condition, and the executor stopped at the record (L02): the caps below are measurements, not
+shipped constants. What the failed rows are and what to do about them is in "What this shows" and is
+the owner's.
+
+Command: `/usr/bin/time -p timeout 7000 .venv/bin/python -m bench.nut_fine_caps` (one run, exit 0, stdout
+to the session scratch). An earlier launch of the same command with the shell's `time -p` failed in the
+shell before Python started (`command not found: -p`): no row ran, no records file was written, nothing
+was read, and it is not a run. Run on HEAD `0c349a7bc1e3bb6510b21071ad51eb9083aaaf0c` (the instrument
+commit; `git status --porcelain -- src bench tests` empty at the start), 2026-10-20 (UTC). Host:
+`bench.machine_facts()`: `18 CPUs, arm64, 64.0 GiB RAM`, macOS 27.0.1, Python 3.12.15, cadquery 2.8.0,
+cadquery-ocp 7.9.3.1.1. Load before: load1 9.89 at 2026-10-20T16:43:05+00:00 (`uptime`: load averages
+9.89 11.48 9.41); after: load1 9.46 at 2026-10-20T17:33:16+00:00 (`uptime`: 8.87 9.96 11.12; includes
+the run's own meshing load). The host was shared with other sessions throughout and nothing waited for
+it to quiet: the bytes are geometry and do not depend on load, and the rule never reads a time. Wall
+time 3011.1 s in the process (`time -p`: real 3012.79 s, user 12894.22 s, sys 1334.18 s), against the
+7000 s deadline. Records: `bench/results/phase-05/nut-fine-caps.jsonl`, 1238 lines (a header, 1236 row
+lines, an end line), sha256
+`8682c7023253c1320ba6645fd72021e9122bec16c232c9a4064b7219eba92ade`. The 1236 rows are 1086 ladder rows
+(all built) and 150 check rows (104 built, 46 failed).
+
+Caps, with the first m over budget (C = 5 mm, s = 1e5 mm, fine preset (0.01 mm, 0.1 rad)):
+
+| Key | Cap m (mm) | Sum at cap (bytes) | Sum / 64 MiB | First over m | Sum there (bytes) | ISO 4032 m_max |
+|---|---|---|---|---|---|---|
+| d 2 pitch 0.4 right | 12 | 64735640 | 0.965 | 13 | 71005750 | 1.6 |
+| d 2.5 pitch 0.45 right | 13 | 64012922 | 0.954 | 14 | 68428108 | 2.0 |
+| d 3 pitch 0.5 right | 15 | 65547006 | 0.977 | 16 | 69813724 | 2.4 |
+| d 3.5 pitch 0.6 right | 18 | 66734686 | 0.994 | 19 | 70139875 | 2.8 |
+| d 4 pitch 0.7 right | 21 | 66082609 | 0.985 | 22 | 69317498 | 3.2 |
+| d 5 pitch 0.8 right | 24 | 66646189 | 0.993 | 25 | 69542589 | 4.7 |
+| d 6 pitch 1 right | 30 | 64969342 | 0.968 | 31 | 67230121 | 5.2 |
+| d 7 pitch 1 right | 30 | 66135909 | 0.986 | 31 | 68607321 | no row |
+| d 8 pitch 1.25 right | 38 | 65305055 | 0.973 | 39 | 67447673 | 6.8 |
+| d 10 pitch 1.5 right | 36 | 66558142 | 0.992 | 37 | 67794996 | 8.4 |
+| d 12 pitch 1.75 right | 41 | 66221923 | 0.987 | 42 | 68811348 | 10.8 |
+| d 14 pitch 2 right | 46 | 66441517 | 0.990 | 47 | 68790674 | 12.8 |
+| d 16 pitch 2 right | 45 | 66352378 | 0.989 | 46 | 67140351 | 14.8 |
+| d 18 pitch 2.5 right | 54 | 65972568 | 0.983 | 55 | 67148258 | 15.8 |
+| d 20 pitch 2.5 right | 36 | 65858267 | 0.981 | 37 | 67978825 | 18.0 |
+| d 2 pitch 0.4 left | 15 | 64182831 | 0.956 | 16 | 68898904 | 1.6 |
+| d 2.5 pitch 0.45 left | 17 | 65952621 | 0.983 | 18 | 69371877 | 2.0 |
+| d 3 pitch 0.5 left | 19 | 65310127 | 0.973 | 20 | 69714550 | 2.4 |
+| d 3.5 pitch 0.6 left | 22 | 65325736 | 0.973 | 23 | 67933663 | 2.8 |
+| d 4 pitch 0.7 left | 25 | 65102205 | 0.970 | 26 | 67202314 | 3.2 |
+| d 5 pitch 0.8 left | 30 | 66717786 | 0.994 | 31 | 70095896 | 4.7 |
+| d 6 pitch 1 left | 38 | 65483018 | 0.976 | 39 | 67660755 | 5.2 |
+| d 7 pitch 1 left | 38 | 66272445 | 0.988 | 39 | 68903229 | no row |
+| d 8 pitch 1.25 left | 47 | 66449900 | 0.990 | 48 | 67944606 | 6.8 |
+| d 10 pitch 1.5 left | 50 | 66312444 | 0.988 | 51 | 67982376 | 8.4 |
+| d 12 pitch 1.75 left | 56 | 64530454 | 0.962 | 57 | 67196836 | 10.8 |
+| d 14 pitch 2 left | 61 | 66333111 | 0.988 | 62 | 67605348 | 12.8 |
+| d 16 pitch 2 left | 59 | 65240948 | 0.972 | 60 | 67127438 | 14.8 |
+| d 18 pitch 2.5 left | 73 | 66784551 | 0.995 | 74 | 68875260 | 15.8 |
+| d 20 pitch 2.5 left | 47 | 66509248 | 0.991 | 48 | 70049843 | 18.0 |
+
+Checks, as a fraction of 64 MiB at m = cap (the sample points of the rule; FAILED is the shipped build
+refusing the part, no sum exists):
+
+| Key | cap m | c -0.05, s 1e5 | c 0, s 1e5 | c 0.1, s 1e5 | c 2.5, s 1e5 | c 5, s = d + 11 |
+|---|---|---|---|---|---|---|
+| d 2 pitch 0.4 right | 12 | FAILED (piece gate) | FAILED (piece gate) | FAILED (piece gate) | 0.357 | 0.922 |
+| d 2.5 pitch 0.45 right | 13 | FAILED (piece gate) | FAILED (piece gate) | FAILED (piece gate) | 0.491 | 0.911 |
+| d 3 pitch 0.5 right | 15 | FAILED (piece gate) | FAILED (piece gate) | FAILED (piece gate) | 0.662 | 0.935 |
+| d 3.5 pitch 0.6 right | 18 | 0.291 | 0.291 | 0.293 | 0.748 | 0.952 |
+| d 4 pitch 0.7 right | 21 | 0.341 | 0.339 | 0.348 | 0.812 | 0.942 |
+| d 5 pitch 0.8 right | 24 | 0.344 | 0.345 | 0.347 | 0.857 | 0.950 |
+| d 6 pitch 1 right | 30 | 0.361 | 0.364 | 0.368 | 0.926 | 0.925 |
+| d 7 pitch 1 right | 30 | 0.378 | 0.381 | 0.381 | 0.960 | 0.942 |
+| d 8 pitch 1.25 right | 38 | FAILED (piece gate) | FAILED (piece gate) | FAILED (piece gate) | 0.960 | 0.930 |
+| d 10 pitch 1.5 right | 36 | 0.648 | 0.646 | 0.649 | 0.943 | 0.948 |
+| d 12 pitch 1.75 right | 41 | 0.688 | 0.678 | 0.702 | 0.936 | 0.943 |
+| d 14 pitch 2 right | 46 | FAILED (piece gate) | FAILED (piece gate) | FAILED (piece gate) | 0.940 | 0.946 |
+| d 16 pitch 2 right | 45 | FAILED (piece gate) | FAILED (piece gate) | FAILED (piece gate) | 0.932 | 0.945 |
+| d 18 pitch 2.5 right | 54 | FAILED (piece gate) | FAILED (piece gate) | FAILED (piece gate) | 0.934 | 0.939 |
+| d 20 pitch 2.5 right | 36 | 0.543 | 0.549 | 0.542 | 0.661 | 0.938 |
+| d 2 pitch 0.4 left | 15 | FAILED (piece gate) | FAILED (piece gate) | FAILED (piece gate) | 0.368 | 0.914 |
+| d 2.5 pitch 0.45 left | 17 | FAILED (piece gate) | FAILED (piece gate) | FAILED (piece gate) | 0.603 | 0.940 |
+| d 3 pitch 0.5 left | 19 | FAILED (piece gate) | FAILED (piece gate) | FAILED (piece gate) | 0.790 | 0.931 |
+| d 3.5 pitch 0.6 left | 22 | FAILED (piece gate) | 0.299 | 0.291 | 0.774 | 0.930 |
+| d 4 pitch 0.7 left | 25 | FAILED (piece gate) | FAILED (piece gate) | FAILED (piece gate) | 0.784 | 0.927 |
+| d 5 pitch 0.8 left | 30 | 0.328 | 0.326 | 0.329 | 0.849 | 0.951 |
+| d 6 pitch 1 left | 38 | 0.353 | 0.351 | 0.361 | 0.926 | 0.932 |
+| d 7 pitch 1 left | 38 | 0.367 | 0.372 | 0.377 | 0.953 | 0.944 |
+| d 8 pitch 1.25 left | 47 | 0.590 | 0.605 | 0.649 | 0.933 | 0.946 |
+| d 10 pitch 1.5 left | 50 | FAILED (piece gate) | FAILED (piece gate) | FAILED (piece gate) | 0.945 | 0.944 |
+| d 12 pitch 1.75 left | 56 | 0.738 | 0.748 | 0.756 | 0.898 | 0.918 |
+| d 14 pitch 2 left | 61 | FAILED (piece gate) | FAILED (piece gate) | FAILED (piece gate) | 0.914 | 0.945 |
+| d 16 pitch 2 left | 59 | FAILED (piece gate) | FAILED (piece gate) | FAILED (piece gate) | 0.902 | 0.928 |
+| d 18 pitch 2.5 left | 73 | FAILED (piece gate) | FAILED (piece gate) | FAILED (piece gate) | 0.936 | 0.931 |
+| d 20 pitch 2.5 left | 47 | 0.547 | 0.544 | 0.562 | 0.651 | 0.948 |
+
+The 46 failed rows all carry one error, the lead-in countersink piece gate, with relative errors from
+-1.564 to +2.360 against the 0.03 allowed; the smallest in size is -0.0327 (M18 right, clearance -0.05).
+They are the same part at the same s and clearance that the ladder never reached (the ladder runs at
+clearance 5), so the run has no row that says whether a nut at s = 1e5 and a clearance of 0.1 is
+buildable at m below the cap.
+
+**What this shows / what it does not.**
+- It shows 30 measured caps at C = 5 mm and s = 1e5 mm, each the largest whole mm whose fine STL plus
+  its gzip copy fits 64 MiB on this host (0.954 to 0.995 of the budget at the cap, over by 0.03 to
+  5.8 % at cap + 1). The planner's estimate for M20 was 37 to 39 mm; the measured cap is 36 (right) and 47
+  (left). Against the tallest GOST ISO 4032-2014 height in its row, the caps are 2.0 times (M20
+  right, 36 against 18 mm) to 9.4 times (M2 left, 15 against 1.6 mm); M7 has no row.
+- It shows that the clearance and s sampled below C make a smaller file: all 104 built check rows sit at
+  0.291 to 0.960 of the budget against 0.954 to 0.995 at the cap. These are samples, not a proof that
+  the bytes are monotonic in clearance or in s.
+- It does not show that the 46 failed check rows are numerical noise in the gate and not a real
+  defect. The failures sit at the model's largest s (1e5 mm), where the hexagon's volume is about 8.7e9
+  mm^3 per mm of m and a lead-in piece's oracle is 0.1 to 150 mm^3, so a volume difference can lose the piece;
+  that is a reading, not a measurement made here. The ladder at clearance 5 never failed (1086 of 1086
+  built), so the gate is not tripped by m or by the preset alone.
+- It is one run on macOS arm64, not linux/amd64 (Phase 7 re-measures, OPER-02), against the INTERIM
+  64 MiB budget and the 0.01 mm / 0.1 rad fine preset, on a load-shared host.
+- It measures nothing above C = 5 mm, by R16: a fine STL above C is refused, not capped.
+
+
+## Nut fine-STL caps, amended re-run (Phase 5, R17)
+
+The first run (`2026-10-20-nut-fine-caps`, entry "Nut fine-STL caps (Phase 5, R16)" above, records
+`nut-fine-caps.jsonl`, unchanged) measured all 30 caps but stopped on 46 check rows that the shipped
+build refused. The owner ruled on 2026-10-21 (R17, `05-OWNER-READS.md`, `option 1`): re-run with the
+rule amended so that **a check row the shipped build refuses (`BuildError`) is recorded with its
+error, counts as "not a file" and is not a stop; every other stop condition is unchanged**, under a
+new run id. The amendment is in the `bench/nut_fine_caps.py` docstring ("AMENDMENT 1") and was
+committed, with R17 and its tests, in `9b4fbb7`, before any row of this run. The ladder, C = 5.0 mm,
+s = 1e5 mm, the five checks and the 64 MiB budget are the first run's. The refusal the 46 rows show
+is its own debt item, filed in `63c22a6`:
+`docs/tech_debt/active/2026-10-21-nut-lead-in-gate-refuses-a-valid-nut-at-huge-s.md`.
+
+**Result: no stop condition. The 30 caps equal the first run's caps.** All 30 ladders crossed the
+budget, all 1086 ladder rows built, no cap is below an ISO 4032 `m_max`, and no check row is over
+budget or failed otherwise. Of the 150 check rows 104 built and fit (largest sum 0.960 of 64 MiB)
+and 46 were refused by the build, the same 46 rows with the same errors. Compared with the first
+run's records row by row (1236 rows, matched on role, key, m, clearance and s): the row sets are
+equal, the raw and gzip-1 bytes are equal on every row, the outcomes agree (built = built, the
+first run's 46 failed = this run's 46 refused) and the 46 error strings are identical. The bytes are
+deterministic, as expected; only the seconds differ.
+
+Command: `/usr/bin/time -p timeout 7000 .venv/bin/python -m bench.nut_fine_caps` (one run, exit 0).
+Run on HEAD `63c22a602daa37a394e706841468b2a42e679e0a` (`git status --porcelain -- src bench tests`
+empty at the start; the instrument is byte-identical between the amendment commit `9b4fbb7` and this
+records commit), 2026-10-21 (UTC). Host: `18 CPUs, arm64, 64.0 GiB RAM`, macOS 27.0.1, Python
+3.12.15, cadquery 2.8.0, cadquery-ocp 7.9.3.1.1. Load before: load1 7.32 at 2026-10-21T01:48:42+00:00
+(`uptime`: 7.32 7.53 5.24); after: load1 8.95 at 2026-10-21T02:37:37+00:00 (`uptime`: 7.71 10.02
+10.11; includes the run's own meshing load). The host was shared and nothing waited for it to
+quiet; the bytes are geometry and the rule never reads a time. Wall time 2935.7 s in the process
+(`time -p`: real 2937.34 s, user 12731.02 s, sys 1347.83 s), against the 7000 s deadline. Records:
+`bench/results/phase-05/nut-fine-caps-amended.jsonl`, 1238 lines (a header that names the run it
+amends, 1236 rows, an end line), sha256
+`64ae355a043687e30bcf98d334f6b9adf1814005e5741a01591710915fa26324`. The 1236 rows are 1086 ladder
+rows (all built) and 150 check rows (104 built, 46 refused).
+
+Caps (C = 5 mm, s = 1e5 mm, fine preset (0.01 mm, 0.1 rad); the table is identical to the first run's):
+
+| Key | Cap m (mm) | Sum at cap (bytes) | Sum / 64 MiB | First over m | Sum there (bytes) | ISO 4032 m_max |
+|---|---|---|---|---|---|---|
+| d 2 pitch 0.4 right | 12 | 64735640 | 0.965 | 13 | 71005750 | 1.6 |
+| d 2.5 pitch 0.45 right | 13 | 64012922 | 0.954 | 14 | 68428108 | 2.0 |
+| d 3 pitch 0.5 right | 15 | 65547006 | 0.977 | 16 | 69813724 | 2.4 |
+| d 3.5 pitch 0.6 right | 18 | 66734686 | 0.994 | 19 | 70139875 | 2.8 |
+| d 4 pitch 0.7 right | 21 | 66082609 | 0.985 | 22 | 69317498 | 3.2 |
+| d 5 pitch 0.8 right | 24 | 66646189 | 0.993 | 25 | 69542589 | 4.7 |
+| d 6 pitch 1 right | 30 | 64969342 | 0.968 | 31 | 67230121 | 5.2 |
+| d 7 pitch 1 right | 30 | 66135909 | 0.986 | 31 | 68607321 | no row |
+| d 8 pitch 1.25 right | 38 | 65305055 | 0.973 | 39 | 67447673 | 6.8 |
+| d 10 pitch 1.5 right | 36 | 66558142 | 0.992 | 37 | 67794996 | 8.4 |
+| d 12 pitch 1.75 right | 41 | 66221923 | 0.987 | 42 | 68811348 | 10.8 |
+| d 14 pitch 2 right | 46 | 66441517 | 0.990 | 47 | 68790674 | 12.8 |
+| d 16 pitch 2 right | 45 | 66352378 | 0.989 | 46 | 67140351 | 14.8 |
+| d 18 pitch 2.5 right | 54 | 65972568 | 0.983 | 55 | 67148258 | 15.8 |
+| d 20 pitch 2.5 right | 36 | 65858267 | 0.981 | 37 | 67978825 | 18.0 |
+| d 2 pitch 0.4 left | 15 | 64182831 | 0.956 | 16 | 68898904 | 1.6 |
+| d 2.5 pitch 0.45 left | 17 | 65952621 | 0.983 | 18 | 69371877 | 2.0 |
+| d 3 pitch 0.5 left | 19 | 65310127 | 0.973 | 20 | 69714550 | 2.4 |
+| d 3.5 pitch 0.6 left | 22 | 65325736 | 0.973 | 23 | 67933663 | 2.8 |
+| d 4 pitch 0.7 left | 25 | 65102205 | 0.970 | 26 | 67202314 | 3.2 |
+| d 5 pitch 0.8 left | 30 | 66717786 | 0.994 | 31 | 70095896 | 4.7 |
+| d 6 pitch 1 left | 38 | 65483018 | 0.976 | 39 | 67660755 | 5.2 |
+| d 7 pitch 1 left | 38 | 66272445 | 0.988 | 39 | 68903229 | no row |
+| d 8 pitch 1.25 left | 47 | 66449900 | 0.990 | 48 | 67944606 | 6.8 |
+| d 10 pitch 1.5 left | 50 | 66312444 | 0.988 | 51 | 67982376 | 8.4 |
+| d 12 pitch 1.75 left | 56 | 64530454 | 0.962 | 57 | 67196836 | 10.8 |
+| d 14 pitch 2 left | 61 | 66333111 | 0.988 | 62 | 67605348 | 12.8 |
+| d 16 pitch 2 left | 59 | 65240948 | 0.972 | 60 | 67127438 | 14.8 |
+| d 18 pitch 2.5 left | 73 | 66784551 | 0.995 | 74 | 68875260 | 15.8 |
+| d 20 pitch 2.5 left | 47 | 66509248 | 0.991 | 48 | 70049843 | 18.0 |
+
+Checks, as a fraction of 64 MiB at m = cap (REFUSED: the shipped build raised `BuildError`, the
+lead-in countersink piece gate; no file exists and no sum):
+
+| Key | cap m | c -0.05, s 1e5 | c 0, s 1e5 | c 0.1, s 1e5 | c 2.5, s 1e5 | c 5, s = d + 11 |
+|---|---|---|---|---|---|---|
+| d 2 pitch 0.4 right | 12 | REFUSED (not a file) | REFUSED (not a file) | REFUSED (not a file) | 0.357 | 0.922 |
+| d 2.5 pitch 0.45 right | 13 | REFUSED (not a file) | REFUSED (not a file) | REFUSED (not a file) | 0.491 | 0.911 |
+| d 3 pitch 0.5 right | 15 | REFUSED (not a file) | REFUSED (not a file) | REFUSED (not a file) | 0.662 | 0.935 |
+| d 3.5 pitch 0.6 right | 18 | 0.291 | 0.291 | 0.293 | 0.748 | 0.952 |
+| d 4 pitch 0.7 right | 21 | 0.341 | 0.339 | 0.348 | 0.812 | 0.942 |
+| d 5 pitch 0.8 right | 24 | 0.344 | 0.345 | 0.347 | 0.857 | 0.950 |
+| d 6 pitch 1 right | 30 | 0.361 | 0.364 | 0.368 | 0.926 | 0.925 |
+| d 7 pitch 1 right | 30 | 0.378 | 0.381 | 0.381 | 0.960 | 0.942 |
+| d 8 pitch 1.25 right | 38 | REFUSED (not a file) | REFUSED (not a file) | REFUSED (not a file) | 0.960 | 0.930 |
+| d 10 pitch 1.5 right | 36 | 0.648 | 0.646 | 0.649 | 0.943 | 0.948 |
+| d 12 pitch 1.75 right | 41 | 0.688 | 0.678 | 0.702 | 0.936 | 0.943 |
+| d 14 pitch 2 right | 46 | REFUSED (not a file) | REFUSED (not a file) | REFUSED (not a file) | 0.940 | 0.946 |
+| d 16 pitch 2 right | 45 | REFUSED (not a file) | REFUSED (not a file) | REFUSED (not a file) | 0.932 | 0.945 |
+| d 18 pitch 2.5 right | 54 | REFUSED (not a file) | REFUSED (not a file) | REFUSED (not a file) | 0.934 | 0.939 |
+| d 20 pitch 2.5 right | 36 | 0.543 | 0.549 | 0.542 | 0.661 | 0.938 |
+| d 2 pitch 0.4 left | 15 | REFUSED (not a file) | REFUSED (not a file) | REFUSED (not a file) | 0.368 | 0.914 |
+| d 2.5 pitch 0.45 left | 17 | REFUSED (not a file) | REFUSED (not a file) | REFUSED (not a file) | 0.603 | 0.940 |
+| d 3 pitch 0.5 left | 19 | REFUSED (not a file) | REFUSED (not a file) | REFUSED (not a file) | 0.790 | 0.931 |
+| d 3.5 pitch 0.6 left | 22 | REFUSED (not a file) | 0.299 | 0.291 | 0.774 | 0.930 |
+| d 4 pitch 0.7 left | 25 | REFUSED (not a file) | REFUSED (not a file) | REFUSED (not a file) | 0.784 | 0.927 |
+| d 5 pitch 0.8 left | 30 | 0.328 | 0.326 | 0.329 | 0.849 | 0.951 |
+| d 6 pitch 1 left | 38 | 0.353 | 0.351 | 0.361 | 0.926 | 0.932 |
+| d 7 pitch 1 left | 38 | 0.367 | 0.372 | 0.377 | 0.953 | 0.944 |
+| d 8 pitch 1.25 left | 47 | 0.590 | 0.605 | 0.649 | 0.933 | 0.946 |
+| d 10 pitch 1.5 left | 50 | REFUSED (not a file) | REFUSED (not a file) | REFUSED (not a file) | 0.945 | 0.944 |
+| d 12 pitch 1.75 left | 56 | 0.738 | 0.748 | 0.756 | 0.898 | 0.918 |
+| d 14 pitch 2 left | 61 | REFUSED (not a file) | REFUSED (not a file) | REFUSED (not a file) | 0.914 | 0.945 |
+| d 16 pitch 2 left | 59 | REFUSED (not a file) | REFUSED (not a file) | REFUSED (not a file) | 0.902 | 0.928 |
+| d 18 pitch 2.5 left | 73 | REFUSED (not a file) | REFUSED (not a file) | REFUSED (not a file) | 0.936 | 0.931 |
+| d 20 pitch 2.5 left | 47 | 0.547 | 0.544 | 0.562 | 0.651 | 0.948 |
+
+**What this shows / what it does not.**
+- It shows the first run's 30 caps again, byte for byte, under the amended rule, with no other stop
+  condition. It is a repeat of a deterministic measurement, not independent evidence: the same host,
+  the same kernel build, the same shipped export path.
+- The amendment was made after the first run's data was seen, on the owner's ruling (R17). What it
+  changes is only how 46 refused checks are classified; it moves no cap, since the caps come from the
+  ladder rows, which are the same rows with the same bytes.
+- It does not say the refused nuts are buildable: a nut at s = 1e5 and a clearance of -0.05, 0 or 0.1
+  at the cap is refused by the shipped build today (the debt item above), so no file of that part can
+  reach the budget. The sampled checks that built, 104 rows at 0.291 to 0.960 of the budget, sit below
+  the cap rows (0.954 to 0.995); they are samples, not a proof that the bytes are monotonic in
+  clearance or s.
+- It is one run on macOS arm64, not linux/amd64 (Phase 7 re-measures, OPER-02), against the INTERIM
+  64 MiB budget and the fine preset, on a load-shared host. It measures nothing above C = 5 mm, by
+  R16: a fine STL above C is refused, not capped.

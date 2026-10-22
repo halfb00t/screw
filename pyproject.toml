@@ -111,9 +111,13 @@ ignore_missing_imports = true
 testpaths = ["tests"]
 # D-14: the full thread grid (tests/test_grid.py) is a slow tier. A later `-m` on the command
 # line wins over this one, so `pytest -m grid` (make grid, grid.yml) runs it; `make verify`
-# deselects it and asserts no timing.
-addopts = "--strict-markers --strict-config -m 'not grid'"
-markers = ["grid: the full 02 D-03 thread grid through the THRD-04 gate; .github/workflows/grid.yml, never make verify"]
+# deselects it and asserts no timing. The pair tier (tests/test_pair.py, `pair`) is deselected
+# the same way and run by `make pair` and pair.yml.
+addopts = "--strict-markers --strict-config -m 'not grid and not pair'"
+markers = [
+  "grid: the full 02 D-03 thread grid through the THRD-04 gate; .github/workflows/grid.yml, never make verify",
+  "pair: the 240 pre-registered pair cells, each in a child process; .github/workflows/pair.yml, never make verify",
+]
 xfail_strict = true
 filterwarnings = ["error"]
 
@@ -194,6 +198,21 @@ name = "The serving process never imports the CAD kernel"
 type = "forbidden"
 source_modules = ["screw.app"]
 forbidden_modules = ["cadquery", "OCP"]
+allow_indirect_imports = false
+
+[[tool.importlinter.contracts]]
+name = "The serving process and its workers never import the pair proof"
+# The pair proof is a minutes-long, segfault-prone boolean (a normal exit after it dies with 139,
+# RESEARCH F5) and it must never run inside a request or a worker's build (D-24, PAIR-04): the
+# CLI and the pair tiers import `screw.solid.pair` themselves, in a child process, and
+# `screw/solid/__init__.py` does not import it. No indirect imports either: reaching it through
+# another module is the same hazard. import-linter passes a misspelt module vacuously (RESEARCH
+# E5), so the runtime half is the control: tests/test_import_boundaries.py proves in a fresh
+# interpreter that `import screw.app` leaves `screw.solid.pair` out of sys.modules and that
+# importing it puts it in.
+type = "forbidden"
+source_modules = ["screw.app", "screw.pool"]
+forbidden_modules = ["screw.solid.pair"]
 allow_indirect_imports = false
 
 [[tool.importlinter.contracts]]

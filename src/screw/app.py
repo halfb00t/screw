@@ -8,9 +8,13 @@
     GET /api/bolt/info?...           the info document: rows and warnings
     GET /api/bolt/model.stl?...      binary STL   (quality=preview|fine)
     GET /api/bolt/model.step?...     STEP AP214 solid
+    GET /api/nut/info?...            the nut's info document; `clearance` is required
+    GET /api/nut/model.stl?...       binary STL   (quality=preview|fine)
+    GET /api/nut/model.step?...      STEP AP214 solid
 
 Every parameter is a query string field, so a model URL is shareable and curl-able. Unset
-fields take their defaults; a field the kind does not define, or a key given twice, is a 422
+fields take their defaults, except a required one (the nut's `clearance`), which is a 422
+`missing` naming it; a field the kind does not define, or a key given twice, is a 422
 naming it, and so is an explicit `thread_length` longer than an explicit `length`.
 """
 
@@ -37,9 +41,9 @@ from starlette.concurrency import run_in_threadpool
 
 from . import __version__, int_env
 from .build_errors import BuildError, BuildTimeout
-from .calc import PartInfo, derive, download_refusal, explicit_conflict
+from .calc import PartInfo, derive, download_name, download_refusal, explicit_conflict
 from .calc.presets import PresetCatalogue, catalogue_document
-from .params import DEFAULT_KIND, KINDS, BoltParams, FastenerParams
+from .params import DEFAULT_KIND, KINDS, BoltParams, FastenerParams, NutParams
 from .pool import BuildPool
 from .records import build_failed, build_started, configure, export_served, queue_refused
 
@@ -279,6 +283,10 @@ class BoltModelQuery(BoltParams, _Quality):
     """
 
 
+class NutModelQuery(NutParams, _Quality):
+    """The nut's parameters plus the model route's `quality`, as `BoltModelQuery` is the bolt's."""
+
+
 def strip[T: FastenerParams](q: FastenerParams, cls: type[T]) -> T:
     """Strip the per-endpoint extras back to the plain parameter class.
 
@@ -450,6 +458,21 @@ async def bolt_model(fmt: Literal["stl", "step"], q: Annotated[BoltModelQuery, Q
     return await _serve(strip(q, BoltParams), fmt, q.quality, request, backend)
 
 
+@app.get("/api/nut/info", dependencies=[Depends(refuse_explicit_conflict(NutParams.kind))])
+def nut_info(q: Annotated[NutParams, Query()]) -> PartInfo:
+    """The nut's info document. `clearance` is required; `quality` is a 422 here."""
+    return derive(q)
+
+
+@app.get("/api/nut/model.{fmt}", response_class=Response,
+         responses={200: {"content": {t: {} for t in MEDIA_TYPES.values()}}},
+         dependencies=[Depends(refuse_explicit_conflict(NutParams.kind))])
+async def nut_model(fmt: Literal["stl", "step"], q: Annotated[NutModelQuery, Query()],
+                    request: Request,
+                    backend: Annotated[BuildBackend, Depends(build_backend)]) -> Response:
+    return await _serve(strip(q, NutParams), fmt, q.quality, request, backend)
+
+
 async def _serve(params: FastenerParams, fmt: Literal["stl", "step"], quality: str,
                  request: Request, backend: BuildBackend) -> Response:
     """The one model-serving path every kind's route delegates to: cache, admission
@@ -565,7 +588,8 @@ async def _serve(params: FastenerParams, fmt: Literal["stl", "step"], quality: s
         duration_s = time.monotonic() - start
     export_served(request_id, params, fmt, quality, source=source, encoding=encoding,
                   duration_s=duration_s)
-    headers = {"Content-Disposition": f'attachment; filename="{params.slug()}.{fmt}"',
+    name = download_name(params, fmt, quality)
+    headers = {"Content-Disposition": f'attachment; filename="{name}"',
                "Vary": "Accept-Encoding"}
     if wants_gzip:
         # Setting Content-Encoding here is what makes GZipMiddleware's pass-through branch

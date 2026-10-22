@@ -3,11 +3,18 @@
 from __future__ import annotations
 
 import math
+import subprocess
+import sys
+from collections.abc import Callable
 
 import pytest
 
+from screw import calc
 from screw.calc import (
+    NO_FILLET_NOTE,
+    NUT_NO_ROW_WARNING,
     STANDING_WARNING,
+    Counterpart,
     Download,
     PartInfo,
     PresetMatch,
@@ -16,19 +23,52 @@ from screw.calc import (
     explicit_conflict,
 )
 from screw.calc.presets import WITHDRAWN_DIN_WRENCH_MM, designation_for, match
-from screw.calc.thread import bolt_closed_volume, fine_stl_refusal, thread_length_conflict
-from screw.params import KINDS, BoltParams, FastenerParams
-from screw.tables.presets import catalogue
+from screw.calc.thread import (
+    TIP_ANGLE_DEG,
+    axial_play,
+    basic_minor_diameter,
+    bolt_end_closed_volume,
+    fine_stl_refusal,
+    flank_normal_gap,
+    nut_closed_volume,
+    nut_end_closed_volume,
+    nut_fine_stl_refusal,
+    pitch_diameter,
+    section_radius,
+    thread_depth,
+    thread_length_conflict,
+    tip_cone_length,
+    tip_cone_volume,
+)
+from screw.params import KINDS, BoltParams, FastenerParams, NutParams
+from screw.tables import iso262
+from screw.tables.gost16093 import BOLT_LIMITS, NUT_LIMITS
+from screw.tables.iso4017 import HEADS
+from screw.tables.iso4032 import NUTS
+from screw.tables.presets import catalogue, expand_nut
+from screw.tables.rows import HexNut
 
-WARNING = "plain-cut thread ends, no tip chamfer or under-head fillet; not a product build"
+WARNING = ("ends modelled per L15: bolt tip chamfer, under-head fillet on an ISO 4014 plain shank, "
+           "nut lead-in countersinks and face chamfers; nominal, not toleranced; "
+           "not a product build")
 PROFILE = "ISO 68-1:2023 basic profile"
 NO_ROW = ("no ISO 4014:2022 or ISO 4017:2022 row matches these fields; "
           "row values not reported")
+# L14 Citations: the nut's rows cite the GOST text actually read, with the ISO edition it adopts.
+NUT_NO_ROW = ("no GOST ISO 4032-2014 (ISO 4032:2012) row matches these fields; "
+              "row values not reported")
+GOST = "GOST ISO 4032-2014 (ISO 4032:2012)"
+NUT_CITED_KEYS = ["s_min", "e_min", "m_max", "m_min", "mw_min", "dw_min"]
 ROW_KEYS = ["s_min", "e_min", "k_max", "k_min", "dw_min", "b", "lg_max", "ls_min"]
 # The default part is the ISO 4017 M6 x 20 row, so it carries that row's five head values.
+# M6 x 1 is an exact ISO 262 size, so the default part carries the 6g limits group (INFO-02).
+LIMITS_KEYS = ["d_max", "d_min", "d2_max", "d2_min"]
+PAIR_KEYS = ["clearance", "clearance_diametral", "flank_gap", "axial_play", "nut_major_diameter",
+             "nut_pitch_diameter", "nut_minor_diameter", "engagement_turns"]
+NUT_LIMITS_KEYS = ["D1_min", "D1_max", "D2_min", "D2_max"]
 KEYS = ["d", "pitch", "length", "thread_length", "shank_length", "turns", "thread_depth",
-        "minor_diameter", "s", "across_corners", "k", "s_min", "e_min", "k_max", "k_min",
-        "dw_min", "volume"]
+        "minor_diameter", "pitch_diameter", *LIMITS_KEYS, "s", "across_corners", "k", "s_min",
+        "e_min", "k_max", "k_min", "dw_min", "volume"]
 
 
 def _rows(p: BoltParams) -> dict[str, float]:
@@ -40,8 +80,7 @@ def test_the_default_document_lists_the_inputs_the_thread_the_head_then_the_volu
     assert info.kind == "bolt"
     assert [r.key for r in info.rows] == KEYS
     assert [r.unit for r in info.rows] == [
-        "mm", "mm", "mm", "mm", "mm", "", "mm", "mm", "mm", "mm", "mm", "mm", "mm", "mm", "mm",
-        "mm", "mm³"]
+        "mm", "mm", "mm", "mm", "mm", "", *["mm"] * 15, "mm³"]
 
 
 def test_the_default_thread_numbers_come_from_the_pinned_profile() -> None:
@@ -49,8 +88,10 @@ def test_the_default_thread_numbers_come_from_the_pinned_profile() -> None:
     assert rows["turns"] == 20.0
     # The whole-part closed form, never the kernel's Volume() (L02, INFO-03): the section area
     # times the thread plus the sharp-cornered hexagonal prism, (sqrt(3) / 2) * s^2 * k.
-    assert rows["volume"] == bolt_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0)
-    assert rows["volume"] == pytest.approx(459.14408096158724 + 200 * math.sqrt(3), abs=1e-9)
+    # The closed form less the 45 degree tip cone (D-09): a threaded-to-the-head screw has no ring.
+    assert rows["volume"] == bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None)
+    assert rows["volume"] == pytest.approx(
+        459.14408096158724 + 200 * math.sqrt(3) - tip_cone_volume(6.0, 1.0, 45.0), abs=1e-9)
     # An independently typed 5/8 * sqrt(3)/2 for P = 1.
     assert rows["thread_depth"] == pytest.approx(0.541265877, abs=1e-9)
     assert rows["minor_diameter"] == pytest.approx(6 - 2 * 0.541265877, abs=1e-9)
@@ -67,7 +108,8 @@ def test_the_thread_rows_are_the_built_thread_and_the_plain_shank_left_over() ->
     p = BoltParams(length=30.0)
     rows = _rows(p)
     assert (rows["thread_length"], rows["shank_length"], rows["turns"]) == (20.0, 10.0, 20.0)
-    assert rows["volume"] == bolt_closed_volume(6.0, 1.0, 30.0, 10.0, 4.0, 20.0)
+    # The 10 mm plain shank is at least the cited r = 0.25 mm of an M6 under the head: a ring.
+    assert rows["volume"] == bolt_end_closed_volume(6.0, 1.0, 30.0, 10.0, 4.0, 20.0, True, 0.25)
     assert derive(p).warnings == [STANDING_WARNING, NO_ROW]
 
 
@@ -75,7 +117,7 @@ def test_the_rows_of_a_screw_shorter_than_the_default_thread_read_the_built_thre
     # D-08: `?length=10` builds a 10 mm full-thread screw; the stored thread_length stays 20.
     rows = _rows(BoltParams(length=10.0))
     assert (rows["thread_length"], rows["shank_length"], rows["turns"]) == (10.0, 0.0, 10.0)
-    assert rows["volume"] == bolt_closed_volume(6.0, 1.0, 10.0, 10.0, 4.0, 10.0)
+    assert rows["volume"] == bolt_end_closed_volume(6.0, 1.0, 10.0, 10.0, 4.0, 10.0, True, None)
 
 
 def test_a_default_thread_below_an_explicit_length_is_built_to_the_length_and_warned() -> None:
@@ -131,7 +173,7 @@ def test_the_derived_rows_name_the_profile_and_the_hand_is_not_a_row() -> None:
     by_key = {r.key: r for r in derive(BoltParams()).rows}
     assert PROFILE in by_key["thread_depth"].label
     assert PROFILE in by_key["minor_diameter"].label
-    assert not any("pitch diameter" in r.label.lower() for r in by_key.values())
+    assert PROFILE in by_key["pitch_diameter"].label  # INFO-01 adds d2 beside the minor diameter
 
 
 def test_turns_is_the_exact_decimal_quotient_not_a_float_division() -> None:
@@ -186,10 +228,181 @@ def test_a_kind_without_an_info_entry_is_a_bug_not_a_user_error() -> None:
         derive(Orphan())
 
 
-def test_every_registered_kind_derives_a_document() -> None:
+def test_every_registered_kind_derives_a_document(part_of: Callable[[str], FastenerParams]) -> None:
     assert len(KINDS) >= 1
-    for model in KINDS.values():
-        assert derive(model()).kind == model.kind
+    for kind, model in KINDS.items():
+        assert derive(part_of(kind)).kind == model.kind
+
+
+def test_a_nut_document_has_its_rows_in_groups_the_closed_form_volume_and_its_m6_row() -> None:
+    p = NutParams(clearance=0.1)
+    info = derive(p)
+    assert info.kind == "nut"
+    # The cited values follow the across-corners row, inside the Nut group (D-17).
+    assert [(r.key, r.group) for r in info.rows] == [
+        ("d", "Thread"), ("pitch", "Thread"), ("thread_depth", "Thread"),
+        ("pitch_diameter", "Thread"), ("minor_diameter", "Thread"),
+        *[(key, calc.LIMITS) for key in NUT_LIMITS_KEYS],
+        ("s", "Nut"), ("across_corners", "Nut"),
+        *[(key, "Nut") for key in NUT_CITED_KEYS],
+        ("m", "Nut"), *[(key, "Pair") for key in PAIR_KEYS], ("volume", "Part")]
+    values = {r.key: r.value for r in info.rows}
+    assert (values["d"], values["pitch"], values["s"], values["m"], values["clearance"]) == (
+        6.0, 1.0, 10.0, 5.2, 0.1)
+    assert values["across_corners"] == pytest.approx(10.0 / math.cos(math.pi / 6))
+    assert values["volume"] == nut_end_closed_volume(6.0, 1.0, 10.0, 5.2, 0.1)
+    assert info.warnings == [STANDING_WARNING]
+
+
+def test_the_default_nut_reads_its_gost_iso_4032_m6_row() -> None:
+    info = derive(NutParams(clearance=0.1))
+    m6 = next(nut for nut in NUTS if nut.size == "M6")
+    assert info.preset == PresetMatch(status="exact", id="iso4032:M6", display="ISO 4032 M6")
+    assert info.designation == "Hexagon regular nut GOST ISO 4032 - M6"
+    labels = {r.key: r.label for r in info.rows}
+    values = {r.key: r.value for r in info.rows}
+    assert labels["s_min"] == f"Across flats, min ({GOST} Table 1)"
+    assert labels["e_min"] == f"Across corners, min ({GOST} Table 1)"
+    assert labels["m_max"] == f"Height, max ({GOST} Table 1)"
+    assert labels["m_min"] == f"Height, min ({GOST} Table 1)"
+    assert labels["mw_min"] == f"Wrench height, min ({GOST} Table 1)"
+    assert labels["dw_min"] == f"Bearing face diameter, min ({GOST} Table 1)"
+    assert [values[key] for key in NUT_CITED_KEYS] == [
+        m6.s_min, m6.e_min, m6.m_max, m6.m_min, m6.mw_min, m6.dw_min]
+    assert {r.unit for r in info.rows if r.key in NUT_CITED_KEYS} == {"mm"}
+    assert info.notes == [f"product grade A ({GOST}: D \u2264 16 mm)"]
+    assert NUT_NO_ROW not in info.warnings
+
+
+def test_the_nut_no_row_warning_is_pinned_to_the_text_naming_the_gost_document() -> None:
+    assert NUT_NO_ROW_WARNING == NUT_NO_ROW
+
+
+def test_clearance_and_hand_take_no_part_in_the_nut_match() -> None:
+    base = derive(NutParams(clearance=0.1))
+    wide = derive(NutParams(clearance=0.25))
+    assert wide.preset == base.preset
+    assert [(r.key, r.label, r.value) for r in wide.rows if r.key in NUT_CITED_KEYS] == [
+        (r.key, r.label, r.value) for r in base.rows if r.key in NUT_CITED_KEYS]
+    # No left-hand form in clause 5, so the designation is withheld and nothing else changes.
+    left = derive(NutParams(clearance=0.1, left_hand=True))
+    assert left.preset == base.preset
+    assert left.designation is None
+    assert left.notes == base.notes
+    assert [r.key for r in left.rows] == [r.key for r in base.rows]
+
+
+def test_a_nut_one_float_off_the_m6_row_is_custom_and_cites_nothing() -> None:
+    # INFO-01 boundary (T-05-17): exact equality only, so one ulp off the row's m is no row.
+    off = derive(NutParams(m=math.nextafter(5.2, math.inf), clearance=0.1))
+    assert off.preset == PresetMatch(status="custom", id=None, display=None)
+    assert not {r.key for r in off.rows} & set(NUT_CITED_KEYS)
+    assert (off.designation, off.notes) == (None, [])
+    assert off.warnings == [STANDING_WARNING, NUT_NO_ROW]
+
+
+def test_an_m7_nut_is_custom_because_the_gost_text_prints_no_m7() -> None:
+    info = derive(NutParams(d=7.0, pitch=1.0, s=11.0, m=5.5, clearance=0.1))
+    assert info.preset == PresetMatch(status="custom", id=None, display=None)
+    assert info.warnings == [STANDING_WARNING, NUT_NO_ROW]
+    assert not {r.key for r in info.rows} & set(NUT_CITED_KEYS)
+
+
+@pytest.mark.parametrize("nut", NUTS, ids=lambda n: n.size)
+def test_every_nut_row_reads_back_as_its_own_exact_row(nut: HexNut) -> None:
+    fields = expand_nut(f"iso4032:{nut.size}")
+    assert fields is not None
+    info = derive(NutParams.model_validate({**fields, "clearance": 0.1}))
+    assert info.preset is not None
+    assert info.preset.id == f"iso4032:{nut.size}"
+    table = nut.source.table
+    assert all(r.label.endswith(f"({GOST} {table})") for r in info.rows
+               if r.key in NUT_CITED_KEYS)
+    above_m16 = nut.size in {"M18", "M20"}
+    limit = "D > 16 mm" if above_m16 else "D \u2264 16 mm"
+    # D-20: M18's row also carries the pair-proof label, after the grade note.
+    assert info.notes == [f"product grade {'B' if above_m16 else 'A'} ({GOST}: {limit})",
+                          *([calc.M18_NOTE] if nut.size == "M18" else [])]
+
+
+def test_the_grade_note_changes_at_m16_and_the_second_choice_rows_cite_table_2() -> None:
+    def nut(size: str) -> list[str]:
+        fields = expand_nut(f"iso4032:{size}")
+        assert fields is not None
+        return derive(NutParams.model_validate({**fields, "clearance": 0.1})).notes
+
+    assert nut("M16") == [f"product grade A ({GOST}: D \u2264 16 mm)"]
+    assert nut("M18") == [f"product grade B ({GOST}: D > 16 mm)", calc.M18_NOTE]
+    fields = expand_nut("iso4032:M3.5")
+    assert fields is not None
+    labels = [r.label for r in derive(NutParams.model_validate({**fields, "clearance": 0.1})).rows
+              if r.key in NUT_CITED_KEYS]
+    assert len(labels) == 6
+    assert all(label.endswith("Table 2)") for label in labels)
+
+
+@pytest.mark.parametrize(("clearance", "text"), [
+    (0.0, "clearance 0 is not positive: the pair cannot be proven (PAIR-03)"),
+    (-0.05, "clearance -0.05 is not positive: the pair cannot be proven (PAIR-03)"),
+])
+def test_a_nut_with_a_non_positive_clearance_warns_once_after_the_standing_warning(
+        clearance: float, text: str) -> None:
+    info = derive(NutParams(clearance=clearance))
+    assert info.warnings == [STANDING_WARNING, text]
+
+
+@pytest.mark.parametrize("clearance", [5e-324, 0.1])
+def test_a_nut_with_a_positive_clearance_has_no_clearance_warning(clearance: float) -> None:
+    # 5e-324 is the smallest positive float: still positive, so no warning (PAIR-01, adjacency).
+    info = derive(NutParams(clearance=clearance))
+    assert info.warnings == [STANDING_WARNING]
+
+
+def test_a_tall_nut_fine_stl_is_refused_by_the_nuts_cap_and_nothing_else_is() -> None:
+    # R16, R17: the M10 x 1.5 nut's cap is 36 mm (not the rod's 56): a nut one mm above it is
+    # refused on its fine STL, with the sentence the info document and the warnings carry.
+    tall = NutParams(d=10.0, pitch=1.5, s=16.0, m=37.0, clearance=0.1)
+    sentence = nut_fine_stl_refusal(10.0, 1.5, 37.0, 0.1, False)
+    assert sentence is not None
+    assert sentence.startswith("m: ")
+    assert download_refusal(tall, "stl", "fine") == sentence
+    for fmt, quality in (("stl", "preview"), ("step", "fine"), ("step", "preview")):
+        assert download_refusal(tall, fmt, quality) is None
+    info = derive(tall)
+    refusals = {(e.format, e.quality): e.refusal for e in info.downloads}
+    assert refusals == {("stl", "fine"): sentence, ("stl", "preview"): None,
+                        ("step", "fine"): None, ("step", "preview"): None}
+    assert info.warnings.count(sentence) == 1
+    at_cap = NutParams(d=10.0, pitch=1.5, s=16.0, m=36.0, clearance=0.1)
+    assert download_refusal(at_cap, "stl", "fine") is None
+    assert sentence not in derive(at_cap).warnings
+    # a clearance above the ceiling is refused on the fine STL too, naming the clearance
+    loose = NutParams(d=10.0, pitch=1.5, s=26.0, m=5.0, clearance=5.5)
+    loose_refusal = download_refusal(loose, "stl", "fine")
+    assert loose_refusal is not None
+    assert loose_refusal.startswith("clearance: ")
+
+
+@pytest.mark.parametrize("left_hand", [False, True])
+def test_nut_fine_stl_serves_every_catalogue_row_at_its_own_s_and_m_max(left_hand: bool) -> None:
+    """No cap lands below a GOST ISO 4032-2014 catalogue height (plan 05-19, stop condition)."""
+    diameters = {size.label: size.d for size in iso262.SIZES}
+    for row in NUTS:
+        nut = NutParams(d=diameters[row.size], pitch=row.pitch, s=row.s, m=row.m_max,
+                        clearance=0.1, left_hand=left_hand)
+        assert download_refusal(nut, "stl", "fine") is None, row.size
+
+
+def test_the_nut_closed_form_is_the_prism_less_the_section_times_the_height() -> None:
+    # The hexagon written out, and the section by a midpoint sum of r^2 / 2 over the angle of
+    # `section_radius`: a different path from `section_area`'s closed form.
+    steps = 20000
+    section = sum(section_radius(6.0, 1.0, 0.1, (i + 0.5) * 2 * math.pi / steps) ** 2 / 2
+                  for i in range(steps)) * 2 * math.pi / steps
+    expected = math.sqrt(3) / 2 * 10.0**2 * 5.2 - section * 5.2
+    assert nut_closed_volume(6.0, 1.0, 10.0, 5.2, 0.1) == pytest.approx(expected, rel=1e-5)
+    # A larger clearance removes more: the nut gets lighter.
+    assert nut_closed_volume(6.0, 1.0, 10.0, 5.2, 0.2) < nut_closed_volume(6.0, 1.0, 10.0, 5.2, 0.1)
 
 
 def test_only_the_fine_stl_of_a_capped_part_is_refused() -> None:
@@ -212,9 +425,10 @@ def test_a_kind_without_a_download_rule_is_a_bug_not_a_user_error() -> None:
         download_refusal(Orphan(), "step", "preview")
 
 
-def test_every_registered_kind_has_a_download_rule() -> None:
-    for model in KINDS.values():
-        assert download_refusal(model(), "stl", "fine") is None
+def test_every_registered_kind_has_a_download_rule(
+        part_of: Callable[[str], FastenerParams]) -> None:
+    for kind in KINDS:
+        assert download_refusal(part_of(kind), "stl", "fine") is None
 
 
 def test_a_capped_part_warns_about_its_fine_stl_after_the_standing_warning() -> None:
@@ -228,7 +442,10 @@ def test_a_capped_part_warns_about_its_fine_stl_after_the_standing_warning() -> 
 def test_no_fine_stl_warning_at_the_cap_or_off_the_measured_rows() -> None:
     for p in (BoltParams(d=8.0, pitch=1.25, length=67.5, thread_length=67.5),
               BoltParams(d=8.0, pitch=1.0, length=67.6, thread_length=67.6)):
-        assert derive(p).warnings == [STANDING_WARNING, NO_ROW]
+        # M8 at pitch 1.25 is a size; pitch 1.0 is not, so the second also warns on the nut side.
+        assert derive(p).warnings[:2] == [STANDING_WARNING, NO_ROW]
+        assert derive(p).warnings[2:] == ([] if p.pitch == 1.25 else [
+            "no GOST ISO 4032-2014 (ISO 4032:2012) row for d 8 pitch 1; set s and m on the nut"])
 
 
 def test_the_fine_stl_cap_reads_the_built_thread_not_the_length() -> None:
@@ -297,11 +514,12 @@ def test_a_left_hand_part_refuses_no_download_and_the_right_hand_one_only_its_fi
     assert [e.refusal for e in derive(right).downloads] == [sentence, None, None, None]
 
 
-def test_every_registered_kinds_document_agrees_with_its_download_rule() -> None:
-    for model in KINDS.values():
-        part = model()
+def test_every_registered_kinds_document_agrees_with_its_download_rule(
+        part_of: Callable[[str], FastenerParams]) -> None:
+    for kind in KINDS:
+        part = part_of(kind)
         downloads = derive(part).downloads
-        assert downloads, model.kind
+        assert downloads, kind
         for entry in downloads:
             assert entry.refusal == download_refusal(part, entry.format, entry.quality)
 
@@ -438,9 +656,10 @@ def _groups(info: PartInfo) -> list[tuple[str, str]]:
 def test_the_rows_sit_in_three_groups_in_server_order() -> None:
     info = derive(BoltParams())
     shank = ["d", "pitch", "length", "thread_length", "shank_length", "turns", "thread_depth",
-             "minor_diameter"]
+             "minor_diameter", "pitch_diameter"]
     head = ["s", "across_corners", "k", "s_min", "e_min", "k_max", "k_min", "dw_min"]
     assert _groups(info) == ([("Shank and thread", k) for k in shank]
+                             + [(calc.LIMITS, k) for k in LIMITS_KEYS]
                              + [("Head", k) for k in head] + [("Part", "volume")])
 
 
@@ -448,7 +667,7 @@ def test_an_iso_4014_match_adds_b_lg_max_and_ls_min_to_the_shank_group() -> None
     info = derive(M10X80)
     shank = [k for g, k in _groups(info) if g == "Shank and thread"]
     assert shank == ["d", "pitch", "length", "thread_length", "shank_length", "turns",
-                     "thread_depth", "minor_diameter", "b", "lg_max", "ls_min"]
+                     "thread_depth", "minor_diameter", "pitch_diameter", "b", "lg_max", "ls_min"]
     assert [k for g, k in _groups(info) if g == "Head"] == [
         "s", "across_corners", "k", "s_min", "e_min", "k_max", "k_min", "dw_min"]
 
@@ -516,7 +735,10 @@ def test_every_catalogue_row_reports_its_own_stored_values_with_its_own_source()
 def test_a_non_coarse_pitch_builds_with_no_row_value_and_one_honest_warning() -> None:
     info = derive(BoltParams(pitch=0.75))
     assert {r.key for r in info.rows}.isdisjoint(ROW_KEYS)
-    assert info.warnings == [STANDING_WARNING, NO_ROW]
+    # The third is the counterpart's off-row warning: pitch 0.75 is no ISO 262 coarse size.
+    assert info.warnings == [
+        STANDING_WARNING, NO_ROW,
+        "no GOST ISO 4032-2014 (ISO 4032:2012) row for d 6 pitch 0.75; set s and m on the nut"]
     assert info.preset == PresetMatch(status="custom", id=None, display=None)
     assert info.designation is None
     assert {r.group for r in info.rows} == {"Shank and thread", "Head", "Part"}
@@ -526,7 +748,7 @@ def test_an_edited_field_drops_every_row_value_never_the_nearest_row() -> None:
     for change in ({"length": 21.0}, {"s": 10.5}, {"k": 4.1}, {"d": 6.5}, {"thread_length": 19.0}):
         info = derive(BoltParams.model_validate(change))
         assert {r.key for r in info.rows}.isdisjoint(ROW_KEYS), change
-        assert info.warnings[-1] == NO_ROW, change
+        assert NO_ROW in info.warnings, change
 
 
 def test_an_iso_4014_part_with_an_edited_thread_length_reports_no_b_lg_max_or_ls_min() -> None:
@@ -556,13 +778,17 @@ def _row_part(row_id: str) -> BoltParams:
     return BoltParams.model_validate(dict(row.fields))
 
 
-def test_the_default_part_notes_its_product_grade_and_nothing_else() -> None:
-    assert derive(BoltParams()).notes == [GRADE_A]
+def _without_fillet_note(notes: list[str]) -> list[str]:
+    return [n for n in notes if n != NO_FILLET_NOTE]
+
+
+def test_the_default_part_notes_its_product_grade_and_that_it_has_no_fillet() -> None:
+    assert derive(BoltParams()).notes == [GRADE_A, NO_FILLET_NOTE]
 
 
 def test_a_grade_b_row_notes_grade_b() -> None:
     notes = derive(_row_part("iso4017:M16x160")).notes
-    assert notes == ["product grade B (ISO 4017:2022: l > 150 mm)"]
+    assert notes == ["product grade B (ISO 4017:2022: l > 150 mm)", NO_FILLET_NOTE]
 
 
 def test_the_grade_note_names_the_matched_standard() -> None:
@@ -579,7 +805,7 @@ def test_the_grade_note_names_the_matched_standard() -> None:
     ("iso4014:M14x80", "wrench size 21 mm (ISO 4014:2022); the withdrawn DIN 931 used 22 mm"),
 ])
 def test_the_wrench_note_at_m10_m12_and_m14_is_the_second_note(row_id: str, note: str) -> None:
-    notes = derive(_row_part(row_id)).notes
+    notes = _without_fillet_note(derive(_row_part(row_id)).notes)
     assert len(notes) == 2
     assert notes[1] == note
 
@@ -587,10 +813,11 @@ def test_the_wrench_note_at_m10_m12_and_m14_is_the_second_note(row_id: str, note
 def test_the_wrench_note_appears_on_those_three_sizes_and_no_others() -> None:
     # INFO-05: only M10, M12 and M14 differ between the ISO and the withdrawn DIN wrench size.
     sizes_with_note = {row.size for row in catalogue()
-                       if len(derive(BoltParams.model_validate(dict(row.fields))).notes) == 2}
+                       if len(_without_fillet_note(
+                           derive(BoltParams.model_validate(dict(row.fields))).notes)) == 2}
     assert sizes_with_note == {"M10", "M12", "M14"}
     for row_id in ("iso4017:M8x40", "iso4017:M16x40", "iso4017:M20x40", "iso4014:M8x80"):
-        assert len(derive(_row_part(row_id)).notes) == 1, row_id
+        assert len(_without_fillet_note(derive(_row_part(row_id)).notes)) == 1, row_id
 
 
 def test_the_iso_wrench_size_differs_from_the_cited_din_one_wherever_a_note_is_made() -> None:
@@ -619,7 +846,13 @@ def test_every_registered_kind_states_its_explicit_conflict_rule() -> None:
         assert explicit_conflict(kind, {}) is None
 
 
-def test_an_unregistered_kind_has_no_rule_and_says_so() -> None:
+def test_a_kind_without_an_entry_has_no_rule_and_says_so(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    # `nut` is registered, so the missing entry is made by dropping its own: the lookup raises
+    # instead of falling back to the bolt's rule.
+    monkeypatch.setattr(
+        calc, "_EXPLICIT_CONFLICTS",
+        {k: v for k, v in calc._EXPLICIT_CONFLICTS.items() if k != "nut"})
     with pytest.raises(TypeError, match="no explicit-conflict rule registered for kind 'nut'"):
         explicit_conflict("nut", {"length": 10.0, "thread_length": 30.0})
 
@@ -639,3 +872,434 @@ def test_the_bolt_rule_needs_both_values_as_floats() -> None:
     assert explicit_conflict("bolt", {"length": 10.0}) is None
     assert explicit_conflict("bolt", {"thread_length": 30.0}) is None
     assert explicit_conflict("bolt", {"length": 10.0, "thread_length": "30"}) is None
+
+
+# --- the nominal diameters and the bought-part limits (INFO-01, INFO-02, D-16, L14) ------------
+
+LIMITS_HEADING = "limits for a bought part; this model is nominal and not toleranced"
+LIMITS_LABEL_SOURCE = ("(derived: GOST 24705-2004 (ISO 724:1993, MOD) + "
+                       "GOST 16093-2004 (based on ISO 965-1:1998 and ISO 965-3:1998))")
+JUST_ABOVE_M6 = math.nextafter(6.0, math.inf)
+
+
+def _limit_rows(info: PartInfo) -> list[tuple[str, str, float, str]]:
+    return [(r.key, r.label, r.value, r.unit) for r in info.rows if r.group == LIMITS_HEADING]
+
+
+def test_the_limits_heading_is_the_ascii_text_of_info_02() -> None:
+    assert calc.LIMITS == LIMITS_HEADING
+    assert LIMITS_HEADING.encode("ascii") == (
+        b"limits for a bought part; this model is nominal and not toleranced")
+
+
+def test_the_pitch_diameter_follows_the_minor_diameter_on_the_bolt() -> None:
+    info = derive(BoltParams())
+    keys = [r.key for r in info.rows]
+    assert keys[keys.index("minor_diameter") + 1] == "pitch_diameter"
+    row = next(r for r in info.rows if r.key == "pitch_diameter")
+    assert row.label == f"Pitch diameter d2 ({PROFILE})"
+    assert (row.value, row.unit, row.group) == (pitch_diameter(6.0, 1.0), "mm", "Shank and thread")
+
+
+def test_the_nut_thread_group_reads_d_pitch_depth_pitch_diameter_and_minor_diameter() -> None:
+    info = derive(NutParams(clearance=0.1))
+    thread = [r for r in info.rows if r.group == "Thread"]
+    assert [r.key for r in thread] == ["d", "pitch", "thread_depth", "pitch_diameter",
+                                       "minor_diameter"]
+    by_key = {r.key: r for r in thread}
+    assert by_key["pitch_diameter"].label == f"Pitch diameter D2 ({PROFILE})"
+    assert by_key["minor_diameter"].label == f"Minor diameter D1 ({PROFILE})"
+    assert by_key["pitch_diameter"].value == pitch_diameter(6.0, 1.0)
+    assert by_key["minor_diameter"].value == basic_minor_diameter(6.0, 1.0)
+    assert by_key["thread_depth"].value == thread_depth(1.0)
+
+
+def test_the_m6_bolt_carries_its_four_6g_rows_with_the_derived_label() -> None:
+    limits = next(b for b in BOLT_LIMITS if b.size == "M6")
+    assert _limit_rows(derive(BoltParams())) == [
+        ("d_max", f"Major diameter, max, 6g {LIMITS_LABEL_SOURCE}", limits.d_max, "mm"),
+        ("d_min", f"Major diameter, min, 6g {LIMITS_LABEL_SOURCE}", limits.d_min, "mm"),
+        ("d2_max", f"Pitch diameter, max, 6g {LIMITS_LABEL_SOURCE}", limits.d2_max, "mm"),
+        ("d2_min", f"Pitch diameter, min, 6g {LIMITS_LABEL_SOURCE}", limits.d2_min, "mm")]
+
+
+def test_the_m6_nut_carries_its_four_6h_rows_with_the_derived_label() -> None:
+    limits = next(n for n in NUT_LIMITS if n.size == "M6")
+    assert _limit_rows(derive(NutParams(clearance=0.1))) == [
+        ("D1_min", f"Minor diameter, min, 6H {LIMITS_LABEL_SOURCE}", limits.D1_min, "mm"),
+        ("D1_max", f"Minor diameter, max, 6H {LIMITS_LABEL_SOURCE}", limits.D1_max, "mm"),
+        ("D2_min", f"Pitch diameter, min, 6H {LIMITS_LABEL_SOURCE}", limits.D2_min, "mm"),
+        ("D2_max", f"Pitch diameter, max, 6H {LIMITS_LABEL_SOURCE}", limits.D2_max, "mm")]
+
+
+def test_every_iso_262_size_shows_its_own_stored_limits_on_both_kinds() -> None:
+    for size in iso262.SIZES:
+        bolt = {k: v for k, _, v, _ in _limit_rows(
+            derive(BoltParams.model_construct(d=size.d, pitch=size.pitch)))}
+        nut = {k: v for k, _, v, _ in _limit_rows(derive(NutParams(
+            d=size.d, pitch=size.pitch, s=size.d + 5.0, m=size.d, clearance=0.1)))}
+        stored_bolt = next(b for b in BOLT_LIMITS if b.size == size.label)
+        stored_nut = next(n for n in NUT_LIMITS if n.size == size.label)
+        assert bolt == {"d_max": stored_bolt.d_max, "d_min": stored_bolt.d_min,
+                        "d2_max": stored_bolt.d2_max, "d2_min": stored_bolt.d2_min}, size.label
+        assert nut == {"D1_min": stored_nut.D1_min, "D1_max": stored_nut.D1_max,
+                       "D2_min": stored_nut.D2_min, "D2_max": stored_nut.D2_max}, size.label
+
+
+def test_the_limits_do_not_depend_on_the_hand_the_clearance_or_the_catalogue_row() -> None:
+    base = _limit_rows(derive(NutParams(clearance=0.1)))
+    assert base
+    for clearance in (0.0, 0.05, 0.1, 0.25, -0.05):
+        for hand in (False, True):
+            nut = derive(NutParams(clearance=clearance, left_hand=hand))
+            assert _limit_rows(nut) == base, (clearance, hand)
+    bolt = _limit_rows(derive(BoltParams()))
+    assert _limit_rows(derive(BoltParams(left_hand=True))) == bolt
+    # A size that is no catalogue row still has the limits: they depend on (d, pitch) alone.
+    assert _limit_rows(derive(BoltParams(length=21.0, thread_length=21.0))) == bolt
+    assert _limit_rows(derive(NutParams(s=11.0, clearance=0.1))) == base
+
+
+@pytest.mark.parametrize("fields", [
+    {"d": JUST_ABOVE_M6}, {"d": 6.0001}, {"pitch": 0.9}, {"pitch": math.nextafter(1.0, math.inf)},
+])
+def test_off_an_exact_iso_262_size_there_is_no_limits_group_and_the_no_row_warning(
+        fields: dict[str, float]) -> None:
+    bolt = derive(BoltParams.model_validate(fields))
+    nut = derive(NutParams.model_validate({**fields, "clearance": 0.1}))
+    for info, no_row in ((bolt, NO_ROW), (nut, NUT_NO_ROW)):
+        # INFO-02: no group, no empty heading, and the row list holds no row of that group.
+        assert _limit_rows(info) == []
+        assert LIMITS_HEADING not in {r.group for r in info.rows}
+        assert no_row in info.warnings
+
+
+def test_at_the_exact_m6_size_the_limits_are_present_on_both_hands_and_every_clearance() -> None:
+    for hand in (False, True):
+        assert len(_limit_rows(derive(BoltParams(left_hand=hand)))) == 4
+        for clearance in (-0.05, 0.0, 0.05, 0.1, 0.5):
+            assert len(_limit_rows(derive(NutParams(left_hand=hand, clearance=clearance)))) == 4
+
+
+def test_the_limit_labels_name_both_gost_texts_and_never_an_unread_edition() -> None:
+    for info in (derive(BoltParams()), derive(NutParams(clearance=0.1))):
+        for row in info.rows:
+            if row.group != LIMITS_HEADING:
+                continue
+            assert "GOST 24705-2004 (ISO 724:1993, MOD)" in row.label
+            assert "GOST 16093-2004 (based on ISO 965-1:1998 and ISO 965-3:1998)" in row.label
+            assert "ISO 724:2023" not in row.label
+            assert "965-2" not in row.label
+
+
+# --- the nut's Pair group (PAIR-01, D-19, PAIR-04) ----------------------------------------------
+
+def _pair(p: NutParams) -> dict[str, float]:
+    return {r.key: r.value for r in derive(p).rows if r.group == "Pair"}
+
+
+def test_the_nut_pair_rows_are_the_eight_keys_in_the_fixed_order() -> None:
+    info = derive(NutParams(clearance=0.1))
+    assert [r.key for r in info.rows if r.group == "Pair"] == PAIR_KEYS
+    assert [r.label for r in info.rows if r.group == "Pair"] == [
+        "Clearance (radial)", "Clearance (diametral, 2c)", "Flank-normal gap (closed form)",
+        "Axial play, both flanks (closed form)", "Nut major diameter (d + 2c)",
+        "Nut pitch diameter (D2 + 2c)", "Nut minor diameter (D1 + 2c)", "Engagement (m / P)"]
+    assert [r.unit for r in info.rows if r.group == "Pair"] == ["mm"] * 7 + ["turns"]
+    # The Pair group is contiguous and the bolt has none (D-19).
+    keys = [r.key for r in info.rows]
+    assert keys[keys.index("clearance"):][:8] == PAIR_KEYS
+    assert "Pair" not in {r.group for r in derive(BoltParams()).rows}
+
+
+def test_the_nut_pair_values_are_the_unrounded_closed_forms() -> None:
+    c = 0.1
+    pair = _pair(NutParams(clearance=c))
+    assert pair["clearance"] == c
+    assert pair["clearance_diametral"] == 2 * c
+    assert pair["flank_gap"] == flank_normal_gap(c)
+    assert pair["axial_play"] == axial_play(c)
+    assert pair["nut_major_diameter"] == 6.0 + 2 * c
+    assert pair["nut_pitch_diameter"] == pitch_diameter(6.0, 1.0) + 2 * c
+    assert pair["nut_minor_diameter"] == basic_minor_diameter(6.0, 1.0) + 2 * c
+    assert pair["engagement_turns"] == 5.2 / 1.0
+    assert pair["flank_gap"] == pytest.approx(0.5 * c, abs=1e-15)
+    assert pair["axial_play"] == pytest.approx(2 * c / math.sqrt(3), abs=1e-15)
+
+
+def test_the_engagement_is_the_exact_quotient_of_the_height_and_the_pitch() -> None:
+    # 5.4 / 0.6 is 9.000000000000002 in floats; the panel prints the exact quotient, like turns.
+    assert _pair(NutParams(d=3.5, pitch=0.6, s=6.0, m=5.4, clearance=0.1))[
+        "engagement_turns"] == 9.0
+
+
+def test_zero_clearance_gives_zero_gaps_and_the_warning_and_interference_is_reported() -> None:
+    zero = derive(NutParams(clearance=0.0))
+    pair = {r.key: r.value for r in zero.rows if r.group == "Pair"}
+    assert (pair["clearance_diametral"], pair["flank_gap"], pair["axial_play"]) == (0.0, 0.0, 0.0)
+    assert any("is not positive" in w for w in zero.warnings)
+    tight = derive(NutParams(clearance=-0.05))
+    pair = {r.key: r.value for r in tight.rows if r.group == "Pair"}
+    assert pair["clearance_diametral"] == -0.1
+    assert pair["flank_gap"] < 0
+    assert pair["axial_play"] < 0
+    assert pair["nut_major_diameter"] == 6.0 - 0.1
+    assert any("is not positive" in w for w in tight.warnings)
+
+
+def test_the_pair_rows_do_not_depend_on_the_hand() -> None:
+    assert _pair(NutParams(clearance=0.1, left_hand=True)) == _pair(NutParams(clearance=0.1))
+
+
+def test_a_pair_value_that_is_not_finite_is_left_out_with_a_warning() -> None:
+    # model_construct skips the bounds (D-15): the quotient overflows and is dropped, not printed.
+    info = derive(NutParams.model_construct(d=6.0, pitch=5e-324, s=10.0, m=5.2, clearance=0.1,
+                                            left_hand=False))
+    assert "engagement_turns" not in [r.key for r in info.rows]
+    assert any(w.startswith("engagement_turns not reported") for w in info.warnings)
+
+
+# --- the M18 label (D-20, SC6): from the cited record, keyed on the size alone -----------------
+
+M18_TEXT = "kernel pair proof inconclusive at K = 3 (2026-10-08-a-pair)"
+
+
+def test_the_m18_note_text_and_key_are_the_campaigns() -> None:
+    assert calc.M18_NOTE == M18_TEXT
+    assert calc.M18_KEY == (18.0, 2.5)
+
+
+@pytest.mark.parametrize("clearance", [0.05, 0.1, -0.05])
+@pytest.mark.parametrize("hand", [False, True])
+def test_an_m18_nut_carries_the_note_exactly_once_whatever_the_hand_and_clearance(
+        clearance: float, hand: bool) -> None:
+    nut = NutParams(d=18.0, pitch=2.5, s=27.0, m=14.8, clearance=clearance, left_hand=hand)
+    notes = derive(nut).notes
+    assert notes.count(M18_TEXT) == 1
+    assert notes[-1] == M18_TEXT
+
+
+def test_the_m18_row_keeps_its_grade_note_before_the_label() -> None:
+    row = expand_nut("iso4032:M18")
+    assert row is not None
+    info = derive(NutParams.model_validate({**row, "clearance": 0.1}))
+    assert info.preset == PresetMatch(status="exact", id="iso4032:M18", display="ISO 4032 (M18)")
+    assert info.notes == [f"product grade B ({GOST}: D > 16 mm)", M18_TEXT]
+
+
+def test_a_nut_that_is_no_row_still_carries_the_m18_note() -> None:
+    info = derive(NutParams(d=18.0, pitch=2.5, s=30.0, m=10.0, clearance=0.1))
+    assert info.preset == PresetMatch(status="custom", id=None, display=None)
+    assert info.notes == [M18_TEXT]
+
+
+def test_only_the_exact_m18_key_carries_the_note() -> None:
+    above = math.nextafter(18.0, math.inf)
+    for nut in (NutParams(d=above, pitch=2.5, s=27.0, m=14.8, clearance=0.1),
+                NutParams(d=18.0, pitch=2.0, s=27.0, m=14.8, clearance=0.1),
+                NutParams(d=18.0, pitch=math.nextafter(2.5, math.inf), s=27.0, m=14.8,
+                          clearance=0.1),
+                NutParams(clearance=0.1)):
+        assert M18_TEXT not in derive(nut).notes
+    # The bolt gets no note (SC6: the label is on the nut's pair section).
+    assert M18_TEXT not in derive(BoltParams(d=18.0, pitch=2.5, s=27.0, k=11.0)).notes
+
+
+def test_the_m18_note_is_derived_without_the_kernel_loaded() -> None:
+    code = ("import sys; from screw.calc import derive; from screw.params import NutParams; "
+            "i = derive(NutParams(d=18.0, pitch=2.5, s=27.0, m=14.8, clearance=0.1)); "
+            f"print({M18_TEXT!r} in i.notes, 'cadquery' in sys.modules)")
+    out = subprocess.run([sys.executable, "-I", "-c", code], capture_output=True, text=True,
+                         check=True).stdout
+    assert out.split() == ["True", "False"]
+
+
+# ------------------------------------------------------- the counterpart (TYPE-04, D-02, D-03)
+
+NO_NUT_ROW = "no GOST ISO 4032-2014 (ISO 4032:2012) row for d {d}; set s and m on the nut"
+NO_BOLT_ROW = "no ISO 4017:2022 row for d {d}; set s, k, length and thread_length on the bolt"
+CARRIED = {"d": 6.0, "pitch": 1.0, "left_hand": False}
+
+
+def _counterpart(p: FastenerParams) -> Counterpart:
+    counterpart = derive(p).counterpart
+    assert counterpart is not None
+    return counterpart
+
+
+def test_the_default_bolt_names_its_nut_with_the_iso_4032_m6_row_and_no_warning() -> None:
+    nut = next(n for n in NUTS if n.size == "M6")
+    info = derive(BoltParams())
+    assert _counterpart(BoltParams()) == Counterpart(
+        kind="nut", fields={**CARRIED, "s": nut.s, "m": nut.m_max})
+    assert list(_counterpart(BoltParams()).fields) == ["d", "pitch", "left_hand", "s", "m"]
+    assert not any(w.startswith("no GOST ISO 4032-2014 (ISO 4032:2012) row for") for w in
+                   info.warnings)
+
+
+def test_the_default_nut_names_its_bolt_with_the_iso_4017_m6_head_and_no_warning() -> None:
+    head = BoltParams()
+    nut = NutParams(clearance=0.1)
+    assert _counterpart(nut) == Counterpart(
+        kind="bolt", fields={**CARRIED, "s": head.s, "k": head.k})
+    assert not any(w.startswith("no ISO 4017:2022 row for") for w in derive(nut).warnings)
+
+
+@pytest.mark.parametrize("p", [BoltParams(left_hand=True),
+                               NutParams(left_hand=True, clearance=0.1)])
+def test_left_hand_carries_over_as_a_json_boolean_in_both_directions(p: FastenerParams) -> None:
+    counterpart = _counterpart(p)
+    assert counterpart.fields["left_hand"] is True
+    assert '"left_hand":true' in counterpart.model_dump_json()
+
+
+def test_a_bolt_off_the_nut_rows_carries_d_pitch_and_hand_and_warns_naming_the_row_source() -> None:
+    info = derive(BoltParams(d=6.5))
+    assert _counterpart(BoltParams(d=6.5)) == Counterpart(
+        kind="nut", fields={**CARRIED, "d": 6.5})
+    assert info.warnings[-1] == NO_NUT_ROW.format(d="6.5 pitch 1")
+
+
+def test_an_iso_4017_m7_bolt_is_off_the_nut_rows_because_gost_iso_4032_prints_no_m7() -> None:
+    head = next(h for h in HEADS if h.size == "M7")
+    m7 = BoltParams(d=7.0, pitch=1.0, s=head.s, k=head.k)
+    assert _counterpart(m7) == Counterpart(kind="nut", fields={**CARRIED, "d": 7.0})
+    assert derive(m7).warnings[-1] == NO_NUT_ROW.format(d="7 pitch 1")
+
+
+def test_a_nut_off_the_iso_4017_rows_carries_d_pitch_and_hand_and_warns() -> None:
+    nut = NutParams(d=6.5, clearance=0.1)
+    assert _counterpart(nut) == Counterpart(kind="bolt", fields={**CARRIED, "d": 6.5})
+    assert derive(nut).warnings[-1] == NO_BOLT_ROW.format(d="6.5 pitch 1")
+
+
+def test_a_value_one_float_off_a_row_gets_no_nearest_row() -> None:
+    for p in (BoltParams(d=math.nextafter(6.0, 7.0)), BoltParams(pitch=math.nextafter(1.0, 2.0)),
+              NutParams(d=math.nextafter(6.0, 7.0), clearance=0.1)):
+        assert set(_counterpart(p).fields) == {"d", "pitch", "left_hand"}
+
+
+@pytest.mark.parametrize("p", [
+    BoltParams(), BoltParams(d=6.5), BoltParams(length=30.0, thread_length=18.0),
+    NutParams(clearance=0.1), NutParams(d=6.5, clearance=0.1)])
+def test_clearance_length_and_thread_length_are_never_in_a_counterpart(p: FastenerParams) -> None:
+    assert {"clearance", "length", "thread_length"}.isdisjoint(_counterpart(p).fields)
+
+
+@pytest.mark.parametrize("nut", NUTS, ids=lambda n: n.size)
+def test_following_a_bolts_counterpart_gives_the_nut_row_of_its_size(nut: HexNut) -> None:
+    size = next(s for s in iso262.SIZES if s.label == nut.size)
+    head = next(h for h in HEADS if h.size == nut.size)
+    bolt = BoltParams(d=size.d, pitch=size.pitch, s=head.s, k=head.k, length=40.0,
+                      thread_length=40.0)
+    follow = NutParams.model_validate({**_counterpart(bolt).fields, "clearance": 0.1})
+    assert (follow.d, follow.pitch, follow.s, follow.m) == (size.d, size.pitch, nut.s, nut.m_max)
+    assert follow.clearance == 0.1
+    preset = derive(follow).preset
+    assert preset is not None
+    assert (preset.status, preset.id) == ("exact", f"iso4032:{nut.size}")
+
+
+def test_following_a_nuts_counterpart_gives_a_bolt_with_the_nuts_d_pitch_and_hand() -> None:
+    nut = NutParams(left_hand=True, clearance=0.1)
+    bolt = BoltParams.model_validate(_counterpart(nut).fields)
+    assert (bolt.d, bolt.pitch, bolt.left_hand) == (nut.d, nut.pitch, nut.left_hand)
+
+
+# --- the bolt's ends: the tip cone, the fillet ring, their notes and warnings (D-09, D-11, 05-12)
+
+
+def test_the_volume_row_is_the_closed_form_less_the_tip_and_plus_the_ring() -> None:
+    # An ISO 4014 M10 x 80 row: 26 mm of thread under a 54 mm plain shank, r = 0.4 (cited).
+    rows = _rows(M10X80)
+    assert rows["volume"] == bolt_end_closed_volume(10.0, 1.5, 80.0, 16.0, 6.4, 26.0, True, 0.4)
+    assert rows["volume"] != bolt_end_closed_volume(10.0, 1.5, 80.0, 16.0, 6.4, 26.0, True, None)
+
+
+def test_the_volume_formula_text_names_the_tip_cone_and_the_ring() -> None:
+    # The formula is spoken only when the row cannot be reported (L02); d = 1e200 overflows it.
+    info = derive(BoltParams.model_construct(d=1e200, pitch=1.0, length=20.0, s=10.0, k=4.0))
+    text = next(w for w in info.warnings if w.startswith("volume not reported"))
+    assert "tip cone" in text
+    assert "fillet ring" in text
+
+
+def test_a_thread_no_longer_than_the_tip_cone_gets_no_cone_and_a_warning_naming_thread() -> None:
+    cone = tip_cone_length(1.0, TIP_ANGLE_DEG)
+    assert cone == pytest.approx(thread_depth(1.0))  # tan 45 degrees is 1
+    for t, cut in ((cone, False), (math.nextafter(cone, math.inf), True)):
+        p = BoltParams(d=6.0, pitch=1.0, length=10.0, thread_length=t)
+        info = derive(p)
+        warned = [w for w in info.warnings if w.startswith("thread_length: the built thread")]
+        assert bool(warned) is not cut, t
+        values = {r.key: r.value for r in info.rows}
+        assert values["volume"] == bolt_end_closed_volume(6.0, 1.0, 10.0, 10.0, 4.0, t, cut, 0.25)
+    short = derive(BoltParams(d=6.0, pitch=1.0, length=10.0, thread_length=cone)).warnings
+    assert any("thread_length" in w and "no tip cone is cut" in w for w in short)
+
+
+def test_an_iso_4017_screw_notes_that_it_has_no_fillet_and_an_iso_4014_bolt_does_not() -> None:
+    assert NO_FILLET_NOTE == "no under-head fillet: the thread runs to the head (ISO 4017:2022)"
+    assert NO_FILLET_NOTE in derive(BoltParams()).notes
+    assert NO_FILLET_NOTE not in derive(M10X80).notes
+    # A note, not a warning.
+    assert all(NO_FILLET_NOTE not in w for w in derive(BoltParams()).warnings)
+
+
+# --- the nut's ends: the end-aware closed form and its warnings (05-13) ------------------------
+
+
+def test_the_nut_end_closed_form_is_the_nut_less_two_countersinks_and_two_chamfers() -> None:
+    # Written out from the owner's models (R3 1.16 and 90 degrees included, R4 30 degrees from the
+    # inscribed circle), not from the constants, so a changed model cannot change both sides.
+    from screw.calc.thread import countersink_volume, face_chamfer_volume
+
+    face = 1.16 * 6.0 / 2
+    root = 3.0 - thread_depth(1.0) + 0.1
+    csk = countersink_volume(6.0, 1.0, 0.1, 10.0, face, 45.0, face - root)
+    chamfer = face_chamfer_volume(10.0, 5.0, 30.0, (5.0 / math.cos(math.pi / 6) - 5.0)
+                                  * math.tan(math.radians(30.0)))
+    assert csk > 1.0
+    assert chamfer > 1.0
+    assert nut_end_closed_volume(6.0, 1.0, 10.0, 5.2, 0.1) == pytest.approx(
+        nut_closed_volume(6.0, 1.0, 10.0, 5.2, 0.1) - 2 * csk - 2 * chamfer, rel=1e-12)
+
+
+def test_a_countersink_that_cannot_cross_the_void_is_left_out_of_the_volume_and_warned() -> None:
+    # R3: M2 at clearance 0.2 has a crest radius of 1.2 mm and the cone opens to 1.16 mm.
+    from screw.calc.thread import face_chamfer_volume
+
+    chamfer = face_chamfer_volume(4.0, 2.0, 30.0, (2.0 / math.cos(math.pi / 6) - 2.0)
+                                  * math.tan(math.radians(30.0)))
+    assert nut_end_closed_volume(2.0, 0.4, 4.0, 1.6, 0.2) == pytest.approx(
+        nut_closed_volume(2.0, 0.4, 4.0, 1.6, 0.2) - 2 * chamfer, rel=1e-12)
+    info = derive(NutParams(d=2.0, pitch=0.4, s=4.0, m=1.6, clearance=0.2))
+    assert info.warnings[0] == WARNING
+    [named] = [w for w in info.warnings if w.startswith("clearance 0.2:")]
+    assert "left out" in named
+
+
+def test_a_nut_too_thin_for_its_countersinks_is_capped_and_warned_naming_m() -> None:
+    # R5 a: m 0.8 on M6 caps both depths at m / 2, and the volume integrates the capped depth.
+    from screw.calc.thread import countersink_volume, face_chamfer_volume
+
+    info = derive(NutParams(clearance=0.1, m=0.8))
+    named = [w for w in info.warnings if w.startswith("m 0.8:")]
+    assert len(named) == 2
+    assert "countersinks are cut 0.4 mm deep" in named[0]
+    assert "chamfers are cut 0.4 mm deep" in named[1]
+    expected = (nut_closed_volume(6.0, 1.0, 10.0, 0.8, 0.1)
+                - 2 * countersink_volume(6.0, 1.0, 0.1, 10.0, 3.48, 45.0, 0.4)
+                - 2 * face_chamfer_volume(10.0, 5.0, 30.0, 0.4))
+    assert nut_end_closed_volume(6.0, 1.0, 10.0, 0.8, 0.1) == pytest.approx(expected, rel=1e-12)
+
+
+def test_a_nut_with_room_for_its_ends_carries_no_end_warning_and_its_formula_names_them() -> None:
+    info = derive(NutParams(clearance=0.1))
+    assert info.warnings[0] == WARNING
+    assert not any("(L15)" in w for w in info.warnings)
+    assert info.model_dump()["rows"]  # the document is whole
+    broken = derive(NutParams.model_construct(d=math.inf, pitch=1.0, s=10.0, m=5.2, clearance=0.1))
+    text = next(w for w in broken.warnings if w.startswith("volume not reported"))
+    assert "lead-in countersinks" in text
+    assert "face chamfers" in text

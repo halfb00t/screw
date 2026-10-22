@@ -8,12 +8,17 @@ const $ = (sel) => document.querySelector(sel);
 const form = $('#params');
 const kindSelect = $('#kind');
 let kinds = { default: null, kinds: [] }; // the /api/kinds body
-let currentKind = null; // the kind the form below was built for; null while none is valid
+let currentKind = null; // the kind the last finished navigation loaded (form and picker); null while none is valid
 const fields = new Map(); // name -> { input, wrap, title }
 let defaults = {};
+// The kind of the controls on screen, set with them and with defaults in buildForm. currentKind lags it
+// for the whole catalogue fetch of a kind switch, and a value typed in that window was remembered under
+// the old kind and reached the bolt's link (review WR-07, 2026-10-21, reproduced in a headless browser).
+let formKind = null;
 const picker = $('#picker');
 const pickerLegend = picker.querySelector('legend');
 const badge = $('#badge');
+const counterpartLink = $('#counterpart');
 const pickerSelects = []; // one select per catalogue axis, in axis order
 let catalogue = null; // the /api/presets body for currentKind; null while there is no picker
 let shownPreset = null; // the preset member of the newest info document, null after a failure
@@ -21,6 +26,13 @@ let shownPreset = null; // the preset member of the newest info document, null a
 // badge. Page-session state only (D-09): navigate() clears it, and no request, hash or query
 // ever reads it, so a link carries millimetres and never a preset.
 let presetBasis = null;
+// Per kind, the value last typed in this page into each field that has no default (today the
+// nut's clearance), kept so the matching-part link can carry it (owner ruling 2026-10-21, L15
+// amendment, G-05-3). Typed means an input event: a link, Reset or a kind change never writes it,
+// so the page never carries a number the user did not type (L02). Reset or a navigation that leaves
+// the field holding another value forgets it (owner ruling 2026-10-21, WR-08). Page memory only, so
+// a reload or a new tab forgets it. No request, hash or download ever reads it.
+const lastTyped = new Map();
 // Warnings belong to a mesh, not to the last info fetch (D-11). update() fetches info first,
 // so by the time a model.stl request fails the newest info document describes the part that
 // did not build while the mesh on screen is an older one. A rendered info document waits in
@@ -39,10 +51,12 @@ let meshNotes = [];
 // A checkbox's .value is the constant "on", so every read and write of a control goes through
 // these two: a checkbox reads as 'true' or 'false' and is written from either, any other
 // control by its value (D-09). The link then carries `left_hand=true` and nothing else.
+// A field with no default (the nut's clearance) has `undefined` for one: it is written as an empty
+// control, never as the word "undefined" (RESEARCH P9b).
 const read = (input) => (input.type === 'checkbox' ? String(input.checked) : input.value);
 function write(input, v) {
   if (input.type === 'checkbox') input.checked = String(v) === 'true';
-  else input.value = v;
+  else input.value = v ?? '';
 }
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
@@ -64,6 +78,7 @@ function clearForm() {
   form.replaceChildren();
   fields.clear();
   defaults = {};
+  formKind = null;
 }
 
 function clearPicker() {
@@ -82,6 +97,7 @@ async function buildForm(kind) {
   const schema = await res.json();
   if (mine !== formSeq) return false;
   clearForm();
+  formKind = kind;
   const groups = new Map();
 
   for (const [name, prop] of Object.entries(schema.properties)) {
@@ -157,14 +173,23 @@ function showPicks(picks) {
 
 /**
  * The selects and the badge follow the fields (D-12, D-09): the matching catalogue row when the
- * newest info document says exact, blank selects when it says custom or the update failed. The
- * badge text composes from preset.status and preset.display alone; the id only finds the row.
+ * newest info document says exact, blank selects when it says custom. When no document arrived
+ * (the update failed) the selects show the row the fields hold exactly, else blank, and the badge
+ * is empty, because it reads only a document. The badge text composes from preset.status and
+ * preset.display alone; the id only finds the row.
+ *
+ * Measured, UAT 2026-10-21 test 1 (G-05-1): a nut with its clearance empty answers every info
+ * request with a 422 that carries no preset. Blank selects after that failure undid every pick:
+ * the first Standard wrote the smallest row (diameter 2, pitch 0.4, width 4, height 1.6) and went
+ * blank with Size empty, so the next size could not be picked.
  */
 function showMatch(preset) {
   if (catalogue === null) return;
   shownPreset = preset;
   const exact = preset !== null && preset.status === 'exact';
-  const entry = exact ? catalogue.rows.find((row) => row.id === preset.id) : undefined;
+  const entry = exact
+    ? catalogue.rows.find((row) => row.id === preset.id)
+    : preset === null ? rowOfFields() : undefined;
   showPicks(entry ? entry.picker : pickerSelects.map(() => ''));
   // The last exact match is the basis, not only a pick: after Reset, or after an edit that lands
   // on another row, a later edit is "based on" the row the part really was (never a guess, D-09).
@@ -172,6 +197,22 @@ function showMatch(preset) {
   if (preset === null) badge.textContent = '';
   else if (exact) badge.textContent = `matches ${preset.display}`;
   else badge.textContent = presetBasis ? `custom, based on ${presetBasis.display}` : 'custom';
+}
+
+// rowOfFields is the server's rule and order (calc.presets.match and match_nut: exact float
+// equality, first row in catalogue order), so the page never names a row the server would not,
+// and never a nearest one (L02). An empty control is no value: Number('') is 0 (rule 35).
+/** The first catalogue row whose every field the form holds exactly, or undefined. */
+function rowOfFields() {
+  return catalogue.rows.find((row) => Object.entries(row.fields).every(([name, value]) => {
+    // A row names a field the form lacks only when the catalogue is another kind's. navigate takes the
+    // old catalogue off screen before a kind switch fetches the new form (review WR-09), so this is the
+    // second line: a control that is not there does not hold the row and never throws (review IN-06).
+    const control = fields.get(name);
+    if (control === undefined) return false;
+    const held = read(control.input);
+    return held !== '' && Number(held) === value;
+  }));
 }
 
 /**
@@ -239,6 +280,7 @@ function refuseLink(message) {
   currentKind = null;
   kindSelect.selectedIndex = -1;
   $('#dims').replaceChildren();
+  showCounterpart(null);
   setDownloads(null);
   setStatus('');
   showMessages([message], mesh ? meshWarnings : [], mesh ? meshNotes : []);
@@ -254,7 +296,7 @@ async function navigate() {
   clearTimeout(debounce);
   inflight?.abort();
   ++seq;
-  ++formSeq;
+  const mine = ++formSeq;
   presetBasis = null;
   const h = new URLSearchParams(location.hash.slice(1));
   // First, before the kind lookup: get() would answer for the first of two values and the
@@ -271,12 +313,43 @@ async function navigate() {
     return refuseLink(`Unknown kind "${kind}". Known kinds: ${kinds.kinds.join(', ')}.`);
   }
 
-  if (kind !== currentKind) {
-    if (!(await buildForm(kind))) return;
+  if (kind !== currentKind || kind !== formKind) {
+    // The mesh on screen belongs to the other kind: it goes now, so a part that cannot build yet
+    // (a nut with no clearance typed) is never shown as the last valid part (R10, T-05-23).
+    // The form is also rebuilt when the form on screen is not the link's kind: Back before a kind
+    // switch's catalogue loaded leaves the overtaken navigation's form on screen while currentKind
+    // still names the kind the link asks for. Measured: a bolt built under the nut's controls, then
+    // a silent page once update() waits for the form (owner choice 2026-10-21, plan 05-23).
+    // The old kind's form and picker go with the mesh, before the new schema is fetched. Measured,
+    // left live: a pick in the old picker wrote a bolt row's diameter and pitch into the nut's
+    // controls once the nut's form arrived, then threw on a field the nut lacks (review WR-09,
+    // 2026-10-21); during the schema fetch it ran the bolt's update, so the nut opened over a
+    // rebuilt bolt as the last valid part (measured, plan 05-24). formKind stays null until the new
+    // form is built, so update waits, and a navigation that overtakes this one rebuilds the kind it
+    // names (the condition above).
+    // The panel, the matching-part link, the downloads and the status describe the old part too, so
+    // they go with it. Measured, left on screen: the bolt's rows, its Matching link and two live bolt
+    // downloads stayed beside the blank form while the nut loaded, and for good when its schema fetch
+    // failed (review WR-10, 2026-10-21); a failed bolt's status still claimed the last valid part over
+    // the empty canvas (measured, plan 05-25).
+    dropMesh();
+    clearForm();
+    clearPicker();
+    $('#dims').replaceChildren();
+    showCounterpart(null);
+    setDownloads(null);
+    setStatus('');
     try {
+      if (!(await buildForm(kind))) return;
       if (!(await loadPresets(kind))) return;
     } catch (err) {
-      // A form without its picker would be half a page; refuse whole, like a link it cannot honour.
+      // A navigation that overtook this one owns the page: refusing here wiped the bolt the user had
+      // switched back to (measured, plan 05-25). Otherwise a form without its schema or its picker is
+      // half a page, so the switch is refused whole, like a link the page cannot honour. That deselects
+      // the selector, so picking the same kind again retries. Measured before: a failed schema fetch
+      // left a blank form under a selector that read the new kind, and a select reports no change when
+      // the option it shows is picked again (review WR-10, 2026-10-21).
+      if (mine !== formSeq) return;
       return refuseLink(`Could not load the part: ${err.message}`);
     }
     currentKind = kind;
@@ -290,6 +363,7 @@ async function navigate() {
   }
   kindSelect.value = kind;
   for (const [name, { input }] of fields) write(input, h.get(name) ?? defaults[name]);
+  for (const { input } of fields.values()) forgetUntyped(input);
   // A checkbox holds only true or false. Any other control hands back '' for a value it
   // cannot hold (a number input given "abc") or was given empty (`#d=`), and partQuery() would
   // skip it and open the default part under a link that named the field. The API answers `?d=`
@@ -376,10 +450,25 @@ function renderInfo(info) {
     lists.get(row.group).append(line);
   }
   $('#dims').replaceChildren(...nodes);
+  showCounterpart(info.counterpart ?? null);
   pendingWarnings = info.warnings ?? [];
   pendingNotes = info.notes ?? [];
   showMessages([], pendingWarnings, pendingNotes);
   showMatch(info.preset ?? null);
+}
+
+// The matching part is a link built from the document and the page's own typing: the kind and every
+// field the server says carry over, as a hash the page already knows how to open. The server never
+// names a field that has no default (D-02), so the page adds the target kind's typed values (lastTyped)
+// before the server's fields, and the server's fields win. With nothing typed in this page the nut
+// opens with its clearance empty and builds nothing (D-01, R10). No kind, field or label is named here
+// (L15 amendment 2026-10-21, G-05-3).
+function showCounterpart(counterpart) {
+  counterpartLink.hidden = counterpart === null;
+  if (counterpart === null) return;
+  const q = new URLSearchParams({ kind: counterpart.kind, ...lastTyped.get(counterpart.kind), ...counterpart.fields });
+  counterpartLink.href = `#${q}`;
+  counterpartLink.textContent = `Matching ${counterpart.kind}`;
 }
 
 // The page never links a download the server refuses (G-04-3, L02): the info document lists, per
@@ -431,8 +520,13 @@ const setStatus = (text) => { $('#status').textContent = text; };
 let seq = 0;
 let inflight = null;
 
+// While a kind switch's catalogue fetch is in flight the form on screen is the new kind's and
+// currentKind is still the old one. An update then would write the old kind's hash and send the new
+// form's fields to the old kind's route. Measured: `#clearance=0.1` and `bolt/info?clearance=0.1`.
+// navigate runs the update once the switch has loaded (review WR-07, owner choice (a), 2026-10-21).
+// So the guard is the first statement below, with nothing before it that writes or requests.
 async function update() {
-  if (currentKind === null) return;
+  if (currentKind === null || formKind !== currentKind) return;
   const q = partQuery();
   // kind= is written only when it differs from the registry's default, so a link to the
   // default kind stays as short as the fields that differ (D-09).
@@ -453,6 +547,7 @@ async function update() {
     if (mine !== seq) return;
     showMessages(errors, mesh ? meshWarnings : [], mesh ? meshNotes : []);
     $('#dims').replaceChildren();
+    showCounterpart(null);
     showMatch(null);
     setStatus(mesh ? 'Showing the last valid part' : '');
   };
@@ -564,6 +659,26 @@ function fit() {
   render();
 }
 
+/** Forget the mesh and everything that described it, so nothing is drawn until the next part builds. */
+function dropMesh() {
+  if (mesh) {
+    scene.remove(mesh, edges);
+    mesh.geometry.dispose();
+    edges.geometry.dispose();
+  }
+  mesh = null;
+  edges = null;
+  box = null;
+  fitted = false;
+  pendingWarnings = [];
+  meshWarnings = [];
+  pendingNotes = [];
+  meshNotes = [];
+  showMessages([], meshWarnings, meshNotes);
+  placeGrid();
+  render();
+}
+
 function showModel(buffer) {
   const geometry = loader.parse(buffer);
   geometry.computeBoundingBox();
@@ -603,7 +718,26 @@ function resize() {
 const reportLoadError = (err) => showMessages([`Could not load the part: ${err.message}`], mesh ? meshWarnings : [], mesh ? meshNotes : []);
 
 form.addEventListener('submit', (e) => e.preventDefault());
-form.addEventListener('input', scheduleUpdate);
+// A field with a default is never remembered: carrying a typed value of one would override the
+// counterpart's row values (D-02, D-03). Typing a field empty forgets it, and a write that is not
+// typing (Reset, a link, Back, a kind change) forgets a value the field no longer holds, so a link
+// never carries an empty or stale number (owner ruling 2026-10-21, review WR-08). The memory is keyed
+// by formKind, the kind of the controls the user typed into, never by currentKind (WR-07).
+function rememberTyped(input) {
+  if (formKind === null || defaults[input.name] !== undefined) return;
+  const typed = { ...lastTyped.get(formKind) };
+  const value = read(input);
+  if (value === '') delete typed[input.name];
+  else typed[input.name] = value;
+  lastTyped.set(formKind, typed);
+}
+function forgetUntyped(input) {
+  const typed = lastTyped.get(formKind);
+  if (typed !== undefined && input.name in typed && read(input) !== typed[input.name]) {
+    delete typed[input.name];
+  }
+}
+form.addEventListener('input', (e) => { rememberTyped(e.target); scheduleUpdate(); });
 window.addEventListener('hashchange', () => navigate().catch(reportLoadError));
 kindSelect.addEventListener('change', () => {
   const q = new URLSearchParams();
@@ -617,6 +751,7 @@ new ResizeObserver(resize).observe(canvas.parentElement);
 $('#fit').addEventListener('click', fit);
 $('#reset').addEventListener('click', () => {
   for (const [name, { input }] of fields) write(input, defaults[name]);
+  for (const { input } of fields.values()) forgetUntyped(input);
   update();
 });
 $('#copy-link').addEventListener('click', async (e) => {

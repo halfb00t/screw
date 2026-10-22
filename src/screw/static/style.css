@@ -121,6 +121,8 @@ legend {
    the contract reserves accent for primary actions and invalid fields (UI-SPEC Color). The
    picker needs no rule of its own: it is a fieldset of .field rows like the form's. */
 #badge { margin: .35rem 0 0; color: var(--muted); font-size: .85rem; }
+/* The matching-part link is a caption too, so it is muted and not the accent (UI-SPEC Color). */
+#counterpart { color: var(--muted); font-size: .85rem; }
 
 .actions { display: flex; gap: .5rem; margin-top: 1.25rem; }
 

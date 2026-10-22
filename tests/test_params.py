@@ -11,8 +11,10 @@ import re
 
 import pytest
 from pydantic import ValidationError
+from pydantic_core import PydanticUndefined
 
-from screw.params import DEFAULT_KIND, INTERIM_MAX_MM, KINDS, BoltParams, FastenerParams
+from screw.params import DEFAULT_KIND, INTERIM_MAX_MM, KINDS, BoltParams, FastenerParams, NutParams
+from screw.tables import iso4032
 from screw.tables.presets import expand
 
 FIELDS = ("d", "pitch", "length", "s", "k", "thread_length")
@@ -36,6 +38,49 @@ def test_the_frozen_defaults_are_the_iso_4017_m6_row_the_owner_confirmed() -> No
     # ISO 4017:2022 M6 and typed `permanent: accepted`. The literals, so moving one fails here.
     p = BoltParams()
     assert (p.d, p.pitch, p.length, p.s, p.k) == (6.0, 1.0, 20.0, 10.0, 4.0)
+
+
+def test_the_nut_defaults_are_the_iso_4032_m6_values_the_owner_accepted() -> None:
+    # D-15, L02, TYPE-03: the literals of 05-OWNER-READS.md (s max 10.0, m max 5.2, read from a
+    # secondary source the owner approved), typed `permanent: accepted`. A link that omits s or m
+    # means these values forever, so moving one fails here.
+    p = NutParams(clearance=0.0)
+    assert (p.d, p.pitch, p.left_hand, p.s, p.m) == (6.0, 1.0, False, 10.0, 5.2)
+    assert NutParams.model_fields["s"].default == 10.0
+    assert NutParams.model_fields["m"].default == 5.2
+
+
+def test_the_frozen_nut_defaults_are_the_iso_4032_m6_row_the_owner_confirmed() -> None:
+    # D-15, L14: the M6 cross-check of 05-OWNER-READS.md (2026-10-20, GOST ISO 4032-2014 Table 1)
+    # matched the two frozen values: s 10.00 (nominal = max) and m max 5.20. The literals, so
+    # moving one fails here whatever the table says.
+    assert NutParams.model_fields["s"].default == 10.0
+    assert NutParams.model_fields["m"].default == 5.2
+
+
+def test_the_frozen_nut_defaults_are_the_iso_4032_m6_row() -> None:
+    # The same two values, read back from the cited M6 row: a table edit that moves M6 fails here
+    # instead of leaving the default link describing a part no standard has.
+    m6 = next(nut for nut in iso4032.NUTS if nut.size == "M6")
+    assert NutParams.model_fields["s"].default == m6.s
+    assert NutParams.model_fields["m"].default == m6.m_max
+
+
+def test_the_clearance_has_no_default_and_a_missing_one_is_refused_naming_it() -> None:
+    # D-01, PAIR-01: no default before Phase 6 records the printed test.
+    field = NutParams.model_fields["clearance"]
+    assert field.is_required()
+    assert field.default is PydanticUndefined
+    with pytest.raises(ValidationError) as err:
+        NutParams()
+    [detail] = err.value.errors()
+    assert (detail["type"], detail["loc"]) == ("missing", ("clearance",))
+
+
+def test_a_nut_clearance_may_be_nominal_or_an_interference() -> None:
+    # D-04: no lower bound, so 0 (nominal) and a negative value are inputs the model accepts.
+    assert NutParams(clearance=0.0).clearance == 0.0
+    assert NutParams(clearance=-0.05).clearance == -0.05
 
 
 def test_the_frozen_defaults_are_the_iso_4017_m6_x_20_row() -> None:

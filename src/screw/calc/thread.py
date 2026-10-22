@@ -47,6 +47,25 @@ def thread_depth(pitch: float) -> float:
     return 5 / 8 * fundamental_height(pitch)
 
 
+def pitch_diameter(d: float, pitch: float) -> float:
+    """d2 = D2 = d - 3H/4: the basic pitch diameter of the ISO 68-1:2023 basic profile (R13).
+
+    This is the number the info panel prints. The GOST 24705-2004 (ISO 724:1993, MOD) Table 1
+    value is not a source of it: the table is only what the shipped values are tested to agree
+    with, rounded to the table's printed decimals.
+    """
+    return d - 3 / 4 * fundamental_height(pitch)
+
+
+def basic_minor_diameter(d: float, pitch: float) -> float:
+    """d1 = D1 = d - 5H/4: the basic minor diameter of the ISO 68-1:2023 basic profile (R13).
+
+    The same value as the shank's `minor_diameter` row (d - 2 * 5H/8), under the name the nut's
+    D1 uses. Tested against GOST 24705-2004 Table 1 only; no panel number comes from the table.
+    """
+    return d - 5 / 4 * fundamental_height(pitch)
+
+
 def _radii(d: float, pitch: float, clearance: float) -> tuple[float, float]:
     """(crest radius, root radius) with the radial clearance added to both."""
     return d / 2 + clearance, d / 2 - thread_depth(pitch) + clearance
@@ -70,6 +89,31 @@ def section_radius(d: float, pitch: float, clearance: float, theta: float) -> fl
     if th <= 5 * math.pi / 4:
         return rr
     return rr + (ro - rr) * (th - 5 * math.pi / 4) / (5 * math.pi / 8)
+
+
+# The flank's angle from the axis-normal plane, 30 degrees: the flank rises sqrt(3) mm per mm of
+# radius change in z (RESEARCH F7; tests/test_thread_maths.py differentiates `section_radius` to
+# confirm it), and tan 30 degrees = 1 / sqrt(3). The two gaps below derive from it, not from 0.5.
+FLANK_ANGLE = math.pi / 6
+
+
+def flank_normal_gap(clearance: float) -> float:
+    """The gap measured normal to a flank when the nut surface is the rod surface moved
+    radially by `clearance`: clearance * sin(flank angle), half the clearance at 30 degrees.
+
+    For reporting, never a geometry input (PAIR-04): the nut surface is the rod surface moved
+    radially by c, and the flank rises sqrt(3) mm per mm of z (RESEARCH F7).
+    """
+    return clearance * math.sin(FLANK_ANGLE)
+
+
+def axial_play(clearance: float) -> float:
+    """The axial slack across both flanks for a radial `clearance`: 2 * clearance * tan(flank
+    angle), 2c / sqrt(3) at 30 degrees. Each flank is shifted c * tan(30 degrees) along z.
+
+    For reporting, never a geometry input (PAIR-04).
+    """
+    return 2 * clearance * math.tan(FLANK_ANGLE)
 
 
 def section_area(d: float, pitch: float, clearance: float = 0.0) -> float:
@@ -96,6 +140,18 @@ def hex_prism_volume(s: float, k: float) -> float:
     washer face (D-01, D-02).
     """
     return math.sqrt(3) / 2 * s * s * k
+
+
+def nut_closed_volume(d: float, pitch: float, s: float, m: float, clearance: float) -> float:
+    """Volume of the whole nut: the hex prism of across-flats `s` and height `m` less the thread
+    void, which fills the section of the radial `clearance` over the whole height.
+
+    Both hands agree to the digit (RESEARCH F3): the transverse section of a helical thread is
+    the same outline for either hand, so the void is `section_area * m` whatever the hand is.
+    The void overshoots both faces in the builder, but only the part inside the prism is
+    removed, so the overshoot does not enter the closed form.
+    """
+    return hex_prism_volume(s, m) - section_area(d, pitch, clearance) * m
 
 
 def built_thread_length(thread_length: float, length: float) -> float:
@@ -134,6 +190,23 @@ def head_too_small_refusal(s: float, d: float) -> str | None:
         return None
     return (f"s and d: the across-flats width s {s:g} mm must exceed the diameter d {d:g} mm; "
             f"a head no wider than the shank is not a hex head")
+
+
+def nut_too_thin_refusal(s: float, d: float, clearance: float) -> str | None:
+    """None when the across-flats width `s` exceeds the void's major diameter `d + 2 * clearance`;
+    otherwise the text (D-13).
+
+    At or below it the void's crest reaches the flats and the nut is cut in two or left with an
+    edge of no thickness. The text begins `s, d and clearance: ` so the CLI, which prints no `loc`
+    for a model-level error, still names the fields. No braces: pydantic formats a custom error
+    from its context.
+    """
+    major = d + 2 * clearance
+    if s > major:
+        return None
+    return (f"s, d and clearance: across flats s {_plain(s)} mm must exceed the void's major "
+            f"diameter d + 2 * clearance = {_plain(major)} mm, or the void is wider than the "
+            f"flats and breaks through them")
 
 
 def _plain(x: float) -> str:
@@ -255,25 +328,59 @@ def turn_cap_refusal(t: float, pitch: float) -> str | None:
             f"shorten thread_length or length, or raise pitch")
 
 
-# The fine-STL caps of the thirteen (d, pitch, left_hand) rod runs L11 measured (D-03, D-21):
-# (d, pitch, left_hand) -> the largest length in mm whose fine STL plus its gzip level-1 copy
-# still fits the INTERIM 64 MiB export budget. L11 measured rows (`2026-10-08-a-grid`), not ISO
-# rows: each cap is the longest measured length below the first grid rod row whose fine raw STL
-# plus its gzip copy exceeded that budget, at the INTERIM fine preset (0.01 mm, 0.1 rad). The
-# criterion is the sum of the two blobs, not the STL alone: at M8 right L=68 the raw fine STL is
-# 45,659,684 bytes, under the budget. The caps are keyed by hand because the left-hand rods
-# measured smaller files and fit longer (first over-budget length M10 right 57, left 73; the
-# right-hand caps applied to a left-hand part refused lengths L11 had measured inside). The keys
-# are the campaign's run keys (ISO 262 preview pitches, UNVERIFIED as table truth, exact as run
-# keys and exactly representable floats), not ISO rows. This is bench evidence, not a `tables`
-# module, so it does not pre-empt contract 6. It was measured against the 64 MiB budget only and
-# applies unconditionally, even if a deployer changes SCREW_EXPORT_CACHE_MB (03-RESEARCH Open
-# Question 4). A part off these keys gets no cap: a cap from an unmeasured mapping to the
-# nearest row is the plausible number L02 forbids. Phase 7 re-measures the budget and the caps
-# (OPER-02, OPER-03). Turns are derived from the millimetres by `turns_of`, never stored.
+def void_root_radius_refusal(d: float, pitch: float, clearance: float) -> str | None:
+    """None when the nut void's root radius d/2 - 5H/8 + clearance is above 0; else the text (D-04).
+
+    The nut's void grows by the clearance on both radii (L11 `section_radius`), so the rule the
+    rod uses (`root_radius_refusal`, no clearance) is wrong for it: it refuses a nut a positive
+    clearance would make and accepts one a negative clearance would push through the axis. The
+    text begins `d, pitch and clearance: `. No braces: pydantic formats a custom error from its
+    context.
+    """
+    root = d / 2 - thread_depth(pitch) + clearance
+    if root > 0:
+        return None
+    return (f"d, pitch and clearance: the void's root radius d/2 - 5H/8 + clearance of the "
+            f"ISO 68-1:2023 basic profile is {root:g} mm at d {d:g}, pitch {pitch:g} and "
+            f"clearance {clearance:g}, and must be above 0")
+
+
+def nut_turn_cap_refusal(m: float, pitch: float) -> str | None:
+    """None when the void the builder makes, `m + 2 pitch`, is at most `MAX_TURNS` turns as exact
+    decimals; else the text (P11).
+
+    `solid/nut.py` sweeps the void a pitch past each face, so the kernel sees `m + 2 pitch`, not
+    `m`. The text begins `m and pitch: `.
+    """
+    void = _exact(m) + 2 * _exact(pitch)
+    if void <= MAX_TURNS * _exact(pitch):
+        return None
+    return (f"m and pitch: {float(void / _exact(pitch)):g} turns of void (m + 2 pitch, what the "
+            f"builder makes) is past the {MAX_TURNS}-turn cap, the most measured (run "
+            f"2026-10-08-a-frontier); lower m or raise pitch")
+
+
+# The fine-STL caps of the thirteen (d, pitch, left_hand) rod runs L11 measured (D-03, D-21): (d,
+# pitch, left_hand) -> the largest length in mm whose fine STL plus its gzip level-1 copy still fits
+# the INTERIM 64 MiB export budget. L11 measured rows (`2026-10-08-a-grid`), not ISO rows: each cap
+# is the longest measured length below the first grid rod row whose fine raw STL plus its gzip copy
+# exceeded that budget, at the fine preset (0.01 mm, 0.1 rad), which the D-21 rule kept
+# (bench/RESULTS.md "Mesh deviation (Phase 5, D-21)": worst deviation 0.0161 mm against the 0.025 mm
+# bound), so no cap was re-derived; tests/test_mesh.py pins the preset the caps were measured at.
+# The criterion is the sum of the two blobs, not the STL alone: at M8 right L=68 the raw fine STL is
+# 45,659,684 bytes, under the budget. The caps are keyed by hand because the left-hand rods measured
+# smaller files and fit longer (first over-budget length M10 right 57, left 73; the right-hand caps
+# applied to a left-hand part refused lengths L11 had measured inside). The keys are the campaign's
+# run keys (ISO 262 preview pitches, UNVERIFIED as table truth, exact as run keys and exactly
+# representable floats), not ISO rows. This is bench evidence, not a `tables` module, so it does not
+# pre-empt contract 6. It was measured against the 64 MiB budget only and applies unconditionally,
+# even if a deployer changes SCREW_EXPORT_CACHE_MB (03-RESEARCH Open Question 4). A part off these
+# keys gets no cap: a cap from an unmeasured mapping to the nearest row is the plausible number L02
+# forbids. Phase 7 re-measures the budget and the caps (OPER-02, OPER-03). Turns are derived from
+# the millimetres by `turns_of`, never stored.
 # D-22: the cap reads the built thread `t`, the part these rods measured. The head and the plain
-# shank add bytes no run measured, bounded and small next to the thread (the head-plus-shank
-# fine bytes are in `bench/RESULTS.md`, Head fuse probe); Phase 7 re-sweeps on the finished bolt.
+# shank add bytes no run measured, bounded and small next to the thread (the head-plus-shank fine
+# bytes are in `bench/RESULTS.md`, Head fuse probe); Phase 7 re-sweeps on the finished bolt.
 FINE_STL_ROWS: dict[tuple[float, float, bool], float] = {
     (8.0, 1.25, False): 67.5,    # first row over budget: M8 right L=68 rod
     (10.0, 1.5, False): 56.0,    # M10 right L=57 rod
@@ -310,3 +417,420 @@ def fine_stl_refusal(d: float, pitch: float, t: float, left_hand: bool) -> str |
             f"budget (run 2026-10-08-a-grid); the thread built here is {t:g} mm. Shorten "
             f"thread_length or length, or ask for the preview STL or the STEP, which are not "
             f"capped")
+
+
+# The fine-STL caps of the thirty nut keys (the 15 ISO 262 coarse (d, pitch) by both hands), R16
+# and R17: (d, pitch, left_hand) -> the largest whole-mm nut height m whose fine STL plus its gzip
+# level-1 copy still fits the INTERIM 64 MiB export budget. Measured by bench/nut_fine_caps.py,
+# run `2026-10-21-nut-fine-caps-amended` (bench/RESULTS.md "Nut fine-STL caps, amended re-run
+# (Phase 5, R17)"), which repeated run `2026-10-20-nut-fine-caps` row for row with identical
+# bytes. The rule, fixed before any row ran: the shipped `screw.solid.export(p, "stl", "fine")` of
+# a nut at m = 1, 2, 3, ... mm, the cap the largest m that fits below the first that does not. The
+# fine preset is (0.01 mm, 0.1 rad), the one tests/test_mesh.py pins and the cap records header
+# carries (a test compares them, so a preset change fails until the caps are re-measured). The run
+# measured at clearance NUT_FINE_STL_CLEARANCE (5.0 mm, the owner's R16 answer: the largest
+# clearance any GOST ISO 4032-2014 row's own s admits) and at s 1e5 mm (INTERIM_MAX_MM, the
+# largest s the model admits). Because s adds a near-constant number of bytes that does not grow
+# with m (the planner's 05-19 probe), a cap measured at the largest s holds for every s; the run's
+# checks at clearances -0.05, 0, 0.1 and 2.5 and at the slimmest s at 5.0 all fit the budget where
+# the shipped build made the part (it refuses the others, which are no file:
+# docs/tech_debt/active/2026-10-21-nut-lead-in- gate-refuses-a-valid-nut-at-huge-s.md). A nut off
+# these 30 keys gets no cap: the rods' FINE_STL_ROWS is never applied to a nut (R12) and a cap
+# from an unmeasured mapping to the nearest row is the plausible number L02 forbids (D-03). The
+# numbers are macOS arm64 and the INTERIM budget; Phase 7 re-measures on linux/amd64 (OPER-02).
+NUT_FINE_STL_RUN = "2026-10-21-nut-fine-caps-amended"
+NUT_FINE_STL_CLEARANCE = 5.0
+NUT_FINE_STL_ROWS: dict[tuple[float, float, bool], float] = {
+    (2.0, 0.4, False): 12.0, (2.5, 0.45, False): 13.0, (3.0, 0.5, False): 15.0,
+    (3.5, 0.6, False): 18.0, (4.0, 0.7, False): 21.0, (5.0, 0.8, False): 24.0,
+    (6.0, 1.0, False): 30.0, (7.0, 1.0, False): 30.0, (8.0, 1.25, False): 38.0,
+    (10.0, 1.5, False): 36.0, (12.0, 1.75, False): 41.0, (14.0, 2.0, False): 46.0,
+    (16.0, 2.0, False): 45.0, (18.0, 2.5, False): 54.0, (20.0, 2.5, False): 36.0,
+    (2.0, 0.4, True): 15.0, (2.5, 0.45, True): 17.0, (3.0, 0.5, True): 19.0,
+    (3.5, 0.6, True): 22.0, (4.0, 0.7, True): 25.0, (5.0, 0.8, True): 30.0,
+    (6.0, 1.0, True): 38.0, (7.0, 1.0, True): 38.0, (8.0, 1.25, True): 47.0,
+    (10.0, 1.5, True): 50.0, (12.0, 1.75, True): 56.0, (14.0, 2.0, True): 61.0,
+    (16.0, 2.0, True): 59.0, (18.0, 2.5, True): 73.0, (20.0, 2.5, True): 47.0,
+}
+
+
+def nut_fine_stl_refusal(d: float, pitch: float, m: float, clearance: float,
+                         left_hand: bool) -> str | None:
+    """None unless (d, pitch, left_hand) is one of the 30 measured nut keys and either the clearance
+    is above the ceiling the run measured at or `m` is past the key's fine-STL cap.
+
+    The clearance is judged first: the cap holds only at or below `NUT_FINE_STL_CLEARANCE`, so a
+    larger clearance has no measured cap to be judged against (R16). The text begins `clearance: `
+    or `m: ` so the CLI, which prints no `loc` for a model-level error, still names the field. No
+    braces in the text: pydantic formats a custom error from its context.
+    """
+    cap = NUT_FINE_STL_ROWS.get((d, pitch, left_hand))
+    if cap is None:
+        return None
+    if clearance > NUT_FINE_STL_CLEARANCE:
+        return (f"clearance: the fine STL of a nut with d {d:g} and pitch {pitch:g} was measured "
+                f"only at a clearance of {NUT_FINE_STL_CLEARANCE:g} mm or less (run "
+                f"{NUT_FINE_STL_RUN}), and a larger clearance makes a larger file; the clearance "
+                f"asked for is {clearance:g} mm. Use a clearance of {NUT_FINE_STL_CLEARANCE:g} mm "
+                f"or less, or ask for the preview STL or the STEP, which are not capped")
+    if m <= cap:
+        return None
+    hand = "left-hand" if left_hand else "right-hand"
+    return (f"m: the fine STL of a {hand} nut with d {d:g} and pitch {pitch:g} is refused above m "
+            f"{cap:g} mm, the tallest run {NUT_FINE_STL_RUN} measured whose fine STL plus its gzip "
+            f"copy fit the 64 MiB export budget (at a clearance of {NUT_FINE_STL_CLEARANCE:g} mm "
+            f"and s 1e5 mm); the m asked for is {m:g} mm. Lower m, or ask for the preview STL or "
+            f"the STEP, which are not capped")
+
+
+# --- the end-cut oracles (05-RESEARCH F4, P10; probed in `bench/RESULTS.md`, End-cut probe) -----
+#
+# The transverse section of a thread is the same at every z and rotation-invariant, so for a
+# radius `rho` the area it pokes outside a disc has a closed form, and a cone cut is a
+# one-dimensional integral over its depth. These are the numbers the THRD-04 differential gate
+# compares a chamfered or filleted part against. They are plain `math`, share no code path with
+# the kernel, and refuse with a `ValueError` naming the condition outside their validity: no
+# number there (L02). The formulas moved here unchanged from `bench/end_cuts.py`, where the
+# kernel agreed with them to the piece errors recorded in the probe entry (the first hexagon-arc
+# formula written for F4 was off by a factor of 2.2, so `tests/test_end_oracles.py` pins each
+# one to an identity that does not use it).
+
+
+def _check_angle(name: str, degrees: float) -> None:
+    if not 0 < degrees < 90:
+        raise ValueError(f"{name} {degrees:g} degrees must be above 0 and below 90")
+
+
+def outside_disc_area(d: float, pitch: float, clearance: float, rho: float) -> float:
+    """Area of the thread section that lies outside the disc of radius `rho`.
+
+    Half the integral over one turn of max(0, r(theta)^2 - rho^2): the crest flat spans pi/4 at
+    ro, the root flat pi/2 at rr and each flank 5 pi/8 with r linear in angle. Valid for any
+    `rho >= 0` and any clearance; the helix phase and the hand drop out because the section is
+    rotation-invariant. At `rho = 0` it is `section_area`; at or past the crest radius it is 0.
+    """
+    if not rho >= 0:
+        raise ValueError(f"rho {rho:g} mm must be 0 or more")
+    ro, rr = _radii(d, pitch, clearance)
+    k = ro - rr
+    total = 0.0
+    if rho < ro:
+        total += 0.5 * (ro**2 - rho**2) * math.pi / 4
+    if rho < rr:
+        total += 0.5 * (rr**2 - rho**2) * math.pi / 2
+    if rho <= rr:
+        flank = (ro**3 - rr**3) / (3 * k) - rho**2
+    elif rho < ro:
+        flank = (ro**3 - rho**3) / (3 * k) - rho**2 * (ro - rho) / k
+    else:
+        flank = 0.0
+    return total + 0.5 * 2 * (5 * math.pi / 8) * flank
+
+
+def tip_cone_volume(d: float, pitch: float, angle_deg: float, n: int = 20_000) -> float:
+    """Volume a tip cone removes from the bare thread (clearance 0).
+
+    The cone meets the end face at the minor radius and rises at `angle_deg` from the face, so
+    its radius at height z is minor + z / tan(angle); at each z it removes the section outside
+    that disc. `n` midpoints over z in [0, (d/2 - minor) tan(angle)], above which the cone is
+    outside the section. Valid for 0 < angle < 90, a minor radius above 0 and any rod longer
+    than that height; at n = 20 000 the quadrature error is below T_GATE / 100 of the piece
+    (`tests/test_end_oracles.py`).
+    """
+    _check_angle("angle", angle_deg)
+    minor = d / 2 - thread_depth(pitch)
+    if not minor > 0:
+        raise ValueError(f"the minor radius {minor:g} mm must be above 0 for a tip cone")
+    tan_alpha = math.tan(math.radians(angle_deg))
+    h = (d / 2 - minor) * tan_alpha / n
+    return h * sum(outside_disc_area(d, pitch, 0.0, minor + (i + 0.5) * h / tan_alpha)
+                   for i in range(n))
+
+
+def nut_material_in_disc(d: float, pitch: float, clearance: float, rho: float) -> float:
+    """Nut material inside the disc of radius `rho`: the disc less the void it holds,
+    pi rho^2 - section_area + outside_disc_area(rho). It is 0 inside the root circle.
+
+    Valid while `rho <= s / 2`, the inscribed radius of the hexagon: past it the disc leaves the
+    nut and the formula overcounts (P10). The caller holds `s`; `countersink_volume` checks it.
+    """
+    return math.pi * rho**2 - section_area(d, pitch, clearance) + outside_disc_area(
+        d, pitch, clearance, rho)
+
+
+def countersink_volume(d: float, pitch: float, clearance: float, s: float, face_radius: float,
+                       half_angle_deg: float, depth: float, n: int = 20_000) -> float:
+    """Material one countersink removes from a nut face.
+
+    The cone has radius `face_radius` - z tan(half) at depth z from the face, `half_angle_deg`
+    from the axis; it removes `nut_material_in_disc` at each z over [0, depth] (`n` midpoints).
+    Below the root radius the disc holds no material and the integrand is 0, so a cone that ends
+    in the void and one that ends at `depth` agree. Valid when the face radius is at most s / 2
+    (inside the inscribed circle), 0 < half angle < 90 and the cone has not reached its apex by
+    `depth`. Two more conditions are the caller's, because this function holds neither the nut
+    height nor the chamfer: face radius at most the chamfer's start radius (else the cutters
+    overlap and are counted twice) and 2 * depth <= m (the countersinks of the two faces do
+    not meet); `end_depths` holds both (P10).
+    """
+    _check_angle("half angle", half_angle_deg)
+    if not 0 < face_radius <= s / 2:
+        raise ValueError(f"face radius {face_radius:g} mm must be above 0 and at most s / 2 = "
+                         f"{s / 2:g} mm, the inscribed radius of the hexagon")
+    tan_half = math.tan(math.radians(half_angle_deg))
+    if not (math.isfinite(depth) and depth >= 0 and face_radius - depth * tan_half >= 0):
+        raise ValueError(f"depth {depth:g} mm must be 0 or more and at most face radius / "
+                         f"tan(half angle) = {face_radius / tan_half:g} mm, where the cone ends")
+    h = depth / n
+    return h * sum(nut_material_in_disc(d, pitch, clearance, face_radius - (i + 0.5) * h * tan_half)
+                   for i in range(n))
+
+
+def hex_arc_inside(s: float, rho: float) -> float:
+    """Length of the circle of radius `rho` that lies inside the regular hexagon of across-flats
+    `s`: the whole circle up to the inscribed radius a = s / 2, rho (2 pi - 12 acos(a / rho))
+    between a and the corner radius R = a / cos(pi / 6), nothing above.
+    """
+    a = s / 2
+    corner = a / math.cos(math.pi / 6)
+    if rho <= a:
+        return 2 * math.pi * rho
+    if rho >= corner:
+        return 0.0
+    return rho * (2 * math.pi - 12 * math.acos(a / rho))
+
+
+def face_chamfer_volume(s: float, r0: float, angle_deg: float, depth: float,
+                        n: int = 40_000) -> float:
+    """Material one hexagon-corner face chamfer removes from a prism of across-flats `s`.
+
+    A cone starting at radius `r0` on the face and rising at `angle_deg` from it removes a depth
+    (rho - r0) tan(angle), no deeper than `depth`, over the arc `hex_arc_inside(s, rho)`,
+    integrated over rho in [r0, R] (`n` midpoints). At `depth` 0 it is 0, and at the cone's own
+    depth at the corner, (R - r0) tan(angle), the cap no longer binds. Valid when 0 < r0 < R, 0
+    < angle < 90 and depth >= 0. Two conditions are the caller's: r0 outside the void's crest
+    radius, and a depth of at most m / 2 (the chamfers of the two faces do not meet);
+    `end_depths` holds both (P10).
+    """
+    _check_angle("angle", angle_deg)
+    corner = s / 2 / math.cos(math.pi / 6)
+    if not 0 < r0 < corner:
+        raise ValueError(f"chamfer start {r0:g} mm must be above 0 and below the corner radius "
+                         f"{corner:g} mm")
+    if not (math.isfinite(depth) and depth >= 0):
+        raise ValueError(f"depth {depth:g} mm must be 0 or more")
+    tan_beta = math.tan(math.radians(angle_deg))
+    h = (corner - r0) / n
+    return h * sum(hex_arc_inside(s, r0 + (i + 0.5) * h) * min((i + 0.5) * h * tan_beta, depth)
+                   for i in range(n))
+
+
+def fillet_ring_volume(d: float, r: float) -> float:
+    """Volume of a quarter-circle fillet ring of radius `r` at a shank of diameter `d`.
+
+    The revolved region is the square r x r less a quarter disc centred on its far corner: area
+    A = r^2 (1 - pi/4) and first moment about the shank r^3 (5/6 - pi/4), so Pappus gives
+    2 pi (d/2 A + r^3 (5/6 - pi/4)) = 2 pi (d/2 + u_bar) A with u_bar the centroid's offset.
+    Valid for r above 0. That the shank is at least r long under the head is the caller's.
+    """
+    if not r > 0:
+        raise ValueError(f"r {r:g} mm must be above 0")
+    return 2 * math.pi * (d / 2 * r**2 * (1 - math.pi / 4) + r**3 * (5 / 6 - math.pi / 4))
+
+
+# --- the end models (D-12, R2 to R4; recorded as models, never as cited table values) -----------
+#
+# Each constant says where it comes from in `05-OWNER-READS.md` and whether it is `cited` (one
+# printed number, with its document) or a `stated model` (a band or no clause: the choice is
+# named, not invented, and any panel row it feeds says "model"). Tuning one toward a gate that
+# passes is forbidden (D-23): a value changes only by a new owner ruling and a new L15 entry.
+
+# Bolt tip, stated model (R2, read 6: GOST 12414-94 (ISO 4753:1983), the chamfered end). The text
+# prints the end face diameter and the length u and marks the angle on its figures as about 45
+# degrees; it prints no angle number and no chamfer length. Note 3's "48 degrees" is recorded as
+# an unresolved misprint and not used (owner ruling 2026-10-20, option a). The cone meets the end
+# face at the minor diameter and rises at this angle from the face, which is what
+# `tip_cone_volume` integrates.
+TIP_ANGLE_DEG = 45.0
+
+# Nut lead-in countersink, stated model (R3 b, read 3: GOST ISO 4032-2014 (ISO 4032:2012),
+# Figure 1 footnote c). The figure prints the included angle as a band, 90 to 120 degrees; the
+# model takes the 90 degree end, so the half angle from the axis is 45 degrees.
+COUNTERSINK_HALF_ANGLE_DEG = 45.0
+
+# Nut lead-in countersink face radius, stated model (R3 b, owner ruling 2026-10-20, option A):
+# the countersink opens to `COUNTERSINK_FACE_FACTOR * d / 2` on the face. GOST ISO 4032-2014
+# (ISO 4032:2012) Figure 1 footnote c names the diameter `da` the countersink runs to, and
+# Tables 1 and 2 print `da max` per size but the figure gives no rule that ties the face to it.
+# The factor is the largest `da_max / d` of the 14 table rows, 1.16 at M2,5
+# (the smallest is 1.079, at M14: 15.1 / 14), so the cone opens at least as wide as any printed
+# `da`. A model, not a printed number: any panel row it feeds says "model".
+COUNTERSINK_FACE_FACTOR = 1.16
+
+# Nut face chamfer, stated model (R4 a, read 3: GOST ISO 4032-2014 (ISO 4032:2012), Figure 1
+# footnote b). The figure prints the angle of the hexagon corners' chamfer as a band, 15 to 30
+# degrees from the end face, and no depth; the model takes the 30 degree end, as a cone from the
+# inscribed circle of `s` (start radius s / 2, from fields and not from the row's `dw`, D-12).
+CHAMFER_ANGLE_DEG = 30.0
+
+# Under-head fillet radius `r` (minimum), cited (R1 option a, read from GOST R ISO 4014-2013 (ISO
+# 4014:2011) Tables 1 and 2, the `r` minimum row, owner ruling 2026-10-20, L14 amendment; the
+# Source document is `GOST R ISO 4014-2013 (ISO 4014:2011)`). Keyed on exact (d, pitch) in
+# millimetres: a bolt off a row gets no fillet, never a guessed radius (L02). Neither table prints
+# M7, so there is none. The solid reads no table (contract 6), so this is a second typed copy of
+# `screw.tables.iso4014.FILLETS`, pinned equal to it by `tests/test_tables.py`.
+FILLET_R: dict[tuple[float, float], float] = {
+    (2.0, 0.4): 0.1,
+    (2.5, 0.45): 0.1,
+    (3.0, 0.5): 0.1,
+    (3.5, 0.6): 0.1,
+    (4.0, 0.7): 0.2,
+    (5.0, 0.8): 0.2,
+    (6.0, 1.0): 0.25,
+    (8.0, 1.25): 0.4,
+    (10.0, 1.5): 0.4,
+    (12.0, 1.75): 0.6,
+    (14.0, 2.0): 0.6,
+    (16.0, 2.0): 0.6,
+    (18.0, 2.5): 0.6,
+    (20.0, 2.5): 0.8,
+}
+
+
+def fillet_radius(d: float, pitch: float, length: float, t: float) -> float | None:
+    """The cited fillet radius, or None when the bolt gets no fillet (R1, L02).
+
+    None off a `FILLET_R` row, and None when the plain shank `length - t` is shorter than `r`,
+    where the ring would run into the thread. `t` is `built_thread_length`.
+    """
+    r = FILLET_R.get((d, pitch))
+    if r is None or length - t < r:
+        return None
+    return r
+
+
+def tip_cone_length(pitch: float, angle_deg: float) -> float:
+    """Axial length of the tip cone: from the minor radius at the end face to the crest radius,
+    the radial depth `thread_depth(pitch)` times tan(angle). A built thread this short or shorter
+    is not cut: the cone would be all of it (L02: capped and warned, never a thinner tip)."""
+    _check_angle("angle", angle_deg)
+    return thread_depth(pitch) * math.tan(math.radians(angle_deg))
+
+
+def tip_cone_fits(pitch: float, t: float) -> bool:
+    """True when the built thread `t` is longer than the tip cone, so the cone is cut. The one
+    place that decides it: the builder, the closed form and `derive` all call it."""
+    return t > tip_cone_length(pitch, TIP_ANGLE_DEG)
+
+
+def bolt_end_closed_volume(d: float, pitch: float, length: float, s: float, k: float, t: float,
+                           tip: bool, r: float | None) -> float:
+    """`bolt_closed_volume` less the tip cone when `tip`, plus the fillet ring when `r` is a
+    radius: the volume of a bolt with its ends (D-09, D-11). Each oracle raises `ValueError`
+    outside its validity, so there is no number for a bolt the oracles cannot judge (L02)."""
+    volume = bolt_closed_volume(d, pitch, length, s, k, t)
+    if tip:
+        volume -= tip_cone_volume(d, pitch, TIP_ANGLE_DEG)
+    if r is not None:
+        volume += fillet_ring_volume(d, r)
+    return volume
+
+
+# The differential tolerance, as a fraction of the piece an end cut removes or adds (R11, P8):
+# 10 times the largest piece error `bench/RESULTS.md` records under `End-cut probe (Phase 5,
+# D-10)` -- 2.737e-03, tip 45 degrees on the M2 right-hand rod, one single-run maximum over 46
+# honest rows -- rounded up to one significant figure: 10 x 2.737e-03 = 2.737e-02 -> 0.03. The
+# whole-part gate cannot see a tip cone or a ring on a long bolt (P8); this one can, and the
+# probe's controls (a skipped cut -1.00, a 45 degree cone where 30 is expected +0.73) sit far
+# above it. `tests/test_end_oracles.py` re-derives it from the entry.
+T_PIECE = 0.03
+
+
+def piece_refusal(measured: float, oracle: float, what: str) -> str | None:
+    """None when the volume an end cut removed or added is inside `T_PIECE` of its oracle's
+    piece; otherwise the text naming `what` and the signed relative error (P8).
+
+    `measured` is the precise volume before the cut less after it (or the reverse for a fuse),
+    `oracle` the kernel-free volume of that piece. The error is signed: a skipped cut reads -1.
+    """
+    if not (math.isfinite(oracle) and oracle > 0):
+        return f"the {what} oracle {oracle:.6g} mm3 is not a finite positive number"
+    rel = measured / oracle - 1.0
+    # A negated <=, as in `volume_check`: a NaN volume must not pass.
+    if not abs(rel) <= T_PIECE:
+        return (f"the {what} is {measured:.6g} mm3 where its oracle says {oracle:.6g} mm3, "
+                f"relative error {rel:+.3e}, allowed {T_PIECE:g} of the piece (D-10, R11)")
+    return None
+
+
+def countersink_face_radius(d: float) -> float:
+    """Radius at which the nut lead-in countersink opens on the face: `COUNTERSINK_FACE_FACTOR`
+    times d / 2, from the field `d` alone (D-12), the one place the builder, the oracle and
+    `end_depths` read it."""
+    return COUNTERSINK_FACE_FACTOR * d / 2
+
+
+def end_depths(d: float, pitch: float, clearance: float, s: float,
+               m: float) -> tuple[float, float, list[str]]:
+    """The countersink depth and the face chamfer depth the builder cuts, and what was capped.
+
+    The countersink is the cone from the face radius `COUNTERSINK_FACE_FACTOR * d / 2` at
+    `COUNTERSINK_HALF_ANGLE_DEG` to the root radius, past which it removes no material: depth
+    (face radius - root radius) / tan(half angle). The chamfer is the cone from the inscribed
+    radius s / 2 at `CHAMFER_ANGLE_DEG`, to the depth it reaches at the hexagon corner. Each
+    is capped, with a warning and never a refusal (L02, R5: the user set neither), where the
+    oracles' validity (P10) would otherwise fail:
+
+    - face radius at most the void's crest radius d/2 + clearance: the cone cannot cross the
+      void, so the countersink is left out (depth 0), naming `clearance`;
+    - face radius past s / 2: it would leave the flats and overlap the chamfer, so the
+      countersink is left out, naming `s`;
+    - 2 * depth above m: the cutters of the two faces would meet, so each depth is capped at
+      m / 2, naming `m`. The oracle caps the chamfer by a flat cut at that depth
+      (`face_chamfer_volume`), so the builder must cut the same shape.
+    """
+    if not m > 0:
+        raise ValueError(f"m {m:g} mm must be above 0")
+    warnings: list[str] = []
+    ro, rr = _radii(d, pitch, clearance)
+    face_radius = countersink_face_radius(d)
+    if face_radius <= ro:
+        csk = 0.0
+        warnings.append(
+            f"clearance {clearance:g}: the nut lead-in countersink opens to {face_radius:.4g} mm "
+            f"radius, which does not pass the void's crest radius d/2 + clearance = {ro:.4g} mm, "
+            f"so it cannot cross the void and is left out (L15)")
+    elif face_radius > s / 2:
+        csk = 0.0
+        warnings.append(
+            f"s {s:g}: the nut lead-in countersink opens to {face_radius:.4g} mm radius, past "
+            f"the flats at s / 2 = {s / 2:.4g} mm, so it is left out (L15)")
+    else:
+        full = (face_radius - rr) / math.tan(math.radians(COUNTERSINK_HALF_ANGLE_DEG))
+        csk = min(full, m / 2)
+        if csk < full:
+            warnings.append(
+                f"m {m:g}: the nut lead-in countersinks are cut {csk:.4g} mm deep, not the "
+                f"{full:.4g} mm of the model, so they do not meet (L15)")
+    corner = s / 2 / math.cos(math.pi / 6)
+    chamfer_full = (corner - s / 2) * math.tan(math.radians(CHAMFER_ANGLE_DEG))
+    chamfer = min(chamfer_full, m / 2)
+    if chamfer < chamfer_full:
+        warnings.append(
+            f"m {m:g}: the nut face chamfers are cut {chamfer:.4g} mm deep, not the "
+            f"{chamfer_full:.4g} mm of the model, so they do not meet (L15)")
+    return csk, chamfer, warnings
+
+
+def nut_end_closed_volume(d: float, pitch: float, s: float, m: float, clearance: float) -> float:
+    """`nut_closed_volume` less the two lead-in countersinks and the two face chamfers: the volume
+    of a nut with its ends (D-12, R3, R4), at the depths `end_depths` returns (R5 caps them).
+
+    A countersink `end_depths` leaves out (depth 0) removes nothing. Each oracle raises
+    `ValueError` outside its validity, so there is no number for a nut they cannot judge (L02).
+    """
+    csk, chamfer, _ = end_depths(d, pitch, clearance, s, m)
+    volume = nut_closed_volume(d, pitch, s, m, clearance)
+    if csk > 0:
+        volume -= 2 * countersink_volume(d, pitch, clearance, s, countersink_face_radius(d),
+                                         COUNTERSINK_HALF_ANGLE_DEG, csk)
+    return volume - 2 * face_chamfer_volume(s, s / 2, CHAMFER_ANGLE_DEG, chamfer)

@@ -7,6 +7,7 @@ module holds what joins them to a built part (D-09, D-10, D-11, TABL-01, THRD-03
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -15,7 +16,7 @@ from screw import cli
 from screw.calc import derive, download_refusal
 from screw.calc.presets import PresetEntry, catalogue_document, expand
 from screw.calc.thread import FINE_STL_ROWS, built_thread_length, thread_length_conflict
-from screw.params import KINDS, BoltParams
+from screw.params import KINDS, BoltParams, NutParams
 
 ROWS = catalogue_document("bolt").rows
 
@@ -57,13 +58,18 @@ def test_every_catalogue_row_round_trips(row: PresetEntry) -> None:
 
 def test_every_kind_expands_and_an_unknown_id_is_none() -> None:
     for kind in KINDS:
-        assert expand(kind, ROWS[0].id) == ROWS[0].fields
         assert expand(kind, "nope") is None
+    assert expand("bolt", ROWS[0].id) == ROWS[0].fields
     assert expand("bolt", "iso4017:m6x20") is None, "ids are case-sensitive"
-    with pytest.raises(TypeError, match="nut"):
-        expand("nut", ROWS[0].id)
-    with pytest.raises(TypeError, match="nut"):
-        catalogue_document("nut")
+    # A bolt's id is not a nut's, and every registered kind has a non-empty catalogue.
+    assert expand("nut", "iso4017:M6x20") is None
+    assert expand("bolt", "iso4032:M6") is None
+    for kind in KINDS:
+        assert catalogue_document(kind).rows, kind
+    with pytest.raises(TypeError, match="washer"):
+        expand("washer", ROWS[0].id)
+    with pytest.raises(TypeError, match="washer"):
+        catalogue_document("washer")
 
 
 def test_the_preset_m6_x_20_is_the_part_the_empty_command_builds(
@@ -191,3 +197,61 @@ def test_the_rows_whose_stl_falls_back_to_the_preview_are_the_fine_stl_refused_r
     assert falls_back
     assert falls_back == refused
     assert all(row_id.startswith("iso4017:") for row_id in falls_back)
+
+
+NUT_ROWS = catalogue_document("nut").rows
+# The sizes GOST ISO 4032-2014 prints from M2 to M20; it prints no M7 (05-OWNER-READS.md).
+NUT_SIZES = ["M2", "M2.5", "M3", "M3.5", "M4", "M5", "M6", "M8", "M10", "M12", "M14", "M16",
+             "M18", "M20"]
+# ISO 262's second-choice sizes among them; they are also the sizes the text prints in Table 2.
+SECOND_CHOICE = {"M3.5", "M14", "M18"}
+
+
+def test_the_nut_catalogue_is_the_fourteen_gost_iso_4032_rows_with_no_m7() -> None:
+    document = catalogue_document("nut")
+    assert document.axes == ["Standard", "Size"]
+    assert [row.id for row in document.rows] == [f"iso4032:{size}" for size in NUT_SIZES]
+    assert "iso4032:M7" not in {row.id for row in document.rows}
+    assert len({row.id for row in document.rows}) == len(NUT_ROWS) == 14
+
+
+@pytest.mark.parametrize("row", NUT_ROWS, ids=lambda r: r.id)
+def test_every_nut_row_reads_the_same_in_the_picker_the_display_and_the_citation(
+        row: PresetEntry) -> None:
+    size = row.id.removeprefix("iso4032:")
+    bracketed = size in SECOND_CHOICE
+    shown = f"({size})" if bracketed else size
+    # Every display is exactly `ISO 4032 <size>`, bracketed for a second choice, no suffix (owner
+    # ruling 2026-10-20: no informative rows).
+    assert row.display == f"ISO 4032 {shown}"
+    assert re.fullmatch(r"ISO 4032 (M[0-9.]+|\(M[0-9.]+\))", row.display)
+    assert row.picker == ["ISO 4032", shown]
+    assert row.designation == (
+        f"Hexagon regular nut GOST ISO 4032 - {size.replace('.', ',')}")
+    assert list(row.fields) == ["d", "pitch", "s", "m"]
+    # M3.5, M14 and M18 are Table 2 (additional threads); every other size is Table 1.
+    table = "Table 2" if bracketed else "Table 1"
+    assert f"GOST ISO 4032-2014 (ISO 4032:2012) {table}" in row.citation
+
+
+def test_a_nut_row_expands_to_its_four_millimetre_fields() -> None:
+    assert expand("nut", "iso4032:M6") == {"d": 6.0, "pitch": 1.0, "s": 10.0, "m": 5.2}
+    assert expand("nut", "iso4032:M3.5") == {"d": 3.5, "pitch": 0.6, "s": 6.0, "m": 2.8}
+    assert expand("nut", "iso4032:m6") is None, "ids are case-sensitive"
+    assert expand("nut", "iso4032:M7") is None, "the text prints no M7"
+    assert expand("nut", "iso4017:M6x20") is None
+
+
+def test_a_nut_row_writes_only_fields_the_nut_has_and_never_the_pair_fields() -> None:
+    # Picking a row leaves `clearance` and `left_hand` as the user set them (D-01, D-17).
+    names = {name for row in NUT_ROWS for name in row.fields}
+    assert names == {"d", "pitch", "s", "m"}
+    assert names <= set(NutParams.model_fields)
+
+
+def test_the_screw_presets_nut_command_prints_the_catalogue_document(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    cli.main(["presets", "nut"])
+    printed = json.loads(capsys.readouterr().out)
+    assert printed == json.loads(catalogue_document("nut").model_dump_json())
+    assert len(printed["rows"]) == 14

@@ -14,13 +14,17 @@ import sys
 import pytest
 
 
-def _loads_tables(code: str) -> bool:
+def _loads(module: str, code: str) -> bool:
     out = subprocess.run(
-        [sys.executable, "-I", "-c", f"import sys; {code}; print('screw.tables' in sys.modules)"],
+        [sys.executable, "-I", "-c", f"import sys; {code}; print({module!r} in sys.modules)"],
         capture_output=True, text=True, check=True,
     ).stdout.strip()
     assert out in {"True", "False"}, out
     return out == "True"
+
+
+def _loads_tables(code: str) -> bool:
+    return _loads("screw.tables", code)
 
 
 @pytest.mark.parametrize(
@@ -48,3 +52,22 @@ def test_importing_the_calc_package_alone_does_not_load_the_tables() -> None:
     # `screw.calc.thread` runs `screw/calc/__init__.py`, so a top-of-module import of
     # `screw.calc.presets` there would put the tables behind every rebuilt link.
     assert _loads_tables("import screw.calc") is False
+
+
+# --- The pair proof stays off every route (05-14, D-24, PAIR-04) ---------------------------------
+# The same gap as above: import-linter passes a misspelt module vacuously and does not model the
+# package `__init__` edge, so the contract on `screw.app` and `screw.pool` is paired with a fresh
+# interpreter that sees what a process actually loads.
+
+
+def test_the_serving_process_does_not_load_the_pair_proof() -> None:
+    assert _loads("screw.solid.pair", "import screw.app") is False
+
+
+def test_the_pool_and_the_solid_package_do_not_load_the_pair_proof() -> None:
+    assert _loads("screw.solid.pair", "import screw.pool, screw.solid") is False
+
+
+def test_the_probe_sees_the_pair_proof_once_it_is_imported() -> None:
+    # The control: without it a probe that always prints False would pass the tests above.
+    assert _loads("screw.solid.pair", "import screw.solid.pair") is True

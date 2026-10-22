@@ -29,7 +29,7 @@ CONSTRAINT := $(if $(wildcard requirements.txt),PIP_CONSTRAINT=requirements.txt,
 .PHONY: help venv verify lint typecheck lint-imports no-fake-done test serve lock \
 	    check image smoke up down logs vendor vendor-check \
 	    worktree.bootstrap worktree.new worktree.land pr.land clean clean-docker \
-	    bench bench.build bench.export bench.latency bench.memory bench.thread grid
+	    bench bench.build bench.export bench.latency bench.memory bench.thread grid pair
 
 help:  ## list the targets
 	@grep -hE '^[a-z][a-z.-]*:.*##' $(MAKEFILE_LIST) | sed 's/:[^#]*##/\t/' | expand -t18
@@ -103,14 +103,24 @@ no-fake-done:  ## refuse unfinished work dressed up as finished
 PYTEST_WORKERS ?= $(shell w=8; n=$$(getconf _NPROCESSORS_ONLN 2>/dev/null); \
                     [ "$$n" -ge 1 ] 2>/dev/null || n=1; echo $$(( n < w ? n : w )))
 
+# --durations=10 puts the ten slowest tests in the log of every run, CI's included: the pair verify
+# cell is a real kernel boolean and the only record of how long it takes on a runner (05-15, T-05-35).
 test: $(STAMP)  ## run the test suite under the coverage floor
-	$(PY) -m pytest -n $(PYTEST_WORKERS) --cov --cov-report=term $(PYTEST_ARGS)
+	$(PY) -m pytest -n $(PYTEST_WORKERS) --cov --cov-report=term --durations=10 $(PYTEST_ARGS)
 
 # The slow thread tier (D-14): outside the gate like the bench family, so nothing here is
 # in `make verify`. --no-cov because a partial run reads a low total against the floor.
 # SIZE=M6 runs one size's four cells: `-k 'M6-'` aliases nothing (tests/test_grid.py pins it).
 grid: $(STAMP)  ## the full thread grid through the THRD-04 gate (slow; D-14); SIZE=M6 runs one size
 	$(PY) -m pytest -m grid -n $(PYTEST_WORKERS) --no-cov $(if $(SIZE),-k '$(SIZE)-',) $(PYTEST_ARGS)
+
+# The slow pair tier (D-07): the 240 pre-registered cells of the pair proof, each in its own child
+# process with the spike's per-cell deadline, every verdict asserted against tests/data/
+# pair_expected.tsv and every report appended to bench/results/phase-05/pair-<size>.jsonl. Outside
+# the gate like `grid`; SIZE=M6 runs one size's 16 cells (`-k 'M6-'` aliases nothing: the ids end
+# in a hand and a clearance, and tests/test_pair.py pins it).
+pair: $(STAMP)  ## the pre-registered pair grid (slow; D-07); SIZE=M6 runs one size
+	$(PY) -m pytest -m pair -n $(PYTEST_WORKERS) --no-cov $(if $(SIZE),-k '$(SIZE)-',) $(PYTEST_ARGS)
 
 serve: $(STAMP)  ## run the dev server on http://127.0.0.1:8000
 	$(VENV)/bin/screw serve

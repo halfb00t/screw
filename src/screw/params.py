@@ -43,6 +43,21 @@ def _f[T](default: T, *, gt: float, le: float | None = None, title: str, group: 
                  json_schema_extra=extra)
 
 
+def _req(*, le: float, title: str, group: str, unit: str = "", step: float | None = None,
+         help: str = "") -> float:
+    # The sibling of `_f` for a field with no default (D-01, PAIR-01): `Field(...)` is what makes
+    # pydantic answer a missing value with a 422 `missing` and leave `default` out of the schema,
+    # so the form, the CLI help and the parity tests can tell a required field from a defaulted
+    # one. No `gt`: any finite value up to `le` is a legal input (D-04, a nominal or interference
+    # fit is a value the user may ask for); `allow_inf_nan=False` refuses inf and nan as in `_f`.
+    extra: JsonDict = {"group": group, "unit": unit}
+    if step is not None:
+        extra["step"] = step
+    required: float = Field(..., le=le, allow_inf_nan=False, title=title, description=help,
+                            json_schema_extra=extra)
+    return required     # typed here: `Field` returns Any, which --strict refuses to return
+
+
 def _b(default: bool, *, title: str, group: str, help: str = "") -> bool:
     # The sibling of `_f` for a yes/no field: no bound, no step, no unit. The schema still
     # carries `unit` (empty) because the parity test and the form read it on every property.
@@ -148,7 +163,66 @@ class BoltParams(FastenerParams):
         return self
 
 
-KINDS: dict[str, type[FastenerParams]] = {BoltParams.kind: BoltParams}
+class NutParams(FastenerParams):
+    """The nut: a hex nut of nominal diameter d and pitch, across flats s, height m and the radial
+    clearance of its thread against a bolt of the same d."""
+
+    kind: ClassVar[str] = "nut"
+
+    # D-15, L02: the ISO 4032:2023 M6 values (grade A, coarse pitch 1.0) recorded in
+    # 05-OWNER-READS.md: s the `s` max column, which is the nominal width across flats, and m the
+    # `m` max column. The source is secondary: Claude read them on 2026-10-14 from a print of the
+    # GlobalFastener.com page that transcribes ISO 4032:2023, not from the purchased standard, and
+    # the owner approved that source and typed `permanent: accepted` for these two values. Both were
+    # cross-checked against GOST ISO 4032-2014 Table 1, M6, on 2026-10-20 and are pinned to that
+    # row by `tests/test_params.py` (L14, 05-OWNER-READS.md). Frozen:
+    # every shareable link that omits s or m means these values forever.
+    s: float = _f(10.0, gt=0, le=INTERIM_MAX_MM, title="Across flats", group="Nut", unit="mm",
+                  step=0.1, help="Width across flats of the hexagon nut (ISO 4032 symbol s).")
+    m: float = _f(5.2, gt=0, le=INTERIM_MAX_MM, title="Height", group="Nut", unit="mm", step=0.1,
+                  help="Height of the nut along the axis (ISO 4032 symbol m).")
+    # D-01, PAIR-01: no default, no lower bound and no fallback until Phase 6 records the printed
+    # test. Any value a link omits is a 422, never a number the tool chose for the user.
+    clearance: float = _req(
+        le=INTERIM_MAX_MM, title="Clearance (radial)", group="Pair", unit="mm", step=0.01,
+        help="Radial clearance c in mm: both thread radii of the nut grow by c, so a positive "
+             "value enlarges the nut's thread and 0 is the nominal profile. The diametral value "
+             "(2 c) is on the info panel.")
+
+    @model_validator(mode="after")
+    def _root_radius(self) -> Self:
+        # Same name as the base rule on purpose (RESEARCH F6): pydantic keeps one validator per
+        # name, so this replaces the inherited c-free rule instead of running beside it. The
+        # nut's void grows by the clearance, so the root radius swept is d/2 - 5H/8 + c (D-04).
+        from screw.calc.thread import void_root_radius_refusal
+
+        if (msg := void_root_radius_refusal(self.d, self.pitch, self.clearance)) is not None:
+            raise PydanticCustomError(
+                "pitch_too_coarse", msg, {"fields": ["d", "pitch", "clearance"]})
+        return self
+
+    @model_validator(mode="after")
+    def _nut_too_thin(self) -> Self:
+        # D-13: a void wider than the flats is a direct conflict between values the user typed,
+        # so it is a 422 naming the three fields, not a trimmed part (L02).
+        from screw.calc.thread import nut_too_thin_refusal
+
+        if (msg := nut_too_thin_refusal(self.s, self.d, self.clearance)) is not None:
+            raise PydanticCustomError("nut_too_thin", msg, {"fields": ["s", "d", "clearance"]})
+        return self
+
+    @model_validator(mode="after")
+    def _turn_cap(self) -> Self:
+        # P11: judged on the void the builder makes (m + 2 pitch), not on m alone.
+        from screw.calc.thread import nut_turn_cap_refusal
+
+        if (msg := nut_turn_cap_refusal(self.m, self.pitch)) is not None:
+            raise PydanticCustomError("turn_cap", msg, {"fields": ["m", "pitch"]})
+        return self
+
+
+KINDS: dict[str, type[FastenerParams]] = {
+    BoltParams.kind: BoltParams, NutParams.kind: NutParams}
 
 # Frozen forever: a link that omits `kind` means bolt, so the default can never move to
 # whatever the registry happens to list first (L02, D-09). A test asserts the literal.

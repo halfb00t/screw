@@ -18,7 +18,8 @@ from screw import __version__, cli
 from screw.calc import derive, download_refusal
 from screw.params import KINDS, BoltParams
 
-WARNING = ("warning: plain-cut thread ends, no tip chamfer or under-head fillet; "
+WARNING = ("warning: ends modelled per L15: bolt tip chamfer, under-head fillet on an ISO 4014 "
+           "plain shank, nut lead-in countersinks and face chamfers; nominal, not toleranced; "
            "not a product build")
 
 
@@ -180,14 +181,35 @@ def test_the_measured_m4_250_turn_row_is_accepted_on_the_command_line(
 
 
 @pytest.mark.parametrize("argv", [
-    ["info", "nut"],
-    ["export", "nut", "-o", "unused.stl"],
+    ["info", "washer"],
+    ["export", "washer", "-o", "unused.stl"],
 ])
 def test_an_unknown_kind_exits_2(argv: list[str], capsys: pytest.CaptureFixture[str]) -> None:
     assert _exit_code(argv) == 2
     err = capsys.readouterr().err
-    assert "nut" in err
+    assert "washer" in err
     assert "bolt" in err      # the valid choices are named
+    assert "nut" in err
+
+
+@pytest.mark.parametrize("command", [["info", "nut"], ["export", "nut", "-o", "unused.stl"]])
+def test_a_nut_without_a_clearance_exits_2_naming_it(
+        command: list[str], capsys: pytest.CaptureFixture[str]) -> None:
+    # D-01, PAIR-01: no clearance has no default, so it is refused by name, never built.
+    assert _exit_code(command) == 2
+    err = capsys.readouterr().err
+    assert "error: clearance: " in err
+    assert "Traceback" not in err
+
+
+def test_the_required_flag_is_marked_required_in_the_help(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    assert _exit_code(["info", "nut", "--help"]) == 0
+    out = re.sub(r"\s+", " ", capsys.readouterr().out)
+    assert "[required]" in out
+    assert "PydanticUndefined" not in out
+    # A defaulted field of the same kind still shows its default.
+    assert "(ISO 4032 symbol m). [5.2]" in out
 
 
 def test_unknown_output_extension_is_refused(tmp_path: Path) -> None:
@@ -281,7 +303,7 @@ def test_presets_prints_the_catalogue_and_refuses_an_unknown_kind(
     assert "iso4017:M6x20" in ids
     assert "iso4014:M10x80" in ids
     assert len(ids) == len(set(ids))
-    assert _exit_code(["presets", "nut"]) == 2
+    assert _exit_code(["presets", "washer"]) == 2
     assert _exit_code(["presets"]) == 2
 
 
@@ -315,6 +337,18 @@ def test_a_fine_stl_l11_measured_over_budget_exits_2_and_writes_nothing(
     err = capsys.readouterr().err
     assert "error: thread_length and length:" in err
     assert "2026-10-08-a-grid" in err
+    assert not out.exists()
+
+
+def test_a_nut_fine_stl_past_its_measured_cap_exits_2_and_writes_nothing(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    out = tmp_path / "x.stl"
+    argv = ["export", "nut", "--d", "10", "--pitch", "1.5", "--s", "16", "--m", "37",
+            "--clearance", "0.1", "-o", str(out)]
+    assert _exit_code(argv) == 2
+    err = capsys.readouterr().err
+    assert "error: m: " in err
+    assert "2026-10-21-nut-fine-caps-amended" in err
     assert not out.exists()
 
 
@@ -397,3 +431,26 @@ def test_a_bad_length_beside_a_thread_length_is_the_field_error_not_the_conflict
         capsys: pytest.CaptureFixture[str]) -> None:
     assert _exit_code(["info", "bolt", "--length", "-5", "--thread-length", "10"]) == 2
     assert "error: length: " in capsys.readouterr().err
+
+
+def test_export_into_a_directory_names_the_file_by_its_quality(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    # D-22, R9: a directory is named by `download_name`; a preview STL says so.
+    cli.main(["export", "bolt", "-o", str(tmp_path), "--format", "stl", "--quality", "preview"])
+    assert (tmp_path / f"{BoltParams().slug()}_preview.stl").is_file()
+    assert "preview" in capsys.readouterr().err
+
+
+def test_export_into_a_directory_needs_a_format() -> None:
+    out = _exit_code(["export", "bolt", "-o", str(Path.cwd())])
+    assert out == "error: output is a directory: pass --format stl or --format step"
+
+
+def test_export_to_a_file_path_writes_it_as_given_and_the_wrote_line_names_the_quality(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    out = tmp_path / "x.stl"
+    cli.main(["export", "bolt", "-o", str(out), "--quality", "preview"])
+    assert out.is_file()
+    assert re.search(r"^wrote .*x\.stl \(\d+ KiB, preview\)$", capsys.readouterr().err, re.M)
+    cli.main(["export", "bolt", "-o", str(out)])
+    assert ", fine)" in capsys.readouterr().err

@@ -31,7 +31,7 @@ from screw.app import app, build_backend
 from screw.build_errors import BuildError, BuildTimeout
 from screw.calc import STANDING_WARNING
 from screw.calc.presets import expand
-from screw.calc.thread import T_GATE, bolt_closed_volume
+from screw.calc.thread import T_GATE, bolt_end_closed_volume
 from screw.params import DEFAULT_KIND, INTERIM_MAX_MM, KINDS, BoltParams, FastenerParams
 from screw.solid import Format, Quality, export, precise_volume
 from screw.tables.presets import catalogue
@@ -122,10 +122,34 @@ def test_index_and_static() -> None:
 
 
 def test_kinds_names_the_frozen_default() -> None:
-    assert client.get("/api/kinds").json() == {"default": "bolt", "kinds": ["bolt"]}
+    assert client.get("/api/kinds").json() == {"default": "bolt", "kinds": ["bolt", "nut"]}
     # The literal, not DEFAULT_KIND: a link that omits `kind` means bolt forever (L02).
     assert DEFAULT_KIND == "bolt"
-    assert list(KINDS) == ["bolt"]
+    assert list(KINDS) == ["bolt", "nut"]
+
+
+def test_a_nut_with_a_clearance_serves_its_info_and_both_downloads() -> None:
+    # TYPE-03: the second kind through every route; the clearance is a test input, not a default.
+    info = client.get("/api/nut/info", params={"clearance": 0.1})
+    assert info.status_code == 200
+    assert info.json()["kind"] == "nut"
+    stl = client.get("/api/nut/model.stl", params={"clearance": 0.1, "quality": "preview"})
+    assert stl.status_code == 200
+    assert len(stl.content) > 1000
+    step = client.get("/api/nut/model.step", params={"clearance": 0.1})
+    assert step.status_code == 200
+    assert step.content.startswith(b"ISO-10303-21;")
+    assert 'filename="nut_' in step.headers["content-disposition"]
+
+
+def test_the_nut_schema_has_the_required_clearance_and_no_default_for_it() -> None:
+    schema = client.get("/api/schema", params={"kind": "nut"}).json()
+    assert list(schema["properties"]) == ["d", "pitch", "left_hand", "s", "m", "clearance"]
+    assert schema["required"] == ["clearance"]
+    assert "default" not in schema["properties"]["clearance"]
+    assert schema["properties"]["clearance"]["title"] == "Clearance (radial)"
+    assert schema["properties"]["clearance"]["group"] == "Pair"
+    assert schema["properties"]["s"]["group"] == schema["properties"]["m"]["group"] == "Nut"
 
 
 def test_schema_requires_a_kind_and_knows_only_registered_kinds() -> None:
@@ -144,7 +168,7 @@ def test_schema_requires_a_kind_and_knows_only_registered_kinds() -> None:
     assert missing.status_code == 422
     assert missing.json()["detail"][0]["loc"] == ["query", "kind"]
 
-    unknown = client.get("/api/schema", params={"kind": "nut"})
+    unknown = client.get("/api/schema", params={"kind": "washer"})
     assert unknown.status_code == 404
     detail = unknown.json()["detail"][0]
     assert detail["loc"] == ["query", "kind"]
@@ -181,12 +205,12 @@ def test_a_second_choice_size_is_bracketed_in_the_catalogue_and_a_decimal_point_
 
 
 def test_the_preset_catalogue_of_an_unknown_kind_is_a_404_naming_the_known_kinds() -> None:
-    res = client.get("/api/presets", params={"kind": "nut"})
+    res = client.get("/api/presets", params={"kind": "washer"})
     assert res.status_code == 404
     [detail] = res.json()["detail"]
     assert detail["loc"] == ["query", "kind"]
     assert detail["type"] == "unknown_kind"
-    assert "Known kinds: bolt" in detail["msg"]
+    assert "Known kinds: bolt, nut" in detail["msg"]
 
 
 def test_the_preset_catalogue_needs_one_kind() -> None:
@@ -213,8 +237,19 @@ def test_the_empty_query_is_the_iso_4017_m6_x_20_exact_match() -> None:
 
 
 def test_an_unknown_kind_has_no_routes() -> None:
-    assert client.get("/api/nut/info").status_code == 404
-    assert client.get("/api/nut/model.stl").status_code == 404
+    assert client.get("/api/washer/info").status_code == 404
+    assert client.get("/api/washer/model.stl").status_code == 404
+
+
+def test_the_pair_proof_has_no_endpoint() -> None:
+    """PAIR-04: the proof is a function and a CLI command, never a route (a boolean per request
+    is not something the server's 30 s budget can promise). Checked on the schema the clients
+    read and on the routes the app serves, so a hidden route fails it too."""
+    paths = client.get("/openapi.json").json()["paths"]
+    assert paths
+    assert not [path for path in paths if "pair" in path]
+    assert not [route for route in app.routes if "pair" in str(getattr(route, "path", ""))]
+    assert client.get("/api/nut/pair").status_code == 404
 
 
 def test_openapi_documents_the_typed_contracts() -> None:
@@ -229,7 +264,8 @@ def test_openapi_documents_the_typed_contracts() -> None:
         "$ref": "#/components/schemas/PartInfo"}
 
     part_info = schema["components"]["schemas"]["PartInfo"]
-    keys = {"kind", "rows", "warnings", "designation", "preset", "notes", "downloads"}
+    keys = {"kind", "rows", "warnings", "designation", "preset", "notes", "downloads",
+            "counterpart"}
     assert set(part_info["properties"]) == keys
     assert set(part_info["required"]) == keys
     preset = schema["components"]["schemas"]["PresetMatch"]
@@ -292,8 +328,9 @@ def test_an_iso_4014_match_and_a_non_row_part_over_the_wire() -> None:
     assert by_key["b"]["group"] == by_key["ls_min"]["group"] == "Shank and thread"
     assert by_key["b"]["label"].startswith("Thread length b, ref (ISO 4014:2022 ")
     custom = client.get("/api/bolt/info", params={"pitch": 0.75}).json()
-    assert custom["warnings"][-1] == (
-        "no ISO 4014:2022 or ISO 4017:2022 row matches these fields; row values not reported")
+    assert custom["warnings"][1:] == [
+        "no ISO 4014:2022 or ISO 4017:2022 row matches these fields; row values not reported",
+        "no GOST ISO 4032-2014 (ISO 4032:2012) row for d 6 pitch 0.75; set s and m on the nut"]
     assert {"s_min", "b"}.isdisjoint(row["key"] for row in custom["rows"])
     assert bolt["notes"] == ["product grade A (ISO 4014:2022: l ≤ 150 mm and l ≤ 10 d)",
                              "wrench size 16 mm (ISO 4014:2022); the withdrawn DIN 931 used 17 mm"]
@@ -307,10 +344,13 @@ def test_the_default_info_document() -> None:
     assert body["kind"] == "bolt"
     assert [row["key"] for row in body["rows"]] == [
         "d", "pitch", "length", "thread_length", "shank_length", "turns", "thread_depth",
-        "minor_diameter", "s", "across_corners", "k", "s_min", "e_min", "k_max", "k_min", "dw_min",
-        "volume"]
+        "minor_diameter", "pitch_diameter", "d_max", "d_min", "d2_max", "d2_min", "s",
+        "across_corners", "k", "s_min", "e_min", "k_max", "k_min", "dw_min", "volume"]
+    # INFO-02: the heading is one ASCII string, compared with `==` and not by substring.
     assert [row["group"] for row in body["rows"]] == (
-        ["Shank and thread"] * 8 + ["Head"] * 8 + ["Part"])
+        ["Shank and thread"] * 9
+        + ["limits for a bought part; this model is nominal and not toleranced"] * 4
+        + ["Head"] * 8 + ["Part"])
     values = {row["key"]: row["value"] for row in body["rows"]}
     assert values["d"] == 6.0
     assert values["pitch"] == 1.0
@@ -319,7 +359,7 @@ def test_the_default_info_document() -> None:
     assert (values["thread_length"], values["shank_length"]) == (20.0, 0.0)
     assert (values["s"], values["k"]) == (10.0, 4.0)
     assert values["across_corners"] == 10.0 / math.cos(math.pi / 6)
-    assert values["volume"] == bolt_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0)
+    assert values["volume"] == bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None)
     assert body["warnings"][0] == STANDING_WARNING
     assert body["preset"] == {"status": "exact", "id": "iso4017:M6x20",
                               "display": "ISO 4017 M6 \u00d7 20"}
@@ -349,7 +389,7 @@ def test_an_iso_4014_shaped_bolt_reports_its_thread_and_its_shank() -> None:
     values = {row["key"]: row["value"] for row in r.json()["rows"]}
     assert (values["thread_length"], values["shank_length"]) == (18.0, 12.0)
     assert values["turns"] == 18.0
-    assert values["volume"] == bolt_closed_volume(6.0, 1.0, 30.0, 10.0, 4.0, 18.0)
+    assert values["volume"] == bolt_end_closed_volume(6.0, 1.0, 30.0, 10.0, 4.0, 18.0, True, 0.25)
 
 
 @pytest.mark.parametrize("route", ["/api/bolt/info", "/api/bolt/model.stl"])
@@ -522,7 +562,7 @@ def test_the_default_part_served_is_the_gated_hex_head_screw(tmp_path: Path) -> 
     assert isinstance(shape, cq.Shape)
     assert len(shape.Solids()) == 1
     assert precise_volume(shape) == pytest.approx(
-        bolt_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0), rel=T_GATE)
+        bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None), rel=T_GATE)
 
 
 def test_the_download_filename_is_safe_for_many_digit_values() -> None:
@@ -544,8 +584,10 @@ def test_model_download(fmt: str, ctype: str, magic: bytes | None) -> None:
     r = client.get(f"/api/bolt/model.{fmt}", params={"quality": "preview", "d": 8})
     assert r.status_code == 200
     assert r.headers["content-type"] == ctype
+    # D-22: the preview STL names its quality; the STEP keeps the plain slug.
+    name = "_preview.stl" if fmt == "stl" else ".step"
     assert r.headers["content-disposition"] == (
-        f'attachment; filename="bolt_d8_pitch1_left_hand0_length20_s10_k4_thread_length20.{fmt}"')
+        f'attachment; filename="bolt_d8_pitch1_left_hand0_length20_s10_k4_thread_length20{name}"')
     if magic:
         assert r.content.startswith(magic)
 
@@ -564,10 +606,11 @@ def test_a_left_hand_bolt_downloads_under_its_own_filename_and_is_not_the_right_
     left = client.get("/api/bolt/model.stl", params={"left_hand": "true", "quality": "preview"})
     assert left.status_code == 200
     assert left.headers["content-disposition"] == (
-        'attachment; filename="bolt_d6_pitch1_left_hand1_length20_s10_k4_thread_length20.stl"')
+        'attachment; filename="bolt_d6_pitch1_left_hand1_length20_s10_k4_thread_length20'
+        '_preview.stl"')
     right = client.get("/api/bolt/model.stl", params={"quality": "preview"})
     assert right.headers["content-disposition"].endswith(
-        'left_hand0_length20_s10_k4_thread_length20.stl"')
+        'left_hand0_length20_s10_k4_thread_length20_preview.stl"')
     # The bytes of the left-hand solid the handedness probe proves left-handed
     # (tests/test_solid.py), and not of the right-hand one.
     assert left.content == export(BoltParams(left_hand=True), "stl", "preview")
@@ -881,7 +924,8 @@ def test_two_requests_for_one_part_get_two_different_request_ids(
 
 
 @pytest.mark.parametrize(("exc", "want_level", "want_exception", "want_status", "want_type"), [
-    (BuildError("Geometry kernel failed (Standard_Failure); check d, pitch, length, s and k."),
+    (BuildError("Geometry kernel failed (Standard_Failure); "
+                "check d, pitch, left_hand, length, s, k and thread_length."),
      logging.WARNING, "BuildError", 422, "build_error"),
     (BuildTimeout("Build exceeded the 30s per-build timeout."),
      logging.ERROR, "BuildTimeout", 503, "timeout"),
@@ -1013,6 +1057,34 @@ def test_a_fine_stl_l11_measured_over_budget_is_a_422_and_never_reaches_the_back
                      "fine STL plus its gzip copy", "64 MiB export budget", "2026-10-08-a-grid"):
         assert fragment in detail["msg"]
     assert calls == 0
+
+
+NUT_CAPPED: Params = {"d": 10, "pitch": 1.5, "s": 16, "m": 37, "clearance": 0.1}
+
+
+def test_a_nut_fine_stl_past_its_measured_cap_is_a_422_and_never_reaches_the_backend() -> None:
+    """R16, R17: refused before the cache, the admission slot and the pool, like the rod's."""
+    calls = 0
+
+    async def counting_backend(p: FastenerParams, fmt: str, quality: str) -> bytes:
+        nonlocal calls
+        calls += 1
+        return b"served"
+
+    with _backend(counting_backend):
+        r = client.get("/api/nut/model.stl", params=NUT_CAPPED)    # quality defaults to fine
+        assert r.status_code == 422
+        (detail,) = r.json()["detail"]
+        assert detail["type"] == "fine_stl_cap"
+        assert detail["loc"] == ["query"]
+        assert detail["msg"].startswith("m: ")
+        for fragment in ("right-hand", "above m 36 mm", "fine STL plus its gzip copy",
+                         "64 MiB export budget", "2026-10-21-nut-fine-caps-amended"):
+            assert fragment in detail["msg"]
+        assert calls == 0
+        preview = client.get("/api/nut/model.stl", params={**NUT_CAPPED, "quality": "preview"})
+        assert preview.status_code == 200
+        assert calls == 1
 
 
 def test_the_same_part_is_served_on_the_preview_stl_the_step_and_the_info_route() -> None:
@@ -1194,3 +1266,25 @@ def test_a_length_below_the_floor_is_a_warned_info_document_and_a_422_build_erro
     detail = r.json()["detail"][0]
     assert detail["type"] == "build_error"
     assert detail["msg"].startswith("thread_length and length: ")
+
+
+def test_the_m18_nut_info_carries_the_pair_proof_label_on_the_route() -> None:
+    # D-20, SC6: read from the cited record, so the route needs no kernel and no clearance rule.
+    label = "kernel pair proof inconclusive at K = 3 (2026-10-08-a-pair)"
+    m18 = {"d": 18.0, "pitch": 2.5, "s": 27.0, "m": 14.8, "clearance": 0.1}
+    assert label in client.get("/api/nut/info", params=m18).json()["notes"]
+    assert label not in client.get("/api/nut/info", params={**m18, "pitch": 2.0}).json()["notes"]
+
+
+def test_the_counterpart_travels_on_the_wire_for_both_kinds_and_keeps_a_boolean() -> None:
+    bolt = client.get("/api/bolt/info", params={"left_hand": "true"}).json()["counterpart"]
+    assert bolt == {"kind": "nut", "fields": {
+        "d": 6.0, "pitch": 1.0, "left_hand": True, "s": 10.0, "m": 5.2}}
+    assert bolt["fields"]["left_hand"] is True
+    nut = client.get("/api/nut/info", params={"clearance": 0.1}).json()["counterpart"]
+    assert nut == {"kind": "bolt", "fields": {
+        "d": 6.0, "pitch": 1.0, "left_hand": False, "s": 10.0, "k": 4.0}}
+    off = client.get("/api/bolt/info", params={"d": 6.5}).json()
+    assert off["counterpart"]["fields"] == {"d": 6.5, "pitch": 1.0, "left_hand": False}
+    assert off["warnings"][-1] == (
+        "no GOST ISO 4032-2014 (ISO 4032:2012) row for d 6.5 pitch 1; set s and m on the nut")
