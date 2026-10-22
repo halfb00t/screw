@@ -251,6 +251,7 @@ source_modules = [
     "bench.quiet",
     "bench.pair_expected",
     "bench.print_rules",
+    "bench.print_matrix",
 ]
 forbidden_modules = ["cadquery", "OCP"]
 

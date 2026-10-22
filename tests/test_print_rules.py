@@ -10,12 +10,15 @@ from __future__ import annotations
 
 import hashlib
 import random
+import subprocess
 from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 
+from bench import print_matrix as matrix
 from bench import print_rules as rules
+from screw.calc.presets import expand
 from screw.tables import iso262
 
 type MatrixOk = Callable[[str, float, int], bool]
@@ -237,3 +240,112 @@ def test_the_coarse_sizes_are_the_iso_262_rows() -> None:
     by_label = {size.label: (size.d, size.pitch) for size in iso262.SIZES}
     assert {label: by_label[label] for label in rules.COARSE} == rules.COARSE
     assert set(rules.COARSE) == {*rules.SIZES, *rules.SMALL_SIZES}
+
+
+def test_the_matrix_prints_exactly_the_pre_registered_parts() -> None:
+    run_1 = matrix.exports("run-1")
+    assert len(run_1) == 24
+    assert [a[3] for a in run_1[:4]] == ["iso4017:M6x12", "iso4017:M8x16", "iso4017:M10x20",
+                                         "iso4017:M12x25"]
+    assert all(a[:2] == ["export", "bolt"] and "--clearance" not in a for a in run_1[:4])
+    assert run_1[4:] == [
+        ["export", "nut", "--preset", f"iso4032:{s}", "--clearance", repr(c),
+         "--format", "stl", "--quality", "fine"]
+        for s in rules.SIZES for c in rules.LADDER]
+    # D-10, D-16: these nuts take the shipped default, so no list may name a clearance.
+    run_2 = matrix.exports("run-2")
+    assert [a[1:4] for a in run_2] == [
+        ["bolt", "--preset", "iso4017:M3x6"], ["bolt", "--preset", "iso4017:M4x8"],
+        ["bolt", "--preset", "iso4017:M5x10"], ["nut", "--preset", "iso4032:M3"],
+        ["nut", "--preset", "iso4032:M4"], ["nut", "--preset", "iso4032:M5"]]
+    acceptance = matrix.exports("acceptance")
+    assert [a[1:4] for a in acceptance] == [["bolt", "--preset", "iso4017:M8x16"],
+                                            ["nut", "--preset", "iso4032:M8"]]
+    assert not any("--clearance" in a for a in run_2 + acceptance)
+    assert all(a[-4:] == ["--format", "stl", "--quality", "fine"] for a in run_1 + run_2)
+    with pytest.raises(ValueError, match="unknown run"):
+        matrix.exports("run-3")
+
+
+def test_every_print_preset_is_a_catalogue_row_of_its_size() -> None:
+    for size, (d, pitch) in rules.COARSE.items():
+        for kind, presets in (("bolt", matrix.BOLT_PRESETS), ("nut", matrix.NUT_PRESETS)):
+            row = expand(kind, presets[size])
+            assert row is not None, presets[size]
+            assert (row["d"], row["pitch"]) == (d, pitch)
+
+
+def _key_columns(path: Path, width: int) -> list[tuple[str, ...]]:
+    lines = path.read_text(encoding="utf-8").split("\n")
+    assert lines[-1] == ""
+    return [tuple(line.split("\t")[:width]) for line in lines[1:-1]]
+
+
+def test_the_committed_records_list_every_sample_in_order() -> None:
+    assert _key_columns(rules.RUN_1, 3) == [
+        (s, repr(c), str(n)) for s, c, n in rules.matrix_keys()]
+    assert _key_columns(rules.BOUGHT, 2) == [(s, str(n)) for s, n in rules.bought_keys()]
+    assert _key_columns(rules.RUN_2, 2) == [(s, str(n)) for s, n in rules.small_keys()]
+
+
+@pytest.mark.parametrize(("record", "read"), [
+    ("run-1", rules.read_matrix), ("bought", rules.read_bought), ("run-2", rules.read_small)])
+def test_an_unfilled_record_is_refused_at_its_first_row(
+    record: str, read: Callable[[str], object]
+) -> None:
+    with pytest.raises(ValueError, match=r"^line 2: "):
+        read(matrix.template(record))
+
+
+def test_a_template_is_never_written_over_a_record(tmp_path: Path) -> None:
+    record = tmp_path / "print-run-1.tsv"
+    text = matrix.template("run-1")
+    matrix.write_template(record, text)
+    matrix.write_template(record, text)    # the same bytes again is not an overwrite
+    filled = text.replace("\t\t\t\t\n", "\tP1\t1\tpass\t-\t-\n", 1)
+    record.write_text(filled, encoding="utf-8")
+    with pytest.raises(ValueError, match=r"print-run-1\.tsv"):
+        matrix.write_template(record, text)
+    assert record.read_text(encoding="utf-8") == filled
+
+
+def _no_subprocess(*args: object, **kwargs: object) -> subprocess.CompletedProcess[bytes]:
+    pytest.fail("an export ran into a directory that is not empty")
+
+
+def test_an_export_refuses_a_directory_that_holds_a_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    out = tmp_path / "stl"
+    out.mkdir()
+    (out / "kept.stl").write_bytes(b"a part someone printed from")
+    monkeypatch.setattr(subprocess, "run", _no_subprocess)
+    with pytest.raises(ValueError, match="stl"):
+        matrix.export("acceptance", out, results=tmp_path)
+    assert [p.name for p in out.iterdir()] == ["kept.stl"]
+
+
+def test_an_export_writes_a_manifest_of_name_bytes_and_digest_and_never_overwrites_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[list[str]] = []
+
+    def fake_run(cmd: list[str], check: bool) -> subprocess.CompletedProcess[bytes]:
+        out = Path(cmd[cmd.index("-o") + 1])
+        (out / f"part{len(calls)}.stl").write_bytes(b"x" * (len(calls) + 1))
+        calls.append(cmd)
+        return subprocess.CompletedProcess(cmd, 0)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    manifest = matrix.export("acceptance", tmp_path / "stl", results=tmp_path)
+    assert manifest == tmp_path / "manifest-acceptance.tsv"
+    assert [c[4:7] for c in calls] == [["bolt", "--preset", "iso4017:M8x16"],
+                                       ["nut", "--preset", "iso4032:M8"]]
+    assert all(c[-2:] == ["-o", str(tmp_path / "stl")] for c in calls)
+    assert manifest.read_text(encoding="utf-8").split("\n") == [
+        "name\tbytes\tsha256",
+        f"part0.stl\t1\t{hashlib.sha256(b'x').hexdigest()}",
+        f"part1.stl\t2\t{hashlib.sha256(b'xx').hexdigest()}",
+        ""]
+    with pytest.raises(ValueError, match=r"manifest-acceptance\.tsv"):
+        matrix.export("acceptance", tmp_path / "stl-again", results=tmp_path)
