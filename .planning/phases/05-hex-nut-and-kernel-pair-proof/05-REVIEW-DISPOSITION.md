@@ -75,9 +75,9 @@ findings:
     severity: info
     disposition: fixed
     title: "The WR-09 test pins source text, not the behaviour it names, and its file-wide call counts are fragile"
-open: 3
+open: 1
 total: 18
-recorded: 2026-10-21T17:57:32.000Z
+recorded: 2026-10-22T06:31:54.509Z
 ---
 
 # Phase 05: Code Review Disposition
