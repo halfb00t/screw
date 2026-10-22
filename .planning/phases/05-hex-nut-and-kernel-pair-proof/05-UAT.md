@@ -1,9 +1,9 @@
 ---
-status: diagnosed
+status: complete
 phase: 05-hex-nut-and-kernel-pair-proof
 source: [05-VERIFICATION.md]
 started: 2026-10-21T08:05:16Z
-updated: 2026-10-21T09:05:17.878Z
+updated: 2026-10-22T07:22:56.584Z
 ---
 
 ## Current Test
@@ -46,10 +46,26 @@ expected: The nut's "Download STL" and "Download STEP" links download the fine b
 result: pass
 note: "The original expected text named three buttons (preview STL, fine STL, STEP). The user reported: I don't see any preview stl and fine stl, just download stl and download step. That is the intended two-link UI (D-10), so the expected text was corrected and the test re-run."
 
+### 7. Re-test 1 on the final build: nut preset with empty clearance
+expected: `make serve`, kind nut, clearance empty, pick ISO 4032 then M6. The selects hold ISO 4032 / M6, the fields read M6 (d 6, pitch 1, s 10, m 5.2), nothing builds, the one error is the missing clearance.
+result: pass
+source_item: 05-VERIFICATION.md human_verification 1 (G-05-1, fixed by 05-21)
+
+### 8. Re-test 3 on the final build: clearance carried on Matching nut
+expected: Type 0.1 on the nut, follow Matching bolt, then Matching nut; the nut opens at 0.1 and builds. Then type 0.1, press Reset, switch to the bolt; its Matching nut link carries no clearance.
+result: pass
+note: "First report: Matching bolt link is not available after reset. By design: Reset empties clearance (no default, L15), the nut 422s and fail() hides the link. The step means switch via the Kind select; re-run that way and passed."
+source_item: 05-VERIFICATION.md human_verification 2 (G-05-3, fixed by 05-22)
+
+### 9. WR-09 / WR-10 real-browser check
+expected: (a) Devtools blocks `api/schema?kind=nut`, switch Kind to nut: no form control, no panel rows, no Matching link, both downloads without href, no picker or badge, status empty, the one message `Could not load the part: <network error>`, Kind deselected. Unblock and pick nut again: the nut's six controls, picker ISO 4032 / M6, `Clearance (radial): Field required`. (b) Throttled, switch to nut: while it loads no picker, badge, panel, link, download or control of the bolt is on screen, no console error. (c) Follow Matching nut, press Back during the load: the bolt reopens whole (seven controls, picker ISO 4017 / M6 / 20, badge `matches ISO 4017 M6 x 20`, its panel and downloads) and builds.
+result: pass
+source_item: 05-VERIFICATION.md human_verification 3 (05-24, 05-25)
+
 ## Summary
 
-total: 6
-passed: 4
+total: 9
+passed: 7
 issues: 2
 pending: 0
 skipped: 0
@@ -59,10 +75,12 @@ blocked: 0
 
 - gap_id: G-05-1
   truth: "Choosing kind nut, preset ISO 4032 M6 and an empty clearance blocks the build. No stale part is shown."
-  status: failed
+  status: resolved
   reason: "User reported: after selecting nut, I can't choose standard, size with empty Clearance"
   severity: major
   test: 1
+  resolved_by: 05-21-PLAN.md
+  resolved_at: 2026-10-22
   root_cause: "A pick writes the row's fields and calls update(). With clearance empty, /api/nut/info answers 422, and fail() calls showMatch(null). showPicks then blanks every select, and Size has no options while Standard is blank. Every pick snaps back to blank. The fields keep the first row (d 2, pitch 0.4, s 4, m 1.6, as the screenshot shows: Standard ISO 4032 auto-picked Size M2). The catalogue fetch is fine: GET /api/presets?kind=nut returns the rows."
   artifacts:
     - path: "src/screw/static/app.js"
@@ -76,10 +94,12 @@ blocked: 0
 
 - gap_id: G-05-3
   truth: "The bolt-to-nut matching link opens a nut that renders, which means the link carries a clearance."
-  status: failed
+  status: resolved
   reason: "User reported: opened the nut, but clearence was empty so nut wasn't rendered. Owner then asked for the link to carry a clearance: Yes, I do want."
   severity: major
   test: 3
+  resolved_by: 05-22-PLAN.md
+  resolved_at: 2026-10-22
   decision_conflict: "D-01 / L15: clearance is required with no default before Phase 6 (PAIR-02). A fix needs an owner ruling on which value the link carries, then an L15 amendment."
   owner_ruling: "2026-10-21: option 'last typed clearance'. The page remembers the clearance last typed on a nut in this tab and carries it on the bolt's Matching nut link; with none typed the link stays empty. No invented number. Needs an L15 amendment logged before or with the fix."
   root_cause: "By design today: showCounterpart builds the link from info.counterpart, and the bolt's counterpart carries d, pitch and left_hand only (D-01, D-02). The bolt has no clearance field to carry."
