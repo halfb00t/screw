@@ -29,10 +29,6 @@ def _matrix(ok: MatrixOk) -> dict[tuple[str, float, int], bool]:
     return {(s, c, n): ok(s, c, n) for (s, c, n) in rules.matrix_keys()}
 
 
-def _bought(ok: SizedOk) -> dict[tuple[str, int], bool]:
-    return {(s, n): ok(s, n) for (s, n) in rules.bought_keys()}
-
-
 def _small(ok: SizedOk) -> dict[tuple[str, int], bool]:
     return {(s, n): ok(s, n) for (s, n) in rules.small_keys()}
 
@@ -49,10 +45,6 @@ def _result_cells(is_pass: bool) -> list[str]:
 def _matrix_rows(ok: MatrixOk) -> list[list[str]]:
     return [[s, repr(c), str(n), "P1", str(rules.LADDER.index(c) + 1), *_result_cells(ok(s, c, n))]
             for (s, c, n) in rules.matrix_keys()]
-
-
-def _bought_rows(ok: SizedOk) -> list[list[str]]:
-    return [[s, str(n), *_result_cells(ok(s, n))] for (s, n) in rules.bought_keys()]
 
 
 def _small_rows(ok: SizedOk) -> list[list[str]]:
@@ -110,8 +102,6 @@ def test_a_complete_record_is_read_as_written() -> None:
         return c >= 0.1 and (s, n) != ("M10", 2)
 
     assert rules.read_matrix(_text(rules.MATRIX_COLUMNS, _matrix_rows(ok))) == _matrix(ok)
-    assert rules.read_bought(_text(rules.BOUGHT_COLUMNS, _bought_rows(lambda s, n: n != 1))) \
-        == _bought(lambda s, n: n != 1)
     assert rules.read_small(_text(rules.SMALL_COLUMNS, _small_rows(lambda s, n: s != "M3"))) \
         == _small(lambda s, n: s != "M3")
 
@@ -176,10 +166,7 @@ def test_an_incomplete_or_ambiguous_record_is_refused_naming_the_line(
         rules.read_matrix(text)
 
 
-def test_the_bought_and_small_records_are_refused_as_strictly() -> None:
-    bought = _bought_rows(lambda s, n: True)
-    with pytest.raises(ValueError, match=r"^line 12: "):
-        rules.read_bought(_text(rules.BOUGHT_COLUMNS, bought[:-1]))
+def test_the_small_record_is_refused_as_strictly() -> None:
     small = _small_rows(lambda s, n: True)
     small[0][0] = "M6"    # a main-matrix size does not belong to run 2
     with pytest.raises(ValueError, match=r"^line 2: "):
@@ -202,26 +189,10 @@ def test_a_rule_given_fewer_keys_than_pre_registered_refuses() -> None:
     del matrix[("M6", 0.05, 1)]
     with pytest.raises(ValueError, match="pre-registers 60"):
         rules.default_from(matrix)
-    bought = _bought(lambda s, n: True)
-    del bought[("M6", 1)]
-    with pytest.raises(ValueError, match="pre-registers 12"):
-        rules.promotes_undersize(bought)
     small = _small(lambda s, n: True)
     del small[("M3", 1)]
     with pytest.raises(ValueError, match="pre-registers 9"):
         rules.threshold_from(small)
-
-
-@pytest.mark.parametrize(("binds", "promotes"), [
-    (2, True), (3, True), (1, False), (0, False)])
-def test_a_bought_nut_bind_in_two_of_three_promotes_undersize(binds: int, promotes: bool) -> None:
-    # The binding size is M10; at `binds` = 1 every size binds once, the case that must not fire.
-    def ok(s: str, n: int) -> bool:
-        if binds == 1:
-            return n != 1
-        return not (s == "M10" and n <= binds)
-
-    assert rules.promotes_undersize(_bought(ok)) is promotes
 
 
 @pytest.mark.parametrize(("ok", "threshold"), [
@@ -284,12 +255,11 @@ def _key_columns(path: Path, width: int) -> list[tuple[str, ...]]:
 def test_the_committed_records_list_every_sample_in_order() -> None:
     assert _key_columns(rules.RUN_1, 3) == [
         (s, repr(c), str(n)) for s, c, n in rules.matrix_keys()]
-    assert _key_columns(rules.BOUGHT, 2) == [(s, str(n)) for s, n in rules.bought_keys()]
     assert _key_columns(rules.RUN_2, 2) == [(s, str(n)) for s, n in rules.small_keys()]
 
 
 @pytest.mark.parametrize(("record", "read"), [
-    ("run-1", rules.read_matrix), ("bought", rules.read_bought), ("run-2", rules.read_small)])
+    ("run-1", rules.read_matrix), ("run-2", rules.read_small)])
 def test_an_unfilled_record_is_refused_at_its_first_row(
     record: str, read: Callable[[str], object]
 ) -> None:
@@ -367,7 +337,7 @@ def test_the_protocol_has_the_pre_registered_sections_in_order() -> None:
 
 def test_the_protocol_states_the_numbers_the_rules_read() -> None:
     text = PROTOCOL.read_text(encoding="utf-8")
-    columns = {*rules.MATRIX_COLUMNS, *rules.BOUGHT_COLUMNS, *rules.SMALL_COLUMNS}
+    columns = {*rules.MATRIX_COLUMNS, *rules.SMALL_COLUMNS}
     wanted = [
         *(f"{c:.2f}" for c in rules.LADDER),
         *rules.SIZES,
@@ -376,12 +346,12 @@ def test_the_protocol_states_the_numbers_the_rules_read() -> None:
         *matrix.BOLT_PRESETS.values(),
         *matrix.NUT_PRESETS.values(),
         "60 nuts", "12 bolts", "9 bolts and 9 nuts", f"{rules.SAMPLES} samples",
-        *(p.relative_to(rules.ROOT).as_posix() for p in (rules.RUN_1, rules.BOUGHT, rules.RUN_2)),
+        *(p.relative_to(rules.ROOT).as_posix() for p in (rules.RUN_1, rules.RUN_2)),
         *(f"`{c}`" for c in sorted(columns)),
-        "default_from", "promotes_undersize", "threshold_from",
+        "default_from", "threshold_from",
     ]
     assert [w for w in wanted if w not in text] == []
     # The counts above are the matrix's own, not just words that happen to agree with it.
     assert len(rules.matrix_keys()) == 60
-    assert len(rules.bought_keys()) == 12
     assert len(rules.small_keys()) == 9
+

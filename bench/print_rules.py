@@ -1,11 +1,11 @@
 """The rules of Phase 6's printed test, committed before the first print (PAIR-02, INFO-04).
 
-The clearance default, the printability threshold and the PAIR-07 verdict are readings of the
-owner's record, never typed: this module is the reading, written and controlled by synthetic
-records before any real record exists, and re-run by `make verify` tests afterwards (D-07, D-10,
-D-14). The record is read strictly. A cell the reader cannot read exactly is a refusal naming the
-line, not an interpretation (L02): a number someone will cut metal to must not rest on a guess at
-what a blank or a misspelt cell meant.
+The clearance default and the printability threshold are readings of the owner's record, never
+typed: this module is the reading, written and controlled by synthetic records before any real
+record exists, and re-run by `make verify` tests afterwards (D-07, D-10). The record is read
+strictly. A cell the reader cannot read exactly is a refusal naming the line, not an
+interpretation (L02): a number someone will cut metal to must not rest on a guess at what a blank
+or a misspelt cell meant.
 
 The record digests are added as constants after the owner's last edit of each record, and those
 constants are the only lines of this module that may change once the protocol has landed. A
@@ -31,11 +31,8 @@ LADDER: tuple[float, ...] = (0.05, 0.1, 0.15, 0.2, 0.25)
 SIZES = ("M6", "M8", "M10", "M12")
 # D-10. The second run, at the default, that sets the printability threshold.
 SMALL_SIZES = ("M3", "M4", "M5")
-# D-04, D-10, D-14: every cell is three samples; a cell passes only when all three do.
+# D-04, D-10: every cell is three samples; a cell passes only when all three do.
 SAMPLES = 3
-# D-14. A bought steel nut that binds a printed nominal bolt in this many of 3 samples says the
-# bolt is undersize, which promotes the PAIR-07 follow-up.
-PROMOTE_BINDS = 2
 # ISO 262 coarse (d, pitch) of the seven sizes. Literal because this module imports no product
 # code; tests/test_print_rules.py pins it to `screw.tables.iso262.SIZES`.
 COARSE: dict[str, tuple[float, float]] = {
@@ -49,15 +46,12 @@ COARSE: dict[str, tuple[float, float]] = {
 }
 
 MATRIX_COLUMNS = ("size", "clearance", "sample", "plate", "order", "result", "turns", "note")
-BOUGHT_COLUMNS = ("size", "sample", "result", "turns", "note")
 SMALL_COLUMNS = ("size", "sample", "plate", "result", "turns", "note")
 
 RESULTS_DIR = ROOT / "bench" / "results" / "phase-06"
 RUN_1 = RESULTS_DIR / "print-run-1.tsv"
-BOUGHT = RESULTS_DIR / "bought-nut.tsv"
 RUN_2 = RESULTS_DIR / "print-run-2.tsv"
 RUN_1_ID = "06-print-run-1"
-BOUGHT_ID = "06-bought-nut"
 RUN_2_ID = "06-print-run-2"
 
 _TURNS = re.compile(r"[0-9]+(\.[0-9]+)?")
@@ -72,11 +66,6 @@ type _Cells = list[tuple[int, dict[str, str]]]
 def matrix_keys() -> list[tuple[str, float, int]]:
     """Every pre-registered (size, clearance, sample) of run 1, in the record's row order."""
     return [(s, c, n) for s in SIZES for n in range(1, SAMPLES + 1) for c in LADDER]
-
-
-def bought_keys() -> list[tuple[str, int]]:
-    """Every pre-registered (size, sample) of the bought-nut record, in row order."""
-    return [(s, n) for s in SIZES for n in range(1, SAMPLES + 1)]
 
 
 def small_keys() -> list[tuple[str, int]]:
@@ -100,7 +89,7 @@ def load(path: Path, sha256: str) -> str:
 def _cells(text: str, columns: tuple[str, ...]) -> _Cells:
     """The rows of `text` as (line number, cells by column), each cell checked to be readable.
 
-    Checks everything the three records share: the exact header, the cell count, no blank or
+    Checks everything the two records share: the exact header, the cell count, no blank or
     padded cell, and the closed vocabulary of `result`, `turns` and `note`.
     """
     lines = text.split("\n")
@@ -200,11 +189,6 @@ def _read_sized(
     return _collect(keyed, expected, _last_line(rows))
 
 
-def read_bought(text: str) -> dict[tuple[str, int], bool]:
-    """The bought-nut record as a pass (True) or bind (False) per (size, sample)."""
-    return _read_sized(text, BOUGHT_COLUMNS, SIZES, bought_keys())
-
-
 def read_small(text: str) -> dict[tuple[str, int], bool]:
     """Run 2's record as a pass (True) or bind (False) per (size, sample)."""
     return _read_sized(text, SMALL_COLUMNS, SMALL_SIZES, small_keys())
@@ -237,13 +221,6 @@ def default_from(cells: Mapping[tuple[str, float, int], bool]) -> float | None:
         if all(passing[(s, step)] for s in SIZES for step in LADDER if step >= c):
             return c
     return None
-
-
-def promotes_undersize(cells: Mapping[tuple[str, int], bool]) -> bool:
-    """D-14: True when some size binds in at least PROMOTE_BINDS of its bought-nut samples."""
-    _require_keys(cells, bought_keys())
-    return any(sum(not cells[(s, n)] for n in range(1, SAMPLES + 1)) >= PROMOTE_BINDS
-               for s in SIZES)
 
 
 def threshold_from(cells: Mapping[tuple[str, int], bool]) -> str:

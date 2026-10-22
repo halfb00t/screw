@@ -2,8 +2,8 @@
 
 Every STL is the product's own fine `screw export`, so the printed test checks what a user
 downloads, not a bench-only mesh. The matrix is data: the export lists, the blank records and the
-manifest all read the ladder, the sizes and the column lists of `bench.print_rules`, so the 60,
-12 and 9 samples cannot drift between them.
+manifest all read the ladder, the sizes and the column lists of `bench.print_rules`, so the 60
+and 9 samples cannot drift between them.
 
 Run 1 is 4 bolts and 20 nuts (four sizes at five clearances); run 2 is the three small sizes at
 the shipped default; the acceptance set is the M8 pair at the shipped default (D-10, D-16). No
@@ -28,8 +28,6 @@ import sys
 from pathlib import Path
 
 from bench.print_rules import (
-    BOUGHT,
-    BOUGHT_COLUMNS,
     LADDER,
     MATRIX_COLUMNS,
     RESULTS_DIR,
@@ -38,7 +36,6 @@ from bench.print_rules import (
     SIZES,
     SMALL_COLUMNS,
     SMALL_SIZES,
-    bought_keys,
     matrix_keys,
     small_keys,
 )
@@ -77,21 +74,18 @@ def exports(run: str) -> list[list[str]]:
 
 
 def template(record: str) -> str:
-    """The blank record `record` (run-1, bought or run-2): every pre-registered sample, key cells
+    """The blank record `record` (run-1 or run-2): every pre-registered sample, key cells
     written, every other cell empty for the owner to fill."""
     columns: tuple[str, ...]
     keys: list[tuple[str, ...]]
     if record == "run-1":
         columns = MATRIX_COLUMNS
         keys = [(s, repr(c), str(n)) for s, c, n in matrix_keys()]
-    elif record == "bought":
-        columns = BOUGHT_COLUMNS
-        keys = [(s, str(n)) for s, n in bought_keys()]
     elif record == "run-2":
         columns = SMALL_COLUMNS
         keys = [(s, str(n)) for s, n in small_keys()]
     else:
-        raise ValueError(f"unknown record {record!r}; choose one of run-1, bought, run-2")
+        raise ValueError(f"unknown record {record!r}; choose one of run-1, run-2")
     lines = ["\t".join(columns),
              *("\t".join([*key, *([""] * (len(columns) - len(key)))]) for key in keys)]
     return "\n".join(lines) + "\n"
@@ -136,7 +130,7 @@ def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(prog="python -m bench.print_matrix", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="command", required=True)
-    sub.add_parser("templates", help="write the three blank records")
+    sub.add_parser("templates", help="write the two blank records")
     e = sub.add_parser("export", help="export the STLs of one run and write its manifest")
     e.add_argument("run", choices=RUNS)
     e.add_argument("-o", "--output", type=Path, required=True,
@@ -144,7 +138,7 @@ def main(argv: list[str] | None = None) -> None:
     ns = ap.parse_args(argv)
     if ns.command == "templates":
         RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-        for record, path in (("run-1", RUN_1), ("bought", BOUGHT), ("run-2", RUN_2)):
+        for record, path in (("run-1", RUN_1), ("run-2", RUN_2)):
             write_template(path, template(record))
     else:
         print(export(ns.run, ns.output))
