@@ -296,7 +296,7 @@ async function navigate() {
   clearTimeout(debounce);
   inflight?.abort();
   ++seq;
-  ++formSeq;
+  const mine = ++formSeq;
   presetBasis = null;
   const h = new URLSearchParams(location.hash.slice(1));
   // First, before the kind lookup: get() would answer for the first of two values and the
@@ -327,14 +327,29 @@ async function navigate() {
     // rebuilt bolt as the last valid part (measured, plan 05-24). formKind stays null until the new
     // form is built, so update waits, and a navigation that overtakes this one rebuilds the kind it
     // names (the condition above).
+    // The panel, the matching-part link, the downloads and the status describe the old part too, so
+    // they go with it. Measured, left on screen: the bolt's rows, its Matching link and two live bolt
+    // downloads stayed beside the blank form while the nut loaded, and for good when its schema fetch
+    // failed (review WR-10, 2026-10-21); a failed bolt's status still claimed the last valid part over
+    // the empty canvas (measured, plan 05-25).
     dropMesh();
     clearForm();
     clearPicker();
-    if (!(await buildForm(kind))) return;
+    $('#dims').replaceChildren();
+    showCounterpart(null);
+    setDownloads(null);
+    setStatus('');
     try {
+      if (!(await buildForm(kind))) return;
       if (!(await loadPresets(kind))) return;
     } catch (err) {
-      // A form without its picker would be half a page; refuse whole, like a link it cannot honour.
+      // A navigation that overtook this one owns the page: refusing here wiped the bolt the user had
+      // switched back to (measured, plan 05-25). Otherwise a form without its schema or its picker is
+      // half a page, so the switch is refused whole, like a link the page cannot honour. That deselects
+      // the selector, so picking the same kind again retries. Measured before: a failed schema fetch
+      // left a blank form under a selector that read the new kind, and a select reports no change when
+      // the option it shows is picked again (review WR-10, 2026-10-21).
+      if (mine !== formSeq) return;
       return refuseLink(`Could not load the part: ${err.message}`);
     }
     currentKind = kind;

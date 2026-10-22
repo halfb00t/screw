@@ -995,32 +995,49 @@ def test_a_kind_change_drops_the_old_mesh_and_what_described_it() -> None:
     assert APP_JS.count("dropMesh()") == 2  # the definition and the one call on a kind change
 
 
+def _rebuild_block() -> str:
+    """navigate's kind-change block, comment lines dropped and whitespace squashed, so the wording
+    of a comment or a line break neither satisfies nor breaks a pin on it (review IN-08)."""
+    code = "\n".join(line for line in _function_body("navigate").splitlines()
+                     if not line.strip().startswith("//"))
+    nav = _squash(code)
+    start = nav.index("if (kind !== currentKind || kind !== formKind) {")
+    return nav[start:nav.index("currentKind = kind;", start)]
+
+
 def test_a_kind_change_clears_the_old_form_and_picker_before_it_fetches_the_new_ones() -> None:
-    # Review WR-09, 2026-10-21, reproduced in a headless browser: buildForm put the nut's controls
-    # on screen while the bolt's picker, its change listeners and its catalogue stayed live until
-    # loadPresets landed. A pick there wrote the bolt row's diameter and pitch into the nut's
-    # controls and threw on a field the nut form lacks. During the schema fetch the same pick ran
-    # the bolt's update after the mesh was dropped, and the nut opened over the rebuilt bolt as the
-    # last valid part (rule 36, R10; measured, plan 05-24). The form and the picker go with the
-    # mesh, before the fetch. Clearing the picker alone there left the bolt with no picker after
-    # Back during the schema fetch; with the form cleared too, formKind is null and the rebuild
-    # condition reopens the bolt whole (measured, plan 05-24).
-    nav = _squash(_function_body("navigate"))
-    assert ("dropMesh(); clearForm(); clearPicker(); "
-            "if (!(await buildForm(kind))) return; try {") in nav
-    assert nav.count("clearForm();") == 1
-    assert nav.count("clearPicker();") == 1
-    # Definitions excluded by pattern: who else clears the form (buildForm, refuseLink) and the
-    # picker (refuseLink) is unchanged.
-    assert re.findall(r"(?<!function )clearForm\(", APP_JS) == ["clearForm("] * 3
-    assert re.findall(r"(?<!function )clearPicker\(", APP_JS) == ["clearPicker("] * 2
-    clear = _function_body("clearPicker")
-    for statement in ("picker.hidden = true;", "picker.replaceChildren(pickerLegend);",
-                      "pickerSelects.length = 0;", "catalogue = null;", "shownPreset = null;",
-                      "badge.textContent = '';"):
-        assert statement in clear, statement
-    for statement in ("form.replaceChildren();", "fields.clear();", "formKind = null;"):
-        assert statement in _function_body("clearForm"), statement
+    # Reviews WR-09 (plan 05-24) and WR-10 (plan 05-25), 2026-10-21, each reproduced in a
+    # headless browser: what a kind change left on screen while it fetched the new kind was live
+    # or described the old part. The old picker wrote a bolt row into the nut's controls and
+    # threw; the old form rebuilt the bolt after its mesh was dropped; the bolt's rows, its
+    # Matching link, two live bolt downloads and a failed bolt's "last valid part" status stayed
+    # beside the blank form, for good when the schema fetch failed. So every piece goes before
+    # the first await. One ordering assertion and no file-wide count, so a split await, a comment
+    # between the clears or another caller of a clear elsewhere breaks nothing (review IN-08).
+    head = _rebuild_block().split("await ", 1)[0]
+    for clear in ("dropMesh();", "clearForm();", "clearPicker();", "$('#dims').replaceChildren();",
+                  "showCounterpart(null);", "setDownloads(null);", "setStatus('');"):
+        assert clear in head, clear
+
+
+def test_a_kind_change_whose_fetch_fails_is_refused_whole_unless_overtaken() -> None:
+    # Review WR-10, 2026-10-21, reproduced: the schema fetch sat outside the catalogue fetch's
+    # try, so a 500 left a blank form under a selector that read the new kind, and a select
+    # reports no change when the option it shows is picked again. Both fetches now share the try
+    # whose catch refuses the switch whole, which deselects the selector, so picking any kind
+    # retries. The catch first drops the failure of a navigation a newer one overtook: refusing
+    # there wiped the bolt the user had switched back to (measured, plan 05-25).
+    head, rest = _rebuild_block().split("try {", 1)
+    assert "await" not in head
+    attempt, caught = rest.split("} catch (err) {", 1)
+    assert "await buildForm(kind)" in attempt
+    assert "await loadPresets(kind)" in attempt
+    guard = "if (mine !== formSeq) return;"
+    refusal = "return refuseLink(`Could not load the part: ${err.message}`);"
+    assert guard in caught
+    assert refusal in caught
+    assert caught.index(guard) < caught.index(refusal)
+    assert "const mine = ++formSeq;" in _squash(_function_body("navigate"))
 
 
 def test_every_row_key_of_the_nut_and_pair_documents_is_unread_by_name_in_the_ui() -> None:
