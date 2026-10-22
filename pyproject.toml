@@ -77,8 +77,10 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-# Tests name their fixtures and parametrised cases for the reader, not for a linter.
-"tests/*" = ["ARG001"]
+# Tests name their fixtures and parametrised cases for the reader, not for a linter. ARG005: the
+# printed-test rules are driven by predicates over a sample's (size, clearance, number); each case
+# keeps the full signature and reads the part it needs (tests/test_print_rules.py).
+"tests/*" = ["ARG001", "ARG005"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -248,6 +250,7 @@ source_modules = [
     "bench.thread_spike.__main__",
     "bench.quiet",
     "bench.pair_expected",
+    "bench.print_rules",
 ]
 forbidden_modules = ["cadquery", "OCP"]
 

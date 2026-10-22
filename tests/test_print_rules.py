@@ -1,0 +1,239 @@
+"""The home of Phase 6's printed-test tests: the rules and the strict reader of the owner's record.
+
+The synthetic records here are positive and negative controls written before any real record, so
+every rule and the escape clause are shown to fire before the data exists (PAIR-02, INFO-04). The
+tests read no kernel and no product code beyond the ISO 262 table the rule module's literal is
+pinned to.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import random
+from collections.abc import Callable
+from pathlib import Path
+
+import pytest
+
+from bench import print_rules as rules
+from screw.tables import iso262
+
+type MatrixOk = Callable[[str, float, int], bool]
+type SizedOk = Callable[[str, int], bool]
+
+
+def _matrix(ok: MatrixOk) -> dict[tuple[str, float, int], bool]:
+    return {(s, c, n): ok(s, c, n) for (s, c, n) in rules.matrix_keys()}
+
+
+def _bought(ok: SizedOk) -> dict[tuple[str, int], bool]:
+    return {(s, n): ok(s, n) for (s, n) in rules.bought_keys()}
+
+
+def _small(ok: SizedOk) -> dict[tuple[str, int], bool]:
+    return {(s, n): ok(s, n) for (s, n) in rules.small_keys()}
+
+
+def _text(columns: tuple[str, ...], rows: list[list[str]]) -> str:
+    return "\n".join(["\t".join(columns), *("\t".join(r) for r in rows)]) + "\n"
+
+
+def _result_cells(is_pass: bool) -> list[str]:
+    """`result`, `turns` and `note` of one sample."""
+    return ["pass", "-", "-"] if is_pass else ["bind", "2", "-"]
+
+
+def _matrix_rows(ok: MatrixOk) -> list[list[str]]:
+    return [[s, repr(c), str(n), "P1", str(rules.LADDER.index(c) + 1), *_result_cells(ok(s, c, n))]
+            for (s, c, n) in rules.matrix_keys()]
+
+
+def _bought_rows(ok: SizedOk) -> list[list[str]]:
+    return [[s, str(n), *_result_cells(ok(s, n))] for (s, n) in rules.bought_keys()]
+
+
+def _small_rows(ok: SizedOk) -> list[list[str]]:
+    return [[s, str(n), "P1", *_result_cells(ok(s, n))] for (s, n) in rules.small_keys()]
+
+
+def _from_015(s: str, c: float, n: int) -> bool:
+    return c >= 0.15
+
+
+def test_the_default_is_the_smallest_step_every_size_passes_from_there_up() -> None:
+    assert rules.default_from(_matrix(lambda s, c, n: True)) == 0.05
+    assert rules.default_from(_matrix(_from_015)) == 0.15
+    # M12 alone needs 0.25: the other three sizes do not lower it.
+    assert rules.default_from(_matrix(lambda s, c, n: s != "M12" or c >= 0.25)) == 0.25
+
+
+def test_two_of_three_is_not_a_passing_cell() -> None:
+    def ok(s: str, c: float, n: int) -> bool:
+        return c >= 0.1 and not (s == "M8" and c == 0.1 and n == 2)
+
+    assert rules.default_from(_matrix(ok)) == 0.15
+
+
+@pytest.mark.parametrize("ok", [
+    lambda s, c, n: s != "M10",
+    lambda s, c, n: not (s == "M10" and c == 0.25),
+], ids=["a-size-never-passes", "a-size-binds-at-the-top-step"])
+def test_no_default_ships_when_no_step_passes_at_every_size(ok: MatrixOk) -> None:
+    assert rules.default_from(_matrix(ok)) is None
+
+
+def test_no_default_ships_when_a_size_is_not_monotone() -> None:
+    # M8 passes at 0.1 and binds one sample at 0.15, while every step from 0.2 up passes at
+    # every size: without the monotone clause this would read as 0.2.
+    def ok(s: str, c: float, n: int) -> bool:
+        return not (s == "M8" and c == 0.15 and n == 1)
+
+    assert rules.default_from(_matrix(ok)) is None
+
+
+def test_the_default_does_not_depend_on_the_order_of_the_rows() -> None:
+    def ok(s: str, c: float, n: int) -> bool:
+        return c >= 0.15 or (s == "M6" and n != 3)
+
+    rows = _matrix_rows(ok)
+    ordered = rules.default_from(rules.read_matrix(_text(rules.MATRIX_COLUMNS, rows)))
+    random.Random(6).shuffle(rows)
+    shuffled = rules.default_from(rules.read_matrix(_text(rules.MATRIX_COLUMNS, rows)))
+    assert ordered == shuffled == 0.15
+
+
+def test_a_complete_record_is_read_as_written() -> None:
+    def ok(s: str, c: float, n: int) -> bool:
+        return c >= 0.1 and (s, n) != ("M10", 2)
+
+    assert rules.read_matrix(_text(rules.MATRIX_COLUMNS, _matrix_rows(ok))) == _matrix(ok)
+    assert rules.read_bought(_text(rules.BOUGHT_COLUMNS, _bought_rows(lambda s, n: n != 1))) \
+        == _bought(lambda s, n: n != 1)
+    assert rules.read_small(_text(rules.SMALL_COLUMNS, _small_rows(lambda s, n: s != "M3"))) \
+        == _small(lambda s, n: s != "M3")
+
+
+def _set(row: int, column: str, value: str) -> Callable[[list[str], list[list[str]]], None]:
+    def edit(header: list[str], rows: list[list[str]]) -> None:
+        rows[row][rules.MATRIX_COLUMNS.index(column)] = value
+    return edit
+
+
+def _bind_with(row: int, turns: str, note: str) -> Callable[[list[str], list[list[str]]], None]:
+    def edit(header: list[str], rows: list[list[str]]) -> None:
+        rows[row][5:8] = ["bind", turns, note]
+    return edit
+
+
+def _duplicate(header: list[str], rows: list[list[str]]) -> None:
+    rows.append(list(rows[0]))
+
+
+def _drop_last(header: list[str], rows: list[list[str]]) -> None:
+    del rows[-1]
+
+
+def _rename_note(header: list[str], rows: list[list[str]]) -> None:
+    header[7] = "notes"
+
+
+def _extra_cell(header: list[str], rows: list[list[str]]) -> None:
+    rows[0].append("x")
+
+
+# (what is wrong, the edit, the line the reader must name). Row i of the record is line i + 2.
+DEFECTS: list[tuple[str, Callable[[list[str], list[list[str]]], None], int]] = [
+    ("blank-cell", _set(3, "plate", ""), 5),
+    ("capitalised-result", _set(0, "result", "Pass"), 2),
+    ("trailing-space", _set(1, "plate", "P1 "), 3),
+    ("bind-without-turns", _bind_with(2, "-", "-"), 4),
+    ("pass-with-turns", _set(2, "turns", "1"), 4),
+    ("loose-on-a-bind", _bind_with(2, "1", "loose"), 4),
+    ("fourth-sample", _set(0, "sample", "4"), 2),
+    ("duplicated-row", _duplicate, 62),
+    ("missing-row", _drop_last, 60),
+    ("size-not-pre-registered", _set(0, "size", "M7"), 2),
+    ("clearance-off-the-ladder", _set(0, "clearance", "0.12"), 2),
+    ("wrong-header", _rename_note, 1),
+    ("extra-column", _extra_cell, 2),
+    ("orders-not-one-to-five", _set(0, "order", "2"), 6),
+]
+
+
+@pytest.mark.parametrize(("edit", "line"), [(d[1], d[2]) for d in DEFECTS],
+                         ids=[d[0] for d in DEFECTS])
+def test_an_incomplete_or_ambiguous_record_is_refused_naming_the_line(
+    edit: Callable[[list[str], list[list[str]]], None], line: int
+) -> None:
+    header = list(rules.MATRIX_COLUMNS)
+    rows = _matrix_rows(lambda s, c, n: True)
+    edit(header, rows)
+    text = "\n".join(["\t".join(header), *("\t".join(r) for r in rows)]) + "\n"
+    with pytest.raises(ValueError, match=rf"^line {line}: "):
+        rules.read_matrix(text)
+
+
+def test_the_bought_and_small_records_are_refused_as_strictly() -> None:
+    bought = _bought_rows(lambda s, n: True)
+    with pytest.raises(ValueError, match=r"^line 12: "):
+        rules.read_bought(_text(rules.BOUGHT_COLUMNS, bought[:-1]))
+    small = _small_rows(lambda s, n: True)
+    small[0][0] = "M6"    # a main-matrix size does not belong to run 2
+    with pytest.raises(ValueError, match=r"^line 2: "):
+        rules.read_small(_text(rules.SMALL_COLUMNS, small))
+    with pytest.raises(ValueError, match=r"^line 1: "):
+        rules.read_small("")
+
+
+def test_a_record_that_is_not_the_pinned_one_is_refused(tmp_path: Path) -> None:
+    record = tmp_path / "record.tsv"
+    record.write_text("size\n", encoding="utf-8")
+    digest = hashlib.sha256(record.read_bytes()).hexdigest()
+    assert rules.load(record, digest) == "size\n"
+    with pytest.raises(ValueError, match=rf"{digest}.*{'0' * 64}"):
+        rules.load(record, "0" * 64)
+
+
+def test_a_rule_given_fewer_keys_than_pre_registered_refuses() -> None:
+    matrix = _matrix(lambda s, c, n: True)
+    del matrix[("M6", 0.05, 1)]
+    with pytest.raises(ValueError, match="pre-registers 60"):
+        rules.default_from(matrix)
+    bought = _bought(lambda s, n: True)
+    del bought[("M6", 1)]
+    with pytest.raises(ValueError, match="pre-registers 12"):
+        rules.promotes_undersize(bought)
+    small = _small(lambda s, n: True)
+    del small[("M3", 1)]
+    with pytest.raises(ValueError, match="pre-registers 9"):
+        rules.threshold_from(small)
+
+
+@pytest.mark.parametrize(("binds", "promotes"), [
+    (2, True), (3, True), (1, False), (0, False)])
+def test_a_bought_nut_bind_in_two_of_three_promotes_undersize(binds: int, promotes: bool) -> None:
+    # The binding size is M10; at `binds` = 1 every size binds once, the case that must not fire.
+    def ok(s: str, n: int) -> bool:
+        if binds == 1:
+            return n != 1
+        return not (s == "M10" and n <= binds)
+
+    assert rules.promotes_undersize(_bought(ok)) is promotes
+
+
+@pytest.mark.parametrize(("ok", "threshold"), [
+    (lambda s, n: True, "M3"),
+    (lambda s, n: not (s == "M3" and n == 2), "M4"),
+    (lambda s, n: s != "M4", "M5"),
+    (lambda s, n: s != "M5", "M6"),
+], ids=["all-pass", "m3-binds-once", "m4-binds-m3-and-m5-pass", "m5-binds"])
+def test_the_threshold_is_the_smallest_small_size_that_and_every_larger_one_pass(
+    ok: SizedOk, threshold: str
+) -> None:
+    assert rules.threshold_from(_small(ok)) == threshold
+
+
+def test_the_coarse_sizes_are_the_iso_262_rows() -> None:
+    by_label = {size.label: (size.d, size.pitch) for size in iso262.SIZES}
+    assert {label: by_label[label] for label in rules.COARSE} == rules.COARSE
+    assert set(rules.COARSE) == {*rules.SIZES, *rules.SMALL_SIZES}
