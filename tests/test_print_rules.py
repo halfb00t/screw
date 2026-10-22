@@ -355,3 +355,13 @@ def test_the_protocol_states_the_numbers_the_rules_read() -> None:
     assert len(rules.matrix_keys()) == 60
     assert len(rules.small_keys()) == 9
 
+
+def test_the_protocol_has_no_owner_slot_left() -> None:
+    # The owner's profile is typed before PR A opens (D-06): a slot still holding its marker, or a
+    # profile line that is empty after its colon, would pre-register nothing.
+    text = PROTOCOL.read_text(encoding="utf-8")
+    assert "OWNER-SLOT" not in text
+    lines = {line.split(":", 1)[0]: line.split(":", 1)[1].strip()
+             for line in text.split("\n") if line.startswith("- ") and ":" in line}
+    for label in ("Printer", "Material", "Layer height", "Slicer and profile"):
+        assert lines[f"- {label}"] != "", label

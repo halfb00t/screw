@@ -23,13 +23,13 @@ Taken by the owner on 2026-10-22, before any Phase 6 record row existed, and rec
 
 ## Print profile
 
-Every part of this test uses this one profile, and the default it sets holds for this profile, which the decision entry will say (D-06). The owner types the lines marked below.
+Every part of this test uses this one profile, and the default it sets holds for this profile, which the decision entry will say (D-06). The owner gave the lines below in chat on 2026-10-22: printer "prusa mk4", material "prusa petg", layer height "0.2 mm", slicer "prusa slicer, profile - prusa petg" and, asked about changed settings, "stock profile".
 
-- Printer: OWNER-SLOT make and model
+- Printer: Prusa MK4
 - Nozzle: 0.4 mm (D-06)
-- Material: OWNER-SLOT type, brand, colour, lot if known
-- Layer height: OWNER-SLOT mm
-- Slicer and profile: OWNER-SLOT slicer and version, profile name, every setting changed from it
+- Material: Prusa PETG
+- Layer height: 0.2
+- Slicer and profile: PrusaSlicer, Prusa PETG system profile, stock (no settings changed); slicer version not recorded by the owner
 - Orientation: nut on its face, bolt head-down (D-06)
 
 ## Method
@@ -106,8 +106,8 @@ The coarse pitches the rules read (ISO 262, mm):
 A prediction is not a target: no step, size, rule or sample was chosen to make one come true, and a prediction that fails is a result.
 
 - P1 (owner, D-01): the default reads 0.10 mm.
-- P2: OWNER-SLOT which steps pass 3/3 at each size, or which bind
-- P3: OWNER-SLOT the run-2 threshold size (M3, M4, M5 or M6)
+- P2 (which steps pass 3/3 at each size, or which bind): owner: no prediction ("have no idea", 2026-10-22)
+- P3 (the run-2 threshold size, M3, M4, M5 or M6): owner: no prediction ("have no idea", 2026-10-22)
 
 Prior evidence (never an input): the research priors of `.planning/research/PITFALLS.md` C5 and C8. Forum and blog figures, rated LOW in that research, put a printed radial clearance at 0.10 to 0.20 mm with a 10x spread between two reports and "trial and error is the only way"; the vendor and blog floor is "M5 or larger" and one SLS paper says "greater than M6". Each is a prior only and none was used to choose a step, a size or a rule.
 
