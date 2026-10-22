@@ -332,7 +332,7 @@ Plans:
   4. ~~The test also drives a nominal printed bolt into a bought nut and records the result; if it binds, PAIR-07 (bolt-side `undersize`) is promoted to a v1.x requirement in REQUIREMENTS.md, otherwise the record says it is not needed.~~ **Deferred (R9, 2026-10-22):** PAIR-06 and PAIR-07 moved to v2; the owner dropped the bought-nut test from Phase 6.
   5. The printability threshold is a constant set from the same test and cited; sizes and pitches below it get a cap-and-warn printability warning naming its source on the UI, API and CLI.
 
-**Plans**: 2/10 plans executed (the pre-registration lands as its own PR before the first print; waves 2-9 sequential)
+**Plans**: 3/10 plans executed (the pre-registration lands as its own PR before the first print; waves 2-9 sequential)
 **UI hint**: yes
 
 Plans:
@@ -341,7 +341,7 @@ Plans:
 - [x] 06-02-PLAN.md — Owner rulings R1-R8 (run-2 timing, bought-nut bolts, test order, plates, failed prints, the D-09 range, decision entries, the required-field helper)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 06-03-PLAN.md — The protocol, the owner's print profile and predictions typed in, PR A opened
+- [x] 06-03-PLAN.md — The protocol, the owner's print profile and predictions typed in, PR A opened
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 06-04-PLAN.md — Codex reviews PR A; it lands on main; the phase branch merges origin/main
@@ -390,5 +390,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 2 
 | 3. Real Helical Thread | 7/7 | Complete    | 2026-10-11 |
 | 4. ISO Hex Bolts and Screws | 17/17 | Complete    | 2026-10-12 |
 | 5. Hex Nut and Kernel Pair Proof | 25/25 | Complete    | 2026-10-22 |
-| 6. Printed Pair Acceptance | 2/10 | In Progress | - |
+| 6. Printed Pair Acceptance | 3/10 | In Progress | - |
 | 7. Operability Re-sweep | 0/TBD | Not started | - |
