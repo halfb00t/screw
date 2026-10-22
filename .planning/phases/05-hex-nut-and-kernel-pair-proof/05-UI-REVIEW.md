@@ -1,7 +1,7 @@
-# Phase 05 — UI Review (Re-audit after gap closure 05-23)
+# Phase 05 — UI Review (Re-audit after gap closure 05-24 and 05-25)
 
-**Audited:** 2026-10-21
-**Baseline:** 01-UI-SPEC.md (amendments by Phase 5 plans 05-10, 05-18, 05-19, 05-21, 05-22, 05-23)
+**Audited:** 2026-10-22
+**Baseline:** 01-UI-SPEC.md (amendments by Phase 5 plans 05-10, 05-18, 05-19, 05-21, 05-22, 05-23, 05-24, 05-25)
 **Screenshots:** Not captured (no dev server on localhost:3000, 5173, 8080)
 **Interaction captures:** off (workflow.ui_interaction_capture is false)
 
@@ -11,88 +11,107 @@
 
 | Pillar | Score | Key Finding |
 |--------|-------|-------------|
-| 1. Copywriting | 4/4 | All Phase 5 strings present and exact; no generic labels; nut warnings and clearance field match contract |
-| 2. Visuals | 4/4 | Counterpart link placement correct under badge; form structure, panel hierarchy follow spec |
-| 3. Color | 4/4 | Counterpart link is muted Caption; accent reserved for primary actions; no hardcoded colors |
-| 4. Typography | 4/4 | Counterpart and all Phase 5 text use declared roles; no new sizes or weights added |
-| 5. Spacing | 4/4 | All spacing uses declared tokens and UI-SPEC exceptions; no new sub-scale lengths added |
-| 6. Experience Design | 4/4 | **WR-07 and WR-08 resolved:** typed-value memory keyed by formKind; forgetUntyped deletes stale entries on Reset and link writes |
+| 1. Copywriting | 4/4 | All Phase 5 strings server-provided; error messages contract-correct; no generic labels |
+| 2. Visuals | 4/4 | Page anatomy follows spec; counterpart link placement correct; visual hierarchy intact |
+| 3. Color | 4/4 | Counterpart link muted Caption; accent reserved for downloads and invalid; no hardcoded colors |
+| 4. Typography | 4/4 | All Phase 5 text reuses declared roles; no new sizes or weights |
+| 5. Spacing | 4/4 | All spacing uses declared tokens and exceptions; no new sub-scale values |
+| 6. Experience Design | 4/4 | **WR-09 and WR-10 resolved:** seven clears before first await on kind switch; failed schema/catalogue refused whole unless overtaken |
 
-**Overall: 24/24** (improved from 21/24 after 05-22)
-
----
-
-## Resolution of Prior Findings
-
-### WR-07: RESOLVED ✓
-
-**Prior issue (05-22):** `rememberTyped` keyed the memory by `currentKind`, which lags during async kind switches. A clearance typed while a new form was building would be stored under the old kind, causing the nut's `Matching bolt` link to carry `clearance=0.1` for the bolt kind, triggering an `Unknown field` error.
-
-**Evidence of fix:**
-
-1. **formKind variable** (`src/screw/static/app.js:17`): `let formKind = null;` — tracks the kind whose controls are on screen
-2. **formKind set in buildForm** (`line 100`): `formKind = kind;` — set immediately after `clearForm()` and alongside `defaults`, before any async operation
-3. **formKind cleared in clearForm** (`line 81`): `formKind = null;`
-4. **rememberTyped keyed by formKind** (`line 707`): `lastTyped.set(formKind, typed);` — memory is keyed by the form's kind, not `currentKind`
-5. **update() guard** (`line 504`): `if (currentKind === null || formKind !== currentKind) return;` — blocks all writes (hash, requests, field marks) while kind switch is loading
-6. **navigate() rebuild condition** (`line 315`): `if (kind !== currentKind || kind !== formKind) {` — rebuilds the form when it's not the link's kind, preventing overtaken navigations from leaving stale controls on screen
-7. **Source test pins** (`tests/test_parity.py`): `test_the_typed_memory_is_keyed_by_the_kind_of_the_form_on_screen` asserts `lastTyped.set(formKind, typed)` and the update guard's first-line condition
-
-**Verification:** Plan 05-23 probe at BASE showed 9 FAIL steps (including WR-07 window checks). After Task 1 (formKind key, update guard, navigate rebuild), only 2 FAIL steps remained (WR-08 only). All 18 probe steps passed after Task 2.
-
-**Result:** A clearance typed on a nut during a kind switch to bolt is now remembered under `nut` (formKind), not `bolt` (currentKind). The nut's `Matching bolt` link reads `#kind=bolt&d=6&pitch=1&left_hand=false&s=10&k=4` (no clearance), Matching bolt builds the bolt with no error, and the bolt's `Matching nut` link carries the clearance typed after the bolt loaded.
+**Overall: 24/24** (maintained from 05-23 review)
 
 ---
 
-### WR-08: RESOLVED ✓
+## Resolution of Prior Findings and New Gap Fixes
 
-**Prior issue (05-22):** Reset and links wrote field values without updating the memory, so the `Matching nut` link would carry a clearance the field no longer showed. A link that wrote `clearance=0.3` into a field would leave the old `0.1` in memory, creating a stale link.
+### WR-09: RESOLVED ✓ (Plan 05-24)
+
+**Prior issue (05-23 truth C4, first sentence):** With the nut's catalogue request held after a kind switch from bolt, once the nut's controls are on screen the bolt's picker remains live and a Size pick of M2.5 throws `Cannot read properties of undefined (reading 'input')` and writes `d` 2.5 and `pitch` 0.45 into the nut's controls.
 
 **Evidence of fix:**
 
-1. **forgetUntyped function** (`src/screw/static/app.js:709–714`): Deletes memory entries when a field's value changes due to a non-typing write:
+1. **Form and picker cleared before new schema fetch** (`src/screw/static/app.js:335-344`):
+   - `dropMesh();` (line 335)
+   - `clearForm();` (line 336) — sets `formKind = null`, clears fields and defaults
+   - `clearPicker();` (line 337) — sets `catalogue = null`, hides picker, clears selects
+   - `$('#dims').replaceChildren();` (line 338)
+   - `showCounterpart(null);` (line 339)
+   - `setDownloads(null);` (line 340)
+   - `setStatus('');` (line 341)
+   - `try { if (!(await buildForm(kind))) return; ...` (lines 342-344) — first await comes after all clears
+
+2. **Update guard still blocks writes** (`line 504`): `if (currentKind === null || formKind !== currentKind) return;`
+
+3. **Source test pin** (`tests/test_parity.py:1004-1015`): `test_a_kind_change_clears_the_old_form_and_picker_before_it_fetches_the_new_ones` asserts all seven clears in head before first await
+
+4. **Probe verification** (`05-24-SUMMARY.md`): `probe_05_24.py` at BASE failed 5 steps; after fix, exit 0, 11 PASS. The window step reads `{"hidden": true, "selects": 0, "badge": ""}`, the pick throws nothing, and the nut's `d` and `pitch` stay empty.
+
+**Result:** A Size pick in the old bolt's picker (held during nut schema load) cannot run because the picker and its catalogue are cleared before the schema is fetched. No page error, no stale values written.
+
+---
+
+### WR-10: RESOLVED ✓ (Plan 05-25)
+
+**Prior issue (05-25 must_haves truth 1):** With `api/schema?kind=nut` answering 500 on a kind switch from bolt, the blank form opened under a selector that reads `nut` (which a select does not report as a change when picked again), and the bolt's info panel, `Matching nut` link, and two live download links stayed on screen.
+
+**Evidence of fix:**
+
+1. **Panel, link, downloads and status cleared at start of switch** (`app.js:338-341`):
+   - `$('#dims').replaceChildren();` — info panel emptied
+   - `showCounterpart(null);` — matching-part link hidden
+   - `setDownloads(null);` — downloads disabled (no href)
+   - `setStatus('');` — status cleared (no "Showing the last valid part" over empty canvas)
+
+2. **Both fetches in one try block** (`app.js:342-354`):
    ```javascript
-   function forgetUntyped(input) {
-     const typed = lastTyped.get(formKind);
-     if (typed !== undefined && input.name in typed && read(input) !== typed[input.name]) {
-       delete typed[input.name];
-     }
+   try {
+     if (!(await buildForm(kind))) return;
+     if (!(await loadPresets(kind))) return;
+   } catch (err) {
+     if (mine !== formSeq) return;
+     return refuseLink(`Could not load the part: ${err.message}`);
    }
    ```
-   
-2. **forgetUntyped called in navigate's write loop** (`line 341`): After writing all fields from the hash:
-   ```javascript
-   for (const [name, { input }] of fields) write(input, h.get(name) ?? defaults[name]);
-   for (const { input } of fields.values()) forgetUntyped(input);
-   ```
 
-3. **forgetUntyped called in Reset handler** (`line 729`): After writing defaults:
-   ```javascript
-   for (const [name, { input }] of fields) write(input, defaults[name]);
-   for (const { input } of fields.values()) forgetUntyped(input);
-   ```
+3. **Overtaken navigation guard** (`app.js:299, 352`):
+   - `const mine = ++formSeq;` — each navigation keeps its sequence number
+   - `if (mine !== formSeq) return;` — drops failure of overtaken navigation (a newer one owns the page)
 
-4. **Source test pin** (`tests/test_parity.py`, `test_reset_and_a_navigation_forget_a_typed_value_the_field_no_longer_holds`): Asserts the exact string `delete typed[input.name]` and both call sites
+4. **Refusal path clears everything** (`app.js:277-286`):
+   - `refuseLink()` calls `currentKind = null; kindSelect.selectedIndex = -1;`
+   - Shows error message and empty form/picker/panel/downloads
+   - Deselected selector makes any pick a real change, so picking the same kind retries
 
-**Verification:** Plan 05-23 probe after Task 1 showed 2 FAIL steps (WR-08 steps: "the bolt's Matching nut carries no clearance after Reset" and "after a link wrote another"). Both steps passed after Task 2.
+5. **Source test pins** (`tests/test_parity.py:1017-1034`):
+   - `test_a_kind_change_clears_the_old_form_and_picker_before_it_fetches_the_new_ones` (line 1004): re-bodied, asserts all seven clears in head before first await
+   - `test_a_kind_change_whose_fetch_fails_is_refused_whole_unless_overtaken` (line 1017): asserts both awaits in single try, overtaken guard before refusal
 
-**Result:** Reset empties the clearance field and forgets its remembered value. A link that writes `0.3` over a remembered `0.1` deletes the `0.1` entry. The `Matching nut` link now reads `#kind=nut&d=6&pitch=1&left_hand=false&s=10&m=5.2` (no clearance). The round-trip path (typing `0.1` on a nut, following `Matching bolt`, then following `Matching nut` back) still carries `0.1` because the link writes the same `0.1` back, which matches the field and is not forgotten.
+6. **Probe verification** (`05-25-SUMMARY.md`): `probe_05_25.py` at BASE failed 11 steps; after fix, exit 0, 16 PASS. The `fail:` step reads `{"inputs": 0, "dims": 0, "link": null, "downloads": [null, null], "picker": {"hidden": true, "selects": [], "badge": ""}}`, selector is deselected (`kindIndex: -1`), hash stays `#kind=nut`, one error shown, no page error.
+
+**Consequence: Startup failure.** A failed first schema fetch is now refused the same way, showing `Could not load the part: ...` with selector deselected. The startup string `Could not load the part kinds and schema: ...` now covers only a failed `/api/kinds` fetch.
+
+**Result:** A failed schema or catalogue fetch on any kind switch (startup included) deselects the selector and refuses the whole page, clearing all old content. Picking any kind retries. A newer navigation's failure is dropped. No half-page or stale content is shown.
 
 ---
 
-### IN-06 (Secondary): RESOLVED ✓
+### IN-08: RESOLVED ✓ (Plan 05-25)
 
-**Issue noted during WR-07 window:** `rowOfFields()` could throw "Cannot read properties of undefined" when a catalogue row named a field the form lacked (e.g., old nut catalogue offering `clearance` while new bolt form was building).
+**Prior issue (05-24 open, review finding IN-08):** The WR-09 source pin counted `clearForm` and `clearPicker` statements from their function definitions, which shadowed local calls elsewhere; a fragile pin.
 
 **Evidence of fix:**
 
-**rowOfFields guard** (`src/screw/static/app.js:210–211`):
-```javascript
-const control = fields.get(name);
-if (control === undefined) return false;
-```
+1. **New helper function** (`tests/test_parity.py:998-1003`): `_rebuild_block()` drops comment lines and squashes whitespace, so a comment between the clears or a line break does not break the pin.
 
-Prevents the function from reaching a control that doesn't exist. Combined with the update guard (which blocks updates during the window), the page never throws an error while a kind switch is loading.
+2. **Re-bodied 05-24 pin** (`line 1004`): Now asserts only one ordering: all seven clears (`dropMesh();`, `clearForm();`, `clearPicker();`, the panel/link/downloads/status clears) come in head before the first `await`. Counts nothing file-wide.
+
+3. **New 05-25 pin** (`line 1017`): Asserts both awaits in the same try, overtaken guard before refusal. Also counts nothing file-wide.
+
+4. **Mutant check** (`05-25-SUMMARY.md`, mutants_05_25.py):
+   - New pins pass benign changes: another `clearForm` caller elsewhere, a split `const built = await buildForm(kind)`, a comment between the clears
+   - New pins fail the defects: no overtaken guard, panel cleared after schema fetch, BASE app.js
+   - Old pin failed all three benign mutants (fragility gone)
+
+**Result:** The pins describe the order and the try structure without being fragile to formatting or other callers of the cleared functions.
 
 ---
 
@@ -104,47 +123,52 @@ Prevents the function from reaching a control that doesn't exist. Combined with 
 
 1. **Clearance field** (`src/screw/calc/__init__.py:353`)
    - Label: `"Clearance (radial)"` (PAIR group)
-   - Help text from schema: "Radial clearance c in mm: ..." (server-provided)
+   - Help text: server-provided from schema
 
-2. **Pair and Limits groups** (`calc/__init__.py:66, 70`)
-   - `PAIR = "Pair"` — group heading for pair rows
-   - `LIMITS = "limits for a bought part; this model is nominal and not toleranced"` — exactly matches UI-SPEC line 225
+2. **Kind-switch error** (`src/screw/static/app.js:353`)
+   - Message: `Could not load the part: ${err.message}`
+   - Example: `Could not load the part: 500 Internal Server Error`
+   - Contract row (01-UI-SPEC.md Copywriting, plan 05-25): `Could not load the part: ${err.message}`
 
-3. **Matching-part link** (`src/screw/static/app.js:446`)
-   - Text: `'Matching ${counterpart.kind}'` — dynamic, no hardcoded kind name
-   - Contract rule 29: no field or kind names in `app.js` ✓
+3. **Startup error** (`src/screw/static/app.js:775`)
+   - Message: `Could not load the part kinds and schema: ${err.message}`
+   - Reached only if `/api/kinds` fails (per 05-25 Copywriting amendment)
 
-4. **M18 note** (`src/screw/calc/__init__.py:88`)
-   - `M18_NOTE = "kernel pair proof inconclusive at K = 3 (2026-10-08-a-pair)"` — exact match to UI-SPEC line 234
+4. **Validation errors** (`app.js:418`)
+   - Trimmed from API response: `String(d.msg).replace(/^Value error, /)`
 
-5. **Standing warning** (`src/screw/calc/__init__.py:57`)
-   - Begins `"ends modelled per L15: ..."` and ends `"not a product build"` — exact match to contract
+5. **No field or kind names in app.js** (rule 29)
+   - Every link, label, group heading comes from the API
+   - Error messages are generic template strings
 
-**No issues found.** All strings are server-provided and rendered verbatim.
+**No issues found.** All strings are server-provided or generic templates.
 
 ---
 
 ### Pillar 2: Visuals (4/4)
 
-**Verification:** Visual structure and hierarchy follow UI-SPEC Page Anatomy.
+**Verification:** Visual structure and hierarchy follow UI-SPEC Page Anatomy after the clears.
 
-1. **Counterpart link placement** (`src/screw/static/index.html:22`)
-   - Element: `<a id="counterpart" hidden></a>` immediately after `<p id="badge">`
-   - Location in aside: Kind, picker, badge, counterpart, form, actions — matches UI-SPEC rule 36 ✓
-   - Hidden attribute correct: shown only when `info.counterpart` is not null (`app.js:442`)
+1. **Counterpart link placement** (`src/screw/static/index.html`)
+   - Element: Not visible in the static HTML (added dynamically by app.js)
+   - Rendered by `showCounterpart()` (line 441)
+   - Hidden attribute managed: `counterpartLink.hidden = counterpart === null`
 
-2. **Form structure** (`app.js:93–151`)
-   - Nut kind adds `Nut`, `Pair` and `Limits` fieldsets via schema
-   - Groups built generically from `schema.properties[name].group`
-   - Each group becomes an `h3` legend and a `dl` in `#dims` (`app.js:417`)
+2. **Clears maintain page structure**:
+   - `dropMesh()` (line 638): removes mesh; canvas stays in DOM
+   - `clearForm()` (line 77): clears `#params`; fieldsets remain in DOM
+   - `clearPicker()` (line 84): hides picker; legend stays in DOM for next build
+   - `$('#dims').replaceChildren()`: empties info panel; structure stays for next render
+   - `showCounterpart(null)`: hides link
+   - `setDownloads(null)`: disables download buttons
+   - `setStatus('')`: clears status text
 
-3. **Clearance field in form**
-   - Built as any other field: `label.field` with `.name` and `.control`
-   - Input type inferred from schema (number input)
-   - No default, so `write()` receives `undefined` and sets `input.value = ''` (line 59)
-   - Field is required per schema; `422 missing` marks it `.invalid`
+3. **No visual regression on kind switch**:
+   - All clears maintain the expected layout (rule 36, E3, E10)
+   - New kind's info document writes the panel and link again
+   - Failed update keeps panel empty (rule 15)
 
-**No issues found.** Visual hierarchy and page anatomy follow the spec.
+**No issues found.** Visual structure and hierarchy are maintained.
 
 ---
 
@@ -153,18 +177,19 @@ Prevents the function from reaching a control that doesn't exist. Combined with 
 **Verification:** Color usage respects the accent reservation and 60/30/10 split.
 
 1. **Counterpart link** (`src/screw/static/style.css:125`)
-   - CSS rule: `#counterpart { color: var(--muted); font-size: .85rem; }`
-   - Applied color: `--muted` (reserved for secondary text)
-   - Rationale: link is not a primary action; accent reserved for downloads and invalid fields
-   - Matches `#badge` styling exactly (line 123)
+   - CSS: `#counterpart { color: var(--muted); font-size: .85rem; }`
+   - Applied color: `--muted` (secondary text, reserved for non-primary elements)
+   - Rationale: link is not a primary action; accent reserved for downloads and invalid fields (rule 34)
 
-2. **Accent usage** (`style.css:48, 116–117, 140`)
-   - `.a` (header link only)
-   - `.field.invalid input` (border and outline)
-   - `.btn.primary` (download buttons)
-   - No other uses ✓
+2. **Accent usage** (style.css):
+   - Line 48: `a { color: var(--accent); }` — header "API" link only
+   - Line 116-117: `.field.invalid input` — border and outline
+   - Line 140: `.btn.primary` — download buttons
+   - No other uses in the codebase
 
-3. **No hardcoded colors** in Phase 5 code — all colors use CSS custom properties
+3. **No hardcoded colors**:
+   - All colors use CSS custom properties
+   - Light/dark mode switch via `@media (prefers-color-scheme: dark)`
 
 **No issues found.** Color usage follows the contract.
 
@@ -179,20 +204,18 @@ Prevents the function from reaching a control that doesn't exist. Combined with 
    - Weight: `400` (Body weight, inherited)
    - Matches `#badge` exactly
 
-2. **Clearance field label**
-   - Built by form factory: `.field .name` class applies
-   - Size: `14px` (Body)
-   - Weight: `500` (Label role)
-   - Matches other form labels
+2. **Error messages** (`style.css:164`)
+   - Size: `.85rem` (Caption role)
+   - Weight: `400`
+   - Padding/margin: exception values (locked)
 
-3. **Pair and Limits group headings**
-   - Built as `h3` with class `h3`, styled by `#dims h3` (not visible in audit but per plan 05-10)
-   - Size: `.75rem` (Group legend role)
-   - Weight: `600`
-   - Text: uppercase via `text-transform: uppercase`
-   - Matches Nut and Part group headings exactly
-
-4. **Typography scale locked** — UI-SPEC lists five sizes (Body, Label, Caption, Fine print, Group legend). No new sizes or weights introduced in Phase 5.
+3. **Typography scale locked**:
+   - Body: 14px 400
+   - Label: 14px 500
+   - Caption: 13.6px (.85rem) 400
+   - Fine print: 12.48px (.78rem) 400
+   - Group legend: 12px (.75rem) 600
+   - No new sizes or weights introduced in Phase 5 gap closure plans
 
 **No issues found.** All typography reuses existing roles.
 
@@ -202,112 +225,161 @@ Prevents the function from reaching a control that doesn't exist. Combined with 
 
 **Verification:** All spacing uses declared tokens and UI-SPEC exceptions.
 
-1. **Counterpart link margins** (`style.css:125`)
-   - Implicit rule: inherits `.35rem` top margin from block-level placement after badge
-   - `.35rem` is a declared exception in UI-SPEC Exceptions (line 5.6px sub-scale)
+1. **New clears preserve spacing**:
+   - `$('#dims').replaceChildren()`: empties the grid; gap and padding structure stays
+   - `showCounterpart(null)`: hides the link; no margin left behind
+   - `setDownloads(null)`: disables buttons; `.downloads` flex gap stays `.5rem`
+   - `setStatus('')`: clears text; position and padding stay
 
-2. **Spacing tokens in use:**
-   - `.5rem` (sm: 8px) — field row gap
-   - `.75rem` (md: 12px) — fieldset top margin, group gap
-   - `.85rem`, `.35rem` — exceptions (fine-print size and badge gap)
+2. **Spacing tokens in use**:
+   - `.5rem` (sm) — button gaps, field row margins
+   - `.75rem` (md) — fieldset top margin, group gaps, info row gaps
+   - `1rem` (lg) — padding
+   - `1.5rem` (xl) — column gap in info grid
+   - `2rem` (2xl) — bottom column gap
 
-3. **No arbitrary spacing added** — all values match the declared scale or exceptions
+3. **Exceptions (locked, sub-scale)**:
+   - `.15rem, .3rem, .35rem, .4rem, .45rem, .6rem, .7rem, .8rem, .85rem` — fine-print, badge, input padding, message margins
+   - No new arbitrary values added
 
-**No issues found.** Spacing follows the declared scale.
+**No issues found.** Spacing follows the declared scale and exceptions.
 
 ---
 
 ### Pillar 6: Experience Design (4/4)
 
-**Re-audited after plan 05-23.** WR-07 and WR-08 are resolved. All interaction states are correctly implemented.
+**Re-audited after plans 05-24 and 05-25.** WR-09 and WR-10 are resolved. All interaction states are correctly implemented.
 
-#### 1. Clearance field: required, empty on load ✓
+#### 1. Kind switch clears all old content before fetching new schema ✓
+
+The rebuild block (lines 316-355) now executes all seven clears before the first `await`:
+
+```javascript
+dropMesh();                               // line 335
+clearForm();                              // line 336 - sets formKind = null
+clearPicker();                            // line 337 - sets catalogue = null
+$('#dims').replaceChildren();            // line 338
+showCounterpart(null);                   // line 339
+setDownloads(null);                       // line 340
+setStatus('');                            // line 341
+try {
+  if (!(await buildForm(kind))) return;   // line 343
+  if (!(await loadPresets(kind))) return; // line 344
+} catch (err) { ... }
+```
+
+**Evidence:**
+- Test pin (`test_a_kind_change_clears_the_old_form_and_picker_before_it_fetches_the_new_ones`, line 1012): asserts all seven clears in the head of the rebuild block, before first await
+- Probe (05-24-SUMMARY): WR-09 window step shows `picker.hidden=true, selects=0, badge=''` after switch and before new picker loads
+- Consequence: no old picker can write to new form, no old mesh shown as "last valid part"
+
+#### 2. Failed schema or catalogue fetch is refused whole ✓
+
+The try block wraps both fetches (lines 342-354):
+
+```javascript
+try {
+  if (!(await buildForm(kind))) return;
+  if (!(await loadPresets(kind))) return;
+} catch (err) {
+  if (mine !== formSeq) return;           // overtaken guard
+  return refuseLink(`Could not load the part: ${err.message}`);
+}
+```
+
+**Evidence:**
+- Test pin (`test_a_kind_change_whose_fetch_fails_is_refused_whole_unless_overtaken`, line 1017): asserts both awaits in one try, overtaken guard before refusal
+- Probe (05-25-SUMMARY): `fail:` step shows all of old part cleared (dims=0, link=null, downloads=[null, null]), one error, selector deselected (`kindIndex=-1`), hash kept
+- Consequence: no half-page (blank form under selector reading the new kind), no stale content, any pick retries
+
+#### 3. Overtaken navigation refuses nothing ✓
+
+The catch block guards against a newer navigation's failure (line 352):
+
+```javascript
+const mine = ++formSeq;  // line 299 - each navigation records its sequence
+...
+if (mine !== formSeq) return;  // line 352 - drop this failure if formSeq advanced
+```
+
+**Evidence:**
+- Probe (05-25-SUMMARY): `overtaken-schema:` and `overtaken-catalogue:` steps show the bolt stays whole when the nut's schema or catalogue fails late (after user Back)
+- Consequence: wiping the bolt with the nut's failure is measured as fixed (BASE wipes it on catalogue failure, review patch wipes it on schema failure; now neither does)
+
+#### 4. Clearance field: required, empty on load ✓
+
 - Schema marks `clearance` as required (no `default`)
 - `buildForm` reads `defaults[name] = prop.default` → `undefined` for clearance
 - `navigate()` writes field via `write(input, h.get(name) ?? defaults[name])`
 - `write()` (line 59): `else input.value = v ?? ''` → empty string for `undefined`
 - Field appears visually empty, not showing "undefined"
 
-#### 2. 422 missing clearance error ✓
+#### 5. 422 missing clearance error ✓
+
 - API returns `422 {"type": "missing", "loc": ["clearance"]}`
-- `renderError()` marks the field `.invalid` (red border)
+- `renderError()` marks the field `.invalid` (red border, accent color outline)
 - Input border becomes accent color, field shows error text
 - Nothing builds until value is typed (rule 35)
 
-#### 3. Kind change: mesh drops before new form ✓
-- `navigate()` (line 315): `if (kind !== currentKind || kind !== formKind) { dropMesh(); if (!(await buildForm(kind))) return; ... }`
-- `dropMesh()` (line 638) removes mesh and clears warnings
-- Stale bolt mesh never appears as nut (rule 34, R10)
+#### 6. Status on failed update ✓
 
-#### 4. Counterpart link: hidden until document available ✓
-- `showCounterpart(info.counterpart ?? null)` (line 428)
-- `showCounterpart()` (line 441–447): `counterpartLink.hidden = counterpart === null; if (counterpart === null) return;`
-- Link hidden on failed update or refused link (rule 36)
-- Hidden attribute in HTML ensures no flash on load
+- Measured (plan 05-25): a failed bolt's `Showing the last valid part` stayed over empty canvas during a kind switch
+- Fixed: `setStatus('')` clears it at the start of the switch (line 341)
+- UI-SPEC E17: "the status is empty until a valid nut builds" (now matched by code)
 
-#### 5. Typed-value memory keyed by formKind (WR-07 fix) ✓
-- `formKind` (line 17): set in `buildForm` (line 100) after `clearForm()` and alongside `defaults`
-- `rememberTyped` (line 707): `lastTyped.set(formKind, typed);` — keyed by form's kind
-- `update()` guard (line 504): `if (currentKind === null || formKind !== currentKind) return;` — blocks writes during kind switch
-- `navigate()` rebuild (line 315): `if (kind !== currentKind || kind !== formKind) {` — rebuilds when needed
-- Result: a clearance typed on a nut during bolt kind-switch is stored under `nut`, not `bolt`. The nut's Matching bolt link carries no clearance, opens the bolt without error.
+#### 7. Update guard holds during kind switch ✓
 
-#### 6. forgetUntyped on Reset and links (WR-08 fix) ✓
-- `forgetUntyped` (line 709–714): deletes memory entries when field value changes
-- Called in `navigate()` write loop (line 341): after writing hash values
-- Called in Reset handler (line 729): after writing defaults
-- Result: Reset empties the clearance field and forgets the remembered value. A link that writes another value forgets the stale entry. Matching nut link never carries an empty or stale number (rule 37).
+- `update()` (line 504): `if (currentKind === null || formKind !== currentKind) return;`
+- `formKind` is null for the whole switch (set by `clearForm`, line 81)
+- `currentKind` only set after both fetches succeed (line 355)
+- Result: no writes, no requests, no downloads while a switch loads
 
-#### 7. rowOfFields treats missing controls as not held (IN-06) ✓
-- `rowOfFields` (line 206–215): checks `if (control === undefined) return false;` before using a control
+#### 8. Typed-value memory keyed by formKind ✓
+
+- `rememberTyped` (line 707): `lastTyped.set(formKind, typed);`
+- `forgetUntyped` (line 709): deletes entries when field value changes via Reset or link
+- Called in navigate's write loop (line 366) and Reset handler (line 729)
+- Result: clearance typed on nut carries to bolt's Matching nut link (and vice versa) without stale entries
+
+#### 9. rowOfFields treats missing controls as not held ✓
+
+- `rowOfFields` (line 206): `const control = fields.get(name); if (control === undefined) return false;`
 - Combined with update guard, prevents errors during kind switches
 
-#### 8. Reset leaves clearance empty ✓
-- `reset()` writes each field from `defaults[name]`
-- Clearance default is `undefined`, so `write()` sets empty string
-- After Reset, nut form is empty again (rule 35 note)
+#### 10. All request and state guards in place ✓
 
-#### 9. After failed update, selects show the row the fields hold exactly ✓
-- Plan 05-21 added `rowOfFields()` (line 206) to match catalogue row client-side
-- Exact `Number(held) === value` with `held !== ''`, no tolerance (rule 15, 32, D-12)
+- Loading: `setStatus('Building…')` (line 544), cleared on success (line 552) or failure (line 570)
+- Error: `422` marks fields `.invalid`; error messages shown via `showMessages`
+- Empty: clearance field empty on load; nut builds nothing until value typed
+- Download states: disabled when info fetch fails; enabled when part builds (rule 17)
+- Refusal states: all content cleared, selector deselected
 
-#### 10. Round-trip carries typed clearance ✓
-- Type `0.1` on a nut: `rememberTyped` stores it under `nut` in `lastTyped`
-- Follow `Matching bolt`: the link carries `clearance=0.1` from `lastTyped.get('nut')` (line 444)
-- Bolt builds, user follows `Matching nut`: the bolt's link carries `clearance=0.1` from `lastTyped.get('bolt')` (set after the bolt loaded)
-- Nut opens with `clearance=0.1` and builds (UAT test 3)
-
-#### 11. All request and state guards in place ✓
-- Loading states: `setStatus('Building…')` (line 519), cleared on success or failure
-- Error states: `422` marks fields `.invalid` (line 395); error messages shown (line 521–528)
-- Empty states: clearance field empty on load, nut builds nothing (line 527)
-- Download states: disabled when info fetch fails (line 514); enabled when part builds (line 544)
-
-**No issues found.** All interaction states are correctly implemented. WR-07 and WR-08 are resolved.
+**No issues found.** All interaction states and user flows are correctly implemented. Plans 05-24 and 05-25 resolved WR-09 and WR-10 gap findings.
 
 ---
 
 ## Top 3 Priority Fixes
 
-None identified. All prior findings (WR-07, WR-08) are resolved. The page meets the UI-SPEC contract for all 6 pillars.
+None identified. All findings from 05-24 and 05-25 re-verification are resolved. The page meets the UI-SPEC contract for all 6 pillars and all interaction requirements.
 
 If future work extends the page, watch for:
-1. New fields with defaults on the nut — ensure they don't override counterpart values (D-02)
-2. New links — ensure they use `lastTyped.get(kind)` generically, and forgetUntyped on writes
-3. New state displays — verify they reuse existing typography, color and spacing roles
+1. New fields with defaults on the nut or bolt — ensure they don't override counterpart values or violate L02 (no silent changes to shipped fields)
+2. New error paths on kind switch — ensure they follow the one-try pattern and overtaken guard
+3. New panel or link clears — ensure they sit before the first await like the current seven
 
 ---
 
 ## Files Audited
 
-- `src/screw/static/index.html` (page structure, hidden attribute on counterpart)
-- `src/screw/static/app.js` (formKind, update guard, navigate rebuild, rememberTyped, forgetUntyped, rowOfFields, showCounterpart, all interaction handlers)
-- `src/screw/static/style.css` (counterpart link styling, color, typography, spacing)
-- `src/screw/calc/__init__.py` (Clearance field, Pair group, M18 note, standing warning)
-- `src/screw/params.py` (NutParams clearance field, required)
-- `tests/test_parity.py` (WR-07 and WR-08 source test pins)
-- `.planning/phases/01-runtime-port-and-walking-skeleton/01-UI-SPEC.md` (contract amendments for plans 05-22 and 05-23)
+- `src/screw/static/index.html` (page structure, counterpart hidden attribute via app.js)
+- `src/screw/static/app.js` (formSeq and overtaken guard, clearForm, clearPicker, the seven clears, the single try block, showCounterpart, setDownloads, setStatus, refuseLink, update guard, rememberTyped, forgetUntyped, rowOfFields, all error paths)
+- `src/screw/static/style.css` (counterpart link color, typography, spacing, accent usage)
+- `src/screw/calc/__init__.py` (clearance field, Pair group, Nut group, standing warning, M18 note)
+- `src/screw/params.py` (NutParams clearance required field)
+- `tests/test_parity.py` (WR-09 and WR-10 source pins, probe evidence)
+- `.planning/phases/01-runtime-port-and-walking-skeleton/01-UI-SPEC.md` (contract amendments for plans 05-24 and 05-25)
+- `.planning/phases/05-hex-nut-and-kernel-pair-proof/05-24-SUMMARY.md` and `05-25-SUMMARY.md` (probe results confirming all steps pass)
 
 ---
 
-**Audit complete. Re-audit after gap closure 05-23 confirms WR-07 and WR-08 resolved. Overall score: 24/24.**
+**Audit complete. Re-audit after gap closure plans 05-24 (WR-09) and 05-25 (WR-10) confirms all findings resolved. Overall score: 24/24.**
