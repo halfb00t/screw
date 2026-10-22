@@ -12,7 +12,7 @@ created: "2026-10-20"
 
 > Per-phase security contract: threat register, accepted risks, and audit trail.
 
-Register origin: all 20 plans carry a `<threat_model>` block (authored at plan time); 51 unique threat IDs from the plans (05-19 adds T-05-45 to T-05-50 and T-05-SC), none shared between plans, plus T-05-51, which the re-audit at `d7234e8` raised and the owner accepted, plus T-05-52 to T-05-59 from gap plan 05-20 (its T-05-SC is merged into the existing row), plus T-05-60 to T-05-62 from gap plan 05-21, T-05-63 to T-05-68 from gap plan 05-22, and T-05-69 to T-05-75 from gap plan 05-23 (its T-05-SC merged into the existing row). Plan 05-23's rows were closed at ASVS L1 grep depth by the execute-phase orchestrator at `3ddff84` (no auditor spawn: threats_open 0, register authored at plan time, L1 short-circuit), with `tests/test_parity.py` 71 passed. The gsd-security-auditor verified the declared mitigations at `9acbfbd`, and re-verified them at `d7234e8` after gap plan 05-19 at `eeb49b5` after gap plan 05-20, and at `c552974` after gap plans 05-21 and 05-22 (05-21/05-22: targeted `test_parity.py` 12 passed; the L15 amendment difflib check additive; a scratch Playwright probe against `screw serve`; `git status` unchanged; 05-20: `make lint-imports` 10 kept; targeted `52 passed`; pair table re-derived identical at every 05-20 commit; default and M2 nut preview STL sha256 unchanged; read-only: `make lint-imports` 10 kept / 0 broken; targeted `-k "nut_fine_stl or nut_fine_caps or tall_nut"` `53 passed`; scratch probe of M20 at m=600 through calc, API and CLI) (read-only: `make lint-imports` 10 kept / 0 broken; targeted mitigation tests `123 passed`; `git status` unchanged). Every SUMMARY `## Threat Flags` entry is `None` or maps to an existing ID (05-14's `screw.solid.pair` → `screw.calc.presets` import maps to T-05-30; the `screw pair` CLI to T-05-33 and T-05-35). Evidence is a file, line, test or document in this repository at the audited commit.
+Register origin: all 20 plans carry a `<threat_model>` block (authored at plan time); 51 unique threat IDs from the plans (05-19 adds T-05-45 to T-05-50 and T-05-SC), none shared between plans, plus T-05-51, which the re-audit at `d7234e8` raised and the owner accepted, plus T-05-52 to T-05-59 from gap plan 05-20 (its T-05-SC is merged into the existing row), plus T-05-60 to T-05-62 from gap plan 05-21, T-05-63 to T-05-68 from gap plan 05-22, T-05-69 to T-05-75 from gap plan 05-23, T-05-76 to T-05-81 from gap plan 05-24 and T-05-82 to T-05-86 from gap plan 05-25 (their T-05-SC merged into the existing row). Plans 05-24 and 05-25 were closed at ASVS L1 grep depth by the execute-phase orchestrator at `1f2c24c` (same short-circuit), with `tests/test_parity.py` 73 passed and `make verify` 3467 passed. Plan 05-23's rows were closed at ASVS L1 grep depth by the execute-phase orchestrator at `3ddff84` (no auditor spawn: threats_open 0, register authored at plan time, L1 short-circuit), with `tests/test_parity.py` 71 passed. The gsd-security-auditor verified the declared mitigations at `9acbfbd`, and re-verified them at `d7234e8` after gap plan 05-19 at `eeb49b5` after gap plan 05-20, and at `c552974` after gap plans 05-21 and 05-22 (05-21/05-22: targeted `test_parity.py` 12 passed; the L15 amendment difflib check additive; a scratch Playwright probe against `screw serve`; `git status` unchanged; 05-20: `make lint-imports` 10 kept; targeted `52 passed`; pair table re-derived identical at every 05-20 commit; default and M2 nut preview STL sha256 unchanged; read-only: `make lint-imports` 10 kept / 0 broken; targeted `-k "nut_fine_stl or nut_fine_caps or tall_nut"` `53 passed`; scratch probe of M20 at m=600 through calc, API and CLI) (read-only: `make lint-imports` 10 kept / 0 broken; targeted mitigation tests `123 passed`; `git status` unchanged). Every SUMMARY `## Threat Flags` entry is `None` or maps to an existing ID (05-14's `screw.solid.pair` → `screw.calc.presets` import maps to T-05-30; the `screw pair` CLI to T-05-33 and T-05-35). Evidence is a file, line, test or document in this repository at the audited commit.
 
 ---
 
@@ -103,7 +103,7 @@ Register origin: all 20 plans carry a `<threat_model>` block (authored at plan t
 | T-05-48 | Tampering | caps applied beyond what was measured | high | mitigate | no cap and no nearest row off the 30 keys (test_thread_maths.py:569); header `s_mm == 1e5` (:497); 2.5 and slimmest-s checks built on all 30 keys (:486); catalogue nuts served (test_calc.py:387); 46 low-clearance checks refused by the lead-in gate recorded per R17, debt `2026-10-21-nut-lead-in-gate-refuses-a-valid-nut-at-huge-s.md` | closed |
 | T-05-49 | DoS | bench run on the shared host | low | mitigate | dirty tree / existing records refuse to start (bench/nut_fine_caps.py:305-310); serial; `timeout 7000` and load in RESULTS.md amended entry | closed |
 | T-05-50 | Repudiation | tessellation preset of the run | medium | mitigate | `header["preset"] == list(TESSELLATION["fine"])` both runs (test_thread_maths.py:501) | closed |
-| T-05-SC | Tampering | supply chain | high | mitigate | `git diff 2a4c07a eeb49b5` touches no pyproject, lock, requirements, Dockerfile or `.github` file (05-19 and 05-20); `git diff 4f0f06f 3ddff84` touches none either (05-23) | closed |
+| T-05-SC | Tampering | supply chain | high | mitigate | `git diff 2a4c07a eeb49b5` touches no pyproject, lock, requirements, Dockerfile or `.github` file (05-19 and 05-20); `git diff 4f0f06f 3ddff84` touches none either (05-23); nor does `git diff cc8c923 1f2c24c` (05-24, 05-25) | closed |
 | T-05-51 | DoS | nut off the 30 measured keys (fine pitch, off-row d) | medium | accept | no fine-STL cap by design (D-03, L02: no nearest row); test_thread_maths.py:571-574 pins M8x1 at m=248 served; over-budget size UNMEASURED (auditor ASSUMPTION); backstops: turn cap (params.py:214-221), admission slot and pool (app.py:310,514), INTERIM timeout (D-18) | closed (AR-05-04) |
 | T-05-52 | Tampering | `cell_verdict` reading NaN as proven | high | mitigate | negated `<=` comparisons (calc/pair.py:206,240); test_pair.py:455,467 nan/inf/-inf give inconclusive, :476 matched NaN never proven | closed |
 | T-05-53 | Tampering | non-finite kernel volume entering a record | high | mitigate | `_finite` / `math.isfinite` (solid/pair.py:199-206) at nut body :221, each boolean :227, evidence pose :282; test_pair.py:631,644,655,890 (evidence pose tests nan only; same check) | closed |
@@ -129,6 +129,17 @@ Register origin: all 20 plans carry a `<threat_model>` block (authored at plan t
 | T-05-73 | Repudiation | L15 amendment and UI-SPEC rule 37 not matching the code | medium | mitigate | decision_log.md:1159 and 01-UI-SPEC.md:30, :338, :340 in the WR-08 code's commit 58bbc9f | closed |
 | T-05-74 | Tampering | the forgetter becoming a second writer | high | mitigate | `lastTyped.set(` occurs once and `rememberTyped(` twice in app.js; the `forgetUntyped` body contains no `lastTyped.set(` | closed |
 | T-05-75 | Denial of service | navigate leaving an overtaken navigation's form under another kind | low | mitigate | `if (kind !== currentKind \|\| kind !== formKind) {` (app.js:315); UI-SPEC rule 36 | closed |
+| T-05-76 | Tampering | `pick` on the old kind's picker writing a bolt row into the nut's controls during a kind switch (WR-09) | medium | mitigate | `clearForm(); clearPicker();` after `dropMesh();` in navigate (app.js:335-337); test_parity.py:1008 | closed |
+| T-05-77 | Denial of service | `pick` throwing in the switch window | low | mitigate | no select exists in the window (app.js:336-337); 05-23 `rowOfFields` guard kept | closed |
+| T-05-78 | Spoofing | old kind's preset badge over the new form | low | mitigate | `clearPicker` blanks badge and `shownPreset` (app.js:337) | closed |
+| T-05-79 | Tampering | old kind's update running after `dropMesh` during the schema fetch | medium | mitigate | `clearForm()` before the fetch nulls `formKind`, so `update()` returns at its first statement | closed |
+| T-05-80 | Denial of service | overtaken navigation leaving the bolt without picker or badge | medium | mitigate | form cleared with picker, so 05-23's `kind !== formKind` rebuild reopens the bolt whole; test_parity.py:1008 | closed |
+| T-05-81 | Repudiation | UI-SPEC rules 30/32/36 or disposition misdescribing 05-24 | low | mitigate | WR-09 row cites 63835c8 `fix(05-24):` (05-REVIEW-DISPOSITION.md:95), an ancestor of HEAD | closed |
+| T-05-82 | Spoofing | old part's info panel, Matching link and downloads beside another kind's form (L02, WR-10) | medium | mitigate | `$('#dims').replaceChildren(); showCounterpart(null); setDownloads(null);` before the first await (app.js:338-340); test_parity.py:1008 | closed |
+| T-05-83 | Denial of service | failed schema fetch leaving a blank form under a selector that cannot re-pick (WR-10) | medium | mitigate | both fetches in one `try`, catch calls `refuseLink` (app.js:342-353); test_parity.py:1023 | closed |
+| T-05-84 | Denial of service | late failure of an overtaken switch refusing the newer page | medium | mitigate | `const mine = ++formSeq;` (app.js:299) and `if (mine !== formSeq) return;` before the refusal (app.js:352); test_parity.py:1023; IN-08 mutant run | closed |
+| T-05-85 | Spoofing | `Showing the last valid part` over the empty canvas of a switch | low | mitigate | `setStatus('');` with the clears (app.js:341) | closed |
+| T-05-86 | Repudiation | UI-SPEC or disposition misdescribing 05-25 | low | mitigate | WR-10 and IN-08 rows cite b857016 `fix(05-25):` (05-REVIEW-DISPOSITION.md:96, :104), an ancestor of HEAD | closed |
 
 *Status: open · closed · open — below high threshold (non-blocking)*
 *Severity: critical > high > medium > low — only open threats at or above workflow.security_block_on count toward threats_open*
@@ -159,6 +170,7 @@ Register origin: all 20 plans carry a `<threat_model>` block (authored at plan t
 | 2026-10-21 | 60 | 60 | 0 | gsd-security-auditor at eeb49b5 (after 05-20); T-05-59 accepted by owner |
 | 2026-10-21 | 69 | 69 | 0 | gsd-security-auditor at c552974 (after 05-21, 05-22); review WR-07/WR-08 noted on T-05-63..65, non-blocking |
 | 2026-10-21 | 76 | 76 | 0 | execute-phase orchestrator at 3ddff84 (after 05-23), ASVS L1 grep evidence; WR-07/WR-08 closed |
+| 2026-10-22 | 87 | 87 | 0 | execute-phase orchestrator at 1f2c24c (after 05-24, 05-25), ASVS L1 grep evidence; WR-09/WR-10 closed |
 
 ---
 
@@ -169,7 +181,7 @@ Register origin: all 20 plans carry a `<threat_model>` block (authored at plan t
 - [x] `threats_open: 0` confirmed (re-audits at d7234e8, eeb49b5 and c552974)
 - [x] `status: verified` set in frontmatter
 
-**Approval:** verified 2026-10-21
+**Approval:** verified 2026-10-22
 
 ## Security Audit 2026-10-21
 
@@ -193,4 +205,12 @@ Register origin: all 20 plans carry a `<threat_model>` block (authored at plan t
 |---|---|
 | Threats found | 69 |
 | Closed | 69 |
+| Open | 0 |
+
+## Security Audit 2026-10-22
+
+| Metric | Count |
+|---|---|
+| Threats found | 87 |
+| Closed | 87 |
 | Open | 0 |
