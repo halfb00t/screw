@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Hex Nut and Kernel Pair Proof
 status: executing
-stopped_at: Completed 05-24-PLAN.md
-last_updated: "2026-10-22T01:51:18.556Z"
+stopped_at: Completed 05-25-PLAN.md
+last_updated: "2026-10-22T05:53:53.599Z"
 last_activity: 2026-10-21
 last_activity_desc: Phase 05 execution started
-state_head: 472de3926e31d8193a5c64f43c90824791ffa45d
+state_head: 973d8f974b2e3906a0bc21bc497bc9ab3864d716
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 67
-  completed_plans: 66
+  completed_plans: 67
   percent: 57
 ---
 
@@ -125,6 +125,7 @@ Progress: [██████░░░░] 57%
 | Phase 05 P22 | 12 min | 2 tasks | 4 files |
 | Phase 05 P23 | 16 min | 2 tasks | 4 files |
 | Phase 05 P24 | 45 min | 2 tasks | 4 files |
+| Phase 05 P25 | 30 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -248,6 +249,7 @@ Recent decisions affecting current work:
 - [Phase 05]: 05-23: the typed-value memory is keyed by formKind (the kind of the controls on screen); update() returns while formKind !== currentKind; navigate rebuilds when kind !== currentKind || kind !== formKind (WR-07, owner choices (a) and fix in navigate, 2026-10-21)
 - [Phase 05]: 05-23: forgetUntyped deletes a remembered entry the field no longer holds, after navigate's write loop and on Reset; typing stays the only writer (WR-08, owner ruling forget on Reset and on a link, 2026-10-21; L15 amendment)
 - [Phase 05]: 05-24: kind switch clears the old form and picker (clearForm + clearPicker) directly after dropMesh, before buildForm; picker-only and post-buildForm placements measured worse (WR-09)
+- [Phase 05]: 05-25: a failed schema or catalogue fetch on any kind switch (startup included) is refused whole through refuseLink (selector deselected, any pick retries); navigate keeps formSeq as mine and drops the failure of an overtaken navigation; the old part's panel, link, downloads and status clear with the form and picker before the first await
 
 ### Pending Todos
 
@@ -294,6 +296,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-21T17:46:30.653Z
-Stopped at: Completed 05-24-PLAN.md
+Last session: 2026-10-22T05:53:53.336Z
+Stopped at: Completed 05-25-PLAN.md
 Resume file: None
