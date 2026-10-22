@@ -2,8 +2,8 @@
 phase: 05-hex-nut-and-kernel-pair-proof
 reviewed: 2026-10-21T00:00:00Z
 rereviewed: 2026-10-21
-rereview_base: d4cd532
-rereview_base_previous: e30b919
+rereview_base: bb13513
+rereview_base_previous: d4cd532
 depth: standard
 files_reviewed: 70
 files_reviewed_list:
@@ -79,6 +79,11 @@ files_reviewed_list:
   - tests/test_thread_maths.py
 findings:
   critical: 0
+  warning: 0
+  info: 1
+  total: 1
+findings_at_bb13513:
+  critical: 0
   warning: 1
   info: 2
   total: 3
@@ -103,7 +108,7 @@ status: issues_found
 # Phase 5: Code Review Report
 
 **Reviewed:** 2026-10-21
-**Re-reviewed:** 2026-10-21 (diff base ad09d46, after plans 05-20, 05-21, 05-22); 2026-10-21 again (diff base e30b919, after plan 05-23); 2026-10-21 a third time (diff base d4cd532, after plan 05-24)
+**Re-reviewed:** 2026-10-21 (diff base ad09d46, after plans 05-20, 05-21, 05-22); 2026-10-21 again (diff base e30b919, after plan 05-23); 2026-10-21 a third time (diff base d4cd532, after plan 05-24); a fourth time (diff base bb13513, after plan 05-25)
 **Depth:** standard
 **Files Reviewed:** 70
 **Status:** issues_found
@@ -165,6 +170,17 @@ source pin and proves no behaviour (IN-08). Open now: WR-10, IN-07, IN-08. No cr
 I ran: `.venv/bin/python -m pytest tests/test_parity.py -n0 --no-cov` gave 72 passed (not
 `make verify`, which I did not run); `node --check` parses; a headless-Chromium probe against
 `screw serve` (scratchpad, not in the repo) whose results are under WR-10.
+
+**Fourth re-review verdict (2026-10-22, plan 05-25, diff base bb13513, commit b857016).** 05-25
+closes WR-10 and IN-08 as asked and I found no new defect in the delta. The kind-switch clear now takes
+the panel, the matching-part link, the downloads and the status off screen before the first `await`;
+the schema and catalogue fetches share one `try` whose catch refuses the switch whole through
+`refuseLink`, after an `if (mine !== formSeq) return;` guard that drops the failure of an overtaken
+navigation. Open now: IN-07 only (`tests/test_nut.py`, untouched by this delta). No critical issue, no
+open warning. Evidence I ran: `.venv/bin/python -m pytest tests/test_parity.py -n0 --no-cov` gave 73
+passed (not `make verify`, which I did not run); `node --check` parses; a headless-Chromium probe
+against `screw serve` (script in the session scratchpad, nothing in the repo), whose results are under
+WR-10 and the re-review section below.
 
 ## Warnings
 
@@ -503,7 +519,17 @@ the rebuild block clears the picker before `await buildForm(kind)`.
 
 ### WR-10: A failed schema fetch on a kind switch now leaves a blank page with the old part's panel, downloads and matching-part link
 
-**Status: new, open (re-review of 05-24).**
+**Status after 05-25: resolved (b857016).** `navigate` clears `#dims`, the counterpart link, the
+downloads and the status in the rebuild block, before the first `await`, and wraps `buildForm` and
+`loadPresets` in one `try` whose catch calls `refuseLink` (`app.js:340-355`). Probe, run by me (headless
+Chromium, `api/schema?kind=nut` answered 500 after a bolt loaded, Kind select to `nut`): `{inputs: 0,
+dims: 0, counterpart hidden: true, downloads: [no href, no href], status: '', messages: ["Could not load
+the part: 500 Internal Server Error"], kind select: selectedIndex -1, hash: #kind=nut}`. Picking `nut`
+again fires `change` and loads it (6 inputs, the picker back, the nut's own "Clearance (radial): Field
+required"). The same blank-and-deselected result for a 500 on `api/presets?kind=nut`. Original finding
+follows.
+
+**Status when found: new, open (re-review of 05-24).**
 
 **File:** `src/screw/static/app.js:331-333` (`navigate`: `clearForm()` then the unwrapped
 `await buildForm(kind)`); the catch is `reportLoadError` at `:703`, `refuseLink` is `:277-289`
@@ -737,7 +763,18 @@ differs from its pre-05-20 shape and no test says it still passes its piece gate
 
 ### IN-08: The WR-09 test pins source text, not the behaviour it names, and its file-wide call counts are fragile
 
-**Status: new, open (re-review of 05-24).**
+**Status after 05-25: resolved for what the finding asked for (b857016); running the page stays with the
+owner's browser-test idea.** `_rebuild_block()` (`tests/test_parity.py:998-1006`) drops `//` comment lines,
+squashes whitespace and slices `navigate`'s kind-change block, so a comment or a line break neither
+satisfies nor breaks a pin. The file-wide `clearForm(` and `clearPicker(` counts and the re-assertions of
+the two helper bodies are gone. `test_a_kind_change_clears_the_old_form_and_picker_before_it_fetches_the_new_ones`
+now asserts the seven clears occur before the block's first `await`, and a second test pins one `try`
+holding both awaits, the `mine !== formSeq` guard in the catch before `refuseLink`, and `const mine =
+++formSeq;`. Both pass (73 in the file). A residual, not a defect: the pins are still source text, so
+the overtaken-navigation guard is proven by the probe below and not by the gate. Original finding
+follows.
+
+**Status when found: new, open (re-review of 05-24).**
 
 **File:** `tests/test_parity.py:998-1023`
 **Issue:** The behaviour WR-09 describes (no select to pick in, no row written into another kind's
@@ -816,11 +853,57 @@ keep it, and its comment says so truthfully.
 by this delta and stays open. The new test passes (72 in `test_parity.py`); it does prove the order of
 the three statements in `navigate`, but nothing about behaviour (IN-08).
 
+## Re-review after 05-25 (diff base bb13513)
+
+Scope: `git diff bb13513 HEAD -- src/screw/static/app.js tests/test_parity.py` (commit b857016): in
+`navigate`, `const mine = ++formSeq`, four clears before the first `await`, one `try` around both
+fetches, a guarded catch; in the tests, `_rebuild_block` and two re-bodied tests. The whole of `app.js`
+was read for context. Checked against the L02 rules.
+
+**WR-10: resolved. IN-08: resolved (the asked-for fixes).** Evidence is under each finding.
+
+Points I traced and probed, no defect found:
+
+- **`formSeq` and the other `mine !== formSeq` sites (`:98` in `buildForm`, `:264` in `loadPresets`).**
+  Each is a separate function-scope `const mine = formSeq`, so `navigate`'s new `mine` shadows nothing and
+  none can read it. `navigate` bumps `formSeq` once, at the top, and nothing else bumps it, so
+  `mine !== formSeq` in the catch is true exactly when a later `navigate` started.
+- **An overtaken failure.** Probe: bolt loaded, Kind select to `nut` with `api/schema?kind=nut` held
+  1.5 s then answered 500, Kind select back to `bolt` at 0.3 s. After 3 s: 7 inputs, 22 info rows, the
+  Matching link shown, bolt STL and STEP downloads linked, kind select `bolt`, hash empty, no page error.
+  The pre-05-25 catch would have refused here and wiped the bolt. Every way a newer navigation can start
+  while this one waits reaches the rebuild block, because `formKind` is `null` or the overtaken kind's
+  there (the 05-24 argument), so the newer navigation always owns the page; one that stops at the top
+  (`refuseLink` for a repeated key or unknown kind) owns it too.
+- **`refuseLink` side effects in a not-overtaken failure.** It runs `clearForm`, `clearPicker`,
+  `currentKind = null`, `selectedIndex = -1` and the panel clears, all already true or idempotent after
+  the new clears, and `showMessages` keeps no warnings because `dropMesh` already emptied `mesh`. It does
+  not touch `lastTyped`, so the typed-clearance memory survives a refused switch. `update()` returns on
+  `currentKind === null`, so no request goes out from the blank page. Back after a refusal reaches the
+  rebuild block (`currentKind` is `null`).
+- **Startup.** First `navigate` has `currentKind` and `formKind` null, so it takes the same block; the
+  clears are no-ops on an empty page. Probe: every `api/schema` answering 500 gives the "Could not load
+  the part: 500 Internal Server Error" message, a deselected selector, no controls and no panel. The
+  IIFE's catch (`Could not load the part kinds and schema`) now covers `loadKinds` only; wording still true.
+- **Status and panel clears.** `setStatus('')` runs after `inflight?.abort()` and `++seq`, and `update()`
+  guards its `fail`, `renderInfo` and `showModel` paths on `mine !== seq`, so an aborted build cannot
+  repaint the panel or write "Showing the last valid part" after the clear.
+- **Error message exposure.** The catch shows `err.message`: the fixed `${status} ${statusText}` string of
+  `buildForm` and `loadPresets`, a browser fetch failure, or a JSON parse error. No server body and no path
+  reaches the page, and the text is set with `textContent`. A schema with an unexpected shape would show a
+  JS `TypeError` text; that is a developer-facing failure on a first-party endpoint, not worth a finding.
+- **The edits to the tests.** `_rebuild_block` raises `ValueError` rather than an assertion message if the
+  rebuild condition is reworded; cosmetic. The pins fail on the mutants I thought of: a clear moved after
+  the first `await`, an `await` outside the `try`, the guard dropped or put after `refuseLink`.
+
+**New:** none. Open: IN-07, unchanged and outside this delta.
+
 ---
 
 _Reviewed: 2026-10-21_
 _Re-reviewed: 2026-10-21 (base ad09d46)_
 _Re-reviewed: 2026-10-21 (base e30b919, plan 05-23)_
 _Re-reviewed: 2026-10-21 (base d4cd532, plan 05-24)_
+_Re-reviewed: 2026-10-22 (base bb13513, plan 05-25)_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
