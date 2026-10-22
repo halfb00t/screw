@@ -239,7 +239,7 @@ Plans:
   5. STL and STEP downloads come from the same modelled-thread solid; the STL chord deviation is explicit, measured against the clearances the printed test will use, and recorded and cited in a decision entry, with `ControlSurfaceDeflection` on for downloads; the preview may mesh coarser, the numbers may not.
   6. The M18 control that reads empty at theta -2π/3 (right hand) and +2π/3 (left hand) at every clearance in `2026-10-08-a-pair` (0 solids, no boolean error or warning) is diagnosed in one bounded task whose method is committed before it runs; the finding is recorded in a decision entry and changes no verdict rule. Until a later campaign proves M18, the M18 nut ships (criterion 1), `screw pair` reads `inconclusive` for it, and the info panel's pair section labels M18 "kernel pair proof inconclusive at K = 3 (`2026-10-08-a-pair`)" from the cited record, not from a kernel call (criterion 4).
 
-**Plans**: 24/24 plans executed (sequential waves 1-24; the pre-registration lands as its own PR first)
+**Plans**: 24/25 plans executed (sequential waves 1-25; the pre-registration lands as its own PR first)
 
 Plans:
 **Wave 1**
@@ -313,6 +313,9 @@ Plans:
 
 **Wave 24** *(gap closure; blocked on Wave 23 completion)*
 - [x] 05-24-PLAN.md — WR-09 (re-verification gap): a kind switch clears the old kind's form and preset picker (catalogue and badge with it) directly after the mesh drop, before the new schema is fetched. So no stale pick throws or writes one kind's row into another's controls, and no old control rebuilds the old part under the new kind; Back during the switch reopens the old kind whole. Reproduced first with a scratch browser probe (four placements measured); source pin; UI contract rules 30, 32 and 36; WR-09 recorded fixed in the review disposition
+
+**Wave 25** *(gap closure; blocked on Wave 24 completion)*
+- [ ] 05-25-PLAN.md — WR-10 (review finding, owner scope 2026-10-22): a kind switch also clears the old part's info panel, matching-part link, downloads and status, and a failed schema or catalogue fetch refuses the switch whole (one error, the Kind select deselected, picking any kind retries) unless a newer navigation overtook it. Reproduced first with a scratch browser probe (five versions measured); the 05-24 pin re-bodied and one new pin, without file-wide counts (IN-08, mutant check); UI contract rows and rules 14, 30, 34 and 36; WR-10 and IN-08 recorded fixed in the review disposition
 
 **UI hint**: yes
 
