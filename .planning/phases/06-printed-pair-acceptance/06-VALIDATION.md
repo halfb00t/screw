@@ -48,7 +48,7 @@ Filled by the planner per task; requirement-level map from RESEARCH.md:
 | PAIR-02 | registry has no required field; parity rules still bite | unit | `make test PYTEST_ARGS="tests/test_parity.py -k required -q -n0 --no-cov"` | ✅ adjust | ⬜ pending |
 | PAIR-02 | nut outside measured range carries the D-09 warning on API and CLI identically | unit/parity | `make test PYTEST_ARGS="tests/test_calc.py tests/test_parity.py -k measured -q -n0 --no-cov"` | ❌ W0 | ⬜ pending |
 | PAIR-05 | M8 counterpart carries no clearance; nut uses the default | unit | `make test PYTEST_ARGS="tests/test_calc.py -k counterpart -q -n0 --no-cov"` | ✅ | ⬜ pending |
-| PAIR-06 | D-14 rule: ≥2/3 binds promotes PAIR-07; 1/3 does not; refusal on incomplete data | unit | `make test PYTEST_ARGS="tests/test_print_rules.py -k bought -q -n0 --no-cov"` | ❌ W0 | ⬜ pending |
+| PAIR-06 | deferred to v2 by owner ruling R9 (2026-10-22): no bought-nut rule, record or test | - | - | - | deferred |
 | INFO-04 | below threshold both kinds warn naming edge, run and Lxx; at/above no warning; no 422 | unit | `make test PYTEST_ARGS="tests/test_calc.py -k printab -q -n0 --no-cov"` | ❌ W0 | ⬜ pending |
 | INFO-04 | `d_min`, `P_min` equal `thresholds_from(record2)` | unit | `make test PYTEST_ARGS="tests/test_print_rules.py -k threshold -q -n0 --no-cov"` | ❌ W0 | ⬜ pending |
 | INFO-04 | CLI and API emit identical printability warnings | parity | `make test PYTEST_ARGS="tests/test_parity.py -k printab -q -n0 --no-cov"` | partly ✅ | ⬜ pending |
@@ -61,7 +61,7 @@ Filled by the planner per task; requirement-level map from RESEARCH.md:
 
 | Plan · Task | Requirement | Automated check (from the main checkout) | Kind |
 |-------------|-------------|------------------------------------------|------|
-| 06-01 · 1 (tracer) | PAIR-02, PAIR-06, INFO-04 | branch commit subject on `gsd/phase-06-preregistration` (hook ran `make verify` in the worktree); `git show` of `bench/print_rules.py` holds the seven functions and the ladder literal; contract lists `bench.print_rules` | git + hook |
+| 06-01 · 1 (tracer) | PAIR-02, INFO-04 | branch commit subject on `gsd/phase-06-preregistration` (hook ran `make verify` in the worktree); `git show` of `bench/print_rules.py` holds the seven functions and the ladder literal; contract lists `bench.print_rules` | git + hook |
 | 06-01 · 2 | PAIR-02, INFO-04 | commit subject; branch file set is exactly seven files; the three blank records hold 61, 13, 10 lines | git + hook |
 | 06-02 · 1 | — | checkpoint:decision (owner) | manual |
 | 06-02 · 2 | — | `06-OWNER-RULINGS.md` has R1-R8 lines with option ids and a `Ruled:` date | grep |
@@ -69,13 +69,13 @@ Filled by the planner per task; requirement-level map from RESEARCH.md:
 | 06-03 · 2 | PAIR-02 | checkpoint:human-action (owner types profile and predictions) | manual |
 | 06-03 · 3 | all four | no owner slot in the committed protocol; PR A file set is eight files; `gh pr view` reads `OPEN main` | git + gh |
 | 06-04 · 1 | — | checkpoint:human-action (Codex review) | manual |
-| 06-04 · 2 | PAIR-02, PAIR-06, INFO-04 | PR A `MERGED`; phase branch contains origin/main and the landed files; `make verify` | gh + gate |
+| 06-04 · 2 | PAIR-02, INFO-04 | PR A `MERGED`; phase branch contains origin/main and the landed files; `make verify` | gh + gate |
 | 06-05 · 1 (tracer) | PAIR-02 | manifest-run-1 header and 4 + 20 rows; each digest matches its file; commit subject | file + python |
-| 06-05 · 2 | PAIR-02, PAIR-06 | checkpoint:human-action (print run 1 and bought nuts); reader passes read-only | manual |
-| 06-05 · 3 | PAIR-02, PAIR-06 | `make test PYTEST_ARGS="tests/test_print_rules.py -q -n0 --no-cov"`; two digests pinned; RESULTS heading | pytest + grep |
+| 06-05 · 2 | PAIR-02 | checkpoint:human-action (print run 1); reader passes read-only | manual |
+| 06-05 · 3 | PAIR-02 | `make test PYTEST_ARGS="tests/test_print_rules.py -q -n0 --no-cov"`; one digest pinned; RESULTS heading | pytest + grep |
 | 06-06 · 1 | PAIR-02 | checkpoint:decision (`permanent: accepted`, one-way) | manual |
 | 06-06 · 2 (tracer) | PAIR-02 | `screw info nut` with no clearance reads the record's value; the six-file pytest run; `make verify` | CLI + pytest + gate |
-| 06-06 · 3 | PAIR-02, PAIR-06 | `## L17` present; PAIR-02 and PAIR-06 ticked; debt triggers moved | grep |
+| 06-06 · 3 | PAIR-02 | `## L17` present; PAIR-02 ticked; debt triggers moved | grep |
 | 06-07 · 1 (tracer) | PAIR-02 | `make test ... -k measured`; CLI warning for d 5 cites L17 and the run; `make verify` | pytest + CLI + gate |
 | 06-07 · 2 | PAIR-02 | no "required" clearance text in the API docstring or overview; `make verify` | grep + gate |
 | 06-08 · 1 (tracer) | INFO-04 | manifest-run-2 header and 3 + 3 rows; digests match; nut names carry the shipped default | file + python |
@@ -93,7 +93,7 @@ No three consecutive tasks lack an automated check: every manual checkpoint sits
 
 ## Wave 0 Requirements
 
-- [ ] `bench/print_rules.py`, `tests/test_print_rules.py` — PAIR-02, PAIR-06, INFO-04 rules with synthetic positive/negative controls
+- [ ] `bench/print_rules.py`, `tests/test_print_rules.py` — PAIR-02, INFO-04 rules with synthetic positive/negative controls
 - [ ] `bench/print_matrix.py` (matrix as data, manifest writer) and blank `bench/results/phase-06/print-run-*.tsv`
 - [ ] `06-PRINT-PROTOCOL.md`
 - [ ] `pyproject.toml`: kernel-free contract covers `bench.print_rules` (and matrix module if kernel-free)
@@ -107,7 +107,7 @@ No three consecutive tasks lack an automated check: every manual checkpoint sits
 | Print profile and predictions typed into protocol before PR A lands | PAIR-02, INFO-04 | owner's printer and judgement | owner edits protocol on the pre-registration branch |
 | PR A reviewed by the other CLI and landed | PAIR-02 | cross-CLI review rule | Codex review, merge |
 | Print run 1 (60 nuts + 12 bolts), fit-test every sample in pre-registered order | PAIR-02 | physical print | owner fills `print-run-1.tsv`; sha256 recorded |
-| Printed bolts into bought steel nuts, 3 per size | PAIR-06 | physical | owner, same record |
+| Printed bolts into bought steel nuts, 3 per size | PAIR-06 | deferred to v2 by owner ruling R9 (2026-10-22) | not run in Phase 6 |
 | Print run 2 (M3–M5) and fit-test | INFO-04 | physical | owner fills `print-run-2.tsv` |
 | Fresh M8 pair at the shipped default threads by hand | PAIR-05 | physical acceptance | owner records in SUMMARY/UAT with exported file sha256 |
 | Below-threshold part shows the warning on the page | INFO-04 | no browser test in gate | owner at UAT |
