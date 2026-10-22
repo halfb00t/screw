@@ -27,7 +27,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Thread Spike** - a pre-registered measurement picks the thread construction, volume estimator and turn cap before any thread field exists (completed 2026-10-09)
 - [x] **Phase 3: Real Helical Thread** - the bolt kind carries a real ISO 68-1 helical thread, right- or left-hand, behind a postcondition gate (completed 2026-10-11)
 - [x] **Phase 4: ISO Hex Bolts and Screws** - ISO 4014 and 4017 presets from cited, tested table rows fill explicit mm fields; a traceable info panel for the bolt (completed 2026-10-12)
-- [ ] **Phase 5: Hex Nut and Kernel Pair Proof** - ISO 4032 nut with a clearance field, matching-part derivation and a kernel pair proof that can fail
+- [x] **Phase 5: Hex Nut and Kernel Pair Proof** - ISO 4032 nut with a clearance field, matching-part derivation and a kernel pair proof that can fail (completed 2026-10-22)
 - [ ] **Phase 6: Printed Pair Acceptance** - the owner's printed test sets the clearance default and the printability threshold; a printed pair threads together by hand
 - [ ] **Phase 7: Operability Re-sweep** - every runtime bound measured on the full grid on linux/amd64 and cited; every allowed configuration builds inside the timeout
 
@@ -239,7 +239,7 @@ Plans:
   5. STL and STEP downloads come from the same modelled-thread solid; the STL chord deviation is explicit, measured against the clearances the printed test will use, and recorded and cited in a decision entry, with `ControlSurfaceDeflection` on for downloads; the preview may mesh coarser, the numbers may not.
   6. The M18 control that reads empty at theta -2π/3 (right hand) and +2π/3 (left hand) at every clearance in `2026-10-08-a-pair` (0 solids, no boolean error or warning) is diagnosed in one bounded task whose method is committed before it runs; the finding is recorded in a decision entry and changes no verdict rule. Until a later campaign proves M18, the M18 nut ships (criterion 1), `screw pair` reads `inconclusive` for it, and the info panel's pair section labels M18 "kernel pair proof inconclusive at K = 3 (`2026-10-08-a-pair`)" from the cited record, not from a kernel call (criterion 4).
 
-**Plans**: 25/25 plans executed (sequential waves 1-25; the pre-registration lands as its own PR first)
+**Plans**: 25/25 plans complete (sequential waves 1-25; the pre-registration lands as its own PR first)
 
 Plans:
 **Wave 1**
@@ -360,6 +360,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 2 
 | 2. Thread Spike | 8/8 | Complete    | 2026-10-09 |
 | 3. Real Helical Thread | 7/7 | Complete    | 2026-10-11 |
 | 4. ISO Hex Bolts and Screws | 17/17 | Complete    | 2026-10-12 |
-| 5. Hex Nut and Kernel Pair Proof | 25/25 | In Progress | - |
+| 5. Hex Nut and Kernel Pair Proof | 25/25 | Complete    | 2026-10-22 |
 | 6. Printed Pair Acceptance | 0/TBD | Not started | - |
 | 7. Operability Re-sweep | 0/TBD | Not started | - |

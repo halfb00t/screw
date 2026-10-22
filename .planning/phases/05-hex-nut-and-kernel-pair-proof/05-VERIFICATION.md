@@ -1,7 +1,7 @@
 ---
 phase: 05-hex-nut-and-kernel-pair-proof
 verified: 2026-10-22T10:00:00Z
-status: human_needed
+status: passed
 score: 47/47 must-haves verified
 covered_files:
   - .github/workflows/pair.yml

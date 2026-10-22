@@ -26,7 +26,7 @@
     {
       "number": "5",
       "name": "Hex Nut and Kernel Pair Proof",
-      "status": "in_progress"
+      "status": "complete"
     },
     {
       "number": "6",
@@ -41,8 +41,8 @@
   ],
   "next": {
     "command": "/gsd-progress --next",
-    "label": "Advance to the next step",
-    "reason": "Phase 5 of 7 · 57% · executing"
+    "label": "Advance to the next step (plan phase 6)",
+    "reason": "Phase 6 of 7 — needs a plan"
   },
-  "updated_at": "2026-10-22T01:51:18.565Z"
+  "updated_at": "2026-10-22T07:27:11.995Z"
 }

@@ -69,6 +69,16 @@ mating pair out.
       warning and no row numbers, the volume is the closed form, nothing is rounded (D-19),
       and a full-precision value that does not fit beside its label moves whole under it
       instead of shrinking or clipping (G-04-5). The pair's numbers are Phase 5 INFO-01/02.
+- ✓ Hex nut per ISO 4032 (rows read from GOST ISO 4032-2014, L14), M2–M20, on UI, API and
+      CLI, with one radial `clearance` field on the nut and no default (L15) — Phase 5. The
+      matching-part link carries d, pitch and hand, and the clearance last typed in the tab
+      (owner ruling 2026-10-21).
+- ✓ Kernel pair proof `proven | violated | inconclusive` with its half-pitch control, as a
+      solid-package function, `screw pair` and a slow-tier test — Phase 5 (PAIR-03/04): 240 of
+      240 grid cells equal their pre-registered verdict; M18 reads `inconclusive` at K = 3.
+- ✓ Every number on the pair's info panel (nut, clearance radial and diametral, engagement,
+      6g/6H limits labelled "limits for a bought part; this model is nominal and not
+      toleranced") is traceable to an explicit mm field or a cited row — Phase 5 (INFO-01/02).
 
 
 ### Active
@@ -90,9 +100,7 @@ All hypotheses until shipped and validated. Grouped by the owner's decisions of
 **Presets and tables**
 - [ ] Size range M2–M20 (ISO 261 preferred sizes) for every table in v1 — ISO 262, 4014
       and 4017 shipped in Phase 4 (second-choice sizes bracketed, coarse pitch only);
-      ISO 4032 and ISO 965-2 are Phase 5.
-- [ ] ISO 965 tolerance classes 6g / 6H reported as min/max numbers on the info panel from
-      a cited table; geometry is nominal plus clearance, not toleranced.
+      ISO 4032 and the 6g/6H limits shipped in Phase 5 (Validated above).
 
 **Fastener types**
 - [ ] v1 (first release): hex head bolt/screw — ISO 4014 (partial thread) and ISO 4017
@@ -105,10 +113,6 @@ All hypotheses until shipped and validated. Grouped by the owner's decisions of
 - [ ] Every fastener type ships on UI, API and CLI from the one parameter model, with its
       tests, in the same change; the Phase 1 parity test covers each new `KINDS` entry
       without an edit.
-- [ ] Every number on the pair's info panel (nut, clearance, engagement, 6g/6H limits) is
-      traceable to an explicit mm field or to a cited ISO row with a test; where a number
-      cannot be computed honestly the tool shows a warning and no number. The bolt half
-      shipped in Phase 4 (Validated above).
 
 **Operability (inherited shape)**
 - [ ] Every allowed configuration builds inside a measured per-build timeout, with the bound
@@ -268,4 +272,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-10-12 after Phase 4*
+*Last updated: 2026-10-22 after Phase 5*
