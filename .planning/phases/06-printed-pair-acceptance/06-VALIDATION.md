@@ -57,6 +57,38 @@ Filled by the planner per task; requirement-level map from RESEARCH.md:
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
+### Per task (filled by the planner, 2026-10-22)
+
+| Plan · Task | Requirement | Automated check (from the main checkout) | Kind |
+|-------------|-------------|------------------------------------------|------|
+| 06-01 · 1 (tracer) | PAIR-02, PAIR-06, INFO-04 | branch commit subject on `gsd/phase-06-preregistration` (hook ran `make verify` in the worktree); `git show` of `bench/print_rules.py` holds the seven functions and the ladder literal; contract lists `bench.print_rules` | git + hook |
+| 06-01 · 2 | PAIR-02, INFO-04 | commit subject; branch file set is exactly seven files; the three blank records hold 61, 13, 10 lines | git + hook |
+| 06-02 · 1 | — | checkpoint:decision (owner) | manual |
+| 06-02 · 2 | — | `06-OWNER-RULINGS.md` has R1-R8 lines with option ids and a `Ruled:` date | grep |
+| 06-03 · 1 (tracer) | all four | commit subject; protocol headings are the nine in order | git + hook |
+| 06-03 · 2 | PAIR-02 | checkpoint:human-action (owner types profile and predictions) | manual |
+| 06-03 · 3 | all four | no owner slot in the committed protocol; PR A file set is eight files; `gh pr view` reads `OPEN main` | git + gh |
+| 06-04 · 1 | — | checkpoint:human-action (Codex review) | manual |
+| 06-04 · 2 | PAIR-02, PAIR-06, INFO-04 | PR A `MERGED`; phase branch contains origin/main and the landed files; `make verify` | gh + gate |
+| 06-05 · 1 (tracer) | PAIR-02 | manifest-run-1 header and 4 + 20 rows; each digest matches its file; commit subject | file + python |
+| 06-05 · 2 | PAIR-02, PAIR-06 | checkpoint:human-action (print run 1 and bought nuts); reader passes read-only | manual |
+| 06-05 · 3 | PAIR-02, PAIR-06 | `make test PYTEST_ARGS="tests/test_print_rules.py -q -n0 --no-cov"`; two digests pinned; RESULTS heading | pytest + grep |
+| 06-06 · 1 | PAIR-02 | checkpoint:decision (`permanent: accepted`, one-way) | manual |
+| 06-06 · 2 (tracer) | PAIR-02 | `screw info nut` with no clearance reads the record's value; the six-file pytest run; `make verify` | CLI + pytest + gate |
+| 06-06 · 3 | PAIR-02, PAIR-06 | `## L17` present; PAIR-02 and PAIR-06 ticked; debt triggers moved | grep |
+| 06-07 · 1 (tracer) | PAIR-02 | `make test ... -k measured`; CLI warning for d 5 cites L17 and the run; `make verify` | pytest + CLI + gate |
+| 06-07 · 2 | PAIR-02 | no "required" clearance text in the API docstring or overview; `make verify` | grep + gate |
+| 06-08 · 1 (tracer) | INFO-04 | manifest-run-2 header and 3 + 3 rows; digests match; nut names carry the shipped default | file + python |
+| 06-08 · 2 | INFO-04 | checkpoint:human-action (print run 2); reader passes read-only | manual |
+| 06-08 · 3 | INFO-04 | `make test ... -k run_2`; digest pinned; RESULTS heading | pytest + grep |
+| 06-09 · 1 (tracer) | INFO-04 | `make test ... -k printab`; CLI warning on the M2 bolt cites run 2, d before pitch; `make verify` | pytest + CLI + gate |
+| 06-09 · 2 | INFO-04 | entry cites `06-print-run-2`; INFO-04 ticked; `<human-check>` page glance for end-of-phase UAT | grep + manual |
+| 06-10 · 1 (tracer) | PAIR-05 | the acceptance entry holds a proven verdict; manifest lists one M8 bolt and nut; dev server answers | file + curl |
+| 06-10 · 2 | PAIR-05 | checkpoint:human-action (page path, print, hand test) | manual |
+| 06-10 · 3 | PAIR-05 | the entry's owner result line is pass or bind; `make verify` | grep + gate |
+
+No three consecutive tasks lack an automated check: every manual checkpoint sits between automated tasks.
+
 ---
 
 ## Wave 0 Requirements
