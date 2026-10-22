@@ -349,3 +349,39 @@ def test_an_export_writes_a_manifest_of_name_bytes_and_digest_and_never_overwrit
         ""]
     with pytest.raises(ValueError, match=r"manifest-acceptance\.tsv"):
         matrix.export("acceptance", tmp_path / "stl-again", results=tmp_path)
+
+
+# The protocol is pre-registered text and the rule module is the code that reads the record: these
+# two tests fail the moment they name different numbers, so the method a reader sees is the one
+# that runs (SC1).
+PROTOCOL = (rules.ROOT / ".planning" / "phases" / "06-printed-pair-acceptance"
+            / "06-PRINT-PROTOCOL.md")
+
+
+def test_the_protocol_has_the_pre_registered_sections_in_order() -> None:
+    headings = [line[3:] for line in PROTOCOL.read_text(encoding="utf-8").split("\n")
+                if line.startswith("## ")]
+    assert headings == ["Question", "Owner rulings", "Print profile", "Method", "Records", "Rules",
+                        "Predictions", "Escape clause", "Results"]
+
+
+def test_the_protocol_states_the_numbers_the_rules_read() -> None:
+    text = PROTOCOL.read_text(encoding="utf-8")
+    columns = {*rules.MATRIX_COLUMNS, *rules.BOUGHT_COLUMNS, *rules.SMALL_COLUMNS}
+    wanted = [
+        *(f"{c:.2f}" for c in rules.LADDER),
+        *rules.SIZES,
+        *rules.SMALL_SIZES,
+        *(f"| {s} | {d:g} | {p:.2f} |" for s, (d, p) in rules.COARSE.items()),
+        *matrix.BOLT_PRESETS.values(),
+        *matrix.NUT_PRESETS.values(),
+        "60 nuts", "12 bolts", "9 bolts and 9 nuts", f"{rules.SAMPLES} samples",
+        *(p.relative_to(rules.ROOT).as_posix() for p in (rules.RUN_1, rules.BOUGHT, rules.RUN_2)),
+        *(f"`{c}`" for c in sorted(columns)),
+        "default_from", "promotes_undersize", "threshold_from",
+    ]
+    assert [w for w in wanted if w not in text] == []
+    # The counts above are the matrix's own, not just words that happen to agree with it.
+    assert len(rules.matrix_keys()) == 60
+    assert len(rules.bought_keys()) == 12
+    assert len(rules.small_keys()) == 9
