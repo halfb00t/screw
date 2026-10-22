@@ -24,7 +24,6 @@ Requirements for the first release: the mating-pair cut (infra port, thread spik
 - [x] **PAIR-03**: A kernel-level interference check proves a bolt/nut pair at the chosen clearance and returns `proven | violated | inconclusive` with its control: a half-pitch axial offset of the same pair must collide, or the verdict is `inconclusive`, never `proven`. Clearance ≤ 0 is `inconclusive` by definition. *(Evidence, Phase 5: `tests/test_pair.py::test_the_verify_cell_is_proven_as_pre_registered` and the kernel-free rule tests with positive controls in the same file; 240 of 240 grid cells equal their pre-registered verdict, `bench/RESULTS.md` "Pair tier (Phase 5, D-07)"; decision log L15.)*
 - [x] **PAIR-04**: The pair check is exposed as a function in the solid package, a `screw pair` CLI subcommand and a slow-tier test (one size in `make verify`, the full grid in a CI job). It is not an API endpoint; the API and UI show closed-form flank gaps instead. *(Evidence, Phase 5: `tests/test_cli_pair.py` (exit codes 0, 1, 2), `tests/test_import_boundaries.py` and the contract "The serving process and its workers never import the pair proof", `.github/workflows/pair.yml` and `make pair`. The first ubuntu run of the full grid is not yet recorded: `docs/tech_debt/active/2026-10-14-first-pair-yml-dispatch.md`.)*
 - [ ] **PAIR-05**: A bolt and nut from this tool, printed on an FDM printer at the chosen clearance, thread together by hand — the owner's manual acceptance for the release; a kernel `proven` is necessary, not sufficient.
-- [ ] **PAIR-06**: The printed test also drives a nominal printed bolt into a bought nut; if it binds, a bolt-side `undersize` field (default 0) becomes a v1.x requirement (PAIR-07 below).
 
 ### Fastener Types
 
@@ -82,7 +81,8 @@ Deferred to the second release. Tracked but not in the current roadmap.
 
 ### Mating Pair
 
-- **PAIR-07**: Bolt-side `undersize` field (default 0) — only if PAIR-06's bought-nut test binds.
+- **PAIR-06**: The printed test also drives a nominal printed bolt into a bought nut; if it binds, a bolt-side `undersize` field (default 0) becomes a requirement (PAIR-07 below). Moved from v1: deferred by owner ruling 2026-10-22 (06 R9): bought-nut test dropped from Phase 6.
+- **PAIR-07**: Bolt-side `undersize` field (default 0) — only if PAIR-06's bought-nut test binds. Deferred with PAIR-06 (06 R9, 2026-10-22).
 
 ### Tables and UX
 
@@ -127,7 +127,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PAIR-03 | Phase 5 | Complete |
 | PAIR-04 | Phase 5 | Complete |
 | PAIR-05 | Phase 6 | Pending |
-| PAIR-06 | Phase 6 | Pending |
+| PAIR-06 | v2 (deferred) | Deferred: deferred by owner ruling 2026-10-22 (06 R9): bought-nut test dropped from Phase 6 |
 | TYPE-01 | Phase 4 | Complete |
 | TYPE-02 | Phase 4 | Complete |
 | TYPE-03 | Phase 5 | Complete |
@@ -158,8 +158,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFR-03 | Phase 2 | Complete |
 
 **Coverage:**
-- v1 requirements: 39 total
-- Mapped to phases: 39
+- v1 requirements: 38 total (PAIR-06 moved to v2 on 2026-10-22, 06 R9)
+- Mapped to phases: 38
 - Unmapped: 0 ✓
 
 ---

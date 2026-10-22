@@ -10,13 +10,14 @@ reply was `r1-a r2-a r3-a r4-a r5-b r6-a r7-a r8-b`. Plan 06-03 writes R1 to R5 
 ## Rulings
 
 - R1 run-2 pre-registration: r1-a - R1 a: run 2 is pre-registered in PR A with run 1 (its clearance defined as the value the run-1 rule returns; the owner's run-2 predictions written now) - applied by plan 06-03
-- R2 bolts for the bought nuts: r2-a - R2 a: 12 more bolts printed from the same matrix STLs, same batch and profile, used only in the bought nuts - applied by plan 06-03
+- R2 bolts for the bought nuts: r2-a - R2 a: 12 more bolts printed from the same matrix STLs, same batch and profile, used only in the bought nuts - moot after R9; never applied
 - R3 order of one bolt's five nuts: r3-a - R3 a: loosest to tightest (0.25, 0.2, 0.15, 0.1, 0.05 mm), order recorded per sample - applied by plan 06-03
 - R4 plate rule: r4-a - R4 a: sample k of every cell is printed on plate set k (three plate sets); plate recorded per part - applied by plan 06-03
 - R5 part that fails to print: r5-b - R5 b: the failed part alone is reprinted from the same STL and profile before any part of its cell is fit-tested, and its note says `reprinted: print failure` (narrows D-08's no-reprint wording: owner ruling) - applied by plan 06-03
 - R6 D-09 warning range: r6-a - R6 a: warn when `d < 6.0` or `d > 12.0` (the range of d the matrix spans) - applied by plan 06-07
 - R7 decision entries: r7-a - R7 a: L17 for the default after run 1, then L18 for the threshold after run 2 - applied by plans 06-06 and 06-09
 - R8 required-field helper: r8-b - R8 b: turn `_req` into the default-carrying helper (renamed `_free`: a float field with a default and no lower bound); keep the generic required-field rule in the CLI, the page and the parity tests - applied by plan 06-06
+- R9 bought-nut scope: Defer + strip - "drop PAIR-06" (the owner, in chat with Claude Code, 2026-10-22, after the protocol slots were asked): move PAIR-06 and PAIR-07 to v2/deferred in REQUIREMENTS, remove the bought-nut code, record and tests from the preregistration branch, the protocol section and the 06-05 task; no new Lxx entry - applied by plan 06-03
 
 R1 was not b, so no plan insertion before 06-08 is needed. R8 was not c, so no `docs/ideas/` item and no
 `docs/ideas/INDEX.md` row were written.

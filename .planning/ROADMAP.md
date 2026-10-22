@@ -324,12 +324,12 @@ Plans:
 **Goal**: The owner holds a bolt and a nut printed from this tool at the default clearance that thread together by hand, and that default and the printability threshold come from a recorded printed test, not from a forum or vendor figure.
 **Mode:** mvp
 **Depends on**: Phase 5
-**Requirements**: PAIR-02, PAIR-05, PAIR-06, INFO-04
+**Requirements**: PAIR-02, PAIR-05, INFO-04 (PAIR-06 deferred to v2 by owner ruling R9, 2026-10-22)
 **Success Criteria** (what must be TRUE):
   1. The printed test (M6–M12 matrix of clearance steps) has its method, predictions and escape clause committed before the first print, and its results, every sample with pass or bind, are recorded in the repo by the owner (manual checkpoint).
   2. The default `clearance` is set once from the recorded result, as a single absolute-millimetre value (L02), and cited in a new decision entry.
   3. The owner prints a bolt and its matching nut at the default clearance and they thread together by hand: the release's manual acceptance. The kernel verdict for that pair is `proven`, which is necessary, not sufficient.
-  4. The test also drives a nominal printed bolt into a bought nut and records the result; if it binds, PAIR-07 (bolt-side `undersize`) is promoted to a v1.x requirement in REQUIREMENTS.md, otherwise the record says it is not needed.
+  4. ~~The test also drives a nominal printed bolt into a bought nut and records the result; if it binds, PAIR-07 (bolt-side `undersize`) is promoted to a v1.x requirement in REQUIREMENTS.md, otherwise the record says it is not needed.~~ **Deferred (R9, 2026-10-22):** PAIR-06 and PAIR-07 moved to v2; the owner dropped the bought-nut test from Phase 6.
   5. The printability threshold is a constant set from the same test and cited; sizes and pitches below it get a cap-and-warn printability warning naming its source on the UI, API and CLI.
 
 **Plans**: 2/10 plans executed (the pre-registration lands as its own PR before the first print; waves 2-9 sequential)
@@ -347,7 +347,7 @@ Plans:
 - [ ] 06-04-PLAN.md — Codex reviews PR A; it lands on main; the phase branch merges origin/main
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 06-05-PLAN.md — Run 1 and the bought-nut test: exports pinned, the owner prints and records, the rules read the default (or D-08) and the PAIR-07 outcome
+- [ ] 06-05-PLAN.md — Run 1: exports pinned, the owner prints and records, the rules read the default (or D-08)
 
 **Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 06-06-PLAN.md — The owner accepts the reading as permanent; the clearance default ships on every front end; L17 and the requirement evidence

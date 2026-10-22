@@ -92,6 +92,9 @@ Roadmap wording resolved by this discussion (planner: build to this, not to the 
   4032 / DIN 934 nuts at **M6, M8, M10 and M12, 3 samples each**, under the D-05 pass rule. PAIR-07
   is promoted to a v1.x requirement if **any size binds in 2 or more of its 3 samples**. Otherwise the
   record says it is not needed. This threshold is pre-registered with the method.
+- **Superseded 2026-10-22 by owner ruling R9** ("drop PAIR-06", option Defer + strip): PAIR-06 and PAIR-07
+  move to v2, and D-14, the bought nuts and the bought-nut record are dropped from Phase 6 before any print.
+  D-14 is kept here as the decision it was.
 
 ### Release scope and acceptance
 - **D-15:** Phase 6 does not release. The "not a product build" clause in the standing warning
