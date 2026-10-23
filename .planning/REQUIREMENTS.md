@@ -20,7 +20,7 @@ Requirements for the first release: the mating-pair cut (infra port, thread spik
 ### Mating Pair
 
 - [x] **PAIR-01**: User sets one `clearance` field, on the nut, in radial millimetres; a positive value moves the nut's thread surfaces away from the axis (larger hole, material removed from the nut). The bolt is built to nominal. The info panel shows both the radial and the diametral value. *(Evidence, Phase 5: `tests/test_nut.py::test_a_positive_clearance_moves_the_nut_thread_away_from_the_axis_on_both_hands`; the radial and diametral rows in `tests/test_calc.py::test_the_nut_pair_rows_are_the_eight_keys_in_the_fixed_order`.)*
-- [ ] **PAIR-02**: The default `clearance` is set once, before the first release, from a recorded FDM printed test (M6–M12 matrix, owner checkpoint) and cited in the decision log; it is never taken from a forum or vendor figure. Until the test is recorded, no default ships.
+- [x] **PAIR-02**: The default `clearance` is set once, before the first release, from a recorded FDM printed test (M6–M12 matrix, owner checkpoint) and cited in the decision log; it is never taken from a forum or vendor figure. Until the test is recorded, no default ships. *(Evidence, Phase 6: decision log L17, 0.15 mm read by `bench.print_rules.default_from` from run `06-print-run-1` (record sha256 `f76753ded41726daec0a11ec4c5eabc5f4d2afb094cbe258d5e9d915aa6db725`) and accepted as permanent by the owner on 2026-10-23; `tests/test_print_rules.py::test_the_shipped_clearance_default_is_the_one_run_1_reads`.)*
 - [x] **PAIR-03**: A kernel-level interference check proves a bolt/nut pair at the chosen clearance and returns `proven | violated | inconclusive` with its control: a half-pitch axial offset of the same pair must collide, or the verdict is `inconclusive`, never `proven`. Clearance ≤ 0 is `inconclusive` by definition. *(Evidence, Phase 5: `tests/test_pair.py::test_the_verify_cell_is_proven_as_pre_registered` and the kernel-free rule tests with positive controls in the same file; 240 of 240 grid cells equal their pre-registered verdict, `bench/RESULTS.md` "Pair tier (Phase 5, D-07)"; decision log L15.)*
 - [x] **PAIR-04**: The pair check is exposed as a function in the solid package, a `screw pair` CLI subcommand and a slow-tier test (one size in `make verify`, the full grid in a CI job). It is not an API endpoint; the API and UI show closed-form flank gaps instead. *(Evidence, Phase 5: `tests/test_cli_pair.py` (exit codes 0, 1, 2), `tests/test_import_boundaries.py` and the contract "The serving process and its workers never import the pair proof", `.github/workflows/pair.yml` and `make pair`. The first ubuntu run of the full grid is not yet recorded: `docs/tech_debt/active/2026-10-14-first-pair-yml-dispatch.md`.)*
 - [ ] **PAIR-05**: A bolt and nut from this tool, printed on an FDM printer at the chosen clearance, thread together by hand — the owner's manual acceptance for the release; a kernel `proven` is necessary, not sufficient.
@@ -87,7 +87,7 @@ Deferred to the second release. Tracked but not in the current roadmap.
 ### Tables and UX
 
 - **TABL-08**: Legacy DIN names (933, 931, 934, 912) resolve to the ISO preset with the wrench-size notice; aliases only, no DIN tables. Trigger: the first user searching by DIN number.
-- **INFO-06**: Non-binding print-hint text (orientation, layer height vs pitch). Trigger: the first printed test recorded.
+- **INFO-06**: Non-binding print-hint text (orientation, layer height vs pitch). Trigger: the first printed test recorded. Trigger fired: run 06-print-run-1 recorded (2026-10-23); placing it is the owner's roadmap call.
 
 ## Out of Scope
 
@@ -123,7 +123,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | THRD-04 | Phase 3 | Complete |
 | THRD-05 | Phase 5 | Complete |
 | PAIR-01 | Phase 5 | Complete |
-| PAIR-02 | Phase 6 | Pending |
+| PAIR-02 | Phase 6 | Complete |
 | PAIR-03 | Phase 5 | Complete |
 | PAIR-04 | Phase 5 | Complete |
 | PAIR-05 | Phase 6 | Pending |

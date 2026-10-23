@@ -24,6 +24,6 @@ A downloaded part has a fillet wider than the head it sits under, and the tool i
 cap-and-warn rule would have it warn. The solid is self-consistent, so no gate catches it.
 
 ## Next step
-Revisit before the Phase 6 release, or when the fillet or the head next changes. Leave the ring out
+Revisit before the first release (after Phase 7), or when the fillet or the head next changes. Leave the ring out
 with a warning naming `s` when d/2 + r > s/2, as `end_depths` does for the nut's countersink, or add
 the case to the standing "ends modelled" warnings.
