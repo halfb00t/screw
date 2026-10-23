@@ -7491,4 +7491,21 @@ manifest `bench/results/phase-06/manifest-acceptance.tsv`:
 | `bolt_d8_pitch1.25_left_hand0_length16_s13_k5.3_thread_length16.stl` | 10449184 | `30f2fca0e0e06a1714f7564097a0e37f1991cc5ba71f98c0bb833f9cf4635814` |
 | `nut_d8_pitch1.25_left_hand0_s13_m6.8_clearance0.15.stl` | 4064084 | `4c09af10e06bae18ebbc756eab0968802ef01b8cf4278629a6213414cacc6324` |
 
-Owner's fit test: pending (plan 06-10 Task 2)
+Page downloads (2026-10-23, 21:29 local, owner's browser, bolt preset ISO 4017 M8 x 16 and the bolt's
+Matching nut link with the clearance field left at its default). The owner named the directory
+`~/Downloads/3dprint`, not two file paths; the two files resolved there are listed. Digests recomputed
+here with `shasum -a 256` and sizes with `stat`, not taken from the orchestrator's check:
+
+| name | bytes | sha256 | equals manifest |
+|---|---|---|---|
+| `bolt_d8_pitch1.25_left_hand0_length16_s13_k5.3_thread_length16.stl` | 10449184 | `30f2fca0e0e06a1714f7564097a0e37f1991cc5ba71f98c0bb833f9cf4635814` | yes (name, bytes, digest) |
+| `nut_d8_pitch1.25_left_hand0_s13_m6.8_clearance0.15.stl` | 4064084 | `4c09af10e06bae18ebbc756eab0968802ef01b8cf4278629a6213414cacc6324` | yes (name, bytes, digest) |
+
+The page path gave the shipped default's files: both downloads are byte-identical to the pre-registered
+CLI default-path exports.
+
+Print date: 21:53, 2026-10-23 (owner's reply). Fresh pair; no matrix or run-2 part counts (D-16).
+
+Owner's fit test: pass. Owner's reply, verbatim: "Path: ~/Downloads/3dprint / Print date: 21:53 10.23.2026 /
+Result: pass". The owner reported no turns and no notes beyond `pass`; the hand judgement is D-05's and is
+the owner's word, with no mechanical check behind it.

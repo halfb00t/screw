@@ -23,7 +23,7 @@ Requirements for the first release: the mating-pair cut (infra port, thread spik
 - [x] **PAIR-02**: The default `clearance` is set once, before the first release, from a recorded FDM printed test (M6–M12 matrix, owner checkpoint) and cited in the decision log; it is never taken from a forum or vendor figure. Until the test is recorded, no default ships. *(Evidence, Phase 6: decision log L17, 0.15 mm read by `bench.print_rules.default_from` from run `06-print-run-1` (record sha256 `f76753ded41726daec0a11ec4c5eabc5f4d2afb094cbe258d5e9d915aa6db725`) and accepted as permanent by the owner on 2026-10-23; `tests/test_print_rules.py::test_the_shipped_clearance_default_is_the_one_run_1_reads`.)*
 - [x] **PAIR-03**: A kernel-level interference check proves a bolt/nut pair at the chosen clearance and returns `proven | violated | inconclusive` with its control: a half-pitch axial offset of the same pair must collide, or the verdict is `inconclusive`, never `proven`. Clearance ≤ 0 is `inconclusive` by definition. *(Evidence, Phase 5: `tests/test_pair.py::test_the_verify_cell_is_proven_as_pre_registered` and the kernel-free rule tests with positive controls in the same file; 240 of 240 grid cells equal their pre-registered verdict, `bench/RESULTS.md` "Pair tier (Phase 5, D-07)"; decision log L15.)*
 - [x] **PAIR-04**: The pair check is exposed as a function in the solid package, a `screw pair` CLI subcommand and a slow-tier test (one size in `make verify`, the full grid in a CI job). It is not an API endpoint; the API and UI show closed-form flank gaps instead. *(Evidence, Phase 5: `tests/test_cli_pair.py` (exit codes 0, 1, 2), `tests/test_import_boundaries.py` and the contract "The serving process and its workers never import the pair proof", `.github/workflows/pair.yml` and `make pair`. The first ubuntu run of the full grid is not yet recorded: `docs/tech_debt/active/2026-10-14-first-pair-yml-dispatch.md`.)*
-- [ ] **PAIR-05**: A bolt and nut from this tool, printed on an FDM printer at the chosen clearance, thread together by hand — the owner's manual acceptance for the release; a kernel `proven` is necessary, not sufficient.
+- [x] **PAIR-05**: A bolt and nut from this tool, printed on an FDM printer at the chosen clearance, thread together by hand — the owner's manual acceptance for the release; a kernel `proven` is necessary, not sufficient. *(Evidence, Phase 6: `bench/RESULTS.md` "Acceptance pair (Phase 6, D-16)". The kernel read `proven` for the M8 pair at the shipped 0.15 mm default; the owner's page downloads (ISO 4017 M8 x 16 bolt, its Matching nut link, clearance left at the default) equal the pre-registered `manifest-acceptance.tsv` in name, bytes and sha256 (bolt `30f2fca0...5814`, nut `4c09af10...6324`); the owner printed that fresh pair on 2026-10-23 at 21:53 with the protocol's one profile and recorded `pass`, threading by hand under D-05. Matrix and run-2 samples are excluded, D-16.)*
 
 ### Fastener Types
 
@@ -126,7 +126,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PAIR-02 | Phase 6 | Complete |
 | PAIR-03 | Phase 5 | Complete |
 | PAIR-04 | Phase 5 | Complete |
-| PAIR-05 | Phase 6 | Pending |
+| PAIR-05 | Phase 6 | Complete |
 | PAIR-06 | v2 (deferred) | Deferred: deferred by owner ruling 2026-10-22 (06 R9): bought-nut test dropped from Phase 6 |
 | TYPE-01 | Phase 4 | Complete |
 | TYPE-02 | Phase 4 | Complete |
