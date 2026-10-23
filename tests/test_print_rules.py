@@ -194,6 +194,21 @@ def test_a_record_that_is_not_the_pinned_one_is_refused(tmp_path: Path) -> None:
         rules.load(record, "0" * 64)
 
 
+@pytest.mark.parametrize("newline", ["\r\n", "\r"], ids=["crlf", "cr"])
+def test_a_record_saved_with_other_line_endings_reads_the_same_by_both_paths(
+    tmp_path: Path, newline: str
+) -> None:
+    # An editor on another system may save the owner's record with CRLF. `read_text()` folds that
+    # to LF while `load()` used to hand back the carriage returns, so a record could pass the
+    # owner's check and be refused once pinned. The digest is of the bytes as saved.
+    record = tmp_path / "record.tsv"
+    lf = _text(rules.MATRIX_COLUMNS, _matrix_rows(lambda s, c, n: True))
+    record.write_bytes(lf.replace("\n", newline).encode("utf-8"))
+    digest = hashlib.sha256(record.read_bytes()).hexdigest()
+    assert rules.load(record, digest) == lf == record.read_text(encoding="utf-8")
+    assert rules.read_matrix(rules.load(record, digest)) == _matrix(lambda s, c, n: True)
+
+
 def test_a_rule_given_fewer_keys_than_pre_registered_refuses() -> None:
     matrix = _matrix(lambda s, c, n: True)
     del matrix[("M6", 0.05, 1)]

@@ -81,13 +81,15 @@ def load(path: Path, sha256: str) -> str:
     """The text of the record at `path`, refused unless its bytes are the pinned ones.
 
     A record edited after its digest was pinned would make every derived number a reading of
-    something nobody pre-registered, so the digest is checked before a byte is parsed.
+    something nobody pre-registered, so the digest is checked before a byte is parsed. Line
+    endings are folded to LF after the check, as `Path.read_text()` does, so an owner's CRLF
+    record reads the same through either path.
     """
     data = path.read_bytes()
     digest = hashlib.sha256(data).hexdigest()
     if digest != sha256:
         raise ValueError(f"{path} is not the pinned record: sha256 {digest}, expected {sha256}")
-    return data.decode("utf-8")
+    return data.decode("utf-8").replace("\r\n", "\n").replace("\r", "\n")
 
 
 def _cells(text: str, columns: tuple[str, ...]) -> _Cells:
