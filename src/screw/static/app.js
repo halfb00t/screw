@@ -464,7 +464,7 @@ function renderInfo(info) {
 // names clearance (D-02), and rememberTyped skips any field with a default, which clearance has
 // since L17, so lastTyped holds only fields without one (none today) and the generic rule adds
 // them before the server's fields, which win. The nut therefore opens with its default clearance
-// (L17), never one the user did not type. No kind, field or label is named here (L15 amendment
+// (L17); a clearance typed on this page is not carried over. No kind, field or label is named here (L15 amendment
 // 2026-10-21, G-05-3).
 function showCounterpart(counterpart) {
   counterpartLink.hidden = counterpart === null;
