@@ -1425,6 +1425,24 @@ def test_m2_and_m2_5_warn_on_both_printability_edges(
     assert text.index("d ") < text.index("pitch ")
 
 
+@pytest.mark.parametrize(("d", "pitch", "head"), [
+    (3.999999, 0.7, "d 3.999999 mm is below d_min 4 mm"),
+    (4.0, 0.6999999, "pitch 0.6999999 mm is below P_min 0.7 mm"),
+    (3.999999, 0.6999999,
+     "d 3.999999 mm is below d_min 4 mm and pitch 0.6999999 mm is below P_min 0.7 mm")])
+def test_the_printability_warning_prints_the_exact_value_just_below_each_edge(
+        d: float, pitch: float, head: str) -> None:
+    # L02: a number the tool prints is a number someone cuts metal to. Six significant digits
+    # would print d 3.999999 as "4" and call it below d_min 4 mm.
+    assert printability.printability_warning(d, pitch) == f"{head}: {THRESHOLD_TAIL}"
+
+
+@pytest.mark.parametrize("d", [5.999999, 12.000001])
+def test_the_measured_range_warning_prints_the_exact_value_just_outside_each_edge(
+        d: float) -> None:
+    assert printability.measured_range_warning(d, 1.0) == MEASURED_RANGE.format(d=repr(d))
+
+
 async def _inline_backend(p: FastenerParams, fmt: str, quality: str) -> bytes:
     # In process, so the check needs no pool (as tests/test_parity.py).
     return export(p, cast(Format, fmt), cast(Quality, quality))
