@@ -57,7 +57,7 @@ Run 2 happens after the default ships and only then. `python -m bench.print_matr
 
 ### Acceptance (D-16)
 
-After the default ships, one fresh M8 pair is made through the page: the ISO 4017 M8 x 16 preset, its Matching nut link, `clearance` left at its default, both parts downloaded. Both downloads are compared byte for byte with the files of `python -m bench.print_matrix export acceptance`. Before the pair is printed, the kernel verdict of `screw pair nut --d 8 --pitch 1.25 --s 13 --m 6.8` must read proven. The two printed parts must pass the fit test above.
+After the default ships, one fresh M8 pair is made through the page: the ISO 4017 M8 x 16 preset, its Matching nut link, `clearance` left at its default, both parts downloaded. Both downloads are compared byte for byte with the files of `python -m bench.print_matrix export acceptance -o bench/results/phase-06/stl/acceptance`. Before the pair is printed, the kernel verdict of `screw pair nut --d 8 --pitch 1.25 --s 13 --m 6.8` must read proven. The two printed parts must pass the fit test above.
 
 ## Records
 

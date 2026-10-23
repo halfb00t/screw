@@ -374,6 +374,9 @@ def test_the_protocol_states_the_numbers_the_rules_read() -> None:
         *(p.relative_to(rules.ROOT).as_posix() for p in (rules.RUN_1, rules.RUN_2)),
         *(f"`{c}`" for c in sorted(columns)),
         "default_from", "threshold_from",
+        # The export refuses to run without -o, so a command that omits it cannot be followed.
+        *(f"export {run} -o bench/results/phase-06/stl/{run}"
+          for run in ("run-1", "run-2", "acceptance")),
     ]
     assert [w for w in wanted if w not in text] == []
     # The counts above are the matrix's own, not just words that happen to agree with it.
