@@ -335,6 +335,23 @@ def test_a_foreign_or_abbreviated_flag_exits_2(kind: str,
         capsys.readouterr()
 
 
+def test_the_measured_range_warning_is_the_same_on_the_cli_and_the_api(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    # D-09: one producer, `derive()`, so a nut outside M6 to M12 says it identically on both
+    # front ends, and the page, which renders `info.warnings` as text, needs no copy of it.
+    values: Params = {"d": 5.0, "pitch": 0.8, "s": 8.0, "m": 4.7}
+    cli.main(["info", "nut", *(a for k, v in values.items() for a in (_flag(k), repr(v)))])
+    cli_doc = json.loads(capsys.readouterr().out)
+    response = client.get("/api/nut/info", params=values)
+    assert response.status_code == 200
+    assert response.json() == cli_doc
+    sentence = ("d 5 mm is outside M6 to M12, the sizes the clearance default was measured on "
+                "(L17, run 06-print-run-1)")
+    assert sentence in cli_doc["warnings"]
+    assert cli_doc["warnings"][0] == STANDING_WARNING
+    assert sentence not in APP_JS
+
+
 @pytest.mark.parametrize("kind", list(KINDS))
 def test_the_cli_and_the_api_print_the_same_document(
         kind: str, capsys: pytest.CaptureFixture[str]) -> None:

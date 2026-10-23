@@ -1303,3 +1303,59 @@ def test_a_nut_with_room_for_its_ends_carries_no_end_warning_and_its_formula_nam
     text = next(w for w in broken.warnings if w.startswith("volume not reported"))
     assert "lead-in countersinks" in text
     assert "face chamfers" in text
+
+
+MEASURED_RANGE = ("d {d} mm is outside M6 to M12, the sizes the clearance default was measured on "
+                  "(L17, run 06-print-run-1)")
+
+
+def _measured_range_warnings(p: FastenerParams) -> list[str]:
+    return [w for w in derive(p).warnings if "the sizes the clearance default was measured on" in w]
+
+
+@pytest.mark.parametrize(("d", "pitch", "s"), [(5.0, 0.8, 8.0), (14.0, 2.0, 22.0)])
+def test_a_nut_outside_the_measured_range_warns_with_or_without_a_typed_clearance(
+        d: float, pitch: float, s: float) -> None:
+    omitted = NutParams(d=d, pitch=pitch, s=s)
+    typed = NutParams(d=d, pitch=pitch, s=s, clearance=0.3)
+    expected = [MEASURED_RANGE.format(d=f"{d:g}")]
+    assert _measured_range_warnings(omitted) == expected
+    assert _measured_range_warnings(typed) == expected
+
+
+@pytest.mark.parametrize(("d", "is_warned"), [
+    (5.0, True), (6.0, False), (8.0, False), (10.0, False), (12.0, False), (14.0, True),
+    (math.nextafter(6.0, 0.0), True), (math.nextafter(12.0, math.inf), True),
+    (math.nextafter(6.0, math.inf), False), (math.nextafter(12.0, 0.0), False)])
+def test_the_measured_range_edges_warn_on_the_outside_only(d: float, is_warned: bool) -> None:
+    # model_construct: the edges are about the rule, not about which d the parameter model admits.
+    nut = NutParams.model_construct(d=d, pitch=1.0, s=30.0, m=5.0, clearance=0.15, left_hand=False)
+    assert bool(_measured_range_warnings(nut)) is is_warned
+
+
+@pytest.mark.parametrize("d", [3.0, 5.0, 6.0, 12.0, 14.0])
+def test_a_bolt_never_carries_the_measured_range_warning(d: float) -> None:
+    assert _measured_range_warnings(BoltParams(d=d, s=2 * d)) == []
+
+
+def test_the_measured_range_warning_changes_no_row_and_keeps_the_warning_order(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    # The sentence sits after the download refusal and before the counterpart's off-row sentence,
+    # which stays last (D-09, D-15): M5 x 0.8 and a tall m draws the refusal, d 5.5 the off-row.
+    outside = NutParams(d=5.0, pitch=0.8, s=9.0, m=40.0, clearance=0.1)
+    info = derive(outside)
+    new = MEASURED_RANGE.format(d="5")
+    refusal = download_refusal(outside, "stl", "fine")
+    assert refusal is not None
+    assert info.warnings[0] == STANDING_WARNING
+    assert info.warnings.index(refusal) < info.warnings.index(new)
+    off_row = derive(NutParams(d=5.5, pitch=0.8, s=9.0, m=5.0, clearance=0.1)).warnings
+    assert off_row[-2] == MEASURED_RANGE.format(d="5.5")
+    assert off_row[-1].startswith("no ISO 4017:2022 row for")
+    # With the sentence switched off the rows and every other warning are the same: the warning is
+    # the only change (L02, T-06-15).
+    with monkeypatch.context() as m:
+        m.setattr(calc, "measured_range_warning", lambda d, pitch: None)
+        plain = derive(outside)
+    assert info.rows == plain.rows
+    assert [w for w in info.warnings if w != new] == plain.warnings

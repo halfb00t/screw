@@ -18,7 +18,7 @@ import pytest
 
 from bench import print_matrix as matrix
 from bench import print_rules as rules
-from screw.calc import derive
+from screw.calc import derive, printability
 from screw.calc.presets import expand
 from screw.params import NutParams
 from screw.tables import iso262
@@ -293,6 +293,20 @@ def test_the_run_1_record_is_the_one_pinned(tmp_path: Path) -> None:
     edited.write_bytes(rules.RUN_1.read_bytes().replace(b"\tbind\t", b"\tpass\t", 1))
     with pytest.raises(ValueError, match="is not the pinned record"):
         rules.load(edited, rules.RUN_1_SHA256)
+
+
+def test_the_measured_range_is_the_sizes_run_1_printed() -> None:
+    # D-09, R6: the D-09 warning's bounds are the d of the smallest and largest size of run 1's
+    # matrix, read from the rule module's own table and never typed twice.
+    diameters = [rules.COARSE[size][0] for size in rules.SIZES]
+    assert min(diameters) == printability.MEASURED_D_MIN_MM
+    assert max(diameters) == printability.MEASURED_D_MAX_MM
+    assert printability.CLEARANCE_RUN == rules.RUN_1_ID
+    assert printability.CLEARANCE_ENTRY == "L17"
+    # Every size the matrix printed is inside the range, so none of them carries the warning.
+    for size in rules.SIZES:
+        d, pitch = rules.COARSE[size]
+        assert printability.measured_range_warning(d, pitch) is None
 
 
 def test_run_1_reads_a_default_of_0_15_mm_by_d_07() -> None:
