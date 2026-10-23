@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 06
 current_phase_name: Printed Pair Acceptance
 status: executing
-stopped_at: Completed 06-05-PLAN.md
-last_updated: "2026-10-23T13:15:15.341Z"
+stopped_at: Completed 06-06-PLAN.md
+last_updated: "2026-10-23T14:08:42.821Z"
 last_activity: 2026-10-22
 last_activity_desc: Phase 06 execution started
-state_head: 3273e51cc20150ca7f5893b73ac28ccfa7339233
+state_head: c8d2a7288949111863b0a62aa5f83e36c3b3384c
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 77
-  completed_plans: 72
+  completed_plans: 73
   percent: 71
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-22)
 ## Current Position
 
 Phase: 06 (Printed Pair Acceptance) — EXECUTING
-Plan: 6 of 10
+Plan: 7 of 10
 Status: Ready to execute
 Last activity: 2026-10-22 — Phase 06 execution started
 
@@ -132,6 +132,7 @@ Progress: [███████░░░] 71%
 | Phase 06 P03 | 70min | 3 tasks | 12 files |
 | Phase 06 P04 | 130min | 2 tasks | 3 files |
 | Phase 06 P05 | 25min | 3 tasks | 5 files |
+| Phase 06 P06 | 40min | 3 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -263,6 +264,8 @@ Recent decisions affecting current work:
 - [Phase 06]: 06-04: R3 order is enforced per clearance (0.25 is 1 ... 0.05 is 5); a nut fitted out of turn is refused, never corrected
 - [Phase 06]: 06-05: run 1 read by default_from gives 0.15 mm (M6, M8 pass from 0.1; M10, M12 bind at 0.1; 0.05 binds everywhere); D-08 did not fire; P1 (0.10) not borne out; shipping is 06-06
 - [Phase 06]: 06-05: run-1 record transcribed by Claude from the owner's prose report and confirmed by the owner as correct (2026-10-23); pinned as RUN_1_SHA256 f76753de...
+- [Phase 06]: 06-06: nut clearance default is 0.15 mm, frozen (L17); owner replied 'permanent: accepted' on 2026-10-23; _req became _free (R8); PAIR-02 complete
+- [Phase 06]: 06-06: tests/test_cli_pair.py rewritten in the Task 2 commit (ninth file; its no-clearance pair test pinned the old refusal); INDEX.md trigger rows moved with the three debt items
 
 ### Pending Todos
 
@@ -308,6 +311,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-23T13:15:15.193Z
-Stopped at: Completed 06-05-PLAN.md
+Last session: 2026-10-23T14:08:42.669Z
+Stopped at: Completed 06-06-PLAN.md
 Resume file: None
