@@ -34,7 +34,7 @@ covered_files:
   - "src/screw/calc/printability.py"
   - "src/screw/params.py"
   - "tests/test_print_rules.py"
-covered_digest: "v3:sha256:5001ef62d17946698fc6ba39c58cab71e8553f6f271f6607d79f7e7758d94164"
+covered_digest: "v3:sha256:2a284a29d6e5bb2856669b8790de0a88ac61d2a6fd6253d36c3b45006995e41d"
 behavior_unverified: 0
 overrides_applied: 0
 human_verification:
@@ -143,7 +143,7 @@ None blocking. Code-review findings (Codex, cross-CLI) WR-01, WR-02, WR-03, IN-0
 
 | File | Issue | Severity | Impact |
 |------|-------|----------|--------|
-| `bench/RESULTS.md` ~L7274-7277 (run-1 entry, "Off-protocol, as reported") | Stale: says the M3 to M5 prints "are not run 2", "no number or threshold is read from them" and "Run 2 remains to be decided". R10 later made them run 2 and L18 reads M4 from them. Also says M4/M5 "pass at 0.1 and bind below" while the run-2 entry says bound "after half a turn" below 0.1. | Warning | Contradicts the run-2 entry and L18 for a reader of RESULTS top to bottom. Not a gap: the later entry and L18 are correct and explicit. Suggest a one-line pointer to R10 under the paragraph. |
+| `bench/RESULTS.md` ~L7274-7279 (run-1 entry, "Off-protocol, as reported") | RESOLVED by `9b51f12`: the paragraph still says the M3 to M5 prints "are not run 2" and "Run 2 remains to be decided", but a two-line italic note directly under it now marks it superseded by owner ruling R10 and points to the run-2 entry and L18. The minor wording difference ("bind below 0.1" here, "after half a turn" in the run-2 entry) remains inside the superseded text; the run-2 entry is the authoritative statement. | Info (was Warning) | None: a reader hits the supersession note immediately. |
 | `docs/architecture/decision_log.md` L17 "Outside the measured range" | Future tense ("will carry ... plan 06-07 wires it"), now wired | Info | Cosmetic |
 
 ### Human Verification Required
