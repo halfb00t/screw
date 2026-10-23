@@ -7202,3 +7202,86 @@ lead-in countersink piece gate; no file exists and no sum):
 - It is one run on macOS arm64, not linux/amd64 (Phase 7 re-measures, OPER-02), against the INTERIM
   64 MiB budget and the fine preset, on a load-shared host. It measures nothing above C = 5 mm, by
   R16: a fine STL above C is refused, not capped.
+
+
+## Printed pair matrix (Phase 6, 06-print-run-1)
+
+PAIR-02 asks for a default `clearance` that comes from a recorded printed test, not from a forum or
+vendor figure. This entry is run 1 of that test: the clearance ladder 0.05, 0.1, 0.15, 0.2, 0.25 mm at
+the four coarse sizes M6, M8, M10 and M12, three samples per cell (60 nuts, 12 bolts).
+
+**The rule, fixed before the run.** Protocol and reader landed on `main` in PR A (#19), squash commit
+`16f7041`, before any part was exported or printed: `06-PRINT-PROTOCOL.md` ("Rules", D-05 to D-08) and
+`bench/print_rules.py` (`read_matrix`, `default_from`). A sample passes or binds by the hand fit test; a
+cell (size, clearance) passes when all 3 samples do; the default is the smallest step from which every
+cell of every size passes, and D-08 returns no default when no step qualifies or a size is not
+monotone. Order of fitting per bolt was R3 (loosest first), the plate rule R4, the only reprint
+exception R5. The owner's P1 prediction was 0.10 mm; it was never an input.
+
+**The parts.** The product's own fine exports, made by `python -m bench.print_matrix export run-1 -o
+bench/results/phase-06/stl/run-1` from the landed code: 24 STL files (4 bolts, 20 nuts). The manifest
+`bench/results/phase-06/manifest-run-1.tsv` (name, bytes, sha256 of every file) was committed in
+`646b07d` before the first print; its own sha256 is
+`b98c445f88c1b7d21e198deb5d2ef17a77b698310b969d0e2b90f1cb445edb0d`.
+
+**The print.** One profile for every part, the protocol's "Print profile" on `main`: Prusa MK4, 0.4 mm
+nozzle, Prusa PETG, 0.2 mm layers, PrusaSlicer with the stock Prusa PETG profile, nut on its face and
+bolt head-down. Print and test dates: not reported by the owner (reported 2026-10-23). Plates: the
+owner printed each (size, sample) group, one bolt and its five nuts, on its own bed: 12 beds labelled
+M6-1 to M12-3. Sample k of every cell is therefore on a bed labelled `-k`, which is plate set k of R4.
+No part failed to print and no R5 reprint was reported; no note says `reprinted: print failure`.
+
+**The record, and where it came from.** `bench/results/phase-06/print-run-1.tsv`, sha256
+`f76753ded41726daec0a11ec4c5eabc5f4d2afb094cbe258d5e9d915aa6db725`, pinned as `RUN_1_SHA256` in
+`bench/print_rules.py`. The owner printed and fit-tested and reported the results in prose. The
+orchestrating Claude transcribed that report into the TSV, and the owner then confirmed the full
+60-row table as correct ("correct", 2026-10-23). The owner did not type the cells; every cell is the
+owner's reported observation as transcribed and confirmed. The agent that pinned the record changed no
+cell. The owner confirmed that all 3 samples of a cell behaved the same and that "binds immediately"
+means the nut would not start, recorded as 0 turns. The owner's words:
+
+> all groups were printed separately
+>
+> m6, m8 - 0.1 clearence worked, less - binds immediately
+>
+> m10, m12 - 0.15 celarence workds, less - binds immediately
+>
+> loose: 0.20 and 0.25 loose for m4, m5, m6. 0.25 for m8, m10
+
+(The loose line also names M4 and M5, which are not run 1; they are left out of this record.)
+
+**The reading.** `default_from(read_matrix(load(RUN_1, RUN_1_SHA256)))`, run through the landed rule
+with a one-off script over `read_matrix` output, not by reading the file by eye. The record read
+cleanly: 60 samples, every `order` the one R3 gives its clearance. Passes per cell, n of 3:
+
+| size | 0.05 | 0.1 | 0.15 | 0.2 | 0.25 |
+|---|---|---|---|---|---|
+| M6 | 0/3 | 3/3 | 3/3 | 3/3 | 3/3 |
+| M8 | 0/3 | 3/3 | 3/3 | 3/3 | 3/3 |
+| M10 | 0/3 | 0/3 | 3/3 | 3/3 | 3/3 |
+| M12 | 0/3 | 0/3 | 3/3 | 3/3 | 3/3 |
+
+42 passes and 18 binds; every bind is 0 turns, so no sample stopped part-way. 12 passes are noted
+`loose`: M6 at 0.2 and 0.25 (6), M8 at 0.25 (3), M10 at 0.25 (3). No R5 note.
+
+**Outcome (D-07): the default is 0.15 mm.** Every size passes 3/3 from 0.15 mm up, and no size has a
+passing cell below a failing one, so D-08 did not fire. `tests/test_print_rules.py` asserts it:
+`test_run_1_reads_a_default_of_0_15_mm_by_d_07`, with `test_the_run_1_record_is_the_one_pinned`
+refusing any later byte change of the record. The P1 prediction (0.10 mm) was not borne out: M10 and
+M12 bind at 0.1 in 3 of 3. M6 and M8 would have passed at 0.1, so the size that sets the default is
+the larger pair.
+
+**Off-protocol, as reported.** The owner also printed M3 to M5 informally, before any default shipped:
+M3 "too small to print"; M4 and M5 pass at 0.1 and bind below. That is not run 2: those parts are not
+the run-2 exports, are not in `print-run-2.tsv`, and no number or threshold is read from them. Run 2
+(plan 06-08) remains to be decided by the owner.
+
+**What this shows / what it does not.** It shows that on this printer and profile a product nut at
+0.15 mm clearance threaded by hand onto a product bolt at M6, M8, M10 and M12, in 12 of 12 samples,
+and that 0.05 mm bound at every size (12 of 12). It does not show anything for another printer,
+material, layer height, nozzle or orientation, nor for sizes between or outside M6 to M12 (the
+M3 to M5 readings above are informal), nor for fine pitch. It tests a nominal bolt against a nut with
+a clearance, not a toleranced pair. The pass is a hand judgement under D-05, and the table above is a
+transcription of a verbal report that the owner confirmed. The bind turns are all 0, so the matrix
+gives no measure of how far from passing a tight cell is. Whether 0.15 mm is also the right default
+for a part printed upright or on a finer layer is open.

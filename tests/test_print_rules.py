@@ -283,6 +283,23 @@ def test_the_committed_records_list_every_sample_in_order() -> None:
     assert _key_columns(rules.RUN_2, 2) == [(s, str(n)) for s, n in rules.small_keys()]
 
 
+def test_the_run_1_record_is_the_one_pinned(tmp_path: Path) -> None:
+    text = rules.load(rules.RUN_1, rules.RUN_1_SHA256)
+    assert len(rules.read_matrix(text)) == 60
+    # One byte of one result cell changed: the record is no longer the pinned one.
+    edited = tmp_path / "print-run-1.tsv"
+    edited.write_bytes(rules.RUN_1.read_bytes().replace(b"\tbind\t", b"\tpass\t", 1))
+    with pytest.raises(ValueError, match="is not the pinned record"):
+        rules.load(edited, rules.RUN_1_SHA256)
+
+
+def test_run_1_reads_a_default_of_0_15_mm_by_d_07() -> None:
+    # D-07 as `default_from` reads the pinned record; bench/RESULTS.md states the same 0.15 mm.
+    # The owner's 0.1 mm prediction (P1) was not borne out: M10 and M12 bind at 0.1 in 3 of 3.
+    cells = rules.read_matrix(rules.load(rules.RUN_1, rules.RUN_1_SHA256))
+    assert rules.default_from(cells) == 0.15
+
+
 @pytest.mark.parametrize(("record", "read"), [
     ("run-1", rules.read_matrix), ("run-2", rules.read_small)])
 def test_an_unfilled_record_is_refused_at_its_first_row(

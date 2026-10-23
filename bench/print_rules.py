@@ -53,6 +53,9 @@ RUN_1 = RESULTS_DIR / "print-run-1.tsv"
 RUN_2 = RESULTS_DIR / "print-run-2.tsv"
 RUN_1_ID = "06-print-run-1"
 RUN_2_ID = "06-print-run-2"
+# the digest bench/RESULTS.md records for 06-print-run-1; pinned after the owner's last edit,
+# as the protocol's Records section says
+RUN_1_SHA256 = "f76753ded41726daec0a11ec4c5eabc5f4d2afb094cbe258d5e9d915aa6db725"
 
 _TURNS = re.compile(r"[0-9]+(\.[0-9]+)?")
 _SAMPLE_CELLS = {str(n): n for n in range(1, SAMPLES + 1)}
