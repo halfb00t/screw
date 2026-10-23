@@ -330,6 +330,25 @@ def test_an_omitted_clearance_and_the_typed_default_build_the_same_nut() -> None
     assert derive(NutParams()) == derive(typed)
 
 
+def test_the_run_2_record_is_the_one_pinned(tmp_path: Path) -> None:
+    text = rules.load(rules.RUN_2, rules.RUN_2_SHA256)
+    assert len(rules.read_small(text)) == 9
+    # One byte of one result cell changed: the record is no longer the pinned one.
+    edited = tmp_path / "print-run-2.tsv"
+    edited.write_bytes(rules.RUN_2.read_bytes().replace(b"\tpass\t", b"\tbind\t", 1))
+    with pytest.raises(ValueError, match="is not the pinned record"):
+        rules.load(edited, rules.RUN_2_SHA256)
+
+
+def test_run_2_reads_a_threshold_of_m4_by_d_10() -> None:
+    # D-10 as `threshold_from` reads the pinned record; bench/RESULTS.md states the same M4. M3 did
+    # not print a thread (3 of 3 recorded as bind), M4 and M5 passed 3/3 at the shipped default.
+    cells = rules.read_small(rules.load(rules.RUN_2, rules.RUN_2_SHA256))
+    size = rules.threshold_from(cells)
+    assert size == "M4"
+    assert rules.COARSE[size] == (4.0, 0.7)
+
+
 @pytest.mark.parametrize(("record", "read"), [
     ("run-1", rules.read_matrix), ("run-2", rules.read_small)])
 def test_an_unfilled_record_is_refused_at_its_first_row(

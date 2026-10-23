@@ -7285,3 +7285,86 @@ a clearance, not a toleranced pair. The pass is a hand judgement under D-05, and
 transcription of a verbal report that the owner confirmed. The bind turns are all 0, so the matrix
 gives no measure of how far from passing a tight cell is. Whether 0.15 mm is also the right default
 for a part printed upright or on a finer layer is open.
+
+
+## Printability run (Phase 6, 06-print-run-2)
+
+INFO-04 asks for the printability threshold, the smallest coarse size that prints and threads at the shipped
+default clearance, to come from a recorded printed test and not from a forum or vendor figure. This entry
+is run 2 of that test, and it is **not run 2 as it was pre-registered**: the owner accepted prints made
+before the default shipped (owner ruling R10, `06-OWNER-RULINGS.md`, 2026-10-23). Every departure is listed
+under "Where this departs from the protocol" below; none is smoothed over.
+
+**The rule, fixed before the run.** Protocol and reader landed on `main` in PR A (#19), squash commit
+`16f7041`, before any part was printed: `06-PRINT-PROTOCOL.md` ("Rules", D-10, D-11) and
+`bench/print_rules.py` (`read_small`, `threshold_from`). The threshold is the smallest of M3, M4 and M5
+that passes 3 of 3 together with every larger one of the three, and M6 when none does. The owner made no
+P3 prediction ("have no idea", 2026-10-22).
+
+**The parts and the default.** The shipped default clearance is 0.15 mm (L17, read from the run-1 record
+by `default_from`). The protocol had the nuts come from `python -m bench.print_matrix export run-2`,
+which passes no clearance argument, with a manifest committed before the first print. Neither happened:
+plan 06-08 Task 1 was not executed under R10 and **no `manifest-run-2.tsv` exists**, because the printed
+parts did not come from that export and a manifest committed now would say they did. The owner did not
+report where the printed parts came from. The record rests on the owner's statement that the 0.15 mm
+result is the one recorded; nothing in the repository ties the printed nuts to the shipped default's
+STL bytes.
+
+**The print.** The protocol's one profile (Prusa MK4, 0.4 mm nozzle, Prusa PETG, 0.2 mm layers,
+PrusaSlicer, stock Prusa PETG profile; "Print profile" on `main`). Print and test dates: not reported by
+the owner (reported 2026-10-23). Plates: each (size, sample) group was printed on its own bed, labelled
+M3-1 to M5-3, as in run 1.
+
+**The record, and where it came from.** `bench/results/phase-06/print-run-2.tsv`, sha256
+`6c2d924006db1ccca860b665fdc2cbcd3c84137b0edefb417e6c31aab9dd923e`, pinned as `RUN_2_SHA256` in
+`bench/print_rules.py`. The owner printed, fit-tested and reported the results in prose. The orchestrating
+Claude transcribed that report into the TSV and the owner confirmed it as correct (2026-10-23). The owner
+did not type the cells; each is the owner's reported observation as transcribed and confirmed. The agent
+that pinned the record changed no cell. The owner's words, as given to Claude Code:
+
+> passed at 0.1 and 0.15, loose at 0.20 and higher
+
+(said of M4 and M5.)
+
+> m2 and m3 were too small for the printer to print thread
+
+The owner also said that at less than 0.1 mm M4 and M5 bound after half a turn.
+
+**The reading.** `threshold_from(read_small(load(RUN_2, RUN_2_SHA256)))`, run through the landed rule and
+not by reading the file by eye. The record read cleanly as 9 samples. Passes per size, n of 3:
+
+| size | d | coarse pitch | passes at the default |
+|---|---|---|---|
+| M3 | 3 | 0.50 | 0/3 |
+| M4 | 4 | 0.70 | 3/3 |
+| M5 | 5 | 0.80 | 3/3 |
+
+**Outcome (D-10): the threshold is M4, so `d_min` is 4.0 mm and `P_min` is 0.7 mm.** M3 fails 3 of 3, M4
+and M5 pass 3 of 3, so the smallest size that passes together with every larger one is M4.
+`tests/test_print_rules.py` asserts it: `test_run_2_reads_a_threshold_of_m4_by_d_10` (which also asserts
+`COARSE["M4"]` is `(4.0, 0.7)`), with `test_the_run_2_record_is_the_one_pinned` refusing any later byte
+change of the record. No M4 or M5 sample is noted `loose` at 0.15 mm.
+
+**Where this departs from the protocol.**
+
+1. The parts were printed before the default shipped. They did not come from `export run-2`, no manifest
+   was committed before the first print, and the owner did not report their source.
+2. The owner tested a clearance ladder on M4 and M5, not only the default. Only the 0.15 mm result (the
+   shipped L17 default) is in the record. The other observations are these prose lines and nothing is
+   read from them: passed at 0.1 and 0.15; loose at 0.20 and higher; bound after half a turn below 0.1.
+3. M3: the owner reported the thread did not print. The record has only `pass` and `bind`, so each M3
+   sample is recorded `bind`, turns `0`, note `thread did not print`. That is a part with no printed
+   thread, not a nut that was fitted and stuck; the 0 turns mean no engagement was possible. M2 was
+   printed too and is outside the record: it is mentioned here and nothing is read from it.
+4. Three samples per size, each (size, sample) group on its own bed (M3-1 to M5-3), not plate sets as
+   R4 words them for run 1; the dates were not reported.
+
+**What this shows / what it does not.** It shows that on this printer and profile an M4 (pitch 0.7 mm)
+and an M5 (pitch 0.8 mm) nut threaded by hand onto a bolt of the same size in 3 of 3 samples each at
+0.15 mm, and that an M3 (pitch 0.5 mm) did not print a thread at all on the 0.4 mm nozzle at 0.2 mm
+layers. It does not show anything for another printer, material, layer height, nozzle or orientation. It
+covers coarse pitches only: a fine pitch at M4 or above is judged by the `P_min` edge alone (a pitch below
+0.7 mm warns), not by a print. M3 is a failure of the printed thread and the record cannot say whether a
+finer nozzle or layer would have printed it. Because of departures 1 and 2 the record is weaker evidence
+than the pre-registered run would have been: the link from these printed nuts to the shipped default's
+export is the owner's word and not a pinned file.
