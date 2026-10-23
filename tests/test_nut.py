@@ -1,4 +1,4 @@
-"""The nut kind's solid, its two gates and its required clearance.
+"""The nut kind's solid, its two gates and its defaulted clearance (L17).
 
 Covers TYPE-03, PAIR-01, D-01, D-04 and D-13.
 

@@ -315,8 +315,9 @@ async function navigate() {
   }
 
   if (kind !== currentKind || kind !== formKind) {
-    // The mesh on screen belongs to the other kind: it goes now, so a part that cannot build yet
-    // (a nut with no clearance typed) is never shown as the last valid part (R10, T-05-23).
+    // The mesh on screen belongs to the other kind: it goes now, so it is never shown as the new
+    // kind's last valid part while the new kind's schema and first info are still loading (R10,
+    // T-05-23).
     // The form is also rebuilt when the form on screen is not the link's kind: Back before a kind
     // switch's catalogue loaded leaves the overtaken navigation's form on screen while currentKind
     // still names the kind the link asks for. Measured: a bolt built under the nut's controls, then
@@ -460,10 +461,11 @@ function renderInfo(info) {
 
 // The matching part is a link built from the document and the page's own typing: the kind and every
 // field the server says carry over, as a hash the page already knows how to open. The server never
-// names a typed-only field such as clearance (D-02), so the page adds the target kind's typed values
-// (lastTyped) before the server's fields, and the server's fields win. With nothing typed in this
-// page the nut opens with its default clearance (L17). No kind, field or label is named here
-// (L15 amendment 2026-10-21, G-05-3).
+// names clearance (D-02), and rememberTyped skips any field with a default, which clearance has
+// since L17, so lastTyped holds only fields without one (none today) and the generic rule adds
+// them before the server's fields, which win. The nut therefore opens with its default clearance
+// (L17), never one the user did not type. No kind, field or label is named here (L15 amendment
+// 2026-10-21, G-05-3).
 function showCounterpart(counterpart) {
   counterpartLink.hidden = counterpart === null;
   if (counterpart === null) return;
