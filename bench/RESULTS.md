@@ -7275,6 +7275,8 @@ the larger pair.
 M3 "too small to print"; M4 and M5 pass at 0.1 and bind below. That is not run 2: those parts are not
 the run-2 exports, are not in `print-run-2.tsv`, and no number or threshold is read from them. Run 2
 (plan 06-08) remains to be decided by the owner.
+*Superseded 2026-10-23 by owner ruling R10: the owner later accepted these prints as run 2; see
+"## Printability run (Phase 6, 06-print-run-2)" and L18.*
 
 **What this shows / what it does not.** It shows that on this printer and profile a product nut at
 0.15 mm clearance threaded by hand onto a product bolt at M6, M8, M10 and M12, in 12 of 12 samples,
