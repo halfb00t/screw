@@ -18,7 +18,9 @@ import pytest
 
 from bench import print_matrix as matrix
 from bench import print_rules as rules
+from screw.calc import derive
 from screw.calc.presets import expand
+from screw.params import NutParams
 from screw.tables import iso262
 
 type MatrixOk = Callable[[str, float, int], bool]
@@ -298,6 +300,20 @@ def test_run_1_reads_a_default_of_0_15_mm_by_d_07() -> None:
     # The owner's 0.1 mm prediction (P1) was not borne out: M10 and M12 bind at 0.1 in 3 of 3.
     cells = rules.read_matrix(rules.load(rules.RUN_1, rules.RUN_1_SHA256))
     assert rules.default_from(cells) == 0.15
+
+
+def test_the_shipped_clearance_default_is_the_one_run_1_reads() -> None:
+    # PAIR-02, L17: the default the parameter model ships is the value default_from reads from the
+    # pinned record, so editing either one alone fails here.
+    cells = rules.read_matrix(rules.load(rules.RUN_1, rules.RUN_1_SHA256))
+    assert NutParams.model_fields["clearance"].default == rules.default_from(cells)
+
+
+def test_an_omitted_clearance_and_the_typed_default_build_the_same_nut() -> None:
+    # L02: a shareable link that omits clearance and one that types the default are one part.
+    typed = NutParams(clearance=0.15)
+    assert NutParams() == typed
+    assert derive(NutParams()) == derive(typed)
 
 
 @pytest.mark.parametrize(("record", "read"), [

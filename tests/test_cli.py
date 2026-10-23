@@ -3,6 +3,7 @@ and the exit codes a script depends on."""
 
 from __future__ import annotations
 
+import argparse
 import json
 import math
 import re
@@ -13,10 +14,11 @@ import sys
 from pathlib import Path
 
 import pytest
+from pydantic import Field
 
 from screw import __version__, cli
 from screw.calc import derive, download_refusal
-from screw.params import KINDS, BoltParams
+from screw.params import KINDS, BoltParams, FastenerParams
 
 WARNING = ("warning: ends modelled per L15: bolt tip chamfer, under-head fillet on an ISO 4014 "
            "plain shank, nut lead-in countersinks and face chamfers; nominal, not toleranced; "
@@ -192,23 +194,39 @@ def test_an_unknown_kind_exits_2(argv: list[str], capsys: pytest.CaptureFixture[
     assert "nut" in err
 
 
-@pytest.mark.parametrize("command", [["info", "nut"], ["export", "nut", "-o", "unused.stl"]])
-def test_a_nut_without_a_clearance_exits_2_naming_it(
-        command: list[str], capsys: pytest.CaptureFixture[str]) -> None:
-    # D-01, PAIR-01: no clearance has no default, so it is refused by name, never built.
-    assert _exit_code(command) == 2
-    err = capsys.readouterr().err
-    assert "error: clearance: " in err
-    assert "Traceback" not in err
+def test_a_nut_without_a_clearance_takes_the_default(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    # PAIR-02, L17: the clearance has a default, so it is built, never refused by name.
+    cli.main(["info", "nut"])     # returns instead of exiting: exit 0
+    rows = {row["key"]: row["value"] for row in json.loads(capsys.readouterr().out)["rows"]}
+    assert rows["clearance"] == 0.15
+    out = tmp_path / "n.stl"
+    cli.main(["export", "nut", "-o", str(out), "--quality", "preview"])
+    assert out.stat().st_size > 84
 
 
-def test_the_required_flag_is_marked_required_in_the_help(
+def test_a_required_flag_is_marked_required_in_the_help(
         capsys: pytest.CaptureFixture[str]) -> None:
-    assert _exit_code(["info", "nut", "--help"]) == 0
+    # No registered kind has a required field since L17, so the generic rule is tested on a planted
+    # model through the same `_add_args` the subcommands use.
+    class Planted(FastenerParams):
+        kind = "planted"
+        needed: float = Field(...)
+
+    parser = argparse.ArgumentParser()
+    cli._add_args(parser, "planted", Planted)
+    with pytest.raises(SystemExit):
+        parser.parse_args(["--help"])
     out = re.sub(r"\s+", " ", capsys.readouterr().out)
     assert "[required]" in out
     assert "PydanticUndefined" not in out
-    # A defaulted field of the same kind still shows its default.
+
+
+def test_a_defaulted_flag_shows_its_default_in_the_help(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    assert _exit_code(["info", "nut", "--help"]) == 0
+    out = re.sub(r"\s+", " ", capsys.readouterr().out)
+    assert "[required]" not in out
     assert "(ISO 4032 symbol m). [5.2]" in out
 
 

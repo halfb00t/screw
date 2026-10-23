@@ -43,19 +43,18 @@ def _f[T](default: T, *, gt: float, le: float | None = None, title: str, group: 
                  json_schema_extra=extra)
 
 
-def _req(*, le: float, title: str, group: str, unit: str = "", step: float | None = None,
-         help: str = "") -> float:
-    # The sibling of `_f` for a field with no default (D-01, PAIR-01): `Field(...)` is what makes
-    # pydantic answer a missing value with a 422 `missing` and leave `default` out of the schema,
-    # so the form, the CLI help and the parity tests can tell a required field from a defaulted
-    # one. No `gt`: any finite value up to `le` is a legal input (D-04, a nominal or interference
-    # fit is a value the user may ask for); `allow_inf_nan=False` refuses inf and nan as in `_f`.
+def _free(default: float, *, le: float, title: str, group: str, unit: str = "",
+          step: float | None = None, help: str = "") -> float:
+    # The sibling of `_f` for a field with a default and no lower bound: a nominal or interference
+    # fit is a value the user may ask for (D-04), so any finite value up to `le` is a legal input
+    # and the schema carries `default` but no `exclusiveMinimum`, which `_f`'s `gt` would add (and
+    # the form would turn into a `min`). `allow_inf_nan=False` refuses inf and nan as in `_f`.
     extra: JsonDict = {"group": group, "unit": unit}
     if step is not None:
         extra["step"] = step
-    required: float = Field(..., le=le, allow_inf_nan=False, title=title, description=help,
-                            json_schema_extra=extra)
-    return required     # typed here: `Field` returns Any, which --strict refuses to return
+    free: float = Field(default, le=le, allow_inf_nan=False, title=title, description=help,
+                        json_schema_extra=extra)
+    return free     # typed here: `Field` returns Any, which --strict refuses to return
 
 
 def _b(default: bool, *, title: str, group: str, help: str = "") -> bool:
@@ -181,10 +180,16 @@ class NutParams(FastenerParams):
                   step=0.1, help="Width across flats of the hexagon nut (ISO 4032 symbol s).")
     m: float = _f(5.2, gt=0, le=INTERIM_MAX_MM, title="Height", group="Nut", unit="mm", step=0.1,
                   help="Height of the nut along the axis (ISO 4032 symbol m).")
-    # D-01, PAIR-01: no default, no lower bound and no fallback until Phase 6 records the printed
-    # test. Any value a link omits is a 422, never a number the tool chose for the user.
-    clearance: float = _req(
-        le=INTERIM_MAX_MM, title="Clearance (radial)", group="Pair", unit="mm", step=0.01,
+    # D-07, PAIR-02, L02, L17: 0.15 mm is the smallest Phase 6 ladder step from which every printed
+    # M6 to M12 product nut threaded by hand onto its printed product bolt (run 06-print-run-1,
+    # record sha256 f76753ded41726daec0a11ec4c5eabc5f4d2afb094cbe258d5e9d915aa6db725; the owner's
+    # print profile is in 06-PRINT-PROTOCOL.md). It is the value `bench.print_rules.default_from`
+    # reads from that pinned record, and `tests/test_print_rules.py` re-derives it. The owner
+    # accepted it as permanent on 2026-10-23.
+    # Frozen: every shareable link that omits clearance means 0.15 forever, so a later reading is a
+    # new decision and never an edit here. No lower bound; the two refusals below stay as they were.
+    clearance: float = _free(
+        0.15, le=INTERIM_MAX_MM, title="Clearance (radial)", group="Pair", unit="mm", step=0.01,
         help="Radial clearance c in mm: both thread radii of the nut grow by c, so a positive "
              "value enlarges the nut's thread and 0 is the nominal profile. The diametral value "
              "(2 c) is on the info panel.")
