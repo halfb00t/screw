@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 06
 current_phase_name: Printed Pair Acceptance
 status: executing
-stopped_at: Completed 06-04-PLAN.md
-last_updated: "2026-10-23T02:11:02.019Z"
+stopped_at: Completed 06-05-PLAN.md
+last_updated: "2026-10-23T13:15:15.341Z"
 last_activity: 2026-10-22
 last_activity_desc: Phase 06 execution started
-state_head: 1332178799d520d974fc66b7b482e5092ca2ef5e
+state_head: 3273e51cc20150ca7f5893b73ac28ccfa7339233
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 77
-  completed_plans: 71
+  completed_plans: 72
   percent: 71
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-22)
 ## Current Position
 
 Phase: 06 (Printed Pair Acceptance) — EXECUTING
-Plan: 5 of 10
+Plan: 6 of 10
 Status: Ready to execute
 Last activity: 2026-10-22 — Phase 06 execution started
 
@@ -131,6 +131,7 @@ Progress: [███████░░░] 71%
 | Phase 06 P02 | 6min | 2 tasks | 1 files |
 | Phase 06 P03 | 70min | 3 tasks | 12 files |
 | Phase 06 P04 | 130min | 2 tasks | 3 files |
+| Phase 06 P05 | 25min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -260,6 +261,8 @@ Recent decisions affecting current work:
 - [Phase 06]: 06-02: owner rulings R1-R8 recorded 2026-10-22 in 06-OWNER-RULINGS.md (run 2 pre-registered with run 1; 12 extra bolts for bought nuts; loosest-to-tightest; plate set k per sample k; print failures reprinted alone, narrowing D-08; warn d<6 or d>12; L17 then L18; _req becomes _free)
 - [Phase 06]: R9 (owner, 2026-10-22): PAIR-06 and PAIR-07 deferred to v2, bought-nut test stripped from Phase 6; no Lxx entry
 - [Phase 06]: 06-04: R3 order is enforced per clearance (0.25 is 1 ... 0.05 is 5); a nut fitted out of turn is refused, never corrected
+- [Phase 06]: 06-05: run 1 read by default_from gives 0.15 mm (M6, M8 pass from 0.1; M10, M12 bind at 0.1; 0.05 binds everywhere); D-08 did not fire; P1 (0.10) not borne out; shipping is 06-06
+- [Phase 06]: 06-05: run-1 record transcribed by Claude from the owner's prose report and confirmed by the owner as correct (2026-10-23); pinned as RUN_1_SHA256 f76753de...
 
 ### Pending Todos
 
@@ -305,6 +308,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-23T02:11:01.876Z
-Stopped at: Completed 06-04-PLAN.md
+Last session: 2026-10-23T13:15:15.193Z
+Stopped at: Completed 06-05-PLAN.md
 Resume file: None
