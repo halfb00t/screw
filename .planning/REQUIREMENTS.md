@@ -47,7 +47,7 @@ Requirements for the first release: the mating-pair cut (infra port, thread spik
 - [x] **INFO-01**: The info panel shows, from the pure-maths module without touching the kernel: head (`s` nominal/max/min, across-corners geometric and `e,min` labelled separately, `k`, `dw,min`, wrench size), shank/thread (`l`, `b`, `ls`, `lg`, `d`, `P`, `d2`, `D1`, thread depth), nut (`s`, `e`, `m`, `mw`, `dw`, `D1`, `D2`), pair (clearance radial and diametral, resulting nut diameters, engagement in turns). *(Evidence, Phase 5: `tests/test_calc.py` (the nut's thread rows, `test_the_nut_pair_rows_are_the_eight_keys_in_the_fixed_order`, the nut rows of an exact row) and `tests/test_thread_maths.py` for the closed forms.)*
 - [x] **INFO-02**: 6g (bolt) and 6H (nut) min/max limits from ISO 965-2:2024 are shown with the explicit label "limits for a bought part; this model is nominal and not toleranced". Amended 2026-10-20 (L14): the limits are derived from the GOST 24705-2004 basic diameters plus the GOST 16093-2004 printed deviations and tolerances, and each row says derived and names both. *(Evidence, Phase 5: `tests/test_calc.py::test_the_limits_heading_is_the_ascii_text_of_info_02`, `test_every_iso_262_size_shows_its_own_stored_limits_on_both_kinds`, `tests/test_parity.py::test_the_limits_heading_is_the_same_ascii_string_on_the_cli_and_the_api` and the derived limits in `tests/test_tables.py`.)*
 - [x] **INFO-03**: Every number on the panel is traceable to an explicit mm field or to a cited row with a test; a value that cannot be computed honestly is a warning and no number. Any volume shown comes from the closed form, never from the kernel's default `Volume()`.
-- [ ] **INFO-04**: Sizes and pitches below the printable threshold get a cap-and-warn printability warning citing its source; the threshold is a constant set from the owner's printed test, not from vendor guides.
+- [x] **INFO-04**: Sizes and pitches below the printable threshold get a cap-and-warn printability warning citing its source; the threshold is a constant set from the owner's printed test, not from vendor guides. *(Evidence, Phase 6: decision log L18, M4 (`D_MIN_MM` 4.0, `P_MIN_MM` 0.7) read by `bench.print_rules.threshold_from` from run `06-print-run-2` (record sha256 `6c2d924006db1ccca860b665fdc2cbcd3c84137b0edefb417e6c31aab9dd923e`), the owner's earlier prints accepted under R10, so weaker evidence than the pre-registered run; `tests/test_print_rules.py::test_the_printability_threshold_is_the_one_run_2_reads`, the printability tests in `tests/test_calc.py` and `tests/test_parity.py`. It warns on bolts and nuts and never caps or refuses (D-13): nothing can be trimmed without changing a d or pitch the user set (L02).)*
 - [x] **INFO-05**: Where the wrench size differs from the withdrawn DIN equivalent (M10, M12 and M14 only, D-20) the panel shows the ISO value with a one-line note.
 
 ### Front Ends
@@ -142,7 +142,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFO-01 | Phase 5 | Complete |
 | INFO-02 | Phase 5 | Complete |
 | INFO-03 | Phase 4 | Complete |
-| INFO-04 | Phase 6 | Pending |
+| INFO-04 | Phase 6 | Complete |
 | INFO-05 | Phase 4 | Complete |
 | FRNT-01 | Phase 1 | Complete |
 | FRNT-02 | Phase 1 | Complete |
