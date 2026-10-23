@@ -349,6 +349,20 @@ def test_run_2_reads_a_threshold_of_m4_by_d_10() -> None:
     assert rules.COARSE[size] == (4.0, 0.7)
 
 
+def test_the_printability_threshold_is_the_one_run_2_reads() -> None:
+    # INFO-04, D-10, T-06-18: the constants the warning compares against are the d and coarse pitch
+    # of the size `threshold_from` reads from the pinned record, so editing either alone fails here.
+    cells = rules.read_small(rules.load(rules.RUN_2, rules.RUN_2_SHA256))
+    size = rules.threshold_from(cells)
+    assert size == printability.THRESHOLD_SIZE
+    assert rules.COARSE[size] == (printability.D_MIN_MM, printability.P_MIN_MM)
+    assert printability.THRESHOLD_RUN == rules.RUN_2_ID
+    assert printability.THRESHOLD_ENTRY == "L18"
+    # The size that printed is not warned about, and the next size down the table is.
+    assert printability.printability_warning(*rules.COARSE[size]) is None
+    assert printability.printability_warning(*rules.COARSE["M3"]) is not None
+
+
 @pytest.mark.parametrize(("record", "read"), [
     ("run-1", rules.read_matrix), ("run-2", rules.read_small)])
 def test_an_unfilled_record_is_refused_at_its_first_row(

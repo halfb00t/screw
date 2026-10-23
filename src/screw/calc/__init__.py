@@ -15,7 +15,7 @@ from typing import Literal, NamedTuple
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from screw.calc.printability import measured_range_warning
+from screw.calc.printability import measured_range_warning, printability_warning
 from screw.calc.thread import (
     MIN_TAIL_MM,
     TIP_ANGLE_DEG,
@@ -301,6 +301,9 @@ def _bolt(p: BoltParams) -> PartInfo:
     downloads = _downloads(p)
     for reason in dict.fromkeys(e.refusal for e in downloads if e.refusal is not None):
         warnings.append(reason)
+    # D-13: below the size run 2 printed, both kinds say so; nothing is capped (L02).
+    if (below := printability_warning(p.d, p.pitch)) is not None:
+        warnings.append(below)
     counterpart, off_row = counterpart_for(p)
     if off_row is not None:
         warnings.append(off_row)
@@ -409,6 +412,9 @@ def _nut(p: NutParams) -> PartInfo:
     outside = measured_range_warning(p.d, p.pitch)
     if outside is not None:
         warnings.append(outside)
+    # D-13: after the D-09 sentence, so a nut crossing both carries two separate sentences.
+    if (below := printability_warning(p.d, p.pitch)) is not None:
+        warnings.append(below)
     # The M18 note keys on (d, pitch) alone, so it reads on a nut that is no catalogue row too.
     m18 = [M18_NOTE] if (p.d, p.pitch) == M18_KEY else []
     counterpart, off_row = counterpart_for(p)

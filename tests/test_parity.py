@@ -352,6 +352,30 @@ def test_the_measured_range_warning_is_the_same_on_the_cli_and_the_api(
     assert sentence not in APP_JS
 
 
+@pytest.mark.parametrize(("kind", "values", "preset"), [
+    ("bolt", {"d": 2.0, "pitch": 0.4, "s": 4.0, "k": 1.4, "length": 6.0, "thread_length": 6.0},
+     "iso4017:M2x6"),
+    ("nut", {"d": 2.0, "pitch": 0.4, "s": 4.0, "m": 1.6}, "iso4032:M2")])
+def test_the_printability_warning_is_the_same_on_the_cli_and_the_api(
+        kind: str, values: Params, preset: str, capsys: pytest.CaptureFixture[str]) -> None:
+    # D-13: one producer, `derive()`, so a part below the printed threshold says it identically on
+    # both front ends, and the page, which renders `info.warnings` as text, needs no copy of it.
+    cli.main(["info", kind, *(a for k, v in values.items() for a in (_flag(k), repr(v)))])
+    cli_doc = json.loads(capsys.readouterr().out)
+    response = client.get(f"/api/{kind}/info", params=values)
+    assert response.status_code == 200
+    assert response.json() == cli_doc
+    sentence = ("d 2 mm is below d_min 4 mm and pitch 0.4 mm is below P_min 0.7 mm: M4 is the "
+                "smallest size that printed and threaded by hand in run 06-print-run-2 (L18); "
+                "built as asked")
+    assert sentence in cli_doc["warnings"]
+    assert sentence not in APP_JS
+    # The preset path reads the same: the same sentence, the same document as the API's preset.
+    cli.main(["info", kind, "--preset", preset])
+    by_preset = json.loads(capsys.readouterr().out)
+    assert sentence in by_preset["warnings"]
+
+
 @pytest.mark.parametrize("kind", list(KINDS))
 def test_the_cli_and_the_api_print_the_same_document(
         kind: str, capsys: pytest.CaptureFixture[str]) -> None:
