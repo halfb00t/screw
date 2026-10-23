@@ -25,8 +25,9 @@ left-hand, built by the one construction L11 chose; the head is a plain hex pris
 45 degree cone and an ISO 4014 bolt with a plain shank an under-head fillet ring (Phase 5, L15). A
 preset ("ISO 4017 M6 x 20") only fills those fields from a cited, double-entered row: no link carries
 a preset and no part is rebuilt from a table. The `nut` kind (Phase 5) is a hex nut of `d`, `pitch`,
-`left_hand`, `s`, `m` and a required radial `clearance`, with a lead-in countersink and a face chamfer
-on both faces, served by the same three front ends; its info document carries the pair rows and the
+`left_hand`, `s`, `m` and a radial `clearance` whose default is the value the Phase 6 printed test
+set (L17), with a lead-in countersink and a face chamfer on both faces, served by the same three
+front ends; its info document carries the pair rows and the
 matching bolt, and a kernel proof of whether a nut mates its bolt is a CLI command and never a
 route (L15). Every build passes the THRD-04 postcondition, on the bare thread, on each end cut and
 then on the whole part, before it reaches a cache, a preview or a download (L12, L13, L15). Each real

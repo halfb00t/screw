@@ -26,12 +26,13 @@ let shownPreset = null; // the preset member of the newest info document, null a
 // badge. Page-session state only (D-09): navigate() clears it, and no request, hash or query
 // ever reads it, so a link carries millimetres and never a preset.
 let presetBasis = null;
-// Per kind, the value last typed in this page into each field that has no default (today the
-// nut's clearance), kept so the matching-part link can carry it (owner ruling 2026-10-21, L15
-// amendment, G-05-3). Typed means an input event: a link, Reset or a kind change never writes it,
-// so the page never carries a number the user did not type (L02). Reset or a navigation that leaves
-// the field holding another value forgets it (owner ruling 2026-10-21, WR-08). Page memory only, so
-// a reload or a new tab forgets it. No request, hash or download ever reads it.
+// Per kind, the value last typed in this page into each field that has no default (none does since
+// L17; the memory stays as the generic rule, R8), kept so the matching-part link can carry it
+// (owner ruling 2026-10-21, L15 amendment, G-05-3). Typed means an input event: a link, Reset or a
+// kind change never writes it, so the page never carries a number the user did not type (L02).
+// Reset or a navigation that leaves the field holding another value forgets it (owner ruling
+// 2026-10-21, WR-08). Page memory only, so a reload or a new tab forgets it. No request, hash or
+// download ever reads it.
 const lastTyped = new Map();
 // Warnings belong to a mesh, not to the last info fetch (D-11). update() fetches info first,
 // so by the time a model.stl request fails the newest info document describes the part that
@@ -51,8 +52,8 @@ let meshNotes = [];
 // A checkbox's .value is the constant "on", so every read and write of a control goes through
 // these two: a checkbox reads as 'true' or 'false' and is written from either, any other
 // control by its value (D-09). The link then carries `left_hand=true` and nothing else.
-// A field with no default (the nut's clearance) has `undefined` for one: it is written as an empty
-// control, never as the word "undefined" (RESEARCH P9b).
+// A field with no default has `undefined` for one: it is written as an empty control, never as the
+// word "undefined" (RESEARCH P9b).
 const read = (input) => (input.type === 'checkbox' ? String(input.checked) : input.value);
 function write(input, v) {
   if (input.type === 'checkbox') input.checked = String(v) === 'true';
@@ -459,9 +460,9 @@ function renderInfo(info) {
 
 // The matching part is a link built from the document and the page's own typing: the kind and every
 // field the server says carry over, as a hash the page already knows how to open. The server never
-// names a field that has no default (D-02), so the page adds the target kind's typed values (lastTyped)
-// before the server's fields, and the server's fields win. With nothing typed in this page the nut
-// opens with its clearance empty and builds nothing (D-01, R10). No kind, field or label is named here
+// names a typed-only field such as clearance (D-02), so the page adds the target kind's typed values
+// (lastTyped) before the server's fields, and the server's fields win. With nothing typed in this
+// page the nut opens with its default clearance (L17). No kind, field or label is named here
 // (L15 amendment 2026-10-21, G-05-3).
 function showCounterpart(counterpart) {
   counterpartLink.hidden = counterpart === null;

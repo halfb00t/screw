@@ -8,13 +8,12 @@
     GET /api/bolt/info?...           the info document: rows and warnings
     GET /api/bolt/model.stl?...      binary STL   (quality=preview|fine)
     GET /api/bolt/model.step?...     STEP AP214 solid
-    GET /api/nut/info?...            the nut's info document; `clearance` is required
+    GET /api/nut/info?...            the nut's info document, its `clearance` defaulted (L17)
     GET /api/nut/model.stl?...       binary STL   (quality=preview|fine)
     GET /api/nut/model.step?...      STEP AP214 solid
 
-Every parameter is a query string field, so a model URL is shareable and curl-able. Unset
-fields take their defaults, except a required one (the nut's `clearance`), which is a 422
-`missing` naming it; a field the kind does not define, or a key given twice, is a 422
+Every parameter is a query string field, so a model URL is shareable and curl-able. Every unset
+field takes its default; a field the kind does not define, or a key given twice, is a 422
 naming it, and so is an explicit `thread_length` longer than an explicit `length`.
 """
 
@@ -460,7 +459,7 @@ async def bolt_model(fmt: Literal["stl", "step"], q: Annotated[BoltModelQuery, Q
 
 @app.get("/api/nut/info", dependencies=[Depends(refuse_explicit_conflict(NutParams.kind))])
 def nut_info(q: Annotated[NutParams, Query()]) -> PartInfo:
-    """The nut's info document. `clearance` is required; `quality` is a 422 here."""
+    """The nut's info document. `quality` is a 422 here."""
     return derive(q)
 
 
