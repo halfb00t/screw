@@ -332,7 +332,7 @@ Plans:
   4. ~~The test also drives a nominal printed bolt into a bought nut and records the result; if it binds, PAIR-07 (bolt-side `undersize`) is promoted to a v1.x requirement in REQUIREMENTS.md, otherwise the record says it is not needed.~~ **Deferred (R9, 2026-10-22):** PAIR-06 and PAIR-07 moved to v2; the owner dropped the bought-nut test from Phase 6.
   5. The printability threshold is a constant set from the same test and cited; sizes and pitches below it get a cap-and-warn printability warning naming its source on the UI, API and CLI.
 
-**Plans**: 9/10 plans executed (the pre-registration lands as its own PR before the first print; waves 2-9 sequential)
+**Plans**: 10/10 plans executed (the pre-registration lands as its own PR before the first print; waves 2-9 sequential)
 **UI hint**: yes
 
 Plans:
@@ -362,7 +362,7 @@ Plans:
 - [x] 06-09-PLAN.md — The D-13 printability warning on bolts and nuts from d_min and P_min; the threshold entry; INFO-04
 
 **Wave 9** *(blocked on Wave 8 completion)*
-- [ ] 06-10-PLAN.md — Acceptance: kernel proven at the default, the M8 pair through the page, printed and threaded by hand (PAIR-05)
+- [x] 06-10-PLAN.md — Acceptance: kernel proven at the default, the M8 pair through the page, printed and threaded by hand (PAIR-05)
 
 ### Phase 7: Operability Re-sweep
 
@@ -390,5 +390,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 2 
 | 3. Real Helical Thread | 7/7 | Complete    | 2026-10-11 |
 | 4. ISO Hex Bolts and Screws | 17/17 | Complete    | 2026-10-12 |
 | 5. Hex Nut and Kernel Pair Proof | 25/25 | Complete    | 2026-10-22 |
-| 6. Printed Pair Acceptance | 9/10 | In Progress | - |
+| 6. Printed Pair Acceptance | 10/10 | In Progress | - |
 | 7. Operability Re-sweep | 0/TBD | Not started | - |
