@@ -40,7 +40,7 @@ The parts are the product's own fine exports, so the test checks exactly what a 
 
 - Each nut STL is printed 3 times (60 nuts) and each bolt STL 3 times (12 bolts).
 - R4: sample k of every cell (size, clearance) is printed on plate set k, so there are three plate sets. The owner's plate id is recorded in `plate`.
-- R3: the five nuts of one bolt are fitted loosest to tightest, in this order: 0.25, 0.20, 0.15, 0.10, 0.05 mm. The position a nut actually took is recorded in `order` (1 to 5).
+- R3: the five nuts of one bolt are fitted loosest to tightest, in this order: 0.25, 0.20, 0.15, 0.10, 0.05 mm. A nut's position is recorded in `order`: 0.25 is 1, 0.20 is 2, 0.15 is 3, 0.10 is 4, 0.05 is 5.
 - R5: a part that fails to print is reprinted alone from the same STL and the same profile, before any part of its cell is fit-tested. Its note says `reprinted: print failure`. A nut that prints and then binds is never reprinted; that is a result.
 
 The fit test (D-05), for every sample, in this order:
@@ -69,14 +69,14 @@ Run 1, `print-run-1.tsv`, columns in this order:
 - `clearance`: the nut's clearance in mm, exactly as written (0.05 is written `0.05`, 0.10 is written `0.1`, and so on).
 - `sample`: 1, 2 or 3 (written).
 - `plate`: the owner's plate id; sample k is on plate set k (R4).
-- `order`: 1 to 5, the position this nut took on its bolt (R3). The five orders of one bolt are 1 to 5 once each.
+- `order`: the position this nut took on its bolt (R3): 0.25 is 1, 0.20 is 2, 0.15 is 3, 0.10 is 4, 0.05 is 5. The reader refuses any other value for a clearance.
 - `result`: exactly `pass` or `bind`.
 - `turns`: `-` on a pass; on a bind, the turns from first engagement at which the nut stopped, as a decimal such as `2.5`.
 - `note`: `-`, or `loose` on a loose pass, or short text without tabs (a failed print is `reprinted: print failure`, R5).
 
 Run 2, `print-run-2.tsv`: `size`, `sample`, `plate`, `result`, `turns`, `note`, filled as above.
 
-The reader (`bench/print_rules.py`) refuses any other spelling: a blank or padded cell, a `pass` with turns, a bind without turns, `loose` on a bind, a repeated, missing or unregistered row, an `order` that is not a permutation of 1 to 5 for a bolt. It names the line. The owner fixes a refused line; Claude never edits a result cell. Each record's sha256 is pinned after the owner's last edit of it, as `RUN_1_SHA256` and `RUN_2_SHA256` in `bench/print_rules.py` (the only lines of that module allowed to change after this protocol lands) and in `bench/RESULTS.md`; a record is never edited after its pin.
+The reader (`bench/print_rules.py`) refuses any other spelling: a blank or padded cell, a `pass` with turns, a bind without turns, `loose` on a bind, a repeated, missing or unregistered row, an `order` other than the one R3 gives its clearance (a nut fitted out of turn is refused, never corrected). It names the line. The owner fixes a refused line; Claude never edits a result cell. Each record's sha256 is pinned after the owner's last edit of it, as `RUN_1_SHA256` and `RUN_2_SHA256` in `bench/print_rules.py` (the only lines of that module allowed to change after this protocol lands) and in `bench/RESULTS.md`; a record is never edited after its pin.
 
 ## Rules
 

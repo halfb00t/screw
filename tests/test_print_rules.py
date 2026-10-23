@@ -43,7 +43,7 @@ def _result_cells(is_pass: bool) -> list[str]:
 
 
 def _matrix_rows(ok: MatrixOk) -> list[list[str]]:
-    return [[s, repr(c), str(n), "P1", str(rules.LADDER.index(c) + 1), *_result_cells(ok(s, c, n))]
+    return [[s, repr(c), str(n), "P1", str(rules.FIT_ORDER[c]), *_result_cells(ok(s, c, n))]
             for (s, c, n) in rules.matrix_keys()]
 
 
@@ -149,7 +149,7 @@ DEFECTS: list[tuple[str, Callable[[list[str], list[list[str]]], None], int]] = [
     ("clearance-off-the-ladder", _set(0, "clearance", "0.12"), 2),
     ("wrong-header", _rename_note, 1),
     ("extra-column", _extra_cell, 2),
-    ("orders-not-one-to-five", _set(0, "order", "2"), 6),
+    ("order-against-r3", _set(0, "order", "2"), 2),
 ]
 
 
@@ -164,6 +164,16 @@ def test_an_incomplete_or_ambiguous_record_is_refused_naming_the_line(
     text = "\n".join(["\t".join(header), *("\t".join(r) for r in rows)]) + "\n"
     with pytest.raises(ValueError, match=rf"^line {line}: "):
         rules.read_matrix(text)
+
+
+def test_a_record_fitted_tightest_first_is_refused_whatever_it_passed() -> None:
+    # R3: the five nuts of a bolt are fitted loosest first. A complete all-pass record written in
+    # the opposite order is a different experiment (a tight nut may have worn the bolt before a
+    # loose one met it), and it must not be able to set the default.
+    rows = [[s, repr(c), str(n), "P1", str(rules.LADDER.index(c) + 1), "pass", "-", "-"]
+            for (s, c, n) in rules.matrix_keys()]
+    with pytest.raises(ValueError, match=r"^line 2: .*R3"):
+        rules.read_matrix(_text(rules.MATRIX_COLUMNS, rows))
 
 
 def test_the_small_record_is_refused_as_strictly() -> None:

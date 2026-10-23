@@ -59,6 +59,10 @@ _SAMPLE_CELLS = {str(n): n for n in range(1, SAMPLES + 1)}
 # Exact spellings only: "0.10" is a different string from the template's "0.1", and a reader that
 # accepted both would be interpreting the cell.
 _CLEARANCE_CELLS = {repr(c): c for c in LADDER}
+# R3: the five nuts of one bolt are fitted loosest first, so the order a clearance must carry is
+# fixed: 0.25 is 1 and 0.05 is 5. The record states the order a nut took; a nut fitted out of turn
+# is refused, not corrected, because the record is the owner's observation.
+FIT_ORDER: dict[float, int] = {c: len(LADDER) - i for i, c in enumerate(LADDER)}
 
 type _Cells = list[tuple[int, dict[str, str]]]
 
@@ -157,26 +161,22 @@ def read_matrix(text: str) -> dict[tuple[str, float, int], bool]:
     """Run 1's record as a pass (True) or bind (False) per (size, clearance, sample)."""
     rows = _cells(text, MATRIX_COLUMNS)
     keyed: list[tuple[int, tuple[str, float, int], bool]] = []
-    orders: dict[tuple[str, int], list[int]] = {}
-    last_of_bolt: dict[tuple[str, int], int] = {}
+    orders: list[tuple[int, float, int]] = []
     for number, row in rows:
         size = _size(number, row, SIZES)
         if row["clearance"] not in _CLEARANCE_CELLS:
             raise ValueError(f"line {number}: clearance {row['clearance']} is not on the ladder")
+        clearance = _CLEARANCE_CELLS[row["clearance"]]
         sample = _sample(number, row)
         if not (row["order"].isascii() and row["order"].isdigit()):
             raise ValueError(f"line {number}: order must be an integer")
-        orders.setdefault((size, sample), []).append(int(row["order"]))
-        last_of_bolt[(size, sample)] = number
-        keyed.append((number, (size, _CLEARANCE_CELLS[row["clearance"]], sample),
-                      row["result"] == "pass"))
+        orders.append((number, clearance, int(row["order"])))
+        keyed.append((number, (size, clearance, sample), row["result"] == "pass"))
     cells = _collect(keyed, matrix_keys(), _last_line(rows))
-    # Each bolt carries all five nuts, one print order each: a repeated or missing order would
-    # leave the order effect of a bolt unreadable.
-    for bolt, bolt_orders in orders.items():
-        if sorted(bolt_orders) != list(range(1, len(LADDER) + 1)):
-            raise ValueError(f"line {last_of_bolt[bolt]}: the orders of bolt {bolt} are not "
-                             f"a permutation of 1 to {len(LADDER)}")
+    for number, clearance, order in orders:
+        if order != FIT_ORDER[clearance]:
+            raise ValueError(f"line {number}: order {order} for clearance {clearance}, but R3 "
+                             f"fits loosest first, so this nut is {FIT_ORDER[clearance]}")
     return cells
 
 
