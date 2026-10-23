@@ -7368,3 +7368,127 @@ covers coarse pitches only: a fine pitch at M4 or above is judged by the `P_min`
 finer nozzle or layer would have printed it. Because of departures 1 and 2 the record is weaker evidence
 than the pre-registered run would have been: the link from these printed nuts to the shipped default's
 export is the owner's word and not a pinned file.
+
+## Acceptance pair (Phase 6, D-16)
+
+HEAD at the run: `de25e58` (branch `gsd/phase-06-printed-pair-acceptance`, 2026-10-23).
+
+The default: nut clearance 0.15 mm, the shipped value (L17), read by the pre-registered D-07 rule from
+06-print-run-1. The command passes no clearance, so the default applies.
+
+Command: `.venv/bin/screw pair nut --d 8 --pitch 1.25 --s 13 --m 6.8`, exit code 0 (proven).
+
+```json
+{
+  "verdict": "proven",
+  "reasons": [],
+  "d": 8.0,
+  "pitch": 1.25,
+  "m": 6.8,
+  "clearance": 0.15,
+  "rod_left_hand": false,
+  "nut_left_hand": false,
+  "readings": [
+    {
+      "theta": -2.0943951023931953,
+      "offset_pitches": 0.0,
+      "outcome": "built",
+      "solids": 0,
+      "volume": 0.0,
+      "diag_errors": false,
+      "diag_warnings": false,
+      "seconds": 6.213970124954358
+    },
+    {
+      "theta": 0.0,
+      "offset_pitches": 0.0,
+      "outcome": "built",
+      "solids": 0,
+      "volume": 0.0,
+      "diag_errors": false,
+      "diag_warnings": false,
+      "seconds": 6.748639083001763
+    },
+    {
+      "theta": 2.0943951023931953,
+      "offset_pitches": 0.0,
+      "outcome": "built",
+      "solids": 0,
+      "volume": 0.0,
+      "diag_errors": false,
+      "diag_warnings": false,
+      "seconds": 6.207409374997951
+    },
+    {
+      "theta": -2.0943951023931953,
+      "offset_pitches": 0.5,
+      "outcome": "built",
+      "solids": 1,
+      "volume": 25.130851304668752,
+      "diag_errors": false,
+      "diag_warnings": false,
+      "seconds": 2.2457348750904202
+    },
+    {
+      "theta": 0.0,
+      "offset_pitches": 0.5,
+      "outcome": "built",
+      "solids": 1,
+      "volume": 25.130851554683623,
+      "diag_errors": false,
+      "diag_warnings": false,
+      "seconds": 2.3132786250207573
+    },
+    {
+      "theta": 2.0943951023931953,
+      "offset_pitches": 0.5,
+      "outcome": "built",
+      "solids": 1,
+      "volume": 25.13085210490151,
+      "diag_errors": false,
+      "diag_warnings": false,
+      "seconds": 2.332303582923487
+    }
+  ],
+  "closed_control": 25.13083219814244,
+  "band": 0.001,
+  "engagement_turns": 5.44,
+  "shipped": [
+    {
+      "theta": -2.0943951023931953,
+      "outcome": "built",
+      "solids": 0,
+      "volume": 0.0,
+      "seconds": 6.173219583113678,
+      "error": null
+    },
+    {
+      "theta": 0.0,
+      "outcome": "built",
+      "solids": 0,
+      "volume": 0.0,
+      "seconds": 6.220331999938935,
+      "error": null
+    },
+    {
+      "theta": 2.0943951023931953,
+      "outcome": "built",
+      "solids": 0,
+      "volume": 0.0,
+      "seconds": 6.259776999941096,
+      "error": null
+    }
+  ],
+  "seconds": 50.099970957962796
+}
+```
+
+Export (CLI default path): `.venv/bin/python -m bench.print_matrix export acceptance -o bench/results/phase-06/stl/acceptance`,
+manifest `bench/results/phase-06/manifest-acceptance.tsv`:
+
+| name | bytes | sha256 |
+|---|---|---|
+| `bolt_d8_pitch1.25_left_hand0_length16_s13_k5.3_thread_length16.stl` | 10449184 | `30f2fca0e0e06a1714f7564097a0e37f1991cc5ba71f98c0bb833f9cf4635814` |
+| `nut_d8_pitch1.25_left_hand0_s13_m6.8_clearance0.15.stl` | 4064084 | `4c09af10e06bae18ebbc756eab0968802ef01b8cf4278629a6213414cacc6324` |
+
+Owner's fit test: pending (plan 06-10 Task 2)
