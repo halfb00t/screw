@@ -24,6 +24,7 @@ from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 from bench.thread_spike.measure import stl_check
+from screw import app as app_module
 from screw import cli
 from screw.app import app, build_backend
 from screw.build_errors import BuildError
@@ -236,7 +237,11 @@ def test_a_nut_info_without_a_clearance_is_a_200_at_the_default() -> None:
     assert body == client.get("/api/nut/info", params={"clearance": 0.15}).json()
 
 
-def test_a_nut_download_without_a_clearance_builds_at_the_default() -> None:
+def test_a_nut_download_without_a_clearance_builds_at_the_default(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    # A private byte cache: the shared one would answer a second run before the backend ran, and
+    # would keep this test's fake b"x" for every later default download in the session.
+    monkeypatch.setattr(app_module, "_EXPORTS", app_module._BlobCache(1 << 20))
     seen: list[float] = []
 
     async def record(p: NutParams, fmt: str, quality: str) -> bytes:
