@@ -367,7 +367,7 @@ def test_the_printability_warning_is_the_same_on_the_cli_and_the_api(
     assert response.json() == cli_doc
     sentence = ("d 2 mm is below d_min 4 mm and pitch 0.4 mm is below P_min 0.7 mm: M4 is the "
                 "smallest size that printed and threaded by hand in run 06-print-run-2 (L18); "
-                "built as asked")
+                "parameters left as set")
     assert sentence in cli_doc["warnings"]
     assert sentence not in APP_JS
     # The preset path reads the same: the same sentence, the same document as the API's preset.

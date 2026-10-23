@@ -1359,8 +1359,8 @@ as correct (2026-10-23), so the cells are not the owner's typing. The result per
 
 **The warning (D-13).** A bolt or a nut with `d < 4.0` mm or `pitch < 0.7` mm carries one printability
 sentence in `warnings`, naming each edge crossed (d first, then pitch), the size, the run and this entry,
-and saying the part is built as asked. It comes from `derive()` alone, so the page, the API and the CLI
-print the same sentence. The comparison is strict `<` on the stored floats with no rounding or tolerance:
+and saying the parameters are left as set (wording corrected after the phase-6 code review, WR-02).
+It comes from `derive()` alone, so the page, the API and the CLI print the same sentence. The comparison is strict `<` on the stored floats with no rounding or tolerance:
 exactly M4's d and pitch are not warned about. SC5 asks for cap-and-warn; it is a warning and no cap,
 because nothing can be trimmed without changing a d or pitch the user set (L02), and it is never a 422
 because the two numbers are not a conflict between two things the user asked for. M2 and M2.5 warn on

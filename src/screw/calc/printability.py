@@ -33,9 +33,9 @@ def measured_range_warning(d: float, pitch: float) -> str | None:  # noqa: ARG00
     """The warning for a nut whose size the clearance default was not measured on, else None.
 
     Pure size test: it reads `d` alone (R6) and never the clearance, so a nut that took the default
-    and one with a typed clearance carry it identically. It warns and changes nothing: the nut is
-    built as asked and no row is dropped (D-09, L02). `pitch` is in the signature the plan fixes
-    (06-07 key link) and R6 reads it not at all, hence the ARG001 waiver.
+    and one with a typed clearance carry it identically. It warns and changes nothing: the
+    parameters are left as set and no row is dropped (D-09, L02). `pitch` is in the signature the
+    plan fixes (06-07 key link) and R6 reads it not at all, hence the ARG001 waiver.
     """
     # Written as "inside, else warn" so a NaN d, which compares false both ways, warns too.
     if MEASURED_D_MIN_MM <= d <= MEASURED_D_MAX_MM:
@@ -62,8 +62,8 @@ def printability_warning(d: float, pitch: float) -> str | None:
 
     One sentence naming each crossed edge, `d` first. Strict `<` on the stored floats, no rounding
     or tolerance: exactly at the threshold is the size that printed. It warns and changes nothing:
-    the part is built as asked, because no d or pitch can be trimmed without overriding one the
-    user set (L02).
+    the parameters are left as set, because no d or pitch can be trimmed without overriding one the
+    user set (L02). It does not promise a build: another rule may still refuse the part (WR-02).
     """
     crossed: list[str] = []
     if d < D_MIN_MM:
@@ -73,4 +73,4 @@ def printability_warning(d: float, pitch: float) -> str | None:
     if not crossed:
         return None
     return (f"{' and '.join(crossed)}: {THRESHOLD_SIZE} is the smallest size that printed and "
-            f"threaded by hand in run {THRESHOLD_RUN} ({THRESHOLD_ENTRY}); built as asked")
+            f"threaded by hand in run {THRESHOLD_RUN} ({THRESHOLD_ENTRY}); parameters left as set")

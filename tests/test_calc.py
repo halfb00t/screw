@@ -1369,7 +1369,7 @@ def test_the_measured_range_warning_changes_no_row_and_keeps_the_warning_order(
 # --- the printability warning (INFO-04, D-11, D-13) ---------------------------------------------
 
 THRESHOLD_TAIL = ("M4 is the smallest size that printed and threaded by hand in run "
-                  "06-print-run-2 (L18); built as asked")
+                  "06-print-run-2 (L18); parameters left as set")
 
 
 def _printability_warnings(p: FastenerParams) -> list[str]:
@@ -1383,6 +1383,16 @@ def _at(kind: str, d: float, pitch: float) -> FastenerParams:
                                           thread_length=20.0, left_hand=False)
     return NutParams.model_construct(d=d, pitch=pitch, s=2 * d, m=d, clearance=0.15,
                                      left_hand=False)
+
+
+def test_the_printability_warning_promises_no_build_only_unchanged_parameters() -> None:
+    # Another rule can still refuse the part: this bolt also reports "this part is not built", so
+    # the sentence says what the warning leaves alone and nothing about whether a part comes out.
+    info = derive(BoltParams(d=3.0, pitch=0.5, length=1e-9))
+    assert any("this part is not built" in w for w in info.warnings)
+    (text,) = [w for w in info.warnings if "run 06-print-run-2" in w]
+    assert text.endswith("parameters left as set")
+    assert "built" not in text
 
 
 @pytest.mark.parametrize("kind", ["bolt", "nut"])
