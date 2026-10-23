@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 06
 current_phase_name: Printed Pair Acceptance
 status: executing
-stopped_at: Completed 06-07-PLAN.md
-last_updated: "2026-10-23T14:29:45.404Z"
+stopped_at: Completed 06-08-PLAN.md
+last_updated: "2026-10-23T14:46:15.808Z"
 last_activity: 2026-10-22
 last_activity_desc: Phase 06 execution started
-state_head: f6a50f4cf63f93befdc71e461c2fcd4a3a9ec459
+state_head: d51438a8f7e969d314966106dc2d7ac1d8076756
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 77
-  completed_plans: 74
+  completed_plans: 75
   percent: 71
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-22)
 ## Current Position
 
 Phase: 06 (Printed Pair Acceptance) — EXECUTING
-Plan: 8 of 10
+Plan: 9 of 10
 Status: Ready to execute
 Last activity: 2026-10-22 — Phase 06 execution started
 
@@ -134,6 +134,7 @@ Progress: [███████░░░] 71%
 | Phase 06 P05 | 25min | 3 tasks | 5 files |
 | Phase 06 P06 | 40min | 3 tasks | 15 files |
 | Phase 06 P07 | 25min | 2 tasks | 9 files |
+| Phase 06 P08 | 20min | 1 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -268,6 +269,7 @@ Recent decisions affecting current work:
 - [Phase 06]: 06-06: nut clearance default is 0.15 mm, frozen (L17); owner replied 'permanent: accepted' on 2026-10-23; _req became _free (R8); PAIR-02 complete
 - [Phase 06]: 06-06: tests/test_cli_pair.py rewritten in the Task 2 commit (ninth file; its no-clearance pair test pinned the old refusal); INDEX.md trigger rows moved with the three debt items
 - [Phase 06]: 06-07: R6 r6-a applied: a nut warns when d < 6.0 or d > 12.0, on size alone, by one producer derive(); the bolt never carries it
+- [Phase 06]: 06-08: R10 applied: the owner's earlier M3 to M5 prints are the run-2 record (no export run-2, no manifest); threshold_from reads M4 (d 4.0, P 0.7), pinned as RUN_2_SHA256 6c2d9240...
 
 ### Pending Todos
 
@@ -313,6 +315,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-23T14:29:45.181Z
-Stopped at: Completed 06-07-PLAN.md
+Last session: 2026-10-23T14:46:15.479Z
+Stopped at: Completed 06-08-PLAN.md
 Resume file: None
