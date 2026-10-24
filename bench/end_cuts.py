@@ -14,7 +14,9 @@ only, and nothing under `src/` reads this module.
 
 The bodies are the shipped `screw.solid.helical.thread` (rod and void) and the shipped
 `screw.solid.bolt.thread` / `assemble`, never a copy, so what is measured is the thread that
-ships. Only the cutters are new, and they are built here.
+ships. Only the cutters are new, and they are built here. The bolt rows fuse the chamfered head
+(`bench.head_fuse.product_head`) and their closed form carries the chamfer term, since 06.1; the
+rows in `bench/RESULTS.md` predate that and are the sharp-head probe.
 
 The oracles are plain `math` on the section of the thread, which is the same at every z, so a
 cut's removed volume is a one-dimensional integral; they share no code path with the kernel.
@@ -37,6 +39,7 @@ from functools import partial
 import cadquery as cq
 
 from bench import machine_facts
+from bench.head_fuse import head_chamfer_term, product_head
 from bench.quiet import Reading, read_now
 from bench.thread_spike.maths import NUT_HEIGHT
 from bench.thread_spike.measure import gzip1, mesh_stl, stl_check
@@ -297,7 +300,8 @@ class BoltCase:
                           thread_length=self.t, left_hand=self.left_hand)
 
     def closed(self) -> float:
-        return bolt_closed_volume(self.d, self.pitch, self.length, self.s, self.k, self.t)
+        return (bolt_closed_volume(self.d, self.pitch, self.length, self.s, self.k, self.t)
+                - head_chamfer_term(self.params()))
 
 
 def probe_tip_bolt(case: BoltCase, alpha: float) -> Row:
@@ -306,7 +310,7 @@ def probe_tip_bolt(case: BoltCase, alpha: float) -> Row:
     t0 = time.perf_counter()
     thread = bolt.thread(p)
     cut = tip_cut(thread, case.d, case.pitch, case.t, alpha)
-    part = bolt.assemble(p, cut)
+    part = bolt.assemble(p, cut, product_head(p))
     seconds = time.perf_counter() - t0
     oracle = tip_cone_volume(case.d, case.pitch, alpha)
     removed = precise_volume(thread) - precise_volume(cut)
@@ -319,7 +323,7 @@ def probe_ring(case: BoltCase, r: float, group: str = "ring") -> Row:
     """The shipped bolt with a fillet ring fused under the head: added volume against Pappus."""
     p = case.params()
     t0 = time.perf_counter()
-    part = bolt.assemble(p, bolt.thread(p))
+    part = bolt.assemble(p, bolt.thread(p), product_head(p))
     fused = part.fuse(fillet_ring(case.d, case.length, r))
     seconds = time.perf_counter() - t0
     oracle = fillet_ring_volume(case.d, r)
@@ -385,7 +389,7 @@ def control_ring_dropped(case: BoltCase, r: float) -> Row:
     """Positive control: the ring was expected and not fused."""
     p = case.params()
     t0 = time.perf_counter()
-    part = bolt.assemble(p, bolt.thread(p))
+    part = bolt.assemble(p, bolt.thread(p), product_head(p))
     seconds = time.perf_counter() - t0
     oracle = fillet_ring_volume(case.d, r)
     whole = precise_volume(part) / (case.closed() + oracle) - 1

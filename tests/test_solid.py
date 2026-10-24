@@ -193,7 +193,7 @@ def test_a_head_chamfer_of_zero_builds_todays_sharp_head() -> None:
         volume = precise_volume(solid)
         assert volume == pytest.approx(
             bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None, 0.0), rel=T_GATE)
-        sharp = bolt.assemble(p, bolt.tip_cut(p, bolt.thread(p)))
+        sharp = bolt.assemble(p, bolt.tip_cut(p, bolt.thread(p)), bolt.head_prism(p))
         assert volume == pytest.approx(precise_volume(sharp), rel=1e-9)
     # The default part is smaller by the pinned 30 degree term (06.1-01).
     assert volume - precise_volume(build(BoltParams())) == pytest.approx(
@@ -225,7 +225,7 @@ def test_a_skipped_or_wrong_head_chamfer_is_refused_naming_the_piece(
     if control == "skipped at 1 degree":
         # The whole-part gate alone misses it: the 1 degree piece is 0.0328 mm3, 4.1e-5 of the part
         # and under T_GATE 9e-5, so only the piece gate refuses.
-        sharp = bolt.assemble(p, bolt.tip_cut(p, bolt.thread(p)))
+        sharp = bolt.assemble(p, bolt.tip_cut(p, bolt.thread(p)), bolt.head_prism(p))
         closed = bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None, 1.0)
         assert volume_check(precise_volume(sharp), closed) is None
     clear_cache()
@@ -315,7 +315,7 @@ def test_a_thread_wrong_by_a_part_in_ten_thousand_is_refused_on_the_thread_not_t
     share = closed_volume(p.d, p.pitch, p.length) / whole
     assert 0.5 < share < 0.6  # the measured thread share this control relies on
     # The control is real: the whole-part check alone would pass this very thread.
-    assert volume_check(precise_volume(bolt.assemble(p, bad)), whole) is None
+    assert volume_check(precise_volume(bolt.assemble(p, bad, bolt.head_prism(p))), whole) is None
     monkeypatch.setattr(bolt, "thread", lambda _p: bad)
     clear_cache()
     size = _build_cached.cache_info().currsize
@@ -611,7 +611,7 @@ def _tip_piece(p: BoltParams) -> tuple[float, float]:
 
 def _ring_piece(p: BoltParams) -> tuple[float, float]:
     """(volume the ring added, its oracle) on the tip-cut, assembled bolt."""
-    plain = bolt.assemble(p, bolt.tip_cut(p, bolt.thread(p)))
+    plain = bolt.assemble(p, bolt.tip_cut(p, bolt.thread(p)), bolt.head_prism(p))
     r = fillet_radius(p.d, p.pitch, p.length, p.length - 1.0)  # any t with the shank >= r
     assert r is not None
     return (precise_volume(bolt.add_fillet(p, plain, r)) - precise_volume(plain),
@@ -709,7 +709,7 @@ def test_the_whole_part_gate_alone_misses_two_of_the_six_controls_on_the_long_bo
         monkeypatch.setattr(bolt, "TIP_ANGLE_DEG", 30.0)
     thread = bolt.thread(p)
     cut = thread if control == "skipped" else bolt.tip_cut(p, thread)
-    part = bolt.assemble(p, cut)
+    part = bolt.assemble(p, cut, bolt.head_prism(p))
     if control != "ring dropped":
         part = bolt.add_fillet(p, part, r)
     closed = bolt_end_closed_volume(p.d, p.pitch, p.length, p.s, p.k, p.thread_length, True, r, 0.0)

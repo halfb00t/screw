@@ -116,13 +116,13 @@ def chamfer_head(p: BoltParams, prism: cq.Shape, depth: float) -> cq.Shape:
     return prism.cut(cutter)
 
 
-def assemble(p: BoltParams, bare_thread: cq.Solid, head: cq.Shape | None = None) -> cq.Shape:
+def assemble(p: BoltParams, bare_thread: cq.Solid, head: cq.Shape) -> cq.Shape:
     """The plain shank of diameter d from the thread's end t to the length, then the hex head
     fused onto `bare_thread` (what `thread()` built; named so it does not shadow that function,
-    04-REVIEW IN-04). `head` is the chamfered head the builder cut; None fuses the sharp prism,
-    which is what `bench/` and the tests that compare with `bolt_closed_volume` assemble."""
-    if head is None:
-        head = head_prism(p)
+    04-REVIEW IN-04). `head` has no default, so mypy names every caller and none can fuse a
+    sharp head the product no longer ships by leaving it out (06.1 WR-02, L02): the builder
+    passes the chamfered head it cut, and a caller that wants the sharp part says so with
+    `head_prism(p)`."""
     t = built_thread_length(p.thread_length, p.length)
     if p.length > t:
         # A planar fuse at the thread's plain end (D-03), never a cylinder over the thread: the
