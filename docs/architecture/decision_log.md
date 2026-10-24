@@ -566,7 +566,8 @@ except the head-fuse probe of D-03, which it cites as a probe and not as a bound
 
 **Geometry (D-01 to D-03).** The head is a plain hex prism: across flats `s`, height `k`, sharp
 corners at `s / cos 30 degrees`, no top chamfer and no washer face, because the standards' 15 to 30
-degree chamfer is a band and not a number (L02). Its closed form is exact, `(sqrt(3)/2) s^2 k`. The
+degree chamfer is a band and not a number (L02). The top chamfer is superseded by L19 (phase 06.1),
+which chamfers the head's top corners. The sharp head's closed form is exact, `(sqrt(3)/2) s^2 k`. The
 shank is a plain cylinder of diameter `d`; the L11 thread (`helical.thread`, unchanged) is built
 over the built thread `t` only, from the tip, and ends in its plain planar cut, which is fused to
 the shank's end face, and the shank to the head's underside: two planar fuses, never a cylinder
@@ -1386,3 +1387,134 @@ run.
 
 Reversibility: costly. It moves only warnings, never a part, but a different `d_min` or `P_min` needs a
 new pre-registered run and a superseding entry, never a silent edit of the constants.
+
+## L19 — The bolt's hex head is chamfered on its top face by a head_chamfer angle, default 30 degrees, a cone from s / 2 cut no deeper than k / 2; this supersedes L13 D-01's sharp top
+
+Date: 2026-10-24. Decided by the owner's ruling of 2026-10-24 (ROADMAP Phase 06.1: the field
+`head_chamfer`, the default 30, 0 for the sharp head, the top face only, the cone from `s / 2`, the phase
+inserted before Phase 7 so that the re-sweep measures the chamfered head), by the phase discussion
+(D-01 to D-15) and by the plan-phase rulings (D-16 to D-19), all in `06.1-CONTEXT.md`. It supersedes
+L13 D-01's "no top chamfer" and nothing else of L13: there is still no washer face, the bearing face is
+unchanged, and `hex_prism_volume` and `bolt_closed_volume` stay sharp because `bench/` reads them. Every
+figure below names a test, a file or the research measurement it comes from (`06.1-RESEARCH.md`, scratch
+runs of 2026-10-24); nothing is measured again here.
+
+**Why.** L13's own reversibility note allowed "a later head chamfer" while the standing warning says "not
+a product build", and the owner ruled that the Phase 7 re-sweep should measure the head a user will
+print. L02 decides each branch below: a number the tool prints is one someone cuts metal to, and a
+parameter the user did not set must never silently change the part.
+
+**The model (D-01 to D-03).** `head_chamfer` is an angle in degrees from the top face, `0 <= angle < 90`,
+validated once at the model (`ge=0`, `lt=90`, finite; the schema carries `minimum 0` and `exclusiveMaximum
+90`). 0 is today's sharp head: no cut and no volume term. Above 0 the cutter is a cone from the inscribed
+circle `s / 2`, so it clips the six corners; its depth at a corner is `(s / 2 / cos 30 degrees - s / 2)
+tan(angle)`, and the cut is no deeper than `k / 2`, which mirrors the nut's `m / 2` (L15), so the lower
+half of the head keeps its corners and the bearing face is untouched. **The default 30 and the 15 to 30
+degree band are a stated model.** The band is the one the R4 a read prints for the nut's corner chamfer
+(GOST ISO 4032-2014 (ISO 4032:2012) Figure 1 footnote b, `05-OWNER-READS.md` read 3), applied to the
+bolt head by the owner's ruling. No repo note records a read of the head figure of ISO 4014 or ISO 4017,
+and those texts are not purchased (L14), so no edition of either is cited for the band. An angle in
+`(0, 15)` or `(30, 90)` builds as asked and warns, naming `head_chamfer` and the band (D-02); 0 is not
+off the band.
+
+**Cap, warn or refuse (D-04 to D-06).** One predicate, `head_chamfer_depths(s, k, angle)`, gives the
+model depth and the depth cut, and one threshold: the model depth above `k / 2`, strict, so an equal
+depth builds uncapped. A defaulted angle over it is cut at `k / 2` and warned, naming `head_chamfer` and
+`k`, in the style of the nut's `end_depths` warning. An **explicit** angle over it is a 422
+`head_chamfer_conflict` with `ctx.fields` `["head_chamfer", "k"]` (CLI: exit 2, the same sentence),
+decided at the request boundary by `calc._bolt_explicit_conflict`, which `app.refuse_explicit_conflict`
+and `cli._params` both call, because FastAPI 0.142.2 copies every default into the query model and the
+model cannot tell an explicit value from a default (L13 D-25). The rule needs only `head_chamfer`
+explicit: `s` and `k` come from the request, or from the frozen `BoltParams` defaults when the query
+does not name them (`?head_chamfer=80` alone is judged at `s` 10, `k` 4); a preset's `s` and `k`, filled
+by the CLI before the check, count as given; `thread_length` is judged first. The page writes only the
+fields that differ from their defaults, so a typed 30 is never explicit there. **The owner's D-25
+exception is extended to this one rule and no other (D-06):** a direct `BoltParams(head_chamfer=80)` is
+not refused, it is capped and warned. At the default part (`s` 10, `k` 4) the cap binds from
+68.85595459078384 degrees; it binds at 30 degrees whenever `k < 0.0893 s`.
+
+**The closed form (D-07, D-08).** `head_chamfer_volume(s, angle, depth)` in `calc/thread.py` is analytic,
+pure `math`, no `cadquery`. Uncapped it is `tan(angle) (s / 2)^3` times `4/3 + pi/3 + ln 3 - 2 sqrt 3 =
+0.015041558060286064`; capped it is the same integral cut at the depth, written with `depth / tan` formed
+directly, `atan2` and `asinh`, and a series below `theta` 0.05, because the first form measured
+`-49.5 mm3` at 89.99999999999999 degrees. It raises `ValueError` where it has no honest volume (angle 0,
+90, negative or not finite, a tangent that underflows), so `derive` prints no number for that part. It
+agreed with an independent Gauss-Legendre reference to 3.4e-14 over 600 rows and with both shipped numeric
+oracles (`face_chamfer_volume`, and the polar integral in `tests/test_end_oracles.py`) to 4.3e-10 over 108
+rows, which is the midpoint rule's own error. The default part's term is 1.0855309493921927 mm3, 0.135 %
+of its volume, and `bolt_end_closed_volume` takes `head_chamfer` as a required argument and subtracts it.
+The two numeric forms stay as test oracles; the nut keeps its numeric oracle (moving it is a deferred
+idea).
+
+**The cut and its gate (D-09).** `_build_bolt` cuts the cone on the head prism before the fuse and judges
+the volume it removed against `head_chamfer_volume` at `T_PIECE` (R11, named "head chamfer") before the
+whole bolt is judged at `T_GATE`. The measurement that placed it: on the prism the piece error is 6.7e-5
+at 0.01 degrees and at most 1.4e-6 from 0.5 degrees up; after the fuse a constant +5.5e-5 mm3 bias of the
+thread-bearing solid false-refused M6 at 0.01 degrees (+1.7e-1) and M2 at 0.1 degrees (+1.4e-1) against
+`T_PIECE` 0.03. About 0.03 s per build; 18 whole-bolt, 100 head-only and 60 watertight cases passed
+(macOS arm64, single runs, host loaded for the timings). Phase 7 measures the added cost. Positive
+controls by test name: `test_a_skipped_or_wrong_head_chamfer_is_refused_naming_the_piece` (a skipped cut
+reads -1, a 45 degree cut, and a skipped 1 degree cut that the whole-part gate alone passes).
+
+**The info document (D-10 to D-12, D-19).** With `head_chamfer` above 0 the Head group gains four rows,
+`head_chamfer` (labelled a stated model), `chamfer_depth` (as cut, so `k / 2` on a capped head),
+`chamfer_circle_diameter` and `corner_edge_left`, each with its formula; the volume row's formula names
+the term. At 0 none of them appear and the note `SHARP_HEAD_NOTE` is on **every** such part, whether or
+not it matches a catalogue row (D-19), with the `PartInfo.notes` description reworded to say so. The
+band and cap warnings follow the thread warnings and precede the no-row warning. The standing warning
+is now `ends modelled per L15 and L19: bolt tip chamfer, hex head chamfer, under-head fillet on an ISO
+4014 plain shank, nut lead-in countersinks and face chamfers; nominal, not toleranced; not a product
+build` (`STANDING_WARNING`, verbatim on the page, the API and the CLI). L13's and L15's quotations of the
+earlier standing warnings stay as history.
+
+**Presets, the pair and tiny angles (D-13, D-17, D-18).** A preset never sets the angle and `match`
+ignores it: no row prints an angle, because the figure is a band, so a sharp and a chamfered M6 x 20 are
+both `iso4017:M6x20`. **D-14 is corrected (D-17):** the kernel pair proof's shipped evidence bolt
+(`solid/pair.py`, built from a real `BoltParams`) now carries the default chamfer; `pair.py` is
+unchanged, the chamfer lies on the head's top face, above the nut, so no reading changes, and
+`tests/test_pair.py::test_the_evidence_bolt_carries_the_default_head_chamfer_and_still_builds` documents
+it. There is no angle floor (D-18): a tiny or near-right angle builds inside both gates or is refused as
+a `BuildError` (API 422 `build_error`), never a 500 or a wrong number. Measured: 0.5, 89.9, 1e-4 and
+89.99999999999999 degrees build; 1e-6 and 5e-324 are refused by name; `derive` reports no volume for a
+value with no honest one (`tests/test_solid.py::test_a_tiny_or_near_right_head_chamfer_builds_inside_its_gates_or_is_refused_by_name`,
+`tests/test_calc.py::test_derive_never_raises_on_a_tiny_or_near_right_head_chamfer`).
+
+**Published shapes (D-16).** The field is declared last in `BoltParams`, so the old slug is the prefix of
+the new one and every default download name gains `_head_chamfer30`
+(`bolt_d6_pitch1_left_hand0_length20_s10_k4_thread_length20_head_chamfer30`). The generic kernel-failure
+text names `head_chamfer` last, the schema gains the property, and the CLI gains `--head-chamfer`.
+
+**What it does not cover.** The nut: its angle stays `CHAMFER_ANGLE_DEG` 30 and a nut field is not asked
+for. The fine-STL caps and the build timeouts, which L13 and L16 measured on the sharp head; Phase 7
+(OPER-01, OPER-02) re-measures them on the chamfered one. The printed runs of L17 and L18 had sharp heads;
+the chamfer is on the head's top face, away from the thread the nut engages, so nothing those runs read
+changes. A bare `L19` in the gzip text of `bench/RESULTS.md`, `bench/README.md` and `Makefile` means
+spur L19, the gzip level rule; in `src/` and `docs/` outside those, a bare L19 is this entry.
+
+**Tests that hold it.** Closed form: `tests/test_end_oracles.py::test_the_head_chamfer_matches_both_oracles_capped_and_uncapped`,
+`::test_the_head_chamfer_of_the_default_part_is_the_pinned_closed_form`. Field:
+`tests/test_params.py::test_the_head_chamfer_is_an_angle_field_in_the_head_group_declared_last`,
+`::test_a_head_chamfer_from_0_to_below_90_is_accepted_and_any_other_value_is_refused_naming_it`. Cut and
+gates: `tests/test_solid.py::test_a_head_chamfer_of_zero_builds_todays_sharp_head`,
+`::test_a_direct_head_chamfer_deeper_than_half_k_is_capped_and_builds_through_both_gates`. Info document
+and warnings: `tests/test_calc.py::test_a_chamfered_head_reports_its_angle_depth_as_cut_circle_and_edge_left`,
+`::test_a_sharp_head_has_no_chamfer_rows_and_carries_the_sharp_head_note`,
+`::test_an_off_band_head_chamfer_builds_as_asked_and_warns_naming_the_band`,
+`::test_the_standing_warning_is_first_and_verbatim`. Request boundary:
+`tests/test_calc.py::test_the_bolt_rule_refuses_an_explicit_head_chamfer_deeper_than_half_k_reading_defaults`,
+`tests/test_api.py::test_an_explicit_head_chamfer_exactly_at_half_k_builds_uncapped_and_one_float_less_k_is_refused`,
+`tests/test_cli.py::test_an_explicit_head_chamfer_deeper_than_half_k_exits_2_and_writes_nothing`,
+`tests/test_parity.py::test_a_head_chamfer_conflict_is_the_same_words_on_the_api_and_the_cli`. Presets:
+`tests/test_presets.py::test_a_preset_never_sets_the_head_chamfer`.
+
+Reason: the head a user prints has chamfered corners, and the part a user asks for must be the part they
+get (L02). The owner ruled the default, the closed form stays exact for the part as cut, the cut is
+judged on its own volume where its error is measurable, and a conflict between two things the user asked
+for is refused by name where the provenance of a value exists, the request boundary.
+
+Reversibility: one-way for the name `head_chamfer`, the default 30 and the slug suffix
+`_head_chamfer30` (every shareable link and file name that omits the field depends on them, so changing
+any of them changes parts people already linked). Costly for the 422 type, its `ctx.fields` and the CLI
+exit code (D-06: every client and the parity test read them) and for the warning texts, the note and the
+row labels (D-12, the published shape of the info document, L13). Reversible for where the cut runs in
+the pipeline and for its piece gate: both are internal.
