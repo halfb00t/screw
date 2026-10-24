@@ -36,6 +36,7 @@ from screw.calc.thread import (
     fine_stl_refusal,
     flank_normal_gap,
     head_chamfer_depths,
+    head_chamfer_warnings,
     nut_closed_volume,
     nut_end_closed_volume,
     nut_fine_stl_refusal,
@@ -55,9 +56,9 @@ from screw.tables.iso4032 import NUTS
 from screw.tables.presets import catalogue, expand_nut
 from screw.tables.rows import HexNut
 
-WARNING = ("ends modelled per L15: bolt tip chamfer, under-head fillet on an ISO 4014 plain shank, "
-           "nut lead-in countersinks and face chamfers; nominal, not toleranced; "
-           "not a product build")
+WARNING = ("ends modelled per L15 and L19: bolt tip chamfer, hex head chamfer, under-head fillet "
+           "on an ISO 4014 plain shank, nut lead-in countersinks and face chamfers; nominal, "
+           "not toleranced; not a product build")
 PROFILE = "ISO 68-1:2023 basic profile"
 NO_ROW = ("no ISO 4014:2022 or ISO 4017:2022 row matches these fields; "
           "row values not reported")
@@ -836,6 +837,52 @@ def test_the_no_row_warning_follows_the_thread_warnings_and_precedes_the_fine_st
         STANDING_WARNING,
         "thread_length 80 exceeds length 70: thread built to the full length",
         NO_ROW, refusal]
+
+
+def test_an_off_band_head_chamfer_builds_as_asked_and_warns_naming_the_band() -> None:
+    # D-02: the band text is plain strings; the texts themselves are pinned in test_thread_maths.
+    for angle in (14.999, 30.001, 45.0):
+        band = head_chamfer_warnings(10.0, 4.0, angle)
+        assert len(band) == 1
+        warnings = derive(BoltParams(head_chamfer=angle)).warnings
+        assert warnings.count(band[0]) == 1, angle
+        assert "head_chamfer" in band[0]
+        assert "15 to 30 degree band" in band[0]
+        assert _rows(BoltParams(head_chamfer=angle))["head_chamfer"] == angle
+    for angle in (0.0, 15.0, 30.0):
+        assert not any("degree band" in w for w in derive(BoltParams(head_chamfer=angle)).warnings)
+
+
+def test_a_defaulted_head_chamfer_deeper_than_half_k_is_cut_at_half_k_and_warned() -> None:
+    # D-04: s = 100 with the default 30 degrees asks for a model depth far over k / 2 = 2 mm.
+    info = derive(BoltParams(s=100.0))
+    cap = head_chamfer_warnings(100.0, 4.0, 30.0)
+    assert len(cap) == 1
+    assert cap[0].startswith("head_chamfer 30 and k 4:")
+    assert info.warnings == [STANDING_WARNING, cap[0], NO_ROW]
+    assert _rows(BoltParams(s=100.0))["chamfer_depth"] == 2.0
+
+
+def test_a_direct_head_chamfer_of_80_is_capped_and_warned_not_refused() -> None:
+    # D-06: direct construction never refuses; the 422 is the request boundary's (plan 04).
+    info = derive(BoltParams(head_chamfer=80.0))
+    assert info.warnings == [STANDING_WARNING, *head_chamfer_warnings(10.0, 4.0, 80.0)]
+    assert len(info.warnings) == 3
+    assert "head_chamfer 80" in info.warnings[1]
+    assert "head_chamfer 80 and k 4" in info.warnings[2]
+    assert _rows(BoltParams(head_chamfer=80.0))["chamfer_depth"] == 2.0
+
+
+def test_the_head_chamfer_warnings_follow_the_thread_warnings_and_precede_the_no_row_warning(
+) -> None:
+    p = BoltParams(d=8.0, pitch=1.25, length=70.0, thread_length=80.0, head_chamfer=80.0)
+    s, k = p.s, p.k
+    info = derive(p)
+    refusal = fine_stl_refusal(8.0, 1.25, 70.0, False)
+    assert info.warnings == [
+        STANDING_WARNING,
+        "thread_length 80 exceeds length 70: thread built to the full length",
+        *head_chamfer_warnings(s, k, 80.0), NO_ROW, refusal]
 
 
 # --- the notes: product grade and the ISO versus withdrawn DIN wrench size (D-20, INFO-05) -----

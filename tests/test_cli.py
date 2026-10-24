@@ -20,9 +20,9 @@ from screw import __version__, cli
 from screw.calc import derive, download_refusal
 from screw.params import KINDS, BoltParams, FastenerParams
 
-WARNING = ("warning: ends modelled per L15: bolt tip chamfer, under-head fillet on an ISO 4014 "
-           "plain shank, nut lead-in countersinks and face chamfers; nominal, not toleranced; "
-           "not a product build")
+WARNING = ("warning: ends modelled per L15 and L19: bolt tip chamfer, hex head chamfer, "
+           "under-head fillet on an ISO 4014 plain shank, nut lead-in countersinks and face "
+           "chamfers; nominal, not toleranced; not a product build")
 
 
 def _exit_code(argv: list[str]) -> str | int | None:

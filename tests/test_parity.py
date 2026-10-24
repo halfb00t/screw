@@ -414,9 +414,9 @@ def test_the_cli_and_the_api_print_the_same_document(
         assert api_doc["warnings"][0] == STANDING_WARNING
         # The literal too, so rewording the constant fails here and not only in test_calc (D-04).
         assert api_doc["warnings"][0] == (
-            "ends modelled per L15: bolt tip chamfer, under-head fillet on an ISO 4014 plain "
-            "shank, nut lead-in countersinks and face chamfers; nominal, not toleranced; "
-            "not a product build")
+            "ends modelled per L15 and L19: bolt tip chamfer, hex head chamfer, under-head "
+            "fillet on an ISO 4014 plain shank, nut lead-in countersinks and face chamfers; "
+            "nominal, not toleranced; not a product build")
 
 
 def test_the_limits_heading_is_the_same_ascii_string_on_the_cli_and_the_api(

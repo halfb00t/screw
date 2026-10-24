@@ -28,6 +28,7 @@ from screw.calc.thread import (
     fine_stl_refusal,
     flank_normal_gap,
     head_chamfer_depths,
+    head_chamfer_warnings,
     nut_end_closed_volume,
     nut_fine_stl_refusal,
     pitch_diameter,
@@ -56,13 +57,14 @@ NO_FILLET_NOTE = "no under-head fillet: the thread runs to the head (ISO 4017:20
 # omission.
 SHARP_HEAD_NOTE = "sharp hex head corners: head_chamfer 0 cuts no top chamfer (L19)"
 
-# The standing entry on every info document (D-04, D-18): it names the ends the builder models
-# (L15, the bolt tip cone, the under-head fillet and the nut's countersinks and chamfers) and says
-# they are nominal, so nobody should cut metal to it as a product. The first release, after Phase 7,
-# removes the last clause (06 D-15).
+# The standing entry on every info document (D-04, D-18, 06.1 D-12): it names the ends the builder
+# models (L15 and L19: the bolt tip cone, the hex head chamfer, the under-head fillet and the nut's
+# countersinks and chamfers) and says they are nominal, so nobody should cut metal to it as a
+# product. The first release, after Phase 7, removes the last clause (06 D-15).
 STANDING_WARNING = (
-    "ends modelled per L15: bolt tip chamfer, under-head fillet on an ISO 4014 plain shank, "
-    "nut lead-in countersinks and face chamfers; nominal, not toleranced; not a product build")
+    "ends modelled per L15 and L19: bolt tip chamfer, hex head chamfer, under-head fillet on an "
+    "ISO 4014 plain shank, nut lead-in countersinks and face chamfers; nominal, not toleranced; "
+    "not a product build")
 
 # The panel headings (D-17); `calc.presets` files the rows a matched row adds under the same two.
 SHANK = "Shank and thread"
@@ -322,6 +324,13 @@ def _bolt(p: BoltParams) -> PartInfo:
         warnings.append(f"thread_length and length: a thread of {t:g} mm is shorter than the "
                         f"{MIN_TAIL_MM:g} mm the builder can model, so this part is not built; "
                         "turns and volume not reported")
+    # D-02: an angle off the 15 to 30 degree band builds as asked and says so. D-04, D-06: a depth
+    # over k / 2 that reached the model (a defaulted angle, or direct construction) is cut at k / 2
+    # and says so, naming head_chamfer and k. An explicit one never gets here on the API or the CLI
+    # (the request boundary's 422, plan 06.1-04); only a `model_construct` instance can fail here,
+    # and its volume row then says it is not reported.
+    with contextlib.suppress(OverflowError, ValueError):
+        warnings.extend(head_chamfer_warnings(p.s, p.k, p.head_chamfer))
     if row is None:
         # L02: no row means no row value and no nearest row; the part is built from its fields.
         warnings.append(NO_ROW_WARNING)
