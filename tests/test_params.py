@@ -237,11 +237,12 @@ def test_a_field_error_hides_the_model_rules_that_need_every_field() -> None:
 
 def test_the_schema_lists_the_fields_with_ui_metadata() -> None:
     props = BoltParams.model_json_schema()["properties"]
-    assert list(props) == ["d", "pitch", "left_hand", "length", "s", "k", "thread_length"]
+    assert list(props) == [
+        "d", "pitch", "left_hand", "length", "s", "k", "thread_length", "head_chamfer"]
     for name, prop in props.items():
         assert "title" in prop, name
         assert "unit" in prop, name
-        if name == "left_hand":
+        if name in ("left_hand", "head_chamfer"):    # each has a test of its own
             continue
         group = {"s": "Head", "k": "Head", "thread_length": "Thread"}.get(name, "Size")
         assert prop["group"] == group, name
@@ -250,6 +251,40 @@ def test_the_schema_lists_the_fields_with_ui_metadata() -> None:
         # exclusiveMinimum, not minimum: gt=0 must not read as an inclusive HTML min.
         assert prop["exclusiveMinimum"] == 0, name
         assert "minimum" not in prop, name
+
+
+def test_the_head_chamfer_is_an_angle_field_in_the_head_group_declared_last() -> None:
+    # 06.1 D-01, D-16: 0 is the sharp head, so the bound is inclusive (minimum, not
+    # exclusiveMinimum); 90 is a flat top, so the upper bound is exclusive.
+    assert list(BoltParams.model_fields)[-1] == "head_chamfer"
+    prop = BoltParams.model_json_schema()["properties"]["head_chamfer"]
+    assert (prop["title"], prop["group"], prop["unit"], prop["step"]) == (
+        "Head chamfer", "Head", "°", 0.5)
+    assert (prop["minimum"], prop["exclusiveMaximum"], prop["default"]) == (0, 90, 30.0)
+    assert "exclusiveMinimum" not in prop
+    assert "maximum" not in prop
+
+
+def test_the_head_chamfer_default_is_30_degrees_and_frozen() -> None:
+    # L02, L19: every link that omits it means 30 forever.
+    assert BoltParams().head_chamfer == 30.0
+    assert BoltParams.model_fields["head_chamfer"].default == 30.0
+
+
+@pytest.mark.parametrize(("value", "error"), [
+    (0.0, None), (-0.0, None), (15.0, None), (89.999, None),
+    (90.0, "less_than"), (91.0, "less_than"), (-1.0, "greater_than_equal"),
+    (math.nan, "finite_number"), (math.inf, "finite_number"), ("abc", "float_parsing"),
+])
+def test_a_head_chamfer_from_0_to_below_90_is_accepted_and_any_other_value_is_refused_naming_it(
+        value: object, error: str | None) -> None:
+    if error is None:
+        assert BoltParams.model_validate({"head_chamfer": value}).head_chamfer == value
+        return
+    with pytest.raises(ValidationError) as caught:
+        BoltParams.model_validate({"head_chamfer": value})
+    assert [(e["loc"], e["type"]) for e in caught.value.errors()] == [
+        (("head_chamfer",), error)]
 
 
 def test_the_thread_length_is_a_millimetre_field_in_the_thread_group() -> None:
@@ -283,18 +318,21 @@ def test_left_hand_parses_a_boolean_and_refuses_anything_else() -> None:
 
 
 def test_the_slug_of_the_default_bolt_is_stable() -> None:
-    assert BoltParams().slug() == "bolt_d6_pitch1_left_hand0_length20_s10_k4_thread_length20"
+    assert BoltParams().slug() == (
+        "bolt_d6_pitch1_left_hand0_length20_s10_k4_thread_length20_head_chamfer30")
 
 
 def test_the_slug_tells_the_hands_apart() -> None:
     assert BoltParams(left_hand=True).slug() == (
-        "bolt_d6_pitch1_left_hand1_length20_s10_k4_thread_length20")
+        "bolt_d6_pitch1_left_hand1_length20_s10_k4_thread_length20_head_chamfer30")
 
 
 @pytest.mark.parametrize("values", [
     {"d": 99999.0, "s": 1e5, "k": 1e5},
     {"d": 0.001, "pitch": 0.0001, "length": 0.01, "s": 0.002, "k": 0.001},
     {"length": 1e5, "pitch": 400.0, "d": 1000.0, "s": 1500.0, "k": 600.0},
+    {"head_chamfer": 89.99999999999999},
+    {"head_chamfer": 5e-324},
 ])
 def test_the_slug_is_filename_safe_for_extreme_values(values: dict[str, float]) -> None:
     # It becomes a Content-Disposition filename and a temp file name (T-01-06).

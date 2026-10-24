@@ -795,15 +795,24 @@ def tip_cone_fits(pitch: float, t: float) -> bool:
 
 
 def bolt_end_closed_volume(d: float, pitch: float, length: float, s: float, k: float, t: float,
-                           tip: bool, r: float | None) -> float:
+                           tip: bool, r: float | None, head_chamfer: float) -> float:
     """`bolt_closed_volume` less the tip cone when `tip`, plus the fillet ring when `r` is a
-    radius: the volume of a bolt with its ends (D-09, D-11). Each oracle raises `ValueError`
-    outside its validity, so there is no number for a bolt the oracles cannot judge (L02)."""
+    radius, less the head chamfer when `head_chamfer` is above 0: the volume of a bolt with its
+    ends (D-09, D-11, 06.1 D-07). Each oracle raises `ValueError` outside its validity, so there
+    is no number for a bolt the oracles cannot judge (L02).
+
+    `head_chamfer` has no default so that mypy names every caller and none can print a sharp
+    volume for a chamfered part. The term is `head_chamfer_volume` at the capped depth
+    `head_chamfer_depths` returns; it is tested as `> 0` and never `!= 0`, because -0.0 is the
+    sharp head.
+    """
     volume = bolt_closed_volume(d, pitch, length, s, k, t)
     if tip:
         volume -= tip_cone_volume(d, pitch, TIP_ANGLE_DEG)
     if r is not None:
         volume += fillet_ring_volume(d, r)
+    if head_chamfer > 0:
+        volume -= head_chamfer_volume(s, head_chamfer, head_chamfer_depths(s, k, head_chamfer)[1])
     return volume
 
 

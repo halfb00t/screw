@@ -258,8 +258,11 @@ def _bolt(p: BoltParams) -> PartInfo:
          "the closed form section_area(d, pitch) * thread_length (built) "
          "+ pi * (d / 2)^2 * shank_length + (sqrt(3) / 2) * s^2 * k, less the tip cone "
          "(the thread cut at 45° from the end face from the minor diameter) and plus the "
-         "under-head fillet ring where the thread has a plain shank at a cited ISO 4014 size",
-         lambda: bolt_end_closed_volume(p.d, p.pitch, p.length, p.s, p.k, t, tip, ring)),
+         "under-head fillet ring where the thread has a plain shank at a cited ISO 4014 size, "
+         "less the head chamfer (a cone from s / 2 at head_chamfer degrees from the top face, "
+         "cut no deeper than k / 2)",
+         lambda: bolt_end_closed_volume(
+             p.d, p.pitch, p.length, p.s, p.k, t, tip, ring, p.head_chamfer)),
     ]
     # IN-01, L02: below `MIN_TAIL_MM` of built thread the builder refuses the part, so a turns or
     # volume row would be a number for a bolt nobody can make. They are left out and the warning

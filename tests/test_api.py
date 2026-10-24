@@ -156,9 +156,10 @@ def test_schema_requires_a_kind_and_knows_only_registered_kinds() -> None:
     r = client.get("/api/schema", params={"kind": "bolt"})
     assert r.status_code == 200
     props = r.json()["properties"]
-    assert list(props) == ["d", "pitch", "left_hand", "length", "s", "k", "thread_length"]
+    assert list(props) == [
+        "d", "pitch", "left_hand", "length", "s", "k", "thread_length", "head_chamfer"]
     assert props["d"]["group"] == "Size"
-    assert props["s"]["group"] == props["k"]["group"] == "Head"
+    assert props["s"]["group"] == props["k"]["group"] == props["head_chamfer"]["group"] == "Head"
     assert props["thread_length"]["group"] == "Thread"
     assert props["thread_length"]["default"] == 20.0
     assert props["d"]["unit"] == "mm"
@@ -278,7 +279,7 @@ def test_openapi_documents_the_typed_contracts() -> None:
     model_route = schema["paths"]["/api/bolt/model.{fmt}"]["get"]
     query_names = {p["name"] for p in model_route["parameters"] if p["in"] == "query"}
     assert query_names == {"d", "pitch", "left_hand", "length", "s", "k", "thread_length",
-                           "quality"}
+                           "head_chamfer", "quality"}
     # The download state is pinned to the model route's own enums, read from this document and
     # not typed here, so a route that grows a format or a quality fails this test instead of
     # drifting from the info document (G-04-3).
@@ -298,7 +299,8 @@ def test_openapi_documents_the_typed_contracts() -> None:
     # `quality` belongs to the model route only: it is a foreign field on the info route.
     info_route = schema["paths"]["/api/bolt/info"]["get"]
     info_names = {p["name"] for p in info_route["parameters"] if p["in"] == "query"}
-    assert info_names == {"d", "pitch", "left_hand", "length", "s", "k", "thread_length"}
+    assert info_names == {"d", "pitch", "left_hand", "length", "s", "k", "thread_length",
+                           "head_chamfer"}
 
     presets_response = schema["paths"]["/api/presets"]["get"]["responses"]["200"]
     assert presets_response["content"]["application/json"]["schema"] == {
@@ -359,7 +361,8 @@ def test_the_default_info_document() -> None:
     assert (values["thread_length"], values["shank_length"]) == (20.0, 0.0)
     assert (values["s"], values["k"]) == (10.0, 4.0)
     assert values["across_corners"] == 10.0 / math.cos(math.pi / 6)
-    assert values["volume"] == bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None)
+    assert values["volume"] == bolt_end_closed_volume(
+        6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None, 30.0)
     assert body["warnings"][0] == STANDING_WARNING
     assert body["preset"] == {"status": "exact", "id": "iso4017:M6x20",
                               "display": "ISO 4017 M6 \u00d7 20"}
@@ -389,7 +392,8 @@ def test_an_iso_4014_shaped_bolt_reports_its_thread_and_its_shank() -> None:
     values = {row["key"]: row["value"] for row in r.json()["rows"]}
     assert (values["thread_length"], values["shank_length"]) == (18.0, 12.0)
     assert values["turns"] == 18.0
-    assert values["volume"] == bolt_end_closed_volume(6.0, 1.0, 30.0, 10.0, 4.0, 18.0, True, 0.25)
+    assert values["volume"] == bolt_end_closed_volume(
+        6.0, 1.0, 30.0, 10.0, 4.0, 18.0, True, 0.25, 30.0)
 
 
 @pytest.mark.parametrize("route", ["/api/bolt/info", "/api/bolt/model.stl"])
@@ -562,7 +566,7 @@ def test_the_default_part_served_is_the_gated_hex_head_screw(tmp_path: Path) -> 
     assert isinstance(shape, cq.Shape)
     assert len(shape.Solids()) == 1
     assert precise_volume(shape) == pytest.approx(
-        bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None), rel=T_GATE)
+        bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None, 30.0), rel=T_GATE)
 
 
 def test_the_download_filename_is_safe_for_many_digit_values() -> None:
@@ -587,13 +591,20 @@ def test_model_download(fmt: str, ctype: str, magic: bytes | None) -> None:
     # D-22: the preview STL names its quality; the STEP keeps the plain slug.
     name = "_preview.stl" if fmt == "stl" else ".step"
     assert r.headers["content-disposition"] == (
-        f'attachment; filename="bolt_d8_pitch1_left_hand0_length20_s10_k4_thread_length20{name}"')
+        'attachment; filename="bolt_d8_pitch1_left_hand0_length20_s10_k4_'
+        f'thread_length20_head_chamfer30{name}"')
     if magic:
         assert r.content.startswith(magic)
 
 
 def test_unknown_format_is_rejected() -> None:
     assert client.get("/api/bolt/model.obj").status_code == 422
+
+
+def test_a_head_chamfer_of_90_is_a_422_naming_the_field() -> None:
+    r = client.get("/api/bolt/info", params={"head_chamfer": 90})
+    assert r.status_code == 422
+    assert r.json()["detail"][0]["loc"] == ["query", "head_chamfer"]
 
 
 def test_bad_type_is_422_on_the_field() -> None:
@@ -606,11 +617,11 @@ def test_a_left_hand_bolt_downloads_under_its_own_filename_and_is_not_the_right_
     left = client.get("/api/bolt/model.stl", params={"left_hand": "true", "quality": "preview"})
     assert left.status_code == 200
     assert left.headers["content-disposition"] == (
-        'attachment; filename="bolt_d6_pitch1_left_hand1_length20_s10_k4_thread_length20'
-        '_preview.stl"')
+        'attachment; filename="bolt_d6_pitch1_left_hand1_length20_s10_k4_'
+        'thread_length20_head_chamfer30_preview.stl"')
     right = client.get("/api/bolt/model.stl", params={"quality": "preview"})
     assert right.headers["content-disposition"].endswith(
-        'left_hand0_length20_s10_k4_thread_length20_preview.stl"')
+        'left_hand0_length20_s10_k4_thread_length20_head_chamfer30_preview.stl"')
     # The bytes of the left-hand solid the handedness probe proves left-handed
     # (tests/test_solid.py), and not of the right-hand one.
     assert left.content == export(BoltParams(left_hand=True), "stl", "preview")
@@ -691,7 +702,7 @@ def test_a_saturated_service_emits_queue_refused_naming_the_part_and_the_ceiling
     assert _field(refused[0], "request")
     assert _field(refused[0], "kind") == "bolt"
     assert _field(refused[0], "slug") == (
-        "bolt_d7.3_pitch1_left_hand0_length20_s10_k4_thread_length20")
+        "bolt_d7.3_pitch1_left_hand0_length20_s10_k4_thread_length20_head_chamfer30")
     assert _field(refused[0], "in_flight") == in_flight_before
     assert _field(refused[0], "max_queued") == app_module.MAX_QUEUED_BUILDS
 
@@ -838,7 +849,7 @@ def test_a_fresh_build_emits_build_started_then_export_served_with_source_built(
     for record in (started[0], served[0]):
         assert _field(record, "kind") == "bolt"
         assert _field(record, "slug") == (
-            "bolt_d7.1_pitch1_left_hand0_length20_s10_k4_thread_length20")
+            "bolt_d7.1_pitch1_left_hand0_length20_s10_k4_thread_length20_head_chamfer30")
         assert _field(record, "params") == {"d": 7.1}
 
 
@@ -905,7 +916,8 @@ def test_an_all_default_part_logs_params_as_an_empty_object_not_omitted(
     assert len(served) == 1
     assert _field(served[0], "params") == {}
     assert _field(served[0], "kind") == "bolt"
-    assert _field(served[0], "slug") == "bolt_d6_pitch1_left_hand0_length20_s10_k4_thread_length20"
+    assert _field(served[0], "slug") == (
+        "bolt_d6_pitch1_left_hand0_length20_s10_k4_thread_length20_head_chamfer30")
 
 
 def test_two_requests_for_one_part_get_two_different_request_ids(
@@ -963,7 +975,7 @@ def test_a_failed_build_emits_build_failed_naming_the_class_and_the_level(
     assert _field(failed[0], "request")
     assert _field(failed[0], "kind") == "bolt"
     assert _field(failed[0], "slug") == (
-        "bolt_d8.3_pitch1_left_hand0_length20_s10_k4_thread_length20")
+        "bolt_d8.3_pitch1_left_hand0_length20_s10_k4_thread_length20_head_chamfer30")
     assert _field(failed[0], "params") == {"d": 8.3}
     assert _field(failed[0], "duration_ms") is not None
 

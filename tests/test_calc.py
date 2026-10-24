@@ -92,11 +92,14 @@ def test_the_default_thread_numbers_come_from_the_pinned_profile() -> None:
     rows = _rows(BoltParams())
     assert rows["turns"] == 20.0
     # The whole-part closed form, never the kernel's Volume() (L02, INFO-03): the section area
-    # times the thread plus the sharp-cornered hexagonal prism, (sqrt(3) / 2) * s^2 * k.
-    # The closed form less the 45 degree tip cone (D-09): a threaded-to-the-head screw has no ring.
-    assert rows["volume"] == bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None)
+    # times the thread plus the hexagonal prism, (sqrt(3) / 2) * s^2 * k, less the 30 degree head
+    # chamfer (06.1, pinned in tests/test_end_oracles.py). The closed form less the 45 degree tip
+    # cone (D-09): a threaded-to-the-head screw has no ring.
+    assert rows["volume"] == bolt_end_closed_volume(
+        6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None, 30.0)
     assert rows["volume"] == pytest.approx(
-        459.14408096158724 + 200 * math.sqrt(3) - tip_cone_volume(6.0, 1.0, 45.0), abs=1e-9)
+        459.14408096158724 + 200 * math.sqrt(3) - tip_cone_volume(6.0, 1.0, 45.0)
+        - 1.0855309493921927, abs=1e-9)
     # An independently typed 5/8 * sqrt(3)/2 for P = 1.
     assert rows["thread_depth"] == pytest.approx(0.541265877, abs=1e-9)
     assert rows["minor_diameter"] == pytest.approx(6 - 2 * 0.541265877, abs=1e-9)
@@ -114,7 +117,8 @@ def test_the_thread_rows_are_the_built_thread_and_the_plain_shank_left_over() ->
     rows = _rows(p)
     assert (rows["thread_length"], rows["shank_length"], rows["turns"]) == (20.0, 10.0, 20.0)
     # The 10 mm plain shank is at least the cited r = 0.25 mm of an M6 under the head: a ring.
-    assert rows["volume"] == bolt_end_closed_volume(6.0, 1.0, 30.0, 10.0, 4.0, 20.0, True, 0.25)
+    assert rows["volume"] == bolt_end_closed_volume(
+        6.0, 1.0, 30.0, 10.0, 4.0, 20.0, True, 0.25, 30.0)
     assert derive(p).warnings == [STANDING_WARNING, NO_ROW]
 
 
@@ -122,7 +126,8 @@ def test_the_rows_of_a_screw_shorter_than_the_default_thread_read_the_built_thre
     # D-08: `?length=10` builds a 10 mm full-thread screw; the stored thread_length stays 20.
     rows = _rows(BoltParams(length=10.0))
     assert (rows["thread_length"], rows["shank_length"], rows["turns"]) == (10.0, 0.0, 10.0)
-    assert rows["volume"] == bolt_end_closed_volume(6.0, 1.0, 10.0, 10.0, 4.0, 10.0, True, None)
+    assert rows["volume"] == bolt_end_closed_volume(
+        6.0, 1.0, 10.0, 10.0, 4.0, 10.0, True, None, 30.0)
 
 
 def test_a_default_thread_below_an_explicit_length_is_built_to_the_length_and_warned() -> None:
@@ -1217,16 +1222,19 @@ def test_following_a_nuts_counterpart_gives_a_bolt_with_the_nuts_d_pitch_and_han
 def test_the_volume_row_is_the_closed_form_less_the_tip_and_plus_the_ring() -> None:
     # An ISO 4014 M10 x 80 row: 26 mm of thread under a 54 mm plain shank, r = 0.4 (cited).
     rows = _rows(M10X80)
-    assert rows["volume"] == bolt_end_closed_volume(10.0, 1.5, 80.0, 16.0, 6.4, 26.0, True, 0.4)
-    assert rows["volume"] != bolt_end_closed_volume(10.0, 1.5, 80.0, 16.0, 6.4, 26.0, True, None)
+    assert rows["volume"] == bolt_end_closed_volume(
+        10.0, 1.5, 80.0, 16.0, 6.4, 26.0, True, 0.4, 30.0)
+    assert rows["volume"] != bolt_end_closed_volume(
+        10.0, 1.5, 80.0, 16.0, 6.4, 26.0, True, None, 30.0)
 
 
-def test_the_volume_formula_text_names_the_tip_cone_and_the_ring() -> None:
+def test_the_volume_formula_text_names_the_tip_cone_the_ring_and_the_head_chamfer() -> None:
     # The formula is spoken only when the row cannot be reported (L02); d = 1e200 overflows it.
     info = derive(BoltParams.model_construct(d=1e200, pitch=1.0, length=20.0, s=10.0, k=4.0))
     text = next(w for w in info.warnings if w.startswith("volume not reported"))
     assert "tip cone" in text
     assert "fillet ring" in text
+    assert "head chamfer" in text
 
 
 def test_a_thread_no_longer_than_the_tip_cone_gets_no_cone_and_a_warning_naming_thread() -> None:
@@ -1238,7 +1246,8 @@ def test_a_thread_no_longer_than_the_tip_cone_gets_no_cone_and_a_warning_naming_
         warned = [w for w in info.warnings if w.startswith("thread_length: the built thread")]
         assert bool(warned) is not cut, t
         values = {r.key: r.value for r in info.rows}
-        assert values["volume"] == bolt_end_closed_volume(6.0, 1.0, 10.0, 10.0, 4.0, t, cut, 0.25)
+        assert values["volume"] == bolt_end_closed_volume(
+            6.0, 1.0, 10.0, 10.0, 4.0, t, cut, 0.25, 30.0)
     short = derive(BoltParams(d=6.0, pitch=1.0, length=10.0, thread_length=cone)).warnings
     assert any("thread_length" in w and "no tip cone is cut" in w for w in short)
 

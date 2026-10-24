@@ -57,6 +57,21 @@ def _free(default: float, *, le: float, title: str, group: str, unit: str = "",
     return free     # typed here: `Field` returns Any, which --strict refuses to return
 
 
+def _angle(default: float, *, ge: float, lt: float, title: str, group: str, unit: str = "",
+           step: float | None = None, help: str = "") -> float:
+    # The sibling of `_f` for a bounded angle: `_f`'s `gt` would refuse 0, which is the sharp head
+    # (06.1 D-01), and `_free` has no bound. `ge` and `lt` put `minimum` and `exclusiveMaximum` in
+    # the schema; the form turns `minimum` into an inclusive HTML min (0 is valid) and ignores
+    # `exclusiveMaximum`, the 422 speaks for it. Verified on pydantic 2.13.5 (06.1-RESEARCH
+    # boundary detail 3). `allow_inf_nan=False` refuses inf and nan as in `_f`.
+    extra: JsonDict = {"group": group, "unit": unit}
+    if step is not None:
+        extra["step"] = step
+    angle: float = Field(default, ge=ge, lt=lt, allow_inf_nan=False, title=title,
+                         description=help, json_schema_extra=extra)
+    return angle    # typed here: `Field` returns Any, which --strict refuses to return
+
+
 def _b(default: bool, *, title: str, group: str, help: str = "") -> bool:
     # The sibling of `_f` for a yes/no field: no bound, no step, no unit. The schema still
     # carries `unit` (empty) because the parity test and the form read it on every property.
@@ -135,6 +150,17 @@ class BoltParams(FastenerParams):
                               help="Length of the thread from the tip (ISO 4014: b; ISO 4017: "
                                    "the whole length); the rest of the length is a plain shank "
                                    "of diameter d.")
+    # Owner ruling 2026-10-24 (L19): 30 is the top of the 15 to 30 degree band read for the nut
+    # (R4 a, a stated model). Frozen: every link that omits it means 30 forever (L02), and it is
+    # declared last so `slug()` keeps the old name as its prefix (D-16). No model validator: a
+    # depth over k / 2 is capped and warned (D-04, D-06), and the 422 for an explicit value is the
+    # request boundary's (D-05).
+    head_chamfer: float = _angle(
+        30.0, ge=0, lt=90, title="Head chamfer", group="Head", unit="°", step=0.5,
+        help="The chamfer on the top corners of the hex head, in degrees from the top face: a "
+             "cone from the inscribed circle s / 2, cut no deeper than k / 2. 0 leaves the "
+             "corners sharp. The standards draw this chamfer as a 15 to 30 degree band; 30 is "
+             "the model's choice.")
 
     @model_validator(mode="after")
     def _turn_cap(self) -> Self:

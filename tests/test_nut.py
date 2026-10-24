@@ -202,14 +202,15 @@ def test_a_bolt_kernel_failure_still_names_the_bolts_fields(
     from screw.params import BoltParams
     from screw.solid import bolt
 
-    def boom(p: BoltParams, thread: object) -> object:
+    def boom(p: BoltParams, thread: object, head: object = None) -> object:
         raise RuntimeError("planted")
 
     monkeypatch.setattr(bolt, "assemble", boom)
     with pytest.raises(BuildError) as raised:
         build(BoltParams())
-    assert str(raised.value) == ("Geometry kernel failed (RuntimeError); "
-                                 "check d, pitch, left_hand, length, s, k and thread_length.")
+    assert str(raised.value) == (
+        "Geometry kernel failed (RuntimeError); "
+        "check d, pitch, left_hand, length, s, k, thread_length and head_chamfer.")
 
 
 # ---------------------------------------------------------------- the clearance default
