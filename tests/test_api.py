@@ -1028,6 +1028,19 @@ def test_a_length_too_short_to_model_is_a_422_build_error_not_a_served_file(
     assert "length" in detail["msg"]
 
 
+def test_a_tiny_head_chamfer_is_a_422_build_error_or_a_200_never_a_500() -> None:
+    # 06.1 D-18: 5e-324 degrees has no honest oracle, so the build is refused; 1e-6 either builds
+    # inside both gates or is refused by name, and neither is a server error.
+    refused = client.get("/api/bolt/model.stl", params={
+        "head_chamfer": 5e-324, "quality": "preview"})
+    assert refused.status_code == 422
+    assert refused.json()["detail"][0]["type"] == "build_error"
+    near = client.get("/api/bolt/model.stl", params={"head_chamfer": 1e-6, "quality": "preview"})
+    assert near.status_code in (200, 422)
+    if near.status_code == 422:
+        assert near.json()["detail"][0]["type"] == "build_error"
+
+
 def test_a_failed_export_is_a_422_and_never_enters_the_bytes_cache(
         monkeypatch: pytest.MonkeyPatch) -> None:
     # 7.77 is a diameter no other test downloads (the byte cache is session-wide). The

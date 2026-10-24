@@ -930,6 +930,26 @@ def test_the_evidence_bolt_of_an_off_row_nut_with_d_of_ten_or_more_builds_throug
     assert bolt.k == BoltParams.model_fields["k"].default
 
 
+def test_the_evidence_bolt_carries_the_default_head_chamfer_and_still_builds(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    # 06.1 D-17, correcting D-14: the shipped-evidence bolt is a real BoltParams, so it takes the
+    # default head chamfer without an edit to `solid/pair.py`, and its head is cut and gated like
+    # any bolt's. The nut is a stand-in box; the bolt goes through the real kernel.
+    asked: list[BoltParams] = []
+
+    def build_bolt(q: FastenerParams) -> cq.Solid:
+        if isinstance(q, BoltParams):
+            asked.append(q)
+            return real_build(q)
+        return cq.Solid.makeBox(1, 1, 10.0)
+
+    monkeypatch.setattr(solid_pair, "build", build_bolt)
+    readings = solid_pair._shipped(NutParams(clearance=0.1), False, _Script(*[EMPTY] * 3))
+    assert [(r.outcome, r.error) for r in readings] == [("built", None)] * 3
+    [bolt] = asked
+    assert bolt.head_chamfer == BoltParams.model_fields["head_chamfer"].default == 30.0
+
+
 def test_the_evidence_bolt_of_a_nut_on_an_iso_4017_row_keeps_the_rows_s_and_k(
         monkeypatch: pytest.MonkeyPatch) -> None:
     bolt = _asked_bolt(NutParams(d=10.0, pitch=1.5, s=17.0, m=8.4, clearance=0.1), monkeypatch)

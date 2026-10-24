@@ -209,6 +209,20 @@ def test_a_volume_that_overflows_is_absent_and_explained_not_a_500() -> None:
     assert info.warnings[0] == WARNING
 
 
+def test_derive_never_raises_on_a_tiny_or_near_right_head_chamfer() -> None:
+    # 06.1 D-18, L02: a value with no honest volume reports none and says why; the rest reports a
+    # finite number below the sharp head's. 5e-324 degrees underflows the tangent, so the oracle
+    # raises ValueError and `derive` leaves the volume row out.
+    tiny = derive(BoltParams(head_chamfer=5e-324))
+    assert "volume" not in [r.key for r in tiny.rows]
+    assert any(w.startswith("volume not reported") and "head chamfer" in w for w in tiny.warnings)
+    sharp = bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None, 0.0)
+    for angle in (1e-9, 1e-4, 89.99999999999999):
+        volume = _rows(BoltParams(head_chamfer=angle))["volume"]
+        assert math.isfinite(volume)
+        assert 0 < volume < sharp, angle
+
+
 def test_an_infinite_diameter_leaves_out_every_row_it_would_make_infinite() -> None:
     info = derive(BoltParams.model_construct(d=math.inf, pitch=1.0, length=20.0, s=10.0, k=4.0))
     keys = [r.key for r in info.rows]

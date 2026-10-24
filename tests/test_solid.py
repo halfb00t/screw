@@ -238,6 +238,55 @@ def test_a_skipped_or_wrong_head_chamfer_is_refused_naming_the_piece(
         assert error in str(raised.value)
 
 
+def test_a_direct_head_chamfer_deeper_than_half_k_is_capped_and_builds_through_both_gates() -> None:
+    # 06.1 D-06: the model accepts 80 degrees (depth 0.577 * tan 80 = 3.3 mm of an M6 head, above
+    # k / 2 = 2 mm), so the cut is capped at k / 2 and warned about, never refused; the closed
+    # form reads the same capped depth, so both gates agree with the kernel.
+    p = BoltParams(head_chamfer=80.0)
+    solid = build(p)
+    assert len(solid.Solids()) == 1
+    assert solid.isValid()
+    assert precise_volume(solid) == pytest.approx(
+        bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None, 80.0), rel=T_GATE)
+    box = solid.BoundingBox()
+    assert box.zmax == pytest.approx(24.0, abs=TOL)      # the flat top is lower, not the head
+    assert box.xlen == pytest.approx(10.0, abs=1e-4)
+    assert box.ylen == pytest.approx(10.0 / math.cos(math.pi / 6), abs=1e-4)
+    # D-04, defaulted branch: s 20, k 1 at the default 30 degrees asks 0.893 mm and is capped at
+    # k / 2 = 0.5 mm.
+    wide = BoltParams(s=20.0, k=1.0)
+    full, cut = head_chamfer_depths(wide.s, wide.k, wide.head_chamfer)
+    assert full == pytest.approx(0.893, abs=1e-3)
+    assert cut == 0.5
+    assert precise_volume(build(wide)) == pytest.approx(
+        bolt_end_closed_volume(6.0, 1.0, 20.0, 20.0, 1.0, 20.0, True, None, 30.0), rel=T_GATE)
+
+
+@pytest.mark.parametrize("angle", [0.5, 89.9, 1e-4, 1e-6, 5e-324, 89.99999999999999])
+def test_a_tiny_or_near_right_head_chamfer_builds_inside_its_gates_or_is_refused_by_name(
+        angle: float) -> None:
+    # 06.1 D-18, L02. A disjunction per value: the outcomes at 1e-4 and 1e-5 degrees are single
+    # macOS arm64 runs and linux/amd64 may differ. A solid that is returned passed both gates; any
+    # exception other than BuildError (the API's 422) would be a 500. Geometry only, no call counts.
+    clear_cache()
+    solid: cq.Solid | None = None
+    refusal: BuildError | None = None
+    try:
+        solid = build(BoltParams(head_chamfer=angle))
+    except BuildError as raised:
+        refusal = raised
+    finally:
+        clear_cache()
+    if solid is None:
+        assert angle not in (0.5, 89.9), f"a positive control was refused: {refusal}"
+        return
+    assert angle != 5e-324, "an angle with no honest oracle was built"
+    assert len(solid.Solids()) == 1
+    assert solid.isValid()
+    assert precise_volume(solid) == pytest.approx(
+        bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None, angle), rel=T_GATE)
+
+
 def _eps_diluted_below_the_gate_for_a_whole_part(d: float, pitch: float) -> float:
     """A relative growth of the diameter that moves the thread's section area by 1.1e-4 to
     1.4e-4 of itself: above T_GATE (9e-5) on the bare thread, and once the thread's share of the
