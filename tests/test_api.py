@@ -347,12 +347,13 @@ def test_the_default_info_document() -> None:
     assert [row["key"] for row in body["rows"]] == [
         "d", "pitch", "length", "thread_length", "shank_length", "turns", "thread_depth",
         "minor_diameter", "pitch_diameter", "d_max", "d_min", "d2_max", "d2_min", "s",
-        "across_corners", "k", "s_min", "e_min", "k_max", "k_min", "dw_min", "volume"]
+        "across_corners", "k", "s_min", "e_min", "k_max", "k_min", "dw_min", "head_chamfer",
+        "chamfer_depth", "chamfer_circle_diameter", "corner_edge_left", "volume"]
     # INFO-02: the heading is one ASCII string, compared with `==` and not by substring.
     assert [row["group"] for row in body["rows"]] == (
         ["Shank and thread"] * 9
         + ["limits for a bought part; this model is nominal and not toleranced"] * 4
-        + ["Head"] * 8 + ["Part"])
+        + ["Head"] * 12 + ["Part"])
     values = {row["key"]: row["value"] for row in body["rows"]}
     assert values["d"] == 6.0
     assert values["pitch"] == 1.0
@@ -367,6 +368,17 @@ def test_the_default_info_document() -> None:
     assert body["preset"] == {"status": "exact", "id": "iso4017:M6x20",
                               "display": "ISO 4017 M6 \u00d7 20"}
     assert body["designation"] == "Hexagon head screw ISO 4017 - M6 x 20"
+
+
+def test_a_sharp_head_info_document_has_the_note_and_no_chamfer_rows() -> None:
+    body = client.get("/api/bolt/info", params={"head_chamfer": 0}).json()
+    keys = [row["key"] for row in body["rows"]]
+    assert {"head_chamfer", "chamfer_depth", "chamfer_circle_diameter",
+            "corner_edge_left"}.isdisjoint(keys)
+    assert [row["group"] for row in body["rows"]].count("Head") == 8
+    assert body["notes"][-1] == (
+        "sharp hex head corners: head_chamfer 0 cuts no top chamfer (L19)")
+    assert body["notes"][-1] not in body["warnings"]
 
 
 def test_a_part_matching_no_row_is_custom_on_the_wire() -> None:

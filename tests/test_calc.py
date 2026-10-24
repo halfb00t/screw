@@ -16,6 +16,7 @@ from screw.app import app, build_backend
 from screw.calc import (
     NO_FILLET_NOTE,
     NUT_NO_ROW_WARNING,
+    SHARP_HEAD_NOTE,
     STANDING_WARNING,
     Counterpart,
     Download,
@@ -34,6 +35,7 @@ from screw.calc.thread import (
     bolt_end_closed_volume,
     fine_stl_refusal,
     flank_normal_gap,
+    head_chamfer_depths,
     nut_closed_volume,
     nut_end_closed_volume,
     nut_fine_stl_refusal,
@@ -71,9 +73,10 @@ LIMITS_KEYS = ["d_max", "d_min", "d2_max", "d2_min"]
 PAIR_KEYS = ["clearance", "clearance_diametral", "flank_gap", "axial_play", "nut_major_diameter",
              "nut_pitch_diameter", "nut_minor_diameter", "engagement_turns"]
 NUT_LIMITS_KEYS = ["D1_min", "D1_max", "D2_min", "D2_max"]
+CHAMFER_KEYS = ["head_chamfer", "chamfer_depth", "chamfer_circle_diameter", "corner_edge_left"]
 KEYS = ["d", "pitch", "length", "thread_length", "shank_length", "turns", "thread_depth",
         "minor_diameter", "pitch_diameter", *LIMITS_KEYS, "s", "across_corners", "k", "s_min",
-        "e_min", "k_max", "k_min", "dw_min", "volume"]
+        "e_min", "k_max", "k_min", "dw_min", *CHAMFER_KEYS, "volume"]
 
 
 def _rows(p: BoltParams) -> dict[str, float]:
@@ -85,7 +88,7 @@ def test_the_default_document_lists_the_inputs_the_thread_the_head_then_the_volu
     assert info.kind == "bolt"
     assert [r.key for r in info.rows] == KEYS
     assert [r.unit for r in info.rows] == [
-        "mm", "mm", "mm", "mm", "mm", "", *["mm"] * 15, "mm³"]
+        "mm", "mm", "mm", "mm", "mm", "", *["mm"] * 15, "°", "mm", "mm", "mm", "mm³"]
 
 
 def test_the_default_thread_numbers_come_from_the_pinned_profile() -> None:
@@ -177,6 +180,48 @@ def test_the_head_rows_are_the_fields_and_the_geometric_across_corners() -> None
     assert rows["across_corners"] == pytest.approx(11.547005383792516, abs=1e-12)
     labels = {r.key: r.label for r in derive(BoltParams()).rows}
     assert "geometric" in labels["across_corners"]
+
+
+def test_a_chamfered_head_reports_its_angle_depth_as_cut_circle_and_edge_left() -> None:
+    info = derive(BoltParams())
+    by_key = {r.key: r for r in info.rows}
+    depth = head_chamfer_depths(10.0, 4.0, 30.0)[1]
+    assert (by_key["head_chamfer"].value, by_key["head_chamfer"].unit) == (30.0, "°")
+    assert "stated model" in by_key["head_chamfer"].label
+    assert (by_key["chamfer_depth"].value, by_key["chamfer_depth"].unit) == (depth, "mm")
+    assert by_key["chamfer_circle_diameter"].value == 10.0
+    assert by_key["corner_edge_left"].value == 4.0 - depth
+    assert {by_key[k].group for k in CHAMFER_KEYS} == {"Head"}
+    assert info.notes == [GRADE_A, NO_FILLET_NOTE]
+
+
+def test_a_capped_head_chamfer_reports_the_depth_as_cut_not_the_model_depth() -> None:
+    # 80 degrees asks for a 4.39 mm model depth; the builder cuts k / 2 = 2 mm, and a number
+    # someone cuts metal to is the one that was cut (L02).
+    full = head_chamfer_depths(10.0, 4.0, 80.0)[0]
+    assert full > 4.0
+    rows = _rows(BoltParams(head_chamfer=80.0))
+    assert rows["head_chamfer"] == 80.0
+    assert rows["chamfer_depth"] == 2.0
+    assert rows["corner_edge_left"] == 2.0
+
+
+def test_a_sharp_head_has_no_chamfer_rows_and_carries_the_sharp_head_note() -> None:
+    assert SHARP_HEAD_NOTE == "sharp hex head corners: head_chamfer 0 cuts no top chamfer (L19)"
+    for angle in (0.0, -0.0):
+        info = derive(BoltParams(head_chamfer=angle))
+        assert set(CHAMFER_KEYS).isdisjoint(r.key for r in info.rows)
+        assert info.notes == [GRADE_A, NO_FILLET_NOTE, SHARP_HEAD_NOTE]
+        assert SHARP_HEAD_NOTE not in info.warnings
+
+
+def test_the_sharp_head_note_shows_on_a_part_that_matches_no_row() -> None:
+    info = derive(BoltParams(length=21.0, head_chamfer=0.0))
+    assert info.preset is not None
+    assert info.preset.status == "custom"
+    assert info.notes == [SHARP_HEAD_NOTE]
+    # A chamfered part that matches no row carries no note.
+    assert derive(BoltParams(length=21.0)).notes == []
 
 
 def test_the_derived_rows_name_the_profile_and_the_hand_is_not_a_row() -> None:
@@ -681,7 +726,8 @@ def test_the_rows_sit_in_three_groups_in_server_order() -> None:
     info = derive(BoltParams())
     shank = ["d", "pitch", "length", "thread_length", "shank_length", "turns", "thread_depth",
              "minor_diameter", "pitch_diameter"]
-    head = ["s", "across_corners", "k", "s_min", "e_min", "k_max", "k_min", "dw_min"]
+    head = ["s", "across_corners", "k", "s_min", "e_min", "k_max", "k_min", "dw_min",
+            *CHAMFER_KEYS]
     assert _groups(info) == ([("Shank and thread", k) for k in shank]
                              + [(calc.LIMITS, k) for k in LIMITS_KEYS]
                              + [("Head", k) for k in head] + [("Part", "volume")])
@@ -693,7 +739,7 @@ def test_an_iso_4014_match_adds_b_lg_max_and_ls_min_to_the_shank_group() -> None
     assert shank == ["d", "pitch", "length", "thread_length", "shank_length", "turns",
                      "thread_depth", "minor_diameter", "pitch_diameter", "b", "lg_max", "ls_min"]
     assert [k for g, k in _groups(info) if g == "Head"] == [
-        "s", "across_corners", "k", "s_min", "e_min", "k_max", "k_min", "dw_min"]
+        "s", "across_corners", "k", "s_min", "e_min", "k_max", "k_min", "dw_min", *CHAMFER_KEYS]
 
 
 def test_a_matched_rows_values_carry_their_sense_and_source_in_the_label() -> None:

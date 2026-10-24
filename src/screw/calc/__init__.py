@@ -27,6 +27,7 @@ from screw.calc.thread import (
     fillet_radius,
     fine_stl_refusal,
     flank_normal_gap,
+    head_chamfer_depths,
     nut_end_closed_volume,
     nut_fine_stl_refusal,
     pitch_diameter,
@@ -48,6 +49,12 @@ PROFILE = "ISO 68-1:2023 basic profile"
 # The note on a matched ISO 4017 screw (D-11, D-18): the thread runs to the head, so there is no
 # plain shank to fillet. A note, not a warning: it is what the standard's part is, nothing to fix.
 NO_FILLET_NOTE = "no under-head fillet: the thread runs to the head (ISO 4017:2022)"
+
+# The note on a bolt with head_chamfer 0 (D-11, D-19): the hex head's corners are left sharp. A
+# note, not a warning, because it describes the part built and the user asked for it; shown on
+# every such part whether or not it matches a catalogue row, so a sharp head never reads as an
+# omission.
+SHARP_HEAD_NOTE = "sharp hex head corners: head_chamfer 0 cuts no top chamfer (L19)"
 
 # The standing entry on every info document (D-04, D-18): it names the ends the builder models
 # (L15, the bolt tip cone, the under-head fillet and the nut's countersinks and chamfers) and says
@@ -162,7 +169,8 @@ class PartInfo(BaseModel):
     preset: PresetMatch | None = Field(
         description="whether the part is a catalogue row; null for a kind without a catalogue")
     notes: list[str] = Field(
-        description="one-line notes about the matched row, present only on an exact match, and "
+        description="one-line notes about the part: the matched row's notes on an exact match, "
+                    "the sharp-head note on a bolt with head_chamfer 0 whatever it matches, and "
                     "for a nut the M18 pair-proof label, keyed on the size alone; the page "
                     "shows them after the warnings in their own style (D-20)")
     downloads: list[Download] = Field(
@@ -237,6 +245,25 @@ def _bolt(p: BoltParams) -> PartInfo:
     # non-finite number leaves derive()" is this function's own contract (D-15): d=1e200
     # overflows a float on the way (F2) and `Fraction(repr(inf))` raises. The rows are in the
     # order the page shows them: the shank's, then the head's, the volume last (D-18).
+    # D-10: a chamfered head reports four more rows after the head's cited values. The depth is the
+    # depth as cut, from the predicate the builder cuts with, so a head capped at k / 2 reads k / 2
+    # and not the model's deeper number (L02). Tested as `> 0`, never `!= 0`: -0.0 is the sharp
+    # head, which has no chamfer rows (D-11).
+    chamfer_rows: list[tuple[str, str, str, str, str, Callable[[], float]]] = []
+    if p.head_chamfer > 0:
+        chamfer_rows = [
+            ("head_chamfer", HEAD, "Head chamfer angle from the top face "
+             "(stated model: the standards draw a 15 to 30° band)", "°", "head_chamfer",
+             lambda: p.head_chamfer),
+            ("chamfer_depth", HEAD, "Corner chamfer depth, as cut", "mm",
+             "min((s / cos 30° - s) / 2 * tan(head_chamfer), k / 2)",
+             lambda: head_chamfer_depths(p.s, p.k, p.head_chamfer)[1]),
+            ("chamfer_circle_diameter", HEAD, "Chamfer circle diameter on the top face", "mm",
+             "s", lambda: p.s),
+            ("corner_edge_left", HEAD, "Corner edge left below the chamfer", "mm",
+             "k - corner chamfer depth",
+             lambda: p.k - head_chamfer_depths(p.s, p.k, p.head_chamfer)[1]),
+        ]
     computed: list[tuple[str, str, str, str, str, Callable[[], float]]] = [
         ("thread_length", SHANK, "Thread length (built)", "mm", "min(thread_length, length)",
          lambda: t),
@@ -254,6 +281,7 @@ def _bolt(p: BoltParams) -> PartInfo:
         ("across_corners", HEAD, "Across corners, geometric (s / cos 30°)", "mm", "s / cos 30°",
          lambda: p.s / math.cos(math.pi / 6)),
         ("k", HEAD, "Head height", "mm", "k", lambda: p.k),
+        *chamfer_rows,
         ("volume", PART, "Volume (closed form)", "mm³",
          "the closed form section_area(d, pitch) * thread_length (built) "
          "+ pi * (d / 2)^2 * shank_length + (sqrt(3) / 2) * s^2 * k, less the tip cone "
@@ -320,6 +348,8 @@ def _bolt(p: BoltParams) -> PartInfo:
         row_notes = notes(row)
         if row.standard == "ISO 4017":
             row_notes.append(NO_FILLET_NOTE)
+    if not p.head_chamfer > 0:
+        row_notes.append(SHARP_HEAD_NOTE)
     return PartInfo(kind=p.kind, rows=rows, warnings=warnings, designation=designation,
                     preset=preset, notes=row_notes, downloads=downloads, counterpart=counterpart)
 
