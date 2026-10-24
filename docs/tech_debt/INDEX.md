@@ -16,6 +16,7 @@ Severity (grep-able `Severity:` field):
 
 | Severity | Item | Trigger to revisit |
 |---|---|---|
+| must | [No test holds that a nut outside the measured range is still a 200 from the API](active/2026-10-24-measured-range-nut-api-200-untested.md) | the next edit to the nut warnings, or before the first release (after Phase 7) |
 | must | [The nut's countersink cutter ends at a negative radius at a coarse pitch and the kernel refuses a valid nut](active/2026-10-21-nut-countersink-cutter-crosses-the-axis-at-a-coarse-pitch.md) | before the nut's pitch or clearance range is relied on, or with the root-radius floor item |
 | nice | [Three pair and CLI tests couple to prose, internal names and a wall-clock bound](active/2026-10-21-brittle-pair-and-cli-tests.md) | the first time the 5 s assertion fails, or the next edit to the pair orchestration tests |
 | must | [screw pair's verdict exit codes 1 and 2 are also what a crash and a refused parameter return](active/2026-10-21-screw-pair-exit-codes-collide-with-failure-exits.md) | before any script, workflow or doc branches on the exit code, or the first release (after Phase 7) |
