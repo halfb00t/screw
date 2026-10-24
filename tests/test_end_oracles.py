@@ -172,6 +172,118 @@ def test_the_face_chamfer_refuses_a_start_an_angle_or_a_depth_outside_its_validi
         t.face_chamfer_volume(10.0, 5.0, 30.0, -0.1)
 
 
+# --- the bolt head chamfer (06.1 D-03, D-07, D-08) ---------------------------------------------
+
+# The hexagon less its inscribed disc, over a^2 (the hexagon is 2 sqrt(3) a^2): the identity the
+# closed form's built-in check rests on, written here and not read from the function under test.
+HEX_RIM = 2 * math.sqrt(3) - math.pi
+# The uncapped chamfer over tan(beta) a^3, typed from the derivation (06.1-RESEARCH, D-07).
+UNCAPPED_CONSTANT = 0.015041558060286064
+# The default part (s 10, 30 degrees, no cap in reach): pinned from the derivation, 06.1-RESEARCH.
+DEFAULT_HEAD_CHAMFER = 1.0855309493921927
+
+
+def test_the_head_chamfer_of_the_default_part_is_the_pinned_closed_form() -> None:
+    volume = t.head_chamfer_volume(10.0, 30.0, 1e9)
+    assert volume == pytest.approx(DEFAULT_HEAD_CHAMFER, rel=1e-12)
+    # The two oracles it must agree with (D-08), each with its own quadrature error.
+    assert volume == pytest.approx(t.face_chamfer_volume(10.0, 5.0, 30.0, 1e9), rel=1e-6)
+    assert volume == pytest.approx(_polar_chamfer(10.0, 5.0, 30.0, 1e9), rel=1e-6)
+
+
+@pytest.mark.parametrize("s", [2.0, 10.0, 30.0, 1e5])
+@pytest.mark.parametrize("angle", [1.0, 30.0, 80.0])
+def test_the_uncapped_head_chamfer_is_tan_beta_times_a_cubed_times_one_constant(
+        s: float, angle: float) -> None:
+    assert 4 / 3 + math.pi / 3 + math.log(3) - 2 * math.sqrt(3) == pytest.approx(
+        UNCAPPED_CONSTANT, abs=1e-15)
+    expected = math.tan(math.radians(angle)) * (s / 2) ** 3 * UNCAPPED_CONSTANT
+    assert t.head_chamfer_volume(s, angle, 1e9) == pytest.approx(expected, rel=1e-12)
+
+
+@pytest.mark.parametrize("fraction", [0.05, 0.5, 1.0, 3.0])
+@pytest.mark.parametrize("angle", [5.0, 14.999, 30.001, 68.85595459078384, 80.0])
+@pytest.mark.parametrize("s", [4.0, 30.0])
+def test_the_head_chamfer_matches_both_oracles_capped_and_uncapped(
+        s: float, angle: float, fraction: float) -> None:
+    """Fractions below 1 cap the cut at that part of the corner depth, 1 and 3 do not."""
+    depth = fraction * t.head_chamfer_depths(s, 1e9, angle)[0]
+    volume = t.head_chamfer_volume(s, angle, depth)
+    assert volume == pytest.approx(t.face_chamfer_volume(s, s / 2, angle, depth), rel=1e-6)
+    assert volume == pytest.approx(_polar_chamfer(s, s / 2, angle, depth), rel=1e-6)
+
+
+def test_a_shallow_head_chamfer_cap_removes_the_rim_outside_the_inscribed_circle() -> None:
+    """A cut so shallow the cone is almost a wall removes depth x (hexagon less inscribed disc);
+    the first correction is about -1.5 times the fraction of the corner depth (measured while
+    planning), so the series branch below theta 0.05 is held to 1e-8 down to 1e-9."""
+    s, angle = 10.0, 30.0
+    full = t.head_chamfer_depths(s, 1e9, angle)[0]
+    for fraction, rel in ((1e-12, 1e-8), (1e-9, 1e-8), (1e-6, 1e-5)):
+        depth = fraction * full
+        assert t.head_chamfer_volume(s, angle, depth) / (depth * 25 * HEX_RIM) == pytest.approx(
+            1.0, rel=rel)
+    # A cone almost parallel to the axis: the cut is the whole rim at the depth asked.
+    steep = t.head_chamfer_volume(10.0, 89.99999999999999, 2.0)
+    assert steep > 0
+    assert steep == pytest.approx(2.0 * 25 * HEX_RIM, rel=1e-6)
+    assert steep == pytest.approx(16.12544807739806, rel=1e-6)
+
+
+def test_the_head_chamfer_series_and_closed_form_agree_where_they_meet() -> None:
+    """The acos part switches from its series to the closed form at theta 0.05, where
+    cosh(theta) - 1 is the cap's reach past the inscribed circle over s / 2."""
+    s, angle = 10.0, 30.0
+    depth0 = (s / 2) * (math.cosh(0.05) - 1) * math.tan(math.radians(angle))
+    below = t.head_chamfer_volume(s, angle, depth0 * (1 - 1e-9))
+    above = t.head_chamfer_volume(s, angle, depth0 * (1 + 1e-9))
+    assert abs(above - below) / above < 1e-8
+
+
+def test_the_head_chamfer_grows_with_depth_and_with_angle() -> None:
+    s = 10.0
+    full = t.head_chamfer_depths(s, 1e9, 30.0)[0]
+    capped = [t.head_chamfer_volume(s, 30.0, f * full) for f in (0.1, 0.5, 0.9)]
+    assert capped[0] < capped[1] < capped[2]
+    # Past the corner depth the cap no longer binds. The two branches meet within rounding at 1.0,
+    # so no ordering is asserted there (measured: 6e-15 apart).
+    whole = [t.head_chamfer_volume(s, 30.0, f * full) for f in (1.0, 1.5, 3.0)]
+    assert whole == pytest.approx([whole[0]] * 3, rel=1e-12)
+    by_angle = [t.head_chamfer_volume(s, a, 1.0) for a in (5.0, 30.0, 60.0)]
+    assert by_angle[0] < by_angle[1] < by_angle[2]
+
+
+@pytest.mark.parametrize(("s", "angle", "depth"), [
+    (10.0, 0.0, 1.0), (10.0, 90.0, 1.0), (10.0, -1.0, 1.0), (10.0, math.nan, 1.0),
+    # tan(radians(5e-324)) underflows to 0.0: a ZeroDivisionError would be a 500, not a refusal
+    (10.0, 5e-324, 1.0),
+    (10.0, 30.0, -0.1), (10.0, 30.0, math.nan), (10.0, 30.0, math.inf),
+    (0.0, 30.0, 1.0), (-1.0, 30.0, 1.0), (math.nan, 30.0, 1.0), (math.inf, 30.0, 1.0),
+])
+def test_the_head_chamfer_volume_refuses_what_it_cannot_judge_with_a_value_error(
+        s: float, angle: float, depth: float) -> None:
+    with pytest.raises(ValueError):  # noqa: PT011 - the type is the contract, no text is pinned
+        t.head_chamfer_volume(s, angle, depth)
+
+
+def test_the_head_chamfer_depth_is_the_corner_cone_depth_capped_at_half_k() -> None:
+    corner_depth = (10 / 2 / math.cos(math.pi / 6) - 10 / 2) * math.tan(math.radians(30.0))
+    assert t.head_chamfer_depths(10.0, 4.0, 30.0) == (corner_depth, corner_depth)
+    full, cut = t.head_chamfer_depths(10.0, 4.0, 80.0)
+    assert cut == 2.0
+    assert full > 2.0
+    assert t.head_chamfer_depths(10.0, 4.0, 0.0) == (0.0, 0.0)
+    # Equality builds uncapped: capped means the model depth is above k / 2, never at it.
+    assert t.head_chamfer_depths(10.0, 2 * corner_depth, 30.0)[1] == corner_depth
+    just_under = math.nextafter(2 * corner_depth, 0.0)
+    assert t.head_chamfer_depths(10.0, just_under, 30.0) == (corner_depth, just_under / 2)
+    assert just_under / 2 < corner_depth
+    # The default part (s 10, k 4) is capped from 68.85595459078384 degrees up.
+    assert t.head_chamfer_depths(10.0, 4.0, 68.85595459078384)[0] == pytest.approx(2.0, abs=1e-12)
+    assert t.head_chamfer_depths(10.0, 4.0, 69.0)[0] > 2.0
+    assert t.head_chamfer_depths(10.0, 4.0, 60.0)[0] < 2.0
+
+
 # --- the tip cone ----------------------------------------------------------------------------
 
 

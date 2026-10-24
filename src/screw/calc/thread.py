@@ -624,6 +624,70 @@ def face_chamfer_volume(s: float, r0: float, angle_deg: float, depth: float,
                    for i in range(n))
 
 
+# The hexagon less its inscribed disc, over a^2: 2 sqrt(3) - pi. The closed form below uses it as
+# the area a flat cut at `depth` takes from outside the inscribed circle.
+_HEX_RIM = 2 * math.sqrt(3) - math.pi
+
+# The uncapped head chamfer over tan(angle) a^3: 4/3 + pi/3 + ln 3 - 2 sqrt(3) = 0.01504155806...
+_UNCAPPED_J = 4 / 3 + math.pi / 3 + math.log(3) - 2 * math.sqrt(3)
+
+
+def head_chamfer_volume(s: float, angle_deg: float, depth: float) -> float:
+    """Material the top-face cone chamfer removes from a hexagonal head of across-flats `s`.
+
+    The cone starts at the inscribed circle a = s / 2 and rises at `angle_deg` from the face; it
+    removes (rho - a) tan(angle), no deeper than `depth`, over the arc `hex_arc_inside(s, rho)`
+    of each circle rho from a to the corner radius R = a / cos(pi / 6). This is that integral in
+    closed form, so the head's volume stays exact (06.1 D-07). Writing w = sqrt(rho^2 - a^2) and
+    A = acos(a / rho), integration by parts gives
+
+    - the integral of rho^2 (2 pi - 12 A) is
+      2 pi rho^3 / 3 - 4 rho^3 A + 2 a rho w + 2 a^3 asinh(w / a)
+    - the integral of rho (2 pi - 12 A) is pi rho^2 - 6 rho^2 A + 6 a w
+
+    Both vanish at rho = a, and the second at R is the hexagon less its inscribed disc,
+    a^2 (2 sqrt 3 - pi): a built-in check. When the cut is no deeper than the cone reaches at the
+    corner the result is one constant, tan(angle) a^3 (4/3 + pi/3 + ln 3 - 2 sqrt 3). Otherwise
+    the cone meets the flat at x = depth / tan(angle) past the inscribed circle and the cut is
+    the cone below that and `depth` times the hexagon area beyond it.
+
+    Three details keep it honest (L02): x is formed from `depth / tan` and never as a difference of
+    two radii (that form returned -49.5 mm3 at 89.99999999999999 degrees), the angle comes from
+    `atan2` and `asinh`, and below theta = asinh(w / a) 0.05 the acos part, three orders of
+    magnitude of cancellation, is replaced by its series (the next term is under 1e-14 relative at
+    0.05). Measured: worst 3.4e-14 against an independent Gauss-Legendre reference over 600 rows,
+    4.3e-10 against `face_chamfer_volume` and the polar integral in `tests/test_end_oracles.py`
+    over 108 rows, which is their own quadrature error. Valid for s above 0, 0 < angle < 90 and
+    a finite depth of 0 or more; anything else, and an angle whose tangent underflows to 0,
+    raises `ValueError` (never `ZeroDivisionError`, which `derive` would not catch).
+    """
+    _check_angle("head_chamfer", angle_deg)
+    if not (math.isfinite(s) and s > 0):
+        raise ValueError(f"s {s:g} mm must be finite and above 0")
+    tau = math.tan(math.radians(angle_deg))
+    if not tau > 0:
+        raise ValueError(f"head_chamfer {angle_deg:g} degrees is too small to have a tangent")
+    if not (math.isfinite(depth) and depth >= 0):
+        raise ValueError(f"depth {depth:g} mm must be finite and 0 or more")
+    a = s / 2
+    x = depth / tau
+    if x >= a * (2 / math.sqrt(3) - 1):
+        return tau * a**3 * _UNCAPPED_J
+    xi = x / a
+    w = math.sqrt(xi * (xi + 2))
+    theta = math.asinh(w)
+    g = math.atan2(w, 1.0)
+    ch = 1 + xi
+    pi_part = math.pi / 3 * xi * xi * (2 * xi + 3)
+    if theta < 0.05:
+        t2 = theta * theta
+        acos_part = -(theta**5) * (6 / 5 + t2 * (1 / 2 + t2 * (13 / 180 + t2 * 71 / 10080)))
+    else:
+        acos_part = -2 * (ch * ch * (2 * ch - 3) * g + w * (3 - ch) - theta)
+    i2 = math.pi * w * w - 6 * ch * ch * g + 6 * w
+    return tau * a**3 * (pi_part + acos_part) + depth * a**2 * (_HEX_RIM - i2)
+
+
 def fillet_ring_volume(d: float, r: float) -> float:
     """Volume of a quarter-circle fillet ring of radius `r` at a shank of diameter `d`.
 
@@ -834,3 +898,22 @@ def nut_end_closed_volume(d: float, pitch: float, s: float, m: float, clearance:
         volume -= 2 * countersink_volume(d, pitch, clearance, s, countersink_face_radius(d),
                                          COUNTERSINK_HALF_ANGLE_DEG, csk)
     return volume - 2 * face_chamfer_volume(s, s / 2, CHAMFER_ANGLE_DEG, chamfer)
+
+
+# --- the bolt head chamfer (L19, 06.1 D-03, D-04) ----------------------------------------------
+
+
+def head_chamfer_depths(s: float, k: float, angle_deg: float) -> tuple[float, float]:
+    """The depth the head chamfer model asks for and the depth the builder cuts: (full, cut).
+
+    full is the cone's depth at the hexagon corner, (corner - s / 2) tan(angle), written as
+    `end_depths` writes the nut's; cut is the smaller of that and k / 2, which mirrors the nut's
+    m / 2 (L15) and leaves the lower half of the head and the bearing face untouched (D-03). The
+    one predicate the builder, the closed form, `derive`, the warning and the 422 rule all call,
+    so they cannot disagree at the boundary. The cut is capped only when full is above k / 2,
+    never at it: an equal depth builds uncapped (D-04). It does not validate its inputs (a
+    negative angle never reaches it from the model).
+    """
+    corner = s / 2 / math.cos(math.pi / 6)
+    full = (corner - s / 2) * math.tan(math.radians(angle_deg))
+    return full, min(full, k / 2)
