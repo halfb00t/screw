@@ -28,7 +28,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Real Helical Thread** - the bolt kind carries a real ISO 68-1 helical thread, right- or left-hand, behind a postcondition gate (completed 2026-10-11)
 - [x] **Phase 4: ISO Hex Bolts and Screws** - ISO 4014 and 4017 presets from cited, tested table rows fill explicit mm fields; a traceable info panel for the bolt (completed 2026-10-12)
 - [x] **Phase 5: Hex Nut and Kernel Pair Proof** - ISO 4032 nut with a clearance field, matching-part derivation and a kernel pair proof that can fail (completed 2026-10-22)
-- [ ] **Phase 6: Printed Pair Acceptance** - the owner's printed test sets the clearance default and the printability threshold; a printed pair threads together by hand
+- [x] **Phase 6: Printed Pair Acceptance** - the owner's printed test sets the clearance default and the printability threshold; a printed pair threads together by hand (completed 2026-10-24)
 - [ ] **Phase 7: Operability Re-sweep** - every runtime bound measured on the full grid on linux/amd64 and cited; every allowed configuration builds inside the timeout
 
 ## Phase Details
@@ -332,7 +332,7 @@ Plans:
   4. ~~The test also drives a nominal printed bolt into a bought nut and records the result; if it binds, PAIR-07 (bolt-side `undersize`) is promoted to a v1.x requirement in REQUIREMENTS.md, otherwise the record says it is not needed.~~ **Deferred (R9, 2026-10-22):** PAIR-06 and PAIR-07 moved to v2; the owner dropped the bought-nut test from Phase 6.
   5. The printability threshold is a constant set from the same test and cited; sizes and pitches below it get a cap-and-warn printability warning naming its source on the UI, API and CLI.
 
-**Plans**: 10/10 plans executed (the pre-registration lands as its own PR before the first print; waves 2-9 sequential)
+**Plans**: 10/10 plans complete (the pre-registration lands as its own PR before the first print; waves 2-9 sequential)
 **UI hint**: yes
 
 Plans:
@@ -390,5 +390,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 2 
 | 3. Real Helical Thread | 7/7 | Complete    | 2026-10-11 |
 | 4. ISO Hex Bolts and Screws | 17/17 | Complete    | 2026-10-12 |
 | 5. Hex Nut and Kernel Pair Proof | 25/25 | Complete    | 2026-10-22 |
-| 6. Printed Pair Acceptance | 10/10 | In Progress | - |
+| 6. Printed Pair Acceptance | 10/10 | Complete    | 2026-10-24 |
 | 7. Operability Re-sweep | 0/TBD | Not started | - |

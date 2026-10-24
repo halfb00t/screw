@@ -31,7 +31,7 @@
     {
       "number": "6",
       "name": "Printed Pair Acceptance",
-      "status": "in_progress"
+      "status": "complete"
     },
     {
       "number": "7",
@@ -41,8 +41,8 @@
   ],
   "next": {
     "command": "/gsd-progress --next",
-    "label": "Advance to the next step (verify)",
-    "reason": "Phase 6 of 7 · 71% · ready to verify"
+    "label": "Advance to the next step (plan phase 7)",
+    "reason": "Phase 7 of 7 — needs a plan"
   },
-  "updated_at": "2026-10-23T16:04:48.604Z"
+  "updated_at": "2026-10-24T02:30:54.831Z"
 }
