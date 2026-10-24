@@ -31,7 +31,12 @@ from screw.app import app, build_backend
 from screw.build_errors import BuildError, BuildTimeout
 from screw.calc import STANDING_WARNING
 from screw.calc.presets import expand
-from screw.calc.thread import T_GATE, bolt_end_closed_volume, head_chamfer_warnings
+from screw.calc.thread import (
+    T_GATE,
+    bolt_end_closed_volume,
+    head_chamfer_depths,
+    head_chamfer_warnings,
+)
 from screw.params import DEFAULT_KIND, INTERIM_MAX_MM, KINDS, BoltParams, FastenerParams
 from screw.solid import Format, Quality, export, precise_volume
 from screw.tables.presets import catalogue
@@ -1315,6 +1320,61 @@ def test_the_conflict_is_still_a_422_behind_a_root_path() -> None:
     assert detail["type"] == "thread_length_conflict"
     assert detail["ctx"] == {"fields": ["thread_length", "length"]}
     assert behind_prefix.get("/screw/api/bolt/info", params={"length": 10}).status_code == 200
+
+
+@pytest.mark.parametrize("angle", ["nan", "inf", "abc", "90", "-1"])
+def test_a_bad_head_chamfer_beside_a_wide_head_stays_a_field_422_naming_it(angle: str) -> None:
+    # T-06.1-11: the rule gives None for anything it cannot judge, so the model's field 422 speaks.
+    r = client.get("/api/bolt/info", params={"head_chamfer": angle, "s": 100})
+    assert r.status_code == 422
+    details = r.json()["detail"]
+    assert [d["loc"] for d in details] == [["query", "head_chamfer"]]
+    assert details[0]["type"] != "head_chamfer_conflict"
+
+
+def test_a_repeated_head_chamfer_is_the_duplicate_422_not_the_conflict() -> None:
+    r = client.get("/api/bolt/info", params=[("head_chamfer", "80"), ("head_chamfer", "81")])
+    assert r.status_code == 422
+    assert [d["type"] for d in r.json()["detail"]] == ["duplicate"]
+
+
+def test_the_head_chamfer_rule_does_not_reach_the_schema_route() -> None:
+    r = client.get("/api/schema", params={"kind": "bolt", "head_chamfer": 80})
+    assert r.status_code == 200
+
+
+def test_the_head_chamfer_conflict_is_still_a_422_behind_a_root_path() -> None:
+    # T-06.1-13: attached to the bolt routes by name, never sniffed from the path (04-REVIEW CR-01).
+    behind_prefix = TestClient(app, root_path="/screw")
+    r = behind_prefix.get("/screw/api/bolt/info", params={"head_chamfer": 80})
+    assert r.status_code == 422
+    [detail] = r.json()["detail"]
+    assert detail["type"] == "head_chamfer_conflict"
+    assert detail["ctx"] == {"fields": ["head_chamfer", "k"]}
+
+
+def test_the_thread_length_conflict_is_named_first_when_both_rules_fire() -> None:
+    r = client.get("/api/bolt/info",
+                   params={"length": 10, "thread_length": 30, "head_chamfer": 80})
+    assert r.status_code == 422
+    assert [d["type"] for d in r.json()["detail"]] == ["thread_length_conflict"]
+
+
+def test_an_explicit_head_chamfer_exactly_at_half_k_builds_uncapped_and_one_float_less_k_is_refused(
+) -> None:
+    # D-04 equality: the 422 and the cap share one threshold, depth > k / 2. At s 10 the 30 degree
+    # depth does not depend on k, so k = 2 * depth puts k / 2 exactly on it (a power-of-two scale).
+    k_eq = 2 * head_chamfer_depths(10.0, 1.0, 30.0)[0]
+    at = client.get("/api/bolt/info", params={"head_chamfer": "30", "k": repr(k_eq)})
+    assert at.status_code == 200
+    body = at.json()
+    assert not any(w.startswith("head_chamfer 30 and k") for w in body["warnings"])
+    depth = {row["key"]: row["value"] for row in body["rows"]}["chamfer_depth"]
+    assert depth == k_eq / 2
+    below = math.nextafter(k_eq, 0.0)
+    r = client.get("/api/bolt/info", params={"head_chamfer": "30", "k": repr(below)})
+    assert r.status_code == 422
+    assert [d["type"] for d in r.json()["detail"]] == ["head_chamfer_conflict"]
 
 
 def test_a_length_below_the_floor_is_a_warned_info_document_and_a_422_build_error() -> None:
