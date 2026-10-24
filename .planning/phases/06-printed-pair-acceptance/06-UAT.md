@@ -1,14 +1,14 @@
 ---
-status: testing
+status: complete
 phase: 06-printed-pair-acceptance
 source: [06-VERIFICATION.md]
 started: 2026-10-23T16:58:06Z
-updated: 2026-10-24T02:02:24Z
+updated: 2026-10-24T02:19:25.970Z
 ---
 
 ## Current Test
 
-Test 1: the page shows the phase-6 warnings.
+[testing complete]
 
 ## Tests
 
