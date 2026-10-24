@@ -736,6 +736,14 @@ COUNTERSINK_FACE_FACTOR = 1.16
 # inscribed circle of `s` (start radius s / 2, from fields and not from the row's `dw`, D-12).
 CHAMFER_ANGLE_DEG = 30.0
 
+# Bolt head chamfer band, stated model (L19, owner ruling 2026-10-24). The band is the one the R4 a
+# read prints for the nut's hexagon-corner chamfer (GOST ISO 4032-2014 (ISO 4032:2012), Figure 1
+# footnote b, read 3 in `05-OWNER-READS.md`): 15 to 30 degrees from the end face, applied to the
+# bolt head by the owner's ruling. No repo note records a read of the ISO 4014 or ISO 4017 head
+# figure and those texts are not purchased (L14), so no edition of either is cited here. Both edges
+# are inside the band; an angle outside it builds as asked and is warned about.
+HEAD_CHAMFER_BAND_DEG = (15.0, 30.0)
+
 # Under-head fillet radius `r` (minimum), cited (R1 option a, read from GOST R ISO 4014-2013 (ISO
 # 4014:2011) Tables 1 and 2, the `r` minimum row, owner ruling 2026-10-20, L14 amendment; the
 # Source document is `GOST R ISO 4014-2013 (ISO 4014:2011)`). Keyed on exact (d, pitch) in
@@ -917,3 +925,54 @@ def head_chamfer_depths(s: float, k: float, angle_deg: float) -> tuple[float, fl
     corner = s / 2 / math.cos(math.pi / 6)
     full = (corner - s / 2) * math.tan(math.radians(angle_deg))
     return full, min(full, k / 2)
+
+
+def head_chamfer_warnings(s: float, k: float, angle_deg: float) -> list[str]:
+    """What `derive` appends for a head chamfer the model accepted: the band warning, then the
+    cap warning (D-02, D-04, D-06).
+
+    Nothing for an angle that is not above 0: the sharp head has no chamfer to be off the band
+    (tested as `> 0`, never `!= 0`, because the model accepts -0.0). The band warning names
+    `head_chamfer` and the band; the cap warning, when the model depth is above k / 2 and the cut
+    is capped there, names `head_chamfer` and `k`. A direct construction (D-06) or a defaulted
+    angle is capped and warned, never refused; the 422 for an explicit value is
+    `head_chamfer_conflict`'s, at the request boundary. Every number is printed with `_plain`, so
+    a value is never rounded into a misleading one (L02).
+    """
+    if not angle_deg > 0:
+        return []
+    warnings: list[str] = []
+    low, high = HEAD_CHAMFER_BAND_DEG
+    if not low <= angle_deg <= high:
+        warnings.append(
+            f"head_chamfer {_plain(angle_deg)}: outside the {_plain(low)} to {_plain(high)} degree "
+            f"band of the stated head chamfer model; built as asked (L19)")
+    full, cut = head_chamfer_depths(s, k, angle_deg)
+    if full > k / 2:
+        warnings.append(
+            f"head_chamfer {_plain(angle_deg)} and k {_plain(k)}: the head chamfer is cut "
+            f"{_plain(cut)} mm deep, k / 2, not the {_plain(full)} mm of the model, so the lower "
+            f"half of the head keeps its sharp corners (L19)")
+    return warnings
+
+
+def head_chamfer_conflict(s: float, k: float, angle_deg: float) -> str | None:
+    """None unless an explicit `head_chamfer` cuts deeper than k / 2; else the text (D-04, D-05).
+
+    The same threshold as the cap in `head_chamfer_warnings`, both read from `head_chamfer_depths`,
+    so no explicit angle builds a part that differs from its model (D-04). The caller supplies s
+    and k from the request, or from the model's defaults when only `head_chamfer` was sent (D-05).
+    A value that is not finite, an s or k not above 0, or an angle outside 0 < angle < 90 gives
+    None, so the model's own 422 keeps naming the bad field. The text begins with the field names
+    (the CLI prints no `loc` for this error), has no braces (pydantic formats a custom error from
+    its context) and prints only the user's numbers and k / 2, so no rounded figure can read as
+    equal to the bound.
+    """
+    if not (math.isfinite(s) and math.isfinite(k) and math.isfinite(angle_deg)
+            and s > 0 and k > 0 and 0 < angle_deg < 90):
+        return None
+    if not head_chamfer_depths(s, k, angle_deg)[0] > k / 2:
+        return None
+    return (f"head_chamfer and k: head_chamfer {_plain(angle_deg)} degrees cuts the head corners "
+            f"deeper than k / 2 = {_plain(k / 2)} mm at s {_plain(s)} mm; lower head_chamfer or "
+            f"raise k")

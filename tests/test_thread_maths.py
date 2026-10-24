@@ -12,6 +12,7 @@ import pytest
 from bench.thread_spike.maths import PITCH
 from screw.calc.thread import (
     FINE_STL_ROWS,
+    HEAD_CHAMFER_BAND_DEG,
     MAX_TURNS,
     MIN_TAIL_MM,
     NUT_FINE_STL_CLEARANCE,
@@ -26,6 +27,9 @@ from screw.calc.thread import (
     fine_stl_refusal,
     flank_normal_gap,
     fundamental_height,
+    head_chamfer_conflict,
+    head_chamfer_depths,
+    head_chamfer_warnings,
     head_too_small_refusal,
     hex_prism_volume,
     nut_fine_stl_refusal,
@@ -389,6 +393,88 @@ def test_a_thread_length_above_the_length_is_a_conflict_with_the_pinned_text() -
 def test_equal_shorter_and_unusable_values_are_no_conflict(
         length: float, thread_length: float) -> None:
     assert thread_length_conflict(length, thread_length) is None
+
+
+# --- the bolt head chamfer's band, cap warning and conflict (06.1 D-02, D-04, D-06) -----------
+
+
+def _cap_text(angle: str, k: str, cut: str, full: float) -> str:
+    return (f"head_chamfer {angle} and k {k}: the head chamfer is cut {cut} mm deep, k / 2, not "
+            f"the {repr(full).removesuffix('.0')} mm of the model, so the lower half of the head "
+            "keeps its sharp corners (L19)")
+
+
+def _band_text(angle: str) -> str:
+    return (f"head_chamfer {angle}: outside the 15 to 30 degree band of the stated head chamfer "
+            "model; built as asked (L19)")
+
+
+def test_the_head_chamfer_band_is_15_to_30_degrees() -> None:
+    assert HEAD_CHAMFER_BAND_DEG == (15.0, 30.0)
+
+
+@pytest.mark.parametrize("angle", [0.0, -0.0, 15.0, 20.0, 30.0])
+def test_a_head_chamfer_inside_the_band_or_sharp_warns_of_nothing(angle: float) -> None:
+    """Both band edges are inside it, and 0 (also -0.0, which the model accepts) is the sharp
+    head, not an off-band angle."""
+    assert head_chamfer_warnings(10.0, 4.0, angle) == []
+
+
+@pytest.mark.parametrize("angle", [14.999, 30.001, 1e-3, 45.0])
+def test_a_head_chamfer_outside_the_band_warns_naming_the_field_and_the_band(
+        angle: float) -> None:
+    assert head_chamfer_warnings(10.0, 4.0, angle) == [_band_text(repr(angle).removesuffix('.0'))]
+    assert head_chamfer_warnings(10.0, 4.0, 14.999)[0] == (
+        "head_chamfer 14.999: outside the 15 to 30 degree band of the stated head chamfer model; "
+        "built as asked (L19)")
+
+
+def test_a_head_chamfer_deeper_than_half_k_warns_naming_head_chamfer_and_k() -> None:
+    full = head_chamfer_depths(10.0, 4.0, 80.0)[0]
+    # Off the band and capped: the band warning first, the cap warning second.
+    assert head_chamfer_warnings(10.0, 4.0, 80.0) == [_band_text("80"),
+                                                      _cap_text("80", "4", "2", full)]
+    # In the band and capped: only the cap.
+    full = head_chamfer_depths(100.0, 4.0, 30.0)[0]
+    assert head_chamfer_warnings(100.0, 4.0, 30.0) == [_cap_text("30", "4", "2", full)]
+    # Equal to k / 2 builds uncapped and says nothing.
+    full = head_chamfer_depths(10.0, 1e9, 30.0)[0]
+    assert head_chamfer_warnings(10.0, 2 * full, 30.0) == []
+
+
+def test_a_sharp_head_chamfer_of_zero_warns_of_nothing_even_where_k_is_tiny() -> None:
+    assert head_chamfer_warnings(100.0, 0.001, 0.0) == []
+    assert head_chamfer_warnings(100.0, 0.001, -0.0) == []
+
+
+def test_an_explicit_head_chamfer_deeper_than_half_k_is_a_conflict_with_the_pinned_text() -> None:
+    assert head_chamfer_conflict(10.0, 4.0, 80.0) == (
+        "head_chamfer and k: head_chamfer 80 degrees cuts the head corners deeper than "
+        "k / 2 = 2 mm at s 10 mm; lower head_chamfer or raise k")
+    text = head_chamfer_conflict(100.0, 4.0, 30.0)
+    assert text == (
+        "head_chamfer and k: head_chamfer 30 degrees cuts the head corners deeper than "
+        "k / 2 = 2 mm at s 100 mm; lower head_chamfer or raise k")
+    assert "{" not in text
+    assert "}" not in text
+    # The same threshold as the cap: equal is no conflict, one ulp under is.
+    assert head_chamfer_conflict(10.0, 4.0, 30.0) is None
+    full = head_chamfer_depths(10.0, 1e9, 30.0)[0]
+    assert head_chamfer_conflict(10.0, 2 * full, 30.0) is None
+    assert head_chamfer_conflict(10.0, math.nextafter(2 * full, 0.0), 30.0) is not None
+
+
+@pytest.mark.parametrize(("s", "k", "angle"), [
+    # not finite: left to the model's own 422, which names the bad field
+    (math.nan, 4.0, 80.0), (math.inf, 4.0, 80.0), (10.0, math.nan, 80.0),
+    (10.0, math.inf, 80.0), (10.0, 4.0, math.nan), (10.0, 4.0, math.inf),
+    # not above 0
+    (0.0, 4.0, 80.0), (-10.0, 4.0, 80.0), (10.0, 0.0, 80.0), (10.0, -4.0, 80.0),
+    # an angle the model refuses: 0 is the sharp head, 90 and above are a 422 on the field
+    (10.0, 4.0, 0.0), (10.0, 4.0, -1.0), (10.0, 4.0, 90.0), (10.0, 4.0, 91.0),
+])
+def test_unusable_values_are_no_head_chamfer_conflict(s: float, k: float, angle: float) -> None:
+    assert head_chamfer_conflict(s, k, angle) is None
 
 
 def test_the_basic_pitch_and_minor_diameters_are_the_iso_68_1_formulas() -> None:
