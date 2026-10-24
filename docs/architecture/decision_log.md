@@ -1479,6 +1479,20 @@ a `BuildError` (API 422 `build_error`), never a 500 or a wrong number. Measured:
 value with no honest one (`tests/test_solid.py::test_a_tiny_or_near_right_head_chamfer_builds_inside_its_gates_or_is_refused_by_name`,
 `tests/test_calc.py::test_derive_never_raises_on_a_tiny_or_near_right_head_chamfer`).
 
+**Below the kernel's limit (owner ruling 2026-10-24, after the 06.1 review WR-01).** The kernel refuses
+a cut too shallow to resolve, and where that happens depends on the head:
+`head_chamfer_kernel_bound(s, k) = max(2e-4, 3.5e-3 * k / s**2)` degrees in `calc/thread.py`
+(`HEAD_CHAMFER_KERNEL_FLOOR_DEG`, `HEAD_CHAMFER_KERNEL_SLOPE`). For `0 < head_chamfer` below it, `derive`
+withholds the four chamfer rows and the volume and warns once that the kernel may refuse the part; at
+5e-324, where the closed form itself refuses, it warns that the part is not built. This is a warning, not
+a floor: the field and the 422 rules are unchanged, so D-18 stands. The owner chose it over a single
+constant (which left small and tall heads printing rows for a refused part) and over a model floor.
+The constants are fitted, not derived (the piece gate's own tolerance did not predict the refusals):
+fitted on macOS arm64 and linux/amd64 (cadquery-ocp 7.9.3.1.1), then confirmed on 35 heads (15 ISO 4014
+grade A M2 to M20, 20 off-catalogue, s 0.3 to 50, k/s 0.4 to 40) at the bound, 1.01x, 2x, 10x, 1 and 30
+degrees: 210 of 210 built on each platform. The measurements are in the constants' comment and in
+`.planning/phases/06.1-bolt-head-chamfer/06.1-REVIEW-FIX.md`.
+
 **Published shapes (D-16).** The field is declared last in `BoltParams`, so the old slug is the prefix of
 the new one and every default download name gains `_head_chamfer30`
 (`bolt_d6_pitch1_left_hand0_length20_s10_k4_thread_length20_head_chamfer30`). The generic kernel-failure
