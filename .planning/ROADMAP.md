@@ -369,14 +369,14 @@ Plans:
 **Goal:** A bolt or screw (ISO 4014, ISO 4017) gets a chamfered hex head: one `head_chamfer` field, an angle in degrees, default 30, where 0 builds the sharp head of today. The chamfer is a cone from the inscribed circle `s / 2` on the top face only, the same stated model as the nut face chamfer (L15, R4 a), so it clips the six corners; the bearing face is unchanged. The head's closed form stays exact for the cone-clipped prism, the field ships on UI, API and CLI with its tests, and a new decision-log entry supersedes L13 D-01's "no top chamfer". Owner ruling 2026-10-24: field with default 30, top face only, cone from `s / 2`, inserted before Phase 7 so the re-sweep measures the chamfered head. One-way: every link that omits the field gets the chamfered head (allowed by L13's reversibility note while the standing warning says "not a product build").
 **Requirements**: TBD
 **Depends on:** Phase 6
-**Plans:** 1/5 plans executed
+**Plans:** 2/5 plans executed
 
 Plans:
 **Wave 1**
 - [x] 06.1-01-PLAN.md — The analytic head-chamfer closed form, the shared depth predicate, the band and cap warnings and the conflict text, kernel-free (D-02 to D-08)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 06.1-02-PLAN.md — The head_chamfer field, the head cut and its piece gate, the closed form, the new default pinned; the edges of the angle range (D-01, D-06, D-07, D-09, D-16 to D-18)
+- [x] 06.1-02-PLAN.md — The head_chamfer field, the head cut and its piece gate, the closed form, the new default pinned; the edges of the angle range (D-01, D-06, D-07, D-09, D-16 to D-18)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 06.1-03-PLAN.md — The info document: four chamfer rows, the sharp-head note, the band and cap warnings, the new standing warning (D-02, D-04, D-10 to D-12, D-19)
@@ -414,5 +414,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 2 
 | 4. ISO Hex Bolts and Screws | 17/17 | Complete    | 2026-10-12 |
 | 5. Hex Nut and Kernel Pair Proof | 25/25 | Complete    | 2026-10-22 |
 | 6. Printed Pair Acceptance | 10/10 | Complete    | 2026-10-24 |
-| 6.1. Bolt head chamfer (INSERTED) | 1/5 | In Progress | - |
+| 6.1. Bolt head chamfer (INSERTED) | 2/5 | In Progress | - |
 | 7. Operability Re-sweep | 0/TBD | Not started | - |

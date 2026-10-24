@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: "06.1"
 current_phase_name: Bolt head chamfer (INSERTED)
 status: executing
-stopped_at: Completed 06.1-01-PLAN.md
-last_updated: "2026-10-24T11:13:03.005Z"
+stopped_at: Completed 06.1-02-PLAN.md
+last_updated: "2026-10-24T11:47:59.468Z"
 last_activity: 2026-10-24
 last_activity_desc: Phase 06.1 execution started
-state_head: 0ab01cfcb3329fd9d556dedebb08b62c505354ba
+state_head: b17fe9f64bb8c8c623988631a5a4ffd2a9e29602
 progress:
   total_phases: 8
   completed_phases: 6
   total_plans: 82
-  completed_plans: 78
+  completed_plans: 79
   percent: 75
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-24)
 ## Current Position
 
 Phase: 06.1 (Bolt head chamfer (INSERTED)) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
 Last activity: 2026-10-24 — Phase 06.1 execution started
 
@@ -139,6 +139,7 @@ Progress: [████████░░] 75%
 | Phase 06 P09 | 25min | 2 tasks | 7 files |
 | Phase 06 P10 | 20min | 3 tasks | 3 files |
 | Phase 06.1 P01 | 30min | 2 tasks | 3 files |
+| Phase 06.1 P02 | 45 min | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -277,6 +278,8 @@ Recent decisions affecting current work:
 - [Phase 06]: L18 (R7): printability threshold is M4 (d_min 4.0 mm, P_min 0.7 mm) read by threshold_from from the pinned run-2 record, accepted under R10, weaker evidence than the pre-registered run; warns, never caps or refuses (D-13)
 - [Phase 06.1]: 06.1-01: head chamfer capped means full > k / 2, never >=; equality builds uncapped, same threshold in warning and conflict text
 - [Phase 06.1]: 06.1-01: head chamfer band 15 to 30 is a stated model taken from the nut's R4 a read; no ISO 4014/4017 edition cited
+- [Phase 06.1]: 06.1-02: the default bolt is now chamfered at 30 degrees (owner ruling 2026-10-24, D-15); default slug and download names gain _head_chamfer30 — head_chamfer is a frozen default (L02); closed-form volume is 1.0855309493921927 mm3 less
+- [Phase 06.1]: 06.1-02: the head chamfer is cut and judged at T_PIECE on the head prism before the fuse (D-09) — after the fuse a +5.5e-5 mm3 bias of the thread-bearing solid false-refused M6 at 0.01 degrees and M2 at 0.1 degrees against T_PIECE 0.03
 
 ### Pending Todos
 
@@ -324,6 +327,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-24T11:12:59.932Z
-Stopped at: Completed 06.1-01-PLAN.md
+Last session: 2026-10-24T11:47:59.253Z
+Stopped at: Completed 06.1-02-PLAN.md
 Resume file: None
