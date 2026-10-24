@@ -29,6 +29,7 @@ from screw.calc.thread import (
     flank_normal_gap,
     head_chamfer_conflict,
     head_chamfer_depths,
+    head_chamfer_volume,
     head_chamfer_warnings,
     nut_end_closed_volume,
     nut_fine_stl_refusal,
@@ -252,8 +253,21 @@ def _bolt(p: BoltParams) -> PartInfo:
     # depth as cut, from the predicate the builder cuts with, so a head capped at k / 2 reads k / 2
     # and not the model's deeper number (L02). Tested as `> 0`, never `!= 0`: -0.0 is the sharp
     # head, which has no chamfer rows (D-11).
-    chamfer_rows: list[tuple[str, str, str, str, str, Callable[[], float]]] = []
+    # WR-01, D-18, L02: the builder runs `head_chamfer_volume` before the kernel and refuses the
+    # part when it raises (an angle whose tangent underflows, 5e-324 being the one that gets
+    # here). Asked here too, so the document and the build agree on what is a part: no chamfer row
+    # and no volume for a head nobody can make, and the warning says so, as for a short thread
+    # below. Angles the oracle accepts but the kernel refuses (1e-5 and below, one macOS arm64
+    # measurement) are not knowable without the kernel; the model keeps no floor (D-18).
+    chamfer_modelled = True
     if p.head_chamfer > 0:
+        try:
+            head_chamfer_volume(
+                p.s, p.head_chamfer, head_chamfer_depths(p.s, p.k, p.head_chamfer)[1])
+        except (OverflowError, ValueError):
+            chamfer_modelled = False
+    chamfer_rows: list[tuple[str, str, str, str, str, Callable[[], float]]] = []
+    if p.head_chamfer > 0 and chamfer_modelled:
         chamfer_rows = [
             ("head_chamfer", HEAD, "Head chamfer angle from the top face "
              "(stated model: the standards draw a 15 to 30° band)", "°", "head_chamfer",
@@ -300,7 +314,8 @@ def _bolt(p: BoltParams) -> PartInfo:
     # below says why; every other row is an exact reading of the user's own fields.
     buildable = t >= MIN_TAIL_MM
     for key, group, label, unit, formula, compute in computed:
-        if not buildable and key in ("turns", "volume"):
+        if (not buildable and key in ("turns", "volume")) or (
+                not chamfer_modelled and key == "volume"):
             continue
         try:
             value = compute()
@@ -325,13 +340,18 @@ def _bolt(p: BoltParams) -> PartInfo:
         warnings.append(f"thread_length and length: a thread of {t:g} mm is shorter than the "
                         f"{MIN_TAIL_MM:g} mm the builder can model, so this part is not built; "
                         "turns and volume not reported")
-    # D-02: an angle off the 15 to 30 degree band builds as asked and says so. D-04, D-06: a depth
-    # over k / 2 that reached the model (a defaulted angle, or direct construction) is cut at k / 2
-    # and says so, naming head_chamfer and k. An explicit one never gets here on the API or the CLI
-    # (the request boundary's 422, plan 06.1-04); only a `model_construct` instance can fail here,
-    # and its volume row then says it is not reported.
-    with contextlib.suppress(OverflowError, ValueError):
-        warnings.extend(head_chamfer_warnings(p.s, p.k, p.head_chamfer))
+    if not chamfer_modelled:
+        warnings.append(f"head_chamfer {p.head_chamfer!r}: the head chamfer cannot be modelled at "
+                        "this angle, so this part is not built; chamfer rows and volume not "
+                        "reported")
+    else:
+        # D-02: an angle off the 15 to 30 degree band builds as asked and says so. D-04, D-06: a
+        # depth over k / 2 that reached the model (a defaulted angle, or direct construction) is
+        # cut at k / 2 and says so, naming head_chamfer and k. An explicit one never gets here on
+        # the API or the CLI (the request boundary's 422, plan 06.1-04); only a `model_construct`
+        # instance can fail here, and its volume row then says it is not reported.
+        with contextlib.suppress(OverflowError, ValueError):
+            warnings.extend(head_chamfer_warnings(p.s, p.k, p.head_chamfer))
     if row is None:
         # L02: no row means no row value and no nearest row; the part is built from its fields.
         warnings.append(NO_ROW_WARNING)

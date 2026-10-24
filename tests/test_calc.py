@@ -257,13 +257,37 @@ def test_a_volume_that_overflows_is_absent_and_explained_not_a_500() -> None:
     assert info.warnings[0] == WARNING
 
 
-def test_derive_never_raises_on_a_tiny_or_near_right_head_chamfer() -> None:
-    # 06.1 D-18, L02: a value with no honest volume reports none and says why; the rest reports a
-    # finite number below the sharp head's. 5e-324 degrees underflows the tangent, so the oracle
-    # raises ValueError and `derive` leaves the volume row out.
+def test_an_angle_the_oracle_refuses_is_an_info_document_that_says_the_part_is_not_built() -> None:
+    # 06.1 WR-01, D-18, L02: 5e-324 degrees underflows the tangent, so `head_chamfer_volume`
+    # raises and the build is refused before the kernel runs. The document agrees with the build:
+    # no chamfer row (the "no chamfer, 4 mm edge left" reading was the wrong number), no volume
+    # row, one warning that names the field and says the part is not built, and neither the band
+    # warning's "built as asked" nor the "not a finite number" volume reason.
     tiny = derive(BoltParams(head_chamfer=5e-324))
-    assert "volume" not in [r.key for r in tiny.rows]
-    assert any(w.startswith("volume not reported") and "head chamfer" in w for w in tiny.warnings)
+    keys = {r.key for r in tiny.rows}
+    assert set(CHAMFER_KEYS).isdisjoint(keys)
+    assert "volume" not in keys
+    assert {"s", "k", "thread_length"} <= keys  # the rest of the document is still there
+    refusal = [w for w in tiny.warnings if "this part is not built" in w]
+    assert len(refusal) == 1
+    assert refusal[0].startswith("head_chamfer 5e-324:")
+    assert not any("built as asked" in w or "not a finite number" in w for w in tiny.warnings)
+    assert not any(w.startswith("volume not reported") for w in tiny.warnings)
+
+
+def test_a_small_angle_the_oracle_accepts_keeps_its_chamfer_rows_and_volume() -> None:
+    # The control for the refusal above: 1e-4 degrees builds (single macOS arm64 measurement in
+    # tests/test_solid.py), and the oracle accepts it, so its document is whole.
+    info = derive(BoltParams(head_chamfer=1e-4))
+    keys = {r.key for r in info.rows}
+    assert set(CHAMFER_KEYS) <= keys
+    assert "volume" in keys
+    assert not any("this part is not built" in w for w in info.warnings)
+
+
+def test_derive_never_raises_on_a_tiny_or_near_right_head_chamfer() -> None:
+    # 06.1 D-18, L02: every value reports a finite volume below the sharp head's, except where the
+    # oracle refuses it (the test above).
     sharp = bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None, 0.0)
     for angle in (1e-9, 1e-4, 89.99999999999999):
         volume = _rows(BoltParams(head_chamfer=angle))["volume"]

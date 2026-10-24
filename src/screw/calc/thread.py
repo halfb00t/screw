@@ -666,7 +666,7 @@ def head_chamfer_volume(s: float, angle_deg: float, depth: float) -> float:
         raise ValueError(f"s {s:g} mm must be finite and above 0")
     tau = math.tan(math.radians(angle_deg))
     if not tau > 0:
-        raise ValueError(f"head_chamfer {angle_deg:g} degrees is too small to have a tangent")
+        raise ValueError(f"head_chamfer {angle_deg!r} degrees is too small to have a tangent")
     if not (math.isfinite(depth) and depth >= 0):
         raise ValueError(f"depth {depth:g} mm must be finite and 0 or more")
     a = s / 2

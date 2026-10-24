@@ -224,11 +224,14 @@ def _build_bolt(p: BoltParams) -> cq.Solid:
         # constant +5.5e-5 mm3 bias of the thread-bearing solid false-refused M6 at 0.01 degrees
         # (+1.7e-1) and M2 at 0.1 degrees (+1.4e-1) against T_PIECE 0.03. About 0.03 s per build
         # (06.1-RESEARCH "Where to cut", scratch kernel_piece.py, macOS arm64, single runs; Phase 7
-        # re-measures). An angle whose tangent underflows has no honest oracle: the ValueError
-        # from `head_chamfer_volume` becomes `_build_checked`'s BuildError (D-18), before the
-        # kernel runs.
+        # re-measures). An angle whose tangent underflows has no honest oracle (D-18): refused here
+        # by name, before the kernel runs, so the message does not blame a kernel that never ran.
         _, cut = head_chamfer_depths(p.s, p.k, p.head_chamfer)
-        oracle = head_chamfer_volume(p.s, p.head_chamfer, cut)
+        try:
+            oracle = head_chamfer_volume(p.s, p.head_chamfer, cut)
+        except ValueError as exc:
+            raise BuildError(f"Head chamfer refused before the geometry kernel ran: {exc}; "
+                             "raise head_chamfer or set it to 0.") from exc
         uncut = precise_volume(head)
         head = bolt.chamfer_head(p, head, cut)
         check_structure(head)

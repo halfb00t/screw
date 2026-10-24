@@ -279,6 +279,9 @@ def test_a_tiny_or_near_right_head_chamfer_builds_inside_its_gates_or_is_refused
         clear_cache()
     if solid is None:
         assert angle not in (0.5, 89.9), f"a positive control was refused: {refusal}"
+        if angle == 5e-324:  # WR-01: refused by the oracle, so the kernel never ran
+            assert "Geometry kernel failed" not in str(refusal)
+            assert "head_chamfer" in str(refusal)
         return
     assert angle != 5e-324, "an angle with no honest oracle was built"
     assert len(solid.Solids()) == 1

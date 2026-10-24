@@ -1052,6 +1052,12 @@ def test_a_tiny_head_chamfer_is_a_422_build_error_or_a_200_never_a_500() -> None
         "head_chamfer": 5e-324, "quality": "preview"})
     assert refused.status_code == 422
     assert refused.json()["detail"][0]["type"] == "build_error"
+    # WR-01: the oracle refuses before the kernel runs, and the message does not blame the kernel.
+    assert "Geometry kernel failed" not in refused.json()["detail"][0]["msg"]
+    info = client.get("/api/bolt/info", params={"head_chamfer": 5e-324}).json()
+    assert not {r["key"] for r in info["rows"]} & {
+        "head_chamfer", "chamfer_depth", "chamfer_circle_diameter", "corner_edge_left", "volume"}
+    assert any("this part is not built" in w for w in info["warnings"])
     near = client.get("/api/bolt/model.stl", params={"head_chamfer": 1e-6, "quality": "preview"})
     assert near.status_code in (200, 422)
     if near.status_code == 422:
