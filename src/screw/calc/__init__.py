@@ -29,6 +29,7 @@ from screw.calc.thread import (
     flank_normal_gap,
     head_chamfer_conflict,
     head_chamfer_depths,
+    head_chamfer_kernel_bound,
     head_chamfer_volume,
     head_chamfer_warnings,
     nut_end_closed_volume,
@@ -257,17 +258,23 @@ def _bolt(p: BoltParams) -> PartInfo:
     # part when it raises (an angle whose tangent underflows, 5e-324 being the one that gets
     # here). Asked here too, so the document and the build agree on what is a part: no chamfer row
     # and no volume for a head nobody can make, and the warning says so, as for a short thread
-    # below. Angles the oracle accepts but the kernel refuses (1e-5 and below, one macOS arm64
-    # measurement) are not knowable without the kernel; the model keeps no floor (D-18).
+    # below. Between that and `head_chamfer_kernel_bound` the oracle accepts the angle but the
+    # kernel may refuse it (its measured limit depends on s and k, see the bound's comment): the
+    # same four rows and the volume are withheld, with a warning that says "may", because
+    # this function never runs the kernel. D-10 and D-11 are silent on a chamfer that may not
+    # exist; L02 decides. The model keeps no floor and the field still takes every angle (D-18).
     chamfer_modelled = True
+    chamfer_kernel_bound = 0.0
     if p.head_chamfer > 0:
         try:
             head_chamfer_volume(
                 p.s, p.head_chamfer, head_chamfer_depths(p.s, p.k, p.head_chamfer)[1])
         except (OverflowError, ValueError):
             chamfer_modelled = False
+        chamfer_kernel_bound = head_chamfer_kernel_bound(p.s, p.k)
+    chamfer_reported = chamfer_modelled and not 0 < p.head_chamfer < chamfer_kernel_bound
     chamfer_rows: list[tuple[str, str, str, str, str, Callable[[], float]]] = []
-    if p.head_chamfer > 0 and chamfer_modelled:
+    if p.head_chamfer > 0 and chamfer_reported:
         chamfer_rows = [
             ("head_chamfer", HEAD, "Head chamfer angle from the top face "
              "(stated model: the standards draw a 15 to 30° band)", "°", "head_chamfer",
@@ -315,7 +322,7 @@ def _bolt(p: BoltParams) -> PartInfo:
     buildable = t >= MIN_TAIL_MM
     for key, group, label, unit, formula, compute in computed:
         if (not buildable and key in ("turns", "volume")) or (
-                not chamfer_modelled and key == "volume"):
+                not chamfer_reported and key == "volume"):
             continue
         try:
             value = compute()
@@ -344,6 +351,11 @@ def _bolt(p: BoltParams) -> PartInfo:
         warnings.append(f"head_chamfer {p.head_chamfer!r}: the head chamfer cannot be modelled at "
                         "this angle, so this part is not built; chamfer rows and volume not "
                         "reported")
+    elif not chamfer_reported:
+        warnings.append(f"head_chamfer {p.head_chamfer!r}: below {chamfer_kernel_bound!r} degrees, "
+                        "the smallest angle the geometry kernel is measured to cut on a head of "
+                        f"s {p.s!r} and k {p.k!r}, so this part may be refused as a build error; "
+                        "chamfer rows and volume not reported")
     else:
         # D-02: an angle off the 15 to 30 degree band builds as asked and says so. D-04, D-06: a
         # depth over k / 2 that reached the model (a defaulted angle, or direct construction) is

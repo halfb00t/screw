@@ -1,13 +1,15 @@
 # The info document prints a whole head chamfer for a tiny angle the kernel refuses
 
 Severity: must
-Status: active
+Status: resolved
 Date: 2026-10-24
+Resolved in: this commit, `fix(06.1): warn below the measured limit of the head chamfer instead of printing its rows` (`git log --grep` finds the sha)
 Source: 06.1 code review WR-01 (the part the oracle-based fix cannot reach)
 Related files:
 - src/screw/calc/__init__.py (`_bolt`, `chamfer_modelled`)
 - src/screw/solid/__init__.py (`_build_bolt`, the head chamfer piece gate)
-- tests/test_solid.py (`test_a_tiny_or_near_right_head_chamfer_builds_inside_its_gates_or_is_refused_by_name`)
+- src/screw/calc/thread.py (`head_chamfer_kernel_bound`)
+- tests/test_solid.py (`test_the_kernel_bound_angle_builds_through_both_gates`)
 
 ## Context
 `derive()` drops the chamfer rows and the volume, and says "this part is not built", only when
@@ -22,7 +24,10 @@ never runs the kernel, so it cannot know.
 A volume row for a bolt nobody can make is a number someone may act on (L02). Reachable only by
 typing an angle under 1e-4 degrees, far outside the 15 to 30 degree band, which already warns.
 
-## Next step
+## Resolution
+Owner ruling 2026-10-24: warn below the measured limit, no floor (D-18). `head_chamfer_kernel_bound(s, k)` = `max(2e-4, 3.5e-3 * k / s^2)` degrees, fitted to a host and linux/amd64 grid and confirmed on a fresh 35-head grid on both (210 cells each, none refused at or above the bound). Below it, for an angle above 0, `derive()` withholds the four chamfer rows and the volume and warns once that the kernel may refuse the part. The refusal depends on s and k, so one constant would not have held.
+
+## Original next step
 Measure the refusal boundary on linux/amd64 in the Phase 7 sweep, then either add a "may be
 refused by the geometry kernel" warning for `0 < head_chamfer` under the measured bound (a
 warning, not a floor), or supersede D-18 with a floor.

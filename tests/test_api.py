@@ -1062,6 +1062,12 @@ def test_a_tiny_head_chamfer_is_a_422_build_error_or_a_200_never_a_500() -> None
     assert near.status_code in (200, 422)
     if near.status_code == 422:
         assert near.json()["detail"][0]["type"] == "build_error"
+    # The kernel bound: the document cannot know whether 1e-6 builds, so it reports no volume and
+    # says the part may be refused, and the API still accepts the angle (D-18, no model floor).
+    maybe = client.get("/api/bolt/info", params={"head_chamfer": 1e-6})
+    assert maybe.status_code == 200
+    assert "volume" not in {r["key"] for r in maybe.json()["rows"]}
+    assert any("may be refused as a build error" in w for w in maybe.json()["warnings"])
 
 
 def test_a_failed_export_is_a_422_and_never_enters_the_bytes_cache(

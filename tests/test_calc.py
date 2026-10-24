@@ -30,6 +30,7 @@ from screw.calc import (
 )
 from screw.calc.presets import WITHDRAWN_DIN_WRENCH_MM, designation_for, match
 from screw.calc.thread import (
+    HEAD_CHAMFER_KERNEL_FLOOR_DEG,
     TIP_ANGLE_DEG,
     axial_play,
     basic_minor_diameter,
@@ -38,6 +39,7 @@ from screw.calc.thread import (
     flank_normal_gap,
     head_chamfer_conflict,
     head_chamfer_depths,
+    head_chamfer_kernel_bound,
     head_chamfer_warnings,
     nut_closed_volume,
     nut_end_closed_volume,
@@ -275,24 +277,83 @@ def test_an_angle_the_oracle_refuses_is_an_info_document_that_says_the_part_is_n
     assert not any(w.startswith("volume not reported") for w in tiny.warnings)
 
 
-def test_a_small_angle_the_oracle_accepts_keeps_its_chamfer_rows_and_volume() -> None:
-    # The control for the refusal above: 1e-4 degrees builds (single macOS arm64 measurement in
-    # tests/test_solid.py), and the oracle accepts it, so its document is whole.
-    info = derive(BoltParams(head_chamfer=1e-4))
+def _below_bound_warnings(info: PartInfo) -> list[str]:
+    return [w for w in info.warnings if "may be refused as a build error" in w]
+
+
+def test_an_angle_just_below_the_kernel_bound_withholds_the_chamfer_rows_and_the_volume() -> None:
+    # Owner ruling 2026-10-24 on WR-01's residual, L02, D-18: below the measured bound the kernel
+    # may refuse the build, which `derive` cannot know, so it prints no number that part might not
+    # have: no chamfer row, no volume, one warning naming the field and the bound. D-10 and D-11
+    # are silent on this case. The rest of the document is still there, and "built as asked" is
+    # not claimed. The model keeps no floor: BoltParams accepts the angle.
+    bound = head_chamfer_kernel_bound(10.0, 4.0)
+    angle = bound * 0.99
+    info = derive(BoltParams(head_chamfer=angle))
     keys = {r.key for r in info.rows}
-    assert set(CHAMFER_KEYS) <= keys
-    assert "volume" in keys
-    assert not any("this part is not built" in w for w in info.warnings)
+    assert set(CHAMFER_KEYS).isdisjoint(keys)
+    assert "volume" not in keys
+    assert {"s", "k", "thread_length"} <= keys
+    warned = _below_bound_warnings(info)
+    assert len(warned) == 1
+    assert warned[0].startswith(f"head_chamfer {angle!r}: below {bound!r} degrees")
+    assert not any("built as asked" in w or "this part is not built" in w for w in info.warnings)
+    assert not any(w.startswith("volume not reported") for w in info.warnings)
+
+
+def test_the_kernel_bound_and_every_angle_above_it_keep_their_rows_and_volume() -> None:
+    # 1e-4 degrees builds on the default head (tests/test_solid.py) but is under the bound, which
+    # keeps a margin over the largest measured refusal (7e-5); the bound itself is a built part.
+    bound = head_chamfer_kernel_bound(10.0, 4.0)
+    assert bound == 2e-4
+    for angle in (bound, 1e-3, 30.0):
+        info = derive(BoltParams(head_chamfer=angle))
+        keys = {r.key for r in info.rows}
+        assert set(CHAMFER_KEYS) <= keys
+        assert "volume" in keys
+        assert _below_bound_warnings(info) == []
+        assert not any("this part is not built" in w for w in info.warnings)
+    assert "volume" not in {r.key for r in derive(BoltParams(head_chamfer=1e-4)).rows}
+
+
+def test_the_kernel_bound_grows_for_a_small_or_tall_head_and_has_a_floor_for_the_rest() -> None:
+    # The measured refusals scale as 1/s for a small head and with k (the comment on the constants
+    # carries the grid): the same angle is a built part on the default head and a possible
+    # refusal on a head of s = 1.
+    assert head_chamfer_kernel_bound(10.0, 4.0) == HEAD_CHAMFER_KERNEL_FLOOR_DEG
+    assert head_chamfer_kernel_bound(100.0, 40.0) == HEAD_CHAMFER_KERNEL_FLOOR_DEG
+    assert head_chamfer_kernel_bound(1.0, 0.4) == pytest.approx(1.4e-3)
+    assert head_chamfer_kernel_bound(10.0, 400.0) == pytest.approx(1.4e-2)
+    angle = 1e-3
+    assert _below_bound_warnings(derive(BoltParams(head_chamfer=angle))) == []
+    small = BoltParams(d=0.5, pitch=0.1, length=5.0, thread_length=5.0, s=1.0, k=0.4,
+                       head_chamfer=angle)
+    assert len(_below_bound_warnings(derive(small))) == 1
+    assert "volume" not in {r.key for r in derive(small).rows}
+
+
+def test_a_sharp_head_and_a_head_the_oracle_refuses_are_not_the_below_bound_case() -> None:
+    # 0 is the sharp head (D-11): rows absent, the note present, no warning of either kind. 5e-324
+    # keeps its own "not built" path and is not also called "may be refused".
+    sharp = derive(BoltParams(head_chamfer=0.0))
+    assert _below_bound_warnings(sharp) == []
+    assert not any("head_chamfer" in w for w in sharp.warnings)
+    assert SHARP_HEAD_NOTE in sharp.notes
+    tiny = derive(BoltParams(head_chamfer=5e-324))
+    assert _below_bound_warnings(tiny) == []
+    assert len([w for w in tiny.warnings if "this part is not built" in w]) == 1
 
 
 def test_derive_never_raises_on_a_tiny_or_near_right_head_chamfer() -> None:
     # 06.1 D-18, L02: every value reports a finite volume below the sharp head's, except where the
-    # oracle refuses it (the test above).
+    # oracle refuses it or the kernel may (the tests above).
     sharp = bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None, 0.0)
-    for angle in (1e-9, 1e-4, 89.99999999999999):
+    for angle in (2e-4, 89.99999999999999):
         volume = _rows(BoltParams(head_chamfer=angle))["volume"]
         assert math.isfinite(volume)
         assert 0 < volume < sharp, angle
+    for angle in (1e-9, 1e-4):
+        assert derive(BoltParams(head_chamfer=angle)).rows  # withheld, never a 500
 
 
 def test_an_infinite_diameter_leaves_out_every_row_it_would_make_infinite() -> None:

@@ -936,6 +936,54 @@ def head_chamfer_depths(s: float, k: float, angle_deg: float) -> tuple[float, fl
     return full, min(full, k / 2)
 
 
+# Smallest head chamfer angle the geometry kernel is measured to cut, in degrees, as a function of
+# the head (s, k): `max(FLOOR, SLOPE * k / s^2)`. Below it the kernel may refuse the build (the head
+# chamfer piece gate, or `Standard_Failure` from about 1e-6), though the oracle accepts the angle
+# and the model has no floor (D-18), so `derive` withholds the chamfer rows and the volume and
+# warns instead of printing a number for a part that may not exist (L02). Measured through the
+# product build path (`screw.solid.build`), macOS arm64 and the project image run as linux/amd64
+# under emulation, cadquery-ocp 7.9.3.1.1 on both, 2026-10-24, single runs.
+#
+# It is fitted, not derived. Tried first: the gate's own tolerance. The cut is judged at T_PIECE
+# of its oracle, and the volume integral carries a constant bias of 5.4e-11 * s^2 * k mm3 (6e-11 of
+# the head, same at s = 1, 10, 30 and 100), which would refuse only below 5.5e-5 * k / s degrees
+# (2e-5 at the default head). The kernel refuses up to 7e-5 there and up to 2e-4 at s = 1. The
+# refusals are not bias: the cut is a sliver 3e-7 to 3e-6 mm deep and the measured piece falls to
+# zero or near it (s = 1: -6.6e-9 mm3 against an oracle of 6.6e-9). No depth separates the cells
+# either (s = 2 builds at 5.4e-7 mm, s = 100 refuses at 2.7e-6 mm). So T_PIECE predicts the wrong
+# angle by 3x to 10x and cannot be the predicate.
+#
+# Fit data (smallest angle that builds, everything above also builds; refused angle below it):
+#   s    k     built  refused      s    k     built  refused      s   k    built  refused
+#   0.25 0.1   2e-3   1e-3         10   4     1e-4   7e-5         10  20   5e-4   2e-4
+#   0.5  0.2   1e-3   5e-4         4    1.4   1e-4   7e-5         10  100  5e-4   2e-4
+#   1    0.4   5e-4   2e-4         30   12.5  2e-5*  1e-5         10  1000 5e-3   2e-3
+#   2    0.8   2e-4   1e-4         100  40    5e-5   2e-5
+# (* linux; the host builds from 5e-5. The s = 10 rows with k >= 20 are host only.)
+# The angle needed grows as 1/s for a small head and with k, and a large head needs about 5e-5
+# whatever its size. FLOOR is 2e-4, 2.9x the largest refused angle of any head with s >= 4 (7e-5
+# on both platforms). SLOPE is 3.5e-3, 2x the largest refused value of angle * s^2 / k (1.75e-3,
+# the default head at 7e-5).
+#
+# Confirmed on a fresh grid on both platforms: the 15 grade A heads of ISO 4014 (M2 to M20) and 20
+# off-catalogue heads (s 0.3 to 50, k/s 0.4 to 40), each at the bound, 1.01x, 2x and 10x the bound,
+# 1 degree and 30 degrees. All 210 cells per platform built (35 heads x 6 angles, none refused). It
+# is not tight: half the bound still builds for every catalogue head, a quarter is refused for M2
+# to M7 and M14 on both platforms, and a tall head (k/s >= 4) builds down to a quarter of it.
+# Phase 7's re-sweep (OPER-02) may re-measure; the constants are the point to change.
+HEAD_CHAMFER_KERNEL_FLOOR_DEG = 2e-4
+HEAD_CHAMFER_KERNEL_SLOPE = 3.5e-3
+
+
+def head_chamfer_kernel_bound(s: float, k: float) -> float:
+    """The head chamfer angle below which the kernel may refuse the build, in degrees.
+
+    Kernel-free, from the head's own fields; an angle at or above it builds on both measured
+    platforms. `derive` withholds the chamfer rows and the volume below it (for an angle above 0).
+    """
+    return max(HEAD_CHAMFER_KERNEL_FLOOR_DEG, HEAD_CHAMFER_KERNEL_SLOPE * k / (s * s))
+
+
 def head_chamfer_warnings(s: float, k: float, angle_deg: float) -> list[str]:
     """What `derive` appends for a head chamfer the model accepted: the band warning, then the
     cap warning (D-02, D-04, D-06).

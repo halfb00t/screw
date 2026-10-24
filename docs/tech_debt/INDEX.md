@@ -16,7 +16,6 @@ Severity (grep-able `Severity:` field):
 
 | Severity | Item | Trigger to revisit |
 |---|---|---|
-| must | [The info document prints a whole head chamfer for a tiny angle the kernel refuses](active/2026-10-24-info-document-cannot-see-a-kernel-refused-head-chamfer.md) | the Phase 7 operability re-sweep (OPER-02), or before the first release |
 | must | [No test holds that a nut outside the measured range is still a 200 from the API](active/2026-10-24-measured-range-nut-api-200-untested.md) | the next edit to the nut warnings, or before the first release (after Phase 7) |
 | must | [The nut's countersink cutter ends at a negative radius at a coarse pitch and the kernel refuses a valid nut](active/2026-10-21-nut-countersink-cutter-crosses-the-axis-at-a-coarse-pitch.md) | before the nut's pitch or clearance range is relied on, or with the root-radius floor item |
 | nice | [Three pair and CLI tests couple to prose, internal names and a wall-clock bound](active/2026-10-21-brittle-pair-and-cli-tests.md) | the first time the 5 s assertion fails, or the next edit to the pair orchestration tests |
@@ -42,6 +41,7 @@ Severity (grep-able `Severity:` field):
 
 | Item | Resolved in |
 |---|---|
+| [The info document prints a whole head chamfer for a tiny angle the kernel refuses](resolved/2026-10-24-info-document-cannot-see-a-kernel-refused-head-chamfer.md) | this commit — fix(06.1): warn below the measured limit of the head chamfer instead of printing its rows |
 | [The nut has no fine-STL cap: its caps need their own measurement run](resolved/2026-10-14-nut-fine-stl-caps-unmeasured.md) | this commit — fix(05-19): refuse a nut's fine STL past its measured cap (plan 05-19) |
 | [The web page rounds every displayed number in the browser](resolved/2026-10-06-ui-rounds-displayed-numbers.md) | this commit — fix(ui): show the API's numbers unrounded, with the designation, groups and notes (plan 04-13) |
 | [derive() prints turns and volume for a length below MIN_TAIL_MM, which the builder refuses](resolved/2026-10-11-info-document-prints-numbers-for-a-length-the-builder-refuses.md) | this commit — fix(calc): report no turns or volume for a thread too short to build (plan 04-05) |

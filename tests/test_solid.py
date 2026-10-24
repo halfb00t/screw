@@ -22,14 +22,17 @@ from screw.calc.thread import (
     TIP_ANGLE_DEG,
     bolt_closed_volume,
     bolt_end_closed_volume,
+    built_thread_length,
     closed_volume,
     fillet_radius,
     fillet_ring_volume,
     fine_stl_refusal,
     head_chamfer_depths,
+    head_chamfer_kernel_bound,
     piece_refusal,
     section_area,
     thread_depth,
+    tip_cone_fits,
     tip_cone_length,
     tip_cone_volume,
     volume_check,
@@ -288,6 +291,34 @@ def test_a_tiny_or_near_right_head_chamfer_builds_inside_its_gates_or_is_refused
     assert solid.isValid()
     assert precise_volume(solid) == pytest.approx(
         bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None, angle), rel=T_GATE)
+
+
+@pytest.mark.parametrize("head", [
+    {},  # the default head, s 10 k 4
+    {"d": 2.0, "pitch": 0.4, "s": 4.0, "k": 1.4},  # M2, the smallest catalogue head
+    {"d": 20.0, "pitch": 2.5, "s": 30.0, "k": 12.5, "length": 40.0, "thread_length": 40.0},  # M20
+    {"d": 0.5, "pitch": 0.1, "length": 5.0, "thread_length": 5.0, "s": 1.0, "k": 0.4},  # small
+])
+def test_the_kernel_bound_angle_builds_through_both_gates(head: dict[str, float]) -> None:
+    # The bound is where `derive` stops withholding the chamfer rows and the volume, so a part at
+    # the bound has to be a part: one valid solid, piece gate and whole-part gate passed, volume
+    # equal to the closed form the document prints. The grid behind the constants is in the
+    # comment on them (both platforms, 210 cells at and above the bound, none refused).
+    probe = BoltParams.model_validate(head)
+    angle = head_chamfer_kernel_bound(probe.s, probe.k)
+    p = BoltParams.model_validate({**head, "head_chamfer": angle})
+    clear_cache()
+    try:
+        solid = build(p)
+    finally:
+        clear_cache()
+    assert len(solid.Solids()) == 1
+    assert solid.isValid()
+    t = built_thread_length(p.thread_length, p.length)
+    closed = bolt_end_closed_volume(
+        p.d, p.pitch, p.length, p.s, p.k, t, tip_cone_fits(p.pitch, t),
+        fillet_radius(p.d, p.pitch, p.length, t), angle)
+    assert precise_volume(solid) == pytest.approx(closed, rel=T_GATE)
 
 
 def _eps_diluted_below_the_gate_for_a_whole_part(d: float, pitch: float) -> float:
