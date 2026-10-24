@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: "06.1"
 current_phase_name: Bolt head chamfer (INSERTED)
 status: executing
-stopped_at: Completed 06.1-03-PLAN.md
-last_updated: "2026-10-24T12:05:55.169Z"
+stopped_at: Completed 06.1-04-PLAN.md
+last_updated: "2026-10-24T12:25:03.320Z"
 last_activity: 2026-10-24
 last_activity_desc: Phase 06.1 execution started
-state_head: daaef9aab43232726b430dd58fbbfbc92bc0638a
+state_head: 66b8d898ac39d82b1edaf0ce1c18741177d3ef9b
 progress:
   total_phases: 8
   completed_phases: 6
   total_plans: 82
-  completed_plans: 80
+  completed_plans: 81
   percent: 75
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-24)
 ## Current Position
 
 Phase: 06.1 (Bolt head chamfer (INSERTED)) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 Status: Ready to execute
 Last activity: 2026-10-24 — Phase 06.1 execution started
 
@@ -141,6 +141,7 @@ Progress: [████████░░] 75%
 | Phase 06.1 P01 | 30min | 2 tasks | 3 files |
 | Phase 06.1 P02 | 45 min | 2 tasks | 11 files |
 | Phase 06.1 P03 | 15 min | 2 tasks | 5 files |
+| Phase 06.1 P04 | 25 min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -282,6 +283,7 @@ Recent decisions affecting current work:
 - [Phase 06.1]: 06.1-02: the default bolt is now chamfered at 30 degrees (owner ruling 2026-10-24, D-15); default slug and download names gain _head_chamfer30 — head_chamfer is a frozen default (L02); closed-form volume is 1.0855309493921927 mm3 less
 - [Phase 06.1]: 06.1-02: the head chamfer is cut and judged at T_PIECE on the head prism before the fuse (D-09) — after the fuse a +5.5e-5 mm3 bias of the thread-bearing solid false-refused M6 at 0.01 degrees and M2 at 0.1 degrees against T_PIECE 0.03
 - [Phase 06.1]: 06.1-03: chamfer_depth reports the depth as cut (min of the model depth and k / 2) from head_chamfer_depths, so a capped head reads k / 2; a sharp head (head_chamfer not above 0, -0.0 included) gets the sharp-head note and no zero rows
+- [Phase 06.1]: 06.1-04: _bolt_explicit_conflict judges thread_length first, then one explicit head_chamfer against s and k from the request or the frozen defaults; 422 head_chamfer_conflict fields (head_chamfer, k), CLI exit 2, same sentence
 
 ### Pending Todos
 
@@ -329,6 +331,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-24T12:05:54.936Z
-Stopped at: Completed 06.1-03-PLAN.md
+Last session: 2026-10-24T12:25:03.087Z
+Stopped at: Completed 06.1-04-PLAN.md
 Resume file: None
