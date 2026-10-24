@@ -891,6 +891,23 @@ def test_a_thread_length_conflict_is_the_same_words_on_the_api_and_the_cli(
         assert capsys.readouterr().err == f"error: {detail['msg']}\n"
 
 
+def test_a_head_chamfer_conflict_is_the_same_words_on_the_api_and_the_cli(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    """D-04, FRNT-05: one rule, so the 422 `msg` and the CLI `error:` line are the same text."""
+    for angle, extra in ((80, {}), (30, {"s": 100}), (68.86, {})):
+        res = client.get("/api/bolt/info", params={"head_chamfer": angle, **extra})
+        assert res.status_code == 422, (angle, extra)
+        [detail] = res.json()["detail"]
+        assert detail["type"] == "head_chamfer_conflict"
+        argv = ["info", "bolt", "--head-chamfer", str(angle)]
+        for name, value in extra.items():
+            argv += [f"--{name}", str(value)]
+        with pytest.raises(SystemExit) as stop:
+            cli.main(argv)
+        assert stop.value.code == 2
+        assert capsys.readouterr().err == f"error: {detail['msg']}\n"
+
+
 @pytest.mark.parametrize(("kind", "other", "params"), [
     ("bolt", "nut", {}), ("bolt", "nut", {"d": 6.5}),
     ("nut", "bolt", {"clearance": 0.1}), ("nut", "bolt", {"clearance": 0.1, "d": 6.5})])

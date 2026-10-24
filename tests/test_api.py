@@ -31,7 +31,7 @@ from screw.app import app, build_backend
 from screw.build_errors import BuildError, BuildTimeout
 from screw.calc import STANDING_WARNING
 from screw.calc.presets import expand
-from screw.calc.thread import T_GATE, bolt_end_closed_volume
+from screw.calc.thread import T_GATE, bolt_end_closed_volume, head_chamfer_warnings
 from screw.params import DEFAULT_KIND, INTERIM_MAX_MM, KINDS, BoltParams, FastenerParams
 from screw.solid import Format, Quality, export, precise_volume
 from screw.tables.presets import catalogue
@@ -1226,6 +1226,35 @@ def test_an_explicit_thread_length_above_an_explicit_length_is_a_422_naming_both
     assert r.json()["detail"] == [{
         "loc": ["query"], "type": "thread_length_conflict", "msg": CONFLICT_MSG,
         "ctx": {"fields": ["thread_length", "length"]}}]
+
+
+HEAD_CHAMFER_MSG = (
+    "head_chamfer and k: head_chamfer 80 degrees cuts the head corners deeper than "
+    "k / 2 = 2 mm at s 10 mm; lower head_chamfer or raise k")
+
+
+@pytest.mark.parametrize("route", ["/api/bolt/info", "/api/bolt/model.stl"])
+def test_an_explicit_head_chamfer_deeper_than_half_k_is_a_422_naming_head_chamfer_and_k(
+        route: str) -> None:
+    # D-04: refused at the request boundary, before any build and on both routes.
+    params: Params = {"head_chamfer": 80}
+    if route.endswith(".stl"):
+        params = {**params, "quality": "preview"}
+    r = client.get(route, params=params)
+    assert r.status_code == 422
+    assert r.json()["detail"] == [{
+        "loc": ["query"], "type": "head_chamfer_conflict", "msg": HEAD_CHAMFER_MSG,
+        "ctx": {"fields": ["head_chamfer", "k"]}}]
+
+
+def test_an_explicit_30_on_a_wide_head_is_a_422_and_a_defaulted_30_is_a_200_with_the_cap_warning(
+) -> None:
+    r = client.get("/api/bolt/info", params={"head_chamfer": 30, "s": 100})
+    assert r.status_code == 422
+    assert [d["type"] for d in r.json()["detail"]] == ["head_chamfer_conflict"]
+    r = client.get("/api/bolt/info", params={"s": 100})
+    assert r.status_code == 200
+    assert head_chamfer_warnings(100.0, 4.0, 30.0)[0] in r.json()["warnings"]
 
 
 def test_the_conflict_compares_parsed_floats() -> None:

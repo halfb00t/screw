@@ -436,6 +436,19 @@ def test_the_same_conflict_stops_an_export_before_it_writes_a_file(
     assert not out.exists()
 
 
+def test_an_explicit_head_chamfer_deeper_than_half_k_exits_2_and_writes_nothing(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    msg = ("error: head_chamfer and k: head_chamfer 80 degrees cuts the head corners deeper "
+           "than k / 2 = 2 mm at s 10 mm; lower head_chamfer or raise k\n")
+    assert _exit_code(["info", "bolt", "--head-chamfer", "80"]) == 2
+    captured = capsys.readouterr()
+    assert (captured.out, captured.err) == ("", msg)
+    out = tmp_path / "x.stl"
+    assert _exit_code(["export", "bolt", "-o", str(out), "--head-chamfer", "80"]) == 2
+    assert capsys.readouterr().err == msg
+    assert not out.exists()
+
+
 def test_a_thread_length_equal_to_the_length_or_a_default_beside_a_short_length_is_built(
         capsys: pytest.CaptureFixture[str]) -> None:
     cli.main(["info", "bolt", "--length", "10", "--thread-length", "10.0"])

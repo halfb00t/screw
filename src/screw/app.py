@@ -198,7 +198,10 @@ def refuse_repeated_keys(request: Request) -> None:
 
 
 def refuse_explicit_conflict(kind: str) -> Callable[[Request], None]:
-    """A route dependency: the kind's rule between two explicit query values is a 422 naming both.
+    """A route dependency: the kind's explicit-value rules are a 422 naming their fields.
+
+    One explicit head_chamfer is enough for the bolt's rule (06.1 D-05); the thread_length rule
+    needs two explicit values.
 
     D-25: D-08's 422 for two explicit values lives at the request boundary because FastAPI
     0.142.2 copies every field default into the query model before validation

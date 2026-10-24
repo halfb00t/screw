@@ -27,6 +27,7 @@ from screw.calc.thread import (
     fillet_radius,
     fine_stl_refusal,
     flank_normal_gap,
+    head_chamfer_conflict,
     head_chamfer_depths,
     head_chamfer_warnings,
     nut_end_closed_volume,
@@ -550,7 +551,10 @@ class ExplicitConflict(NamedTuple):
 
 
 def explicit_conflict(kind: str, values: Mapping[str, object]) -> ExplicitConflict | None:
-    """The rule between two explicit values of `kind`, or None when they agree (D-25).
+    """The rule between the explicit values of `kind`, or None when they agree (D-25).
+
+    Most rules judge two explicit values against each other; the bolt's head_chamfer rule judges
+    one explicit value against given or default ones (06.1 D-05).
 
     Runs at the request boundary, before any model exists: FastAPI copies every field default
     into the query model and pydantic then cannot tell an explicit value from a default
@@ -568,13 +572,30 @@ def explicit_conflict(kind: str, values: Mapping[str, object]) -> ExplicitConfli
 
 
 def _bolt_explicit_conflict(values: Mapping[str, object]) -> ExplicitConflict | None:
+    """The bolt's two rules, in order: thread_length against length, then head_chamfer (D-25, D-04).
+
+    The thread_length rule needs both values explicit. The head_chamfer rule needs only
+    head_chamfer explicit and reads s and k from the request or, when it does not name them,
+    from the frozen field defaults (D-05): `?head_chamfer=80` alone is judged at s 10, k 4. A
+    preset's s and k count as given, because the CLI expands `--preset` before this call. The web
+    page writes only the fields that differ from their defaults (`partQuery`), so a typed 30 is
+    never explicit there, which agrees with D-04. Direct Python construction is capped and warned,
+    the owner's D-25 exception extended to this one rule (D-06).
+    """
     length, thread_length = values.get("length"), values.get("thread_length")
-    if not (isinstance(length, float) and isinstance(thread_length, float)):
+    if (isinstance(length, float) and isinstance(thread_length, float)
+            and (msg := thread_length_conflict(length, thread_length)) is not None):
+        return ExplicitConflict("thread_length_conflict", ("thread_length", "length"), msg)
+    angle = values.get("head_chamfer")
+    if not isinstance(angle, float):
         return None
-    msg = thread_length_conflict(length, thread_length)
-    if msg is None:
+    s = values.get("s", BoltParams.model_fields["s"].default)
+    k = values.get("k", BoltParams.model_fields["k"].default)
+    if not (isinstance(s, float) and isinstance(k, float)):
         return None
-    return ExplicitConflict("thread_length_conflict", ("thread_length", "length"), msg)
+    if (msg := head_chamfer_conflict(s, k, angle)) is None:
+        return None
+    return ExplicitConflict("head_chamfer_conflict", ("head_chamfer", "k"), msg)
 
 
 # One entry per registered kind (tests/test_calc.py walks `KINDS`); `None` is a kind with no

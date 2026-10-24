@@ -20,6 +20,7 @@ from screw.calc import (
     STANDING_WARNING,
     Counterpart,
     Download,
+    ExplicitConflict,
     PartInfo,
     PresetMatch,
     derive,
@@ -35,6 +36,7 @@ from screw.calc.thread import (
     bolt_end_closed_volume,
     fine_stl_refusal,
     flank_normal_gap,
+    head_chamfer_conflict,
     head_chamfer_depths,
     head_chamfer_warnings,
     nut_closed_volume,
@@ -989,6 +991,38 @@ def test_the_bolt_rule_needs_both_values_as_floats() -> None:
     assert explicit_conflict("bolt", {"length": 10.0}) is None
     assert explicit_conflict("bolt", {"thread_length": 30.0}) is None
     assert explicit_conflict("bolt", {"length": 10.0, "thread_length": "30"}) is None
+
+
+def test_the_bolt_rule_refuses_an_explicit_head_chamfer_deeper_than_half_k_reading_defaults(
+) -> None:
+    # D-04, D-05: s 10 and k 4 come from the model's defaults when the request does not name them.
+    msg = head_chamfer_conflict(10.0, 4.0, 80.0)
+    assert msg is not None
+    conflict = explicit_conflict("bolt", {"head_chamfer": 80.0})
+    assert conflict == ExplicitConflict("head_chamfer_conflict", ("head_chamfer", "k"), msg)
+    wide = explicit_conflict("bolt", {"head_chamfer": 30.0, "s": 100.0})
+    assert wide is not None
+    assert wide.msg == head_chamfer_conflict(100.0, 4.0, 30.0)
+    assert explicit_conflict("bolt", {"head_chamfer": 80.0, "k": 10.0}) is None
+    assert explicit_conflict("bolt", {"head_chamfer": 30.0}) is None
+
+
+def test_a_defaulted_head_chamfer_is_never_a_conflict() -> None:
+    assert explicit_conflict("bolt", {"s": 100.0}) is None
+    assert explicit_conflict("bolt", {}) is None
+
+
+def test_the_thread_length_rule_is_judged_before_the_head_chamfer_rule() -> None:
+    conflict = explicit_conflict(
+        "bolt", {"length": 10.0, "thread_length": 30.0, "head_chamfer": 80.0})
+    assert conflict is not None
+    assert conflict.type == "thread_length_conflict"
+
+
+@pytest.mark.parametrize("angle", ["80", math.nan, math.inf, 90.0, -1.0, 0.0])
+def test_a_head_chamfer_that_is_not_a_usable_float_is_the_models_to_refuse(
+        angle: object) -> None:
+    assert explicit_conflict("bolt", {"head_chamfer": angle, "s": 100.0}) is None
 
 
 # --- the nominal diameters and the bought-part limits (INFO-01, INFO-02, D-16, L14) ------------
