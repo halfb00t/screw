@@ -7202,3 +7202,312 @@ lead-in countersink piece gate; no file exists and no sum):
 - It is one run on macOS arm64, not linux/amd64 (Phase 7 re-measures, OPER-02), against the INTERIM
   64 MiB budget and the fine preset, on a load-shared host. It measures nothing above C = 5 mm, by
   R16: a fine STL above C is refused, not capped.
+
+
+## Printed pair matrix (Phase 6, 06-print-run-1)
+
+PAIR-02 asks for a default `clearance` that comes from a recorded printed test, not from a forum or
+vendor figure. This entry is run 1 of that test: the clearance ladder 0.05, 0.1, 0.15, 0.2, 0.25 mm at
+the four coarse sizes M6, M8, M10 and M12, three samples per cell (60 nuts, 12 bolts).
+
+**The rule, fixed before the run.** Protocol and reader landed on `main` in PR A (#19), squash commit
+`16f7041`, before any part was exported or printed: `06-PRINT-PROTOCOL.md` ("Rules", D-05 to D-08) and
+`bench/print_rules.py` (`read_matrix`, `default_from`). A sample passes or binds by the hand fit test; a
+cell (size, clearance) passes when all 3 samples do; the default is the smallest step from which every
+cell of every size passes, and D-08 returns no default when no step qualifies or a size is not
+monotone. Order of fitting per bolt was R3 (loosest first), the plate rule R4, the only reprint
+exception R5. The owner's P1 prediction was 0.10 mm; it was never an input.
+
+**The parts.** The product's own fine exports, made by `python -m bench.print_matrix export run-1 -o
+bench/results/phase-06/stl/run-1` from the landed code: 24 STL files (4 bolts, 20 nuts). The manifest
+`bench/results/phase-06/manifest-run-1.tsv` (name, bytes, sha256 of every file) was committed in
+`646b07d` before the first print; its own sha256 is
+`b98c445f88c1b7d21e198deb5d2ef17a77b698310b969d0e2b90f1cb445edb0d`.
+
+**The print.** One profile for every part, the protocol's "Print profile" on `main`: Prusa MK4, 0.4 mm
+nozzle, Prusa PETG, 0.2 mm layers, PrusaSlicer with the stock Prusa PETG profile, nut on its face and
+bolt head-down. Print and test dates: not reported by the owner (reported 2026-10-23). Plates: the
+owner printed each (size, sample) group, one bolt and its five nuts, on its own bed: 12 beds labelled
+M6-1 to M12-3. Sample k of every cell is therefore on a bed labelled `-k`, which is plate set k of R4.
+No part failed to print and no R5 reprint was reported; no note says `reprinted: print failure`.
+
+**The record, and where it came from.** `bench/results/phase-06/print-run-1.tsv`, sha256
+`f76753ded41726daec0a11ec4c5eabc5f4d2afb094cbe258d5e9d915aa6db725`, pinned as `RUN_1_SHA256` in
+`bench/print_rules.py`. The owner printed and fit-tested and reported the results in prose. The
+orchestrating Claude transcribed that report into the TSV, and the owner then confirmed the full
+60-row table as correct ("correct", 2026-10-23). The owner did not type the cells; every cell is the
+owner's reported observation as transcribed and confirmed. The agent that pinned the record changed no
+cell. The owner confirmed that all 3 samples of a cell behaved the same and that "binds immediately"
+means the nut would not start, recorded as 0 turns. The owner's words:
+
+> all groups were printed separately
+>
+> m6, m8 - 0.1 clearence worked, less - binds immediately
+>
+> m10, m12 - 0.15 celarence workds, less - binds immediately
+>
+> loose: 0.20 and 0.25 loose for m4, m5, m6. 0.25 for m8, m10
+
+(The loose line also names M4 and M5, which are not run 1; they are left out of this record.)
+
+**The reading.** `default_from(read_matrix(load(RUN_1, RUN_1_SHA256)))`, run through the landed rule
+with a one-off script over `read_matrix` output, not by reading the file by eye. The record read
+cleanly: 60 samples, every `order` the one R3 gives its clearance. Passes per cell, n of 3:
+
+| size | 0.05 | 0.1 | 0.15 | 0.2 | 0.25 |
+|---|---|---|---|---|---|
+| M6 | 0/3 | 3/3 | 3/3 | 3/3 | 3/3 |
+| M8 | 0/3 | 3/3 | 3/3 | 3/3 | 3/3 |
+| M10 | 0/3 | 0/3 | 3/3 | 3/3 | 3/3 |
+| M12 | 0/3 | 0/3 | 3/3 | 3/3 | 3/3 |
+
+42 passes and 18 binds; every bind is 0 turns, so no sample stopped part-way. 12 passes are noted
+`loose`: M6 at 0.2 and 0.25 (6), M8 at 0.25 (3), M10 at 0.25 (3). No R5 note.
+
+**Outcome (D-07): the default is 0.15 mm.** Every size passes 3/3 from 0.15 mm up, and no size has a
+passing cell below a failing one, so D-08 did not fire. `tests/test_print_rules.py` asserts it:
+`test_run_1_reads_a_default_of_0_15_mm_by_d_07`, with `test_the_run_1_record_is_the_one_pinned`
+refusing any later byte change of the record. The P1 prediction (0.10 mm) was not borne out: M10 and
+M12 bind at 0.1 in 3 of 3. M6 and M8 would have passed at 0.1, so the size that sets the default is
+the larger pair.
+
+**Off-protocol, as reported.** The owner also printed M3 to M5 informally, before any default shipped:
+M3 "too small to print"; M4 and M5 pass at 0.1 and bind below. That is not run 2: those parts are not
+the run-2 exports, are not in `print-run-2.tsv`, and no number or threshold is read from them. Run 2
+(plan 06-08) remains to be decided by the owner.
+*Superseded 2026-10-23 by owner ruling R10: the owner later accepted these prints as run 2; see
+"## Printability run (Phase 6, 06-print-run-2)" and L18.*
+
+**What this shows / what it does not.** It shows that on this printer and profile a product nut at
+0.15 mm clearance threaded by hand onto a product bolt at M6, M8, M10 and M12, in 12 of 12 samples,
+and that 0.05 mm bound at every size (12 of 12). It does not show anything for another printer,
+material, layer height, nozzle or orientation, nor for sizes between or outside M6 to M12 (the
+M3 to M5 readings above are informal), nor for fine pitch. It tests a nominal bolt against a nut with
+a clearance, not a toleranced pair. The pass is a hand judgement under D-05, and the table above is a
+transcription of a verbal report that the owner confirmed. The bind turns are all 0, so the matrix
+gives no measure of how far from passing a tight cell is. Whether 0.15 mm is also the right default
+for a part printed upright or on a finer layer is open.
+
+
+## Printability run (Phase 6, 06-print-run-2)
+
+INFO-04 asks for the printability threshold, the smallest coarse size that prints and threads at the shipped
+default clearance, to come from a recorded printed test and not from a forum or vendor figure. This entry
+is run 2 of that test, and it is **not run 2 as it was pre-registered**: the owner accepted prints made
+before the default shipped (owner ruling R10, `06-OWNER-RULINGS.md`, 2026-10-23). Every departure is listed
+under "Where this departs from the protocol" below; none is smoothed over.
+
+**The rule, fixed before the run.** Protocol and reader landed on `main` in PR A (#19), squash commit
+`16f7041`, before any part was printed: `06-PRINT-PROTOCOL.md` ("Rules", D-10, D-11) and
+`bench/print_rules.py` (`read_small`, `threshold_from`). The threshold is the smallest of M3, M4 and M5
+that passes 3 of 3 together with every larger one of the three, and M6 when none does. The owner made no
+P3 prediction ("have no idea", 2026-10-22).
+
+**The parts and the default.** The shipped default clearance is 0.15 mm (L17, read from the run-1 record
+by `default_from`). The protocol had the nuts come from `python -m bench.print_matrix export run-2`,
+which passes no clearance argument, with a manifest committed before the first print. Neither happened:
+plan 06-08 Task 1 was not executed under R10 and **no `manifest-run-2.tsv` exists**, because the printed
+parts did not come from that export and a manifest committed now would say they did. The owner did not
+report where the printed parts came from. The record rests on the owner's statement that the 0.15 mm
+result is the one recorded; nothing in the repository ties the printed nuts to the shipped default's
+STL bytes.
+
+**The print.** The protocol's one profile (Prusa MK4, 0.4 mm nozzle, Prusa PETG, 0.2 mm layers,
+PrusaSlicer, stock Prusa PETG profile; "Print profile" on `main`). Print and test dates: not reported by
+the owner (reported 2026-10-23). Plates: each (size, sample) group was printed on its own bed, labelled
+M3-1 to M5-3, as in run 1.
+
+**The record, and where it came from.** `bench/results/phase-06/print-run-2.tsv`, sha256
+`6c2d924006db1ccca860b665fdc2cbcd3c84137b0edefb417e6c31aab9dd923e`, pinned as `RUN_2_SHA256` in
+`bench/print_rules.py`. The owner printed, fit-tested and reported the results in prose. The orchestrating
+Claude transcribed that report into the TSV and the owner confirmed it as correct (2026-10-23). The owner
+did not type the cells; each is the owner's reported observation as transcribed and confirmed. The agent
+that pinned the record changed no cell. The owner's words, as given to Claude Code:
+
+> passed at 0.1 and 0.15, loose at 0.20 and higher
+
+(said of M4 and M5.)
+
+> m2 and m3 were too small for the printer to print thread
+
+The owner also said that at less than 0.1 mm M4 and M5 bound after half a turn.
+
+**The reading.** `threshold_from(read_small(load(RUN_2, RUN_2_SHA256)))`, run through the landed rule and
+not by reading the file by eye. The record read cleanly as 9 samples. Passes per size, n of 3:
+
+| size | d | coarse pitch | passes at the default |
+|---|---|---|---|
+| M3 | 3 | 0.50 | 0/3 |
+| M4 | 4 | 0.70 | 3/3 |
+| M5 | 5 | 0.80 | 3/3 |
+
+**Outcome (D-10): the threshold is M4, so `d_min` is 4.0 mm and `P_min` is 0.7 mm.** M3 fails 3 of 3, M4
+and M5 pass 3 of 3, so the smallest size that passes together with every larger one is M4.
+`tests/test_print_rules.py` asserts it: `test_run_2_reads_a_threshold_of_m4_by_d_10` (which also asserts
+`COARSE["M4"]` is `(4.0, 0.7)`), with `test_the_run_2_record_is_the_one_pinned` refusing any later byte
+change of the record. No M4 or M5 sample is noted `loose` at 0.15 mm.
+
+**Where this departs from the protocol.**
+
+1. The parts were printed before the default shipped. They did not come from `export run-2`, no manifest
+   was committed before the first print, and the owner did not report their source.
+2. The owner tested a clearance ladder on M4 and M5, not only the default. Only the 0.15 mm result (the
+   shipped L17 default) is in the record. The other observations are these prose lines and nothing is
+   read from them: passed at 0.1 and 0.15; loose at 0.20 and higher; bound after half a turn below 0.1.
+3. M3: the owner reported the thread did not print. The record has only `pass` and `bind`, so each M3
+   sample is recorded `bind`, turns `0`, note `thread did not print`. That is a part with no printed
+   thread, not a nut that was fitted and stuck; the 0 turns mean no engagement was possible. M2 was
+   printed too and is outside the record: it is mentioned here and nothing is read from it.
+4. Three samples per size, each (size, sample) group on its own bed (M3-1 to M5-3), not plate sets as
+   R4 words them for run 1; the dates were not reported.
+
+**What this shows / what it does not.** It shows that on this printer and profile an M4 (pitch 0.7 mm)
+and an M5 (pitch 0.8 mm) nut threaded by hand onto a bolt of the same size in 3 of 3 samples each at
+0.15 mm, and that an M3 (pitch 0.5 mm) did not print a thread at all on the 0.4 mm nozzle at 0.2 mm
+layers. It does not show anything for another printer, material, layer height, nozzle or orientation. It
+covers coarse pitches only: a fine pitch at M4 or above is judged by the `P_min` edge alone (a pitch below
+0.7 mm warns), not by a print. M3 is a failure of the printed thread and the record cannot say whether a
+finer nozzle or layer would have printed it. Because of departures 1 and 2 the record is weaker evidence
+than the pre-registered run would have been: the link from these printed nuts to the shipped default's
+export is the owner's word and not a pinned file.
+
+## Acceptance pair (Phase 6, D-16)
+
+HEAD at the run: `de25e58` (branch `gsd/phase-06-printed-pair-acceptance`, 2026-10-23).
+
+The default: nut clearance 0.15 mm, the shipped value (L17), read by the pre-registered D-07 rule from
+06-print-run-1. The command passes no clearance, so the default applies.
+
+Command: `.venv/bin/screw pair nut --d 8 --pitch 1.25 --s 13 --m 6.8`, exit code 0 (proven).
+
+```json
+{
+  "verdict": "proven",
+  "reasons": [],
+  "d": 8.0,
+  "pitch": 1.25,
+  "m": 6.8,
+  "clearance": 0.15,
+  "rod_left_hand": false,
+  "nut_left_hand": false,
+  "readings": [
+    {
+      "theta": -2.0943951023931953,
+      "offset_pitches": 0.0,
+      "outcome": "built",
+      "solids": 0,
+      "volume": 0.0,
+      "diag_errors": false,
+      "diag_warnings": false,
+      "seconds": 6.213970124954358
+    },
+    {
+      "theta": 0.0,
+      "offset_pitches": 0.0,
+      "outcome": "built",
+      "solids": 0,
+      "volume": 0.0,
+      "diag_errors": false,
+      "diag_warnings": false,
+      "seconds": 6.748639083001763
+    },
+    {
+      "theta": 2.0943951023931953,
+      "offset_pitches": 0.0,
+      "outcome": "built",
+      "solids": 0,
+      "volume": 0.0,
+      "diag_errors": false,
+      "diag_warnings": false,
+      "seconds": 6.207409374997951
+    },
+    {
+      "theta": -2.0943951023931953,
+      "offset_pitches": 0.5,
+      "outcome": "built",
+      "solids": 1,
+      "volume": 25.130851304668752,
+      "diag_errors": false,
+      "diag_warnings": false,
+      "seconds": 2.2457348750904202
+    },
+    {
+      "theta": 0.0,
+      "offset_pitches": 0.5,
+      "outcome": "built",
+      "solids": 1,
+      "volume": 25.130851554683623,
+      "diag_errors": false,
+      "diag_warnings": false,
+      "seconds": 2.3132786250207573
+    },
+    {
+      "theta": 2.0943951023931953,
+      "offset_pitches": 0.5,
+      "outcome": "built",
+      "solids": 1,
+      "volume": 25.13085210490151,
+      "diag_errors": false,
+      "diag_warnings": false,
+      "seconds": 2.332303582923487
+    }
+  ],
+  "closed_control": 25.13083219814244,
+  "band": 0.001,
+  "engagement_turns": 5.44,
+  "shipped": [
+    {
+      "theta": -2.0943951023931953,
+      "outcome": "built",
+      "solids": 0,
+      "volume": 0.0,
+      "seconds": 6.173219583113678,
+      "error": null
+    },
+    {
+      "theta": 0.0,
+      "outcome": "built",
+      "solids": 0,
+      "volume": 0.0,
+      "seconds": 6.220331999938935,
+      "error": null
+    },
+    {
+      "theta": 2.0943951023931953,
+      "outcome": "built",
+      "solids": 0,
+      "volume": 0.0,
+      "seconds": 6.259776999941096,
+      "error": null
+    }
+  ],
+  "seconds": 50.099970957962796
+}
+```
+
+Export (CLI default path): `.venv/bin/python -m bench.print_matrix export acceptance -o bench/results/phase-06/stl/acceptance`,
+manifest `bench/results/phase-06/manifest-acceptance.tsv`:
+
+| name | bytes | sha256 |
+|---|---|---|
+| `bolt_d8_pitch1.25_left_hand0_length16_s13_k5.3_thread_length16.stl` | 10449184 | `30f2fca0e0e06a1714f7564097a0e37f1991cc5ba71f98c0bb833f9cf4635814` |
+| `nut_d8_pitch1.25_left_hand0_s13_m6.8_clearance0.15.stl` | 4064084 | `4c09af10e06bae18ebbc756eab0968802ef01b8cf4278629a6213414cacc6324` |
+
+Page downloads (2026-10-23, 21:29 local, owner's browser, bolt preset ISO 4017 M8 x 16 and the bolt's
+Matching nut link with the clearance field left at its default). The owner named the directory
+`~/Downloads/3dprint`, not two file paths; the two files resolved there are listed. Digests recomputed
+here with `shasum -a 256` and sizes with `stat`, not taken from the orchestrator's check:
+
+| name | bytes | sha256 | equals manifest |
+|---|---|---|---|
+| `bolt_d8_pitch1.25_left_hand0_length16_s13_k5.3_thread_length16.stl` | 10449184 | `30f2fca0e0e06a1714f7564097a0e37f1991cc5ba71f98c0bb833f9cf4635814` | yes (name, bytes, digest) |
+| `nut_d8_pitch1.25_left_hand0_s13_m6.8_clearance0.15.stl` | 4064084 | `4c09af10e06bae18ebbc756eab0968802ef01b8cf4278629a6213414cacc6324` | yes (name, bytes, digest) |
+
+The page path gave the shipped default's files: both downloads are byte-identical to the pre-registered
+CLI default-path exports.
+
+Print date: 21:53, 2026-10-23 (owner's reply). Fresh pair; no matrix or run-2 part counts (D-16).
+
+Owner's fit test: pass. Owner's reply, verbatim: "Path: ~/Downloads/3dprint / Print date: 21:53 10.23.2026 /
+Result: pass". The owner reported no turns and no notes beyond `pass`; the hand judgement is D-05's and is
+the owner's word, with no mechanical check behind it.

@@ -15,6 +15,7 @@ from typing import Literal, NamedTuple
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from screw.calc.printability import measured_range_warning, printability_warning
 from screw.calc.thread import (
     MIN_TAIL_MM,
     TIP_ANGLE_DEG,
@@ -50,8 +51,8 @@ NO_FILLET_NOTE = "no under-head fillet: the thread runs to the head (ISO 4017:20
 
 # The standing entry on every info document (D-04, D-18): it names the ends the builder models
 # (L15, the bolt tip cone, the under-head fillet and the nut's countersinks and chamfers) and says
-# they are nominal, so nobody should cut metal to it as a product. Phase 6 removes the last clause
-# at release.
+# they are nominal, so nobody should cut metal to it as a product. The first release, after Phase 7,
+# removes the last clause (06 D-15).
 STANDING_WARNING = (
     "ends modelled per L15: bolt tip chamfer, under-head fillet on an ISO 4014 plain shank, "
     "nut lead-in countersinks and face chamfers; nominal, not toleranced; not a product build")
@@ -136,8 +137,8 @@ class Counterpart(BaseModel):
 
     `fields` holds the shared d, pitch and left_hand, and the catalogue row's own size values
     when (d, pitch) is a row of the other kind. Never `clearance`, `length` or `thread_length`:
-    the nut's clearance is required and the user types it (D-02), and a length is the user's
-    choice of bolt (TYPE-04).
+    the clearance is the nut's own field with the L17 default and is never carried from a bolt
+    (D-02), and a length is the user's choice of bolt (TYPE-04).
     """
 
     model_config = ConfigDict(frozen=True)
@@ -300,6 +301,9 @@ def _bolt(p: BoltParams) -> PartInfo:
     downloads = _downloads(p)
     for reason in dict.fromkeys(e.refusal for e in downloads if e.refusal is not None):
         warnings.append(reason)
+    # D-13: below the size run 2 printed, both kinds say so; nothing is capped (L02).
+    if (below := printability_warning(p.d, p.pitch)) is not None:
+        warnings.append(below)
     counterpart, off_row = counterpart_for(p)
     if off_row is not None:
         warnings.append(off_row)
@@ -403,6 +407,14 @@ def _nut(p: NutParams) -> PartInfo:
     downloads = _downloads(p)
     for reason in dict.fromkeys(e.refusal for e in downloads if e.refusal is not None):
         warnings.append(reason)
+    # D-09, R6: the clearance default was measured on M6 to M12 only. Size alone decides, so the
+    # default and a typed clearance read alike; nothing is capped and no row is dropped (L02).
+    outside = measured_range_warning(p.d, p.pitch)
+    if outside is not None:
+        warnings.append(outside)
+    # D-13: after the D-09 sentence, so a nut crossing both carries two separate sentences.
+    if (below := printability_warning(p.d, p.pitch)) is not None:
+        warnings.append(below)
     # The M18 note keys on (d, pitch) alone, so it reads on a nut that is no catalogue row too.
     m18 = [M18_NOTE] if (p.d, p.pitch) == M18_KEY else []
     counterpart, off_row = counterpart_for(p)

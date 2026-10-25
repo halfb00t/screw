@@ -1,10 +1,10 @@
 size	sample	plate	result	turns	note
-M3	1				
-M3	2				
-M3	3				
-M4	1				
-M4	2				
-M4	3				
-M5	1				
-M5	2				
-M5	3				
+M3	1	M3-1	bind	0	thread did not print
+M3	2	M3-2	bind	0	thread did not print
+M3	3	M3-3	bind	0	thread did not print
+M4	1	M4-1	pass	-	-
+M4	2	M4-2	pass	-	-
+M4	3	M4-3	pass	-	-
+M5	1	M5-1	pass	-	-
+M5	2	M5-2	pass	-	-
+M5	3	M5-3	pass	-	-

@@ -20,11 +20,10 @@ Requirements for the first release: the mating-pair cut (infra port, thread spik
 ### Mating Pair
 
 - [x] **PAIR-01**: User sets one `clearance` field, on the nut, in radial millimetres; a positive value moves the nut's thread surfaces away from the axis (larger hole, material removed from the nut). The bolt is built to nominal. The info panel shows both the radial and the diametral value. *(Evidence, Phase 5: `tests/test_nut.py::test_a_positive_clearance_moves_the_nut_thread_away_from_the_axis_on_both_hands`; the radial and diametral rows in `tests/test_calc.py::test_the_nut_pair_rows_are_the_eight_keys_in_the_fixed_order`.)*
-- [ ] **PAIR-02**: The default `clearance` is set once, before the first release, from a recorded FDM printed test (M6–M12 matrix, owner checkpoint) and cited in the decision log; it is never taken from a forum or vendor figure. Until the test is recorded, no default ships.
+- [x] **PAIR-02**: The default `clearance` is set once, before the first release, from a recorded FDM printed test (M6–M12 matrix, owner checkpoint) and cited in the decision log; it is never taken from a forum or vendor figure. Until the test is recorded, no default ships. *(Evidence, Phase 6: decision log L17, 0.15 mm read by `bench.print_rules.default_from` from run `06-print-run-1` (record sha256 `f76753ded41726daec0a11ec4c5eabc5f4d2afb094cbe258d5e9d915aa6db725`) and accepted as permanent by the owner on 2026-10-23; `tests/test_print_rules.py::test_the_shipped_clearance_default_is_the_one_run_1_reads`.)*
 - [x] **PAIR-03**: A kernel-level interference check proves a bolt/nut pair at the chosen clearance and returns `proven | violated | inconclusive` with its control: a half-pitch axial offset of the same pair must collide, or the verdict is `inconclusive`, never `proven`. Clearance ≤ 0 is `inconclusive` by definition. *(Evidence, Phase 5: `tests/test_pair.py::test_the_verify_cell_is_proven_as_pre_registered` and the kernel-free rule tests with positive controls in the same file; 240 of 240 grid cells equal their pre-registered verdict, `bench/RESULTS.md` "Pair tier (Phase 5, D-07)"; decision log L15.)*
 - [x] **PAIR-04**: The pair check is exposed as a function in the solid package, a `screw pair` CLI subcommand and a slow-tier test (one size in `make verify`, the full grid in a CI job). It is not an API endpoint; the API and UI show closed-form flank gaps instead. *(Evidence, Phase 5: `tests/test_cli_pair.py` (exit codes 0, 1, 2), `tests/test_import_boundaries.py` and the contract "The serving process and its workers never import the pair proof", `.github/workflows/pair.yml` and `make pair`. The first ubuntu run of the full grid is not yet recorded: `docs/tech_debt/active/2026-10-14-first-pair-yml-dispatch.md`.)*
-- [ ] **PAIR-05**: A bolt and nut from this tool, printed on an FDM printer at the chosen clearance, thread together by hand — the owner's manual acceptance for the release; a kernel `proven` is necessary, not sufficient.
-- [ ] **PAIR-06**: The printed test also drives a nominal printed bolt into a bought nut; if it binds, a bolt-side `undersize` field (default 0) becomes a v1.x requirement (PAIR-07 below).
+- [x] **PAIR-05**: A bolt and nut from this tool, printed on an FDM printer at the chosen clearance, thread together by hand — the owner's manual acceptance for the release; a kernel `proven` is necessary, not sufficient. *(Evidence, Phase 6: `bench/RESULTS.md` "Acceptance pair (Phase 6, D-16)". The kernel read `proven` for the M8 pair at the shipped 0.15 mm default; the owner's page downloads (ISO 4017 M8 x 16 bolt, its Matching nut link, clearance left at the default) equal the pre-registered `manifest-acceptance.tsv` in name, bytes and sha256 (bolt `30f2fca0...5814`, nut `4c09af10...6324`); the owner printed that fresh pair on 2026-10-23 at 21:53 with the protocol's one profile and recorded `pass`, threading by hand under D-05. Matrix and run-2 samples are excluded, D-16.)*
 
 ### Fastener Types
 
@@ -48,7 +47,7 @@ Requirements for the first release: the mating-pair cut (infra port, thread spik
 - [x] **INFO-01**: The info panel shows, from the pure-maths module without touching the kernel: head (`s` nominal/max/min, across-corners geometric and `e,min` labelled separately, `k`, `dw,min`, wrench size), shank/thread (`l`, `b`, `ls`, `lg`, `d`, `P`, `d2`, `D1`, thread depth), nut (`s`, `e`, `m`, `mw`, `dw`, `D1`, `D2`), pair (clearance radial and diametral, resulting nut diameters, engagement in turns). *(Evidence, Phase 5: `tests/test_calc.py` (the nut's thread rows, `test_the_nut_pair_rows_are_the_eight_keys_in_the_fixed_order`, the nut rows of an exact row) and `tests/test_thread_maths.py` for the closed forms.)*
 - [x] **INFO-02**: 6g (bolt) and 6H (nut) min/max limits from ISO 965-2:2024 are shown with the explicit label "limits for a bought part; this model is nominal and not toleranced". Amended 2026-10-20 (L14): the limits are derived from the GOST 24705-2004 basic diameters plus the GOST 16093-2004 printed deviations and tolerances, and each row says derived and names both. *(Evidence, Phase 5: `tests/test_calc.py::test_the_limits_heading_is_the_ascii_text_of_info_02`, `test_every_iso_262_size_shows_its_own_stored_limits_on_both_kinds`, `tests/test_parity.py::test_the_limits_heading_is_the_same_ascii_string_on_the_cli_and_the_api` and the derived limits in `tests/test_tables.py`.)*
 - [x] **INFO-03**: Every number on the panel is traceable to an explicit mm field or to a cited row with a test; a value that cannot be computed honestly is a warning and no number. Any volume shown comes from the closed form, never from the kernel's default `Volume()`.
-- [ ] **INFO-04**: Sizes and pitches below the printable threshold get a cap-and-warn printability warning citing its source; the threshold is a constant set from the owner's printed test, not from vendor guides.
+- [x] **INFO-04**: Sizes and pitches below the printable threshold get a cap-and-warn printability warning citing its source; the threshold is a constant set from the owner's printed test, not from vendor guides. *(Evidence, Phase 6: decision log L18, M4 (`D_MIN_MM` 4.0, `P_MIN_MM` 0.7) read by `bench.print_rules.threshold_from` from run `06-print-run-2` (record sha256 `6c2d924006db1ccca860b665fdc2cbcd3c84137b0edefb417e6c31aab9dd923e`), the owner's earlier prints accepted under R10, so weaker evidence than the pre-registered run; `tests/test_print_rules.py::test_the_printability_threshold_is_the_one_run_2_reads`, the printability tests in `tests/test_calc.py` and `tests/test_parity.py`. It warns on bolts and nuts and never caps or refuses (D-13): nothing can be trimmed without changing a d or pitch the user set (L02).)*
 - [x] **INFO-05**: Where the wrench size differs from the withdrawn DIN equivalent (M10, M12 and M14 only, D-20) the panel shows the ISO value with a one-line note.
 
 ### Front Ends
@@ -82,12 +81,13 @@ Deferred to the second release. Tracked but not in the current roadmap.
 
 ### Mating Pair
 
-- **PAIR-07**: Bolt-side `undersize` field (default 0) — only if PAIR-06's bought-nut test binds.
+- **PAIR-06**: The printed test also drives a nominal printed bolt into a bought nut; if it binds, a bolt-side `undersize` field (default 0) becomes a requirement (PAIR-07 below). Moved from v1: deferred by owner ruling 2026-10-22 (06 R9): bought-nut test dropped from Phase 6.
+- **PAIR-07**: Bolt-side `undersize` field (default 0) — only if PAIR-06's bought-nut test binds. Deferred with PAIR-06 (06 R9, 2026-10-22).
 
 ### Tables and UX
 
 - **TABL-08**: Legacy DIN names (933, 931, 934, 912) resolve to the ISO preset with the wrench-size notice; aliases only, no DIN tables. Trigger: the first user searching by DIN number.
-- **INFO-06**: Non-binding print-hint text (orientation, layer height vs pitch). Trigger: the first printed test recorded.
+- **INFO-06**: Non-binding print-hint text (orientation, layer height vs pitch). Trigger: the first printed test recorded. Trigger fired: run 06-print-run-1 recorded (2026-10-23); placing it is the owner's roadmap call.
 
 ## Out of Scope
 
@@ -123,11 +123,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | THRD-04 | Phase 3 | Complete |
 | THRD-05 | Phase 5 | Complete |
 | PAIR-01 | Phase 5 | Complete |
-| PAIR-02 | Phase 6 | Pending |
+| PAIR-02 | Phase 6 | Complete |
 | PAIR-03 | Phase 5 | Complete |
 | PAIR-04 | Phase 5 | Complete |
-| PAIR-05 | Phase 6 | Pending |
-| PAIR-06 | Phase 6 | Pending |
+| PAIR-05 | Phase 6 | Complete |
+| PAIR-06 | v2 (deferred) | Deferred: deferred by owner ruling 2026-10-22 (06 R9): bought-nut test dropped from Phase 6 |
 | TYPE-01 | Phase 4 | Complete |
 | TYPE-02 | Phase 4 | Complete |
 | TYPE-03 | Phase 5 | Complete |
@@ -142,7 +142,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFO-01 | Phase 5 | Complete |
 | INFO-02 | Phase 5 | Complete |
 | INFO-03 | Phase 4 | Complete |
-| INFO-04 | Phase 6 | Pending |
+| INFO-04 | Phase 6 | Complete |
 | INFO-05 | Phase 4 | Complete |
 | FRNT-01 | Phase 1 | Complete |
 | FRNT-02 | Phase 1 | Complete |
@@ -158,8 +158,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFR-03 | Phase 2 | Complete |
 
 **Coverage:**
-- v1 requirements: 39 total
-- Mapped to phases: 39
+- v1 requirements: 38 total (PAIR-06 moved to v2 on 2026-10-22, 06 R9)
+- Mapped to phases: 38
 - Unmapped: 0 ✓
 
 ---

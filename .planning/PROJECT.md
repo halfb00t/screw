@@ -79,6 +79,18 @@ mating pair out.
 - ✓ Every number on the pair's info panel (nut, clearance radial and diametral, engagement,
       6g/6H limits labelled "limits for a bought part; this model is nominal and not
       toleranced") is traceable to an explicit mm field or a cited row — Phase 5 (INFO-01/02).
+- ✓ A bolt and a nut from this tool, printed on an FDM printer at the shipped clearance,
+      thread together by hand — Phase 6 (PAIR-05): the kernel read `proven` for the M8 pair
+      at 0.15 mm; the owner's page downloads equal the pre-registered acceptance manifest in
+      bytes and sha256, and the owner printed that pair and recorded `pass` on 2026-10-23.
+      M18 still reads `inconclusive` at K = 3, the rule unchanged.
+- ✓ The nut's `clearance` default is 0.15 mm radial, read by the pre-registered D-07 rule
+      from the owner's M6–M12 printed matrix (run `06-print-run-1`) and frozen by L02 — Phase 6
+      (PAIR-02, L17). A nut outside M6 to M12 carries a warning that the default was not
+      measured at its size.
+- ✓ A printability warning below M4 (`d_min` 4.0 mm, `P_min` 0.7 mm), read from run
+      `06-print-run-2` — Phase 6 (INFO-04, L18). It warns on bolts and nuts and never caps or
+      refuses (L02). Weaker evidence than run 1: the owner's earlier prints accepted under R10.
 
 
 ### Active
@@ -87,15 +99,8 @@ All hypotheses until shipped and validated. Grouped by the owner's decisions of
 2026-10-05; the first release is the mating-pair cut.
 
 **Threads and mating (the product)**
-- [ ] A bolt and a nut from this tool, printed on an FDM printer at the chosen clearance,
-      thread together by hand; a kernel-level interference check proves the pair before any
-      printer does. Phase 2 measured the check falsifiable on both hands at every size except
-      M18, where every proof clearance is excluded (L11 escape clause); the roadmap was
-      revised on 2026-10-13: Phase 5 ships the check for every size, M18 reads
-      `inconclusive` at K = 3 and never `proven`, the rule is unchanged.
-- [ ] One `clearance` field, carried by the **nut** (its thread grows inward); the bolt is
-      built to nominal so it mates a bought nut. The default value comes from the thread
-      spike and a printed test, never from a guess.
+- Shipped and validated in Phase 6 (the printed pair and the clearance default; see
+  Validated above).
 
 **Presets and tables**
 - [ ] Size range M2–M20 (ISO 261 preferred sizes) for every table in v1 — ISO 262, 4014
@@ -236,7 +241,7 @@ table cites it. `cq_warehouse.fastener` is likewise unverified.
 | Real helical threads; mating pairs are the product | A cosmetic thread cannot be proven to mate; the core value is a pair that threads together | Phase 3: the L11 thread ships on `bolt` behind the THRD-04 gate (L12); the mating proof is Phase 5 |
 | ISO tables as presets, explicit mm as truth | A looked-up number is still a number someone cuts metal to; the link must rebuild the part without the table | Phase 4 (L13): 294 cited rows; mm-only links; contracts 6 and 7; the catalogue on page, API and CLI |
 | Every table row cites its standard and clause and has a test | Table liability: a row without a source is a claim nobody checked | Phase 4: typed `Source`, one test per row, the owner's double-entry diff (ruling B), an UNVERIFIED row refused by the gate |
-| `clearance` lives on the nut | The bolt stays nominal and mates a bought nut; FDM practice opens the hole, not the shaft | — Pending |
+| `clearance` lives on the nut | The bolt stays nominal and mates a bought nut; FDM practice opens the hole, not the shaft | Phase 5: one radial field on the nut (L15); Phase 6: default 0.15 mm from the printed matrix (L17), the printed M8 pair threads by hand |
 | ISO metric only in v1 (68-1 profile, 261/262 sizes) | One thread form to prove; UNC/UNF adds tables without adding proof | — Pending |
 | M2–M20 range for every v1 table | What makers print and assemble; every row is a test | Phase 4: ISO 262, 4014 and 4017; ISO 4032 and 965-2 follow in Phase 5 |
 | `thread_length` field serves both ISO 4014 and 4017 | One field, two presets; the user edits either | Phase 4: 4017 fills the full length, 4014 fills `b`; an explicit conflict is a 422 (D-25); a shank sliver is folded before the kernel |
@@ -252,6 +257,7 @@ table cites it. `cq_warehouse.fastener` is likewise unverified.
 | Bench harness ported with its method and predicates, none of spur's numbers; no latency bar | A bar beside a screw figure would read as a bound (L07) | Phase 1: one labelled run per harness half in `bench/RESULTS.md`; Phase 7 re-sweeps on native linux/amd64 |
 | PR #1 landed as a merge commit (51 commits), not D-12's squash | Owner accepted the shape 2026-10-06; D-12 applies from the wall onward | Phase 1: `make pr.land` squashes every later PR |
 | Thread construction, volume estimator and turn caps come from the pre-registered Phase 2 campaign, never tuned toward a pass (L11) | Method, predictions and escape clause were committed before the first run (`02-SPIKE.md`, blob `4e1959ea`); every value cites a `2026-10-08-a-*` run | Phase 2: sewn twist-section at K = 3, `precise` volumes gated at 9e-05, construction cap 250 turns; the verdict is "not a pass" by its own rules — M18 pair proof not falsifiable on either hand — and the owner chose to revise the roadmap before Phase 5 (2026-10-09) |
+| Clearance default 0.15 mm read by the pre-registered D-07 rule from run `06-print-run-1` (L17); printability threshold M4 read by the D-10 rule from run `06-print-run-2` (L18) | Rules, records and protocol landed on main (PR #19) before the first print, so no value is tuned toward a pass; a frozen default is what every link omitting the field means (L02) | Phase 6: both values pinned by digest and re-derived in `make verify`; owner accepted 0.15 as permanent 2026-10-23; the acceptance pair printed and passed; UAT 1/1, security 22/22 closed |
 | Limits are refusals, never trims (L12): root radius at or below zero, more than 250 turns, and the fine STL L11 measured over the export budget are 422s naming the fields; a repeated parameter is a 422/exit 2 naming it | L02: a parameter the user set is never silently changed; a number printed is one someone cuts metal to | Phase 3: on API, CLI and page; five review findings deferred into tech-debt items with owner rulings (2026-10-11) |
 
 ## Evolution
@@ -272,4 +278,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-10-22 after Phase 5*
+*Last updated: 2026-10-24 after Phase 6*

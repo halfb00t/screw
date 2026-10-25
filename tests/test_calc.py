@@ -6,10 +6,13 @@ import math
 import subprocess
 import sys
 from collections.abc import Callable
+from typing import cast
 
 import pytest
+from fastapi.testclient import TestClient
 
 from screw import calc
+from screw.app import app, build_backend
 from screw.calc import (
     NO_FILLET_NOTE,
     NUT_NO_ROW_WARNING,
@@ -21,6 +24,7 @@ from screw.calc import (
     derive,
     download_refusal,
     explicit_conflict,
+    printability,
 )
 from screw.calc.presets import WITHDRAWN_DIN_WRENCH_MM, designation_for, match
 from screw.calc.thread import (
@@ -41,6 +45,7 @@ from screw.calc.thread import (
     tip_cone_volume,
 )
 from screw.params import KINDS, BoltParams, FastenerParams, NutParams
+from screw.solid import Format, Quality, export
 from screw.tables import iso262
 from screw.tables.gost16093 import BOLT_LIMITS, NUT_LIMITS
 from screw.tables.iso4017 import HEADS
@@ -1303,3 +1308,194 @@ def test_a_nut_with_room_for_its_ends_carries_no_end_warning_and_its_formula_nam
     text = next(w for w in broken.warnings if w.startswith("volume not reported"))
     assert "lead-in countersinks" in text
     assert "face chamfers" in text
+
+
+MEASURED_RANGE = ("d {d} mm is outside M6 to M12, the sizes the clearance default was measured on "
+                  "(L17, run 06-print-run-1)")
+
+
+def _measured_range_warnings(p: FastenerParams) -> list[str]:
+    return [w for w in derive(p).warnings if "the sizes the clearance default was measured on" in w]
+
+
+@pytest.mark.parametrize(("d", "pitch", "s"), [(5.0, 0.8, 8.0), (14.0, 2.0, 22.0)])
+def test_a_nut_outside_the_measured_range_warns_with_or_without_a_typed_clearance(
+        d: float, pitch: float, s: float) -> None:
+    omitted = NutParams(d=d, pitch=pitch, s=s)
+    typed = NutParams(d=d, pitch=pitch, s=s, clearance=0.3)
+    expected = [MEASURED_RANGE.format(d=f"{d:g}")]
+    assert _measured_range_warnings(omitted) == expected
+    assert _measured_range_warnings(typed) == expected
+
+
+@pytest.mark.parametrize(("d", "is_warned"), [
+    (5.0, True), (6.0, False), (8.0, False), (10.0, False), (12.0, False), (14.0, True),
+    (math.nextafter(6.0, 0.0), True), (math.nextafter(12.0, math.inf), True),
+    (math.nextafter(6.0, math.inf), False), (math.nextafter(12.0, 0.0), False)])
+def test_the_measured_range_edges_warn_on_the_outside_only(d: float, is_warned: bool) -> None:
+    # model_construct: the edges are about the rule, not about which d the parameter model admits.
+    nut = NutParams.model_construct(d=d, pitch=1.0, s=30.0, m=5.0, clearance=0.15, left_hand=False)
+    assert bool(_measured_range_warnings(nut)) is is_warned
+
+
+@pytest.mark.parametrize("d", [3.0, 5.0, 6.0, 12.0, 14.0])
+def test_a_bolt_never_carries_the_measured_range_warning(d: float) -> None:
+    assert _measured_range_warnings(BoltParams(d=d, s=2 * d)) == []
+
+
+def test_the_measured_range_warning_changes_no_row_and_keeps_the_warning_order(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    # The sentence sits after the download refusal and before the counterpart's off-row sentence,
+    # which stays last (D-09, D-15): M5 x 0.8 and a tall m draws the refusal, d 5.5 the off-row.
+    outside = NutParams(d=5.0, pitch=0.8, s=9.0, m=40.0, clearance=0.1)
+    info = derive(outside)
+    new = MEASURED_RANGE.format(d="5")
+    refusal = download_refusal(outside, "stl", "fine")
+    assert refusal is not None
+    assert info.warnings[0] == STANDING_WARNING
+    assert info.warnings.index(refusal) < info.warnings.index(new)
+    off_row = derive(NutParams(d=5.5, pitch=0.8, s=9.0, m=5.0, clearance=0.1)).warnings
+    assert off_row[-2] == MEASURED_RANGE.format(d="5.5")
+    assert off_row[-1].startswith("no ISO 4017:2022 row for")
+    # With the sentence switched off the rows and every other warning are the same: the warning is
+    # the only change (L02, T-06-15).
+    with monkeypatch.context() as m:
+        m.setattr(calc, "measured_range_warning", lambda d, pitch: None)
+        plain = derive(outside)
+    assert info.rows == plain.rows
+    assert [w for w in info.warnings if w != new] == plain.warnings
+
+
+# --- the printability warning (INFO-04, D-11, D-13) ---------------------------------------------
+
+THRESHOLD_TAIL = ("M4 is the smallest size that printed and threaded by hand in run "
+                  "06-print-run-2 (L18); parameters left as set")
+
+
+def _printability_warnings(p: FastenerParams) -> list[str]:
+    return [w for w in derive(p).warnings if "run 06-print-run-2" in w]
+
+
+def _at(kind: str, d: float, pitch: float) -> FastenerParams:
+    # model_construct: the edges are about the rule, not about which (d, pitch) the model admits.
+    if kind == "bolt":
+        return BoltParams.model_construct(d=d, pitch=pitch, length=20.0, s=2 * d, k=d,
+                                          thread_length=20.0, left_hand=False)
+    return NutParams.model_construct(d=d, pitch=pitch, s=2 * d, m=d, clearance=0.15,
+                                     left_hand=False)
+
+
+def test_the_printability_warning_promises_no_build_only_unchanged_parameters() -> None:
+    # Another rule can still refuse the part: this bolt also reports "this part is not built", so
+    # the sentence says what the warning leaves alone and nothing about whether a part comes out.
+    info = derive(BoltParams(d=3.0, pitch=0.5, length=1e-9))
+    assert any("this part is not built" in w for w in info.warnings)
+    (text,) = [w for w in info.warnings if "run 06-print-run-2" in w]
+    assert text.endswith("parameters left as set")
+    assert "built" not in text
+
+
+@pytest.mark.parametrize("kind", ["bolt", "nut"])
+def test_the_printability_edges_are_strict(kind: str) -> None:
+    d, pitch = printability.D_MIN_MM, printability.P_MIN_MM
+    assert _printability_warnings(_at(kind, d, pitch)) == []
+    assert _printability_warnings(_at(kind, math.nextafter(d, math.inf), pitch)) == []
+    assert _printability_warnings(_at(kind, d, math.nextafter(pitch, math.inf))) == []
+    (d_only,) = _printability_warnings(_at(kind, math.nextafter(d, 0.0), pitch))
+    assert d_only.startswith("d ")
+    assert "pitch" not in d_only.split(":")[0]
+    (pitch_only,) = _printability_warnings(_at(kind, d, math.nextafter(pitch, 0.0)))
+    assert pitch_only.startswith("pitch ")
+    assert "d_min" not in pitch_only
+
+
+@pytest.mark.parametrize("kind", ["bolt", "nut"])
+def test_a_part_below_the_printability_threshold_warns_naming_each_edge_crossed(
+        kind: str) -> None:
+    # M12 x 0.5 is a big part with a fine pitch: pitch only, one sentence.
+    assert _printability_warnings(_at(kind, 12.0, 0.5)) == [
+        f"pitch 0.5 mm is below P_min 0.7 mm: {THRESHOLD_TAIL}"]
+    # M3 x 0.5 crosses both: d first, one sentence, joined by "and".
+    assert _printability_warnings(_at(kind, 3.0, 0.5)) == [
+        f"d 3 mm is below d_min 4 mm and pitch 0.5 mm is below P_min 0.7 mm: {THRESHOLD_TAIL}"]
+    # A small d with a coarse-enough pitch: d only.
+    assert _printability_warnings(_at(kind, 3.0, 0.7)) == [
+        f"d 3 mm is below d_min 4 mm: {THRESHOLD_TAIL}"]
+    # Above both edges: no printability entry at all.
+    assert _printability_warnings(_at(kind, 8.0, 1.25)) == []
+
+
+@pytest.mark.parametrize("kind", ["bolt", "nut"])
+@pytest.mark.parametrize(("size", "d", "pitch"), [("M2", 2.0, 0.4), ("M2.5", 2.5, 0.45)])
+def test_m2_and_m2_5_warn_on_both_printability_edges(
+        kind: str, size: str, d: float, pitch: float) -> None:
+    (text,) = _printability_warnings(_at(kind, d, pitch))
+    assert text == (f"d {d:g} mm is below d_min 4 mm and pitch {pitch:g} mm is below P_min "
+                    f"0.7 mm: {THRESHOLD_TAIL}"), size
+    assert text.index("d ") < text.index("pitch ")
+
+
+@pytest.mark.parametrize(("d", "pitch", "head"), [
+    (3.999999, 0.7, "d 3.999999 mm is below d_min 4 mm"),
+    (4.0, 0.6999999, "pitch 0.6999999 mm is below P_min 0.7 mm"),
+    (3.999999, 0.6999999,
+     "d 3.999999 mm is below d_min 4 mm and pitch 0.6999999 mm is below P_min 0.7 mm")])
+def test_the_printability_warning_prints_the_exact_value_just_below_each_edge(
+        d: float, pitch: float, head: str) -> None:
+    # L02: a number the tool prints is a number someone cuts metal to. Six significant digits
+    # would print d 3.999999 as "4" and call it below d_min 4 mm.
+    assert printability.printability_warning(d, pitch) == f"{head}: {THRESHOLD_TAIL}"
+
+
+@pytest.mark.parametrize("d", [5.999999, 12.000001])
+def test_the_measured_range_warning_prints_the_exact_value_just_outside_each_edge(
+        d: float) -> None:
+    assert printability.measured_range_warning(d, 1.0) == MEASURED_RANGE.format(d=repr(d))
+
+
+async def _inline_backend(p: FastenerParams, fmt: str, quality: str) -> bytes:
+    # In process, so the check needs no pool (as tests/test_parity.py).
+    return export(p, cast(Format, fmt), cast(Quality, quality))
+
+
+@pytest.mark.parametrize(("kind", "params"), [
+    ("bolt", {"d": 2.0, "pitch": 0.4, "s": 4.0, "k": 1.4, "length": 6.0, "thread_length": 6.0}),
+    ("nut", {"d": 2.0, "pitch": 0.4, "s": 4.0, "m": 1.6})])
+def test_a_part_below_the_printability_threshold_still_builds(
+        kind: str, params: dict[str, float]) -> None:
+    # D-13, L02: the warning is the only change; the part is neither refused nor capped.
+    client = TestClient(app)
+    app.dependency_overrides[build_backend] = lambda: _inline_backend
+    info = client.get(f"/api/{kind}/info", params=params)
+    assert info.status_code == 200
+    assert sum("run 06-print-run-2" in w for w in info.json()["warnings"]) == 1
+    try:
+        model = client.get(f"/api/{kind}/model.stl", params={**params, "quality": "preview"})
+    finally:
+        app.dependency_overrides.pop(build_backend, None)
+    assert model.status_code == 200
+    assert len(model.content) > 84  # a binary STL header and count, plus triangles
+
+
+def test_the_printability_warning_keeps_the_warning_order(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    # A nut crossing both D-09 and D-13 carries two separate sentences, D-09 first; the standing
+    # warning leads and the counterpart's off-row sentence stays last (D-09, D-13, D-15).
+    nut = NutParams(d=5.0, pitch=0.4, s=9.0, m=4.0, clearance=0.1)
+    info = derive(nut)
+    outside = MEASURED_RANGE.format(d="5")
+    (below,) = _printability_warnings(nut)
+    assert outside != below
+    assert info.warnings[0] == STANDING_WARNING
+    assert info.warnings.index(outside) + 1 == info.warnings.index(below)
+    off_row = derive(NutParams(d=12.0, pitch=0.5, s=19.0, m=8.0, clearance=0.1)).warnings
+    assert off_row[-2].startswith("pitch 0.5 mm is below P_min 0.7 mm")
+    assert off_row[-1].startswith("no ISO 4017:2022 row for")
+    bolt = derive(BoltParams(d=3.0, pitch=0.5, s=5.5, k=2.0, length=10.0, thread_length=10.0))
+    assert bolt.warnings[0] == STANDING_WARNING
+    # With the sentence switched off the rows and every other warning are the same.
+    with monkeypatch.context() as m:
+        m.setattr(calc, "printability_warning", lambda d, pitch: None)
+        plain = derive(nut)
+    assert info.rows == plain.rows
+    assert [w for w in info.warnings if w != below] == plain.warnings

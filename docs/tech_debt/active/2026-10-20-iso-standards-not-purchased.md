@@ -32,7 +32,7 @@ UNVERIFIED. A release cannot claim ISO 4032:2023 (or any current-edition) confor
 value is a number someone cuts metal to (L02).
 
 ## Next step
-Revisit before the Phase 6 release, or before any public release that claims ISO conformance,
+Revisit before the first release (after Phase 7), or before any public release that claims ISO conformance,
 whichever comes first. Buy the five. Re-read every GOST-sourced row against the ISO edition under
 ruling-B double entry, and diff. Re-cite. File each difference. A changed frozen default is a
 stop-and-ask (D-15). Record the outcome as an entry superseding L14.

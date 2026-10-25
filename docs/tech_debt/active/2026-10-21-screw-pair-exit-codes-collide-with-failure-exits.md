@@ -25,7 +25,7 @@ The D-06 codes are published, so a caller that trusts the code alone can take a 
 violation, or a typo for an inconclusive proof. Nothing in this repo branches on the code yet.
 
 ## Next step
-Revisit before any script, workflow or doc branches on the exit code, or before the Phase 6 release.
+Revisit before any script, workflow or doc branches on the exit code, or before the first release (after Phase 7).
 Either document stdout as the discriminator (a non-empty report means a verdict), or exit outside
 {0, 1, 2} on an unexpected exception and keep D-06's verdict codes. This is an owner decision,
 because D-06 is costly to reverse.

@@ -335,6 +335,47 @@ def test_a_foreign_or_abbreviated_flag_exits_2(kind: str,
         capsys.readouterr()
 
 
+def test_the_measured_range_warning_is_the_same_on_the_cli_and_the_api(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    # D-09: one producer, `derive()`, so a nut outside M6 to M12 says it identically on both
+    # front ends, and the page, which renders `info.warnings` as text, needs no copy of it.
+    values: Params = {"d": 5.0, "pitch": 0.8, "s": 8.0, "m": 4.7}
+    cli.main(["info", "nut", *(a for k, v in values.items() for a in (_flag(k), repr(v)))])
+    cli_doc = json.loads(capsys.readouterr().out)
+    response = client.get("/api/nut/info", params=values)
+    assert response.status_code == 200
+    assert response.json() == cli_doc
+    sentence = ("d 5 mm is outside M6 to M12, the sizes the clearance default was measured on "
+                "(L17, run 06-print-run-1)")
+    assert sentence in cli_doc["warnings"]
+    assert cli_doc["warnings"][0] == STANDING_WARNING
+    assert sentence not in APP_JS
+
+
+@pytest.mark.parametrize(("kind", "values", "preset"), [
+    ("bolt", {"d": 2.0, "pitch": 0.4, "s": 4.0, "k": 1.4, "length": 6.0, "thread_length": 6.0},
+     "iso4017:M2x6"),
+    ("nut", {"d": 2.0, "pitch": 0.4, "s": 4.0, "m": 1.6}, "iso4032:M2")])
+def test_the_printability_warning_is_the_same_on_the_cli_and_the_api(
+        kind: str, values: Params, preset: str, capsys: pytest.CaptureFixture[str]) -> None:
+    # D-13: one producer, `derive()`, so a part below the printed threshold says it identically on
+    # both front ends, and the page, which renders `info.warnings` as text, needs no copy of it.
+    cli.main(["info", kind, *(a for k, v in values.items() for a in (_flag(k), repr(v)))])
+    cli_doc = json.loads(capsys.readouterr().out)
+    response = client.get(f"/api/{kind}/info", params=values)
+    assert response.status_code == 200
+    assert response.json() == cli_doc
+    sentence = ("d 2 mm is below d_min 4 mm and pitch 0.4 mm is below P_min 0.7 mm: M4 is the "
+                "smallest size that printed and threaded by hand in run 06-print-run-2 (L18); "
+                "parameters left as set")
+    assert sentence in cli_doc["warnings"]
+    assert sentence not in APP_JS
+    # The preset path reads the same: the same sentence, the same document as the API's preset.
+    cli.main(["info", kind, "--preset", preset])
+    by_preset = json.loads(capsys.readouterr().out)
+    assert sentence in by_preset["warnings"]
+
+
 @pytest.mark.parametrize("kind", list(KINDS))
 def test_the_cli_and_the_api_print_the_same_document(
         kind: str, capsys: pytest.CaptureFixture[str]) -> None:
@@ -950,9 +991,10 @@ def test_reset_and_a_navigation_forget_a_typed_value_the_field_no_longer_holds()
     assert f"{reset_write} {each} update();" in _squash(APP_JS)
 
 
-def test_a_bolts_matching_nut_link_with_a_typed_clearance_opens_a_nut_that_builds() -> None:
-    # G-05-3, the server half of UAT test 3: the page adds the typed clearance to the fields
-    # the bolt's document names, and the nut that link opens builds. Nothing typed is still refused.
+def test_a_bolts_matching_nut_link_opens_a_nut_that_builds_with_or_without_a_clearance() -> None:
+    # G-05-3, the server half of UAT test 3: the page may add a typed clearance to the fields
+    # the bolt's document names, and the nut that link opens builds. Since L17 a link with none
+    # typed builds at the default 0.15 instead of being refused.
     counterpart = client.get("/api/bolt/info").json()["counterpart"]
     assert counterpart["kind"] == "nut"
     fields = counterpart["fields"]
@@ -964,22 +1006,21 @@ def test_a_bolts_matching_nut_link_with_a_typed_clearance_opens_a_nut_that_build
     stl = client.get("/api/nut/model.stl", params={**linked, "quality": "preview"})
     assert stl.status_code == 200
     assert len(stl.content) > 84  # a binary STL header and count, then triangles
-    refused = client.get("/api/nut/info", params=fields)
-    assert refused.status_code == 422
-    (detail,) = refused.json()["detail"]
-    assert detail["type"] == "missing"
-    assert detail["loc"] == ["query", "clearance"]
+    untyped = client.get("/api/nut/info", params=fields)
+    assert untyped.status_code == 200
+    assert {row["key"]: row["value"] for row in untyped.json()["rows"]}["clearance"] == 0.15
 
 
 def test_a_field_with_no_default_is_written_empty_never_as_the_word_undefined() -> None:
-    # RESEARCH P9b: the nut's clearance has no default, so `defaults[name]` is undefined.
+    # RESEARCH P9b: a field without a default has `defaults[name]` undefined. No registered kind has
+    # one since L17, but the generic form code keeps the guard for a kind that adds one.
     assert "else input.value = v ?? '';" in _function_body("write")
     assert "input.value = v;" not in APP_JS
 
 
 def test_a_kind_change_drops_the_old_mesh_and_what_described_it() -> None:
-    # R10, T-05-23 (05-OWNER-READS.md): a nut with no clearance typed builds nothing, so the old
-    # bolt mesh, its warnings and its notes must not stay on screen under "last valid part".
+    # R10, T-05-23 (05-OWNER-READS.md): a kind change must not leave the old bolt mesh, its warnings
+    # and its notes on screen under "last valid part" while the new kind's form has no part yet.
     nav = _squash(_function_body("navigate"))
     assert nav.index("dropMesh();") < nav.index("await buildForm(kind)")
     # Plan 05-23, owner choice "fix in navigate": navigate also rebuilds when the form on screen
@@ -1042,9 +1083,8 @@ def test_a_kind_change_whose_fetch_fails_is_refused_whole_unless_overtaken() -> 
 
 def test_every_row_key_of_the_nut_and_pair_documents_is_unread_by_name_in_the_ui() -> None:
     # Plans 05-04 to 05-09 added these keys; `m` and `clearance` are fields too (05-10).
-    exact = KINDS["nut"].model_validate({**REQUIRED_VALUES["nut"]})
-    m18 = KINDS["nut"].model_validate(
-        {**REQUIRED_VALUES["nut"], "d": 18.0, "pitch": 2.5, "s": 27.0, "m": 15.8})
+    exact = KINDS["nut"].model_validate({})
+    m18 = KINDS["nut"].model_validate({"d": 18.0, "pitch": 2.5, "s": 27.0, "m": 15.8})
     keys = {row.key for p in (exact, m18) for row in derive(p).rows}
     assert {"pitch_diameter", "minor_diameter", "m_max", "mw_min", "D1_min", "D2_max",
             "flank_gap", "axial_play", "nut_pitch_diameter", "engagement_turns"} <= keys

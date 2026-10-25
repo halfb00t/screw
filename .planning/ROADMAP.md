@@ -28,7 +28,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Real Helical Thread** - the bolt kind carries a real ISO 68-1 helical thread, right- or left-hand, behind a postcondition gate (completed 2026-10-11)
 - [x] **Phase 4: ISO Hex Bolts and Screws** - ISO 4014 and 4017 presets from cited, tested table rows fill explicit mm fields; a traceable info panel for the bolt (completed 2026-10-12)
 - [x] **Phase 5: Hex Nut and Kernel Pair Proof** - ISO 4032 nut with a clearance field, matching-part derivation and a kernel pair proof that can fail (completed 2026-10-22)
-- [ ] **Phase 6: Printed Pair Acceptance** - the owner's printed test sets the clearance default and the printability threshold; a printed pair threads together by hand
+- [x] **Phase 6: Printed Pair Acceptance** - the owner's printed test sets the clearance default and the printability threshold; a printed pair threads together by hand (completed 2026-10-24)
 - [ ] **Phase 7: Operability Re-sweep** - every runtime bound measured on the full grid on linux/amd64 and cited; every allowed configuration builds inside the timeout
 
 ## Phase Details
@@ -324,22 +324,74 @@ Plans:
 **Goal**: The owner holds a bolt and a nut printed from this tool at the default clearance that thread together by hand, and that default and the printability threshold come from a recorded printed test, not from a forum or vendor figure.
 **Mode:** mvp
 **Depends on**: Phase 5
-**Requirements**: PAIR-02, PAIR-05, PAIR-06, INFO-04
+**Requirements**: PAIR-02, PAIR-05, INFO-04 (PAIR-06 deferred to v2 by owner ruling R9, 2026-10-22)
 **Success Criteria** (what must be TRUE):
   1. The printed test (M6–M12 matrix of clearance steps) has its method, predictions and escape clause committed before the first print, and its results, every sample with pass or bind, are recorded in the repo by the owner (manual checkpoint).
   2. The default `clearance` is set once from the recorded result, as a single absolute-millimetre value (L02), and cited in a new decision entry.
   3. The owner prints a bolt and its matching nut at the default clearance and they thread together by hand: the release's manual acceptance. The kernel verdict for that pair is `proven`, which is necessary, not sufficient.
-  4. The test also drives a nominal printed bolt into a bought nut and records the result; if it binds, PAIR-07 (bolt-side `undersize`) is promoted to a v1.x requirement in REQUIREMENTS.md, otherwise the record says it is not needed.
+  4. ~~The test also drives a nominal printed bolt into a bought nut and records the result; if it binds, PAIR-07 (bolt-side `undersize`) is promoted to a v1.x requirement in REQUIREMENTS.md, otherwise the record says it is not needed.~~ **Deferred (R9, 2026-10-22):** PAIR-06 and PAIR-07 moved to v2; the owner dropped the bought-nut test from Phase 6.
   5. The printability threshold is a constant set from the same test and cited; sizes and pitches below it get a cap-and-warn printability warning naming its source on the UI, API and CLI.
 
-**Plans**: TBD
+**Plans**: 10/10 plans complete (the pre-registration lands as its own PR before the first print; waves 2-9 sequential)
 **UI hint**: yes
+
+Plans:
+**Wave 1**
+- [x] 06-01-PLAN.md — Pre-registration branch: the strict record reader, the D-07/D-08, D-10 and D-14 rules with synthetic controls, the print matrix and the blank records
+- [x] 06-02-PLAN.md — Owner rulings R1-R8 (run-2 timing, bought-nut bolts, test order, plates, failed prints, the D-09 range, decision entries, the required-field helper)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [x] 06-03-PLAN.md — The protocol, the owner's print profile and predictions typed in, PR A opened
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [x] 06-04-PLAN.md — Codex reviews PR A; it lands on main; the phase branch merges origin/main
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [x] 06-05-PLAN.md — Run 1: exports pinned, the owner prints and records, the rules read the default (or D-08)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [x] 06-06-PLAN.md — The owner accepts the reading as permanent; the clearance default ships on every front end; L17 and the requirement evidence
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [x] 06-07-PLAN.md — The D-09 measured-range warning on the nut; comments that called the clearance required corrected
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [x] 06-08-PLAN.md — Run 2: M3-M5 at the shipped default, printed and recorded; the threshold size read by D-10
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [x] 06-09-PLAN.md — The D-13 printability warning on bolts and nuts from d_min and P_min; the threshold entry; INFO-04
+
+**Wave 9** *(blocked on Wave 8 completion)*
+- [x] 06-10-PLAN.md — Acceptance: kernel proven at the default, the M8 pair through the page, printed and threaded by hand (PAIR-05)
+
+### Phase 06.1: Bolt head chamfer (INSERTED)
+
+**Goal:** A bolt or screw (ISO 4014, ISO 4017) gets a chamfered hex head: one `head_chamfer` field, an angle in degrees, default 30, where 0 builds the sharp head of today. The chamfer is a cone from the inscribed circle `s / 2` on the top face only, the same stated model as the nut face chamfer (L15, R4 a), so it clips the six corners; the bearing face is unchanged. The head's closed form stays exact for the cone-clipped prism, the field ships on UI, API and CLI with its tests, and a new decision-log entry supersedes L13 D-01's "no top chamfer". Owner ruling 2026-10-24: field with default 30, top face only, cone from `s / 2`, inserted before Phase 7 so the re-sweep measures the chamfered head. One-way: every link that omits the field gets the chamfered head (allowed by L13's reversibility note while the standing warning says "not a product build").
+**Requirements**: TBD
+**Depends on:** Phase 6
+**Plans:** 5 plans
+
+Plans:
+**Wave 1**
+- [ ] 06.1-01-PLAN.md — The analytic head-chamfer closed form, the shared depth predicate, the band and cap warnings and the conflict text, kernel-free (D-02 to D-08)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 06.1-02-PLAN.md — The head_chamfer field, the head cut and its piece gate, the closed form, the new default pinned; the edges of the angle range (D-01, D-06, D-07, D-09, D-16 to D-18)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 06.1-03-PLAN.md — The info document: four chamfer rows, the sharp-head note, the band and cap warnings, the new standing warning (D-02, D-04, D-10 to D-12, D-19)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 06.1-04-PLAN.md — The request boundary: an explicit head_chamfer deeper than k / 2 is a 422 / exit 2 naming head_chamfer and k; presets never set the angle (D-04, D-05, D-13)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 06.1-05-PLAN.md — Decision log L19 (supersedes L13 D-01's sharp top), the L13 pointer, the overview and README (D-15)
 
 ### Phase 7: Operability Re-sweep
 
 **Goal**: Every configuration a user is allowed to ask for builds inside a per-build timeout measured on linux/amd64 over the full grid, or is capped and warned or refused with a `422`, and every runtime bound cites the run that set it.
 **Mode:** mvp
-**Depends on**: Phase 6 (the sweep runs on the final grid, clearance default included)
+**Depends on**: Phase 6.1 (the sweep runs on the final grid, clearance default and chamfered head included)
 **Requirements**: OPER-01, OPER-02, OPER-03
 **Success Criteria** (what must be TRUE):
   1. The per-build timeout is measured over the whole allowed grid on linux/amd64 (every size, every standard length, including lengths where `L/P` is an integer) and recorded as a constant whose decision entry cites the run.
@@ -361,5 +413,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 2 
 | 3. Real Helical Thread | 7/7 | Complete    | 2026-10-11 |
 | 4. ISO Hex Bolts and Screws | 17/17 | Complete    | 2026-10-12 |
 | 5. Hex Nut and Kernel Pair Proof | 25/25 | Complete    | 2026-10-22 |
-| 6. Printed Pair Acceptance | 0/TBD | Not started | - |
+| 6. Printed Pair Acceptance | 10/10 | Complete    | 2026-10-24 |
+| 6.1. Bolt head chamfer (INSERTED) | 0/TBD | Not started | - |
 | 7. Operability Re-sweep | 0/TBD | Not started | - |

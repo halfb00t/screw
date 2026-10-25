@@ -18,7 +18,9 @@ import pytest
 
 from bench import print_matrix as matrix
 from bench import print_rules as rules
+from screw.calc import derive, printability
 from screw.calc.presets import expand
+from screw.params import NutParams
 from screw.tables import iso262
 
 type MatrixOk = Callable[[str, float, int], bool]
@@ -281,6 +283,84 @@ def test_the_committed_records_list_every_sample_in_order() -> None:
     assert _key_columns(rules.RUN_1, 3) == [
         (s, repr(c), str(n)) for s, c, n in rules.matrix_keys()]
     assert _key_columns(rules.RUN_2, 2) == [(s, str(n)) for s, n in rules.small_keys()]
+
+
+def test_the_run_1_record_is_the_one_pinned(tmp_path: Path) -> None:
+    text = rules.load(rules.RUN_1, rules.RUN_1_SHA256)
+    assert len(rules.read_matrix(text)) == 60
+    # One byte of one result cell changed: the record is no longer the pinned one.
+    edited = tmp_path / "print-run-1.tsv"
+    edited.write_bytes(rules.RUN_1.read_bytes().replace(b"\tbind\t", b"\tpass\t", 1))
+    with pytest.raises(ValueError, match="is not the pinned record"):
+        rules.load(edited, rules.RUN_1_SHA256)
+
+
+def test_the_measured_range_is_the_sizes_run_1_printed() -> None:
+    # D-09, R6: the D-09 warning's bounds are the d of the smallest and largest size of run 1's
+    # matrix, read from the rule module's own table and never typed twice.
+    diameters = [rules.COARSE[size][0] for size in rules.SIZES]
+    assert min(diameters) == printability.MEASURED_D_MIN_MM
+    assert max(diameters) == printability.MEASURED_D_MAX_MM
+    assert printability.CLEARANCE_RUN == rules.RUN_1_ID
+    assert printability.CLEARANCE_ENTRY == "L17"
+    # Every size the matrix printed is inside the range, so none of them carries the warning.
+    for size in rules.SIZES:
+        d, pitch = rules.COARSE[size]
+        assert printability.measured_range_warning(d, pitch) is None
+
+
+def test_run_1_reads_a_default_of_0_15_mm_by_d_07() -> None:
+    # D-07 as `default_from` reads the pinned record; bench/RESULTS.md states the same 0.15 mm.
+    # The owner's 0.1 mm prediction (P1) was not borne out: M10 and M12 bind at 0.1 in 3 of 3.
+    cells = rules.read_matrix(rules.load(rules.RUN_1, rules.RUN_1_SHA256))
+    assert rules.default_from(cells) == 0.15
+
+
+def test_the_shipped_clearance_default_is_the_one_run_1_reads() -> None:
+    # PAIR-02, L17: the default the parameter model ships is the value default_from reads from the
+    # pinned record, so editing either one alone fails here.
+    cells = rules.read_matrix(rules.load(rules.RUN_1, rules.RUN_1_SHA256))
+    assert NutParams.model_fields["clearance"].default == rules.default_from(cells)
+
+
+def test_an_omitted_clearance_and_the_typed_default_build_the_same_nut() -> None:
+    # L02: a shareable link that omits clearance and one that types the default are one part.
+    typed = NutParams(clearance=0.15)
+    assert NutParams() == typed
+    assert derive(NutParams()) == derive(typed)
+
+
+def test_the_run_2_record_is_the_one_pinned(tmp_path: Path) -> None:
+    text = rules.load(rules.RUN_2, rules.RUN_2_SHA256)
+    assert len(rules.read_small(text)) == 9
+    # One byte of one result cell changed: the record is no longer the pinned one.
+    edited = tmp_path / "print-run-2.tsv"
+    edited.write_bytes(rules.RUN_2.read_bytes().replace(b"\tpass\t", b"\tbind\t", 1))
+    with pytest.raises(ValueError, match="is not the pinned record"):
+        rules.load(edited, rules.RUN_2_SHA256)
+
+
+def test_run_2_reads_a_threshold_of_m4_by_d_10() -> None:
+    # D-10 as `threshold_from` reads the pinned record; bench/RESULTS.md states the same M4. M3 did
+    # not print a thread (3 of 3 recorded as bind), M4 and M5 passed 3/3 at the shipped default.
+    cells = rules.read_small(rules.load(rules.RUN_2, rules.RUN_2_SHA256))
+    size = rules.threshold_from(cells)
+    assert size == "M4"
+    assert rules.COARSE[size] == (4.0, 0.7)
+
+
+def test_the_printability_threshold_is_the_one_run_2_reads() -> None:
+    # INFO-04, D-10, T-06-18: the constants the warning compares against are the d and coarse pitch
+    # of the size `threshold_from` reads from the pinned record, so editing either alone fails here.
+    cells = rules.read_small(rules.load(rules.RUN_2, rules.RUN_2_SHA256))
+    size = rules.threshold_from(cells)
+    assert size == printability.THRESHOLD_SIZE
+    assert rules.COARSE[size] == (printability.D_MIN_MM, printability.P_MIN_MM)
+    assert printability.THRESHOLD_RUN == rules.RUN_2_ID
+    assert printability.THRESHOLD_ENTRY == "L18"
+    # The size that printed is not warned about, and the next size down the table is.
+    assert printability.printability_warning(*rules.COARSE[size]) is None
+    assert printability.printability_warning(*rules.COARSE["M3"]) is not None
 
 
 @pytest.mark.parametrize(("record", "read"), [

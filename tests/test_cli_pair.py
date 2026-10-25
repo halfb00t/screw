@@ -20,6 +20,7 @@ import pytest
 
 from screw import cli
 from screw.calc import pair as rule
+from screw.params import NutParams
 from screw.solid import pair as solid_pair
 
 # The refusals happen before the kernel loads (about 0.1 s here); five seconds is a generous
@@ -48,7 +49,7 @@ def test_a_refusal_leaves_the_kernel_out_of_the_process() -> None:
             "try:\n    cli.main(sys.argv[1:])\nexcept SystemExit as stop:\n"
             "    print(stop.code, 'cadquery' in sys.modules, 'OCP' in sys.modules)\n")
     for args in (["pair", "nut", "--clearance", "0.1", "--s", "6"],
-                 ["pair", "nut"],
+                 ["pair", "nut", "--s", "6"],
                  ["pair", "nut", "--d", "2", "--pitch", "2", "--clearance", "0.5"]):
         done = subprocess.run([sys.executable, "-I", "-c", code, *args], capture_output=True,
                               text=True, timeout=60, check=False)
@@ -76,11 +77,21 @@ def test_a_clearance_that_cannot_hold_the_void_is_inconclusive_by_definition_and
     assert report.reasons[0].startswith("d and clearance: ")
 
 
-def test_no_clearance_exits_2_naming_it() -> None:
-    done = _screw("nut")
-    assert done.returncode == 2
-    assert "clearance" in done.stderr
-    assert done.stdout == ""
+def test_no_clearance_proves_the_nut_at_the_default(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    # PAIR-02, L17: with no clearance typed the proof runs at the default 0.15, not a refusal. The
+    # real proof costs about 40 s and parks the kernel, so `prove` is read here, not run.
+    seen: list[float] = []
+
+    def fake_prove(p: NutParams) -> solid_pair.PairReport:
+        seen.append(p.clearance)
+        return _report("proven")
+
+    monkeypatch.setattr(solid_pair, "prove", fake_prove)
+    monkeypatch.setattr(os, "_exit", lambda _status: None)
+    cli.cmd_pair(argparse.Namespace(kind="nut", preset=None, d=None, pitch=None, left_hand=None,
+                                    s=None, m=None, clearance=None))
+    assert seen == [0.15]
 
 
 def test_the_bolt_has_no_clearance_so_it_has_no_pair() -> None:

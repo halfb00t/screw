@@ -1249,3 +1249,140 @@ difference between closing T-05-12 and carrying it.
 
 Reversibility: reversible. The caps and the ceiling are constants with a cited run; Phase 7 re-measures
 on linux/amd64 (OPER-02), and the clearance ceiling can be raised by a new run.
+
+## L17 — The nut's clearance default is 0.15 mm, read by the pre-registered D-07 rule from run 06-print-run-1 on the owner's print profile
+
+Date: 2026-10-23. Decided by the rule D-07, fixed in PR A before the first print, and by the owner's
+`permanent: accepted` on 2026-10-23, given to the question of shipping 0.15 mm as the nut's clearance
+default, frozen forever (06-06 Task 1). This entry supersedes L15's no-default rule for `clearance` (05
+D-01, PAIR-01) and nothing else of L15: the two refusals (the void's root radius, a void wider than the
+flats) and the absence of a lower bound stand.
+
+**Why.** PAIR-02 and L02: a default is a reading of the owner's printed test, never a forum or vendor
+figure, and `clearance` stayed required until a record existed. The owner's 0.1 mm was the
+pre-registered prediction (D-01) and never an input. The reading did not match it: M10 and M12 bind at
+0.1 mm in 3 of 3 samples, so the larger pair sets the default and it is 0.15 mm, not 0.10 mm.
+
+**The rule, as committed before the run.** `06-PRINT-PROTOCOL.md` ("Rules", D-05 to D-08) and
+`bench/print_rules.py` (`read_matrix`, `default_from`), on `main` in PR A (#19), squash commit `16f7041`.
+A sample passes or binds by the hand fit test (D-05); a cell (size, clearance) passes when all 3 samples
+do; the default is the smallest ladder step from which every cell of every size passes, and no default is
+returned when no step qualifies or a size is not monotone (D-08).
+
+**The run.** Run `06-print-run-1`: the ladder 0.05, 0.10, 0.15, 0.20, 0.25 mm at M6, M8, M10 and M12,
+3 samples per cell, 60 nuts and 12 bolts. The parts are the product's own fine exports (24 STL files),
+and their manifest `bench/results/phase-06/manifest-run-1.tsv` (sha256
+`b98c445f88c1b7d21e198deb5d2ef17a77b698310b969d0e2b90f1cb445edb0d`) was committed in `646b07d` before the
+first print. The record `bench/results/phase-06/print-run-1.tsv` has sha256
+`f76753ded41726daec0a11ec4c5eabc5f4d2afb094cbe258d5e9d915aa6db725`, pinned as `RUN_1_SHA256`, and the
+run was recorded in `3273e51`. The owner reported the fit results and confirmed the 60-row table
+("correct", 2026-10-23); the cells were transcribed from that report, not typed by the owner, and the
+owner gave no print or test dates. The pass counts (every size 3/3 from 0.15 mm up; M6 and M8 also 3/3
+at 0.10; 0 of 3 at 0.05 everywhere; 42 passes, 18 binds, no reprint) are in `bench/RESULTS.md`, "Printed
+pair matrix (Phase 6, 06-print-run-1)". Two tests hold the value to the record:
+`tests/test_print_rules.py::test_the_shipped_clearance_default_is_the_one_run_1_reads` and
+`tests/test_params.py::test_the_clearance_default_is_the_frozen_value_l17_records`.
+
+**The profile this default holds for (D-06).** Prusa MK4, 0.4 mm nozzle, Prusa PETG, 0.2 mm layers,
+PrusaSlicer with the stock Prusa PETG system profile (no settings changed; slicer version not
+recorded), nut on its face and bolt head-down. For any other printer, material, layer height, nozzle or
+orientation the default is untested.
+
+**One-way (D-07).** From this entry on, every shareable link that omits `clearance` means 0.15 mm
+forever (L02). A later reading, from run 2 or a second run, is a new decision that supersedes this one;
+it never edits the value in place. The default is one value for every size; the threshold for small
+sizes is run 2's question and gets its own entry, L18, after run 2 (R7).
+
+**Outside the measured range (D-09, R6).** The matrix spans d = 6 to 12 mm. A nut with `d < 6.0` or
+`d > 12.0` will carry a warning that the default was not measured at its size; plan 06-07 wires it, and
+it fires whether or not `clearance` was typed.
+
+**Kernel verdicts at 0.15 mm.** The recorded K = 3 pair verdicts (`tests/data/pair_expected.tsv`) at
+0.15 mm are `proven` for both same-hand pairs and `violated` for the mixed-hand pair at M6, M8, M10 and
+M12, so no size of the matrix reads `inconclusive` here. Two sizes outside it do, for both same-hand
+pairs: M3 and M18. That is a kernel scoping fact (L11) and not a print result, and the pair verdict was
+never an input to D-07 (a kernel `proven` is necessary, not sufficient, PAIR-05). The ladder's top step
+0.25 mm is not in the recorded grid, and `PAIR_CLEARANCES` (0.05 to 0.20 mm in `calc/pair.py`), which
+its comment says brackets Phase 6's matrix, no longer brackets it.
+
+**What it does not show.** One printer and profile. Four coarse sizes, M6 to M12, three samples each;
+nothing between or beyond them, and nothing for fine pitch. A nominal bolt against a nut with a
+clearance, not a toleranced pair. A hand judgement under D-05 with turns recorded as 0 for every bind, so
+it says nothing about how far a tight cell is from passing. Whether 0.15 mm also suits a part printed
+upright or on a finer layer is open.
+
+Reason: the number someone cuts metal to comes from a recorded test whose rule preceded its rows, and
+the owner accepted it as permanent before it shipped.
+
+Reversibility: one-way. Changing it later changes parts people already linked, so it takes a
+superseding decision and never a silent edit.
+
+## L18 — The printability threshold is M4 (d_min 4.0 mm, P_min 0.7 mm), read by the pre-registered D-10 rule from run 06-print-run-2, which is weaker evidence than the pre-registered run
+
+Date: 2026-10-23. Decided by the rule D-10 (with D-11), fixed in PR A before any part was printed, and by
+owner ruling R7 (L18 for the threshold after run 2). The record it reads was accepted by owner ruling R10
+(`.planning/phases/06-printed-pair-acceptance/06-OWNER-RULINGS.md`, 2026-10-23), and the evidence is
+weaker than the pre-registered run would have given; the next section says how.
+
+**Why.** INFO-04 and L02: a number the tool prints is a number someone will cut metal to, so the size
+below which a part is warned about is a reading of the owner's printed test and never a forum or vendor
+figure. `D_MIN_MM` and `P_MIN_MM` in `src/screw/calc/printability.py` are not typed from a guide: they are
+M4's d and ISO 262 coarse pitch, the size `threshold_from` returns for the pinned record.
+
+**The rule, as committed before the run.** `06-PRINT-PROTOCOL.md` ("Rules", D-10, D-11) and
+`bench/print_rules.py` (`read_small`, `threshold_from`), on `main` in PR A (#19), squash commit `16f7041`.
+The threshold is the smallest of M3, M4 and M5 that passes 3 of 3 together with every larger one of the
+three, and M6 when none does (D-10); `d_min` and `P_min` are that size's d and coarse pitch (D-11). The
+owner made no prediction for it.
+
+**The run, and why its evidence is weaker (R10).** Run `06-print-run-2` is the owner's own earlier
+prints, made informally before the default shipped, accepted as the run-2 record by owner ruling R10 over
+Claude's recommendation to re-run it as pre-registered. It is therefore **not** the pre-registered run:
+
+1. The parts did not come from `python -m bench.print_matrix export run-2`, and **no manifest was
+   committed before printing** (`manifest-run-2.tsv` does not exist). Nothing in the repository ties the
+   printed nuts to the shipped default's STL bytes; the link is the owner's word that the 0.15 mm result
+   is the one recorded. The pre-registration's mitigation that every printed nut name carries the shipped
+   default and every file its digest had nothing to check.
+2. The owner tested a clearance ladder on M4 and M5, not only the default; only the 0.15 mm result
+   (L17's default) is in the record, and the other observations are prose in `bench/RESULTS.md`.
+3. The thread of M3 did not print, and the record has only pass and bind, so each M3 sample is recorded
+   `bind` at 0 turns with the note `thread did not print`. M2 was printed too and is outside the record.
+4. Three samples per size, each on its own bed (M3-1 to M5-3), and no print or test dates were reported.
+
+The record `bench/results/phase-06/print-run-2.tsv` has sha256
+`6c2d924006db1ccca860b665fdc2cbcd3c84137b0edefb417e6c31aab9dd923e`, pinned as `RUN_2_SHA256` and recorded in
+`d51438a`. The owner reported the fit results; they were transcribed by Claude and confirmed by the owner
+as correct (2026-10-23), so the cells are not the owner's typing. The result per size is in
+`bench/RESULTS.md`, "Printability run (Phase 6, 06-print-run-2)": M3 passes 0 of 3, M4 and M5 pass 3 of 3.
+`threshold_from` returns **M4**.
+
+**The warning (D-13).** A bolt or a nut with `d < 4.0` mm or `pitch < 0.7` mm carries one printability
+sentence in `warnings`, naming each edge crossed (d first, then pitch), the size, the run and this entry,
+and saying the parameters are left as set (wording corrected after the phase-6 code review, WR-02).
+It comes from `derive()` alone, so the page, the API and the CLI print the same sentence. The comparison is strict `<` on the stored floats with no rounding or tolerance:
+exactly M4's d and pitch are not warned about. SC5 asks for cap-and-warn; it is a warning and no cap,
+because nothing can be trimmed without changing a d or pitch the user set (L02), and it is never a 422
+because the two numbers are not a conflict between two things the user asked for. M2 and M2.5 warn on
+both edges by construction (D-12), and M12 x 0.5 warns on pitch only. These tests hold it:
+`tests/test_print_rules.py::test_the_printability_threshold_is_the_one_run_2_reads` re-derives both
+constants from the pinned record on every `make verify`, so editing either alone fails, and the calc and
+parity tests assert the edges, the order, that the part still builds and that the CLI and the API agree.
+
+**The profile it holds for (D-06).** Prusa MK4, 0.4 mm nozzle, Prusa PETG, 0.2 mm layers, PrusaSlicer
+with the stock Prusa PETG system profile. For any other printer, material, layer height, nozzle or
+orientation the threshold is untested.
+
+**What it does not show.** Coarse pitches only: M3, M4 and M5 at their ISO 262 coarse pitch, three samples
+each. A fine pitch at or above M4 is judged by `P_min` alone (a pitch below 0.7 mm warns), not by a print.
+One profile. M3 failed because its thread did not print on a 0.4 mm nozzle at 0.2 mm layers; the record
+cannot say whether a finer nozzle or layer would have printed it. A nominal bolt against a nut with a
+clearance, not a toleranced pair. A hand judgement under D-05. And, per R10, nothing here ties the printed
+nuts to the shipped default's export.
+
+Reason: the threshold the tool warns at comes from a recorded printed test read by a rule that preceded
+it, and the entry says plainly that the record is the owner's earlier prints and not the pre-registered
+run.
+
+Reversibility: costly. It moves only warnings, never a part, but a different `d_min` or `P_min` needs a
+new pre-registered run and a superseding entry, never a silent edit of the constants.

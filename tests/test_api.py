@@ -142,11 +142,11 @@ def test_a_nut_with_a_clearance_serves_its_info_and_both_downloads() -> None:
     assert 'filename="nut_' in step.headers["content-disposition"]
 
 
-def test_the_nut_schema_has_the_required_clearance_and_no_default_for_it() -> None:
+def test_the_nut_schema_carries_the_clearance_default() -> None:
     schema = client.get("/api/schema", params={"kind": "nut"}).json()
     assert list(schema["properties"]) == ["d", "pitch", "left_hand", "s", "m", "clearance"]
-    assert schema["required"] == ["clearance"]
-    assert "default" not in schema["properties"]["clearance"]
+    assert "clearance" not in schema.get("required", [])
+    assert schema["properties"]["clearance"]["default"] == 0.15
     assert schema["properties"]["clearance"]["title"] == "Clearance (radial)"
     assert schema["properties"]["clearance"]["group"] == "Pair"
     assert schema["properties"]["s"]["group"] == schema["properties"]["m"]["group"] == "Nut"

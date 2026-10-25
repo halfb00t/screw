@@ -35,8 +35,8 @@ EMPTY_MM3 = 1e-6
 # M20), so it is the band's centre.
 INTEGRATION_POINTS = 400_000
 
-# Radial clearance of the nut's void in mm, the proof bracket (D-11): the upper end brackets
-# Phase 6's printed matrix.
+# Radial clearance of the nut's void in mm, the proof bracket (D-11), fixed in Phase 2. Phase 6's
+# printed ladder runs to 0.25 mm, outside it at its top step (L17).
 PAIR_CLEARANCES: tuple[float, ...] = (0.05, 0.10, 0.15, 0.20)
 # The diagnostic rows (D-11): c = 0 reads inconclusive by definition (the boolean's answer at
 # contact is recorded, not trusted: garbage in 3 of 3 research readings), c = -0.05 is the

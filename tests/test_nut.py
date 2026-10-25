@@ -1,4 +1,4 @@
-"""The nut kind's solid, its two gates and its required clearance.
+"""The nut kind's solid, its two gates and its defaulted clearance (L17).
 
 Covers TYPE-03, PAIR-01, D-01, D-04 and D-13.
 
@@ -22,9 +22,9 @@ import cadquery as cq
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
-from pydantic_core import PydanticUndefined
 
 from bench.thread_spike.measure import stl_check
+from screw import app as app_module
 from screw import cli
 from screw.app import app, build_backend
 from screw.build_errors import BuildError
@@ -212,43 +212,46 @@ def test_a_bolt_kernel_failure_still_names_the_bolts_fields(
                                  "check d, pitch, left_hand, length, s, k and thread_length.")
 
 
-# ---------------------------------------------------------------- the required clearance
+# ---------------------------------------------------------------- the clearance default
 
 
-def test_the_clearance_is_a_required_field_with_no_default() -> None:
+def test_the_clearance_is_a_defaulted_field_not_a_required_one() -> None:
     field = NutParams.model_fields["clearance"]
-    assert field.is_required()
-    assert field.default is PydanticUndefined
-    with pytest.raises(ValidationError):
-        NutParams()
+    assert not field.is_required()
+    assert field.default == 0.15
+    assert NutParams().clearance == 0.15
 
 
-def test_the_schema_requires_exactly_the_clearance_and_gives_it_no_default() -> None:
+def test_the_schema_requires_nothing_and_gives_the_clearance_its_default() -> None:
     schema = client.get("/api/schema", params={"kind": "nut"}).json()
-    assert schema["required"] == ["clearance"]
-    assert "default" not in schema["properties"]["clearance"]
-    assert all("default" in prop for name, prop in schema["properties"].items()
-               if name != "clearance")
+    assert "required" not in schema or schema["required"] == []
+    assert schema["properties"]["clearance"]["default"] == 0.15
+    assert all("default" in prop for prop in schema["properties"].values())
 
 
-def test_a_nut_info_without_a_clearance_is_a_422_missing_naming_it() -> None:
+def test_a_nut_info_without_a_clearance_is_a_200_at_the_default() -> None:
     res = client.get("/api/nut/info")
-    assert res.status_code == 422
-    [detail] = res.json()["detail"]
-    assert detail["type"] == "missing"
-    assert detail["loc"] == ["query", "clearance"]
+    assert res.status_code == 200
+    body = res.json()
+    assert {row["key"]: row["value"] for row in body["rows"]}["clearance"] == 0.15
+    assert body == client.get("/api/nut/info", params={"clearance": 0.15}).json()
 
 
-def test_a_nut_download_without_a_clearance_is_a_422_before_any_build() -> None:
-    async def never(p: object, fmt: str, quality: str) -> bytes:
-        raise AssertionError("a request without a clearance reached the build backend")
+def test_a_nut_download_without_a_clearance_builds_at_the_default(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    # A private byte cache: the shared one would answer a second run before the backend ran, and
+    # would keep this test's fake b"x" for every later default download in the session.
+    monkeypatch.setattr(app_module, "_EXPORTS", app_module._BlobCache(1 << 20))
+    seen: list[float] = []
 
-    with _inline(never):
+    async def record(p: NutParams, fmt: str, quality: str) -> bytes:
+        seen.append(p.clearance)
+        return b"x"
+
+    with _inline(record):
         for path in ("/api/nut/model.stl", "/api/nut/model.step"):
-            res = client.get(path)
-            assert res.status_code == 422, path
-            [detail] = res.json()["detail"]
-            assert (detail["type"], detail["loc"]) == ("missing", ["query", "clearance"]), path
+            assert client.get(path).status_code == 200, path
+    assert seen == [0.15, 0.15]
 
 
 @pytest.mark.parametrize(("raw", "kind"), [
@@ -319,14 +322,15 @@ def test_the_cli_and_the_api_print_one_nut_document(capsys: pytest.CaptureFixtur
     assert printed == served
 
 
-def test_every_nut_flag_the_help_lists_is_a_field_and_the_required_one_says_so(
+def test_every_nut_flag_the_help_lists_is_a_field_and_the_clearance_shows_its_default(
         capsys: pytest.CaptureFixture[str]) -> None:
     with pytest.raises(SystemExit) as stop:
         cli.main(["info", "nut", "--help"])
     assert stop.value.code == 0
     help_text = " ".join(capsys.readouterr().out.split())
     assert "--clearance V" in help_text
-    assert "[required]" in help_text
+    assert "[0.15]" in help_text
+    assert "[required]" not in help_text
     assert "PydanticUndefined" not in help_text
 
 

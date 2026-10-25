@@ -11,7 +11,6 @@ import re
 
 import pytest
 from pydantic import ValidationError
-from pydantic_core import PydanticUndefined
 
 from screw.params import DEFAULT_KIND, INTERIM_MAX_MM, KINDS, BoltParams, FastenerParams, NutParams
 from screw.tables import iso4032
@@ -66,15 +65,13 @@ def test_the_frozen_nut_defaults_are_the_iso_4032_m6_row() -> None:
     assert NutParams.model_fields["m"].default == m6.m_max
 
 
-def test_the_clearance_has_no_default_and_a_missing_one_is_refused_naming_it() -> None:
-    # D-01, PAIR-01: no default before Phase 6 records the printed test.
+def test_the_clearance_default_is_the_frozen_value_l17_records() -> None:
+    # PAIR-02, L02, L17: the literal 0.15 mm, so moving it fails here. A link that omits clearance
+    # means this value forever; the record it was read from is re-derived in test_print_rules.
     field = NutParams.model_fields["clearance"]
-    assert field.is_required()
-    assert field.default is PydanticUndefined
-    with pytest.raises(ValidationError) as err:
-        NutParams()
-    [detail] = err.value.errors()
-    assert (detail["type"], detail["loc"]) == ("missing", ("clearance",))
+    assert not field.is_required()
+    assert field.default == 0.15
+    assert NutParams().clearance == 0.15
 
 
 def test_a_nut_clearance_may_be_nominal_or_an_interference() -> None:
