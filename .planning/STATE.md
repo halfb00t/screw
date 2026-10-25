@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-25)
 Phase: 7 — Operability Re-sweep
 Plan: Not started
 Status: Ready to plan
-Last activity: 2026-10-25 — Phase 06.1 complete, transitioned to Phase 7
+Last activity: 2026-10-25 — Phase 06 landed (PR #20, 95e8754); Phase 06.1 shipped as PR #21
 
 Progress: [█████████░] 88%
 
