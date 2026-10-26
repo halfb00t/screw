@@ -16,6 +16,7 @@ import os
 import signal
 import threading
 import time
+from collections.abc import Iterator
 from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures.process import BrokenProcessPool
 from typing import cast
@@ -26,6 +27,7 @@ from fastapi.testclient import TestClient
 from screw.app import BoltModelQuery, app, build_backend, strip
 from screw.build_errors import BuildError, BuildTimeout
 from screw.params import BoltParams
+from screw.pool import BuildPool
 
 
 def _sleep_past_timeout(seconds: float) -> bytes:
@@ -65,6 +67,27 @@ def _field(rec: logging.LogRecord, name: str) -> object:
     fire here the way it would on a direct `getattr(rec, "slot")`.
     """
     return getattr(rec, name)
+
+
+@pytest.fixture(autouse=True)
+def _no_pending_entry_outlives_a_test(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Every pool the lifespan builds in a test ends with empty per-slot pending lists.
+
+    A leaked entry would inflate every later deadline on its slot (D-14, T-07-05), and
+    `app.state.pool` is deleted when the lifespan exits, so the pools are recorded as they
+    are made.
+    """
+    pools: list[BuildPool] = []
+
+    def make(workers: int, timeout: int) -> BuildPool:
+        pool = BuildPool(workers, timeout)
+        pools.append(pool)
+        return pool
+
+    monkeypatch.setattr("screw.app.BuildPool", make)
+    yield
+    for pool in pools:
+        assert pool._pending == [[] for _ in range(pool.workers)]
 
 
 def test_a_real_worker_builds_and_downloads() -> None:
@@ -160,15 +183,11 @@ def test_a_wedged_build_is_terminated_and_its_worker_replaced(
         assert isinstance(manager, threading.Thread)
         replaced_before = pool.replaced
 
-        original_timeout = pool.timeout
-        pool.timeout = 0.2  # short, injected timeout -- a test that waited out the
-        # real production default would not be exercising this path (it would just be
-        # slow), and 0.2s is well past _sleep_past_timeout's own scheduling overhead.
-        try:
-            with pytest.raises(BuildTimeout):
-                asyncio.run(pool._run_with_timeout(params, _sleep_past_timeout, 5.0))
-        finally:
-            pool.timeout = original_timeout
+        # A short, injected timeout -- a test that waited out the real production default
+        # would not be exercising this path (it would just be slow), and 0.2s is well past
+        # _sleep_past_timeout's own scheduling overhead.
+        with pytest.raises(BuildTimeout):
+            asyncio.run(pool._run_with_timeout(params, 0.2, _sleep_past_timeout, 5.0))
 
         # Wait for the manager thread, never for `proc` directly. Once the worker dies,
         # the manager thread and this one wake on the same process sentinel and race to
@@ -229,7 +248,7 @@ def test_a_dying_worker_surfaces_as_broken_pool_and_is_replaced(
         replaced_before = pool.replaced
 
         with pytest.raises(BrokenProcessPool):
-            asyncio.run(pool._run_with_timeout(params, _die))
+            asyncio.run(pool._run_with_timeout(params, 5.0, _die))
 
         assert pool.replaced == replaced_before + 1
 
@@ -388,13 +407,8 @@ def test_health_workers_replaced_increases_after_a_forced_termination() -> None:
         params = BoltParams()
         before = client.get("/api/health").json()["pool"]["workers_replaced"]
 
-        original_timeout = pool.timeout
-        pool.timeout = 0.2
-        try:
-            with pytest.raises(BuildTimeout):
-                asyncio.run(pool._run_with_timeout(params, _sleep_past_timeout, 5.0))
-        finally:
-            pool.timeout = original_timeout
+        with pytest.raises(BuildTimeout):
+            asyncio.run(pool._run_with_timeout(params, 0.2, _sleep_past_timeout, 5.0))
 
         after = client.get("/api/health").json()["pool"]["workers_replaced"]
         assert after == before + 1
@@ -456,41 +470,37 @@ def test_four_same_slot_requests_all_refuse_without_cancellation() -> None:
         worker_pid_before = pool.executor_for(params).submit(os.getpid).result()
         replaced_before = pool.replaced
 
-        original_timeout = pool.timeout
-        pool.timeout = 1.0  # injected, short -- restored in `finally` exactly as the
-        # existing timeout tests do.
-        try:
-            async def _drive() -> list[object]:
-                first = asyncio.create_task(
-                    pool._run_with_timeout(params, _sleep_past_timeout, 10.0))
-                # The gap is the point of this test, not incidental: a sibling that
-                # arrives later always has a later deadline under the per-build
-                # timeout, so the gap must be comfortably above event-loop scheduling
-                # jitter and comfortably below the 1.0s injected timeout -- 0.5s clears
-                # both, and keeps the whole test near the timeout's own 1.0s rather
-                # than the 10.0s sleep (the sleep only needs to outlast the timeout;
-                # the terminate that follows the timeout is what actually ends it).
-                # Second, third and fourth all start after that one gap, before the
-                # first's deadline -- not three separate gaps (see the docstring above
-                # for why four requests, and why no extra `sleep(0)` between them, is
-                # what actually reaches a genuinely-PENDING fourth request).
-                await asyncio.sleep(0.5)
-                second = asyncio.create_task(
-                    pool._run_with_timeout(params, _sleep_past_timeout, 10.0))
-                third = asyncio.create_task(
-                    pool._run_with_timeout(params, _sleep_past_timeout, 10.0))
-                fourth = asyncio.create_task(
-                    pool._run_with_timeout(params, _sleep_past_timeout, 10.0))
-                # mypy --strict: asyncio.gather's overloads collapse to Any once
-                # return_exceptions=True mixes results with exception instances in one
-                # list -- cast to what the awaited call actually returns, the same
-                # pattern pool.py's own build_export uses for a dynamic-import return.
-                return cast(list[object], await asyncio.gather(
-                    first, second, third, fourth, return_exceptions=True))
+        async def _drive() -> list[object]:
+            # Timeout 1.0, injected and short. Under D-14 each sibling's deadline is its
+            # own 1.0 s plus the timeouts ahead of it on the slot, so it is later than the
+            # first's: the first's timeout is the incident, and the siblings meet it as
+            # BrokenProcessPool, never as their own BuildTimeout.
+            first = asyncio.create_task(
+                pool._run_with_timeout(params, 1.0, _sleep_past_timeout, 10.0))
+            # The gap is the point of this test, not incidental: it must be comfortably
+            # above event-loop scheduling jitter and comfortably below the 1.0s injected
+            # timeout -- 0.5s clears both, and keeps the whole test near the timeout's
+            # own 1.0s rather than the 10.0s sleep (the sleep only needs to outlast the
+            # timeout; the terminate that follows the timeout is what actually ends it).
+            # Second, third and fourth all start after that one gap, before the
+            # first's deadline -- not three separate gaps (see the docstring above
+            # for why four requests, and why no extra `sleep(0)` between them, is
+            # what actually reaches a genuinely-PENDING fourth request).
+            await asyncio.sleep(0.5)
+            second = asyncio.create_task(
+                pool._run_with_timeout(params, 1.0, _sleep_past_timeout, 10.0))
+            third = asyncio.create_task(
+                pool._run_with_timeout(params, 1.0, _sleep_past_timeout, 10.0))
+            fourth = asyncio.create_task(
+                pool._run_with_timeout(params, 1.0, _sleep_past_timeout, 10.0))
+            # mypy --strict: asyncio.gather's overloads collapse to Any once
+            # return_exceptions=True mixes results with exception instances in one
+            # list -- cast to what the awaited call actually returns, the same
+            # pattern pool.py's own build_export uses for a dynamic-import return.
+            return cast(list[object], await asyncio.gather(
+                first, second, third, fourth, return_exceptions=True))
 
-            first_result, second_result, third_result, fourth_result = asyncio.run(_drive())
-        finally:
-            pool.timeout = original_timeout
+        first_result, second_result, third_result, fourth_result = asyncio.run(_drive())
 
         assert isinstance(first_result, BuildTimeout)
         for sibling_result in (second_result, third_result, fourth_result):
@@ -520,8 +530,8 @@ def test_two_same_slot_deaths_from_one_incident_replace_the_worker_once(
         replaced_before = pool.replaced
 
         async def _drive() -> list[object]:
-            first = asyncio.create_task(pool._run_with_timeout(params, _die))
-            second = asyncio.create_task(pool._run_with_timeout(params, _die))
+            first = asyncio.create_task(pool._run_with_timeout(params, 5.0, _die))
+            second = asyncio.create_task(pool._run_with_timeout(params, 5.0, _die))
             return cast(list[object],
                         await asyncio.gather(first, second, return_exceptions=True))
 
@@ -547,28 +557,27 @@ def test_two_same_slot_timeouts_in_one_incident_end_as_build_timeout_not_attribu
     2026-10-02-same-slot-timeout-cleanup-race-produces-undocumented-500.md); screw's
     guard in `_run_with_timeout` is the divergence recorded in L09.
 
-    The 0.2 s timeout is far below `_sleep_past_timeout`'s 10 s, so every request times
-    out; all ten are created in one tick, so their deadlines land in one loop pass.
+    The 0.2 s timeout is far below `_sleep_past_timeout`'s 10 s, so every request would
+    time out; all ten are created in one tick. Under D-14 their deadlines are 0.2, 0.4 ...
+    2.0 s (each adds the timeouts ahead of it), so the first timeout replaces the slot and
+    terminates the worker, and the other nine surface as BrokenProcessPool when the
+    termination breaks their futures. The same-slot guard itself, reached directly, is
+    exercised by `test_a_timeout_on_an_already_replaced_slot_ends_as_build_timeout`.
     """
     with TestClient(app):
         pool = app.state.pool
         params = BoltParams()
         worker_pid_before = pool.executor_for(params).submit(os.getpid).result()
 
-        original_timeout = pool.timeout
-        pool.timeout = 0.2
-        try:
-            async def _drive() -> list[object]:
-                tasks = [
-                    asyncio.create_task(
-                        pool._run_with_timeout(params, _sleep_past_timeout, 10.0))
-                    for _ in range(10)
-                ]
-                return cast(list[object], await asyncio.gather(*tasks, return_exceptions=True))
+        async def _drive() -> list[object]:
+            tasks = [
+                asyncio.create_task(
+                    pool._run_with_timeout(params, 0.2, _sleep_past_timeout, 10.0))
+                for _ in range(10)
+            ]
+            return cast(list[object], await asyncio.gather(*tasks, return_exceptions=True))
 
-            results = asyncio.run(_drive())
-        finally:
-            pool.timeout = original_timeout
+        results = asyncio.run(_drive())
 
         assert not [r for r in results if isinstance(r, AttributeError)], results
         assert all(isinstance(r, BuildTimeout | BrokenProcessPool) for r in results), results
@@ -576,3 +585,80 @@ def test_two_same_slot_timeouts_in_one_incident_end_as_build_timeout_not_attribu
 
         new_pid = pool.executor_for(params).submit(os.getpid).result()
         assert new_pid != worker_pid_before
+
+
+def test_a_request_queued_behind_a_build_keeps_its_own_full_timeout() -> None:
+    """Two same-slot requests that each build for 0.6 s under a 1.0 s timeout both return,
+    although the second one's wall time (about 1.2 s) passes 1.0 s: it waited 0.6 s behind
+    the first and its clock did not run for that wait (D-14). Before the queue-aware deadline
+    the second was killed at 1.0 s, 0.4 s into its own build.
+    """
+    with TestClient(app):
+        pool = app.state.pool
+        params = BoltParams()
+        pool.executor_for(params).submit(os.getpid).result()  # start the worker first, so
+        # the kernel warm-up is not part of the wall time under test
+
+        async def _drive() -> tuple[list[object], float]:
+            start = time.monotonic()
+            first = asyncio.create_task(
+                pool._run_with_timeout(params, 1.0, _sleep_past_timeout, 0.6))
+            second = asyncio.create_task(
+                pool._run_with_timeout(params, 1.0, _sleep_past_timeout, 0.6))
+            results = cast(list[object], await asyncio.gather(
+                first, second, return_exceptions=True))
+            return results, time.monotonic() - start
+
+        results, wall = asyncio.run(_drive())
+
+        assert results == [b"", b""]
+        assert wall > 1.0
+
+
+def test_a_request_with_nothing_ahead_times_out_at_its_own_timeout() -> None:
+    """With nothing ahead on its slot the deadline is the request's own timeout: a build
+    sleeping 5 s under 0.2 s ends as BuildTimeout in well under a second (the empty edge
+    of D-14; the queue-aware sum must add nothing when the slot is idle)."""
+    with TestClient(app):
+        pool = app.state.pool
+        params = BoltParams()
+        pool.executor_for(params).submit(os.getpid).result()
+
+        start = time.monotonic()
+        with pytest.raises(BuildTimeout):
+            asyncio.run(pool._run_with_timeout(params, 0.2, _sleep_past_timeout, 5.0))
+
+        assert time.monotonic() - start < 1.0
+
+
+def test_a_timeout_on_an_already_replaced_slot_ends_as_build_timeout() -> None:
+    """The same-slot guard, reached directly: the slot is replaced under a request that is
+    still waiting (as the first request of an incident does to its siblings), and that
+    request's own timeout then ends as BuildTimeout -- never AttributeError, which
+    `executor._processes` being None after a shutdown would raise without the guard."""
+    with TestClient(app):
+        pool = app.state.pool
+        params = BoltParams()
+        executor = pool.executor_for(params)
+        executor.submit(os.getpid).result()  # starts the worker
+        [proc] = list(executor._processes.values())
+        manager = executor._executor_manager_thread
+        assert isinstance(manager, threading.Thread)
+
+        async def _drive() -> bytes:
+            task = asyncio.create_task(
+                pool._run_with_timeout(params, 0.5, _sleep_past_timeout, 10.0))
+            await asyncio.sleep(0.1)
+            pool.recreate_for(params, executor, "timeout")
+            return cast(bytes, await task)
+
+        with pytest.raises(BuildTimeout):
+            asyncio.run(_drive())
+
+        # The guard rightly left the worker alone (the replacement is the first request's
+        # job), so this test ends it, and joins the manager thread rather than `proc` for
+        # the reason test_a_wedged_build_is_terminated_and_its_worker_replaced gives.
+        proc.terminate()
+        manager.join(timeout=5)
+        assert not manager.is_alive(), "executor manager thread did not finish shutdown"
+        del manager  # same GC-timing reason as the wedged-build test's `del manager`

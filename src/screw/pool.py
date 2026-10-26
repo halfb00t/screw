@@ -75,6 +75,9 @@ class BuildPool:
         self.timeout = timeout  # per-build ceiling in seconds; see app.py's lifespan for
         # where the number itself comes from -- this class only enforces it.
         self.replaced = 0  # workers replaced since start, reported at /api/health
+        # Per hash slot, the timeouts of the requests submitted and not yet finished; read
+        # and written only on the event loop (see `_run_with_timeout`).
+        self._pending: list[list[float]] = [[] for _ in range(workers)]
         # `max_tasks_per_child` is deliberately absent (stays None -- no recycling). spur's
         # memory sweep split each N's samples into an early/late half to check for drift
         # that malloc_trim doesn't flatten: N=2 and N=4 grew late vs early, but spur's
@@ -146,10 +149,12 @@ class BuildPool:
         worker_replaced(slot=i, cause=cause)
 
     async def _run_with_timeout(
-        self, p: FastenerParams, func: Callable[P, bytes], *args: P.args, **kwargs: P.kwargs,
+        self, p: FastenerParams, timeout: float, func: Callable[P, bytes],
+        *args: P.args, **kwargs: P.kwargs,
     ) -> bytes:
-        """Route `func(*args, **kwargs)` to `p`'s worker, enforcing the per-build timeout
-        and replacing the worker if it wedges or dies.
+        """Route `func(*args, **kwargs)` to `p`'s worker, enforcing `timeout` seconds for
+        the build itself (not the wait behind earlier same-slot builds) and replacing the
+        worker if it wedges or dies.
 
         A private seam behind `export()` rather than inlined there, so tests/test_pool.py
         can drive the timeout/replacement path with a trivial sleeping function instead of
@@ -157,8 +162,20 @@ class BuildPool:
         terminate -> recreate, and broken-pool -> recreate) don't depend on what `func`
         actually builds.
         """
-        executor = self.executor_for(p)
+        slot = hash(p) % self.workers
+        executor = self._executors[slot]
         loop = asyncio.get_running_loop()
+        # The clock must not count the wait behind another build on this slot (D-14).
+        # Affinity serialises a slot, so a request queued behind a build that ends inside
+        # its own timeout used to be killed for the wait: spur L37 saw four of ten admitted
+        # requests exceed the timeout that way. The deadline is this request's own timeout
+        # plus the timeouts of the requests already submitted and not yet finished on the
+        # slot, taken now. No lock: the parent is single-threaded on the event loop and
+        # nothing awaits between the sum and the append. Deadlines on one slot are strictly
+        # increasing in submit order, so a later request never fires before the one it
+        # queues behind. This is the second divergence from spur's pool.py, after the
+        # same-slot guard below (the decision log records it).
+        deadline = timeout + sum(self._pending[slot])
         # run_in_executor(executor, func, *args) takes positional arguments only, so
         # func/args/kwargs are bound into a functools.partial first -- the partial carries
         # the keyword arguments across the boundary that run_in_executor's own signature
@@ -168,8 +185,9 @@ class BuildPool:
         # function pickles by reference under `spawn`, so a callable still has to be
         # importable by its qualified name.
         future = loop.run_in_executor(executor, functools.partial(func, *args, **kwargs))
+        self._pending[slot].append(timeout)
         try:
-            return await asyncio.wait_for(future, timeout=self.timeout)
+            return await asyncio.wait_for(future, timeout=deadline)
         except TimeoutError:
             # The builtin TimeoutError, not the qualified asyncio.TimeoutError: since
             # Python 3.11 the asyncio name is an alias of the builtin, and 3.12 is this
@@ -188,7 +206,7 @@ class BuildPool:
             # means there is nothing left to terminate or recreate: report the timeout.
             if self._executors[hash(p) % self.workers] is not executor:
                 raise BuildTimeout(
-                    f"Build exceeded the {self.timeout}s per-build timeout. "
+                    f"Build exceeded its {timeout:g}s per-build timeout. "
                     "Try a coarser quality."
                 ) from None
             # Executor.shutdown(cancel_futures=True) is not a substitute for this: it only
@@ -209,7 +227,7 @@ class BuildPool:
                 proc.terminate()
             self.recreate_for(p, executor, "timeout")
             raise BuildTimeout(
-                f"Build exceeded the {self.timeout}s per-build timeout. "
+                f"Build exceeded its {timeout:g}s per-build timeout. "
                 "Try a coarser quality."
             ) from None
         except BrokenProcessPool:
@@ -220,9 +238,13 @@ class BuildPool:
             # instead of this module deciding HTTP semantics.
             self.recreate_for(p, executor, "broken_pool")
             raise
+        finally:
+            # Every exit frees the entry, or a leaked one would inflate every later
+            # deadline on this slot.
+            self._pending[slot].remove(timeout)
 
     async def export(self, p: FastenerParams, fmt: str, quality: str) -> bytes:
-        return await self._run_with_timeout(p, build_export, p, fmt, quality)
+        return await self._run_with_timeout(p, self.timeout, build_export, p, fmt, quality)
 
     def shutdown(self) -> None:
         for executor in self._executors:
