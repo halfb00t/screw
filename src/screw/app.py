@@ -41,6 +41,7 @@ from starlette.concurrency import run_in_threadpool
 from . import __version__, int_env
 from .build_errors import BuildError, BuildTimeout
 from .calc import PartInfo, derive, download_name, download_refusal, explicit_conflict
+from .calc.cost import BUILD_TIMEOUT_S
 from .calc.presets import PresetCatalogue, catalogue_document
 from .params import DEFAULT_KIND, KINDS, BoltParams, FastenerParams, NutParams
 from .pool import BuildPool
@@ -153,16 +154,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # INTERIM (D-01): 2 workers, carried from spur's default; a fixed number, not
         # os.cpu_count(). Not measured for screw. Phase 7 re-sweeps (OPER-02).
         int_env("SCREW_BUILD_WORKERS", 2),
-        # INTERIM (D-01): 30 s per build, carried from spur. spur's worst observed single
-        # build was 7.39 s (a 200-tooth fine gear, ten concurrent requests, host under
-        # contention), so 30 s is ~4x spur's observation -- a margin chosen for slower
-        # hardware on spur's corpus. It is not a measurement of screw: M6 x 20 builds in
-        # 0.09 s (planner probe 2026-10-10), while an in-cap off-row part can need minutes
-        # (03-RESEARCH Pitfall 5: d=100, pitch=5, length=1250, fine STL 152.6 s and 7875 MiB
-        # peak RSS, single run, macOS arm64, not a bound). So this is the backstop below the
-        # 250-turn cap (D-01, D-18), not a figure for the threads. Phase 7 re-sweeps
-        # (OPER-02).
-        int_env("SCREW_BUILD_TIMEOUT", 30),
+        # The per-artifact timeouts are code constants (D-09, D-16); the module-level name,
+        # not a copy, so an instrument can replace it before startup.
+        BUILD_TIMEOUT_S,
     )
     try:
         yield

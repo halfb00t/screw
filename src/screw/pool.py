@@ -24,12 +24,13 @@ import asyncio
 import functools
 import importlib
 import multiprocessing as mp
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures.process import BrokenProcessPool
 from typing import ParamSpec, cast
 
 from .build_errors import BuildTimeout
+from .calc.cost import Artifact, artifact_of
 from .params import FastenerParams
 from .records import worker_replaced
 
@@ -70,10 +71,11 @@ def build_export(p: FastenerParams, fmt: str, quality: str) -> bytes:
 class BuildPool:
     """N independent single-worker executors, routed to by parameter-hash affinity."""
 
-    def __init__(self, workers: int, timeout: int) -> None:
+    def __init__(self, workers: int, timeout: Mapping[Artifact, float]) -> None:
         self.workers = workers
-        self.timeout = timeout  # per-build ceiling in seconds; see app.py's lifespan for
-        # where the number itself comes from -- this class only enforces it.
+        self.timeout = timeout  # per-build ceiling in seconds, one per artifact (D-09); see
+        # calc/cost.py's BUILD_TIMEOUT_S for where the numbers come from -- this class only
+        # enforces them.
         self.replaced = 0  # workers replaced since start, reported at /api/health
         # Per hash slot, the timeouts of the requests submitted and not yet finished; read
         # and written only on the event loop (see `_run_with_timeout`).
@@ -244,7 +246,8 @@ class BuildPool:
             self._pending[slot].remove(timeout)
 
     async def export(self, p: FastenerParams, fmt: str, quality: str) -> bytes:
-        return await self._run_with_timeout(p, self.timeout, build_export, p, fmt, quality)
+        return await self._run_with_timeout(
+            p, self.timeout[artifact_of(fmt, quality)], build_export, p, fmt, quality)
 
     def shutdown(self) -> None:
         for executor in self._executors:

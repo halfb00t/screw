@@ -16,7 +16,7 @@ import os
 import signal
 import threading
 import time
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures.process import BrokenProcessPool
 from typing import cast
@@ -26,6 +26,7 @@ from fastapi.testclient import TestClient
 
 from screw.app import BoltModelQuery, app, build_backend, strip
 from screw.build_errors import BuildError, BuildTimeout
+from screw.calc.cost import Artifact
 from screw.params import BoltParams
 from screw.pool import BuildPool
 
@@ -79,7 +80,7 @@ def _no_pending_entry_outlives_a_test(monkeypatch: pytest.MonkeyPatch) -> Iterat
     """
     pools: list[BuildPool] = []
 
-    def make(workers: int, timeout: int) -> BuildPool:
+    def make(workers: int, timeout: Mapping[Artifact, float]) -> BuildPool:
         pool = BuildPool(workers, timeout)
         pools.append(pool)
         return pool
@@ -662,3 +663,45 @@ def test_a_timeout_on_an_already_replaced_slot_ends_as_build_timeout() -> None:
         manager.join(timeout=5)
         assert not manager.is_alive(), "executor manager thread did not finish shutdown"
         del manager  # same GC-timing reason as the wedged-build test's `del manager`
+
+
+def test_export_looks_its_timeout_up_by_artifact(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`export` hands `_run_with_timeout` the seconds of the artifact the download names:
+    preview STL, fine STL and STEP each get their own, and STEP gets one for both qualities.
+    """
+    seen: dict[tuple[str, str], float] = {}
+    pool = BuildPool(2, {"stl-preview": 11.0, "stl-fine": 22.0, "step": 33.0})
+
+    async def record(p: BoltParams, timeout: float, func: object, *args: object) -> bytes:
+        seen[(cast(str, args[1]), cast(str, args[2]))] = timeout
+        return b""
+
+    monkeypatch.setattr(pool, "_run_with_timeout", record)
+    try:
+        for fmt, quality in (("stl", "preview"), ("stl", "fine"),
+                             ("step", "preview"), ("step", "fine")):
+            asyncio.run(pool.export(BoltParams(), fmt, quality))
+    finally:
+        pool.shutdown()
+
+    assert seen == {("stl", "preview"): 11.0, ("stl", "fine"): 22.0,
+                    ("step", "preview"): 33.0, ("step", "fine"): 33.0}
+
+
+def test_no_build_timeout_is_read_from_the_environment() -> None:
+    """The timeouts are code constants (D-16): a deployer on slower hardware re-sweeps and a
+    superseding entry records it, instead of moving the number by hand where nothing records
+    why. The names are read out of the source text, so a fresh `int_env(...)` anywhere fails."""
+    from pathlib import Path
+
+    import screw
+    from screw import app as app_module
+    from screw.calc import cost
+
+    root = Path(screw.__file__).parent
+    offenders = [str(path) for path in root.rglob("*.py")
+                 if "SCREW_BUILD_TIMEOUT" in path.read_text(encoding="utf-8")]
+    assert offenders == []
+    # vars(), not an attribute read: app.py imports the name rather than defining it, which
+    # mypy's no-implicit-reexport refuses to let a test read as `app_module.BUILD_TIMEOUT_S`.
+    assert vars(app_module)["BUILD_TIMEOUT_S"] is cost.BUILD_TIMEOUT_S
