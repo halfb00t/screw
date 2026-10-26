@@ -30,6 +30,7 @@ from screw import app as app_module
 from screw.app import app, build_backend
 from screw.build_errors import BuildError, BuildTimeout
 from screw.calc import STANDING_WARNING
+from screw.calc.cost import BUILD_TIMEOUT_S, Artifact
 from screw.calc.presets import expand
 from screw.calc.thread import (
     T_GATE,
@@ -1026,6 +1027,69 @@ def test_an_unclassified_exception_still_emits_build_failed_and_is_not_swallowed
     assert _field(failed[0], "duration_ms") is not None
 
     assert not _event_records(caplog, "export.served")
+
+
+@pytest.mark.parametrize(("url", "want_artifact"), [
+    ("/api/bolt/model.stl?quality=preview&d=8.6", "stl-preview"),
+    ("/api/bolt/model.stl?quality=fine&d=8.6", "stl-fine"),
+    ("/api/bolt/model.step?d=8.6", "step"),
+])
+def test_a_timed_out_admitted_part_is_logged_as_a_cost_model_miss_and_never_cached(
+        caplog: pytest.LogCaptureFixture, url: str, want_artifact: str) -> None:
+    """The timeout is the backstop behind the cost model (D-10): an admitted part that still
+    overruns is the model's miss, so the server records the part and the seconds it was held
+    to, at ERROR (the service's fault), next to the unchanged 503 `timeout` the client gets.
+    Nothing is cached for it, so the same request builds again.
+    """
+    caplog.set_level(logging.INFO)
+    calls = 0
+
+    async def backend(p: FastenerParams, fmt: str, quality: str) -> bytes:
+        nonlocal calls
+        calls += 1
+        raise BuildTimeout("Build exceeded its 30s per-build timeout.")
+
+    # d=8.6: a diameter no other test in this suite downloads (see the d=8.3 comment above).
+    with _backend(backend):
+        r = client.get(url)
+        assert r.status_code == 503
+        assert r.json()["detail"][0]["type"] == "timeout"
+        assert r.headers["retry-after"] == "5"
+        assert caplog.records  # an empty caplog would pass with nothing proven
+
+        failed = _event_records(caplog, "build.failed")
+        misses = _event_records(caplog, "cost_model.miss")
+        assert len(failed) == 1
+        assert len(misses) == 1
+        miss = misses[0]
+        assert miss.levelno == logging.ERROR
+        assert _field(miss, "request") == _field(failed[0], "request")
+        assert _field(miss, "kind") == "bolt"
+        assert _field(miss, "params") == {"d": 8.6}
+        assert _field(miss, "fmt") == ("step" if want_artifact == "step" else "stl")
+        assert _field(miss, "artifact") == want_artifact
+        assert _field(miss, "timeout_s") == BUILD_TIMEOUT_S[cast(Artifact, want_artifact)]
+        assert not _event_records(caplog, "export.served")
+
+        client.get(url)
+    assert calls == 2
+
+
+@pytest.mark.parametrize("exc", [
+    BuildError("flank too small for this bore"),
+    BrokenProcessPool("worker died"),
+], ids=["build_error", "broken_pool"])
+def test_a_failure_other_than_a_timeout_is_not_a_cost_model_miss(
+        caplog: pytest.LogCaptureFixture, exc: Exception) -> None:
+    caplog.set_level(logging.INFO)
+
+    async def backend(p: FastenerParams, fmt: str, quality: str) -> bytes:
+        raise exc
+
+    with _backend(backend):
+        client.get("/api/bolt/model.stl", params={"quality": "fine", "d": 8.7})
+    assert _event_records(caplog, "build.failed")  # the failure was logged, as a failure
+    assert not _event_records(caplog, "cost_model.miss")
 
 
 @pytest.mark.parametrize(("route", "query"), [

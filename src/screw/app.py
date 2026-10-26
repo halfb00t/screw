@@ -41,11 +41,18 @@ from starlette.concurrency import run_in_threadpool
 from . import __version__, int_env
 from .build_errors import BuildError, BuildTimeout
 from .calc import PartInfo, derive, download_name, download_refusal, explicit_conflict
-from .calc.cost import BUILD_TIMEOUT_S
+from .calc.cost import BUILD_TIMEOUT_S, artifact_of
 from .calc.presets import PresetCatalogue, catalogue_document
 from .params import DEFAULT_KIND, KINDS, BoltParams, FastenerParams, NutParams
 from .pool import BuildPool
-from .records import build_failed, build_started, configure, export_served, queue_refused
+from .records import (
+    build_failed,
+    build_started,
+    configure,
+    cost_model_miss,
+    export_served,
+    queue_refused,
+)
 
 STATIC = Path(__file__).parent / "static"
 MEDIA_TYPES = {"stl": "model/stl", "step": "model/step"}
@@ -541,6 +548,12 @@ async def _serve(params: FastenerParams, fmt: Literal["stl", "step"], quality: s
             # is impossible".
             build_failed(request_id, params, fmt, quality, exc=exc,
                          duration_s=time.monotonic() - start)
+            # The timeout is the backstop behind the cost model (D-10): reaching it means
+            # the model admitted a part the machine could not build in time. Nothing was
+            # cached -- the put sits after the awaited build.
+            artifact = artifact_of(fmt, quality)
+            cost_model_miss(request_id, params, fmt, quality, artifact=artifact,
+                            timeout_s=BUILD_TIMEOUT_S[artifact])
             raise HTTPException(503, detail=[{"loc": ["query"], "msg": str(exc),
                                               "type": "timeout"}],
                                 headers={"Retry-After": "5"}) from exc

@@ -164,6 +164,31 @@ def test_build_failed_helper_never_carries_a_traceback_field(
     assert record["exception"] == "ValueError"
 
 
+def test_cost_model_miss_round_trips_through_json_loads_with_no_traceback(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    """D-10: a timed-out admitted part is the cost model's miss, the service's fault, so it
+    lands at ERROR with the part and the seconds it was held to -- enough to reproduce it --
+    and no traceback (T-01-05), like `build.failed`."""
+    records.configure()
+    try:
+        _raise("boom")
+    except ValueError:
+        records.cost_model_miss("req00001", BoltParams(d=8.8), "stl", "fine",
+                                artifact="stl-fine", timeout_s=30.0)
+    lines = [line for line in capsys.readouterr().err.strip().splitlines()
+             if json.loads(line).get("event") == "cost_model.miss"]
+    assert len(lines) == 1
+    record = json.loads(lines[0])
+    assert record["level"] == "ERROR"
+    assert "traceback" not in record
+    assert record["request"] == "req00001"
+    assert record["kind"] == "bolt"
+    assert record["params"] == {"d": 8.8}
+    assert (record["fmt"], record["quality"]) == ("stl", "fine")
+    assert record["artifact"] == "stl-fine"
+    assert record["timeout_s"] == 30.0
+
+
 def test_a_field_with_a_newline_and_non_ascii_stays_one_physical_line() -> None:
     """The one-record-one-line contract `jq` depends on, whatever the stream's real
     encoding is -- the formatter must escape, not emit raw bytes."""
