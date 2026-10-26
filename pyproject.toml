@@ -252,6 +252,7 @@ source_modules = [
     "bench.pair_expected",
     "bench.print_rules",
     "bench.print_matrix",
+    "bench.oper",  # the runner's parent: it runs on a bare setup-python interpreter (07 D-15)
 ]
 forbidden_modules = ["cadquery", "OCP"]
 
