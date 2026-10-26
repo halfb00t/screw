@@ -1,0 +1,1 @@
+{"set": "tracer", "rule": "07-SWEEP-PROTOCOL.md R2", "reps": 5, "shards": 1, "deadline_s": 600, "points": [{"label": "default-bolt", "kind": "bolt", "params": {}, "artifact": "stl-preview"}]}

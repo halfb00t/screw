@@ -10,9 +10,11 @@ must come out as a status and never as a plausible figure.
 from __future__ import annotations
 
 import json
+import re
 import statistics
 import subprocess
 import sys
+from collections.abc import Mapping
 from pathlib import Path
 
 import pytest
@@ -428,3 +430,299 @@ def test_importing_the_parent_loads_no_screw_module() -> None:
     out = subprocess.run([sys.executable, "-I", "-c", code], capture_output=True, text=True,
                          check=True).stdout.strip()
     assert out == "[]"
+
+
+# --- the point files -----------------------------------------------------------------------------
+
+POINTS_DIR = REPO_ROOT / "bench" / "points"
+
+
+def _write_set(directory: Path, /, **over: object) -> Path:
+    spec: dict[str, object] = {
+        "set": "mini", "rule": "07-SWEEP-PROTOCOL.md R2", "reps": 2, "shards": 2,
+        "deadline_s": 60,
+        "points": [{"label": f"p{i}", "kind": "bolt", "params": {}, "artifact": "step"}
+                   for i in range(5)]}
+    spec.update(over)
+    path = directory / "mini.json"
+    path.write_text(json.dumps(spec))
+    return path
+
+
+def test_the_tracer_set_is_one_default_bolt_preview_with_five_repetitions() -> None:
+    spec = oper.load_set("tracer")
+    assert (spec.reps, spec.shards, spec.deadline_s) == (5, 1, 600)
+    assert [(p.label, p.kind, dict(p.params), p.artifact) for p in spec.points] == [
+        ("default-bolt", "bolt", {}, "stl-preview")]
+
+
+def test_the_tracer_file_names_the_protocol_rule_it_runs_under() -> None:
+    raw = json.loads((POINTS_DIR / "tracer.json").read_text())
+    assert raw["set"] == "tracer"
+    assert raw["rule"] == "07-SWEEP-PROTOCOL.md R2"
+
+
+@pytest.mark.parametrize("name", ["../x", "Tracer", "a/b", "", "tracer.json", "t racer", "a_b"])
+def test_a_set_name_outside_the_rule_is_refused_naming_it(name: str, tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match=re.escape(repr(name))):
+        oper.load_set(name, tmp_path)
+
+
+def test_a_set_with_no_file_is_refused_naming_it(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="'absent'"):
+        oper.load_set("absent", tmp_path)
+
+
+@pytest.mark.parametrize(
+    "over",
+    [{"reps": 0}, {"reps": 2.5}, {"reps": True}, {"shards": 0}, {"deadline_s": 0},
+     {"deadline_s": "60"}, {"points": []}, {"rule": 3}, {"set": "other"}, {"extra": 1},
+     {"points": [{"label": "a", "kind": "bolt", "params": {}, "artifact": "obj"}]},
+     {"points": [{"label": "a", "kind": "bolt", "params": {"d": "6"}, "artifact": "step"}]},
+     {"points": [{"label": "a", "kind": "bolt", "artifact": "step"}]},
+     {"points": [{"label": "a", "kind": "bolt", "params": {}, "artifact": "step", "x": 1}]},
+     {"points": [{"label": "a", "kind": "bolt", "params": {}, "artifact": "step"},
+                 {"label": "a", "kind": "bolt", "params": {}, "artifact": "step"}]}],
+    ids=["reps-zero", "reps-float", "reps-bool", "shards-zero", "deadline-zero", "deadline-text",
+         "no-points", "rule-not-text", "set-name-differs", "extra-key", "bad-artifact",
+         "text-param", "missing-params", "extra-point-key", "duplicate-label"],
+)
+def test_a_point_file_that_breaks_the_schema_is_refused(over: dict[str, object],
+                                                        tmp_path: Path) -> None:
+    _write_set(tmp_path, **over)
+    with pytest.raises(ValueError, match="mini"):
+        oper.load_set("mini", tmp_path)
+
+
+def test_a_point_file_missing_a_key_is_refused(tmp_path: Path) -> None:
+    path = _write_set(tmp_path)
+    raw = json.loads(path.read_text())
+    del raw["rule"]
+    path.write_text(json.dumps(raw))
+    with pytest.raises(ValueError, match="mini"):
+        oper.load_set("mini", tmp_path)
+
+
+def test_points_go_to_shards_round_robin_in_file_order(tmp_path: Path) -> None:
+    _write_set(tmp_path)
+    spec = oper.load_set("mini", tmp_path)
+    assert [p.label for p in oper.shard_points(spec, 1)] == ["p0", "p2", "p4"]
+    assert [p.label for p in oper.shard_points(spec, 2)] == ["p1", "p3"]
+
+
+def test_a_shard_past_the_points_is_empty(tmp_path: Path) -> None:
+    _write_set(tmp_path, shards=7)
+    assert oper.shard_points(oper.load_set("mini", tmp_path), 7) == []
+
+
+# --- the matrix ----------------------------------------------------------------------------------
+
+
+def test_the_tracer_matrix_is_five_repetitions_of_one_shard(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    assert oper.main(["matrix", "--set", "tracer"]) == 0
+    out = capsys.readouterr().out
+    assert out.count("\n") == 1
+    assert out.startswith("matrix=")
+    assert json.loads(out.removeprefix("matrix=")) == {
+        "include": [{"shard": 1, "rep": rep} for rep in range(1, 6)]}
+
+
+@pytest.mark.parametrize("name", ["../x", "Tracer", "no-such-set"])
+def test_the_matrix_refuses_a_bad_set_name_with_exit_2_naming_it(
+        name: str, capsys: pytest.CaptureFixture[str]) -> None:
+    assert oper.main(["matrix", "--set", name]) == 2
+    captured = capsys.readouterr()
+    assert repr(name) in captured.err
+    assert captured.out == ""
+
+
+# --- the run -------------------------------------------------------------------------------------
+
+
+def _stub_docker(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, int]]:
+    taken: list[tuple[str, int]] = []
+
+    def fake_reading(point: oper.Point, rep: int, image: str, cap: int, deadline_s: float,
+                     versions: Mapping[str, str] | None = None) -> dict[str, object]:
+        taken.append((point.label, rep))
+        return {"type": "reading", "label": point.label, "artifact": point.artifact, "rep": rep,
+                "status": "ok", "image": image, "cap": cap, "deadline_s": deadline_s}
+
+    monkeypatch.setattr(oper, "run_reading", fake_reading)
+    monkeypatch.setattr(oper, "_image_versions", lambda image: {"cadquery": "2.8.0"})
+    monkeypatch.setattr(oper, "header", lambda image, versions: {"type": "header", "image": image})
+    return taken
+
+
+def test_a_shard_measures_its_points_once_each_with_the_given_rep(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    sets = tmp_path / "sets"
+    sets.mkdir()
+    _write_set(sets, reps=5)
+    monkeypatch.setattr(oper, "POINTS_DIR", sets)
+    taken = _stub_docker(monkeypatch)
+    out = tmp_path / "out.jsonl"
+    assert oper.main(["run", "--set", "mini", "--shard", "1", "--rep", "3", "--image", "screw:x",
+                      "--out", str(out)]) == 0
+    assert taken == [("p0", 3), ("p2", 3), ("p4", 3)]
+    records = [json.loads(line) for line in out.read_text().splitlines()]
+    assert [r["type"] for r in records] == ["header", "reading", "reading", "reading"]
+    assert records[1]["cap"] == oper.CAP_BYTES
+    assert records[1]["deadline_s"] == 60
+
+
+def test_two_runs_of_one_file_write_the_same_order(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    sets = tmp_path / "sets"
+    sets.mkdir()
+    _write_set(sets)
+    monkeypatch.setattr(oper, "POINTS_DIR", sets)
+    _stub_docker(monkeypatch)
+    texts = []
+    for run in ("a", "b"):
+        out = tmp_path / f"{run}.jsonl"
+        assert oper.main(["run", "--set", "mini", "--shard", "2", "--rep", "1", "--image", "i",
+                          "--out", str(out)]) == 0
+        texts.append(out.read_text())
+    assert texts[0] == texts[1]
+
+
+def test_a_shard_with_no_points_writes_the_header_and_succeeds(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    sets = tmp_path / "sets"
+    sets.mkdir()
+    _write_set(sets, shards=7)
+    monkeypatch.setattr(oper, "POINTS_DIR", sets)
+    taken = _stub_docker(monkeypatch)
+    out = tmp_path / "out.jsonl"
+    assert oper.main(["run", "--set", "mini", "--shard", "7", "--rep", "1", "--image", "i",
+                      "--out", str(out)]) == 0
+    assert taken == []
+    assert [json.loads(line)["type"] for line in out.read_text().splitlines()] == ["header"]
+
+
+@pytest.mark.parametrize(("shard", "rep"), [("0", "1"), ("3", "1"), ("1", "0"), ("1", "3")])
+def test_a_shard_or_rep_outside_the_set_is_refused_with_exit_2(
+        shard: str, rep: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    sets = tmp_path / "sets"
+    sets.mkdir()
+    _write_set(sets)  # 2 shards, 2 reps
+    monkeypatch.setattr(oper, "POINTS_DIR", sets)
+    taken = _stub_docker(monkeypatch)
+    assert oper.main(["run", "--set", "mini", "--shard", shard, "--rep", rep, "--image", "i",
+                      "--out", str(tmp_path / "o.jsonl")]) == 2
+    assert taken == []
+    assert "mini" in capsys.readouterr().err
+
+
+# --- the per-run markdown ------------------------------------------------------------------------
+
+
+def test_the_markdown_summary_lists_host_facts_status_counts_and_one_row_per_point(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    first = tmp_path / "a.jsonl"
+    second = tmp_path / "b.jsonl"
+    header = {"type": "header", "nproc": 4, "cpu_model": "AMD EPYC 7763", "kernel": "6.8.0"}
+    first.write_text("\n".join([json.dumps(header)]
+                               + [json.dumps(_reading(r)) for r in (1, 2)]) + "\n")
+    other = {**header, "cpu_model": "Intel Xeon 8370C"}
+    second.write_text("\n".join(
+        [json.dumps(other), json.dumps(_reading(3)), json.dumps(_reading(4, "capped"))]) + "\n")
+    assert oper.main(["summarize", str(first), str(second), "--markdown"]) == 0
+    out = capsys.readouterr().out
+    assert "| nproc | 4 |" in out
+    assert "AMD EPYC 7763" in out
+    assert "Intel Xeon 8370C" in out  # GitHub mixes CPU generations: both are shown
+    assert "ok: 3" in out
+    assert "capped: 1" in out
+    assert out.count("| p |") == 1
+    assert "capped" in out
+
+
+def test_the_markdown_summary_of_no_readings_is_the_same_refusal(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    path = tmp_path / "h.jsonl"
+    path.write_text(json.dumps({"type": "header", "nproc": 4}) + "\n")
+    assert oper.main(["summarize", str(path), "--markdown"]) == 1
+    captured = capsys.readouterr()
+    assert "no readings" in captured.err
+    assert captured.out == ""
+
+
+# --- the workflow's trust surface (T-3-14, T-07-02) ----------------------------------------------
+
+WORKFLOW_YML = REPO_ROOT / ".github" / "workflows" / "operability.yml"
+
+
+def _run_values(text: str) -> list[str]:
+    """Every `run:` value of a workflow, inline or block scalar, as one string each."""
+    lines = text.splitlines()
+    values: list[str] = []
+    for i, line in enumerate(lines):
+        match = re.match(r"^(\s*)(?:-\s+)?run:\s*(.*)$", line)
+        if not match:
+            continue
+        indent = len(match.group(1))
+        value = [match.group(2)]
+        for follow in lines[i + 1:]:
+            if follow.strip() and len(follow) - len(follow.lstrip()) <= indent:
+                break
+            value.append(follow)
+        values.append("\n".join(value))
+    return values
+
+
+def test_the_workflow_starts_only_on_a_dispatch() -> None:
+    text = WORKFLOW_YML.read_text()
+    assert re.search(r"^on:\n  workflow_dispatch:", text, re.MULTILINE)
+    assert not re.search(r"^\s*(pull_request|pull_request_target|push|schedule)\s*:", text,
+                         re.MULTILINE)
+
+
+def test_the_workflow_reads_the_repository_and_names_no_secret() -> None:
+    text = WORKFLOW_YML.read_text()
+    assert re.search(r"^permissions:\n  contents: read$", text, re.MULTILINE)
+    assert "secrets." not in text
+
+
+def test_the_set_input_reaches_a_script_only_through_an_env_variable() -> None:
+    text = WORKFLOW_YML.read_text()
+    runs = _run_values(text)
+    assert runs, "no run: steps found"
+    assert not [run for run in runs if "${{ inputs." in run]
+    assert re.search(r"^\s+SET: \$\{\{ inputs\.set \}\}$", text, re.MULTILINE)
+    assert 'python -m bench.oper matrix --set "$SET"' in text
+    assert 'python -m bench.oper run --set "$SET"' in text
+
+
+def test_the_workflow_builds_the_image_from_the_commit_under_test() -> None:
+    text = WORKFLOW_YML.read_text()
+    assert "docker/build-push-action@v6" in text
+    assert re.search(r"^\s+load: true$", text, re.MULTILINE)
+    assert re.search(r"^\s+tags: screw:ci$", text, re.MULTILINE)
+    assert "--image screw:ci" in text
+
+
+def test_the_measure_job_has_a_timeout_and_keeps_the_artifact_of_a_red_run() -> None:
+    text = WORKFLOW_YML.read_text()
+    assert re.search(r"^\s+timeout-minutes: \d+$", text, re.MULTILINE)
+    assert "fail-fast: false" in text
+    upload = text.index("actions/upload-artifact@v4")
+    assert "if: always()" in text[upload - 200:upload + 200]
+
+
+def test_the_matrix_job_feeds_the_measure_job() -> None:
+    text = WORKFLOW_YML.read_text()
+    assert "needs: plan" in text
+    assert "fromJSON(needs.plan.outputs.matrix)" in text
+
+
+# --- the make target -----------------------------------------------------------------------------
+
+
+def test_make_lists_the_runner_harness() -> None:
+    out = subprocess.run(["make", "-s", "help"], cwd=REPO_ROOT, capture_output=True, text=True,
+                         check=True).stdout
+    assert [line for line in out.splitlines() if line.split()[:1] == ["bench.oper"]]

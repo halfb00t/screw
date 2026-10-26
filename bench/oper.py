@@ -60,6 +60,13 @@ _STDERR_TAIL = 2000
 
 _container_numbers = itertools.count(1)
 
+# The point files a workflow may name, and the artifacts a point may ask for.
+POINTS_DIR = _REPO_ROOT / "bench" / "points"
+_ARTIFACTS = ("stl-preview", "stl-fine", "step")
+_SET_NAME_CHARS = frozenset("abcdefghijklmnopqrstuvwxyz0123456789-")
+_SET_KEYS = frozenset({"set", "rule", "reps", "shards", "deadline_s", "points"})
+_POINT_KEYS = frozenset({"label", "kind", "params", "artifact"})
+
 
 @dataclass(frozen=True)
 class Point:
@@ -73,6 +80,19 @@ class Point:
     def as_json(self) -> str:
         return json.dumps({"kind": self.kind, "params": dict(self.params),
                            "artifact": self.artifact}, sort_keys=True, allow_nan=False)
+
+
+@dataclass(frozen=True)
+class PointSet:
+    """A point file: the points, how often each is repeated, and how they are split over shards.
+    `rule` names the pre-registered protocol rule the set runs under (07-SWEEP-PROTOCOL.md)."""
+
+    name: str
+    rule: str
+    reps: int
+    shards: int
+    deadline_s: float
+    points: tuple[Point, ...]
 
 
 def is_capped(peak_bytes: int, cap_bytes: int) -> bool:
@@ -301,6 +321,68 @@ def parse_params(text: str) -> dict[str, float | bool]:
     return params
 
 
+def _is_number(value: object) -> bool:
+    return not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(value)
+
+
+def _is_count(value: object) -> bool:
+    return not isinstance(value, bool) and isinstance(value, int) and value >= 1
+
+
+def _load_point(name: str, raw: object) -> Point:
+    if not isinstance(raw, dict) or set(raw) != _POINT_KEYS:
+        _refuse(f"set {name!r}: a point needs exactly the keys {sorted(_POINT_KEYS)}")
+    label, kind, params, artifact = raw["label"], raw["kind"], raw["params"], raw["artifact"]
+    if not (isinstance(label, str) and label and isinstance(kind, str) and kind):
+        _refuse(f"set {name!r}: a point's label and kind are non-empty text")
+    if artifact not in _ARTIFACTS:
+        _refuse(f"set {name!r}: artifact {artifact!r} is not one of {list(_ARTIFACTS)}")
+    if not isinstance(params, dict) or not all(
+            isinstance(key, str) and (isinstance(value, bool) or _is_number(value))
+            for key, value in params.items()):
+        _refuse(f"set {name!r}: point {label!r} params are names with a number or true/false")
+    return Point(label=label, kind=kind, params=dict(params), artifact=str(artifact))
+
+
+def load_set(name: str, directory: Path | None = None) -> PointSet:
+    """The point file `bench/points/<name>.json`, or `ValueError` naming the set.
+
+    The name is the workflow's `set` input, so it is held to `[a-z0-9-]+` and to a file that
+    exists before it touches a path (T-07-02). The file must carry exactly the schema's keys with
+    the schema's types: a point file with a typo should stop the run, not measure something
+    else."""
+    if not name or not set(name) <= _SET_NAME_CHARS:
+        _refuse(f"set {name!r}: a set name is lower-case letters, digits and hyphens")
+    path = (directory if directory is not None else POINTS_DIR) / f"{name}.json"
+    try:
+        raw = json.loads(path.read_text())
+    except OSError:
+        _refuse(f"set {name!r}: no point file at {path}")
+    except json.JSONDecodeError as exc:
+        _refuse(f"set {name!r}: {path} is not JSON ({exc})")
+    if not isinstance(raw, dict) or set(raw) != _SET_KEYS:
+        _refuse(f"set {name!r}: a point file needs exactly the keys {sorted(_SET_KEYS)}")
+    if raw["set"] != name or not isinstance(raw["rule"], str):
+        _refuse(f"set {name!r}: `set` must repeat the file's name and `rule` must be text")
+    if not (_is_count(raw["reps"]) and _is_count(raw["shards"])):
+        _refuse(f"set {name!r}: reps and shards are whole numbers of at least 1")
+    if not (_is_number(raw["deadline_s"]) and raw["deadline_s"] > 0):
+        _refuse(f"set {name!r}: deadline_s is a number of seconds above 0")
+    if not isinstance(raw["points"], list) or not raw["points"]:
+        _refuse(f"set {name!r}: points is a non-empty list")
+    points = tuple(_load_point(name, entry) for entry in raw["points"])
+    if len({p.label for p in points}) != len(points):
+        _refuse(f"set {name!r}: point labels must be unique")
+    return PointSet(name=name, rule=raw["rule"], reps=raw["reps"], shards=raw["shards"],
+                    deadline_s=float(raw["deadline_s"]), points=points)
+
+
+def shard_points(spec: PointSet, shard: int) -> list[Point]:
+    """The points of 1-based `shard`: point `i` of the file (0-based) goes to shard
+    `i % shards + 1`, so two runs of one file split it the same way."""
+    return [p for i, p in enumerate(spec.points) if i % spec.shards + 1 == shard]
+
+
 def _image_versions(image: str) -> dict[str, str]:
     """The kernel pair installed in `image`, read by a container of it."""
     code = ("import json, importlib.metadata as m; "
@@ -333,6 +415,25 @@ def _open_sink(out: str) -> TextIO:
     return sys.stdout if out == "-" else Path(out).open("w")
 
 
+def _write_run(image: str, out: str, plan: list[tuple[Point, int]], deadline_s: float) -> int:
+    """The header, then one reading per `(point, rep)` of `plan`, in plan order."""
+    try:
+        versions = _image_versions(image)
+        head = header(image, versions)
+    except (OSError, subprocess.CalledProcessError) as exc:
+        print(f"oper: cannot read image {image}: {exc}", file=sys.stderr)
+        return 2
+    sink = _open_sink(out)
+    try:
+        _emit(sink, head)
+        for point, rep in plan:
+            _emit(sink, run_reading(point, rep, image, CAP_BYTES, deadline_s, versions))
+    finally:
+        if sink is not sys.stdout:
+            sink.close()
+    return 0
+
+
 def _cmd_point(args: argparse.Namespace) -> int:
     try:
         params = parse_params(args.params)
@@ -340,41 +441,105 @@ def _cmd_point(args: argparse.Namespace) -> int:
         print(f"oper: {exc}", file=sys.stderr)
         return 2
     point = Point(label=args.label, kind=args.kind, params=params, artifact=args.artifact)
+    return _write_run(args.image, args.out, [(point, rep) for rep in range(1, args.reps + 1)],
+                      DEADLINE_S)
+
+
+def _cmd_matrix(args: argparse.Namespace) -> int:
     try:
-        versions = _image_versions(args.image)
-        head = header(args.image, versions)
-    except (OSError, subprocess.CalledProcessError) as exc:
-        print(f"oper: cannot read image {args.image}: {exc}", file=sys.stderr)
+        spec = load_set(args.set)
+    except ValueError as exc:
+        print(f"oper: {exc}", file=sys.stderr)
         return 2
-    sink = _open_sink(args.out)
-    try:
-        _emit(sink, head)
-        for rep in range(1, args.reps + 1):
-            _emit(sink, run_reading(point, rep, args.image, CAP_BYTES, DEADLINE_S, versions))
-    finally:
-        if sink is not sys.stdout:
-            sink.close()
+    include = [{"shard": shard, "rep": rep}
+               for shard in range(1, spec.shards + 1) for rep in range(1, spec.reps + 1)]
+    print("matrix=" + json.dumps({"include": include}, separators=(",", ":")))
     return 0
 
 
-def _read_readings(paths: list[str]) -> list[dict[str, object]]:
+def _cmd_run(args: argparse.Namespace) -> int:
+    try:
+        spec = load_set(args.set)
+        if not 1 <= args.shard <= spec.shards:
+            _refuse(f"set {spec.name!r}: shard {args.shard} is outside 1..{spec.shards}")
+        if not 1 <= args.rep <= spec.reps:
+            _refuse(f"set {spec.name!r}: rep {args.rep} is outside 1..{spec.reps}")
+    except ValueError as exc:
+        print(f"oper: {exc}", file=sys.stderr)
+        return 2
+    plan = [(point, args.rep) for point in shard_points(spec, args.shard)]
+    return _write_run(args.image, args.out, plan, spec.deadline_s)
+
+
+def _read_records(paths: list[str]) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
+    """The header and reading records of JSONL files, in file order."""
+    headers: list[dict[str, object]] = []
     readings: list[dict[str, object]] = []
     for path in paths:
         for line in Path(path).read_text().splitlines():
             if not line.strip():
                 continue
             record = json.loads(line)
-            if isinstance(record, dict) and record.get("type") == "reading":
+            if isinstance(record, dict) and record.get("type") == "header":
+                headers.append(record)
+            elif isinstance(record, dict) and record.get("type") == "reading":
                 readings.append(record)
-    return readings
+    return headers, readings
+
+
+def _fact_text(value: object) -> str:
+    if value is None:
+        return "unknown"
+    return json.dumps(value, sort_keys=True) if isinstance(value, dict | list) else str(value)
+
+
+def markdown_report(headers: list[dict[str, object]], readings: list[dict[str, object]],
+                    rows: list[dict[str, object]]) -> str:
+    """A per-run summary for `$GITHUB_STEP_SUMMARY`: the distinct host facts of the headers
+    (GitHub mixes CPU generations, so two shards may differ), the status counts, then a row per
+    point. A figure is printed only for a point whose every repetition is ok."""
+    facts: dict[str, list[str]] = {}
+    for head in headers:
+        for key, value in head.items():
+            if key != "type" and _fact_text(value) not in facts.setdefault(key, []):
+                facts[key].append(_fact_text(value))
+    totals: dict[str, int] = {}
+    for reading in readings:
+        totals[str(reading["status"])] = totals.get(str(reading["status"]), 0) + 1
+    lines = ["### Host", "", "| fact | value |", "| --- | --- |"]
+    lines += [f"| {key} | {', '.join(values)} |" for key, values in facts.items()]
+    lines += ["", "### Readings", "",
+              "Status counts: " + ", ".join(f"{status}: {n}" for status, n in totals.items()), "",
+              "| point | artifact | n | status | counts | median build s | max build s "
+              "| median export s | max export s | median bytes | max bytes "
+              "| median peak bytes | max peak bytes |",
+              "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
+    for row in rows:
+        median, maximum = row["median"], row["max"]
+        cells = ["-"] * 8
+        if isinstance(median, dict) and isinstance(maximum, dict):
+            cells = [f"{table[m]:{spec}}" for m, spec in (
+                ("build_s", ".3f"), ("export_s", ".3f"), ("bytes", ".0f"),
+                ("memory_peak_bytes", ".0f")) for table in (median, maximum)]
+        tally = row["counts"]
+        counts = ", ".join(f"{status}: {n}" for status, n in tally.items()) if isinstance(
+            tally, dict) else ""
+        lines.append(f"| {row['label']} | {row['artifact']} | {row['n']} | {row['status']} "
+                     f"| {counts} | " + " | ".join(cells) + " |")
+    return "\n".join(lines)
 
 
 def _cmd_summarize(args: argparse.Namespace) -> int:
-    rows = summarize(_read_readings(args.files))
+    try:
+        headers, readings = _read_records(args.files)
+    except OSError as exc:
+        print(f"oper: cannot read {exc.filename}: {exc.strerror}", file=sys.stderr)
+        return 1
+    rows = summarize(readings)
     if not rows:
         print("no readings", file=sys.stderr)
         return 1
-    print(format_rows(rows))
+    print(markdown_report(headers, readings, rows) if args.markdown else format_rows(rows))
     return 0
 
 
@@ -385,15 +550,29 @@ def main(argv: list[str] | None = None) -> int:
     point = commands.add_parser("point", help="take --reps readings of one point")
     point.add_argument("--kind", required=True)
     point.add_argument("--params", default="", help='"name=value ..." (numbers, true, false)')
-    point.add_argument("--artifact", required=True, choices=["stl-preview", "stl-fine", "step"])
+    point.add_argument("--artifact", required=True, choices=list(_ARTIFACTS))
     point.add_argument("--label", default="point")
     point.add_argument("--image", required=True)
     point.add_argument("--reps", type=int, default=5)
     point.add_argument("--out", default="-", help="a JSONL path, or - for stdout")
     point.set_defaults(handler=_cmd_point)
 
+    matrix = commands.add_parser("matrix", help="print the workflow matrix of a point file")
+    matrix.add_argument("--set", required=True)
+    matrix.set_defaults(handler=_cmd_matrix)
+
+    run = commands.add_parser("run", help="one repetition of one shard of a point file")
+    run.add_argument("--set", required=True)
+    run.add_argument("--shard", type=int, required=True)
+    run.add_argument("--rep", type=int, required=True)
+    run.add_argument("--image", required=True)
+    run.add_argument("--out", required=True, help="a JSONL path, or - for stdout")
+    run.set_defaults(handler=_cmd_run)
+
     summary = commands.add_parser("summarize", help="median and max per point from JSONL files")
     summary.add_argument("files", nargs="+")
+    summary.add_argument("--markdown", action="store_true",
+                         help="a per-run table for $GITHUB_STEP_SUMMARY")
     summary.set_defaults(handler=_cmd_summarize)
 
     args = parser.parse_args(argv)
