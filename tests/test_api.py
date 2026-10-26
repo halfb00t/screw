@@ -1344,6 +1344,18 @@ def test_a_bad_head_chamfer_beside_a_wide_head_stays_a_field_422_naming_it(angle
     assert details[0]["type"] != "head_chamfer_conflict"
 
 
+@pytest.mark.parametrize("field", ["s", "k"])
+def test_an_unreadable_s_or_k_beside_a_deep_head_chamfer_is_its_field_422_not_the_conflict(
+        field: str) -> None:
+    # Codex review of PR #21: an unreadable s was dropped and judged at its default, so the 422
+    # quoted s 10 mm, a value the user never sent. The model's 422 names the field instead.
+    r = client.get("/api/bolt/info", params={"head_chamfer": 80, field: "abc"})
+    assert r.status_code == 422
+    details = r.json()["detail"]
+    assert [d["loc"] for d in details] == [["query", field]]
+    assert details[0]["type"] != "head_chamfer_conflict"
+
+
 def test_a_head_so_small_its_width_squared_underflows_is_a_document_not_a_500() -> None:
     # Codex review of PR #21: s = 1e-170 passes the model, and s * s == 0.0 raised
     # ZeroDivisionError in the kernel bound. The bound is now inf, so the chamfer rows are withheld.

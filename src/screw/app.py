@@ -213,7 +213,7 @@ def refuse_explicit_conflict(kind: str) -> Callable[[Request], None]:
     prepends `--root-path` to `scope["path"]` (h11_impl.py:206), which is how a literal
     `/api/bolt/` test once skipped the 422 behind a prefix (04-REVIEW CR-01). The owner
     accepted that direct Python construction is not refused (D-25). A value `float()` cannot
-    read is left to the query model, whose 422 names it.
+    read reaches the rule as a string, which no rule judges, so the query model's 422 names it.
     """
     def refuse(request: Request) -> None:
         values: dict[str, object] = {}
@@ -221,7 +221,9 @@ def refuse_explicit_conflict(kind: str) -> Callable[[Request], None]:
             try:
                 values[key] = float(raw)
             except ValueError:
-                continue
+                # Kept as the raw string, not dropped: a dropped s or k would be judged at its
+                # frozen default, so `?head_chamfer=80&s=abc` was a conflict quoting s 10 mm.
+                values[key] = raw
         if (conflict := explicit_conflict(kind, values)) is not None:
             raise HTTPException(422, detail=[{
                 "loc": ["query"], "type": conflict.type, "msg": conflict.msg,
