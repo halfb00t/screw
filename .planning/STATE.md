@@ -3,17 +3,17 @@ gsd_state_version: "1.0"
 current_phase: 07
 current_phase_name: Operability Re-sweep
 status: executing
-stopped_at: Completed 07-01-PLAN.md
-last_updated: "2026-10-26T15:52:07.318Z"
+stopped_at: Completed 07-02-PLAN.md
+last_updated: "2026-10-26T16:16:16.340Z"
 last_activity: 2026-10-26
 last_activity_desc: Phase 07 execution started
-state_head: 202931c0f51da12fbc3a92cf7bfab6b093f618e4
+state_head: d77c07c08b8896e354142e853cfb0253acfdc597
 progress:
   total_phases: 8
   completed_phases: 7
   total_plans: 102
-  completed_plans: 83
-  percent: 81
+  completed_plans: 84
+  percent: 82
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-10-25)
 ## Current Position
 
 Phase: 07 (Operability Re-sweep) — EXECUTING
-Plan: 2 of 20
+Plan: 3 of 20
 Status: Ready to execute
 Last activity: 2026-10-26 — Phase 07 execution started
 
-Progress: [████████░░] 81%
+Progress: [████████░░] 82%
 
 ## Performance Metrics
 
@@ -145,6 +145,7 @@ Progress: [████████░░] 81%
 | Phase 06.1 P04 | 25 min | 2 tasks | 7 files |
 | Phase 06.1 P05 | 15 min | 2 tasks | 3 files |
 | Phase 07 P01 | 28 min | 2 tasks | 8 files |
+| Phase 07 P02 | 19 min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -290,6 +291,7 @@ Recent decisions affecting current work:
 - [Phase 06.1]: 06.1-04: _bolt_explicit_conflict judges thread_length first, then one explicit head_chamfer against s and k from the request or the frozen defaults; 422 head_chamfer_conflict fields (head_chamfer, k), CLI exit 2, same sentence
 - [Phase 06.1]: L19 locks the head chamfer: head_chamfer default 30, cone from s / 2 cut no deeper than k / 2, supersedes L13 D-01's sharp top; one-way for the name, the default and the _head_chamfer30 slug suffix
 - [Phase 07]: 07-01: runner harness code lives on gsd/phase-07-preregistration (worktree cut from origin/main), not the phase branch; reading container cap is 12 GiB (CAP_BYTES) with a 600 s deadline; a point with any non-ok repetition has no median or max
+- [Phase 07]: 07-02: the build deadline is the request's own timeout plus the timeouts ahead of it on its hash slot (per-slot list, event loop, no lock); timeouts are a per-artifact code constant BUILD_TIMEOUT_S in calc/cost.py with no env override, still the carried INTERIM 30 s until 07-16; an overrun emits cost_model.miss at ERROR
 
 ### Pending Todos
 
@@ -337,6 +339,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-26T15:52:07.127Z
-Stopped at: Completed 07-01-PLAN.md
+Last session: 2026-10-26T16:16:16.131Z
+Stopped at: Completed 07-02-PLAN.md
 Resume file: None
