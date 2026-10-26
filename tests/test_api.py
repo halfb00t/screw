@@ -1344,6 +1344,17 @@ def test_a_bad_head_chamfer_beside_a_wide_head_stays_a_field_422_naming_it(angle
     assert details[0]["type"] != "head_chamfer_conflict"
 
 
+def test_a_head_so_small_its_width_squared_underflows_is_a_document_not_a_500() -> None:
+    # Codex review of PR #21: s = 1e-170 passes the model, and s * s == 0.0 raised
+    # ZeroDivisionError in the kernel bound. The bound is now inf, so the chamfer rows are withheld.
+    r = client.get("/api/bolt/info",
+                   params={"s": "1e-170", "d": "1e-171", "pitch": "1e-172", "length": "1e-171"})
+    assert r.status_code == 200
+    body = r.json()
+    assert "head_chamfer" not in {row["key"] for row in body["rows"]}
+    assert any("may be refused as a build error" in w for w in body["warnings"])
+
+
 def test_a_repeated_head_chamfer_is_the_duplicate_422_not_the_conflict() -> None:
     r = client.get("/api/bolt/info", params=[("head_chamfer", "80"), ("head_chamfer", "81")])
     assert r.status_code == 422

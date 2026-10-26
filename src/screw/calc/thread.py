@@ -981,7 +981,10 @@ def head_chamfer_kernel_bound(s: float, k: float) -> float:
     Kernel-free, from the head's own fields; an angle at or above it builds on both measured
     platforms. `derive` withholds the chamfer rows and the volume below it (for an angle above 0).
     """
-    return max(HEAD_CHAMFER_KERNEL_FLOOR_DEG, HEAD_CHAMFER_KERNEL_SLOPE * k / (s * s))
+    # k / s / s, not k / (s * s): the model accepts s = 1e-170, whose square underflows to 0.0
+    # and raised ZeroDivisionError (a 500 on /api/bolt/info); this form overflows to inf instead,
+    # which withholds the rows as any angle below the bound does.
+    return max(HEAD_CHAMFER_KERNEL_FLOOR_DEG, HEAD_CHAMFER_KERNEL_SLOPE * k / s / s)
 
 
 def head_chamfer_warnings(s: float, k: float, angle_deg: float) -> list[str]:
