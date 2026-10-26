@@ -399,11 +399,11 @@ Plans:
   3. A CI job builds every allowed configuration inside the timeout; a configuration that cannot is capped and warned or refused with a `422` naming the fields, never silently shortened.
   4. With the measured bounds in place, CAD builds still run in worker processes off the event loop, and `make check` (in-image smoke test, vendored-bundle byte check) passes.
 
-**Plans**: 20 plans (sequential waves 1-14; the pre-registration lands on main as its own PR, A, before any runner reading)
+**Plans**: 1/20 plans executed (sequential waves 1-14; the pre-registration lands on main as its own PR, A, before any runner reading)
 
 Plans:
 **Wave 1**
-- [ ] 07-01-PLAN.md — Tracer: one point measured end to end in the production image on ubuntu-latest via workflow_dispatch; the cgroup-peak reading and the operability workflow (PR A worktree; D-01, D-02, D-15)
+- [x] 07-01-PLAN.md — Tracer: one point measured end to end in the production image on ubuntu-latest via workflow_dispatch; the cgroup-peak reading and the operability workflow (PR A worktree; D-01, D-02, D-15)
 - [ ] 07-02-PLAN.md — The queue-aware per-build deadline (D-14), one timeout per artifact from code constants in `calc/cost.py` (D-09, D-16), the cost-model miss event (D-07)
 
 **Wave 2** *(blocked on Wave 1 completion)*
@@ -464,4 +464,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 2 
 | 5. Hex Nut and Kernel Pair Proof | 25/25 | Complete    | 2026-10-22 |
 | 6. Printed Pair Acceptance | 10/10 | Complete    | 2026-10-24 |
 | 6.1. Bolt head chamfer (INSERTED) | 5/5 | Complete    | 2026-10-25 |
-| 7. Operability Re-sweep | 0/20 | Planned | - |
+| 7. Operability Re-sweep | 1/20 | In Progress | - |
