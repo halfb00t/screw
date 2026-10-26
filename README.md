@@ -7,8 +7,9 @@ download, from a web UI, an HTTP API or a CLI.
 
 **Status: ISO hex bolts and screws (Phase 4), an internal milestone, not released, version 0.0.x.**
 The `bolt` kind builds an ISO 4014 bolt or an ISO 4017 screw from explicit millimetre fields
-(`d`, `pitch`, `length`, `s`, `k`, `thread_length`, `left_hand`): the ISO 68-1:2023 basic profile,
-right- or left-hand, under a plain hex head. Presets (`screw presets bolt`, the page's three
+(`d`, `pitch`, `length`, `s`, `k`, `thread_length`, `head_chamfer`, `left_hand`): the ISO 68-1:2023 basic profile,
+right- or left-hand, under a hex head with a chamfered top (`head_chamfer`,
+default 30 degrees; 0 keeps it sharp). Presets (`screw presets bolt`, the page's three
 selects) fill those fields from cited, double-entered ISO 262, 4014 and 4017 rows for M2 to M20;
 a link carries the millimetres, never a preset. The thread ends are plain cuts, with no tip
 chamfer or under-head fillet, and there is no nut yet; every info document says so in its

@@ -20,9 +20,9 @@ from screw import __version__, cli
 from screw.calc import derive, download_refusal
 from screw.params import KINDS, BoltParams, FastenerParams
 
-WARNING = ("warning: ends modelled per L15: bolt tip chamfer, under-head fillet on an ISO 4014 "
-           "plain shank, nut lead-in countersinks and face chamfers; nominal, not toleranced; "
-           "not a product build")
+WARNING = ("warning: ends modelled per L15 and L19: bolt tip chamfer, hex head chamfer, "
+           "under-head fillet on an ISO 4014 plain shank, nut lead-in countersinks and face "
+           "chamfers; nominal, not toleranced; not a product build")
 
 
 def _exit_code(argv: list[str]) -> str | int | None:
@@ -433,6 +433,19 @@ def test_the_same_conflict_stops_an_export_before_it_writes_a_file(
     given = ["export", "bolt", "--length", "10", "--thread-length", "30", "-o", str(out)]
     assert _exit_code(given) == 2
     assert "error: thread_length and length: " in capsys.readouterr().err
+    assert not out.exists()
+
+
+def test_an_explicit_head_chamfer_deeper_than_half_k_exits_2_and_writes_nothing(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    msg = ("error: head_chamfer and k: head_chamfer 80 degrees cuts the head corners deeper "
+           "than k / 2 = 2 mm at s 10 mm; lower head_chamfer or raise k\n")
+    assert _exit_code(["info", "bolt", "--head-chamfer", "80"]) == 2
+    captured = capsys.readouterr()
+    assert (captured.out, captured.err) == ("", msg)
+    out = tmp_path / "x.stl"
+    assert _exit_code(["export", "bolt", "-o", str(out), "--head-chamfer", "80"]) == 2
+    assert capsys.readouterr().err == msg
     assert not out.exists()
 
 

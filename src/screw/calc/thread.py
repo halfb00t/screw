@@ -624,6 +624,70 @@ def face_chamfer_volume(s: float, r0: float, angle_deg: float, depth: float,
                    for i in range(n))
 
 
+# The hexagon less its inscribed disc, over a^2: 2 sqrt(3) - pi. The closed form below uses it as
+# the area a flat cut at `depth` takes from outside the inscribed circle.
+_HEX_RIM = 2 * math.sqrt(3) - math.pi
+
+# The uncapped head chamfer over tan(angle) a^3: 4/3 + pi/3 + ln 3 - 2 sqrt(3) = 0.01504155806...
+_UNCAPPED_J = 4 / 3 + math.pi / 3 + math.log(3) - 2 * math.sqrt(3)
+
+
+def head_chamfer_volume(s: float, angle_deg: float, depth: float) -> float:
+    """Material the top-face cone chamfer removes from a hexagonal head of across-flats `s`.
+
+    The cone starts at the inscribed circle a = s / 2 and rises at `angle_deg` from the face; it
+    removes (rho - a) tan(angle), no deeper than `depth`, over the arc `hex_arc_inside(s, rho)`
+    of each circle rho from a to the corner radius R = a / cos(pi / 6). This is that integral in
+    closed form, so the head's volume stays exact (06.1 D-07). Writing w = sqrt(rho^2 - a^2) and
+    A = acos(a / rho), integration by parts gives
+
+    - the integral of rho^2 (2 pi - 12 A) is
+      2 pi rho^3 / 3 - 4 rho^3 A + 2 a rho w + 2 a^3 asinh(w / a)
+    - the integral of rho (2 pi - 12 A) is pi rho^2 - 6 rho^2 A + 6 a w
+
+    Both vanish at rho = a, and the second at R is the hexagon less its inscribed disc,
+    a^2 (2 sqrt 3 - pi): a built-in check. When the cut is no deeper than the cone reaches at the
+    corner the result is one constant, tan(angle) a^3 (4/3 + pi/3 + ln 3 - 2 sqrt 3). Otherwise
+    the cone meets the flat at x = depth / tan(angle) past the inscribed circle and the cut is
+    the cone below that and `depth` times the hexagon area beyond it.
+
+    Three details keep it honest (L02): x is formed from `depth / tan` and never as a difference of
+    two radii (that form returned -49.5 mm3 at 89.99999999999999 degrees), the angle comes from
+    `atan2` and `asinh`, and below theta = asinh(w / a) 0.05 the acos part, three orders of
+    magnitude of cancellation, is replaced by its series (the next term is under 1e-14 relative at
+    0.05). Measured: worst 3.4e-14 against an independent Gauss-Legendre reference over 600 rows,
+    4.3e-10 against `face_chamfer_volume` and the polar integral in `tests/test_end_oracles.py`
+    over 108 rows, which is their own quadrature error. Valid for s above 0, 0 < angle < 90 and
+    a finite depth of 0 or more; anything else, and an angle whose tangent underflows to 0,
+    raises `ValueError` (never `ZeroDivisionError`, which `derive` would not catch).
+    """
+    _check_angle("head_chamfer", angle_deg)
+    if not (math.isfinite(s) and s > 0):
+        raise ValueError(f"s {s:g} mm must be finite and above 0")
+    tau = math.tan(math.radians(angle_deg))
+    if not tau > 0:
+        raise ValueError(f"head_chamfer {angle_deg!r} degrees is too small to have a tangent")
+    if not (math.isfinite(depth) and depth >= 0):
+        raise ValueError(f"depth {depth:g} mm must be finite and 0 or more")
+    a = s / 2
+    x = depth / tau
+    if x >= a * (2 / math.sqrt(3) - 1):
+        return tau * a**3 * _UNCAPPED_J
+    xi = x / a
+    w = math.sqrt(xi * (xi + 2))
+    theta = math.asinh(w)
+    g = math.atan2(w, 1.0)
+    ch = 1 + xi
+    pi_part = math.pi / 3 * xi * xi * (2 * xi + 3)
+    if theta < 0.05:
+        t2 = theta * theta
+        acos_part = -(theta**5) * (6 / 5 + t2 * (1 / 2 + t2 * (13 / 180 + t2 * 71 / 10080)))
+    else:
+        acos_part = -2 * (ch * ch * (2 * ch - 3) * g + w * (3 - ch) - theta)
+    i2 = math.pi * w * w - 6 * ch * ch * g + 6 * w
+    return tau * a**3 * (pi_part + acos_part) + depth * a**2 * (_HEX_RIM - i2)
+
+
 def fillet_ring_volume(d: float, r: float) -> float:
     """Volume of a quarter-circle fillet ring of radius `r` at a shank of diameter `d`.
 
@@ -671,6 +735,14 @@ COUNTERSINK_FACE_FACTOR = 1.16
 # degrees from the end face, and no depth; the model takes the 30 degree end, as a cone from the
 # inscribed circle of `s` (start radius s / 2, from fields and not from the row's `dw`, D-12).
 CHAMFER_ANGLE_DEG = 30.0
+
+# Bolt head chamfer band, stated model (L19, owner ruling 2026-10-24). The band is the one the R4 a
+# read prints for the nut's hexagon-corner chamfer (GOST ISO 4032-2014 (ISO 4032:2012), Figure 1
+# footnote b, read 3 in `05-OWNER-READS.md`): 15 to 30 degrees from the end face, applied to the
+# bolt head by the owner's ruling. No repo note records a read of the ISO 4014 or ISO 4017 head
+# figure and those texts are not purchased (L14), so no edition of either is cited here. Both edges
+# are inside the band; an angle outside it builds as asked and is warned about.
+HEAD_CHAMFER_BAND_DEG = (15.0, 30.0)
 
 # Under-head fillet radius `r` (minimum), cited (R1 option a, read from GOST R ISO 4014-2013 (ISO
 # 4014:2011) Tables 1 and 2, the `r` minimum row, owner ruling 2026-10-20, L14 amendment; the
@@ -723,15 +795,24 @@ def tip_cone_fits(pitch: float, t: float) -> bool:
 
 
 def bolt_end_closed_volume(d: float, pitch: float, length: float, s: float, k: float, t: float,
-                           tip: bool, r: float | None) -> float:
+                           tip: bool, r: float | None, head_chamfer: float) -> float:
     """`bolt_closed_volume` less the tip cone when `tip`, plus the fillet ring when `r` is a
-    radius: the volume of a bolt with its ends (D-09, D-11). Each oracle raises `ValueError`
-    outside its validity, so there is no number for a bolt the oracles cannot judge (L02)."""
+    radius, less the head chamfer when `head_chamfer` is above 0: the volume of a bolt with its
+    ends (D-09, D-11, 06.1 D-07). Each oracle raises `ValueError` outside its validity, so there
+    is no number for a bolt the oracles cannot judge (L02).
+
+    `head_chamfer` has no default so that mypy names every caller and none can print a sharp
+    volume for a chamfered part. The term is `head_chamfer_volume` at the capped depth
+    `head_chamfer_depths` returns; it is tested as `> 0` and never `!= 0`, because -0.0 is the
+    sharp head.
+    """
     volume = bolt_closed_volume(d, pitch, length, s, k, t)
     if tip:
         volume -= tip_cone_volume(d, pitch, TIP_ANGLE_DEG)
     if r is not None:
         volume += fillet_ring_volume(d, r)
+    if head_chamfer > 0:
+        volume -= head_chamfer_volume(s, head_chamfer, head_chamfer_depths(s, k, head_chamfer)[1])
     return volume
 
 
@@ -834,3 +915,124 @@ def nut_end_closed_volume(d: float, pitch: float, s: float, m: float, clearance:
         volume -= 2 * countersink_volume(d, pitch, clearance, s, countersink_face_radius(d),
                                          COUNTERSINK_HALF_ANGLE_DEG, csk)
     return volume - 2 * face_chamfer_volume(s, s / 2, CHAMFER_ANGLE_DEG, chamfer)
+
+
+# --- the bolt head chamfer (L19, 06.1 D-03, D-04) ----------------------------------------------
+
+
+def head_chamfer_depths(s: float, k: float, angle_deg: float) -> tuple[float, float]:
+    """The depth the head chamfer model asks for and the depth the builder cuts: (full, cut).
+
+    full is the cone's depth at the hexagon corner, (corner - s / 2) tan(angle), written as
+    `end_depths` writes the nut's; cut is the smaller of that and k / 2, which mirrors the nut's
+    m / 2 (L15) and leaves the lower half of the head and the bearing face untouched (D-03). The
+    one predicate the builder, the closed form, `derive`, the warning and the 422 rule all call,
+    so they cannot disagree at the boundary. The cut is capped only when full is above k / 2,
+    never at it: an equal depth builds uncapped (D-04). It does not validate its inputs (a
+    negative angle never reaches it from the model).
+    """
+    corner = s / 2 / math.cos(math.pi / 6)
+    full = (corner - s / 2) * math.tan(math.radians(angle_deg))
+    return full, min(full, k / 2)
+
+
+# Smallest head chamfer angle the geometry kernel is measured to cut, in degrees, as a function of
+# the head (s, k): `max(FLOOR, SLOPE * k / s^2)`. Below it the kernel may refuse the build (the head
+# chamfer piece gate, or `Standard_Failure` from about 1e-6), though the oracle accepts the angle
+# and the model has no floor (D-18), so `derive` withholds the chamfer rows and the volume and
+# warns instead of printing a number for a part that may not exist (L02). Measured through the
+# product build path (`screw.solid.build`), macOS arm64 and the project image run as linux/amd64
+# under emulation, cadquery-ocp 7.9.3.1.1 on both, 2026-10-24, single runs.
+#
+# It is fitted, not derived. Tried first: the gate's own tolerance. The cut is judged at T_PIECE
+# of its oracle, and the volume integral carries a constant bias of 5.4e-11 * s^2 * k mm3 (6e-11 of
+# the head, same at s = 1, 10, 30 and 100), which would refuse only below 5.5e-5 * k / s degrees
+# (2e-5 at the default head). The kernel refuses up to 7e-5 there and up to 2e-4 at s = 1. The
+# refusals are not bias: the cut is a sliver 3e-7 to 3e-6 mm deep and the measured piece falls to
+# zero or near it (s = 1: -6.6e-9 mm3 against an oracle of 6.6e-9). No depth separates the cells
+# either (s = 2 builds at 5.4e-7 mm, s = 100 refuses at 2.7e-6 mm). So T_PIECE predicts the wrong
+# angle by 3x to 10x and cannot be the predicate.
+#
+# Fit data (smallest angle that builds, everything above also builds; refused angle below it):
+#   s    k     built  refused      s    k     built  refused      s   k    built  refused
+#   0.25 0.1   2e-3   1e-3         10   4     1e-4   7e-5         10  20   5e-4   2e-4
+#   0.5  0.2   1e-3   5e-4         4    1.4   1e-4   7e-5         10  100  5e-4   2e-4
+#   1    0.4   5e-4   2e-4         30   12.5  2e-5*  1e-5         10  1000 5e-3   2e-3
+#   2    0.8   2e-4   1e-4         100  40    5e-5   2e-5
+# (* linux; the host builds from 5e-5. The s = 10 rows with k >= 20 are host only.)
+# The angle needed grows as 1/s for a small head and with k, and a large head needs about 5e-5
+# whatever its size. FLOOR is 2e-4, 2.9x the largest refused angle of any head with s >= 4 (7e-5
+# on both platforms). SLOPE is 3.5e-3, 2x the largest refused value of angle * s^2 / k (1.75e-3,
+# the default head at 7e-5).
+#
+# Confirmed on a fresh grid on both platforms: the 15 grade A heads of ISO 4014 (M2 to M20) and 20
+# off-catalogue heads (s 0.3 to 50, k/s 0.4 to 40), each at the bound, 1.01x, 2x and 10x the bound,
+# 1 degree and 30 degrees. All 210 cells per platform built (35 heads x 6 angles, none refused). It
+# is not tight: half the bound still builds for every catalogue head, a quarter is refused for M2
+# to M7 and M14 on both platforms, and a tall head (k/s >= 4) builds down to a quarter of it.
+# Phase 7's re-sweep (OPER-02) may re-measure; the constants are the point to change.
+HEAD_CHAMFER_KERNEL_FLOOR_DEG = 2e-4
+HEAD_CHAMFER_KERNEL_SLOPE = 3.5e-3
+
+
+def head_chamfer_kernel_bound(s: float, k: float) -> float:
+    """The head chamfer angle below which the kernel may refuse the build, in degrees.
+
+    Kernel-free, from the head's own fields; an angle at or above it builds on both measured
+    platforms. `derive` withholds the chamfer rows and the volume below it (for an angle above 0).
+    """
+    # k / s / s, not k / (s * s): the model accepts s = 1e-170, whose square underflows to 0.0
+    # and raised ZeroDivisionError (a 500 on /api/bolt/info); this form overflows to inf instead,
+    # which withholds the rows as any angle below the bound does.
+    return max(HEAD_CHAMFER_KERNEL_FLOOR_DEG, HEAD_CHAMFER_KERNEL_SLOPE * k / s / s)
+
+
+def head_chamfer_warnings(s: float, k: float, angle_deg: float) -> list[str]:
+    """What `derive` appends for a head chamfer the model accepted: the band warning, then the
+    cap warning (D-02, D-04, D-06).
+
+    Nothing for an angle that is not above 0: the sharp head has no chamfer to be off the band
+    (tested as `> 0`, never `!= 0`, because the model accepts -0.0). The band warning names
+    `head_chamfer` and the band; the cap warning, when the model depth is above k / 2 and the cut
+    is capped there, names `head_chamfer` and `k`. A direct construction (D-06) or a defaulted
+    angle is capped and warned, never refused; the 422 for an explicit value is
+    `head_chamfer_conflict`'s, at the request boundary. Every number is printed with `_plain`, so
+    a value is never rounded into a misleading one (L02).
+    """
+    if not angle_deg > 0:
+        return []
+    warnings: list[str] = []
+    low, high = HEAD_CHAMFER_BAND_DEG
+    if not low <= angle_deg <= high:
+        warnings.append(
+            f"head_chamfer {_plain(angle_deg)}: outside the {_plain(low)} to {_plain(high)} degree "
+            f"band of the stated head chamfer model; built as asked (L19)")
+    full, cut = head_chamfer_depths(s, k, angle_deg)
+    if full > k / 2:
+        warnings.append(
+            f"head_chamfer {_plain(angle_deg)} and k {_plain(k)}: the head chamfer is cut "
+            f"{_plain(cut)} mm deep, k / 2, not the {_plain(full)} mm of the model, so the lower "
+            f"half of the head keeps its sharp corners (L19)")
+    return warnings
+
+
+def head_chamfer_conflict(s: float, k: float, angle_deg: float) -> str | None:
+    """None unless an explicit `head_chamfer` cuts deeper than k / 2; else the text (D-04, D-05).
+
+    The same threshold as the cap in `head_chamfer_warnings`, both read from `head_chamfer_depths`,
+    so no explicit angle builds a part that differs from its model (D-04). The caller supplies s
+    and k from the request, or from the model's defaults when only `head_chamfer` was sent (D-05).
+    A value that is not finite, an s or k not above 0, or an angle outside 0 < angle < 90 gives
+    None, so the model's own 422 keeps naming the bad field. The text begins with the field names
+    (the CLI prints no `loc` for this error), has no braces (pydantic formats a custom error from
+    its context) and prints only the user's numbers and k / 2, so no rounded figure can read as
+    equal to the bound.
+    """
+    if not (math.isfinite(s) and math.isfinite(k) and math.isfinite(angle_deg)
+            and s > 0 and k > 0 and 0 < angle_deg < 90):
+        return None
+    if not head_chamfer_depths(s, k, angle_deg)[0] > k / 2:
+        return None
+    return (f"head_chamfer and k: head_chamfer {_plain(angle_deg)} degrees cuts the head corners "
+            f"deeper than k / 2 = {_plain(k / 2)} mm at s {_plain(s)} mm; lower head_chamfer or "
+            f"raise k")

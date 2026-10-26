@@ -91,6 +91,12 @@ mating pair out.
 - ✓ A printability warning below M4 (`d_min` 4.0 mm, `P_min` 0.7 mm), read from run
       `06-print-run-2` — Phase 6 (INFO-04, L18). It warns on bolts and nuts and never caps or
       refuses (L02). Weaker evidence than run 1: the owner's earlier prints accepted under R10.
+- ✓ A chamfered hex head on the bolt via one `head_chamfer` angle field, default 30 degrees,
+      0 for the sharp head — Phase 06.1 (L19, supersedes L13 D-01's sharp top): a cone from
+      `s / 2` on the top face only, cut no deeper than `k / 2`, the bearing face unchanged; on
+      UI, API and CLI. An explicit angle deeper than `k / 2` is a 422 naming `head_chamfer` and
+      `k`; a cut trimmed by another field is capped and warned; an angle below the kernel bound
+      warns and prints no chamfer or volume rows. UAT 6/6 passed 2026-10-24.
 
 
 ### Active
@@ -259,6 +265,7 @@ table cites it. `cq_warehouse.fastener` is likewise unverified.
 | Thread construction, volume estimator and turn caps come from the pre-registered Phase 2 campaign, never tuned toward a pass (L11) | Method, predictions and escape clause were committed before the first run (`02-SPIKE.md`, blob `4e1959ea`); every value cites a `2026-10-08-a-*` run | Phase 2: sewn twist-section at K = 3, `precise` volumes gated at 9e-05, construction cap 250 turns; the verdict is "not a pass" by its own rules — M18 pair proof not falsifiable on either hand — and the owner chose to revise the roadmap before Phase 5 (2026-10-09) |
 | Clearance default 0.15 mm read by the pre-registered D-07 rule from run `06-print-run-1` (L17); printability threshold M4 read by the D-10 rule from run `06-print-run-2` (L18) | Rules, records and protocol landed on main (PR #19) before the first print, so no value is tuned toward a pass; a frozen default is what every link omitting the field means (L02) | Phase 6: both values pinned by digest and re-derived in `make verify`; owner accepted 0.15 as permanent 2026-10-23; the acceptance pair printed and passed; UAT 1/1, security 22/22 closed |
 | Limits are refusals, never trims (L12): root radius at or below zero, more than 250 turns, and the fine STL L11 measured over the export budget are 422s naming the fields; a repeated parameter is a 422/exit 2 naming it | L02: a parameter the user set is never silently changed; a number printed is one someone cuts metal to | Phase 3: on API, CLI and page; five review findings deferred into tech-debt items with owner rulings (2026-10-11) |
+| Bolt head chamfered on the top face by a `head_chamfer` angle, default 30, cone from `s / 2`, cut at most `k / 2` (L19, supersedes L13 D-01) | Owner ruling 2026-10-24: the Phase 7 re-sweep should measure the head a user will print; the 15 to 30 degree band is a stated model from the nut's R4 a read, not a cited ISO 4014/4017 figure | Phase 06.1: shipped on UI, API and CLI; UAT 6/6; security `threats_open: 0`; UI audit 23/24 (advisory) |
 
 ## Evolution
 
@@ -278,4 +285,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-10-24 after Phase 6*
+*Last updated: 2026-10-25 after Phase 06.1*

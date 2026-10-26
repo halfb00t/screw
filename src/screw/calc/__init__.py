@@ -27,6 +27,11 @@ from screw.calc.thread import (
     fillet_radius,
     fine_stl_refusal,
     flank_normal_gap,
+    head_chamfer_conflict,
+    head_chamfer_depths,
+    head_chamfer_kernel_bound,
+    head_chamfer_volume,
+    head_chamfer_warnings,
     nut_end_closed_volume,
     nut_fine_stl_refusal,
     pitch_diameter,
@@ -49,13 +54,20 @@ PROFILE = "ISO 68-1:2023 basic profile"
 # plain shank to fillet. A note, not a warning: it is what the standard's part is, nothing to fix.
 NO_FILLET_NOTE = "no under-head fillet: the thread runs to the head (ISO 4017:2022)"
 
-# The standing entry on every info document (D-04, D-18): it names the ends the builder models
-# (L15, the bolt tip cone, the under-head fillet and the nut's countersinks and chamfers) and says
-# they are nominal, so nobody should cut metal to it as a product. The first release, after Phase 7,
-# removes the last clause (06 D-15).
+# The note on a bolt with head_chamfer 0 (D-11, D-19): the hex head's corners are left sharp. A
+# note, not a warning, because it describes the part built and the user asked for it; shown on
+# every such part whether or not it matches a catalogue row, so a sharp head never reads as an
+# omission.
+SHARP_HEAD_NOTE = "sharp hex head corners: head_chamfer 0 cuts no top chamfer (L19)"
+
+# The standing entry on every info document (D-04, D-18, 06.1 D-12): it names the ends the builder
+# models (L15 and L19: the bolt tip cone, the hex head chamfer, the under-head fillet and the nut's
+# countersinks and chamfers) and says they are nominal, so nobody should cut metal to it as a
+# product. The first release, after Phase 7, removes the last clause (06 D-15).
 STANDING_WARNING = (
-    "ends modelled per L15: bolt tip chamfer, under-head fillet on an ISO 4014 plain shank, "
-    "nut lead-in countersinks and face chamfers; nominal, not toleranced; not a product build")
+    "ends modelled per L15 and L19: bolt tip chamfer, hex head chamfer, under-head fillet on an "
+    "ISO 4014 plain shank, nut lead-in countersinks and face chamfers; nominal, not toleranced; "
+    "not a product build")
 
 # The panel headings (D-17); `calc.presets` files the rows a matched row adds under the same two.
 SHANK = "Shank and thread"
@@ -162,7 +174,8 @@ class PartInfo(BaseModel):
     preset: PresetMatch | None = Field(
         description="whether the part is a catalogue row; null for a kind without a catalogue")
     notes: list[str] = Field(
-        description="one-line notes about the matched row, present only on an exact match, and "
+        description="one-line notes about the part: the matched row's notes on an exact match, "
+                    "the sharp-head note on a bolt with head_chamfer 0 whatever it matches, and "
                     "for a nut the M18 pair-proof label, keyed on the size alone; the page "
                     "shows them after the warnings in their own style (D-20)")
     downloads: list[Download] = Field(
@@ -237,6 +250,44 @@ def _bolt(p: BoltParams) -> PartInfo:
     # non-finite number leaves derive()" is this function's own contract (D-15): d=1e200
     # overflows a float on the way (F2) and `Fraction(repr(inf))` raises. The rows are in the
     # order the page shows them: the shank's, then the head's, the volume last (D-18).
+    # D-10: a chamfered head reports four more rows after the head's cited values. The depth is the
+    # depth as cut, from the predicate the builder cuts with, so a head capped at k / 2 reads k / 2
+    # and not the model's deeper number (L02). Tested as `> 0`, never `!= 0`: -0.0 is the sharp
+    # head, which has no chamfer rows (D-11).
+    # WR-01, D-18, L02: the builder runs `head_chamfer_volume` before the kernel and refuses the
+    # part when it raises (an angle whose tangent underflows, 5e-324 being the one that gets
+    # here). Asked here too, so the document and the build agree on what is a part: no chamfer row
+    # and no volume for a head nobody can make, and the warning says so, as for a short thread
+    # below. Between that and `head_chamfer_kernel_bound` the oracle accepts the angle but the
+    # kernel may refuse it (its measured limit depends on s and k, see the bound's comment): the
+    # same four rows and the volume are withheld, with a warning that says "may", because
+    # this function never runs the kernel. D-10 and D-11 are silent on a chamfer that may not
+    # exist; L02 decides. The model keeps no floor and the field still takes every angle (D-18).
+    chamfer_modelled = True
+    chamfer_kernel_bound = 0.0
+    if p.head_chamfer > 0:
+        try:
+            head_chamfer_volume(
+                p.s, p.head_chamfer, head_chamfer_depths(p.s, p.k, p.head_chamfer)[1])
+        except (OverflowError, ValueError):
+            chamfer_modelled = False
+        chamfer_kernel_bound = head_chamfer_kernel_bound(p.s, p.k)
+    chamfer_reported = chamfer_modelled and not 0 < p.head_chamfer < chamfer_kernel_bound
+    chamfer_rows: list[tuple[str, str, str, str, str, Callable[[], float]]] = []
+    if p.head_chamfer > 0 and chamfer_reported:
+        chamfer_rows = [
+            ("head_chamfer", HEAD, "Head chamfer angle from the top face "
+             "(stated model: the standards draw a 15 to 30° band)", "°", "head_chamfer",
+             lambda: p.head_chamfer),
+            ("chamfer_depth", HEAD, "Corner chamfer depth, as cut", "mm",
+             "min((s / cos 30° - s) / 2 * tan(head_chamfer), k / 2)",
+             lambda: head_chamfer_depths(p.s, p.k, p.head_chamfer)[1]),
+            ("chamfer_circle_diameter", HEAD, "Chamfer circle diameter on the top face", "mm",
+             "s", lambda: p.s),
+            ("corner_edge_left", HEAD, "Corner edge left below the chamfer", "mm",
+             "k - corner chamfer depth",
+             lambda: p.k - head_chamfer_depths(p.s, p.k, p.head_chamfer)[1]),
+        ]
     computed: list[tuple[str, str, str, str, str, Callable[[], float]]] = [
         ("thread_length", SHANK, "Thread length (built)", "mm", "min(thread_length, length)",
          lambda: t),
@@ -254,19 +305,24 @@ def _bolt(p: BoltParams) -> PartInfo:
         ("across_corners", HEAD, "Across corners, geometric (s / cos 30°)", "mm", "s / cos 30°",
          lambda: p.s / math.cos(math.pi / 6)),
         ("k", HEAD, "Head height", "mm", "k", lambda: p.k),
+        *chamfer_rows,
         ("volume", PART, "Volume (closed form)", "mm³",
          "the closed form section_area(d, pitch) * thread_length (built) "
          "+ pi * (d / 2)^2 * shank_length + (sqrt(3) / 2) * s^2 * k, less the tip cone "
          "(the thread cut at 45° from the end face from the minor diameter) and plus the "
-         "under-head fillet ring where the thread has a plain shank at a cited ISO 4014 size",
-         lambda: bolt_end_closed_volume(p.d, p.pitch, p.length, p.s, p.k, t, tip, ring)),
+         "under-head fillet ring where the thread has a plain shank at a cited ISO 4014 size, "
+         "less the head chamfer (a cone from s / 2 at head_chamfer degrees from the top face, "
+         "cut no deeper than k / 2)",
+         lambda: bolt_end_closed_volume(
+             p.d, p.pitch, p.length, p.s, p.k, t, tip, ring, p.head_chamfer)),
     ]
     # IN-01, L02: below `MIN_TAIL_MM` of built thread the builder refuses the part, so a turns or
     # volume row would be a number for a bolt nobody can make. They are left out and the warning
     # below says why; every other row is an exact reading of the user's own fields.
     buildable = t >= MIN_TAIL_MM
     for key, group, label, unit, formula, compute in computed:
-        if not buildable and key in ("turns", "volume"):
+        if (not buildable and key in ("turns", "volume")) or (
+                not chamfer_reported and key == "volume"):
             continue
         try:
             value = compute()
@@ -291,6 +347,23 @@ def _bolt(p: BoltParams) -> PartInfo:
         warnings.append(f"thread_length and length: a thread of {t:g} mm is shorter than the "
                         f"{MIN_TAIL_MM:g} mm the builder can model, so this part is not built; "
                         "turns and volume not reported")
+    if not chamfer_modelled:
+        warnings.append(f"head_chamfer {p.head_chamfer!r}: the head chamfer cannot be modelled at "
+                        "this angle, so this part is not built; chamfer rows and volume not "
+                        "reported")
+    elif not chamfer_reported:
+        warnings.append(f"head_chamfer {p.head_chamfer!r}: below {chamfer_kernel_bound!r} degrees, "
+                        "the smallest angle the geometry kernel is measured to cut on a head of "
+                        f"s {p.s!r} and k {p.k!r}, so this part may be refused as a build error; "
+                        "chamfer rows and volume not reported")
+    else:
+        # D-02: an angle off the 15 to 30 degree band builds as asked and says so. D-04, D-06: a
+        # depth over k / 2 that reached the model (a defaulted angle, or direct construction) is
+        # cut at k / 2 and says so, naming head_chamfer and k. An explicit one never gets here on
+        # the API or the CLI (the request boundary's 422, plan 06.1-04); only a `model_construct`
+        # instance can fail here, and its volume row then says it is not reported.
+        with contextlib.suppress(OverflowError, ValueError):
+            warnings.extend(head_chamfer_warnings(p.s, p.k, p.head_chamfer))
     if row is None:
         # L02: no row means no row value and no nearest row; the part is built from its fields.
         warnings.append(NO_ROW_WARNING)
@@ -317,6 +390,8 @@ def _bolt(p: BoltParams) -> PartInfo:
         row_notes = notes(row)
         if row.standard == "ISO 4017":
             row_notes.append(NO_FILLET_NOTE)
+    if not p.head_chamfer > 0:
+        row_notes.append(SHARP_HEAD_NOTE)
     return PartInfo(kind=p.kind, rows=rows, warnings=warnings, designation=designation,
                     preset=preset, notes=row_notes, downloads=downloads, counterpart=counterpart)
 
@@ -508,7 +583,10 @@ class ExplicitConflict(NamedTuple):
 
 
 def explicit_conflict(kind: str, values: Mapping[str, object]) -> ExplicitConflict | None:
-    """The rule between two explicit values of `kind`, or None when they agree (D-25).
+    """The rule between the explicit values of `kind`, or None when they agree (D-25).
+
+    Most rules judge two explicit values against each other; the bolt's head_chamfer rule judges
+    one explicit value against given or default ones (06.1 D-05).
 
     Runs at the request boundary, before any model exists: FastAPI copies every field default
     into the query model and pydantic then cannot tell an explicit value from a default
@@ -526,13 +604,30 @@ def explicit_conflict(kind: str, values: Mapping[str, object]) -> ExplicitConfli
 
 
 def _bolt_explicit_conflict(values: Mapping[str, object]) -> ExplicitConflict | None:
+    """The bolt's two rules, in order: thread_length against length, then head_chamfer (D-25, D-04).
+
+    The thread_length rule needs both values explicit. The head_chamfer rule needs only
+    head_chamfer explicit and reads s and k from the request or, when it does not name them,
+    from the frozen field defaults (D-05): `?head_chamfer=80` alone is judged at s 10, k 4. A
+    preset's s and k count as given, because the CLI expands `--preset` before this call. The web
+    page writes only the fields that differ from their defaults (`partQuery`), so a typed 30 is
+    never explicit there, which agrees with D-04. Direct Python construction is capped and warned,
+    the owner's D-25 exception extended to this one rule (D-06).
+    """
     length, thread_length = values.get("length"), values.get("thread_length")
-    if not (isinstance(length, float) and isinstance(thread_length, float)):
+    if (isinstance(length, float) and isinstance(thread_length, float)
+            and (msg := thread_length_conflict(length, thread_length)) is not None):
+        return ExplicitConflict("thread_length_conflict", ("thread_length", "length"), msg)
+    angle = values.get("head_chamfer")
+    if not isinstance(angle, float):
         return None
-    msg = thread_length_conflict(length, thread_length)
-    if msg is None:
+    s = values.get("s", BoltParams.model_fields["s"].default)
+    k = values.get("k", BoltParams.model_fields["k"].default)
+    if not (isinstance(s, float) and isinstance(k, float)):
         return None
-    return ExplicitConflict("thread_length_conflict", ("thread_length", "length"), msg)
+    if (msg := head_chamfer_conflict(s, k, angle)) is None:
+        return None
+    return ExplicitConflict("head_chamfer_conflict", ("head_chamfer", "k"), msg)
 
 
 # One entry per registered kind (tests/test_calc.py walks `KINDS`); `None` is a kind with no

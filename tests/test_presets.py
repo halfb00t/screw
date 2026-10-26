@@ -109,6 +109,30 @@ def test_a_conflict_between_the_preset_and_an_explicit_flag_exits_2_naming_both_
     assert capsys.readouterr().err.startswith("error: thread_length and length: ")
 
 
+def test_a_preset_never_sets_the_head_chamfer(capsys: pytest.CaptureFixture[str]) -> None:
+    # D-13: the standard prints a 15 to 30 degree band, not a number, so no row carries an angle.
+    for row in ROWS:
+        assert "head_chamfer" not in row.fields, row.id
+        assert "head_chamfer" not in (expand("bolt", row.id) or {}), row.id
+    exact = ["--preset", "iso4017:M6x20"]
+    plain = _info(exact, capsys)
+    assert _row_values(plain)["head_chamfer"] == 30.0
+    typed = _info([*exact, "--head-chamfer", "15"], capsys)
+    assert _row_values(typed)["head_chamfer"] == 15.0
+    for document in (plain, typed):
+        preset = document["preset"]
+        assert isinstance(preset, dict)
+        assert preset["status"] == "exact"
+
+
+def test_a_preset_beside_an_explicit_head_chamfer_deeper_than_half_its_k_exits_2(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    # D-05: the preset's s and k count as given, because the flags are laid over the row first.
+    capsys.readouterr()
+    assert _exit(["info", "bolt", "--preset", "iso4017:M6x20", "--head-chamfer", "80"]) == 2
+    assert capsys.readouterr().err.startswith("error: head_chamfer and k: ")
+
+
 def test_an_unknown_preset_exits_2_naming_it_and_where_to_list_them(
         capsys: pytest.CaptureFixture[str]) -> None:
     capsys.readouterr()

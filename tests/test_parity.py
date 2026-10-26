@@ -414,9 +414,9 @@ def test_the_cli_and_the_api_print_the_same_document(
         assert api_doc["warnings"][0] == STANDING_WARNING
         # The literal too, so rewording the constant fails here and not only in test_calc (D-04).
         assert api_doc["warnings"][0] == (
-            "ends modelled per L15: bolt tip chamfer, under-head fillet on an ISO 4014 plain "
-            "shank, nut lead-in countersinks and face chamfers; nominal, not toleranced; "
-            "not a product build")
+            "ends modelled per L15 and L19: bolt tip chamfer, hex head chamfer, under-head "
+            "fillet on an ISO 4014 plain shank, nut lead-in countersinks and face chamfers; "
+            "nominal, not toleranced; not a product build")
 
 
 def test_the_limits_heading_is_the_same_ascii_string_on_the_cli_and_the_api(
@@ -887,6 +887,23 @@ def test_a_thread_length_conflict_is_the_same_words_on_the_api_and_the_cli(
         with pytest.raises(SystemExit) as stop:
             cli.main(["info", "bolt", "--length", str(length),
                       "--thread-length", str(thread_length)])
+        assert stop.value.code == 2
+        assert capsys.readouterr().err == f"error: {detail['msg']}\n"
+
+
+def test_a_head_chamfer_conflict_is_the_same_words_on_the_api_and_the_cli(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    """D-04, FRNT-05: one rule, so the 422 `msg` and the CLI `error:` line are the same text."""
+    for angle, extra in ((80, {}), (30, {"s": 100}), (68.86, {})):
+        res = client.get("/api/bolt/info", params={"head_chamfer": angle, **extra})
+        assert res.status_code == 422, (angle, extra)
+        [detail] = res.json()["detail"]
+        assert detail["type"] == "head_chamfer_conflict"
+        argv = ["info", "bolt", "--head-chamfer", str(angle)]
+        for name, value in extra.items():
+            argv += [f"--{name}", str(value)]
+        with pytest.raises(SystemExit) as stop:
+            cli.main(argv)
         assert stop.value.code == 2
         assert capsys.readouterr().err == f"error: {detail['msg']}\n"
 

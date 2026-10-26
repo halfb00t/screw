@@ -16,9 +16,11 @@ from screw.app import app, build_backend
 from screw.calc import (
     NO_FILLET_NOTE,
     NUT_NO_ROW_WARNING,
+    SHARP_HEAD_NOTE,
     STANDING_WARNING,
     Counterpart,
     Download,
+    ExplicitConflict,
     PartInfo,
     PresetMatch,
     derive,
@@ -28,12 +30,17 @@ from screw.calc import (
 )
 from screw.calc.presets import WITHDRAWN_DIN_WRENCH_MM, designation_for, match
 from screw.calc.thread import (
+    HEAD_CHAMFER_KERNEL_FLOOR_DEG,
     TIP_ANGLE_DEG,
     axial_play,
     basic_minor_diameter,
     bolt_end_closed_volume,
     fine_stl_refusal,
     flank_normal_gap,
+    head_chamfer_conflict,
+    head_chamfer_depths,
+    head_chamfer_kernel_bound,
+    head_chamfer_warnings,
     nut_closed_volume,
     nut_end_closed_volume,
     nut_fine_stl_refusal,
@@ -53,9 +60,9 @@ from screw.tables.iso4032 import NUTS
 from screw.tables.presets import catalogue, expand_nut
 from screw.tables.rows import HexNut
 
-WARNING = ("ends modelled per L15: bolt tip chamfer, under-head fillet on an ISO 4014 plain shank, "
-           "nut lead-in countersinks and face chamfers; nominal, not toleranced; "
-           "not a product build")
+WARNING = ("ends modelled per L15 and L19: bolt tip chamfer, hex head chamfer, under-head fillet "
+           "on an ISO 4014 plain shank, nut lead-in countersinks and face chamfers; nominal, "
+           "not toleranced; not a product build")
 PROFILE = "ISO 68-1:2023 basic profile"
 NO_ROW = ("no ISO 4014:2022 or ISO 4017:2022 row matches these fields; "
           "row values not reported")
@@ -71,9 +78,10 @@ LIMITS_KEYS = ["d_max", "d_min", "d2_max", "d2_min"]
 PAIR_KEYS = ["clearance", "clearance_diametral", "flank_gap", "axial_play", "nut_major_diameter",
              "nut_pitch_diameter", "nut_minor_diameter", "engagement_turns"]
 NUT_LIMITS_KEYS = ["D1_min", "D1_max", "D2_min", "D2_max"]
+CHAMFER_KEYS = ["head_chamfer", "chamfer_depth", "chamfer_circle_diameter", "corner_edge_left"]
 KEYS = ["d", "pitch", "length", "thread_length", "shank_length", "turns", "thread_depth",
         "minor_diameter", "pitch_diameter", *LIMITS_KEYS, "s", "across_corners", "k", "s_min",
-        "e_min", "k_max", "k_min", "dw_min", "volume"]
+        "e_min", "k_max", "k_min", "dw_min", *CHAMFER_KEYS, "volume"]
 
 
 def _rows(p: BoltParams) -> dict[str, float]:
@@ -85,18 +93,21 @@ def test_the_default_document_lists_the_inputs_the_thread_the_head_then_the_volu
     assert info.kind == "bolt"
     assert [r.key for r in info.rows] == KEYS
     assert [r.unit for r in info.rows] == [
-        "mm", "mm", "mm", "mm", "mm", "", *["mm"] * 15, "mm³"]
+        "mm", "mm", "mm", "mm", "mm", "", *["mm"] * 15, "°", "mm", "mm", "mm", "mm³"]
 
 
 def test_the_default_thread_numbers_come_from_the_pinned_profile() -> None:
     rows = _rows(BoltParams())
     assert rows["turns"] == 20.0
     # The whole-part closed form, never the kernel's Volume() (L02, INFO-03): the section area
-    # times the thread plus the sharp-cornered hexagonal prism, (sqrt(3) / 2) * s^2 * k.
-    # The closed form less the 45 degree tip cone (D-09): a threaded-to-the-head screw has no ring.
-    assert rows["volume"] == bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None)
+    # times the thread plus the hexagonal prism, (sqrt(3) / 2) * s^2 * k, less the 30 degree head
+    # chamfer (06.1, pinned in tests/test_end_oracles.py). The closed form less the 45 degree tip
+    # cone (D-09): a threaded-to-the-head screw has no ring.
+    assert rows["volume"] == bolt_end_closed_volume(
+        6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None, 30.0)
     assert rows["volume"] == pytest.approx(
-        459.14408096158724 + 200 * math.sqrt(3) - tip_cone_volume(6.0, 1.0, 45.0), abs=1e-9)
+        459.14408096158724 + 200 * math.sqrt(3) - tip_cone_volume(6.0, 1.0, 45.0)
+        - 1.0855309493921927, abs=1e-9)
     # An independently typed 5/8 * sqrt(3)/2 for P = 1.
     assert rows["thread_depth"] == pytest.approx(0.541265877, abs=1e-9)
     assert rows["minor_diameter"] == pytest.approx(6 - 2 * 0.541265877, abs=1e-9)
@@ -114,7 +125,8 @@ def test_the_thread_rows_are_the_built_thread_and_the_plain_shank_left_over() ->
     rows = _rows(p)
     assert (rows["thread_length"], rows["shank_length"], rows["turns"]) == (20.0, 10.0, 20.0)
     # The 10 mm plain shank is at least the cited r = 0.25 mm of an M6 under the head: a ring.
-    assert rows["volume"] == bolt_end_closed_volume(6.0, 1.0, 30.0, 10.0, 4.0, 20.0, True, 0.25)
+    assert rows["volume"] == bolt_end_closed_volume(
+        6.0, 1.0, 30.0, 10.0, 4.0, 20.0, True, 0.25, 30.0)
     assert derive(p).warnings == [STANDING_WARNING, NO_ROW]
 
 
@@ -122,7 +134,8 @@ def test_the_rows_of_a_screw_shorter_than_the_default_thread_read_the_built_thre
     # D-08: `?length=10` builds a 10 mm full-thread screw; the stored thread_length stays 20.
     rows = _rows(BoltParams(length=10.0))
     assert (rows["thread_length"], rows["shank_length"], rows["turns"]) == (10.0, 0.0, 10.0)
-    assert rows["volume"] == bolt_end_closed_volume(6.0, 1.0, 10.0, 10.0, 4.0, 10.0, True, None)
+    assert rows["volume"] == bolt_end_closed_volume(
+        6.0, 1.0, 10.0, 10.0, 4.0, 10.0, True, None, 30.0)
 
 
 def test_a_default_thread_below_an_explicit_length_is_built_to_the_length_and_warned() -> None:
@@ -174,6 +187,48 @@ def test_the_head_rows_are_the_fields_and_the_geometric_across_corners() -> None
     assert "geometric" in labels["across_corners"]
 
 
+def test_a_chamfered_head_reports_its_angle_depth_as_cut_circle_and_edge_left() -> None:
+    info = derive(BoltParams())
+    by_key = {r.key: r for r in info.rows}
+    depth = head_chamfer_depths(10.0, 4.0, 30.0)[1]
+    assert (by_key["head_chamfer"].value, by_key["head_chamfer"].unit) == (30.0, "°")
+    assert "stated model" in by_key["head_chamfer"].label
+    assert (by_key["chamfer_depth"].value, by_key["chamfer_depth"].unit) == (depth, "mm")
+    assert by_key["chamfer_circle_diameter"].value == 10.0
+    assert by_key["corner_edge_left"].value == 4.0 - depth
+    assert {by_key[k].group for k in CHAMFER_KEYS} == {"Head"}
+    assert info.notes == [GRADE_A, NO_FILLET_NOTE]
+
+
+def test_a_capped_head_chamfer_reports_the_depth_as_cut_not_the_model_depth() -> None:
+    # 80 degrees asks for a 4.39 mm model depth; the builder cuts k / 2 = 2 mm, and a number
+    # someone cuts metal to is the one that was cut (L02).
+    full = head_chamfer_depths(10.0, 4.0, 80.0)[0]
+    assert full > 4.0
+    rows = _rows(BoltParams(head_chamfer=80.0))
+    assert rows["head_chamfer"] == 80.0
+    assert rows["chamfer_depth"] == 2.0
+    assert rows["corner_edge_left"] == 2.0
+
+
+def test_a_sharp_head_has_no_chamfer_rows_and_carries_the_sharp_head_note() -> None:
+    assert SHARP_HEAD_NOTE == "sharp hex head corners: head_chamfer 0 cuts no top chamfer (L19)"
+    for angle in (0.0, -0.0):
+        info = derive(BoltParams(head_chamfer=angle))
+        assert set(CHAMFER_KEYS).isdisjoint(r.key for r in info.rows)
+        assert info.notes == [GRADE_A, NO_FILLET_NOTE, SHARP_HEAD_NOTE]
+        assert SHARP_HEAD_NOTE not in info.warnings
+
+
+def test_the_sharp_head_note_shows_on_a_part_that_matches_no_row() -> None:
+    info = derive(BoltParams(length=21.0, head_chamfer=0.0))
+    assert info.preset is not None
+    assert info.preset.status == "custom"
+    assert info.notes == [SHARP_HEAD_NOTE]
+    # A chamfered part that matches no row carries no note.
+    assert derive(BoltParams(length=21.0)).notes == []
+
+
 def test_the_derived_rows_name_the_profile_and_the_hand_is_not_a_row() -> None:
     by_key = {r.key: r for r in derive(BoltParams()).rows}
     assert PROFILE in by_key["thread_depth"].label
@@ -202,6 +257,103 @@ def test_a_volume_that_overflows_is_absent_and_explained_not_a_500() -> None:
     assert {"s", "across_corners", "k"} <= set(keys)  # the head rows do not depend on d
     assert any("volume" in w for w in info.warnings)
     assert info.warnings[0] == WARNING
+
+
+def test_an_angle_the_oracle_refuses_is_an_info_document_that_says_the_part_is_not_built() -> None:
+    # 06.1 WR-01, D-18, L02: 5e-324 degrees underflows the tangent, so `head_chamfer_volume`
+    # raises and the build is refused before the kernel runs. The document agrees with the build:
+    # no chamfer row (the "no chamfer, 4 mm edge left" reading was the wrong number), no volume
+    # row, one warning that names the field and says the part is not built, and neither the band
+    # warning's "built as asked" nor the "not a finite number" volume reason.
+    tiny = derive(BoltParams(head_chamfer=5e-324))
+    keys = {r.key for r in tiny.rows}
+    assert set(CHAMFER_KEYS).isdisjoint(keys)
+    assert "volume" not in keys
+    assert {"s", "k", "thread_length"} <= keys  # the rest of the document is still there
+    refusal = [w for w in tiny.warnings if "this part is not built" in w]
+    assert len(refusal) == 1
+    assert refusal[0].startswith("head_chamfer 5e-324:")
+    assert not any("built as asked" in w or "not a finite number" in w for w in tiny.warnings)
+    assert not any(w.startswith("volume not reported") for w in tiny.warnings)
+
+
+def _below_bound_warnings(info: PartInfo) -> list[str]:
+    return [w for w in info.warnings if "may be refused as a build error" in w]
+
+
+def test_an_angle_just_below_the_kernel_bound_withholds_the_chamfer_rows_and_the_volume() -> None:
+    # Owner ruling 2026-10-24 on WR-01's residual, L02, D-18: below the measured bound the kernel
+    # may refuse the build, which `derive` cannot know, so it prints no number that part might not
+    # have: no chamfer row, no volume, one warning naming the field and the bound. D-10 and D-11
+    # are silent on this case. The rest of the document is still there, and "built as asked" is
+    # not claimed. The model keeps no floor: BoltParams accepts the angle.
+    bound = head_chamfer_kernel_bound(10.0, 4.0)
+    angle = bound * 0.99
+    info = derive(BoltParams(head_chamfer=angle))
+    keys = {r.key for r in info.rows}
+    assert set(CHAMFER_KEYS).isdisjoint(keys)
+    assert "volume" not in keys
+    assert {"s", "k", "thread_length"} <= keys
+    warned = _below_bound_warnings(info)
+    assert len(warned) == 1
+    assert warned[0].startswith(f"head_chamfer {angle!r}: below {bound!r} degrees")
+    assert not any("built as asked" in w or "this part is not built" in w for w in info.warnings)
+    assert not any(w.startswith("volume not reported") for w in info.warnings)
+
+
+def test_the_kernel_bound_and_every_angle_above_it_keep_their_rows_and_volume() -> None:
+    # 1e-4 degrees builds on the default head (tests/test_solid.py) but is under the bound, which
+    # keeps a margin over the largest measured refusal (7e-5); the bound itself is a built part.
+    bound = head_chamfer_kernel_bound(10.0, 4.0)
+    assert bound == 2e-4
+    for angle in (bound, 1e-3, 30.0):
+        info = derive(BoltParams(head_chamfer=angle))
+        keys = {r.key for r in info.rows}
+        assert set(CHAMFER_KEYS) <= keys
+        assert "volume" in keys
+        assert _below_bound_warnings(info) == []
+        assert not any("this part is not built" in w for w in info.warnings)
+    assert "volume" not in {r.key for r in derive(BoltParams(head_chamfer=1e-4)).rows}
+
+
+def test_the_kernel_bound_grows_for_a_small_or_tall_head_and_has_a_floor_for_the_rest() -> None:
+    # The measured refusals scale as 1/s for a small head and with k (the comment on the constants
+    # carries the grid): the same angle is a built part on the default head and a possible
+    # refusal on a head of s = 1.
+    assert head_chamfer_kernel_bound(10.0, 4.0) == HEAD_CHAMFER_KERNEL_FLOOR_DEG
+    assert head_chamfer_kernel_bound(100.0, 40.0) == HEAD_CHAMFER_KERNEL_FLOOR_DEG
+    assert head_chamfer_kernel_bound(1.0, 0.4) == pytest.approx(1.4e-3)
+    assert head_chamfer_kernel_bound(10.0, 400.0) == pytest.approx(1.4e-2)
+    angle = 1e-3
+    assert _below_bound_warnings(derive(BoltParams(head_chamfer=angle))) == []
+    small = BoltParams(d=0.5, pitch=0.1, length=5.0, thread_length=5.0, s=1.0, k=0.4,
+                       head_chamfer=angle)
+    assert len(_below_bound_warnings(derive(small))) == 1
+    assert "volume" not in {r.key for r in derive(small).rows}
+
+
+def test_a_sharp_head_and_a_head_the_oracle_refuses_are_not_the_below_bound_case() -> None:
+    # 0 is the sharp head (D-11): rows absent, the note present, no warning of either kind. 5e-324
+    # keeps its own "not built" path and is not also called "may be refused".
+    sharp = derive(BoltParams(head_chamfer=0.0))
+    assert _below_bound_warnings(sharp) == []
+    assert not any("head_chamfer" in w for w in sharp.warnings)
+    assert SHARP_HEAD_NOTE in sharp.notes
+    tiny = derive(BoltParams(head_chamfer=5e-324))
+    assert _below_bound_warnings(tiny) == []
+    assert len([w for w in tiny.warnings if "this part is not built" in w]) == 1
+
+
+def test_derive_never_raises_on_a_tiny_or_near_right_head_chamfer() -> None:
+    # 06.1 D-18, L02: every value reports a finite volume below the sharp head's, except where the
+    # oracle refuses it or the kernel may (the tests above).
+    sharp = bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None, 0.0)
+    for angle in (2e-4, 89.99999999999999):
+        volume = _rows(BoltParams(head_chamfer=angle))["volume"]
+        assert math.isfinite(volume)
+        assert 0 < volume < sharp, angle
+    for angle in (1e-9, 1e-4):
+        assert derive(BoltParams(head_chamfer=angle)).rows  # withheld, never a 500
 
 
 def test_an_infinite_diameter_leaves_out_every_row_it_would_make_infinite() -> None:
@@ -662,7 +814,8 @@ def test_the_rows_sit_in_three_groups_in_server_order() -> None:
     info = derive(BoltParams())
     shank = ["d", "pitch", "length", "thread_length", "shank_length", "turns", "thread_depth",
              "minor_diameter", "pitch_diameter"]
-    head = ["s", "across_corners", "k", "s_min", "e_min", "k_max", "k_min", "dw_min"]
+    head = ["s", "across_corners", "k", "s_min", "e_min", "k_max", "k_min", "dw_min",
+            *CHAMFER_KEYS]
     assert _groups(info) == ([("Shank and thread", k) for k in shank]
                              + [(calc.LIMITS, k) for k in LIMITS_KEYS]
                              + [("Head", k) for k in head] + [("Part", "volume")])
@@ -674,7 +827,7 @@ def test_an_iso_4014_match_adds_b_lg_max_and_ls_min_to_the_shank_group() -> None
     assert shank == ["d", "pitch", "length", "thread_length", "shank_length", "turns",
                      "thread_depth", "minor_diameter", "pitch_diameter", "b", "lg_max", "ls_min"]
     assert [k for g, k in _groups(info) if g == "Head"] == [
-        "s", "across_corners", "k", "s_min", "e_min", "k_max", "k_min", "dw_min"]
+        "s", "across_corners", "k", "s_min", "e_min", "k_max", "k_min", "dw_min", *CHAMFER_KEYS]
 
 
 def test_a_matched_rows_values_carry_their_sense_and_source_in_the_label() -> None:
@@ -771,6 +924,52 @@ def test_the_no_row_warning_follows_the_thread_warnings_and_precedes_the_fine_st
         STANDING_WARNING,
         "thread_length 80 exceeds length 70: thread built to the full length",
         NO_ROW, refusal]
+
+
+def test_an_off_band_head_chamfer_builds_as_asked_and_warns_naming_the_band() -> None:
+    # D-02: the band text is plain strings; the texts themselves are pinned in test_thread_maths.
+    for angle in (14.999, 30.001, 45.0):
+        band = head_chamfer_warnings(10.0, 4.0, angle)
+        assert len(band) == 1
+        warnings = derive(BoltParams(head_chamfer=angle)).warnings
+        assert warnings.count(band[0]) == 1, angle
+        assert "head_chamfer" in band[0]
+        assert "15 to 30 degree band" in band[0]
+        assert _rows(BoltParams(head_chamfer=angle))["head_chamfer"] == angle
+    for angle in (0.0, 15.0, 30.0):
+        assert not any("degree band" in w for w in derive(BoltParams(head_chamfer=angle)).warnings)
+
+
+def test_a_defaulted_head_chamfer_deeper_than_half_k_is_cut_at_half_k_and_warned() -> None:
+    # D-04: s = 100 with the default 30 degrees asks for a model depth far over k / 2 = 2 mm.
+    info = derive(BoltParams(s=100.0))
+    cap = head_chamfer_warnings(100.0, 4.0, 30.0)
+    assert len(cap) == 1
+    assert cap[0].startswith("head_chamfer 30 and k 4:")
+    assert info.warnings == [STANDING_WARNING, cap[0], NO_ROW]
+    assert _rows(BoltParams(s=100.0))["chamfer_depth"] == 2.0
+
+
+def test_a_direct_head_chamfer_of_80_is_capped_and_warned_not_refused() -> None:
+    # D-06: direct construction never refuses; the 422 is the request boundary's (plan 04).
+    info = derive(BoltParams(head_chamfer=80.0))
+    assert info.warnings == [STANDING_WARNING, *head_chamfer_warnings(10.0, 4.0, 80.0)]
+    assert len(info.warnings) == 3
+    assert "head_chamfer 80" in info.warnings[1]
+    assert "head_chamfer 80 and k 4" in info.warnings[2]
+    assert _rows(BoltParams(head_chamfer=80.0))["chamfer_depth"] == 2.0
+
+
+def test_the_head_chamfer_warnings_follow_the_thread_warnings_and_precede_the_no_row_warning(
+) -> None:
+    p = BoltParams(d=8.0, pitch=1.25, length=70.0, thread_length=80.0, head_chamfer=80.0)
+    s, k = p.s, p.k
+    info = derive(p)
+    refusal = fine_stl_refusal(8.0, 1.25, 70.0, False)
+    assert info.warnings == [
+        STANDING_WARNING,
+        "thread_length 80 exceeds length 70: thread built to the full length",
+        *head_chamfer_warnings(s, k, 80.0), NO_ROW, refusal]
 
 
 # --- the notes: product grade and the ISO versus withdrawn DIN wrench size (D-20, INFO-05) -----
@@ -877,6 +1076,38 @@ def test_the_bolt_rule_needs_both_values_as_floats() -> None:
     assert explicit_conflict("bolt", {"length": 10.0}) is None
     assert explicit_conflict("bolt", {"thread_length": 30.0}) is None
     assert explicit_conflict("bolt", {"length": 10.0, "thread_length": "30"}) is None
+
+
+def test_the_bolt_rule_refuses_an_explicit_head_chamfer_deeper_than_half_k_reading_defaults(
+) -> None:
+    # D-04, D-05: s 10 and k 4 come from the model's defaults when the request does not name them.
+    msg = head_chamfer_conflict(10.0, 4.0, 80.0)
+    assert msg is not None
+    conflict = explicit_conflict("bolt", {"head_chamfer": 80.0})
+    assert conflict == ExplicitConflict("head_chamfer_conflict", ("head_chamfer", "k"), msg)
+    wide = explicit_conflict("bolt", {"head_chamfer": 30.0, "s": 100.0})
+    assert wide is not None
+    assert wide.msg == head_chamfer_conflict(100.0, 4.0, 30.0)
+    assert explicit_conflict("bolt", {"head_chamfer": 80.0, "k": 10.0}) is None
+    assert explicit_conflict("bolt", {"head_chamfer": 30.0}) is None
+
+
+def test_a_defaulted_head_chamfer_is_never_a_conflict() -> None:
+    assert explicit_conflict("bolt", {"s": 100.0}) is None
+    assert explicit_conflict("bolt", {}) is None
+
+
+def test_the_thread_length_rule_is_judged_before_the_head_chamfer_rule() -> None:
+    conflict = explicit_conflict(
+        "bolt", {"length": 10.0, "thread_length": 30.0, "head_chamfer": 80.0})
+    assert conflict is not None
+    assert conflict.type == "thread_length_conflict"
+
+
+@pytest.mark.parametrize("angle", ["80", math.nan, math.inf, 90.0, -1.0, 0.0])
+def test_a_head_chamfer_that_is_not_a_usable_float_is_the_models_to_refuse(
+        angle: object) -> None:
+    assert explicit_conflict("bolt", {"head_chamfer": angle, "s": 100.0}) is None
 
 
 # --- the nominal diameters and the bought-part limits (INFO-01, INFO-02, D-16, L14) ------------
@@ -1217,16 +1448,19 @@ def test_following_a_nuts_counterpart_gives_a_bolt_with_the_nuts_d_pitch_and_han
 def test_the_volume_row_is_the_closed_form_less_the_tip_and_plus_the_ring() -> None:
     # An ISO 4014 M10 x 80 row: 26 mm of thread under a 54 mm plain shank, r = 0.4 (cited).
     rows = _rows(M10X80)
-    assert rows["volume"] == bolt_end_closed_volume(10.0, 1.5, 80.0, 16.0, 6.4, 26.0, True, 0.4)
-    assert rows["volume"] != bolt_end_closed_volume(10.0, 1.5, 80.0, 16.0, 6.4, 26.0, True, None)
+    assert rows["volume"] == bolt_end_closed_volume(
+        10.0, 1.5, 80.0, 16.0, 6.4, 26.0, True, 0.4, 30.0)
+    assert rows["volume"] != bolt_end_closed_volume(
+        10.0, 1.5, 80.0, 16.0, 6.4, 26.0, True, None, 30.0)
 
 
-def test_the_volume_formula_text_names_the_tip_cone_and_the_ring() -> None:
+def test_the_volume_formula_text_names_the_tip_cone_the_ring_and_the_head_chamfer() -> None:
     # The formula is spoken only when the row cannot be reported (L02); d = 1e200 overflows it.
     info = derive(BoltParams.model_construct(d=1e200, pitch=1.0, length=20.0, s=10.0, k=4.0))
     text = next(w for w in info.warnings if w.startswith("volume not reported"))
     assert "tip cone" in text
     assert "fillet ring" in text
+    assert "head chamfer" in text
 
 
 def test_a_thread_no_longer_than_the_tip_cone_gets_no_cone_and_a_warning_naming_thread() -> None:
@@ -1238,7 +1472,8 @@ def test_a_thread_no_longer_than_the_tip_cone_gets_no_cone_and_a_warning_naming_
         warned = [w for w in info.warnings if w.startswith("thread_length: the built thread")]
         assert bool(warned) is not cut, t
         values = {r.key: r.value for r in info.rows}
-        assert values["volume"] == bolt_end_closed_volume(6.0, 1.0, 10.0, 10.0, 4.0, t, cut, 0.25)
+        assert values["volume"] == bolt_end_closed_volume(
+            6.0, 1.0, 10.0, 10.0, 4.0, t, cut, 0.25, 30.0)
     short = derive(BoltParams(d=6.0, pitch=1.0, length=10.0, thread_length=cone)).warnings
     assert any("thread_length" in w and "no tip cone is cut" in w for w in short)
 

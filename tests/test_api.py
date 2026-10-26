@@ -31,7 +31,12 @@ from screw.app import app, build_backend
 from screw.build_errors import BuildError, BuildTimeout
 from screw.calc import STANDING_WARNING
 from screw.calc.presets import expand
-from screw.calc.thread import T_GATE, bolt_end_closed_volume
+from screw.calc.thread import (
+    T_GATE,
+    bolt_end_closed_volume,
+    head_chamfer_depths,
+    head_chamfer_warnings,
+)
 from screw.params import DEFAULT_KIND, INTERIM_MAX_MM, KINDS, BoltParams, FastenerParams
 from screw.solid import Format, Quality, export, precise_volume
 from screw.tables.presets import catalogue
@@ -156,9 +161,10 @@ def test_schema_requires_a_kind_and_knows_only_registered_kinds() -> None:
     r = client.get("/api/schema", params={"kind": "bolt"})
     assert r.status_code == 200
     props = r.json()["properties"]
-    assert list(props) == ["d", "pitch", "left_hand", "length", "s", "k", "thread_length"]
+    assert list(props) == [
+        "d", "pitch", "left_hand", "length", "s", "k", "thread_length", "head_chamfer"]
     assert props["d"]["group"] == "Size"
-    assert props["s"]["group"] == props["k"]["group"] == "Head"
+    assert props["s"]["group"] == props["k"]["group"] == props["head_chamfer"]["group"] == "Head"
     assert props["thread_length"]["group"] == "Thread"
     assert props["thread_length"]["default"] == 20.0
     assert props["d"]["unit"] == "mm"
@@ -278,7 +284,7 @@ def test_openapi_documents_the_typed_contracts() -> None:
     model_route = schema["paths"]["/api/bolt/model.{fmt}"]["get"]
     query_names = {p["name"] for p in model_route["parameters"] if p["in"] == "query"}
     assert query_names == {"d", "pitch", "left_hand", "length", "s", "k", "thread_length",
-                           "quality"}
+                           "head_chamfer", "quality"}
     # The download state is pinned to the model route's own enums, read from this document and
     # not typed here, so a route that grows a format or a quality fails this test instead of
     # drifting from the info document (G-04-3).
@@ -298,7 +304,8 @@ def test_openapi_documents_the_typed_contracts() -> None:
     # `quality` belongs to the model route only: it is a foreign field on the info route.
     info_route = schema["paths"]["/api/bolt/info"]["get"]
     info_names = {p["name"] for p in info_route["parameters"] if p["in"] == "query"}
-    assert info_names == {"d", "pitch", "left_hand", "length", "s", "k", "thread_length"}
+    assert info_names == {"d", "pitch", "left_hand", "length", "s", "k", "thread_length",
+                           "head_chamfer"}
 
     presets_response = schema["paths"]["/api/presets"]["get"]["responses"]["200"]
     assert presets_response["content"]["application/json"]["schema"] == {
@@ -345,12 +352,13 @@ def test_the_default_info_document() -> None:
     assert [row["key"] for row in body["rows"]] == [
         "d", "pitch", "length", "thread_length", "shank_length", "turns", "thread_depth",
         "minor_diameter", "pitch_diameter", "d_max", "d_min", "d2_max", "d2_min", "s",
-        "across_corners", "k", "s_min", "e_min", "k_max", "k_min", "dw_min", "volume"]
+        "across_corners", "k", "s_min", "e_min", "k_max", "k_min", "dw_min", "head_chamfer",
+        "chamfer_depth", "chamfer_circle_diameter", "corner_edge_left", "volume"]
     # INFO-02: the heading is one ASCII string, compared with `==` and not by substring.
     assert [row["group"] for row in body["rows"]] == (
         ["Shank and thread"] * 9
         + ["limits for a bought part; this model is nominal and not toleranced"] * 4
-        + ["Head"] * 8 + ["Part"])
+        + ["Head"] * 12 + ["Part"])
     values = {row["key"]: row["value"] for row in body["rows"]}
     assert values["d"] == 6.0
     assert values["pitch"] == 1.0
@@ -359,11 +367,23 @@ def test_the_default_info_document() -> None:
     assert (values["thread_length"], values["shank_length"]) == (20.0, 0.0)
     assert (values["s"], values["k"]) == (10.0, 4.0)
     assert values["across_corners"] == 10.0 / math.cos(math.pi / 6)
-    assert values["volume"] == bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None)
+    assert values["volume"] == bolt_end_closed_volume(
+        6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None, 30.0)
     assert body["warnings"][0] == STANDING_WARNING
     assert body["preset"] == {"status": "exact", "id": "iso4017:M6x20",
                               "display": "ISO 4017 M6 \u00d7 20"}
     assert body["designation"] == "Hexagon head screw ISO 4017 - M6 x 20"
+
+
+def test_a_sharp_head_info_document_has_the_note_and_no_chamfer_rows() -> None:
+    body = client.get("/api/bolt/info", params={"head_chamfer": 0}).json()
+    keys = [row["key"] for row in body["rows"]]
+    assert {"head_chamfer", "chamfer_depth", "chamfer_circle_diameter",
+            "corner_edge_left"}.isdisjoint(keys)
+    assert [row["group"] for row in body["rows"]].count("Head") == 8
+    assert body["notes"][-1] == (
+        "sharp hex head corners: head_chamfer 0 cuts no top chamfer (L19)")
+    assert body["notes"][-1] not in body["warnings"]
 
 
 def test_a_part_matching_no_row_is_custom_on_the_wire() -> None:
@@ -389,7 +409,8 @@ def test_an_iso_4014_shaped_bolt_reports_its_thread_and_its_shank() -> None:
     values = {row["key"]: row["value"] for row in r.json()["rows"]}
     assert (values["thread_length"], values["shank_length"]) == (18.0, 12.0)
     assert values["turns"] == 18.0
-    assert values["volume"] == bolt_end_closed_volume(6.0, 1.0, 30.0, 10.0, 4.0, 18.0, True, 0.25)
+    assert values["volume"] == bolt_end_closed_volume(
+        6.0, 1.0, 30.0, 10.0, 4.0, 18.0, True, 0.25, 30.0)
 
 
 @pytest.mark.parametrize("route", ["/api/bolt/info", "/api/bolt/model.stl"])
@@ -562,7 +583,7 @@ def test_the_default_part_served_is_the_gated_hex_head_screw(tmp_path: Path) -> 
     assert isinstance(shape, cq.Shape)
     assert len(shape.Solids()) == 1
     assert precise_volume(shape) == pytest.approx(
-        bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None), rel=T_GATE)
+        bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None, 30.0), rel=T_GATE)
 
 
 def test_the_download_filename_is_safe_for_many_digit_values() -> None:
@@ -587,13 +608,20 @@ def test_model_download(fmt: str, ctype: str, magic: bytes | None) -> None:
     # D-22: the preview STL names its quality; the STEP keeps the plain slug.
     name = "_preview.stl" if fmt == "stl" else ".step"
     assert r.headers["content-disposition"] == (
-        f'attachment; filename="bolt_d8_pitch1_left_hand0_length20_s10_k4_thread_length20{name}"')
+        'attachment; filename="bolt_d8_pitch1_left_hand0_length20_s10_k4_'
+        f'thread_length20_head_chamfer30{name}"')
     if magic:
         assert r.content.startswith(magic)
 
 
 def test_unknown_format_is_rejected() -> None:
     assert client.get("/api/bolt/model.obj").status_code == 422
+
+
+def test_a_head_chamfer_of_90_is_a_422_naming_the_field() -> None:
+    r = client.get("/api/bolt/info", params={"head_chamfer": 90})
+    assert r.status_code == 422
+    assert r.json()["detail"][0]["loc"] == ["query", "head_chamfer"]
 
 
 def test_bad_type_is_422_on_the_field() -> None:
@@ -606,11 +634,11 @@ def test_a_left_hand_bolt_downloads_under_its_own_filename_and_is_not_the_right_
     left = client.get("/api/bolt/model.stl", params={"left_hand": "true", "quality": "preview"})
     assert left.status_code == 200
     assert left.headers["content-disposition"] == (
-        'attachment; filename="bolt_d6_pitch1_left_hand1_length20_s10_k4_thread_length20'
-        '_preview.stl"')
+        'attachment; filename="bolt_d6_pitch1_left_hand1_length20_s10_k4_'
+        'thread_length20_head_chamfer30_preview.stl"')
     right = client.get("/api/bolt/model.stl", params={"quality": "preview"})
     assert right.headers["content-disposition"].endswith(
-        'left_hand0_length20_s10_k4_thread_length20_preview.stl"')
+        'left_hand0_length20_s10_k4_thread_length20_head_chamfer30_preview.stl"')
     # The bytes of the left-hand solid the handedness probe proves left-handed
     # (tests/test_solid.py), and not of the right-hand one.
     assert left.content == export(BoltParams(left_hand=True), "stl", "preview")
@@ -691,7 +719,7 @@ def test_a_saturated_service_emits_queue_refused_naming_the_part_and_the_ceiling
     assert _field(refused[0], "request")
     assert _field(refused[0], "kind") == "bolt"
     assert _field(refused[0], "slug") == (
-        "bolt_d7.3_pitch1_left_hand0_length20_s10_k4_thread_length20")
+        "bolt_d7.3_pitch1_left_hand0_length20_s10_k4_thread_length20_head_chamfer30")
     assert _field(refused[0], "in_flight") == in_flight_before
     assert _field(refused[0], "max_queued") == app_module.MAX_QUEUED_BUILDS
 
@@ -838,7 +866,7 @@ def test_a_fresh_build_emits_build_started_then_export_served_with_source_built(
     for record in (started[0], served[0]):
         assert _field(record, "kind") == "bolt"
         assert _field(record, "slug") == (
-            "bolt_d7.1_pitch1_left_hand0_length20_s10_k4_thread_length20")
+            "bolt_d7.1_pitch1_left_hand0_length20_s10_k4_thread_length20_head_chamfer30")
         assert _field(record, "params") == {"d": 7.1}
 
 
@@ -905,7 +933,8 @@ def test_an_all_default_part_logs_params_as_an_empty_object_not_omitted(
     assert len(served) == 1
     assert _field(served[0], "params") == {}
     assert _field(served[0], "kind") == "bolt"
-    assert _field(served[0], "slug") == "bolt_d6_pitch1_left_hand0_length20_s10_k4_thread_length20"
+    assert _field(served[0], "slug") == (
+        "bolt_d6_pitch1_left_hand0_length20_s10_k4_thread_length20_head_chamfer30")
 
 
 def test_two_requests_for_one_part_get_two_different_request_ids(
@@ -963,7 +992,7 @@ def test_a_failed_build_emits_build_failed_naming_the_class_and_the_level(
     assert _field(failed[0], "request")
     assert _field(failed[0], "kind") == "bolt"
     assert _field(failed[0], "slug") == (
-        "bolt_d8.3_pitch1_left_hand0_length20_s10_k4_thread_length20")
+        "bolt_d8.3_pitch1_left_hand0_length20_s10_k4_thread_length20_head_chamfer30")
     assert _field(failed[0], "params") == {"d": 8.3}
     assert _field(failed[0], "duration_ms") is not None
 
@@ -1014,6 +1043,31 @@ def test_a_length_too_short_to_model_is_a_422_build_error_not_a_served_file(
     detail = r.json()["detail"][0]
     assert detail["type"] == "build_error"
     assert "length" in detail["msg"]
+
+
+def test_a_tiny_head_chamfer_is_a_422_build_error_or_a_200_never_a_500() -> None:
+    # 06.1 D-18: 5e-324 degrees has no honest oracle, so the build is refused; 1e-6 either builds
+    # inside both gates or is refused by name, and neither is a server error.
+    refused = client.get("/api/bolt/model.stl", params={
+        "head_chamfer": 5e-324, "quality": "preview"})
+    assert refused.status_code == 422
+    assert refused.json()["detail"][0]["type"] == "build_error"
+    # WR-01: the oracle refuses before the kernel runs, and the message does not blame the kernel.
+    assert "Geometry kernel failed" not in refused.json()["detail"][0]["msg"]
+    info = client.get("/api/bolt/info", params={"head_chamfer": 5e-324}).json()
+    assert not {r["key"] for r in info["rows"]} & {
+        "head_chamfer", "chamfer_depth", "chamfer_circle_diameter", "corner_edge_left", "volume"}
+    assert any("this part is not built" in w for w in info["warnings"])
+    near = client.get("/api/bolt/model.stl", params={"head_chamfer": 1e-6, "quality": "preview"})
+    assert near.status_code in (200, 422)
+    if near.status_code == 422:
+        assert near.json()["detail"][0]["type"] == "build_error"
+    # The kernel bound: the document cannot know whether 1e-6 builds, so it reports no volume and
+    # says the part may be refused, and the API still accepts the angle (D-18, no model floor).
+    maybe = client.get("/api/bolt/info", params={"head_chamfer": 1e-6})
+    assert maybe.status_code == 200
+    assert "volume" not in {r["key"] for r in maybe.json()["rows"]}
+    assert any("may be refused as a build error" in w for w in maybe.json()["warnings"])
 
 
 def test_a_failed_export_is_a_422_and_never_enters_the_bytes_cache(
@@ -1191,6 +1245,35 @@ def test_an_explicit_thread_length_above_an_explicit_length_is_a_422_naming_both
         "ctx": {"fields": ["thread_length", "length"]}}]
 
 
+HEAD_CHAMFER_MSG = (
+    "head_chamfer and k: head_chamfer 80 degrees cuts the head corners deeper than "
+    "k / 2 = 2 mm at s 10 mm; lower head_chamfer or raise k")
+
+
+@pytest.mark.parametrize("route", ["/api/bolt/info", "/api/bolt/model.stl"])
+def test_an_explicit_head_chamfer_deeper_than_half_k_is_a_422_naming_head_chamfer_and_k(
+        route: str) -> None:
+    # D-04: refused at the request boundary, before any build and on both routes.
+    params: Params = {"head_chamfer": 80}
+    if route.endswith(".stl"):
+        params = {**params, "quality": "preview"}
+    r = client.get(route, params=params)
+    assert r.status_code == 422
+    assert r.json()["detail"] == [{
+        "loc": ["query"], "type": "head_chamfer_conflict", "msg": HEAD_CHAMFER_MSG,
+        "ctx": {"fields": ["head_chamfer", "k"]}}]
+
+
+def test_an_explicit_30_on_a_wide_head_is_a_422_and_a_defaulted_30_is_a_200_with_the_cap_warning(
+) -> None:
+    r = client.get("/api/bolt/info", params={"head_chamfer": 30, "s": 100})
+    assert r.status_code == 422
+    assert [d["type"] for d in r.json()["detail"]] == ["head_chamfer_conflict"]
+    r = client.get("/api/bolt/info", params={"s": 100})
+    assert r.status_code == 200
+    assert head_chamfer_warnings(100.0, 4.0, 30.0)[0] in r.json()["warnings"]
+
+
 def test_the_conflict_compares_parsed_floats() -> None:
     assert client.get("/api/bolt/info", params={"length": 10, "thread_length": "10.0"}
                       ).status_code == 200
@@ -1249,6 +1332,84 @@ def test_the_conflict_is_still_a_422_behind_a_root_path() -> None:
     assert detail["type"] == "thread_length_conflict"
     assert detail["ctx"] == {"fields": ["thread_length", "length"]}
     assert behind_prefix.get("/screw/api/bolt/info", params={"length": 10}).status_code == 200
+
+
+@pytest.mark.parametrize("angle", ["nan", "inf", "abc", "90", "-1"])
+def test_a_bad_head_chamfer_beside_a_wide_head_stays_a_field_422_naming_it(angle: str) -> None:
+    # T-06.1-11: the rule gives None for anything it cannot judge, so the model's field 422 speaks.
+    r = client.get("/api/bolt/info", params={"head_chamfer": angle, "s": 100})
+    assert r.status_code == 422
+    details = r.json()["detail"]
+    assert [d["loc"] for d in details] == [["query", "head_chamfer"]]
+    assert details[0]["type"] != "head_chamfer_conflict"
+
+
+@pytest.mark.parametrize("field", ["s", "k"])
+def test_an_unreadable_s_or_k_beside_a_deep_head_chamfer_is_its_field_422_not_the_conflict(
+        field: str) -> None:
+    # Codex review of PR #21: an unreadable s was dropped and judged at its default, so the 422
+    # quoted s 10 mm, a value the user never sent. The model's 422 names the field instead.
+    r = client.get("/api/bolt/info", params={"head_chamfer": 80, field: "abc"})
+    assert r.status_code == 422
+    details = r.json()["detail"]
+    assert [d["loc"] for d in details] == [["query", field]]
+    assert details[0]["type"] != "head_chamfer_conflict"
+
+
+def test_a_head_so_small_its_width_squared_underflows_is_a_document_not_a_500() -> None:
+    # Codex review of PR #21: s = 1e-170 passes the model, and s * s == 0.0 raised
+    # ZeroDivisionError in the kernel bound. The bound is now inf, so the chamfer rows are withheld.
+    r = client.get("/api/bolt/info",
+                   params={"s": "1e-170", "d": "1e-171", "pitch": "1e-172", "length": "1e-171"})
+    assert r.status_code == 200
+    body = r.json()
+    assert "head_chamfer" not in {row["key"] for row in body["rows"]}
+    assert any("may be refused as a build error" in w for w in body["warnings"])
+
+
+def test_a_repeated_head_chamfer_is_the_duplicate_422_not_the_conflict() -> None:
+    r = client.get("/api/bolt/info", params=[("head_chamfer", "80"), ("head_chamfer", "81")])
+    assert r.status_code == 422
+    assert [d["type"] for d in r.json()["detail"]] == ["duplicate"]
+
+
+def test_the_head_chamfer_rule_does_not_reach_the_schema_route() -> None:
+    r = client.get("/api/schema", params={"kind": "bolt", "head_chamfer": 80})
+    assert r.status_code == 200
+
+
+def test_the_head_chamfer_conflict_is_still_a_422_behind_a_root_path() -> None:
+    # T-06.1-13: attached to the bolt routes by name, never sniffed from the path (04-REVIEW CR-01).
+    behind_prefix = TestClient(app, root_path="/screw")
+    r = behind_prefix.get("/screw/api/bolt/info", params={"head_chamfer": 80})
+    assert r.status_code == 422
+    [detail] = r.json()["detail"]
+    assert detail["type"] == "head_chamfer_conflict"
+    assert detail["ctx"] == {"fields": ["head_chamfer", "k"]}
+
+
+def test_the_thread_length_conflict_is_named_first_when_both_rules_fire() -> None:
+    r = client.get("/api/bolt/info",
+                   params={"length": 10, "thread_length": 30, "head_chamfer": 80})
+    assert r.status_code == 422
+    assert [d["type"] for d in r.json()["detail"]] == ["thread_length_conflict"]
+
+
+def test_an_explicit_head_chamfer_exactly_at_half_k_builds_uncapped_and_one_float_less_k_is_refused(
+) -> None:
+    # D-04 equality: the 422 and the cap share one threshold, depth > k / 2. At s 10 the 30 degree
+    # depth does not depend on k, so k = 2 * depth puts k / 2 exactly on it (a power-of-two scale).
+    k_eq = 2 * head_chamfer_depths(10.0, 1.0, 30.0)[0]
+    at = client.get("/api/bolt/info", params={"head_chamfer": "30", "k": repr(k_eq)})
+    assert at.status_code == 200
+    body = at.json()
+    assert not any(w.startswith("head_chamfer 30 and k") for w in body["warnings"])
+    depth = {row["key"]: row["value"] for row in body["rows"]}["chamfer_depth"]
+    assert depth == k_eq / 2
+    below = math.nextafter(k_eq, 0.0)
+    r = client.get("/api/bolt/info", params={"head_chamfer": "30", "k": repr(below)})
+    assert r.status_code == 422
+    assert [d["type"] for d in r.json()["detail"]] == ["head_chamfer_conflict"]
 
 
 def test_a_length_below_the_floor_is_a_warned_info_document_and_a_422_build_error() -> None:

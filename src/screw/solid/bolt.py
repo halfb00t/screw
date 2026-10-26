@@ -1,11 +1,12 @@
 """The bolt kind's solid: the L11 thread from the tip at z = 0, a plain shank from 04-04, and a
-plain hex prism head with sharp corners on top.
+hex prism head whose top corners are chamfered.
 
 The tip is one cone cut on the bare thread (`tip_cut`, the ISO tip end read from GOST 12414-94,
 stated model, L14, read 6), and a bolt on a cited ISO 4014 row with a long enough plain shank
 gets a fillet ring revolved at the shank/head junction (`add_fillet`, R1, D-11). The ring is
 built by revolving a profile and fused, never an OCCT fillet: its volume is then an exact
-closed form the gate can judge. The head keeps its sharp corners (the nut's chamfers are 05-13).
+closed form the gate can judge. The head's top corners are cut by a cone from s / 2 at
+`head_chamfer` degrees, no deeper than k / 2 (L19), on the head prism before it is fused.
 """
 
 from __future__ import annotations
@@ -18,6 +19,11 @@ from screw.build_errors import BuildError
 from screw.calc.thread import MIN_TAIL_MM, TIP_ANGLE_DEG, built_thread_length, thread_depth
 from screw.params import BoltParams
 from screw.solid import helical
+
+# How far the head chamfer's cutter reaches past the corners and the top face, mm: a cut that
+# stopped on a face would leave a zero-thickness skin there. A local copy of `nut.PAST_FACE`,
+# because `screw.solid.nut` imports this module.
+PAST_TOP = 1.0
 
 
 def thread(p: BoltParams) -> cq.Solid:
@@ -83,14 +89,40 @@ def add_fillet(p: BoltParams, part: cq.Shape, r: float) -> cq.Shape:
     return part.fuse(fillet_ring(p, r))
 
 
-def assemble(p: BoltParams, bare_thread: cq.Solid) -> cq.Shape:
-    """The plain shank of diameter d from the thread's end t to the length, then the hex head, a
-    prism of across-flats s and height k on z length..length + k, fused onto `bare_thread`
-    (what `thread()` built; named so it does not shadow that function, 04-REVIEW IN-04)."""
+def head_prism(p: BoltParams) -> cq.Solid:
+    """The sharp hex head: a prism of across-flats s and height k on z length..length + k."""
     # circumscribed=True makes the polygon's diameter the across-flats width: without it the
     # diameter is across corners and the prism is 0.75 of its closed form (RESEARCH Pitfall 1).
-    head = _solid(cq.Workplane("XY").workplane(offset=p.length).polygon(
+    return _solid(cq.Workplane("XY").workplane(offset=p.length).polygon(
         6, p.s, circumscribed=True).extrude(p.k).val(), "head")
+
+
+def chamfer_head(p: BoltParams, prism: cq.Shape, depth: float) -> cq.Shape:
+    """`prism` with the cone from the inscribed radius s / 2 at `head_chamfer` degrees cut off its
+    top face, flat at `depth` below it: the shape `head_chamfer_volume(s, angle, depth)`
+    integrates. The cutter's overshoot lies outside the prism and removes nothing. The result is
+    a Compound, so it is not passed through `_solid` (06.1-RESEARCH Pitfall 5)."""
+    z_top = p.length + p.k
+    r0 = p.s / 2
+    tau = math.tan(math.radians(p.head_chamfer))
+    outer = r0 / math.cos(math.pi / 6) + PAST_TOP
+    # The nut's rule (`nut.face_chamfer`): a fixed overshoot would put the first radius below zero
+    # on a small head, and the kernel refused those valid parts; this keeps it at r0 / 2 or more.
+    overshoot = min(0.5, r0 * tau / 2)
+    cutter = _solid(cq.Workplane("XZ").polyline(
+        [(r0 - overshoot / tau, z_top + overshoot), (outer, z_top + overshoot),
+         (outer, z_top - depth), (r0 + depth / tau, z_top - depth)]
+    ).close().revolve(360, (0, 0, 0), (0, 1, 0)).val(), "head chamfer cutter")
+    return prism.cut(cutter)
+
+
+def assemble(p: BoltParams, bare_thread: cq.Solid, head: cq.Shape) -> cq.Shape:
+    """The plain shank of diameter d from the thread's end t to the length, then the hex head
+    fused onto `bare_thread` (what `thread()` built; named so it does not shadow that function,
+    04-REVIEW IN-04). `head` has no default, so mypy names every caller and none can fuse a
+    sharp head the product no longer ships by leaving it out (06.1 WR-02, L02): the builder
+    passes the chamfered head it cut, and a caller that wants the sharp part says so with
+    `head_prism(p)`."""
     t = built_thread_length(p.thread_length, p.length)
     if p.length > t:
         # A planar fuse at the thread's plain end (D-03), never a cylinder over the thread: the

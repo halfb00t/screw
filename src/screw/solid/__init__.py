@@ -47,6 +47,8 @@ from screw.calc.thread import (
     face_chamfer_volume,
     fillet_radius,
     fillet_ring_volume,
+    head_chamfer_depths,
+    head_chamfer_volume,
     nut_end_closed_volume,
     piece_refusal,
     tip_cone_fits,
@@ -215,7 +217,28 @@ def _build_bolt(p: BoltParams) -> cq.Solid:
             raise BuildError(f"Geometry kernel produced the wrong tip cone: {piece}.")
         check_solid(thread, closed_volume(p.d, p.pitch, t)
                     - tip_cone_volume(p.d, p.pitch, TIP_ANGLE_DEG), part="thread", volume=after)
-    plain = bolt.assemble(p, thread)
+    head: cq.Shape = bolt.head_prism(p)
+    if p.head_chamfer > 0:  # never `!= 0`: -0.0 is the sharp head
+        # Cut and judged on the head prism before the fuse (D-09). Measured there, the piece error
+        # is 6.7e-5 at 0.01 degrees and at most 1.4e-6 from 0.5 degrees up; after the fuse a
+        # constant +5.5e-5 mm3 bias of the thread-bearing solid false-refused M6 at 0.01 degrees
+        # (+1.7e-1) and M2 at 0.1 degrees (+1.4e-1) against T_PIECE 0.03. About 0.03 s per build
+        # (06.1-RESEARCH "Where to cut", scratch kernel_piece.py, macOS arm64, single runs; Phase 7
+        # re-measures). An angle whose tangent underflows has no honest oracle (D-18): refused here
+        # by name, before the kernel runs, so the message does not blame a kernel that never ran.
+        _, cut = head_chamfer_depths(p.s, p.k, p.head_chamfer)
+        try:
+            oracle = head_chamfer_volume(p.s, p.head_chamfer, cut)
+        except ValueError as exc:
+            raise BuildError(f"Head chamfer refused before the geometry kernel ran: {exc}; "
+                             "raise head_chamfer or set it to 0.") from exc
+        uncut = precise_volume(head)
+        head = bolt.chamfer_head(p, head, cut)
+        check_structure(head)
+        piece = piece_refusal(uncut - precise_volume(head), oracle, "head chamfer")
+        if piece is not None:
+            raise BuildError(f"Geometry kernel produced the wrong head chamfer: {piece}.")
+    plain = bolt.assemble(p, thread, head)
     r = fillet_radius(p.d, p.pitch, p.length, t)
     fused = plain
     volume: float | None = None
@@ -229,8 +252,8 @@ def _build_bolt(p: BoltParams) -> cq.Solid:
                               "fillet ring")
         if piece is not None:
             raise BuildError(f"Geometry kernel produced the wrong fillet ring: {piece}.")
-    check_solid(fused, bolt_end_closed_volume(p.d, p.pitch, p.length, p.s, p.k, t, tip, r),
-                volume=volume)
+    check_solid(fused, bolt_end_closed_volume(
+        p.d, p.pitch, p.length, p.s, p.k, t, tip, r, p.head_chamfer), volume=volume)
     return fused.Solids()[0]
 
 

@@ -22,13 +22,17 @@ from screw.calc.thread import (
     TIP_ANGLE_DEG,
     bolt_closed_volume,
     bolt_end_closed_volume,
+    built_thread_length,
     closed_volume,
     fillet_radius,
     fillet_ring_volume,
     fine_stl_refusal,
+    head_chamfer_depths,
+    head_chamfer_kernel_bound,
     piece_refusal,
     section_area,
     thread_depth,
+    tip_cone_fits,
     tip_cone_length,
     tip_cone_volume,
     volume_check,
@@ -63,9 +67,10 @@ def test_the_default_bolt_is_one_valid_hex_head_screw_threaded_to_the_head() -> 
     assert solid.isValid()
     box = solid.BoundingBox()
     # The thread on z 0..20 and the head on z 20..20 + k (D-05, D-07). z is exact to the 1e-7 box
-    # gap. The head is a sharp-cornered prism, so its box is exact too (s across flats in x,
-    # s / cos 30 degrees across corners in y); the thread's crest (3.000026 mm at M6 L=20,
-    # planner probe 2026-10-10) is inside it, so 1e-4 covers the optimal box.
+    # gap. The chamfer is cut no deeper than k / 2 (06.1 D-03), so the head's lower half keeps its
+    # corners and its box is exact too (s across flats in x, s / cos 30 degrees across corners in
+    # y); the thread's crest (3.000026 mm at M6 L=20, planner probe 2026-10-10) is inside it, so
+    # 1e-4 covers the optimal box.
     assert box.zmin == pytest.approx(0.0, abs=TOL)
     assert box.zmax == pytest.approx(20.0 + 4.0, abs=TOL)
     assert box.xlen == pytest.approx(10.0, abs=1e-4)
@@ -73,7 +78,7 @@ def test_the_default_bolt_is_one_valid_hex_head_screw_threaded_to_the_head() -> 
     # The closed form of the whole part is the oracle; the bare thread's is more than 1 % away,
     # so a head that was not fused would be refused (the head is 346 of 805 mm3).
     volume = precise_volume(solid)
-    whole = bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None)
+    whole = bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None, 30.0)
     assert volume == pytest.approx(whole, rel=T_GATE)
     assert abs(volume - closed_volume(6.0, 1.0, 20.0)) > 0.01 * closed_volume(6.0, 1.0, 20.0)
 
@@ -90,7 +95,7 @@ def test_an_iso_4014_shaped_bolt_has_a_thread_a_plain_shank_and_a_head_in_one_va
     assert box.zmax == pytest.approx(34.0, abs=TOL)
     volume = precise_volume(solid)
     assert volume == pytest.approx(
-        bolt_end_closed_volume(6.0, 1.0, 30.0, 10.0, 4.0, 18.0, True, 0.25), rel=T_GATE)
+        bolt_end_closed_volume(6.0, 1.0, 30.0, 10.0, 4.0, 18.0, True, 0.25, 30.0), rel=T_GATE)
     # The shank is a plain cylinder of the major diameter: at mid shank a point 2.9 mm from the
     # axis, outside the thread's root radius (2.46) at some angles, is inside at every angle, and
     # one 3.1 mm out is outside.
@@ -111,7 +116,7 @@ def test_a_screw_shorter_than_the_default_thread_builds_to_its_length() -> None:
     solid = build(BoltParams(length=10.0))
     assert solid.BoundingBox().zmax == pytest.approx(10.0 + 4.0, abs=TOL)
     assert precise_volume(solid) == pytest.approx(
-        bolt_end_closed_volume(6.0, 1.0, 10.0, 10.0, 4.0, 10.0, True, None), rel=T_GATE)
+        bolt_end_closed_volume(6.0, 1.0, 10.0, 10.0, 4.0, 10.0, True, None, 30.0), rel=T_GATE)
 
 
 def test_a_thread_length_above_the_length_builds_to_the_full_length() -> None:
@@ -128,12 +133,12 @@ def test_a_shank_sliver_below_the_floor_is_folded_and_one_at_the_floor_is_built(
     assert len(folded.Solids()) == 1
     assert folded.isValid()
     assert precise_volume(folded) == pytest.approx(
-        bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None), rel=T_GATE)
+        bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None, 30.0), rel=T_GATE)
     kept = build(BoltParams(thread_length=19.999))
     assert len(kept.Solids()) == 1
     assert kept.isValid()
     assert precise_volume(kept) == pytest.approx(
-        bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 19.999, True, None), rel=T_GATE)
+        bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 19.999, True, None, 30.0), rel=T_GATE)
 
 
 def test_a_thread_below_the_floor_is_refused_naming_both_fields_before_the_kernel(
@@ -166,14 +171,154 @@ def test_a_left_hand_screw_builds_through_both_gates_with_the_same_head() -> Non
     (8.0, 1.25, 12.0, 13.0, 5.3),
     (6.0, 1.0, 20.0, 6.0 * 1.0000001, 0.5),   # a head barely wider than the shank
 ])
-def test_the_head_is_a_sharp_hex_prism_of_across_flats_s_in_x_and_s_over_cos_30_in_y(
+def test_the_head_keeps_sharp_corners_below_the_chamfer_so_its_box_is_s_by_s_over_cos_30(
         d: float, pitch: float, length: float, s: float, k: float) -> None:
     box = build(BoltParams(d=d, pitch=pitch, length=length, s=s, k=k)).BoundingBox()
-    # No chamfer, washer face or fillet (D-01, D-02): the corners are sharp, so the box is exact.
+    # The default 30 degree chamfer is cut no deeper than k / 2 (06.1 D-03), so the lower half of
+    # the head keeps the corners and the box is exact. The second case (s just above 6, k 0.5) is a
+    # capped default chamfer: the model depth 0.268 is above k / 2 = 0.25.
     assert box.zmax == pytest.approx(length + k, abs=TOL)
     # The head is the widest part only when s is above the crest's 1e-4 box tolerance.
     assert box.xlen == pytest.approx(max(s, d), abs=1e-4)
     assert box.ylen == pytest.approx(max(s / math.cos(math.pi / 6), d), abs=1e-4)
+
+
+def test_a_head_chamfer_of_zero_builds_todays_sharp_head() -> None:
+    # 06.1 D-01: 0 (and -0.0, which `> 0` treats alike) cuts nothing, runs no piece gate and has no
+    # chamfer term, so the part is the sharp `bolt.assemble` and its closed form is the old one.
+    volume = 0.0
+    for zero in (0.0, -0.0):
+        clear_cache()      # equal parameters hash alike, and a cached 0.0 would hide the -0.0
+        p = BoltParams(head_chamfer=zero)
+        solid = build(p)
+        assert len(solid.Solids()) == 1
+        assert solid.isValid()
+        volume = precise_volume(solid)
+        assert volume == pytest.approx(
+            bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None, 0.0), rel=T_GATE)
+        sharp = bolt.assemble(p, bolt.tip_cut(p, bolt.thread(p)), bolt.head_prism(p))
+        assert volume == pytest.approx(precise_volume(sharp), rel=1e-9)
+    # The default part is smaller by the pinned 30 degree term (06.1-01).
+    assert volume - precise_volume(build(BoltParams())) == pytest.approx(
+        1.0855309493921927, rel=1e-3)
+
+
+def _no_chamfer(_p: BoltParams, prism: cq.Shape, _depth: float) -> cq.Shape:
+    return prism
+
+
+@pytest.mark.parametrize(("control", "angle", "error"), [
+    ("skipped", 30.0, "-1.000e+00"),
+    ("45 degrees", 30.0, None),
+    ("skipped at 1 degree", 1.0, None),
+])
+def test_a_skipped_or_wrong_head_chamfer_is_refused_naming_the_piece(
+        monkeypatch: pytest.MonkeyPatch, control: str, angle: float, error: str | None) -> None:
+    # The positive controls of RESEARCH P8 for the head: the model is a cone at head_chamfer
+    # degrees, and each control builds something else. The piece gate names the head chamfer.
+    p = BoltParams(head_chamfer=angle)
+    original = bolt.chamfer_head
+    if control == "45 degrees":
+        def at_45(q: BoltParams, prism: cq.Shape, depth: float) -> cq.Shape:
+            return original(q.model_copy(update={"head_chamfer": 45.0}), prism, depth)
+
+        monkeypatch.setattr(bolt, "chamfer_head", at_45)
+    else:
+        monkeypatch.setattr(bolt, "chamfer_head", _no_chamfer)
+    if control == "skipped at 1 degree":
+        # The whole-part gate alone misses it: the 1 degree piece is 0.0328 mm3, 4.1e-5 of the part
+        # and under T_GATE 9e-5, so only the piece gate refuses.
+        sharp = bolt.assemble(p, bolt.tip_cut(p, bolt.thread(p)), bolt.head_prism(p))
+        closed = bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None, 1.0)
+        assert volume_check(precise_volume(sharp), closed) is None
+    clear_cache()
+    try:
+        with pytest.raises(BuildError, match="wrong head chamfer: the head chamfer is") as raised:
+            build(p)
+    finally:
+        clear_cache()
+    if error is not None:
+        assert error in str(raised.value)
+
+
+def test_a_direct_head_chamfer_deeper_than_half_k_is_capped_and_builds_through_both_gates() -> None:
+    # 06.1 D-06: the model accepts 80 degrees (depth 0.577 * tan 80 = 3.3 mm of an M6 head, above
+    # k / 2 = 2 mm), so the cut is capped at k / 2 and warned about, never refused; the closed
+    # form reads the same capped depth, so both gates agree with the kernel.
+    p = BoltParams(head_chamfer=80.0)
+    solid = build(p)
+    assert len(solid.Solids()) == 1
+    assert solid.isValid()
+    assert precise_volume(solid) == pytest.approx(
+        bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None, 80.0), rel=T_GATE)
+    box = solid.BoundingBox()
+    assert box.zmax == pytest.approx(24.0, abs=TOL)      # the flat top is lower, not the head
+    assert box.xlen == pytest.approx(10.0, abs=1e-4)
+    assert box.ylen == pytest.approx(10.0 / math.cos(math.pi / 6), abs=1e-4)
+    # D-04, defaulted branch: s 20, k 1 at the default 30 degrees asks 0.893 mm and is capped at
+    # k / 2 = 0.5 mm.
+    wide = BoltParams(s=20.0, k=1.0)
+    full, cut = head_chamfer_depths(wide.s, wide.k, wide.head_chamfer)
+    assert full == pytest.approx(0.893, abs=1e-3)
+    assert cut == 0.5
+    assert precise_volume(build(wide)) == pytest.approx(
+        bolt_end_closed_volume(6.0, 1.0, 20.0, 20.0, 1.0, 20.0, True, None, 30.0), rel=T_GATE)
+
+
+@pytest.mark.parametrize("angle", [0.5, 89.9, 1e-4, 1e-6, 5e-324, 89.99999999999999])
+def test_a_tiny_or_near_right_head_chamfer_builds_inside_its_gates_or_is_refused_by_name(
+        angle: float) -> None:
+    # 06.1 D-18, L02. A disjunction per value: the outcomes at 1e-4 and 1e-5 degrees are single
+    # macOS arm64 runs and linux/amd64 may differ. A solid that is returned passed both gates; any
+    # exception other than BuildError (the API's 422) would be a 500. Geometry only, no call counts.
+    clear_cache()
+    solid: cq.Solid | None = None
+    refusal: BuildError | None = None
+    try:
+        solid = build(BoltParams(head_chamfer=angle))
+    except BuildError as raised:
+        refusal = raised
+    finally:
+        clear_cache()
+    if solid is None:
+        assert angle not in (0.5, 89.9), f"a positive control was refused: {refusal}"
+        if angle == 5e-324:  # WR-01: refused by the oracle, so the kernel never ran
+            assert "Geometry kernel failed" not in str(refusal)
+            assert "head_chamfer" in str(refusal)
+        return
+    assert angle != 5e-324, "an angle with no honest oracle was built"
+    assert len(solid.Solids()) == 1
+    assert solid.isValid()
+    assert precise_volume(solid) == pytest.approx(
+        bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None, angle), rel=T_GATE)
+
+
+@pytest.mark.parametrize("head", [
+    {},  # the default head, s 10 k 4
+    {"d": 2.0, "pitch": 0.4, "s": 4.0, "k": 1.4},  # M2, the smallest catalogue head
+    {"d": 20.0, "pitch": 2.5, "s": 30.0, "k": 12.5, "length": 40.0, "thread_length": 40.0},  # M20
+    {"d": 0.5, "pitch": 0.1, "length": 5.0, "thread_length": 5.0, "s": 1.0, "k": 0.4},  # small
+])
+def test_the_kernel_bound_angle_builds_through_both_gates(head: dict[str, float]) -> None:
+    # The bound is where `derive` stops withholding the chamfer rows and the volume, so a part at
+    # the bound has to be a part: one valid solid, piece gate and whole-part gate passed, volume
+    # equal to the closed form the document prints. The grid behind the constants is in the
+    # comment on them (both platforms, 210 cells at and above the bound, none refused).
+    probe = BoltParams.model_validate(head)
+    angle = head_chamfer_kernel_bound(probe.s, probe.k)
+    p = BoltParams.model_validate({**head, "head_chamfer": angle})
+    clear_cache()
+    try:
+        solid = build(p)
+    finally:
+        clear_cache()
+    assert len(solid.Solids()) == 1
+    assert solid.isValid()
+    t = built_thread_length(p.thread_length, p.length)
+    closed = bolt_end_closed_volume(
+        p.d, p.pitch, p.length, p.s, p.k, t, tip_cone_fits(p.pitch, t),
+        fillet_radius(p.d, p.pitch, p.length, t), angle)
+    assert precise_volume(solid) == pytest.approx(closed, rel=T_GATE)
 
 
 def _eps_diluted_below_the_gate_for_a_whole_part(d: float, pitch: float) -> float:
@@ -201,7 +346,7 @@ def test_a_thread_wrong_by_a_part_in_ten_thousand_is_refused_on_the_thread_not_t
     share = closed_volume(p.d, p.pitch, p.length) / whole
     assert 0.5 < share < 0.6  # the measured thread share this control relies on
     # The control is real: the whole-part check alone would pass this very thread.
-    assert volume_check(precise_volume(bolt.assemble(p, bad)), whole) is None
+    assert volume_check(precise_volume(bolt.assemble(p, bad, bolt.head_prism(p))), whole) is None
     monkeypatch.setattr(bolt, "thread", lambda _p: bad)
     clear_cache()
     size = _build_cached.cache_info().currsize
@@ -420,7 +565,7 @@ def test_the_hand_decides_which_way_the_thread_climbs_and_both_pass_the_same_gat
             True, False), z
         assert (_inside_at(left, d, pitch, +1, z), _inside_at(left, d, pitch, -1, z)) == (
             False, True), z
-    closed = bolt_end_closed_volume(d, pitch, length, 10.0, 4.0, length, True, None)
+    closed = bolt_end_closed_volume(d, pitch, length, 10.0, 4.0, length, True, None, 30.0)
     for solid in (build(right_p), build(left_p)):
         assert len(solid.Solids()) == 1
         assert solid.isValid()
@@ -497,7 +642,7 @@ def _tip_piece(p: BoltParams) -> tuple[float, float]:
 
 def _ring_piece(p: BoltParams) -> tuple[float, float]:
     """(volume the ring added, its oracle) on the tip-cut, assembled bolt."""
-    plain = bolt.assemble(p, bolt.tip_cut(p, bolt.thread(p)))
+    plain = bolt.assemble(p, bolt.tip_cut(p, bolt.thread(p)), bolt.head_prism(p))
     r = fillet_radius(p.d, p.pitch, p.length, p.length - 1.0)  # any t with the shank >= r
     assert r is not None
     return (precise_volume(bolt.add_fillet(p, plain, r)) - precise_volume(plain),
@@ -525,21 +670,25 @@ def test_an_iso_4014_bolt_gets_the_ring_and_an_iso_4017_screw_does_not() -> None
     # M10 x 80: the whole part carries the ring (the closed form with it is inside T_GATE and
     # the one without it is not distinguishable at T_GATE alone, which is why the piece exists).
     with_ring = precise_volume(build(M10X80))
-    plain = precise_volume(bolt.assemble(M10X80, bolt.tip_cut(M10X80, bolt.thread(M10X80))))
+    # The same chamfered head the build cuts, so the difference is the ring alone.
+    _, cut = head_chamfer_depths(M10X80.s, M10X80.k, M10X80.head_chamfer)
+    head = bolt.chamfer_head(M10X80, bolt.head_prism(M10X80), cut)
+    plain = precise_volume(bolt.assemble(M10X80, bolt.tip_cut(M10X80, bolt.thread(M10X80)), head))
     assert with_ring - plain == pytest.approx(fillet_ring_volume(10.0, 0.4), rel=0.03)
     # An ISO 4017 M6 x 20 is threaded to the head: no shank, no ring.
     assert fillet_radius(6.0, 1.0, 20.0, 20.0) is None
     assert precise_volume(build(BoltParams())) == pytest.approx(
-        bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None), rel=T_GATE)
+        bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None, 30.0), rel=T_GATE)
 
 
 def test_a_shank_exactly_as_long_as_the_radius_gets_the_ring_and_one_float_less_does_not() -> None:
     at = build(BoltParams(thread_length=20.0 - 0.25, length=20.0))
     assert precise_volume(at) == pytest.approx(
-        bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 19.75, True, 0.25), rel=T_GATE)
+        bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 19.75, True, 0.25, 30.0), rel=T_GATE)
     below = build(BoltParams(thread_length=math.nextafter(19.75, 20.0), length=20.0))
     assert precise_volume(below) == pytest.approx(
-        bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, math.nextafter(19.75, 20.0), True, None),
+        bolt_end_closed_volume(
+            6.0, 1.0, 20.0, 10.0, 4.0, math.nextafter(19.75, 20.0), True, None, 30.0),
         rel=T_GATE)
 
 
@@ -591,10 +740,10 @@ def test_the_whole_part_gate_alone_misses_two_of_the_six_controls_on_the_long_bo
         monkeypatch.setattr(bolt, "TIP_ANGLE_DEG", 30.0)
     thread = bolt.thread(p)
     cut = thread if control == "skipped" else bolt.tip_cut(p, thread)
-    part = bolt.assemble(p, cut)
+    part = bolt.assemble(p, cut, bolt.head_prism(p))
     if control != "ring dropped":
         part = bolt.add_fillet(p, part, r)
-    closed = bolt_end_closed_volume(p.d, p.pitch, p.length, p.s, p.k, p.thread_length, True, r)
+    closed = bolt_end_closed_volume(p.d, p.pitch, p.length, p.s, p.k, p.thread_length, True, r, 0.0)
     assert (volume_check(precise_volume(part), closed) is not None) is seen
 
 
@@ -604,7 +753,7 @@ def test_a_left_hand_bolt_with_a_ring_and_a_cone_passes_the_same_checks(left_han
     solid = build(p)
     assert len(solid.Solids()) == 1
     assert precise_volume(solid) == pytest.approx(
-        bolt_end_closed_volume(10.0, 1.5, 80.0, 16.0, 6.4, 26.0, True, 0.4), rel=T_GATE)
+        bolt_end_closed_volume(10.0, 1.5, 80.0, 16.0, 6.4, 26.0, True, 0.4, 30.0), rel=T_GATE)
     removed, oracle = _tip_piece(p)
     assert piece_refusal(removed, oracle, "tip cone") is None
 
@@ -617,7 +766,7 @@ def test_a_thread_no_longer_than_the_tip_cone_builds_without_the_cone() -> None:
     for t, cut in ((cone, False), (cone + 1e-3, True)):
         p = BoltParams(d=6.0, pitch=1.0, length=10.0, s=10.0, k=4.0, thread_length=t)
         assert precise_volume(build(p)) == pytest.approx(
-            bolt_end_closed_volume(6.0, 1.0, 10.0, 10.0, 4.0, t, cut, 0.25), rel=T_GATE)
+            bolt_end_closed_volume(6.0, 1.0, 10.0, 10.0, 4.0, t, cut, 0.25, 30.0), rel=T_GATE)
 
 
 # --- the watertight sweep over both standards, both hands (RESEARCH P7, 05-12) ------------------
