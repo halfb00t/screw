@@ -96,6 +96,38 @@ the printability warnings (L18). It adds no new part features.
     (T-3-14: no untrusted code runs with the token). A same-repo PR trigger with
     `permissions: contents: read` has to keep that guarantee, and the planner shows that it does.
 
+### Rulings after research (2026-10-26, owner, at plan-phase)
+Answers to the open questions in `07-RESEARCH.md`.
+- **D-14 (research Q2):** The timeout clock becomes a queue-aware deadline in `pool.py`. The parent
+  tracks the requests ahead on each slot in the event loop, with no lock. A request's deadline is
+  its own timeout plus the timeouts of the requests ahead of it on that slot. There is no new IPC,
+  and `BuildPool`'s public shape stays the same. This makes D-09's "worst build × 2" true for the
+  build itself. It is a second divergence from spur's `pool.py`, and the timeout Lxx states the
+  formula.
+- **D-15 (research Q3, A1):** Both tiers measure and enforce inside the production Docker image on
+  the runner, one container per measurement point, and read the peak from cgroup `memory.peak`. The
+  required job reuses the `image` job's build. Venv-only measurement is not a bound.
+- **D-16 (research Q4):** The three measured per-artifact timeouts are code constants that cite the
+  run, with no environment override. `SCREW_BUILD_TIMEOUT` is removed. A deployer on slower
+  hardware re-sweeps, and the new figures go into a superseding entry.
+- **D-17 (research Q5):** The cost model also covers the nut, with features `s`, `m`, `clearance`,
+  `d`, `pitch` and hand. It retires `NUT_FINE_STL_ROWS` and the clearance > 5.0 refusal
+  (`NUT_FINE_STL_CLEARANCE`). L16 is superseded by id. Resolve
+  `docs/tech_debt/active/2026-10-14-nut-interim-bounds.md`.
+- **D-18 (research Q7):** The pitch boundary is one of the D-08 kernel outer walls. It is the
+  root-radius-floor debt, where the kernel fails near root radius 3e-5 mm. It is re-measured by
+  walk-to-failure per size, both hands, rod and void, and cited in an Lxx. Resolve the matching
+  debt item.
+- **D-19 (research Q6, applies D-04):** Five repetitions, with the median and the max recorded, are
+  run where a bound is set: the boundary sweep, and each artifact's worst point. Bulk catalogue rows
+  in the full tier get one pass. Any row within a margin of its timeout is re-run at 5. The margin
+  and the shard sizes come from the measured exploration run and are recorded in the Lxx.
+- **Budget (research Q1) stays open on purpose.** It needs data. Run an exploration sweep first,
+  then a `checkpoint:decision` puts 2-3 candidate budgets to the owner as a table. The table shows
+  the rows kept and refused among the 294 bolt and 14 nut catalogue rows and the free space, plus
+  the predicted worst build and bytes. Fitting the final model, setting the timeouts and picking
+  the workers all wait for that ruling.
+
 ### Claude's Discretion
 Each item below is measured on the D-01 runner, cited in an Lxx, and stripped of its `INTERIM` label:
 - The gzip level and `minimum_size`, and the bytes-cache budget (`SCREW_EXPORT_CACHE_MB`).
