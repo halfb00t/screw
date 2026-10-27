@@ -789,9 +789,9 @@
    "label": "ceiling-bolt-d-1000",
    "kind": "bolt",
    "params": {
-    "d": 625.0,
+    "d": 999.999,
     "s": 1000.0,
-    "k": 375.0,
+    "k": 599.999,
     "thread_length": 1.0
    },
    "artifact": "stl-preview"
@@ -856,9 +856,9 @@
    "label": "ceiling-bolt-d-10000",
    "kind": "bolt",
    "params": {
-    "d": 6250.0,
+    "d": 9999.99,
     "s": 10000.0,
-    "k": 3750.0,
+    "k": 5999.99,
     "thread_length": 1.0
    },
    "artifact": "stl-preview"
@@ -923,9 +923,9 @@
    "label": "ceiling-bolt-d-100000",
    "kind": "bolt",
    "params": {
-    "d": 62500.0,
+    "d": 99999.9,
     "s": 100000.0,
-    "k": 37500.0,
+    "k": 59999.9,
     "thread_length": 1.0
    },
    "artifact": "stl-preview"
@@ -8730,7 +8730,7 @@
  "dropped": [],
  "notes": [
   "preview STL unless a probe; (a) turns: 250 turns at the 15 L11 sizes, both hands, bolt (t = L = 250 P) and nut (m = 248 P, so the void m + 2 P is 250 turns), exact decimals",
-  "(b) field ceilings at 1e3, 1e4 and 1e5 mm: bolt d at the largest the decade allows (s = X, d = X / 1.6), length, s, k, thread_length with L = t = X at 250 turns, nut s, nut m at 250 turns of void (pitch rounded up so the void stays at or under the cap)",
+  "(b) field ceilings at 1e3, 1e4 and 1e5 mm: bolt d at the largest value of 6 significant figures under X with s = X (the head rule is s > d), length, s, k, thread_length with L = t = X at 250 turns, nut s, nut m at 250 turns of void (pitch rounded up so the void stays at or under the cap)",
   "nut clearance has no corner of its own: nut_too_thin already bounds it by s",
   "(c) tails: the `tail` probe at 3 sizes, both hands, 1e-2 down to 1e-9 mm with the builder's guard lowered in the probe only, 3 whole turns before the tail",
   "(d) root radius walk: for each size and hand, r from 1e-2 down to 1e-6 mm for the bolt (d/2 - 5H/8 = r) and the nut void (d/2 - 5H/8 + 0.15 = r); the pitch is solved to full float precision, 3 turns",

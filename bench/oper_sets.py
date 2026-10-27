@@ -22,7 +22,7 @@ import argparse
 import json
 import sys
 from collections.abc import Mapping
-from decimal import ROUND_CEILING, ROUND_HALF_UP, Decimal
+from decimal import ROUND_CEILING, ROUND_HALF_UP, Context, Decimal
 from fractions import Fraction
 
 from pydantic import ValidationError
@@ -52,6 +52,12 @@ def _round_sig(x: Decimal, rounding: str = ROUND_HALF_UP) -> float:
     4.800000000000001 (float noise would land in the file and in the label)."""
     exponent = x.adjusted() - SIGNIFICANT_FIGURES + 1
     return float(x.quantize(Decimal(1).scaleb(exponent), rounding=rounding))
+
+
+def _below(bound: Decimal) -> float:
+    """The largest number of 6 significant figures strictly below `bound`: 1e5 gives 99999.9 and
+    497 gives 496.999. The most a field can be when a rule demands it stay under `bound`."""
+    return float(Context(prec=SIGNIFICANT_FIGURES).next_minus(bound))
 
 
 def _scaled(x: float, factor: str) -> float:
@@ -264,7 +270,8 @@ def _turn_walls(out: _Set) -> None:
 def _ceiling_walls(out: _Set) -> None:
     for x in CEILINGS:
         tag = f"{x:g}"
-        d_max = _round_sig(Decimal(repr(x)) / Decimal("1.6"))
+        # The head rule is s > d, so with s = X the largest d is the largest value under X.
+        d_max = _below(Decimal(repr(x)))
         out.part(f"ceiling-bolt-d-{tag}", "bolt",
                  {"d": d_max, "s": x, "k": _scaled(d_max, "0.6"), "thread_length": 1.0}, PREVIEW)
         out.part(f"ceiling-bolt-length-{tag}", "bolt", {"length": x}, PREVIEW)
@@ -331,8 +338,9 @@ def walls() -> _Set:
     out = _Set("walls", reps=1, shards=20, notes=[
         "preview STL unless a probe; (a) turns: 250 turns at the 15 L11 sizes, both hands, bolt "
         "(t = L = 250 P) and nut (m = 248 P, so the void m + 2 P is 250 turns), exact decimals",
-        "(b) field ceilings at 1e3, 1e4 and 1e5 mm: bolt d at the largest the decade allows "
-        "(s = X, d = X / 1.6), length, s, k, thread_length with L = t = X at 250 turns, nut s, "
+        "(b) field ceilings at 1e3, 1e4 and 1e5 mm: bolt d at the largest value of 6 significant "
+        "figures under X with s = X (the head rule is s > d), length, s, k, thread_length with "
+        "L = t = X at 250 turns, nut s, "
         "nut m at 250 turns of void (pitch rounded up so the void stays at or under the cap)",
         "nut clearance has no corner of its own: nut_too_thin already bounds it by s",
         "(c) tails: the `tail` probe at 3 sizes, both hands, 1e-2 down to 1e-9 mm with the "

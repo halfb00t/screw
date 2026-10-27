@@ -1335,7 +1335,7 @@ def test_the_field_ceiling_corners_sit_at_1e3_1e4_and_1e5() -> None:
         assert by_label[f"ceiling-nut-s-{tag}"] == {"s": x}
         bolt_d = by_label[f"ceiling-bolt-d-{tag}"]
         assert bolt_d["s"] == x
-        assert bolt_d["d"] == pytest.approx(x / 1.6)
+        assert bolt_d["d"] < x
         both = by_label[f"ceiling-bolt-thread-{tag}"]
         assert both["thread_length"] == both["length"] == x
         assert both["pitch"] == x / 250
@@ -1343,6 +1343,23 @@ def test_the_field_ceiling_corners_sit_at_1e3_1e4_and_1e5() -> None:
         assert nut_m["m"] == x
         assert nut_m["pitch"] * 248 >= x  # rounded up, so the void stays at or under 250 turns
     assert "clearance" in " ".join(_generated()["walls"]["notes"])
+
+
+def test_the_diameter_probe_holds_the_largest_d_the_head_rule_admits_at_its_s() -> None:
+    from decimal import Context, Decimal
+
+    from screw.params import BoltParams
+
+    by_label = {p["label"]: p["params"] for p in _walls("ceiling-bolt-d-")}
+    assert {label: params["d"] for label, params in by_label.items()} == {
+        "ceiling-bolt-d-1000": 999.999, "ceiling-bolt-d-10000": 9999.99,
+        "ceiling-bolt-d-100000": 99999.9}
+    for params in by_label.values():
+        BoltParams.model_validate(params)
+        # the next number of 6 significant figures up is no longer under s: the model refuses it
+        above = float(Context(prec=6).next_plus(Decimal(repr(params["d"]))))
+        with pytest.raises(ValueError, match="across-flats"):
+            BoltParams.model_validate({**params, "d": above})
 
 
 def test_the_tail_walk_runs_eight_decades_at_three_sizes_and_both_hands() -> None:
@@ -1470,6 +1487,16 @@ def test_the_protocol_table_gives_each_set_the_shape_and_counts_its_file_has() -
         doc = _generated()[name]
         assert rows[name] == [doc["reps"], doc["shards"], doc["deadline_s"], len(doc["points"]),
                               len(doc["dropped"])], name
+
+
+def test_the_protocol_names_the_git_blob_sha_of_every_committed_point_file() -> None:
+    import hashlib
+
+    quoted = dict(re.findall(r"`(\w+)\.json`\s+`([0-9a-f]{40})`", _protocol()))
+    assert sorted(quoted) == sorted(("tracer", *SET_NAMES))
+    for name, sha in quoted.items():
+        data = (POINTS_DIR / f"{name}.json").read_bytes()
+        assert hashlib.sha1(b"blob %d\0" % len(data) + data).hexdigest() == sha, name
 
 
 def test_the_protocol_fixes_every_number_a_rule_needs_before_any_reading() -> None:
