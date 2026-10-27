@@ -149,6 +149,20 @@ def test_an_unknown_child_status_is_refused() -> None:
         oper.parse_child_line(json.dumps({"status": "great"}))
 
 
+@pytest.mark.parametrize("status", [[], {}, [1], {"a": 1}, 3, None],
+                         ids=["list", "object", "list-of-one", "object-of-one", "number", "null"])
+def test_a_status_that_is_not_text_is_refused_like_an_unknown_one(status: object) -> None:
+    with pytest.raises(ValueError, match="status"):
+        oper.parse_child_line(json.dumps({"status": status}))
+
+
+@pytest.mark.parametrize("stdout", ['{"status": []}', '{"status": {}}'], ids=["list", "object"])
+def test_a_status_that_is_not_text_is_a_crashed_reading_and_not_a_traceback(stdout: str) -> None:
+    record = _classify(stdout=stdout)
+    assert record["status"] == "crashed"
+    assert "status" in str(record["problem"])
+
+
 def test_a_refused_line_keeps_its_reason_and_drops_every_number() -> None:
     line = json.dumps({"status": "refused", "error": "BuildError", "message": "no solid",
                        "build_s": 3.0, "memory_peak_bytes": 5})

@@ -162,7 +162,8 @@ def parse_child_line(line: str, *, probe: bool = False) -> dict[str, object]:
     if not isinstance(record, dict):
         _refuse(f"child line is not a JSON object: {line[:120]!r}")
     status = record.get("status")
-    if status not in _CHILD_STATUSES:
+    # A list or an object is unhashable and cannot be tested for membership: type first.
+    if not isinstance(status, str) or status not in _CHILD_STATUSES:
         raise ValueError(f"child line has status {status!r}, not one of {sorted(_CHILD_STATUSES)}")
     for key, value in record.items():
         _check_number(str(key), value)
