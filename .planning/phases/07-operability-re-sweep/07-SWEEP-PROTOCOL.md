@@ -411,7 +411,8 @@ first, then level 9. A higher level is adopted only if it shrinks the bytes by a
 at most 1.5x the seconds of the adopted level, and it must pass at every point of the STL bound set on
 its own: the points of the `stl-preview` and `stl-fine` bound sets (R14) together, 10 to 16 points.
 Level 9 is compared with the adopted level, not with level 6: with level 1 when level 6 was not
-adopted.
+adopted. If a max the gzip comparison needs is missing (R3: a point with any repetition that is not
+`ok` has no max), the phase stops and asks the owner.
 The rule's shape is spur's; the thresholds are stated here for screw and are not carried figures.
 10 % is the least saving worth a higher level and 1.5x the most extra time accepted for it; both
 are round numbers chosen before any gzip reading, and neither is derived from a measurement.
@@ -450,9 +451,10 @@ after an export is lower with it than without, at every artifact. For each artif
 readings* are readings (R2) of Z(A), the drift run's part (below), at A: 5 repetitions (R3) with the
 trim on and 5 with it off. The measure is the cgroup's `memory.current`, read after the export. The
 maxima over the 5 repetitions are compared, and the trim is kept only if the max with the trim on is
-lower than the max with it off at every artifact. `max_tasks_per_child` stays unset unless the drift run shows growth
-above its allowance for any artifact; if it does, the phase stops and asks the owner, because no rule
-here sets a recycling value.
+lower than the max with it off at every artifact. If a max the arena comparison needs is missing (R3:
+a point with any repetition that is not `ok` has no max), the phase stops and asks the owner.
+`max_tasks_per_child` stays unset unless the drift run shows growth above its allowance for any
+artifact; if it does, the phase stops and asks the owner, because no rule here sets a recycling value.
 
 *The drift run.* It is separate from the load run, because a load run builds different parts and a
 larger transient build later in it would read as growth. For each artifact it builds one fixed part

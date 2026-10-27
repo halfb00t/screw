@@ -2248,3 +2248,10 @@ def test_gzip_and_arena_readings_are_cold_isolated_and_widen_the_envelope() -> N
     assert ("a part reading of either tier, a gzip reading of R19, an arena reading of R23, "
             "a contention reading at N = 1") in rule
     assert "a load request wall and a drift build 2 to K never widen `e`" in rule
+
+
+def test_a_missing_gzip_or_arena_max_stops_the_phase() -> None:
+    stop = ("(R3: a point with any repetition that is not `ok` has no max), "
+            "the phase stops and asks the owner")
+    assert f"If a max the gzip comparison needs is missing {stop}" in " ".join(_rule(19).split())
+    assert f"If a max the arena comparison needs is missing {stop}" in " ".join(_rule(23).split())
