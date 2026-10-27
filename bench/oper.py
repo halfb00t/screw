@@ -52,10 +52,29 @@ _CHILD_STATUSES = frozenset({"ok", "refused", "no_cgroup"})
 # What an ok line must carry, with the type of each.
 _OK_COUNTS = ("bytes", "memory_peak_bytes")
 _OK_SECONDS = ("build_s", "export_s")
+# A probe builds something that is not a part (a tail on the kernel's crash wall, a known-bad
+# control), so it has no export: its ok line carries what the build found instead (07-03).
+PROBE_KIND = "probe"
+_PROBE_OK_COUNTS = ("solids", "memory_peak_bytes")
+_PROBE_OK_SECONDS = ("build_s",)
+# A probe's volume ratio is signed on purpose: one_pipe at 160 to 171 turns builds an inverted
+# solid that reads about -1 times the closed form with isValid() True, and that sign is the
+# finding (bench/thread_spike/helical.py). Every other number stays finite and non-negative.
+_SIGNED = frozenset({"volume_ratio"})
+# The probes a point file may name and the arguments each takes; the child's table
+# (`bench.oper_child`) is keyed by the same names. `left_hand` is the only yes/no argument.
+PROBE_ARGS: dict[str, tuple[str, ...]] = {
+    "tail": ("d", "pitch", "turns", "tail", "left_hand"),
+    "naive": ("d", "pitch", "length"),
+    "one_pipe": ("d", "pitch", "turns", "left_hand"),
+}
+_PROBE_FLAGS = frozenset({"left_hand"})
+_PROBE_POINT_KEYS = frozenset({"label", "kind", "probe", "args"})
 # What a line that is not ok may keep: its reason and the versions, never a figure.
 _KEPT_WITHOUT_FIGURES = ("status", "error", "message", "cadquery", "cadquery_ocp")
-# The figures a summary takes a median and a max of.
+# The figures a summary takes a median and a max of; a probe has no export, so it has two.
 _METRICS = ("build_s", "export_s", "bytes", "memory_peak_bytes")
+_PROBE_METRICS = ("build_s", "memory_peak_bytes")
 _STDERR_TAIL = 2000
 
 _container_numbers = itertools.count(1)
@@ -70,7 +89,10 @@ _POINT_KEYS = frozenset({"label", "kind", "params", "artifact"})
 
 @dataclass(frozen=True)
 class Point:
-    """What one reading builds: a part (`kind`, `params`) and one artifact of it."""
+    """What one reading builds: a part (`kind`, `params`) and one artifact of it.
+
+    A probe (`kind == "probe"`) is not a part: its `artifact` is the probe's name and its
+    `params` are the probe's arguments, so a reading, a summary and a shard treat both alike."""
 
     label: str
     kind: str
@@ -78,6 +100,9 @@ class Point:
     artifact: str
 
     def as_json(self) -> str:
+        if self.kind == PROBE_KIND:
+            return json.dumps({"kind": PROBE_KIND, "probe": self.artifact,
+                               "args": dict(self.params)}, sort_keys=True, allow_nan=False)
         return json.dumps({"kind": self.kind, "params": dict(self.params),
                            "artifact": self.artifact}, sort_keys=True, allow_nan=False)
 
@@ -113,16 +138,18 @@ def _refuse_constant(name: str) -> float:
 def _check_number(key: str, value: object) -> None:
     if isinstance(value, bool) or not isinstance(value, int | float):
         return
-    if not math.isfinite(value) or value < 0:
+    if not math.isfinite(value) or (value < 0 and key not in _SIGNED):
         raise ValueError(f"child line: {key} is {value!r}, not a finite non-negative number")
 
 
-def parse_child_line(line: str) -> dict[str, object]:
+def parse_child_line(line: str, *, probe: bool = False) -> dict[str, object]:
     """One child line as a record, or `ValueError`.
 
-    Refuses NaN, infinity and negatives anywhere, a missing key on an ok line, an unknown status
-    and anything that is not one JSON object. A line that is not ok is cut down to its reason: a
-    refused child has no business reporting a build time (L02, T-07-01).
+    Refuses NaN, infinity and negatives anywhere (but a probe's volume ratio, which is signed), a
+    missing key on an ok line, an unknown status and anything that is not one JSON object. A
+    line that is not ok is cut down to its reason: a refused child has no business reporting a
+    build time (L02, T-07-01). `probe` says what the parent asked for, so a part's ok line is not
+    taken for a probe's and the other way round.
     """
     try:
         record = json.loads(line, parse_constant=_refuse_constant)
@@ -137,29 +164,32 @@ def parse_child_line(line: str) -> dict[str, object]:
         _check_number(str(key), value)
     if status != "ok":
         return {key: record[key] for key in _KEPT_WITHOUT_FIGURES if key in record}
-    for key in (*_OK_SECONDS, *_OK_COUNTS):
+    counts, seconds = (_PROBE_OK_COUNTS, _PROBE_OK_SECONDS) if probe else (_OK_COUNTS, _OK_SECONDS)
+    for key in (*seconds, *counts, *(("valid", "volume_ratio") if probe else ())):
         if key not in record:
             raise ValueError(f"ok child line is missing {key}")
-    for key in _OK_COUNTS:
+    for key in counts:
         value = record[key]
         if isinstance(value, bool) or not isinstance(value, int):
             _refuse(f"ok child line: {key} is {value!r}, not a whole number")
-    for key in _OK_SECONDS:
+    for key in (*seconds, *(("volume_ratio",) if probe else ())):
         value = record[key]
         if isinstance(value, bool) or not isinstance(value, int | float):
             _refuse(f"ok child line: {key} is {value!r}, not a number")
+    if probe and not isinstance(record["valid"], bool):
+        _refuse(f"ok child line: valid is {record['valid']!r}, not true or false")
     return dict(record)
 
 
 def classify(*, timed_out: bool, oom_killed: bool, exit_code: int, stdout: str, stderr: str,
-             cap: int) -> dict[str, object]:
+             cap: int, probe: bool = False) -> dict[str, object]:
     """How a reading ended, as `status` plus only what that status may carry.
 
     In order: past the deadline is `killed`; Docker's `OOMKilled` is `capped`; any non-zero exit
     (a signal included) or a last line that is not a valid child line is `crashed`, with the exit
     code and the stderr tail as evidence; the child's own `refused` and `no_cgroup` stand; an ok
     line whose peak is at the cap, or whose cgroup counted an OOM kill, is `capped`. Only a clean
-    ok line keeps its figures.
+    ok line keeps its figures. `probe` is whether the point was a probe (see `parse_child_line`).
     """
     if timed_out:
         return {"status": "killed"}
@@ -173,7 +203,7 @@ def classify(*, timed_out: bool, oom_killed: bool, exit_code: int, stdout: str, 
     if not lines:
         return {**crashed, "problem": "the child printed no line"}
     try:
-        child = parse_child_line(lines[-1])
+        child = parse_child_line(lines[-1], probe=probe)
     except ValueError as exc:
         return {**crashed, "problem": str(exc)}
     if child["status"] != "ok":
@@ -240,7 +270,7 @@ def run_reading(point: Point, rep: int, image: str, cap: int, deadline_s: float,
     wall_s = time.perf_counter() - started
     result = classify(timed_out=timed_out, oom_killed=oom_killed,
                       exit_code=returncode if container_exit is None else container_exit,
-                      stdout=stdout, stderr=stderr, cap=cap)
+                      stdout=stdout, stderr=stderr, cap=cap, probe=point.kind == PROBE_KIND)
     record: dict[str, object] = {
         "type": "reading", "label": point.label, "kind": point.kind, "params": dict(point.params),
         "artifact": point.artifact, "rep": rep, "load1": load1, "container": name, **result,
@@ -270,7 +300,8 @@ def summarize(readings: Iterable[Mapping[str, object]]) -> list[dict[str, object
         median: dict[str, float] | None = None
         maximum: dict[str, float] | None = None
         if status == "ok":
-            columns = {m: [_number(r, m) for r in group] for m in _METRICS}
+            metrics = _PROBE_METRICS if group[0].get("kind") == PROBE_KIND else _METRICS
+            columns = {m: [_number(r, m) for r in group] for m in metrics}
             median = {m: statistics.median(values) for m, values in columns.items()}
             maximum = {m: max(values) for m, values in columns.items()}
         rows.append({"label": label, "artifact": artifact, "n": len(group), "status": status,
@@ -292,7 +323,7 @@ def format_rows(rows: list[dict[str, object]]) -> str:
         head = f"{row['label']}  {row['artifact']}  n={row['n']}  {row['status']}"
         median, maximum = row["median"], row["max"]
         if isinstance(median, dict) and isinstance(maximum, dict):
-            head += "".join(f"  {m}: median {median[m]:.3f} max {maximum[m]:.3f}" for m in _METRICS)
+            head += "".join(f"  {m}: median {median[m]:.3f} max {maximum[m]:.3f}" for m in median)
         else:
             head += f"  {row['counts']}"
         lines.append(head)
@@ -329,7 +360,40 @@ def _is_count(value: object) -> bool:
     return not isinstance(value, bool) and isinstance(value, int) and value >= 1
 
 
+def _load_probe(where: str, raw: dict[str, object]) -> Point:
+    """A probe point: its name and exactly the arguments that probe takes, each a number above 0
+    (`left_hand` a yes/no). `where` names the set, or the command line, in every refusal."""
+    label, probe, args = raw.get("label"), raw.get("probe"), raw.get("args")
+    if set(raw) != _PROBE_POINT_KEYS:
+        _refuse(f"{where}: probe point {label!r} needs exactly the keys "
+                f"{sorted(_PROBE_POINT_KEYS)}")
+    if not (isinstance(label, str) and label):
+        _refuse(f"{where}: a probe point's label is non-empty text")
+    if not isinstance(probe, str) or probe not in PROBE_ARGS:
+        _refuse(f"{where}: probe point {label!r} names probe {probe!r}, "
+                f"not one of {sorted(PROBE_ARGS)}")
+    if not isinstance(args, dict):
+        _refuse(f"{where}: probe point {label!r} args must be an object")
+    wanted = PROBE_ARGS[probe]
+    missing = [key for key in wanted if key not in args]
+    extra = [key for key in args if key not in wanted]
+    if missing or extra:
+        _refuse(f"{where}: probe point {label!r} ({probe}) takes {list(wanted)}; "
+                f"missing {missing}, unexpected {extra}")
+    for key, value in args.items():
+        if key in _PROBE_FLAGS:
+            if not isinstance(value, bool):
+                _refuse(f"{where}: probe point {label!r} argument {key!r} is {value!r}, "
+                        "not true or false")
+        elif not (_is_number(value) and value > 0):
+            _refuse(f"{where}: probe point {label!r} argument {key!r} is {value!r}, "
+                    "not a number above 0")
+    return Point(label=label, kind=PROBE_KIND, params=dict(args), artifact=probe)
+
+
 def _load_point(name: str, raw: object) -> Point:
+    if isinstance(raw, dict) and raw.get("kind") == PROBE_KIND:
+        return _load_probe(f"set {name!r}", raw)
     if not isinstance(raw, dict) or set(raw) != _POINT_KEYS:
         _refuse(f"set {name!r}: a point needs exactly the keys {sorted(_POINT_KEYS)}")
     label, kind, params, artifact = raw["label"], raw["kind"], raw["params"], raw["artifact"]
@@ -434,13 +498,27 @@ def _write_run(image: str, out: str, plan: list[tuple[Point, int]], deadline_s: 
     return 0
 
 
+def _point_of(args: argparse.Namespace) -> Point:
+    """The point the `point` command names, or `ValueError`: a part takes `--artifact`, a probe
+    (`--kind probe`) takes `--probe` with `--params` as its arguments, and neither takes the
+    other's flag."""
+    params = parse_params(args.params)
+    if args.kind != PROBE_KIND:
+        if args.artifact is None or args.probe is not None:
+            _refuse(f"a {args.kind} point takes --artifact and no --probe")
+        return Point(label=args.label, kind=args.kind, params=params, artifact=args.artifact)
+    if args.artifact is not None or args.probe is None:
+        _refuse("a probe point takes --probe and no --artifact")
+    return _load_probe("point", {"label": args.label, "kind": PROBE_KIND, "probe": args.probe,
+                                 "args": params})
+
+
 def _cmd_point(args: argparse.Namespace) -> int:
     try:
-        params = parse_params(args.params)
+        point = _point_of(args)
     except ValueError as exc:
         print(f"oper: {exc}", file=sys.stderr)
         return 2
-    point = Point(label=args.label, kind=args.kind, params=params, artifact=args.artifact)
     return _write_run(args.image, args.out, [(point, rep) for rep in range(1, args.reps + 1)],
                       DEADLINE_S)
 
@@ -518,7 +596,8 @@ def markdown_report(headers: list[dict[str, object]], readings: list[dict[str, o
         median, maximum = row["median"], row["max"]
         cells = ["-"] * 8
         if isinstance(median, dict) and isinstance(maximum, dict):
-            cells = [f"{table[m]:{spec}}" for m, spec in (
+            # A probe has no export seconds and no bytes: a dash, never a zero (L02).
+            cells = [f"{table[m]:{spec}}" if m in table else "-" for m, spec in (
                 ("build_s", ".3f"), ("export_s", ".3f"), ("bytes", ".0f"),
                 ("memory_peak_bytes", ".0f")) for table in (median, maximum)]
         tally = row["counts"]
@@ -550,7 +629,8 @@ def main(argv: list[str] | None = None) -> int:
     point = commands.add_parser("point", help="take --reps readings of one point")
     point.add_argument("--kind", required=True)
     point.add_argument("--params", default="", help='"name=value ..." (numbers, true, false)')
-    point.add_argument("--artifact", required=True, choices=list(_ARTIFACTS))
+    point.add_argument("--artifact", choices=list(_ARTIFACTS), help="for a part")
+    point.add_argument("--probe", help=f"for --kind {PROBE_KIND}: one of {sorted(PROBE_ARGS)}")
     point.add_argument("--label", default="point")
     point.add_argument("--image", required=True)
     point.add_argument("--reps", type=int, default=5)

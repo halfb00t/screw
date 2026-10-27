@@ -726,3 +726,308 @@ def test_make_lists_the_runner_harness() -> None:
     out = subprocess.run(["make", "-s", "help"], cwd=REPO_ROOT, capture_output=True, text=True,
                          check=True).stdout
     assert [line for line in out.splitlines() if line.split()[:1] == ["bench.oper"]]
+
+
+# --- the probes (07-03): the walls and the controls are read through the same parent ------------
+
+TAIL_ARGS: dict[str, float | bool] = {
+    "d": 6.0, "pitch": 1.0, "turns": 3, "tail": 0.01, "left_hand": False}
+NAIVE_ARGS: dict[str, float | bool] = {"d": 8.0, "pitch": 1.25, "length": 10.0}
+PIPE_ARGS: dict[str, float | bool] = {"d": 6.0, "pitch": 1.0, "turns": 3, "left_hand": False}
+
+
+def _probe(probe: str = "tail", args: Mapping[str, object] | None = None,
+           label: str = "t") -> dict[str, object]:
+    return {"label": label, "kind": "probe", "probe": probe,
+            "args": dict(TAIL_ARGS if args is None else args)}
+
+
+def test_a_probe_point_loads_with_its_name_and_arguments(tmp_path: Path) -> None:
+    _write_set(tmp_path, points=[_probe(), _probe("naive", NAIVE_ARGS, "n"),
+                                 _probe("one_pipe", PIPE_ARGS, "o")])
+    points = oper.load_set("mini", tmp_path).points
+    assert [(p.label, p.kind, p.artifact) for p in points] == [
+        ("t", "probe", "tail"), ("n", "probe", "naive"), ("o", "probe", "one_pipe")]
+    assert dict(points[0].params) == TAIL_ARGS
+
+
+def test_a_probe_point_reaches_the_child_as_its_name_and_arguments(tmp_path: Path) -> None:
+    _write_set(tmp_path, points=[_probe()])
+    (point,) = oper.load_set("mini", tmp_path).points
+    assert json.loads(point.as_json()) == {"kind": "probe", "probe": "tail", "args": TAIL_ARGS}
+
+
+def _without(args: Mapping[str, object], key: str) -> dict[str, object]:
+    return {k: v for k, v in args.items() if k != key}
+
+
+@pytest.mark.parametrize(
+    ("point", "named"),
+    [(_probe("twist"), "'twist'"),
+     (_probe("tail", _without(TAIL_ARGS, "turns")), "turns"),
+     (_probe("naive", {**NAIVE_ARGS, "left_hand": False}), "left_hand"),
+     (_probe("one_pipe", _without(PIPE_ARGS, "left_hand")), "left_hand"),
+     (_probe("tail", {**TAIL_ARGS, "tail": "0.01"}), "argument 'tail'"),
+     (_probe("tail", {**TAIL_ARGS, "tail": True}), "argument 'tail'"),
+     (_probe("tail", {**TAIL_ARGS, "tail": 0}), "argument 'tail'"),
+     (_probe("tail", {**TAIL_ARGS, "left_hand": 1}), "argument 'left_hand'"),
+     ({**_probe(), "artifact": "stl-preview"}, "'t'"),
+     ({"label": "t", "kind": "probe", "args": TAIL_ARGS}, "'t'")],
+    ids=["unknown-probe", "missing-arg", "extra-arg", "missing-hand", "text-arg", "bool-arg",
+         "zero-arg", "number-hand", "artifact-on-a-probe", "no-probe-name"])
+def test_a_probe_point_that_breaks_its_schema_is_refused_naming_it(
+        point: dict[str, object], named: str, tmp_path: Path) -> None:
+    _write_set(tmp_path, points=[point])
+    with pytest.raises(ValueError, match=re.escape(named)):
+        oper.load_set("mini", tmp_path)
+
+
+def test_the_matrix_refuses_a_bad_probe_with_exit_2_naming_it(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    _write_set(tmp_path, points=[_probe("twist")])
+    monkeypatch.setattr(oper, "POINTS_DIR", tmp_path)
+    assert oper.main(["matrix", "--set", "mini"]) == 2
+    assert "'twist'" in capsys.readouterr().err
+
+
+def _probe_line(**over: object) -> str:
+    line: dict[str, object] = {
+        "status": "ok", "build_s": 0.4, "solids": 1, "valid": True, "volume_ratio": 1.00001,
+        "maxrss_bytes": 90_000_000, "memory_peak_bytes": 120_000_000, "oom_kills": 0,
+        "cadquery": "2.8.0", "cadquery_ocp": "7.9.3.1.1"}
+    line.update(over)
+    return json.dumps(line)
+
+
+def test_a_probe_line_parses_when_a_probe_is_expected() -> None:
+    record = oper.parse_child_line(_probe_line(), probe=True)
+    assert (record["solids"], record["valid"], record["volume_ratio"]) == (1, True, 1.00001)
+
+
+def test_an_inverted_solid_keeps_its_negative_volume_ratio() -> None:
+    # one_pipe at 160 to 171 turns reads about -1 times the closed form with isValid() True
+    # (bench/thread_spike/helical.py); the sign is the finding, so it is not a refusable number.
+    record = oper.parse_child_line(_probe_line(volume_ratio=-1.0), probe=True)
+    assert record["volume_ratio"] == -1.0
+
+
+@pytest.mark.parametrize("over", [{"build_s": -1.0}, {"solids": -1}, {"volume_ratio": "NaN"}],
+                         ids=["negative-seconds", "negative-count", "nan-ratio"])
+def test_a_probe_line_with_a_number_that_cannot_be_true_is_refused(over: dict[str, object]) -> None:
+    line = _probe_line(**over).replace('"NaN"', "NaN")
+    with pytest.raises(ValueError, match="child line"):
+        oper.parse_child_line(line, probe=True)
+
+
+@pytest.mark.parametrize("key", ["build_s", "solids", "valid", "volume_ratio",
+                                 "memory_peak_bytes"])
+def test_a_probe_line_missing_a_field_is_refused(key: str) -> None:
+    record = json.loads(_probe_line())
+    del record[key]
+    with pytest.raises(ValueError, match=key):
+        oper.parse_child_line(json.dumps(record), probe=True)
+
+
+def test_a_part_line_is_not_a_probe_line_and_a_probe_line_is_not_a_part_line() -> None:
+    with pytest.raises(ValueError, match="solids"):
+        oper.parse_child_line(_ok_line(), probe=True)
+    with pytest.raises(ValueError, match="export_s"):
+        oper.parse_child_line(_probe_line())
+
+
+def test_a_clean_probe_is_ok_and_keeps_what_it_found() -> None:
+    record = oper.classify(timed_out=False, oom_killed=False, exit_code=0, stdout=_probe_line(),
+                           stderr="", cap=oper.CAP_BYTES, probe=True)
+    assert record["status"] == "ok"
+    assert (record["solids"], record["volume_ratio"]) == (1, 1.00001)
+
+
+@pytest.mark.parametrize("exit_code", [139, -11], ids=["container-exit", "signal"])
+def test_a_probe_that_crashes_the_container_is_crashed_with_no_number(exit_code: int) -> None:
+    # The tail walk crosses the kernel's SIGSEGV wall on purpose (D-08, T-07-07): the container
+    # absorbs it, the reading says so, and the parent goes on to the next point.
+    record = oper.classify(timed_out=False, oom_killed=False, exit_code=exit_code, stdout="",
+                           stderr="", cap=oper.CAP_BYTES, probe=True)
+    assert record["status"] == "crashed"
+    assert record["exit_code"] == exit_code
+    assert [k for k in (*NUMBER_KEYS, "solids", "volume_ratio", "valid") if k in record] == []
+
+
+def test_a_capped_probe_that_still_printed_a_line_keeps_none_of_its_findings() -> None:
+    record = oper.classify(timed_out=False, oom_killed=True, exit_code=137, stdout=_probe_line(),
+                           stderr="", cap=oper.CAP_BYTES, probe=True)
+    assert record == {"status": "capped"}
+
+
+def _probe_reading(rep: int, status: str = "ok", *, build_s: float = 1.0) -> dict[str, object]:
+    record: dict[str, object] = {"type": "reading", "label": "t", "kind": "probe",
+                                 "artifact": "tail", "rep": rep, "status": status}
+    if status == "ok":
+        record.update(build_s=build_s, solids=1, valid=True, volume_ratio=1.0,
+                      memory_peak_bytes=1000 * rep)
+    return record
+
+
+def test_probe_readings_report_the_median_and_max_of_what_a_probe_measures() -> None:
+    readings = [_probe_reading(r, build_s=b) for r, b in enumerate([3.0, 1.0, 2.0], 1)]
+    row = oper.summarize(readings)[0]
+    assert row["status"] == "ok"
+    assert row["median"] == {"build_s": 2.0, "memory_peak_bytes": 2000}
+    assert row["max"] == {"build_s": 3.0, "memory_peak_bytes": 3000}
+
+
+def test_a_probe_summary_prints_in_both_formats_without_inventing_an_export(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    path = tmp_path / "p.jsonl"
+    lines = [json.dumps({"type": "header", "nproc": 4})]
+    lines += [json.dumps(_probe_reading(r)) for r in (1, 2)] + [json.dumps(
+        {**_probe_reading(3, "crashed"), "exit_code": 139})]
+    path.write_text("\n".join(lines) + "\n")
+    assert oper.main(["summarize", str(path)]) == 0
+    assert "crashed" in capsys.readouterr().out
+    ok = tmp_path / "ok.jsonl"
+    ok.write_text("\n".join(lines[:3]) + "\n")
+    assert oper.main(["summarize", str(ok)]) == 0
+    assert "build_s" in capsys.readouterr().out
+    assert oper.main(["summarize", str(ok), "--markdown"]) == 0
+    row = [line for line in capsys.readouterr().out.splitlines() if line.startswith("| t |")]
+    assert len(row) == 1
+    assert "| - | - | - | - |" in row[0]  # no export seconds and no bytes: a dash, not a zero
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [["--kind", "probe", "--artifact", "step"], ["--kind", "probe"],
+     ["--kind", "probe", "--probe", "twist"], ["--kind", "bolt"],
+     ["--kind", "bolt", "--artifact", "step", "--probe", "tail"]],
+    ids=["artifact-on-a-probe", "no-probe-name", "unknown-probe", "no-artifact",
+         "probe-on-a-part"])
+def test_the_point_command_refuses_a_misplaced_probe_or_artifact_before_touching_docker(
+        argv: list[str], capsys: pytest.CaptureFixture[str]) -> None:
+    code = oper.main(["point", *argv, "--params", "d=6", "--image", "screw:none", "--reps", "1",
+                      "--out", "-"])
+    assert code == 2
+    assert capsys.readouterr().err.startswith("oper: ")
+
+
+# --- the probes, in the child (real kernel, each builds in under a second) -----------------------
+
+
+def test_the_tail_probe_builds_one_valid_solid_inside_the_gate() -> None:
+    from screw.calc.thread import T_GATE
+
+    result = oper_child.run_probe({"probe": "tail", "args": TAIL_ARGS})
+    assert result["status"] == "ok"
+    assert (result["solids"], result["valid"]) == (1, True)
+    ratio = result["volume_ratio"]
+    assert isinstance(ratio, float)
+    assert abs(ratio - 1) <= T_GATE
+    assert isinstance(result["build_s"], float)
+
+
+def _guard() -> object:
+    from screw.solid import helical
+
+    return vars(helical)["MIN_TAIL_MM"]
+
+
+def test_the_tail_probe_lowers_the_builder_guard_for_the_call_and_restores_it(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    from screw.solid import helical
+
+    saved = _guard()
+    assert isinstance(saved, float)
+    assert saved > 0
+    seen: list[object] = []
+    real = helical.thread
+
+    def spy(*args: float, **kwargs: bool) -> object:
+        seen.append(_guard())
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(helical, "thread", spy)
+    oper_child.run_probe({"probe": "tail", "args": TAIL_ARGS})
+    assert seen == [0.0]
+    assert _guard() == saved
+
+
+def test_the_tail_probe_restores_the_guard_when_the_build_fails(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    from screw.solid import helical
+
+    saved = _guard()
+
+    def fail(*_: object, **__: object) -> object:
+        raise RuntimeError("Standard_Failure")
+
+    monkeypatch.setattr(helical, "twist", fail)
+    result = oper_child.run_probe({"probe": "tail", "args": TAIL_ARGS})
+    assert _guard() == saved
+    assert (result["status"], result["error"]) == ("refused", "RuntimeError")
+    assert "Standard_Failure" in str(result["message"])
+    assert [k for k in ("build_s", "solids", "valid", "volume_ratio") if k in result] == []
+
+
+def test_the_one_pipe_control_builds_the_twist_without_a_gate() -> None:
+    result = oper_child.run_probe({"probe": "one_pipe", "args": PIPE_ARGS})
+    assert result["status"] == "ok"
+    assert (result["solids"], result["valid"]) == (1, True)
+    ratio = result["volume_ratio"]
+    assert isinstance(ratio, float)
+    assert abs(ratio - 1) < 1e-3
+
+
+def test_the_naive_control_reports_what_it_built_or_the_kernel_error() -> None:
+    # macOS arm64 gives one valid solid at about a quarter of the closed form; linux/amd64 may
+    # raise `Null TopoDS_Shape` (L11 platform note). Either is a record, never an exception.
+    result = oper_child.run_probe({"probe": "naive", "args": NAIVE_ARGS})
+    if result["status"] == "ok":
+        assert isinstance(result["solids"], int)
+        assert isinstance(result["valid"], bool)
+        assert isinstance(result["volume_ratio"], float)
+    else:
+        assert result["status"] == "refused"
+        assert isinstance(result["error"], str)
+
+
+def test_a_kernel_exception_in_a_control_is_a_refused_record_with_its_class_and_text(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    from bench.thread_spike import helical as spike
+
+    def fail(*_: object, **__: object) -> object:
+        raise ValueError("Null TopoDS_Shape")
+
+    monkeypatch.setattr(spike, "naive_sweep_fuse", fail)
+    result = oper_child.run_probe({"probe": "naive", "args": NAIVE_ARGS})
+    assert result == {"status": "refused", "error": "ValueError", "message": "Null TopoDS_Shape"}
+
+
+def test_a_probe_the_child_does_not_know_is_a_key_error_not_a_reading() -> None:
+    with pytest.raises(KeyError, match="twist"):
+        oper_child.run_probe({"probe": "twist", "args": {}})
+
+
+def test_the_child_prints_one_line_for_a_probe(capsys: pytest.CaptureFixture[str]) -> None:
+    point = json.dumps({"kind": "probe", "probe": "tail", "args": TAIL_ARGS})
+    assert oper_child.main([point]) == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert len(lines) == 1
+    record = oper.parse_child_line(lines[0], probe=True) if '"ok"' in lines[0] \
+        else oper.parse_child_line(lines[0])
+    # Outside a container with a cgroup (a laptop) the peak is unreadable: a status, no finding.
+    assert record["status"] in {"ok", "no_cgroup"}
+    if record["status"] == "no_cgroup":
+        assert "volume_ratio" not in record
+
+
+@pytest.mark.parametrize("argv", [['{"kind": "probe", "probe": "twist", "args": {}}'],
+                                  ['{"kind": "probe", "probe": "tail"}'],
+                                  ['{"kind": "probe", "args": {}}']],
+                         ids=["unknown-probe", "no-args", "no-probe-name"])
+def test_a_probe_the_child_cannot_read_is_an_exit_2_with_no_line(
+        argv: list[str], capsys: pytest.CaptureFixture[str]) -> None:
+    assert oper_child.main(argv) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err != ""
