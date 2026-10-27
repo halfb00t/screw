@@ -1956,7 +1956,9 @@ def test_the_turn_bound_is_a_common_candidate_that_every_cell_is_confirmed_at() 
     assert "The *candidate* T is the smallest first ok step over the cells" in rule
     assert "`MAX_TURNS` is T only if the confirmation readings" in rule
     assert "are `ok`, in all 5 repetitions, for every cell" in rule
-    assert "the confirmation set reads it there" in rule
+    assert "The confirmation set reads every cell at T, at 5 repetitions taken fresh" in rule
+    assert "has not been read at T yet" not in rule
+    assert "a cell is read at T only if" not in rule
     assert "A confirmation reading at T that is not `ok`, or is missing, awards no turn" in rule
     assert "the confirmation readings at T" in rule
     assert "For R7 the value is the candidate T" in " ".join(_rule(3).split())
@@ -2044,3 +2046,131 @@ def test_the_protocol_asks_for_the_distinct_repetitions_and_the_harness_enforces
     assert "is `incomplete` and has no median and no max" in rule
     assert oper.BOUND_REPS == (1, 2, 3, 4, 5)
     assert "(`bench.oper.summarize`)" in rule
+
+
+# --- the gap rulings (PR A2): each new rule is pinned by its key phrase ---------------------------
+
+
+def test_an_above_zero_floor_is_confirmed_at_its_smallest_walked_value() -> None:
+    rule = " ".join(_rule(3).split())
+    assert "Where R9 or R10 decides \"above 0\"" in rule
+    assert "the smallest walked value (tail 1e-9 mm, root radius 1e-6 mm) for every cell" in rule
+    assert "Any reading there that is not `ok` awards no floor" in rule
+    assert "the confirm set of R3 at 1e-9 mm, for every size and hand" in " ".join(_rule(9).split())
+    assert "the confirm set of R3 at 1e-6 mm, for every size, hand, rod and void" in " ".join(
+        _rule(10).split())
+
+
+def test_the_walk_down_reads_every_step_once_and_the_confirm_decides() -> None:
+    rule = " ".join(_rule(7).split())
+    assert "every step of 10 turns from 240 down to 10, at 1 repetition, in one dispatch" in rule
+    assert "The cell's first ok step is the highest of those steps whose reading is `ok`" in rule
+    assert "A cell's readings below its first ok step are recorded and used for nothing" in rule
+    assert "the 5-repetition confirm at T decides" in rule
+    assert "whether or not that cell already has a 1-repetition reading at T" in rule
+    assert "such a reading is not one of the 5 and stands in for none of them" in rule
+    assert "from 240 down to 10" in rule
+    assert "A cell with no `ok` step has no first ok step" in rule
+    assert "the R7 walk-down set" in " ".join(_rule(3).split())
+
+
+def test_a_spread_point_without_a_median_leaves_the_margin_with_no_number() -> None:
+    rule = " ".join(_rule(5).split())
+    assert "If any `spread` point has no median" in rule
+    assert "`m` has no number and the phase stops and asks the owner" in rule
+
+
+def test_only_cold_isolated_readings_widen_the_envelope() -> None:
+    rule = " ".join(_rule(12).split())
+    assert "only a cold isolated reading widens it" in rule
+    assert "a contention reading at N = 1 and build 1 of a drift repetition" in rule
+    assert "A contended wall (a contention reading at N = 2 or 3)" in rule
+    assert "a load request wall and a drift build 2 to K never widen `e`" in rule
+
+
+def test_a_widening_redraws_no_bound_set_load_mix_or_tier_list() -> None:
+    rule = " ".join(_rule(12).split())
+    assert "D(A) (R27 steps 1 to 4), the bound set (R14) and the load mix (R15)" in rule
+    assert "are each fixed once" in rule
+    assert "are never redrawn when `e` widens" in rule
+    assert "A widening changes admission and the final numbers only" in rule
+    for number, phrase in ((14, "is not redrawn when `e` widens (R12)"),
+                           (15, "is not redrawn when `e` widens (R12)"),
+                           (27, "it is not redrawn when `e` widens (R12)")):
+        assert phrase in " ".join(_rule(number).split()), number
+
+
+def test_a_shard_is_the_longest_file_order_prefix_that_fits_under_half_the_timeout() -> None:
+    rule = " ".join(_rule(6).split())
+    assert "A shard is the longest such prefix of the points not yet placed" in rule
+    assert "summed charge stays under half the measure job's `timeout-minutes`" in rule
+    assert "each point is charged the largest `wall_s` of any `explore` reading in" in rule
+    assert "whatever the status of that reading" in rule
+    assert "A (kind, artifact) group with no `explore` reading is charged its `deadline_s`" in rule
+    assert "For the contention, load and drift sets" in rule
+    assert "each reading is charged the deadline its own rule sets: 600 s where R2's deadline" \
+        in rule
+    assert "and K x the artifact's timeout for a drift reading, that is 20 x that timeout (R23)" \
+        in rule
+    assert "(600 s, R2)" not in rule
+    assert ("A reading whose deadline is not under half the job's `timeout-minutes` "
+            "stops the phase") in rule
+    assert "the job timeout also counts the runner setup, the image build and the upload" in rule
+    assert "one job per repetition" not in rule
+    assert "cannot fit in a job at all" not in rule
+    assert "stops the phase and asks the owner" in rule
+
+
+def test_a_worker_count_qualifies_only_with_five_ok_load_repetitions() -> None:
+    rule = " ".join(_rule(16).split())
+    assert "and only if all 5 of its load repetitions are `ok`" in rule
+    assert "If no N qualifies, the phase stops and asks the owner" in rule
+
+
+def test_the_queue_depth_is_checked_on_the_load_records_against_the_derived_timeouts() -> None:
+    rule = " ".join(_rule(17).split())
+    assert "checked on the existing load records of the picked N, after R14 has derived the" \
+        in rule
+    assert "no request's wall, its queue wait plus its build, may exceed the timeout of its" in rule
+    assert "under the queue-aware deadline (plan 07-02)" in rule
+    assert "needs no further runner time" in rule
+
+
+def test_every_solid_cache_peak_is_measured_after_the_pick_with_one_worker() -> None:
+    rule = " ".join(_rule(22).split())
+    assert "`W(K)` for every K from 1 to 4 is measured after R16's pick" in rule
+    assert "the load mix of R15 at N = 1 with `SCREW_SOLID_CACHE` = K, 5 repetitions" in rule
+    assert "every `W(K)` this rule compares comes from the same instrument" in rule
+    assert "`W(4)` is not taken from R16's W" in rule
+    assert "W(4) is R16's W" not in rule
+    assert "With one worker, the container peak is that worker's peak" in rule
+
+
+def test_the_budget_ruling_is_one_of_the_three_candidates() -> None:
+    rule = " ".join(_rule(13).split())
+    assert "the ruling is one of C1, C2 and C3: no other triple is offered or taken" in rule
+
+
+def test_the_gzip_levels_are_compared_on_the_max_over_five_repetitions() -> None:
+    rule = " ".join(_rule(19).split())
+    assert "A level's seconds and bytes are each the max over 5 repetitions (R3)" in rule
+    assert "the comparison below uses those maxima" in rule
+
+
+def test_a_refused_pair_is_read_in_the_full_tier_and_must_return_its_refusal() -> None:
+    rule = " ".join(_rule(28).split())
+    assert "A pair the cost model refuses is still read in the full tier" in rule
+    assert "must return its expected refusal (422 or info status)" in rule
+    assert "it is not judged against the cost model" in rule
+    assert "fails the tier only if it does not return its expected refusal" in " ".join(
+        _rule(29).split())
+
+
+def test_the_protocol_header_names_every_plan_that_applies_its_rules() -> None:
+    header = " ".join(_protocol().split("\n## R1 ")[0].split())
+    assert "Plans 07-03 to 07-20 apply these rules" in header
+
+
+def test_each_drift_build_is_gzipped_before_its_peak_is_read() -> None:
+    rule = " ".join(_rule(23).split())
+    assert "after the build, its export and a level-1 gzip of the output, after every build" in rule
