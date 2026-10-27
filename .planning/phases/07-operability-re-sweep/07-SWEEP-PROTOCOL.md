@@ -239,11 +239,13 @@ The owner rules (B-01). No candidate is a figure until then, and nothing downstr
 ## R14 - The bound set, contention and the timeouts (D-09)
 
 The bound set of an artifact is the 5 admitted points with the largest enveloped build-seconds
-prediction, plus the worst measured admitted point (the largest cold wall in `explore`). Contention
-runs the bound point on one slot and the next-heaviest admitted points on the other N - 1 slots,
-all cold and submitted together, at N in {1, 2, 3}; the slots are distinct workers of the pool
-(chosen by the pool's affinity hash). The *bound point* of an artifact is the point of its bound
-set with the largest max cold wall over 5 repetitions at the picked N (R16). The timeout of the
+prediction, plus the worst measured admitted point (the largest cold wall in `explore`), which is
+one of the 5 or a sixth. Contention runs, for every point P of the bound set and every N in {1, 2, 3}:
+P on one slot and, on the other N - 1 slots, the N - 1 admitted points other than P with the largest
+enveloped build-seconds prediction, all cold and submitted together; the slots are distinct workers of
+the pool (chosen by the pool's affinity hash). Every (P, N) takes 5 repetitions (R3), so no
+reading waits for a worker count that R16 has not yet picked. The *bound point* of an artifact is the P
+whose max cold wall over its 5 repetitions at the picked N (R16) is the largest. The timeout of the
 artifact is `ceil(2 x` that max `)` seconds. The 2 is D-09's factor.
 
 ## R15 - The load run (D-03)
@@ -255,7 +257,8 @@ container's cgroup peak read at the end. 5 repetitions (R3).
 
 ## R16 - The worker count and mem_limit (D-02, D-03)
 
-`W` is the max `memory_peak_bytes` of the N = 1 contention container. `B` is the max idle-server peak
+`W` is the max `memory_peak_bytes` over the N = 1 contention containers of every point of
+every bound set (R14). `B` is the max idle-server peak
 before load. `mem_limit(N)` is the larger of `W x N + B +` the export cache budget `+` the tmpfs
 size, and the max load peak at N, rounded up to 256 MiB. N qualifies when `mem_limit(N)` is under
 both 16 x 10^9 bytes and the smallest `MemTotal` any runner header recorded, and N is at most
