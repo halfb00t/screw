@@ -1,0 +1,25 @@
+# Phase 7 — owner rulings on protocol gaps G1–G14
+
+Date: 2026-10-27. Source: `07-PLAN-PROTOCOL-AUDIT.md` (commit eac98ab), "Protocol gaps the plans
+expose". No runner reading of phase 7 exists yet, so R30's freeze ("after the first runner reading")
+has not started. These rulings amend `07-SWEEP-PROTOCOL.md` through PR A2, which lands before plan
+07-05 takes the first reading.
+
+| Gap | Rule(s) | Owner ruling |
+|---|---|---|
+| G1 | R3, R9, R10 | When R9 or R10 decides "above 0", the confirm set is the smallest walked value (tail 1e-9 mm, root 1e-6 mm) for every cell at 5 repetitions. Any reading there that is not `ok` awards no floor and stops the phase for the owner, as R7 does. |
+| G2 | R3, R7 | The R7 walk-down reads every step for every cell at 1 repetition in one dispatch. A cell's readings below its first `ok` step are recorded and used for nothing. The 5-repetition confirm at T decides. |
+| G3 | R5 | If any spread point has no median (a repetition not `ok`, or incomplete), m has no number and the phase stops for the owner. |
+| G4 | R6 | Not ruled separately. The PR A2 author resolves the point order and the sets with no explore `wall_s` analogue from existing rules, or returns it to the owner. |
+| G5 | R12 | Only cold isolated readings widen e: contention readings at N = 1 and drift build 1. Contended walls (N = 2, 3), load walls and drift builds 2..K do not widen e. |
+| G6 | R12, R14, R15, R27 | D(A), the R14 bound set and the R15 load mix are each fixed once, from the prediction they were first computed from, and never redrawn after a widening. A widening changes admission and the final numbers only. |
+| G7 | R15, R16 | An N qualifies only if all 5 of its load repetitions are `ok`. If no N qualifies, the phase stops for the owner. |
+| G8 | R17 | R17 is checked on the existing load records after R14 derives the timeouts. No request's queue plus build wall may exceed its artifact's timeout under the queue-aware deadline (07-02). No extra runner time. |
+| G9 | R22 | W(K) for K < 4 is measured after R16's pick, running the load mix at N = 1 with `SCREW_SOLID_CACHE` = K, 5 repetitions each. With one worker, the container peak is that worker's peak. |
+| G10 | R13 | B-01 is one of C1, C2, C3. `custom` is removed from 07-10. |
+| G11 | R19 | R19 compares the max over 5 repetitions. |
+| G12 | R28, R29 | Refused pairs are read in the full tier and must still return their expected refusal (422 or info status). They are not judged against the cost model. |
+| G13 | header | Text fix: the header names plans 07-03 to 07-20. |
+| G14 | R23 | Each drift build is built, exported and level-1 gzipped before its peak is read, as R2 says. |
+
+Earlier rulings in the same review cycle (PR A, rounds 1–3) are recorded in `07-04-SUMMARY.md`.
