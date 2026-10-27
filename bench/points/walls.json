@@ -852,6 +852,15 @@
    "artifact": "stl-preview"
   },
   {
+   "label": "ceiling-nut-d-1000",
+   "kind": "nut",
+   "params": {
+    "d": 999.699,
+    "s": 1000.0
+   },
+   "artifact": "stl-preview"
+  },
+  {
    "label": "ceiling-nut-m-1000",
    "kind": "nut",
    "params": {
@@ -929,6 +938,15 @@
    "artifact": "stl-preview"
   },
   {
+   "label": "ceiling-nut-d-10000",
+   "kind": "nut",
+   "params": {
+    "d": 9999.69,
+    "s": 10000.0
+   },
+   "artifact": "stl-preview"
+  },
+  {
    "label": "ceiling-nut-m-10000",
    "kind": "nut",
    "params": {
@@ -1002,6 +1020,15 @@
     "d": 6.0,
     "s": 100000.0,
     "clearance": 49996.9
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "ceiling-nut-d-100000",
+   "kind": "nut",
+   "params": {
+    "d": 99999.6,
+    "s": 100000.0
    },
    "artifact": "stl-preview"
   },
@@ -9804,6 +9831,18 @@
    }
   },
   {
+   "label": "beyond-nut-d-1000000",
+   "kind": "nut",
+   "params": {
+    "d": 999999.0,
+    "s": 1000000.0
+   },
+   "artifact": "stl-preview",
+   "lift": {
+    "max_mm": 1000000.0
+   }
+  },
+  {
    "label": "beyond-nut-m-1000000",
    "kind": "nut",
    "params": {
@@ -9823,6 +9862,7 @@
   "preview STL unless a probe; (a) turns: 250 turns at the 15 L11 sizes, both hands, bolt (t = L = 250 P) and nut (m = 248 P, so the void m + 2 P is 250 turns), exact decimals",
   "(b) field ceilings at 1e3, 1e4 and 1e5 mm: bolt d at the largest value of 6 significant figures under X with s = X (the head rule is s > d), length, s, k, thread_length with L = t = X at 250 turns, nut s, nut m at 250 turns of void (pitch rounded up so the void stays at or under the cap)",
   "nut clearance: the default nut at s = X with the largest clearance of 6 significant figures under (X - d) / 2, the most nut_too_thin (s > d + 2 c) admits at that s",
+  "nut d: s = X at the default clearance and the largest d of 6 significant figures under X - 2 c, the most nut_too_thin admits at that s",
   "(c) tails: the `tail` probe at 3 sizes, both hands, 1e-2 down to 1e-9 mm with the builder's guard lowered in the probe only, 3 whole turns before the tail",
   "(d) root radius walk: for each size and hand, r from 1e-2 down to 1e-6 mm for the bolt (d/2 - 5H/8 = r) and the nut void (d/2 - 5H/8 + 0.15 = r); the pitch is solved to full float precision, 3 turns",
   "(e) the nuts the lead-in and countersink debt items name, at s 1e3, 1e4 and 1e5 and at the countersink item's d 2, s 4, m 3 pitches and clearances",

@@ -311,6 +311,11 @@ def _ceiling_walls(out: _Set, decades: tuple[float, ...] = CEILINGS, prefix: str
         part(f"{prefix}-nut-clearance-{tag}", "nut",
              {"d": NUT_CLEARANCE_D, "s": x,
               "clearance": _below((Decimal(repr(x)) - Decimal(repr(NUT_CLEARANCE_D))) / 2)})
+        # The same rule gives the nut's d: s = X and the default clearance leave d under X - 2 c.
+        # The nut's own d bound is as high as s's, so without this probe the d ceiling would rest
+        # on nothing a reading tested.
+        part(f"{prefix}-nut-d-{tag}", "nut",
+             {"d": _below(Decimal(repr(x)) - 2 * Decimal(repr(DEFAULT_NUT_CLEARANCE))), "s": x})
         # Pitch rounded up so m + 2 P stays at or under 250 turns of the rounded pitch.
         nut_pitch = _round_sig(Decimal(repr(x)) / Decimal(248), ROUND_CEILING)
         nut_d = _scaled(nut_pitch, "2.5")
@@ -380,6 +385,8 @@ def walls() -> _Set:
         "nut m at 250 turns of void (pitch rounded up so the void stays at or under the cap)",
         "nut clearance: the default nut at s = X with the largest clearance of 6 significant "
         "figures under (X - d) / 2, the most nut_too_thin (s > d + 2 c) admits at that s",
+        "nut d: s = X at the default clearance and the largest d of 6 significant figures under "
+        "X - 2 c, the most nut_too_thin admits at that s",
         "(c) tails: the `tail` probe at 3 sizes, both hands, 1e-2 down to 1e-9 mm with the "
         "builder's guard lowered in the probe only, 3 whole turns before the tail",
         "(d) root radius walk: for each size and hand, r from 1e-2 down to 1e-6 mm for the "

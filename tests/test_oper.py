@@ -1387,7 +1387,7 @@ def test_the_turn_walls_are_250_turns_at_the_15_sizes_both_hands_rod_and_void() 
 
 def test_the_field_ceiling_corners_sit_at_1e3_1e4_and_1e5() -> None:
     ceilings = _walls("ceiling-")
-    assert len(ceilings) == 3 * 8
+    assert len(ceilings) == 3 * 9
     by_label = {p["label"]: p["params"] for p in ceilings}
     for x in (1e3, 1e4, 1e5):
         tag = f"{x:g}"
@@ -1438,6 +1438,31 @@ def test_the_clearance_probe_holds_the_largest_clearance_nut_too_thin_admits_at_
         above = float(Context(prec=6).next_plus(Decimal(repr(params["clearance"]))))
         with pytest.raises(ValueError, match="across flats"):
             NutParams.model_validate({**params, "clearance": above})
+
+
+def test_the_nut_diameter_probe_holds_the_largest_d_nut_too_thin_admits_at_its_s() -> None:
+    from decimal import Context, Decimal
+
+    from screw.params import NutParams
+
+    by_label = {p["label"]: p["params"] for p in _walls("ceiling-nut-d-")}
+    assert {label: params["d"] for label, params in by_label.items()} == {
+        "ceiling-nut-d-1000": 999.699, "ceiling-nut-d-10000": 9999.69,
+        "ceiling-nut-d-100000": 99999.6}
+    for x, params in zip((1e3, 1e4, 1e5), by_label.values(), strict=True):
+        assert params["s"] == x
+        assert "clearance" not in params  # the default 0.15, which the protocol states
+        NutParams.model_validate(params)
+        above = float(Context(prec=6).next_plus(Decimal(repr(params["d"]))))
+        with pytest.raises(ValueError, match="across flats"):
+            NutParams.model_validate({**params, "d": above})
+
+
+def test_the_protocol_ties_the_nut_diameter_ceiling_to_its_probe_and_tested_value() -> None:
+    rule = " ".join(_rule(8).split())
+    assert "nut `d` the `ceiling-nut-d` reading" in rule
+    assert "nut `d`, whose tested value is the largest under X - 2 x 0.15 (99999.6 at 1e5)" in rule
+    assert "nut `d`: a nut with `s` = X" in " ".join(_protocol().split())
 
 
 def test_the_tail_walk_runs_eight_decades_at_three_sizes_and_both_hands() -> None:
@@ -1677,7 +1702,7 @@ def test_the_child_validates_a_lifted_point_with_the_guard_lifted(
 
 def test_walls_past_the_caps_hold_260_turns_and_the_next_decade_each_with_its_one_lift() -> None:
     beyond = _walls("beyond-")
-    assert len(beyond) == 15 * 2 * 2 + 8
+    assert len(beyond) == 15 * 2 * 2 + 9
     assert all(p["artifact"] == "stl-preview" and p["kind"] != "probe" for p in beyond)
     turns = [p for p in beyond if p["label"].startswith("beyond-turns-")]
     assert len(turns) == 60
@@ -1687,7 +1712,7 @@ def test_walls_past_the_caps_hold_260_turns_and_the_next_decade_each_with_its_on
     assert {p["label"] for p in fields} == {
         f"beyond-{field}-1000000" for field in (
             "bolt-d", "bolt-length", "bolt-s", "bolt-k", "bolt-thread", "nut-s", "nut-clearance",
-            "nut-m")}
+            "nut-d", "nut-m")}
 
 
 def test_every_past_the_cap_point_is_refused_by_the_plain_model_and_by_it_alone() -> None:
