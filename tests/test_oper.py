@@ -2095,6 +2095,18 @@ def test_a_widening_redraws_no_bound_set_load_mix_or_tier_list() -> None:
         assert phrase in " ".join(_rule(number).split()), number
 
 
+def test_a_shard_is_the_longest_file_order_prefix_that_fits_under_half_the_timeout() -> None:
+    rule = " ".join(_rule(6).split())
+    assert "A shard is the longest such prefix of the points not yet placed" in rule
+    assert "summed charge stays under half the measure job's `timeout-minutes`" in rule
+    assert "each point is charged the largest `wall_s` of any `explore` reading in" in rule
+    assert "whatever the status of that reading" in rule
+    assert "A (kind, artifact) group with no `explore` reading is charged its `deadline_s`" in rule
+    assert "For the contention, load and drift sets" in rule
+    assert "each reading is charged its `deadline_s` (600 s, R2)" in rule
+    assert "or the set runs as one job per repetition" in rule
+
+
 def test_a_worker_count_qualifies_only_with_five_ok_load_repetitions() -> None:
     rule = " ".join(_rule(16).split())
     assert "and only if all 5 of its load repetitions are `ok`" in rule

@@ -164,10 +164,23 @@ owner. A bulk row of the full tier (R28), read once, is re-run at
 
 ## R6 - Shard size (D-19)
 
-For a set with a new run, the shard size is the largest point count whose summed measured `wall_s`
-(from the explore records, per artifact and kind) stays under half the measure job's
-`timeout-minutes`; the shard count is the point count divided by it, rounded up. Half leaves the
-other half for a slower runner instance and for the image build.
+For a set with a new run, a shard is a run of consecutive points of the set in the order of its
+file, and each point is charged a number of seconds. A shard is the longest such prefix of the points
+not yet placed whose summed charge stays under half the measure job's `timeout-minutes`; the shard
+count is the number of shards that places every point. Half leaves the other half for a slower runner
+instance and for the image build. A point whose own charge is not under that half stops the phase and
+asks the owner.
+
+For a set of explore-like parts (`walls`, the walls confirm set and the R7 walk-down set), each point is
+charged the largest `wall_s` of any `explore` reading in its (kind, artifact) group, whatever the
+status of that reading (`wall_s` is kept for every status, R2), so a part is charged the slowest cold
+wall measured for its kind of part at its artifact. A (kind, artifact) group with no `explore` reading
+is charged its `deadline_s`, as no figure is invented for it.
+
+For the contention, load and drift sets, no `explore` reading is a bound on a point, so each reading is
+charged its `deadline_s` (600 s, R2) and the shards are cut by the same rule; or the set runs as one
+job per repetition (the 5 repetitions of R3, each its own matrix job). The plan that dispatches the
+set states which before the dispatch.
 
 ## R7 - MAX_TURNS (D-08)
 
