@@ -198,13 +198,13 @@ decides. A cell with no `ok` step has no first ok step, so no turn bound is awar
 stops and asks the owner.
 
 The *candidate* T is the smallest first ok step over the cells. It is a provisional common value: the
-cells need not end their walks at the same step, and a cell is read at T only if T is its own first ok
-step or the confirmation set below asks for it. `MAX_TURNS` is T only if the confirmation readings
+cells need not end their walks at the same step. `MAX_TURNS` is T only if the confirmation readings
 (R3: the readings at T and at the next step past it, 5 repetitions) at T are `ok`, in all 5
-repetitions, for every cell. A
-cell whose first ok step is above T has not been read at T yet; the confirmation set reads it there.
-A confirmation reading at T that is not `ok`, or is missing, awards no turn bound, 250 included, and
-the phase stops and asks the owner; no other value is tried.
+repetitions, for every cell. The confirmation set reads every cell at T, at 5 repetitions taken fresh,
+whether or not that cell already has a 1-repetition reading at T (its own first ok step, or a step
+below it that the complete walk-down read): such a reading is not one of the 5 and stands in for none
+of them. A confirmation reading at T that is not `ok`, or is missing, awards no turn bound, 250
+included, and the phase stops and asks the owner; no other value is tried.
 
 The boundary evidence is every reading this walk asks for: the 250-turn readings, each walk-down
 reading down to a cell's first ok step, and the confirmation readings at T. The bound stands only on

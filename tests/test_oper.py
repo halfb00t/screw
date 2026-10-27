@@ -1956,7 +1956,9 @@ def test_the_turn_bound_is_a_common_candidate_that_every_cell_is_confirmed_at() 
     assert "The *candidate* T is the smallest first ok step over the cells" in rule
     assert "`MAX_TURNS` is T only if the confirmation readings" in rule
     assert "are `ok`, in all 5 repetitions, for every cell" in rule
-    assert "the confirmation set reads it there" in rule
+    assert "The confirmation set reads every cell at T, at 5 repetitions taken fresh" in rule
+    assert "has not been read at T yet" not in rule
+    assert "a cell is read at T only if" not in rule
     assert "A confirmation reading at T that is not `ok`, or is missing, awards no turn" in rule
     assert "the confirmation readings at T" in rule
     assert "For R7 the value is the candidate T" in " ".join(_rule(3).split())
@@ -2065,6 +2067,9 @@ def test_the_walk_down_reads_every_step_once_and_the_confirm_decides() -> None:
     assert "The cell's first ok step is the highest of those steps whose reading is `ok`" in rule
     assert "A cell's readings below its first ok step are recorded and used for nothing" in rule
     assert "the 5-repetition confirm at T decides" in rule
+    assert "whether or not that cell already has a 1-repetition reading at T" in rule
+    assert "such a reading is not one of the 5 and stands in for none of them" in rule
+    assert "from 240 down to 10" in rule
     assert "A cell with no `ok` step has no first ok step" in rule
     assert "the R7 walk-down set" in " ".join(_rule(3).split())
 
