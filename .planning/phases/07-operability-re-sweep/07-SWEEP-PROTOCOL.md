@@ -373,7 +373,10 @@ margin and not an arithmetic residue.
 ## R17 - The queue depth
 
 `SCREW_MAX_QUEUED_BUILDS` stays 2N if the load run at the picked N shows no timeout and a peak at
-most `mem_limit`; otherwise it is N.
+most `mem_limit`; otherwise it is N. "No timeout" is checked on the existing load records of the
+picked N, after R14 has derived the timeouts: no request's wall, its queue wait plus its build, may
+exceed the timeout of its artifact under the queue-aware deadline (plan 07-02). The check needs no
+further runner time.
 
 ## R18 - Retry-After (D-11)
 

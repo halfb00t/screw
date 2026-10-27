@@ -2099,3 +2099,12 @@ def test_a_worker_count_qualifies_only_with_five_ok_load_repetitions() -> None:
     rule = " ".join(_rule(16).split())
     assert "and only if all 5 of its load repetitions are `ok`" in rule
     assert "If no N qualifies, the phase stops and asks the owner" in rule
+
+
+def test_the_queue_depth_is_checked_on_the_load_records_against_the_derived_timeouts() -> None:
+    rule = " ".join(_rule(17).split())
+    assert "checked on the existing load records of the picked N, after R14 has derived the" \
+        in rule
+    assert "no request's wall, its queue wait plus its build, may exceed the timeout of its" in rule
+    assert "under the queue-aware deadline (plan 07-02)" in rule
+    assert "needs no further runner time" in rule
