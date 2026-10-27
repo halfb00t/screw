@@ -2168,7 +2168,8 @@ def test_a_refused_pair_is_read_in_the_full_tier_and_must_return_its_refusal() -
 
 def test_the_protocol_header_names_every_plan_that_applies_its_rules() -> None:
     header = " ".join(_protocol().split("\n## R1 ")[0].split())
-    assert "Plans 07-03 to 07-20 apply these rules" in header
+    assert "Plans 07-03 to 07-21 apply these rules" in header
+    assert "07-20 apply" not in header
 
 
 def test_each_drift_build_is_gzipped_before_its_peak_is_read() -> None:
