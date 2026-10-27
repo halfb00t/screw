@@ -58,7 +58,10 @@ Exploration takes 1 repetition per point (`explore`, `walls`, `controls`). 5 rep
 on `spread` and on every set that sets a bound: the Runs II bound set, the contention and load sets
 and the walls confirm set. The 5 repetitions of a point are 5 matrix jobs (`rep` 1 to 5), so 5
 runner instances. Per point the median and the max over its ok repetitions are recorded; a point
-with any repetition that is not ok has no median and no max (`bench.oper.summarize`). Bounds use
+with any repetition that is not ok has no median and no max (`bench.oper.summarize`). The
+repetitions must also be the ones asked for: `rep` 1 to the set's reps, each exactly once. A point
+with four of five, or with five copies of one (a lost job artifact, a file downloaded twice), is
+`incomplete` and has no median and no max, so it supplies no bound and no fit figure. Bounds use
 the max.
 
 The walls confirm set is, for each of R7 to R10, the readings at the value the rule decides and at

@@ -85,4 +85,4 @@ jobs:
       - name: job summary
         if: always()
         continue-on-error: true
-        run: python -m bench.oper summarize --markdown "oper-$SET-$SHARD-$REP.jsonl" >> "$GITHUB_STEP_SUMMARY"
+        run: python -m bench.oper summarize --markdown --reps "$REP" "oper-$SET-$SHARD-$REP.jsonl" >> "$GITHUB_STEP_SUMMARY"

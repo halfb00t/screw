@@ -26,7 +26,7 @@ import time
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import NoReturn, TextIO
+from typing import NoReturn, TextIO, cast
 
 from bench import host_facts
 
@@ -76,6 +76,8 @@ _KEPT_WITHOUT_FIGURES = ("status", "error", "message", "cadquery", "cadquery_ocp
 _METRICS = ("build_s", "export_s", "bytes", "memory_peak_bytes")
 _PROBE_METRICS = ("build_s", "memory_peak_bytes")
 _STDERR_TAIL = 2000
+# The repetitions R3 asks of a point that sets a bound: 5 distinct ones, `rep` 1 to 5.
+BOUND_REPS = (1, 2, 3, 4, 5)
 
 _container_numbers = itertools.count(1)
 
@@ -295,16 +297,23 @@ def run_reading(point: Point, rep: int, image: str, cap: int, deadline_s: float,
     return record
 
 
-def summarize(readings: Iterable[Mapping[str, object]]) -> list[dict[str, object]]:
-    """Per (label, artifact, lift), in first-seen order: how many repetitions, a count per status,
-    the status of the point, and the median (`statistics.median`) and max of each metric over the
-    repetitions. A point with any repetition that is not ok has no median and no max: four good
-    repetitions and one capped one are not a measurement of the part (D-04, L02). The status is
-    `ok`, the one failing status when they agree, or `mixed`.
+def summarize(readings: Iterable[Mapping[str, object]],
+              expected_reps: Iterable[int] = BOUND_REPS) -> list[dict[str, object]]:
+    """Per (label, artifact, lift), in first-seen order: how many repetitions, which ones, a count
+    per status, the status of the point, and the median (`statistics.median`) and max of each
+    metric over the repetitions. A point with any repetition that is not ok has no median and no
+    max: four good repetitions and one capped one are not a measurement of the part (D-04, L02).
+    The status is `ok`, the one failing status when they agree, or `mixed`.
+
+    The repetitions must also be the ones asked for: each of `expected_reps` (R3's 1 to 5 by
+    default) exactly once. Four distinct ones, or five copies of one (a missing job artifact, a
+    file downloaded twice), are not five repetitions; the point is `incomplete` and has no median
+    and no max, however many of its readings are ok.
 
     A reading past a validator guard (`lift`) is a confirmation probe of a wall, not a part anyone
     can request: it keeps its own row, names its lift, and has a status and no median or max, so it
     cannot supply a bound or a fit figure (R3, R7, R8)."""
+    wanted = sorted(expected_reps)
     grouped: dict[tuple[object, object, str], list[Mapping[str, object]]] = {}
     for reading in readings:
         lift = json.dumps(reading.get("lift"), sort_keys=True)
@@ -316,6 +325,9 @@ def summarize(readings: Iterable[Mapping[str, object]]) -> list[dict[str, object
             counts[str(reading["status"])] = counts.get(str(reading["status"]), 0) + 1
         failing = [status for status in counts if status != "ok"]
         status = "ok" if not failing else failing[0] if len(failing) == 1 else "mixed"
+        reps = [reading.get("rep") for reading in group]
+        if status == "ok" and not _are_reps(reps, wanted):
+            status = "incomplete"
         lift = json.loads(lift_text)
         median: dict[str, float] | None = None
         maximum: dict[str, float] | None = None
@@ -325,8 +337,15 @@ def summarize(readings: Iterable[Mapping[str, object]]) -> list[dict[str, object
             median = {m: statistics.median(values) for m, values in columns.items()}
             maximum = {m: max(values) for m, values in columns.items()}
         rows.append({"label": label, "artifact": artifact, "lift": lift, "n": len(group),
-                     "status": status, "counts": counts, "median": median, "max": maximum})
+                     "reps": reps, "status": status, "counts": counts, "median": median,
+                     "max": maximum})
     return rows
+
+
+def _are_reps(seen: list[object], wanted: list[int]) -> bool:
+    """Whether `seen` is exactly `wanted`, each once, in any order."""
+    return (all(isinstance(rep, int) and not isinstance(rep, bool) for rep in seen)
+            and sorted(cast(list[int], seen)) == wanted)
 
 
 def _number(reading: Mapping[str, object], key: str) -> float:
@@ -343,6 +362,8 @@ def format_rows(rows: list[dict[str, object]]) -> str:
         head = f"{row['label']}  {row['artifact']}  n={row['n']}  {row['status']}"
         if row["lift"]:
             head += f"  lift {json.dumps(row['lift'], sort_keys=True)}"
+        if row["status"] == "incomplete":
+            head += f"  reps seen {row['reps']}"
         median, maximum = row["median"], row["max"]
         if isinstance(median, dict) and isinstance(maximum, dict):
             head += "".join(f"  {m}: median {median[m]:.3f} max {maximum[m]:.3f}" for m in median)
@@ -650,11 +671,24 @@ def markdown_report(headers: list[dict[str, object]], readings: list[dict[str, o
         tally = row["counts"]
         counts = ", ".join(f"{status}: {n}" for status, n in tally.items()) if isinstance(
             tally, dict) else ""
+        if row["status"] == "incomplete":
+            counts += f"; reps seen {row['reps']}"
         label = f"{row['label']} (lift {json.dumps(row['lift'], sort_keys=True)})" if row[
             "lift"] else row["label"]
         lines.append(f"| {label} | {row['artifact']} | {row['n']} | {row['status']} "
                      f"| {counts} | " + " | ".join(cells) + " |")
     return "\n".join(lines)
+
+
+def _rep_ids(text: str) -> list[int]:
+    """`"1,2,3"` as `[1, 2, 3]`: the repetitions a summary expects, each a whole number from 1."""
+    try:
+        ids = [int(token) for token in text.split(",")]
+    except ValueError:
+        _refuse(f"--reps {text!r}: expected whole numbers separated by commas")
+    if not ids or any(rep < 1 for rep in ids) or len(set(ids)) != len(ids):
+        _refuse(f"--reps {text!r}: expected distinct repetitions from 1")
+    return ids
 
 
 def _cmd_summarize(args: argparse.Namespace) -> int:
@@ -663,7 +697,11 @@ def _cmd_summarize(args: argparse.Namespace) -> int:
     except OSError as exc:
         print(f"oper: cannot read {exc.filename}: {exc.strerror}", file=sys.stderr)
         return 1
-    rows = summarize(readings)
+    try:
+        rows = summarize(readings, _rep_ids(args.reps))
+    except ValueError as exc:
+        print(f"oper: {exc}", file=sys.stderr)
+        return 2
     if not rows:
         print("no readings", file=sys.stderr)
         return 1
@@ -700,6 +738,9 @@ def main(argv: list[str] | None = None) -> int:
 
     summary = commands.add_parser("summarize", help="median and max per point from JSONL files")
     summary.add_argument("files", nargs="+")
+    summary.add_argument("--reps", default=",".join(map(str, BOUND_REPS)),
+                         help="the repetitions each point must have, once each: 1,2,3,4,5 for a "
+                              "set that sets a bound (R3), 1 for explore, $REP for one job's file")
     summary.add_argument("--markdown", action="store_true",
                          help="a per-run table for $GITHUB_STEP_SUMMARY")
     summary.set_defaults(handler=_cmd_summarize)

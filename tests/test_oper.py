@@ -947,7 +947,7 @@ def _probe_reading(rep: int, status: str = "ok", *, build_s: float = 1.0) -> dic
 
 def test_probe_readings_report_the_median_and_max_of_what_a_probe_measures() -> None:
     readings = [_probe_reading(r, build_s=b) for r, b in enumerate([3.0, 1.0, 2.0], 1)]
-    row = oper.summarize(readings)[0]
+    row = oper.summarize(readings, expected_reps=[1, 2, 3])[0]
     assert row["status"] == "ok"
     assert row["median"] == {"build_s": 2.0, "memory_peak_bytes": 2000}
     assert row["max"] == {"build_s": 3.0, "memory_peak_bytes": 3000}
@@ -960,13 +960,13 @@ def test_a_probe_summary_prints_in_both_formats_without_inventing_an_export(
     lines += [json.dumps(_probe_reading(r)) for r in (1, 2)] + [json.dumps(
         {**_probe_reading(3, "crashed"), "exit_code": 139})]
     path.write_text("\n".join(lines) + "\n")
-    assert oper.main(["summarize", str(path)]) == 0
+    assert oper.main(["summarize", str(path), "--reps", "1,2,3"]) == 0
     assert "crashed" in capsys.readouterr().out
     ok = tmp_path / "ok.jsonl"
     ok.write_text("\n".join(lines[:3]) + "\n")
-    assert oper.main(["summarize", str(ok)]) == 0
+    assert oper.main(["summarize", str(ok), "--reps", "1,2"]) == 0
     assert "build_s" in capsys.readouterr().out
-    assert oper.main(["summarize", str(ok), "--markdown"]) == 0
+    assert oper.main(["summarize", str(ok), "--reps", "1,2", "--markdown"]) == 0
     row = [line for line in capsys.readouterr().out.splitlines() if line.startswith("| t |")]
     assert len(row) == 1
     assert "| - | - | - | - |" in row[0]  # no export seconds and no bytes: a dash, not a zero
@@ -1958,3 +1958,87 @@ def test_the_turn_bound_is_a_common_candidate_that_every_cell_is_confirmed_at() 
     assert "A confirmation reading at T that is not `ok`, or is missing, awards no turn" in rule
     assert "the confirmation readings at T" in rule
     assert "For R7 the value is the candidate T" in " ".join(_rule(3).split())
+
+
+# --- the repetitions a summary expects (R3) -------------------------------------------------------
+
+
+def test_four_distinct_repetitions_are_incomplete_and_carry_no_median_or_max() -> None:
+    row = oper.summarize([_reading(r) for r in (1, 2, 3, 4)])[0]
+    assert row["status"] == "incomplete"
+    assert row["n"] == 4
+    assert row["median"] is None
+    assert row["max"] is None
+
+
+def test_five_copies_of_one_repetition_are_incomplete_and_carry_no_median_or_max() -> None:
+    row = oper.summarize([_reading(1)] * 5)[0]
+    assert row["status"] == "incomplete"
+    assert row["n"] == 5
+    assert row["reps"] == [1, 1, 1, 1, 1]
+    assert row["median"] is None
+    assert row["max"] is None
+
+
+def test_a_sixth_repetition_or_a_foreign_one_is_incomplete() -> None:
+    assert oper.summarize([_reading(r) for r in range(1, 7)])[0]["status"] == "incomplete"
+    assert oper.summarize([_reading(r) for r in (1, 2, 3, 4, 6)])[0]["status"] == "incomplete"
+
+
+def test_the_expected_repetitions_are_the_callers_and_in_any_order() -> None:
+    explore = oper.summarize([_reading(1)], expected_reps=[1])[0]
+    assert explore["status"] == "ok"
+    assert explore["max"] is not None
+    shuffled = oper.summarize([_reading(r) for r in (3, 1, 5, 2, 4)])[0]
+    assert shuffled["status"] == "ok"
+    assert oper.summarize([_reading(2)], expected_reps=[1])[0]["status"] == "incomplete"
+
+
+def test_a_failing_repetition_keeps_its_own_status_before_the_incomplete_one() -> None:
+    row = oper.summarize([_reading(1), _reading(2, "capped")])[0]
+    assert row["status"] == "capped"
+    assert row["median"] is None
+
+
+def test_a_lifted_row_with_missing_repetitions_is_incomplete_too() -> None:
+    row = oper.summarize([_reading(r, lift={"max_mm": 1e6}) for r in (1, 2)])[0]
+    assert row["status"] == "incomplete"
+
+
+def test_an_incomplete_point_prints_its_repetitions_and_no_figures(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    path = tmp_path / "dup.jsonl"
+    path.write_text("\n".join(json.dumps(_reading(1)) for _ in range(5)) + "\n")
+    assert oper.main(["summarize", str(path)]) == 0
+    text = capsys.readouterr().out
+    assert "incomplete" in text
+    assert "reps seen [1, 1, 1, 1, 1]" in text
+    assert "median" not in text
+    assert oper.main(["summarize", str(path), "--markdown"]) == 0
+    markdown = capsys.readouterr().out
+    assert "reps seen [1, 1, 1, 1, 1]" in markdown
+    assert "| p | stl-preview | 5 | incomplete |" in markdown
+    assert oper.main(["summarize", str(path), "--reps", "1"]) == 0  # one rep expected: five copies
+    assert "incomplete" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("text", ["", "0", "1,1", "a", "1,,2", "-1"])
+def test_a_bad_expected_repetitions_list_is_refused_with_exit_2(
+        text: str, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    path = tmp_path / "one.jsonl"
+    path.write_text(json.dumps(_reading(1)) + "\n")
+    assert oper.main(["summarize", str(path), "--reps", text]) == 2
+    assert "--reps" in capsys.readouterr().err
+
+
+def test_the_job_summary_expects_the_one_repetition_of_its_job() -> None:
+    workflow = (REPO_ROOT / ".github" / "workflows" / "operability.yml").read_text()
+    assert 'summarize --markdown --reps "$REP"' in workflow
+
+
+def test_the_protocol_asks_for_the_distinct_repetitions_and_the_harness_enforces_it() -> None:
+    rule = " ".join(_rule(3).split())
+    assert "`rep` 1 to the set's reps, each exactly once" in rule
+    assert "is `incomplete` and has no median and no max" in rule
+    assert oper.BOUND_REPS == (1, 2, 3, 4, 5)
+    assert "(`bench.oper.summarize`)" in rule
