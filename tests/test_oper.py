@@ -2108,3 +2108,10 @@ def test_the_queue_depth_is_checked_on_the_load_records_against_the_derived_time
     assert "no request's wall, its queue wait plus its build, may exceed the timeout of its" in rule
     assert "under the queue-aware deadline (plan 07-02)" in rule
     assert "needs no further runner time" in rule
+
+
+def test_the_solid_cache_below_four_is_measured_after_the_pick_with_one_worker() -> None:
+    rule = " ".join(_rule(22).split())
+    assert "`W(K)` for K below 4 is measured after R16's pick" in rule
+    assert "the load mix of R15 is run at N = 1 with `SCREW_SOLID_CACHE` = K, 5 repetitions" in rule
+    assert "With one worker, the container peak is that worker's peak" in rule
