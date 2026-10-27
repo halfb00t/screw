@@ -186,13 +186,13 @@ is no number.
 ## R9 - MIN_TAIL_MM (D-08)
 
 Let F be the largest `tail` in `walls` group (c) whose reading is `refused` or `crashed` at any size or
-hand (F = 0 when none fails). `MIN_TAIL_MM` stays 1e-3 if F is at most 1e-5; otherwise it is the
-smallest power of ten at or above 100 F. 100 is the margin the current value was set with
-(`calc/thread.py`: 1e-3 sits 100x above the last failing tail); it is stated here for screw, and it
-is a margin, not a measured figure.
+hand (F = 0 when none fails). `MIN_TAIL_MM` is the smallest power of ten at or above 100 F. If no reading
+fails down to 1e-9 mm, the floor stays "above 0" and the entry says the walk reached 1e-9 mm. 100 is
+two decades, a margin fixed here before any reading; it is a margin, not a measured figure.
 
 The value V this names stands only on `ok` readings. V must be a tail the walk holds (at most 1e-2),
-and every reading of group (c) at a tail of V or more, at every size and hand, must be `ok`. A
+and every reading of group (c) at a tail of V or more, at every size and hand, must be `ok`; for
+"above 0", every reading of group (c) must be `ok`. A
 `killed` or `capped` reading sets no F, being cost and not a wall, but it cannot support a bound
 either (R8). Otherwise there is no number: the phase stops and asks the owner.
 
@@ -240,9 +240,11 @@ build and bytes:
 - **C2, memory-bound.** The peak component is 4 x 10^9 bytes: the 16 x 10^9 bytes of D-02 in four
   equal shares, one per vCPU, of which three are builds (N is at most 3, D-03) and one is kept for
   uvicorn, gzip, the caches and tmpfs. The seconds and bytes components are unbounded.
-- **C3, the current fine-STL rule's basis.** The fine STL raw bytes are at most 64 MiB, the size of
-  the INTERIM export budget the present caps were derived against (`calc/thread.py`); the preview
-  and STEP artifacts are bounded only by the walls (R7 to R10).
+- **C3, bytes-bound.** The fine STL raw bytes are at most Q = 4 x 10^9 / rho, where rho is the cgroup
+  peak divided by the raw bytes of the `stl-fine` point with the largest raw bytes among the ok
+  `explore` and `spread` points (the per-point max, R11): C2's peak share written as fine STL bytes at
+  the peak per output byte of the largest measured fine STL. The preview and STEP artifacts are
+  bounded only by the walls (R7 to R10).
 
 The owner rules (B-01). No candidate is a figure until then, and nothing downstream of the budget
 (R14 to R29) runs before that ruling.
@@ -354,8 +356,7 @@ Docker's documented defaults and are cited as such.
 
 The `/tmp` tmpfs is at least the `stl-fine` byte budget x N or, where the budget (R13) leaves that
 unbounded, the largest enveloped `stl-fine` bytes prediction over the admitted explore points x N,
-rounded up to 64 MiB and inside `mem_limit`. 64 MiB is the rounding step: the size of the INTERIM
-export budget it replaces, fixed before the data.
+rounded up to the 256 MiB step of R16 and inside `mem_limit`.
 
 ## R27 - The required tier (D-12)
 

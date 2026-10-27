@@ -1698,9 +1698,17 @@ def test_the_protocol_names_the_git_blob_sha_of_every_committed_point_file() -> 
 
 def test_the_protocol_fixes_every_number_a_rule_needs_before_any_reading() -> None:
     text = _protocol()
-    for needle in ("random.Random(20261026)", "at least 10 %", "1.5x", "256 MiB", "64 MiB",
+    for needle in ("random.Random(20261026)", "at least 10 %", "1.5x", "256 MiB",
                    "4 x 10^9 bytes", "ceil(2 x", "statistics.quantiles(n=20)"):
         assert needle in text, needle
+
+
+def test_no_rule_carries_the_macos_tail_floor_or_spurs_export_budget_as_a_value() -> None:
+    text = _protocol()
+    assert "64 MiB" not in text
+    assert "stays 1e-3" not in text
+    assert "1e-3 sits" not in text
+    assert "above 0" in _rule(9)
 
 
 def test_the_protocol_records_the_disposition_of_the_two_debt_items_it_leaves_open() -> None:
