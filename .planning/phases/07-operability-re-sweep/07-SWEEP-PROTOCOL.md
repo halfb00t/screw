@@ -436,8 +436,8 @@ K = 20 times in a row, and compares the cgroup peak after build 1 with the peak 
   (`screw.solid.clear_cache`), so every build is cold: the cache keeps at least one solid
   (`int_env` floors `SCREW_SOLID_CACHE` at 1), so a repeat of one part would otherwise be a hit and
   not a build. It runs below the HTTP layer, so the export cache and the response encoding play no part.
-  The peak is read as R2 says, after the build and its export, after every build; the rule reads builds
-  1 and K. The deadline is K x the artifact's timeout (R14).
+  The peak is read as R2 says, after the build, its export and a level-1 gzip of the output, after every
+  build; the rule reads builds 1 and K. The deadline is K x the artifact's timeout (R14).
 - *The drift.* The drift of a repetition is the peak after build K minus the peak after build 1; the
   drift of the artifact is the max over its 5 repetitions. Any repetition that is not `ok`, or whose
   readings after build 1 or build K are missing, leaves the artifact with no drift and the phase stops

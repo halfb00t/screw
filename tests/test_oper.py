@@ -2140,3 +2140,8 @@ def test_a_refused_pair_is_read_in_the_full_tier_and_must_return_its_refusal() -
 def test_the_protocol_header_names_every_plan_that_applies_its_rules() -> None:
     header = " ".join(_protocol().split("\n## R1 ")[0].split())
     assert "Plans 07-03 to 07-20 apply these rules" in header
+
+
+def test_each_drift_build_is_gzipped_before_its_peak_is_read() -> None:
+    rule = " ".join(_rule(23).split())
+    assert "after the build, its export and a level-1 gzip of the output, after every build" in rule
