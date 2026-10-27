@@ -2174,3 +2174,17 @@ def test_the_protocol_header_names_every_plan_that_applies_its_rules() -> None:
 def test_each_drift_build_is_gzipped_before_its_peak_is_read() -> None:
     rule = " ".join(_rule(23).split())
     assert "after the build, its export and a level-1 gzip of the output, after every build" in rule
+
+
+# --- the gap rulings (PR A3): each new rule is pinned by its key phrase ---------------------------
+
+
+def test_a_gzip_level_passes_at_every_stl_bound_point_against_the_adopted_level() -> None:
+    rule = " ".join(_rule(19).split())
+    assert "Level 1 is the start; level 6 is tried first, then level 9" in rule
+    assert "costs at most 1.5x the seconds of the adopted level" in rule
+    assert "it must pass at every point of the STL bound set on its own" in rule
+    assert ("the points of the `stl-preview` and `stl-fine` bound sets (R14) together, "
+            "10 to 16 points") in rule
+    assert "Level 9 is compared with the adopted level, not with level 6" in rule
+    assert "the level below it" not in rule
