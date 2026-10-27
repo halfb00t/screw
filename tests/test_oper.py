@@ -2073,3 +2073,23 @@ def test_a_spread_point_without_a_median_leaves_the_margin_with_no_number() -> N
     rule = " ".join(_rule(5).split())
     assert "If any `spread` point has no median" in rule
     assert "`m` has no number and the phase stops and asks the owner" in rule
+
+
+def test_only_cold_isolated_readings_widen_the_envelope() -> None:
+    rule = " ".join(_rule(12).split())
+    assert "only a cold isolated reading widens it" in rule
+    assert "a contention reading at N = 1 and build 1 of a drift repetition" in rule
+    assert "A contended wall (a contention reading at N = 2 or 3)" in rule
+    assert "a load request wall and a drift build 2 to K never widen `e`" in rule
+
+
+def test_a_widening_redraws_no_bound_set_load_mix_or_tier_list() -> None:
+    rule = " ".join(_rule(12).split())
+    assert "D(A) (R27 steps 1 to 4), the bound set (R14) and the load mix (R15)" in rule
+    assert "are each fixed once" in rule
+    assert "are never redrawn when `e` widens" in rule
+    assert "A widening changes admission and the final numbers only" in rule
+    for number, phrase in ((14, "is not redrawn when `e` widens (R12)"),
+                           (15, "is not redrawn when `e` widens (R12)"),
+                           (27, "it is not redrawn when `e` widens (R12)")):
+        assert phrase in " ".join(_rule(number).split()), number

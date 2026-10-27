@@ -262,7 +262,14 @@ dependency.
 For each (kind, artifact, target) the envelope `e` is `max(0, largest actual / predicted - 1)` over
 the fitted readings. A part is admitted if and only if `prediction x (1 + e)` is at most the budget
 for every target. A later reading (Runs II, either tier) above its envelope widens `e` and is
-recorded with its run id.
+recorded with its run id, but only a cold isolated reading widens it: a reading of a part in a fresh
+container with no other build running, which is a part reading of either tier, a contention reading at
+N = 1 and build 1 of a drift repetition. A contended wall (a contention reading at N = 2 or 3), a load
+request wall and a drift build 2 to K never widen `e`.
+
+D(A) (R27 steps 1 to 4), the bound set (R14) and the load mix (R15) are each fixed once, from the
+enveloped prediction they were first computed from, and are never redrawn when `e` widens. A widening
+changes admission and the final numbers only.
 
 ## R13 - The budget candidates (Q1, B-01)
 
@@ -292,7 +299,7 @@ prediction, plus the worst measured admitted point (the largest cold wall in `ex
 memory extrema: the admitted point with the largest enveloped peak-bytes prediction and the admitted
 point with the largest measured peak (the largest `memory_peak_bytes` in `explore`). The candidates are
 the admitted `explore` points at that artifact (for the two measured choices, those whose reading is
-`ok`), a tie going to the label that sorts first; a point that is in two of these groups counts once, so the set holds 5 to 8 points. The
+`ok`), a tie going to the label that sorts first; a point that is in two of these groups counts once, so the set holds 5 to 8 points. The set is drawn once and is not redrawn when `e` widens (R12). The
 memory extrema are in it because W (R16) is read from the bound set's containers, and the heaviest
 point in memory need not be among the slowest. Contention runs, for every point P of the bound set and every N in {1, 2, 3}:
 P on one slot and, on each of the other N - 1 slots, one admitted point of the same artifact, all cold
@@ -336,7 +343,7 @@ part is repeated to fill a gap. The mix of a run is its 60 requests (part, artif
 order the artifacts took them and shuffled once by a new `random.Random(20261026).shuffle`; the order
 is the same in every repetition and at every N. A client takes the next request as soon as its
 previous response is complete, and the first 2N start together. The `/api/health` probes of R24 and
-R25 are not part of the mix.
+R25 are not part of the mix. The mix is drawn once and is not redrawn when `e` widens (R12).
 
 *The measures.* The p95 (`statistics.quantiles(n=20)`, the 19th cut point) and the medians are over
 the run: 20 samples per artifact and 60 over all requests. The container's cgroup peak is read once,
@@ -481,7 +488,8 @@ that two implementations write the same list.
    was killed, capped, refused or crashed at `explore` has no wall, and may take its whole deadline
    again. It is in the tier all the same, and if it fails again it fails the tier (R29).
 
-   Steps 1 to 4 need no timeout, so D(A) is fixed before the load run (R15). Step 5 needs the
+   Steps 1 to 4 need no timeout, so D(A) is fixed before the load run (R15), and it is not redrawn when
+   `e` widens (R12). Step 5 needs the
    timeouts, which R14 fixes after R16 has picked N, so the tier is built only then and never before.
    A point's charge is its `explore` reading and the timeout, each fixed before the tier is built.
 
