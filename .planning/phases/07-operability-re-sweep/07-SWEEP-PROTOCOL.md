@@ -364,7 +364,8 @@ every bound set (R14), the memory extrema of each included. `B` is the max idle-
 before load. `mem_limit(N)` is the larger of `W x N + B +` the export cache budget `+` the tmpfs
 size, and the max load peak at N (read at the end of the load run, R15), rounded up to 256 MiB. N
 qualifies when `mem_limit(N)` is under both 16 x 10^9 bytes and the smallest `MemTotal` any runner header recorded, and N is at most
-`nproc - 1`. The pick is the qualifying N with the lowest load p95 over all requests (the max over
+`nproc - 1`, and only if all 5 of its load repetitions are `ok`. If no N qualifies, the phase stops
+and asks the owner. The pick is the qualifying N with the lowest load p95 over all requests (the max over
 its 5 repetitions of each repetition's p95, D-04), ties to the smaller N. 256 MiB is a rounding
 step fixed before the data: small against the 16 GB ceiling (about 1.7 %), large enough to be a visible
 margin and not an arithmetic residue.

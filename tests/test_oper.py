@@ -2093,3 +2093,9 @@ def test_a_widening_redraws_no_bound_set_load_mix_or_tier_list() -> None:
                            (15, "is not redrawn when `e` widens (R12)"),
                            (27, "it is not redrawn when `e` widens (R12)")):
         assert phrase in " ".join(_rule(number).split()), number
+
+
+def test_a_worker_count_qualifies_only_with_five_ok_load_repetitions() -> None:
+    rule = " ".join(_rule(16).split())
+    assert "and only if all 5 of its load repetitions are `ok`" in rule
+    assert "If no N qualifies, the phase stops and asks the owner" in rule
