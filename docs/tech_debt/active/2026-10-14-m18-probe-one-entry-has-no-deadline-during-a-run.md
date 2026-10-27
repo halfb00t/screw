@@ -15,6 +15,11 @@ claimed an empty output file. While a run is in progress all three hold, so a ha
 secret the child can check (a token the parent writes and the child verifies), which is more
 machinery than a 36-reading diagnosis warrants. Needs the owner's sign-off as a deliberate cut.
 
+2026-10-26 (plan 07-03): stays active. The phase 7 campaign does not reuse `bench/m18_probe.py`;
+every `bench.oper` reading is killed at the parent's `DEADLINE_S` (600 s), whoever started it, so
+the trigger (the probe is reused) has not fired (`07-SWEEP-PROTOCOL.md`, "Debt this campaign
+leaves open").
+
 ## Why it matters
 A hand-started duplicate of a registered reading during the one run could hang without being
 killed. It cannot measure an unregistered pose, run early or run after the run. The output is

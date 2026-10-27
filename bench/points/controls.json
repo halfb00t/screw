@@ -1,0 +1,744 @@
+{
+ "set": "controls",
+ "rule": "07-SWEEP-PROTOCOL.md R4",
+ "reps": 1,
+ "shards": 4,
+ "deadline_s": 600,
+ "points": [
+  {
+   "label": "naive-M2-L4",
+   "kind": "probe",
+   "probe": "naive",
+   "args": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 4.0
+   }
+  },
+  {
+   "label": "naive-M2-L10",
+   "kind": "probe",
+   "probe": "naive",
+   "args": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 10.0
+   }
+  },
+  {
+   "label": "naive-M2-L20",
+   "kind": "probe",
+   "probe": "naive",
+   "args": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 20.0
+   }
+  },
+  {
+   "label": "one_pipe-M2-t50",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "turns": 50.0,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "one_pipe-M2-t100",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "turns": 100.0,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "one_pipe-M2-t160",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "turns": 160.0,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "one_pipe-M2-t200",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "turns": 200.0,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "one_pipe-M2-t250",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "turns": 250.0,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "naive-M2.5-L4.5",
+   "kind": "probe",
+   "probe": "naive",
+   "args": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 4.5
+   }
+  },
+  {
+   "label": "naive-M2.5-L10",
+   "kind": "probe",
+   "probe": "naive",
+   "args": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 10.0
+   }
+  },
+  {
+   "label": "naive-M2.5-L20",
+   "kind": "probe",
+   "probe": "naive",
+   "args": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 20.0
+   }
+  },
+  {
+   "label": "naive-M2.5-L25",
+   "kind": "probe",
+   "probe": "naive",
+   "args": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 25.0
+   }
+  },
+  {
+   "label": "one_pipe-M2.5-t55.5556",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "turns": 55.55555555555556,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "one_pipe-M2.5-t100",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "turns": 100.0,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "one_pipe-M2.5-t160",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "turns": 160.0,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "one_pipe-M2.5-t200",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "turns": 200.0,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "one_pipe-M2.5-t250",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "turns": 250.0,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "naive-M3-L5",
+   "kind": "probe",
+   "probe": "naive",
+   "args": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 5.0
+   }
+  },
+  {
+   "label": "naive-M3-L10",
+   "kind": "probe",
+   "probe": "naive",
+   "args": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 10.0
+   }
+  },
+  {
+   "label": "naive-M3-L20",
+   "kind": "probe",
+   "probe": "naive",
+   "args": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 20.0
+   }
+  },
+  {
+   "label": "naive-M3-L30",
+   "kind": "probe",
+   "probe": "naive",
+   "args": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 30.0
+   }
+  },
+  {
+   "label": "one_pipe-M3-t60",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "turns": 60.0,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "one_pipe-M3-t100",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "turns": 100.0,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "one_pipe-M3-t160",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "turns": 160.0,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "one_pipe-M3-t200",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "turns": 200.0,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "one_pipe-M3-t250",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "turns": 250.0,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "naive-M6-L10",
+   "kind": "probe",
+   "probe": "naive",
+   "args": {
+    "d": 6.0,
+    "pitch": 1.0,
+    "length": 10.0
+   }
+  },
+  {
+   "label": "naive-M6-L20",
+   "kind": "probe",
+   "probe": "naive",
+   "args": {
+    "d": 6.0,
+    "pitch": 1.0,
+    "length": 20.0
+   }
+  },
+  {
+   "label": "naive-M6-L60",
+   "kind": "probe",
+   "probe": "naive",
+   "args": {
+    "d": 6.0,
+    "pitch": 1.0,
+    "length": 60.0
+   }
+  },
+  {
+   "label": "one_pipe-M6-t60",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 6.0,
+    "pitch": 1.0,
+    "turns": 60.0,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "one_pipe-M6-t100",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 6.0,
+    "pitch": 1.0,
+    "turns": 100.0,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "one_pipe-M6-t160",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 6.0,
+    "pitch": 1.0,
+    "turns": 160.0,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "one_pipe-M6-t200",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 6.0,
+    "pitch": 1.0,
+    "turns": 200.0,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "one_pipe-M6-t250",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 6.0,
+    "pitch": 1.0,
+    "turns": 250.0,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "naive-M8-L10",
+   "kind": "probe",
+   "probe": "naive",
+   "args": {
+    "d": 8.0,
+    "pitch": 1.25,
+    "length": 10.0
+   }
+  },
+  {
+   "label": "naive-M8-L12.5",
+   "kind": "probe",
+   "probe": "naive",
+   "args": {
+    "d": 8.0,
+    "pitch": 1.25,
+    "length": 12.5
+   }
+  },
+  {
+   "label": "naive-M8-L20",
+   "kind": "probe",
+   "probe": "naive",
+   "args": {
+    "d": 8.0,
+    "pitch": 1.25,
+    "length": 20.0
+   }
+  },
+  {
+   "label": "naive-M8-L80",
+   "kind": "probe",
+   "probe": "naive",
+   "args": {
+    "d": 8.0,
+    "pitch": 1.25,
+    "length": 80.0
+   }
+  },
+  {
+   "label": "one_pipe-M8-t64",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 8.0,
+    "pitch": 1.25,
+    "turns": 64.0,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "one_pipe-M8-t100",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 8.0,
+    "pitch": 1.25,
+    "turns": 100.0,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "one_pipe-M8-t160",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 8.0,
+    "pitch": 1.25,
+    "turns": 160.0,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "one_pipe-M8-t200",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 8.0,
+    "pitch": 1.25,
+    "turns": 200.0,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "one_pipe-M8-t250",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 8.0,
+    "pitch": 1.25,
+    "turns": 250.0,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "naive-M10-L10",
+   "kind": "probe",
+   "probe": "naive",
+   "args": {
+    "d": 10.0,
+    "pitch": 1.5,
+    "length": 10.0
+   }
+  },
+  {
+   "label": "naive-M10-L15",
+   "kind": "probe",
+   "probe": "naive",
+   "args": {
+    "d": 10.0,
+    "pitch": 1.5,
+    "length": 15.0
+   }
+  },
+  {
+   "label": "naive-M10-L20",
+   "kind": "probe",
+   "probe": "naive",
+   "args": {
+    "d": 10.0,
+    "pitch": 1.5,
+    "length": 20.0
+   }
+  },
+  {
+   "label": "naive-M10-L100",
+   "kind": "probe",
+   "probe": "naive",
+   "args": {
+    "d": 10.0,
+    "pitch": 1.5,
+    "length": 100.0
+   }
+  },
+  {
+   "label": "one_pipe-M10-t66.6667",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 10.0,
+    "pitch": 1.5,
+    "turns": 66.66666666666667,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "one_pipe-M10-t100",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 10.0,
+    "pitch": 1.5,
+    "turns": 100.0,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "one_pipe-M10-t160",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 10.0,
+    "pitch": 1.5,
+    "turns": 160.0,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "one_pipe-M10-t200",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 10.0,
+    "pitch": 1.5,
+    "turns": 200.0,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "one_pipe-M10-t250",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 10.0,
+    "pitch": 1.5,
+    "turns": 250.0,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "naive-M16-L10",
+   "kind": "probe",
+   "probe": "naive",
+   "args": {
+    "d": 16.0,
+    "pitch": 2.0,
+    "length": 10.0
+   }
+  },
+  {
+   "label": "naive-M16-L20",
+   "kind": "probe",
+   "probe": "naive",
+   "args": {
+    "d": 16.0,
+    "pitch": 2.0,
+    "length": 20.0
+   }
+  },
+  {
+   "label": "naive-M16-L160",
+   "kind": "probe",
+   "probe": "naive",
+   "args": {
+    "d": 16.0,
+    "pitch": 2.0,
+    "length": 160.0
+   }
+  },
+  {
+   "label": "one_pipe-M16-t80",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 16.0,
+    "pitch": 2.0,
+    "turns": 80.0,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "one_pipe-M16-t100",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 16.0,
+    "pitch": 2.0,
+    "turns": 100.0,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "one_pipe-M16-t160",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 16.0,
+    "pitch": 2.0,
+    "turns": 160.0,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "one_pipe-M16-t200",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 16.0,
+    "pitch": 2.0,
+    "turns": 200.0,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "one_pipe-M16-t250",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 16.0,
+    "pitch": 2.0,
+    "turns": 250.0,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "naive-M20-L10",
+   "kind": "probe",
+   "probe": "naive",
+   "args": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "length": 10.0
+   }
+  },
+  {
+   "label": "naive-M20-L20",
+   "kind": "probe",
+   "probe": "naive",
+   "args": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "length": 20.0
+   }
+  },
+  {
+   "label": "naive-M20-L25",
+   "kind": "probe",
+   "probe": "naive",
+   "args": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "length": 25.0
+   }
+  },
+  {
+   "label": "naive-M20-L200",
+   "kind": "probe",
+   "probe": "naive",
+   "args": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "length": 200.0
+   }
+  },
+  {
+   "label": "one_pipe-M20-t80",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "turns": 80.0,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "one_pipe-M20-t100",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "turns": 100.0,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "one_pipe-M20-t160",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "turns": 160.0,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "one_pipe-M20-t200",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "turns": 200.0,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "one_pipe-M20-t250",
+   "kind": "probe",
+   "probe": "one_pipe",
+   "args": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "turns": 250.0,
+    "left_hand": false
+   }
+  }
+ ],
+ "dropped": [],
+ "notes": [
+  "naive_sweep_fuse and one_pipe at the positions thread_spike._block_controls uses, right hand; the ruled-surface reference needs a package and is out of this set",
+  "no gate is applied: each reading records the solid count, isValid() and the precise volume as a ratio to the closed form, or the kernel's error text"
+ ]
+}

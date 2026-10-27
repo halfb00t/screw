@@ -31,6 +31,13 @@ fixing them is an amendment the owner rules on, not a bug fix. The owner deferre
   is latent. The fix is to derive the deadline from the cited worst case or to cite the
   measurement that justifies 600; either changes a pre-registered input.
 
+2026-10-26 (plan 07-03): stays active. The phase 7 campaign runs no thread-spike `Campaign`, so
+neither amendment is applied or needed there: its controls run as `bench.oper` probes, and
+`bench.oper` records the 1-minute load average before every reading (the WR-03 idea in the new
+harness, plan 07-01). The trigger, the next thread-spike campaign, has not fired, and both
+amendments still need the owner's ruling this item names (`07-SWEEP-PROTOCOL.md`, "Debt this
+campaign leaves open").
+
 ## Why it matters
 Neither changes the recorded campaign 2026-10-08-a. A later campaign (a re-run after the
 Phase 5 roadmap revision, or Phase 7's re-measure) could carry `decisive: true` through a

@@ -1,0 +1,88 @@
+name: operability
+
+# The runner side of Phase 7 (OPER-01, OPER-02): a point file (bench/points/<set>.json) is read on
+# a GitHub-hosted ubuntu-latest runner, one fresh container of the production image per reading.
+#
+# 07 D-01: the runner is the only host whose figures bound anything. Every JSONL header records
+# nproc, memory, the CPU model, the kernel and the run id, because GitHub mixes CPU generations
+# behind the one label. Run it from the Actions tab (or `gh workflow run operability.yml -f
+# set=tracer`); anyone can repeat a run.
+#
+# 07 D-15: the image is built from the commit under test, exactly as the image job in ci.yml
+# builds it, and each reading starts a new container of it under its own memory cap.
+#
+# T-3-14, T-07-02: dispatch is the only trigger for now, so no code from a fork runs with this
+# token, and the token reads the repository and nothing else. The `set` input is typed by a
+# human; it reaches a script only through an environment variable, is checked against
+# [a-z0-9-]+ and an existing file by `python -m bench.oper matrix`, and is never interpolated
+# into a shell line. tests/test_oper.py pins all of it.
+on:
+  workflow_dispatch:
+    inputs:
+      set:
+        description: "point file name under bench/points/ (letters, digits and hyphens)"
+        required: true
+        type: string
+
+run-name: "operability: ${{ inputs.set }}"
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      # The parent is standard-library only, so a bare interpreter runs it; no dependency cache.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - id: m
+        env:
+          SET: ${{ inputs.set }}
+        run: python -m bench.oper matrix --set "$SET" >> "$GITHUB_OUTPUT"
+
+  measure:
+    needs: plan
+    runs-on: ubuntu-latest
+    # Below the hosted-job ceiling (ASSUMPTION A7: 6 h, from memory, not fetched). A reading that
+    # reaches its own deadline is killed and recorded long before this.
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    env:
+      SET: ${{ inputs.set }}
+      SHARD: ${{ matrix.shard }}
+      REP: ${{ matrix.rep }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: screw:ci
+      - name: take the readings
+        run: >-
+          python -m bench.oper run --set "$SET" --shard "$SHARD" --rep "$REP"
+          --image screw:ci --out "oper-$SET-$SHARD-$REP.jsonl"
+      # `if: always()` keeps the readings of a red run: a capped or killed reading is a record.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: oper-${{ env.SET }}-${{ env.SHARD }}-${{ env.REP }}
+          path: oper-${{ env.SET }}-${{ env.SHARD }}-${{ env.REP }}.jsonl
+          retention-days: 30
+      # A display aid only: a shard with no points has no readings to summarize, and the JSONL
+      # artifact above is the record.
+      - name: job summary
+        if: always()
+        continue-on-error: true
+        run: python -m bench.oper summarize --markdown --reps "$REP" "oper-$SET-$SHARD-$REP.jsonl" >> "$GITHUB_STEP_SUMMARY"

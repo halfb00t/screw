@@ -1,0 +1,127 @@
+{
+ "set": "spread",
+ "rule": "07-SWEEP-PROTOCOL.md R4",
+ "reps": 5,
+ "shards": 12,
+ "deadline_s": 600,
+ "points": [
+  {
+   "label": "default-bolt",
+   "kind": "bolt",
+   "params": {},
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "default-bolt",
+   "kind": "bolt",
+   "params": {},
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "default-bolt",
+   "kind": "bolt",
+   "params": {},
+   "artifact": "step"
+  },
+  {
+   "label": "default-nut",
+   "kind": "nut",
+   "params": {},
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "default-nut",
+   "kind": "nut",
+   "params": {},
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "default-nut",
+   "kind": "nut",
+   "params": {},
+   "artifact": "step"
+  },
+  {
+   "label": "iso4014:M20x200",
+   "kind": "bolt",
+   "params": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "length": 200.0,
+    "s": 30.0,
+    "k": 12.5,
+    "thread_length": 52.0
+   },
+   "artifact": "stl-preview",
+   "preset": "iso4014:M20x200"
+  },
+  {
+   "label": "iso4014:M20x200",
+   "kind": "bolt",
+   "params": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "length": 200.0,
+    "s": 30.0,
+    "k": 12.5,
+    "thread_length": 52.0
+   },
+   "artifact": "stl-fine",
+   "preset": "iso4014:M20x200"
+  },
+  {
+   "label": "iso4014:M20x200",
+   "kind": "bolt",
+   "params": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "length": 200.0,
+    "s": 30.0,
+    "k": 12.5,
+    "thread_length": 52.0
+   },
+   "artifact": "step",
+   "preset": "iso4014:M20x200"
+  },
+  {
+   "label": "iso4032:M20",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "s": 30.0,
+    "m": 18.0
+   },
+   "artifact": "stl-preview",
+   "preset": "iso4032:M20"
+  },
+  {
+   "label": "iso4032:M20",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "s": 30.0,
+    "m": 18.0
+   },
+   "artifact": "stl-fine",
+   "preset": "iso4032:M20"
+  },
+  {
+   "label": "iso4032:M20",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "s": 30.0,
+    "m": 18.0
+   },
+   "artifact": "step",
+   "preset": "iso4032:M20"
+  }
+ ],
+ "dropped": [],
+ "notes": [
+  "the default bolt, the default nut and the last bolt and nut catalogue rows at the three artifacts, five repetitions each: the spread of repeated cold readings sets the margin of R5"
+ ]
+}
