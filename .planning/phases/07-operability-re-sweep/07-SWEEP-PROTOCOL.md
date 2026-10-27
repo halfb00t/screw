@@ -3,7 +3,7 @@
 Written before any runner reading of the phase exists. Every selection rule, threshold, seed, set
 and rounding that Phase 7 applies to a measurement is fixed here, so a bound is credible because
 its rule was fixed before its data (the L11 method; `07-RESEARCH.md` Pattern 1). Plans 07-03 to
-07-17 apply these rules; none of them may change one (R30).
+07-20 apply these rules; none of them may change one (R30).
 
 - **Branch:** `gsd/phase-07-preregistration` (PR A: the harness, the point files and this file).
 - **Point files:** written by `bench/oper_sets.py`; `python -m bench.oper_sets --check` and
