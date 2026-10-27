@@ -2067,3 +2067,9 @@ def test_the_walk_down_reads_every_step_once_and_the_confirm_decides() -> None:
     assert "the 5-repetition confirm at T decides" in rule
     assert "A cell with no `ok` step has no first ok step" in rule
     assert "the R7 walk-down set" in " ".join(_rule(3).split())
+
+
+def test_a_spread_point_without_a_median_leaves_the_margin_with_no_number() -> None:
+    rule = " ".join(_rule(5).split())
+    assert "If any `spread` point has no median" in rule
+    assert "`m` has no number and the phase stops and asks the owner" in rule

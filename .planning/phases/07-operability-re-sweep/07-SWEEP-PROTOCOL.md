@@ -157,7 +157,9 @@ error text. The ruled-surface rows need a reference package and are out of this 
 ## R5 - The margin (D-19)
 
 The margin `m` is the largest `max / median - 1` of the cold wall (`build_s + export_s`) over the
-`spread` points, from their 5 repetitions. A bulk row of the full tier (R28), read once, is re-run at
+`spread` points, from their 5 repetitions. If any `spread` point has no median (a repetition that is
+not `ok`, or repetitions that are incomplete, R3), `m` has no number and the phase stops and asks the
+owner. A bulk row of the full tier (R28), read once, is re-run at
 5 repetitions when its single cold wall x (1 + `m`) reaches its artifact's timeout.
 
 ## R6 - Shard size (D-19)
