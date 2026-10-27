@@ -191,6 +191,11 @@ smallest power of ten at or above 100 F. 100 is the margin the current value was
 (`calc/thread.py`: 1e-3 sits 100x above the last failing tail); it is stated here for screw, and it
 is a margin, not a measured figure.
 
+The value V this names stands only on `ok` readings. V must be a tail the walk holds (at most 1e-2),
+and every reading of group (c) at a tail of V or more, at every size and hand, must be `ok`. A
+`killed` or `capped` reading sets no F, being cost and not a wall, but it cannot support a bound
+either (R8). Otherwise there is no number: the phase stops and asks the owner.
+
 ## R10 - MIN_ROOT_RADIUS_MM (D-18)
 
 Let F be the largest root radius `r` in `walls` group (d) whose reading is `refused` or `crashed`, at
@@ -198,6 +203,12 @@ any size, hand, rod or void (F = 0 when none fails). `MIN_ROOT_RADIUS_MM` is the
 at or above 10 F. If no reading fails down to 1e-6 mm, the floor stays "above 0" and the entry says
 the walk reached 1e-6 mm. 10 is one decade, the coarsest margin that is still tighter than the
 tail rule's 100; the walk's own steps are half-decades, so 10 F sits at least two steps clear of F.
+
+The value V this names stands only on `ok` readings. V must be a radius the walk holds (1e-2 to 1e-6
+as a power of ten), and every reading of group (d) at a radius of V or more, at every size and hand,
+rod and void, must be `ok`; for "above 0", every reading of group (d) must be `ok`. A `killed` or
+`capped` reading sets no F but cannot support a bound either (R8). Otherwise there is no number: the
+phase stops and asks the owner.
 
 ## R11 - The cost model's form (D-05, D-17)
 

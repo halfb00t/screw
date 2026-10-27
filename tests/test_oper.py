@@ -1672,6 +1672,20 @@ def test_the_protocol_table_gives_each_set_the_shape_and_counts_its_file_has() -
                               len(doc["dropped"])], name
 
 
+def _rule(number: int) -> str:
+    text = _protocol()
+    start = text.index(f"\n## R{number} ")
+    return text[start:text.index("\n## R", start + 1)]
+
+
+@pytest.mark.parametrize("number", [9, 10])
+def test_a_floor_stands_only_on_ok_readings_and_otherwise_stops_the_phase(number: int) -> None:
+    rule = " ".join(_rule(number).split())
+    assert "stands only on `ok` readings" in rule
+    assert "`capped` reading sets no F" in rule
+    assert "the phase stops and asks the owner" in rule
+
+
 def test_the_protocol_names_the_git_blob_sha_of_every_committed_point_file() -> None:
     import hashlib
 
