@@ -164,9 +164,15 @@ other half for a slower runner instance and for the image build.
 
 `MAX_TURNS` stays 250 if every 250-turn wall reading (`walls`, group (a): bolt rod and nut void, 15
 sizes, both hands) is `ok`. A `refused` or `crashed` reading at a size starts a walk-down set at 240,
-230, ... (step 10 turns) for that size and hand and kind; `MAX_TURNS` becomes the largest step that is
-`ok` at every size, hand and kind. A `killed` or `capped` reading is cost, not a kernel wall: the cost
-model owns it and it moves no wall.
+230, ... (step 10 turns) for that size and hand and kind, which goes on to that size's first `ok` step;
+`MAX_TURNS` becomes the largest step that is `ok` at every size, hand and kind.
+
+The boundary evidence is every reading this walk asks for: the 250-turn readings and each walk-down
+reading down to a size's first `ok` step. The bound stands only on `ok` readings. A `killed`, `capped`
+or `no_cgroup` reading in that evidence, or a reading it asks for that is missing, is cost, an
+unreadable peak or a gap, not a kernel wall: it starts no walk-down and moves no wall, and it cannot
+support a bound either. No turn bound is then awarded, 250 included, and the phase stops and asks the
+owner.
 
 ## R8 - The field ceilings (D-08)
 

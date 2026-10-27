@@ -1844,3 +1844,12 @@ def test_the_bound_set_holds_the_memory_extrema_that_w_is_read_from() -> None:
     assert "the admitted point with the largest measured peak" in rule
     assert "the set holds 5 to 8 points" in rule
     assert "the memory extrema of each included" in " ".join(_rule(16).split())
+
+
+def test_a_turn_bound_stands_only_on_ok_boundary_readings_and_otherwise_stops_the_phase() -> None:
+    rule = " ".join(_rule(7).split())
+    assert "The bound stands only on `ok` readings" in rule
+    assert "A `killed`, `capped` or `no_cgroup` reading in that evidence" in rule
+    assert "or a reading it asks for that is missing" in rule
+    assert "No turn bound is then awarded, 250 included," in rule
+    assert "the phase stops and asks the owner" in rule
