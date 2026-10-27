@@ -22,4 +22,21 @@ has not started. These rulings amend `07-SWEEP-PROTOCOL.md` through PR A2, which
 | G13 | header | Text fix: the header names plans 07-03 to 07-20. |
 | G14 | R23 | Each drift build is built, exported and level-1 gzipped before its peak is read, as R2 says. |
 
+## Gaps G15–G21 (plan revision, 2026-10-27)
+
+Source: the planner's revision of plans 07-05 to 07-21 against the protocol as amended by PR A2
+(squash 8aa143f). Those plans gate the dependent steps on these rulings. The rulings amend
+`07-SWEEP-PROTOCOL.md` through PR A3. PR A3 has to land before plan 07-05 takes the first reading.
+The owner took the recommended option for every gap.
+
+| Gap | Rule(s) | Owner ruling |
+|---|---|---|
+| G15 | R19 | Every point of the STL bound set (10 to 16 points) must pass on its own. Level 9 is compared with the adopted level, not with level 6. |
+| G16 | R21 | The candidates are the explore parts that are admitted and `ok` at all 3 artifacts. Their gzip level-1 bytes are the upper bound. If any R19 reading shows level k bigger than level 1, the phase stops for the owner. |
+| G17 | R23 (arenas) | Z(A) per artifact, trim on and trim off, 5 repetitions each. The measure is cgroup `memory.current`, read after the export. The maxima are compared. The trim is kept only if it is lower at every artifact. |
+| G18 | R25 | The health wall is the wall of the HEALTHCHECK command. It is taken over the 5 load readings of the picked N. |
+| G19 | R28 | The dense boundary is bolt only, over the 15 sizes. Coarse pitch, s = 1.6d, k = 0.6d. t = L = n·P, where n is the largest admitted. |
+| G20 | R16, R22 | The `mem_limit` that ships is the larger of the one built from R16's W and the one built from W(K). |
+| G21 | R12 | The R19 gzip readings and the R23 arena readings are cold isolated part readings. They widen e. |
+
 Earlier rulings in the same review cycle (PR A, rounds 1–3) are recorded in `07-04-SUMMARY.md`.

@@ -399,7 +399,7 @@ Plans:
   3. A CI job builds every allowed configuration inside the timeout; a configuration that cannot is capped and warned or refused with a `422` naming the fields, never silently shortened.
   4. With the measured bounds in place, CAD builds still run in worker processes off the event loop, and `make check` (in-image smoke test, vendored-bundle byte check) passes.
 
-**Plans**: 4/20 plans executed (sequential waves 1-14; the pre-registration lands on main as its own PR, A, before any runner reading)
+**Plans**: 4/21 plans executed (sequential waves 1-15; the pre-registration lands on main as its own PR, A, before any runner reading; 07-05 to 07-20 revised 2026-10-27 against PR A2's protocol, and 07-21 split out of 07-16)
 
 Plans:
 **Wave 1**
@@ -413,18 +413,18 @@ Plans:
 - [x] 07-04-PLAN.md — Codex review of PR A, land it through `make pr.land`, push the phase branch so later dispatches can run from it
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 07-05-PLAN.md — Runs I on the runner: explore, spread, walls, controls; walls confirmed at 5 reps; margin and shard sizes (D-01 to D-05, D-19)
-- [ ] 07-06-PLAN.md — Runs II instruments: contention driver and memory probe (D-09, D-10, D-11)
+- [ ] 07-05-PLAN.md — Runs I on the runner: explore, spread, walls, controls; the R5 margin and R6 charges; the R7 walk-down in one dispatch; the walls confirm at 5 reps after T (D-01 to D-05, D-19)
 
 **Wave 5** *(blocked on Wave 4 completion)*
-- [ ] 07-07-PLAN.md — The measured walls: MAX_TURNS, the field ceilings, MIN_TAIL_MM, the root-radius floor; L20 (D-08, D-18)
-- [ ] 07-08-PLAN.md — Runs II instruments: HTTP load driver, served-body sizes, gzip levels (D-10, D-11)
+- [ ] 07-07-PLAN.md — The measured walls from their 5-rep confirm: MAX_TURNS, the field ceilings, MIN_TAIL_MM, the root-radius floor; L20 (D-08, D-18)
 
 **Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 07-06-PLAN.md — Runs II instruments: contention routed by the pool's hash, R23's drift and arena readings (D-09, D-02)
 - [ ] 07-09-PLAN.md — Fit the cost model with its envelope; the budget candidate table for the owner (D-05, D-07)
 
 **Wave 7** *(blocked on Wave 6 completion)*
-- [ ] 07-10-PLAN.md — Owner checkpoints: the budget (B-01), the over-budget 422 shape (B-02), the D-06 cap (B-03)
+- [ ] 07-08-PLAN.md — Runs II instruments: HTTP load driver (shared queue, identity encoding, cache env), served-body sizes, gzip levels (D-03, D-11)
+- [ ] 07-10-PLAN.md — Owner checkpoints: the budget (B-01, one of C1 to C3), the over-budget 422 shape (B-02), the D-06 cap (B-03)
 
 **Wave 8** *(blocked on Wave 7 completion)*
 - [ ] 07-11-PLAN.md — Ship the cost model in `calc`: every artifact judged by one budget, the ruled 422 (D-05, D-06, D-07)
@@ -435,19 +435,22 @@ Plans:
 **Wave 10** *(blocked on Wave 9 completion)*
 - [ ] 07-13-PLAN.md — Retire the per-row fine-STL cap tables the cost model replaced (D-08, D-17)
 - [ ] 07-14-PLAN.md — The page offers what fits when the preview STL is refused; 01-UI-SPEC amended in place (D-06)
-- [ ] 07-15-PLAN.md — Runs II on the admitted set: contention, memory, load, gzip; envelope re-checked, any widening shipped into `calc/cost.py` with its evidence (D-07, D-09 to D-11)
+- [ ] 07-15-PLAN.md — Runs II on the admitted set: R27's D(A) fixed first, the R14 bound set with per-slot partners, the R15 load mix, gzip, arenas; envelope re-checked on cold isolated readings, any widening shipped into `calc/cost.py` with its evidence (D-07, D-09 to D-11)
 
 **Wave 11** *(blocked on Wave 10 completion)*
-- [ ] 07-16-PLAN.md — Derive every runtime value from the records and write them into the code (D-09, D-10, D-11, D-16)
+- [ ] 07-16-PLAN.md — Derive the runtime values by rule in input order, ship the three timeouts, run R22's W(K) and R23's drift after them, finish runtime.json (D-02, D-03, D-09, D-11, D-16)
 
 **Wave 12** *(blocked on Wave 11 completion)*
-- [ ] 07-17-PLAN.md — Container values in Dockerfile and compose; L22 and L23; no interim value or spur figure left (D-10, D-15, D-16)
-- [ ] 07-18-PLAN.md — The required `bounds` CI job on a boundary set in the production image; draft PR opened (D-12, D-15)
+- [ ] 07-21-PLAN.md — Write the derived serving and worker knobs into the code: Retry-After, workers, queue, gzip, caches, arena release, CLI server count (D-02, D-03, D-11); split out of 07-16
 
 **Wave 13** *(blocked on Wave 12 completion)*
-- [ ] 07-19-PLAN.md — The full recording tier and its merge gate: judged full set, weekly and paths-filtered PR triggers, `make pr.land` waits for a green full tier on the cost model's files and `solid/`; L24, L25 (D-12, D-13, D-19)
+- [ ] 07-17-PLAN.md — Container values in Dockerfile and compose; L22 and L23; no interim value or spur figure left (D-10, D-15, D-16)
+- [ ] 07-18-PLAN.md — The required `bounds` CI job on R27 step 5 over the committed D(A) in the production image; draft PR opened (D-12, D-15)
 
 **Wave 14** *(blocked on Wave 13 completion)*
+- [ ] 07-19-PLAN.md — The full recording tier and its merge gate: judged full set with refused pairs and R5 follow-up jobs, weekly and paths-filtered PR triggers, `make pr.land` waits for a green full tier on the cost model's files and `solid/`; L24, L25 (D-12, D-13, D-19)
+
+**Wave 15** *(blocked on Wave 14 completion)*
 - [ ] 07-20-PLAN.md — Proof on the head: the full tier green and recorded, every required job green, `make check`
 
 ## Progress
@@ -464,4 +467,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 2 
 | 5. Hex Nut and Kernel Pair Proof | 25/25 | Complete    | 2026-10-22 |
 | 6. Printed Pair Acceptance | 10/10 | Complete    | 2026-10-24 |
 | 6.1. Bolt head chamfer (INSERTED) | 5/5 | Complete    | 2026-10-25 |
-| 7. Operability Re-sweep | 4/20 | In Progress | - |
+| 7. Operability Re-sweep | 4/21 | In Progress | - |
