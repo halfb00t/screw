@@ -2113,9 +2113,11 @@ def test_a_shard_is_the_longest_file_order_prefix_that_fits_under_half_the_timeo
     assert "and K x the artifact's timeout for a drift reading, that is 20 x that timeout (R23)" \
         in rule
     assert "(600 s, R2)" not in rule
-    assert "A reading whose deadline does not fit under half the job's `timeout-minutes` runs as" \
-        " one job per repetition" in rule
-    assert "A reading that cannot fit in a job at all" in rule
+    assert ("A reading whose deadline is not under half the job's `timeout-minutes` "
+            "stops the phase") in rule
+    assert "the job timeout also counts the runner setup, the image build and the upload" in rule
+    assert "one job per repetition" not in rule
+    assert "cannot fit in a job at all" not in rule
     assert "stops the phase and asks the owner" in rule
 
 

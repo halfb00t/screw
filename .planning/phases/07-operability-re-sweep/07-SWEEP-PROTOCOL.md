@@ -180,11 +180,10 @@ is charged its `deadline_s`, as no figure is invented for it.
 For the contention, load and drift sets, no `explore` reading is a bound on a point, so each reading is
 charged the deadline its own rule sets: 600 s where R2's deadline applies, and K x
 the artifact's timeout for a drift reading, that is 20 x that timeout (R23), which is not 600 s. The
-shards are cut by the same rule. A reading whose deadline does not fit under half the job's
-`timeout-minutes` runs as one job per repetition (the 5 repetitions of R3, each its own matrix job). A
-reading that cannot fit in a job at all, its deadline being no less than the job's `timeout-minutes`,
-stops the phase and asks the owner. The plan that dispatches the set states, before the dispatch, which
-way each of its readings runs.
+shards are cut by the same rule, so a reading whose deadline alone fills a shard runs in a job of its
+own. A reading whose deadline is not under half the job's `timeout-minutes` stops the phase and asks
+the owner: the job timeout also counts the runner setup, the image build and the upload of the
+records, and the other half is kept for them.
 
 ## R7 - MAX_TURNS (D-08)
 
