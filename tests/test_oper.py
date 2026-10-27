@@ -1858,7 +1858,10 @@ def test_a_turn_bound_stands_only_on_ok_boundary_readings_and_otherwise_stops_th
 def test_the_load_run_is_the_cold_worst_case_with_no_part_repeated() -> None:
     rule = " ".join(_rule(15).split())
     assert "no request repeats a part anywhere in a run" in rule
-    assert "The artifacts are walked in the order `stl-fine`, `step`, `stl-preview`" in rule
+    assert "The artifacts take their parts in the order `stl-fine`, `step`, `stl-preview`" in rule
+    assert "Each artifact takes its parts on its own" in rule
+    assert "the first 3 parts of its own edge ranking" in rule
+    assert "takes its next-ranked ones by its own edge ranking, so every artifact keeps" in rule
     assert "the three artifacts of one part included" in rule
     assert "A run has 20 parts for each artifact" in rule
     assert "pass" not in rule
@@ -1874,6 +1877,7 @@ def test_the_required_tier_fixes_its_candidates_edge_draw_ties_and_duplicates() 
     assert "the first in file order is kept" in rule
     assert "a tie going to the label that sorts first" in rule
     assert "shuffled by `random.Random(20261026).shuffle`" in rule
+    assert "The *edge ranking* is every candidate ordered by edge ratio, largest first" in rule
     assert "Where no component is finite for A" in rule
     assert "which under C3 is `stl-preview` and `step`" in rule
     assert "the edge ratio is the point's enveloped build-seconds prediction, by this rule" in rule

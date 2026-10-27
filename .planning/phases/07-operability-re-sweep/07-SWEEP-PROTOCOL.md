@@ -292,20 +292,27 @@ The load run starts the server in the image with `SCREW_BUILD_WORKERS = N`, a qu
 (`SCREW_MAX_QUEUED_BUILDS`) and 2N concurrent clients.
 
 *The mix.* The load run measures the cold worst case: no request repeats a part anywhere in a run,
-so neither cache can hit. A run has 20 parts for each artifact, taken by one walk of the lists D(A) of
-R27 (the 3 edge points first, then the draw). The artifacts are walked in the order `stl-fine`, `step`,
-`stl-preview`, fixed here before any reading: `stl-preview`, the coarser mesh of the same solid, goes
-last so that the other two take the edge points that the artifacts would otherwise contend for. For
-each artifact the walk takes, 20 times, the first part of D(A) that is unused and whose `explore`
-reading is `ok` (a part that failed there is a tier failure, R29, and not a load sample). A part is
-used once any artifact has taken it, so no part appears twice in a run, the three artifacts of one
-part included; the walk goes on past R27's 10 minutes. If a list cannot supply its 20 parts the phase
-stops and asks the owner: no part is repeated to fill a gap. 20 is the floor of samples per reported
-p95, so each artifact reports its own p95 over its own 20. The mix of a run is its 60 requests (part,
-artifact), listed in the walk's order and shuffled once by a new `random.Random(20261026).shuffle`; the
-order is the same in every repetition and at every N. A client takes the next request as soon as its previous
-response is complete, and the first 2N start together. The `/api/health` probes of R24 and R25 are not
-part of the mix.
+so neither cache can hit. A run has 20 parts for each artifact. 20 is the floor of samples per
+reported p95, so each artifact reports its own p95 over its own 20. The artifacts take their parts in
+the order `stl-fine`, `step`, `stl-preview`, fixed here before any reading: the fine STL, whose output
+is the largest, takes first pick and `stl-preview`, the coarser mesh of the same solid, the last. Each
+artifact takes its parts on its own, in two steps:
+
+1. its 3 edge parts: the first 3 parts of its own edge ranking (R27 step 3: every candidate by edge
+   ratio, largest first, a tie going to the label that sorts first) that are unused and whose
+   `explore` reading is `ok`;
+2. its 17 draw parts: the first 17 parts of its draw order (R27 step 4) that are unused and whose
+   `explore` reading is `ok` (a part that failed there is a tier failure, R29, and not a load sample).
+
+A part is used once any artifact has taken it, so no part appears twice in a run, the three artifacts
+of one part included. An artifact whose edge parts an earlier artifact took takes its next-ranked ones
+by its own edge ranking, so every artifact keeps 3 edge points; the walk goes on past R27's 10
+minutes. If a list cannot supply the parts an artifact needs, the phase stops and asks the owner: no
+part is repeated to fill a gap. The mix of a run is its 60 requests (part, artifact), listed in the
+order the artifacts took them and shuffled once by a new `random.Random(20261026).shuffle`; the order
+is the same in every repetition and at every N. A client takes the next request as soon as its
+previous response is complete, and the first 2N start together. The `/api/health` probes of R24 and
+R25 are not part of the mix.
 
 *The measures.* The p95 (`statistics.quantiles(n=20)`, the 19th cut point) and the medians are over
 the run: 20 samples per artifact and 60 over all requests. The container's cgroup peak is read once,
@@ -435,8 +442,9 @@ that two implementations write the same list.
    is not divided by), the edge ratio is the point's enveloped build-seconds prediction, by this rule
    and not as a stand-in for an infinite component: the edge of an artifact the budget leaves
    unbounded is the slowest part the model admits, ranked by seconds and not by bytes.
-3. *The edge points.* The 3 candidates with the largest edge ratio, largest first, a tie going to the
-   label that sorts first (plain string comparison).
+3. *The edge points.* The *edge ranking* is every candidate ordered by edge ratio, largest first, a tie
+   going to the label that sorts first (plain string comparison). The edge points are its first 3.
+   The load run (R15) walks the same ranking further when another artifact has taken an edge point.
 4. *The draw.* The other candidates, in file order, shuffled by `random.Random(20261026).shuffle`
    (CPython 3.12, a new generator for each artifact). The seed is the date of the owner's rulings,
    2026-10-26, written as an integer; any fixed integer would do, and this one is fixed here.
