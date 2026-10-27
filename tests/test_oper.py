@@ -2218,3 +2218,14 @@ def test_the_health_wall_is_the_healthcheck_commands_over_the_picked_ns_load_rea
     assert "`--timeout` is `ceil(2 x` the max health wall under load `)` seconds" in rule
     assert "The health wall is the wall of the `HEALTHCHECK` command" in rule
     assert "the max is taken over the 5 load readings of the picked N" in rule
+
+
+def test_the_dense_boundary_is_bolts_at_coarse_pitch_with_the_largest_admitted_turns() -> None:
+    rule = " ".join(_rule(28).split())
+    assert "The dense boundary is bolt only" in rule
+    assert "for each of the 15 L11 sizes and both hands" in rule
+    assert ("at the size's coarse pitch P with `s = 1.6 d`, `k = 0.6 d` and "
+            "`thread_length = length = n x P`") in rule
+    assert ("where n is the largest whole number of turns at which that bolt is admitted "
+            "at that artifact") in rule
+    assert "the largest admitted integer-turn length" not in rule

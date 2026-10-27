@@ -535,8 +535,11 @@ that two implementations write the same list.
 
 ## R28 - The full tier (D-12)
 
-Every catalogue row x 3 artifacts, the nut factorial, and the dense boundary: per artifact, size and
-hand, the largest admitted integer-turn length. One pass; R5 re-runs apply. A pair the cost model refuses is
+Every catalogue row x 3 artifacts, the nut factorial, and the dense boundary. The dense boundary is
+bolt only: per artifact, for each of the 15 L11 sizes and both hands, the bolt at the size's coarse
+pitch P with `s = 1.6 d`, `k = 0.6 d` and `thread_length = length = n x P` (R4), where n is the
+largest whole number of turns at which that bolt is admitted at that artifact. One pass; R5 re-runs
+apply. A pair the cost model refuses is
 still read in the full tier and must return its expected refusal (422 or info status); it is not
 judged against the cost model.
 
