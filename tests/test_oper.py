@@ -2126,3 +2126,12 @@ def test_the_gzip_levels_are_compared_on_the_max_over_five_repetitions() -> None
     rule = " ".join(_rule(19).split())
     assert "A level's seconds and bytes are each the max over 5 repetitions (R3)" in rule
     assert "the comparison below uses those maxima" in rule
+
+
+def test_a_refused_pair_is_read_in_the_full_tier_and_must_return_its_refusal() -> None:
+    rule = " ".join(_rule(28).split())
+    assert "A pair the cost model refuses is still read in the full tier" in rule
+    assert "must return its expected refusal (422 or info status)" in rule
+    assert "it is not judged against the cost model" in rule
+    assert "fails the tier only if it does not return its expected refusal" in " ".join(
+        _rule(29).split())

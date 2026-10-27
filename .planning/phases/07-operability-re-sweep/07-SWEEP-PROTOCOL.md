@@ -505,12 +505,15 @@ that two implementations write the same list.
 ## R28 - The full tier (D-12)
 
 Every catalogue row x 3 artifacts, the nut factorial, and the dense boundary: per artifact, size and
-hand, the largest admitted integer-turn length. One pass; R5 re-runs apply.
+hand, the largest admitted integer-turn length. One pass; R5 re-runs apply. A pair the cost model refuses is
+still read in the full tier and must return its expected refusal (422 or info status); it is not
+judged against the cost model.
 
 ## R29 - When a tier fails (D-07, D-12)
 
 A tier fails on any non-`ok` reading of an admitted point, a cold wall above its artifact's timeout,
-or `actual / predicted - 1` above its envelope for any target.
+or `actual / predicted - 1` above its envelope for any target. A pair the cost model refuses (R28) fails
+the tier only if it does not return its expected refusal; it has no cost to judge.
 
 ## R30 - Immutability
 
