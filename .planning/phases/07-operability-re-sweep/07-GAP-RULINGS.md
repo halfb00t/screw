@@ -39,4 +39,18 @@ The owner took the recommended option for every gap.
 | G20 | R16, R22 | The `mem_limit` that ships is the larger of the one built from R16's W and the one built from W(K). |
 | G21 | R12 | The R19 gzip readings and the R23 arena readings are cold isolated part readings. They widen e. |
 
+## Gaps G22–G23 (owner answers on the PR A3 plan, 2026-10-27)
+
+Source: the owner's answers to the open questions of the PR A3 plan
+(`.planning/quick/261027-va3-amend-07-sweep-protocol-md-with-g15-g21-/261027-va3-PLAN.md`). The
+rulings amend `07-SWEEP-PROTOCOL.md` through PR A3, together with G15–G21. The owner also confirmed
+the reading of G16: "level k bigger than level 1" compares bytes; the candidates are admitted and `ok`
+at all 3 artifacts; a candidate's sum is the raw bytes plus the level-1 gzip bytes of its three
+explore readings.
+
+| Gap | Rule(s) | Owner ruling |
+|---|---|---|
+| G22 | R19, R23 (arenas) | When a max that R19 (G15) or R23's arena comparison (G17) compares is missing (R3: a point with any repetition that is not `ok` has no max), the phase stops for the owner. |
+| G23 | header | Text fix: the header names plans 07-03 to 07-21. |
+
 Earlier rulings in the same review cycle (PR A, rounds 1–3) are recorded in `07-04-SUMMARY.md`.
