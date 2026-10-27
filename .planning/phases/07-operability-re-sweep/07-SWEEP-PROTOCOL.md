@@ -36,8 +36,9 @@ carried from spur or from a laptop run: every number a rule applies comes from a
 
 A reading is: a new container of the production image, `--memory` and `--memory-swap` both 12 GiB
 (`bench.oper.CAP_BYTES`), a deadline of 600 s (`bench.oper.DEADLINE_S`), the solid cache cleared,
-one build, one export of one artifact (`stl-preview`, `stl-fine` or `step`), then the container's
-peak. It records `build_s`, `export_s`, `bytes`, `triangles` (STL), `gzip1_bytes`, `maxrss_bytes`,
+one build, one export of one artifact (`stl-preview`, `stl-fine` or `step`), a level-1 gzip of the
+output, then the container's peak, read once and after the gzip so that it covers the build, the export
+and the compression, and so that the cap test below sees the memory the gzip used. It records `build_s`, `export_s`, `bytes`, `triangles` (STL), `gzip1_bytes`, `maxrss_bytes`,
 `memory_peak_bytes`, `oom_kills`, the kernel pair, the 1-minute load average before the reading and
 the wall of the whole `docker run`. A *probe* (`tail`, `naive`, `one_pipe`) records `build_s`,
 `solids`, `valid` (`isValid()`), the signed precise-volume ratio to the closed form and the same

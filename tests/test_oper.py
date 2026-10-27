@@ -435,6 +435,36 @@ def test_the_child_prints_exactly_one_line_with_a_status_and_no_number_it_could_
         assert "build_s" not in record
 
 
+def test_the_peak_is_read_after_the_gzip_so_a_gzip_past_the_cap_is_capped(
+        monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """The gzip's memory counts: a peak read before it kept `ok` and numbers for a container the
+    compression pushed past 99 % of its cap without an OOM kill."""
+    import gzip
+
+    from screw import solid
+
+    peak = {"bytes": 1_000_000}
+    real_compress = gzip.compress
+
+    def compress(data: bytes, level: int) -> bytes:
+        peak["bytes"] = oper.CAP_BYTES  # the gzip is what takes the container to its cap
+        return real_compress(data, level)
+
+    monkeypatch.setattr(solid, "build", lambda p: None)
+    monkeypatch.setattr(solid, "export", lambda *_: bytes(84))
+    monkeypatch.setattr(gzip, "compress", compress)
+    monkeypatch.setattr(oper_child, "read_peak", lambda: peak["bytes"])
+    monkeypatch.setattr(oper_child, "oom_kills", lambda: 0)
+    point = {"kind": "bolt", "params": {}, "artifact": "stl-preview"}
+    assert oper_child.main([json.dumps(point)]) == 0
+    line = capsys.readouterr().out.strip()
+    assert oper.parse_child_line(line)["memory_peak_bytes"] == oper.CAP_BYTES
+    record = oper.classify(timed_out=False, oom_killed=False, exit_code=0, stdout=line, stderr="",
+                           cap=oper.CAP_BYTES)
+    assert record["status"] == "capped"
+    assert [key for key in NUMBER_KEYS if key in record] == []
+
+
 def test_a_kernel_refusal_is_a_refused_line_with_its_class(
         monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     from screw import solid

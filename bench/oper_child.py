@@ -2,10 +2,10 @@
 
 `bench.oper` (the parent, kernel-free) starts one fresh container of the image per reading and runs
 `python -m bench.oper_child '<point json>'` in it. This module is that process: one cold build,
-one export, then the cgroup's own peak, printed as exactly one JSON line. It runs in the image
-because that is the artefact whose `mem_limit` the figure sets: Debian's glibc and the container's
-cgroup exist nowhere else (07-RESEARCH A1), and `memory.peak` is the cgroup's exact high-water
-mark where `ru_maxrss` and `docker stats` are narrower or coarser (D-02).
+one export and a level-1 gzip of it, then the cgroup's own peak, printed as exactly one JSON line.
+It runs in the image because that is the artefact whose `mem_limit` the figure sets: Debian's
+glibc and the container's cgroup exist nowhere else (07-RESEARCH A1), and `memory.peak` is the
+cgroup's exact high-water mark where `ru_maxrss` and `docker stats` are narrower or coarser (D-02).
 
 A reading it cannot stand behind carries a status and no figure (L02): a kernel refusal is
 `refused` with its class, an unreadable cgroup is `no_cgroup`. The statuses the parent adds
@@ -295,17 +295,21 @@ def main(argv: list[str]) -> int:
     except BuildError as exc:
         _emit({"status": "refused", "error": type(exc).__name__, "message": str(exc), **versions})
         return 0
-    # Read straight after the export and before the gzip below: the peak answers "what does the
-    # build and export cost", and the production gzip runs in the serving process, not here.
+    triangles = int.from_bytes(data[80:84], "little") if fmt == "stl" else None
+    gzip1_bytes = len(gzip.compress(data, 1))
+    # The only peak read comes after the gzip: the cgroup's `memory.peak` is a high-water mark, so
+    # this one covers the build, the export and the compression the serving process runs on every
+    # response, and the parent's cap check (`bench.oper.classify`) sees memory the gzip used. Read
+    # before it, a gzip that took the container past 99 % of the cap without an OOM kill would
+    # have stayed `ok` with numbers.
     maxrss = _maxrss_bytes()
     try:
         peak = read_peak()
     except CgroupUnavailable:
         _emit({"status": "no_cgroup", **versions})
         return 0
-    triangles = int.from_bytes(data[80:84], "little") if fmt == "stl" else None
     _emit({"status": "ok", "build_s": build_s, "export_s": export_s, "bytes": len(data),
-           "triangles": triangles, "gzip1_bytes": len(gzip.compress(data, 1)),
+           "triangles": triangles, "gzip1_bytes": gzip1_bytes,
            "maxrss_bytes": maxrss, "memory_peak_bytes": peak, "oom_kills": oom_kills(),
            **versions})
     return 0
