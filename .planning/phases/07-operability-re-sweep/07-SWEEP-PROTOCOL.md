@@ -279,8 +279,8 @@ For each (kind, artifact, target) the envelope `e` is `max(0, largest actual / p
 the fitted readings. A part is admitted if and only if `prediction x (1 + e)` is at most the budget
 for every target. A later reading (Runs II, either tier) above its envelope widens `e` and is
 recorded with its run id, but only a cold isolated reading widens it: a reading of a part in a fresh
-container with no other build running, which is a part reading of either tier, a contention reading at
-N = 1 and build 1 of a drift repetition. A contended wall (a contention reading at N = 2 or 3), a load
+container with no other build running, which is a part reading of either tier, a gzip reading of R19,
+an arena reading of R23, a contention reading at N = 1 and build 1 of a drift repetition. A contended wall (a contention reading at N = 2 or 3), a load
 request wall and a drift build 2 to K never widen `e`.
 
 D(A) (R27 steps 1 to 4), the bound set (R14) and the load mix (R15) are each fixed once, from the

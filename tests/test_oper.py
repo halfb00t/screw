@@ -2240,3 +2240,11 @@ def test_the_shipped_mem_limit_is_the_larger_of_the_ones_from_w_and_from_w_k() -
             "built from `W(K)` at the K this rule keeps") in r22
     assert "both computed as R16 computes `mem_limit(N)` at the picked N" in r22
     assert "`W(4)` is not taken from R16's W" in r22
+
+
+def test_gzip_and_arena_readings_are_cold_isolated_and_widen_the_envelope() -> None:
+    rule = " ".join(_rule(12).split())
+    assert "only a cold isolated reading widens it" in rule
+    assert ("a part reading of either tier, a gzip reading of R19, an arena reading of R23, "
+            "a contention reading at N = 1") in rule
+    assert "a load request wall and a drift build 2 to K never widen `e`" in rule
