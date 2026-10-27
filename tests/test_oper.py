@@ -240,9 +240,12 @@ def test_the_signal_and_the_stderr_tail_of_a_crash_are_kept_as_evidence() -> Non
 
 
 def _reading(rep: int, status: str = "ok", *, build_s: float = 1.0, label: str = "p",
-             artifact: str = "stl-preview") -> dict[str, object]:
+             artifact: str = "stl-preview",
+             lift: dict[str, float] | None = None) -> dict[str, object]:
     record: dict[str, object] = {"type": "reading", "label": label, "artifact": artifact,
                                  "rep": rep, "status": status}
+    if lift is not None:
+        record["lift"] = lift
     if status == "ok":
         record.update(build_s=build_s, export_s=build_s / 10, bytes=100 * rep,
                       memory_peak_bytes=1000 * rep)
@@ -285,6 +288,32 @@ def test_no_readings_summarize_to_no_rows() -> None:
 def test_points_are_summarized_separately_and_in_first_seen_order() -> None:
     readings = [_reading(1, label="b"), _reading(1, label="a"), _reading(2, label="b")]
     assert [(r["label"], r["n"]) for r in oper.summarize(readings)] == [("b", 2), ("a", 1)]
+
+
+def test_a_lifted_reading_keeps_its_own_row_and_cannot_supply_a_bound() -> None:
+    """Lifted and ordinary readings that share a label and artifact are two points: merging them
+    printed one numeric `ok` row for a part nobody can request."""
+    plain = [_reading(r, build_s=1.0) for r in range(1, 6)]
+    lifted = [_reading(r, build_s=9.0, lift={"max_mm": 1e6}) for r in range(1, 6)]
+    rows = oper.summarize(plain + lifted)
+    assert [(r["lift"], r["n"], r["status"]) for r in rows] == [
+        (None, 5, "ok"), ({"max_mm": 1e6}, 5, "ok")]
+    assert rows[0]["max"] is not None
+    assert rows[1]["median"] is None
+    assert rows[1]["max"] is None
+
+
+def test_two_lifts_of_one_label_are_two_rows() -> None:
+    readings = [_reading(1, lift={"max_turns": 260}), _reading(1, lift={"max_turns": 270})]
+    assert [r["lift"] for r in oper.summarize(readings)] == [
+        {"max_turns": 260}, {"max_turns": 270}]
+
+
+def test_a_lifted_row_names_its_lift_in_both_formats() -> None:
+    readings = [_reading(1, lift={"max_mm": 1e6})]
+    rows = oper.summarize(readings)
+    assert '"max_mm": 1000000.0' in oper.format_rows(rows)
+    assert '"max_mm": 1000000.0' in oper.markdown_report([], readings, rows)
 
 
 # --- the CLI -----------------------------------------------------------------------------------

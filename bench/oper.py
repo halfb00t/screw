@@ -296,30 +296,36 @@ def run_reading(point: Point, rep: int, image: str, cap: int, deadline_s: float,
 
 
 def summarize(readings: Iterable[Mapping[str, object]]) -> list[dict[str, object]]:
-    """Per (label, artifact), in first-seen order: how many repetitions, a count per status, the
-    status of the point, and the median (`statistics.median`) and max of each metric over the
+    """Per (label, artifact, lift), in first-seen order: how many repetitions, a count per status,
+    the status of the point, and the median (`statistics.median`) and max of each metric over the
     repetitions. A point with any repetition that is not ok has no median and no max: four good
     repetitions and one capped one are not a measurement of the part (D-04, L02). The status is
-    `ok`, the one failing status when they agree, or `mixed`."""
-    grouped: dict[tuple[object, object], list[Mapping[str, object]]] = {}
+    `ok`, the one failing status when they agree, or `mixed`.
+
+    A reading past a validator guard (`lift`) is a confirmation probe of a wall, not a part anyone
+    can request: it keeps its own row, names its lift, and has a status and no median or max, so it
+    cannot supply a bound or a fit figure (R3, R7, R8)."""
+    grouped: dict[tuple[object, object, str], list[Mapping[str, object]]] = {}
     for reading in readings:
-        grouped.setdefault((reading["label"], reading["artifact"]), []).append(reading)
+        lift = json.dumps(reading.get("lift"), sort_keys=True)
+        grouped.setdefault((reading["label"], reading["artifact"], lift), []).append(reading)
     rows: list[dict[str, object]] = []
-    for (label, artifact), group in grouped.items():
+    for (label, artifact, lift_text), group in grouped.items():
         counts: dict[str, int] = {}
         for reading in group:
             counts[str(reading["status"])] = counts.get(str(reading["status"]), 0) + 1
         failing = [status for status in counts if status != "ok"]
         status = "ok" if not failing else failing[0] if len(failing) == 1 else "mixed"
+        lift = json.loads(lift_text)
         median: dict[str, float] | None = None
         maximum: dict[str, float] | None = None
-        if status == "ok":
+        if status == "ok" and lift is None:
             metrics = _PROBE_METRICS if group[0].get("kind") == PROBE_KIND else _METRICS
             columns = {m: [_number(r, m) for r in group] for m in metrics}
             median = {m: statistics.median(values) for m, values in columns.items()}
             maximum = {m: max(values) for m, values in columns.items()}
-        rows.append({"label": label, "artifact": artifact, "n": len(group), "status": status,
-                     "counts": counts, "median": median, "max": maximum})
+        rows.append({"label": label, "artifact": artifact, "lift": lift, "n": len(group),
+                     "status": status, "counts": counts, "median": median, "max": maximum})
     return rows
 
 
@@ -335,6 +341,8 @@ def format_rows(rows: list[dict[str, object]]) -> str:
     lines = []
     for row in rows:
         head = f"{row['label']}  {row['artifact']}  n={row['n']}  {row['status']}"
+        if row["lift"]:
+            head += f"  lift {json.dumps(row['lift'], sort_keys=True)}"
         median, maximum = row["median"], row["max"]
         if isinstance(median, dict) and isinstance(maximum, dict):
             head += "".join(f"  {m}: median {median[m]:.3f} max {maximum[m]:.3f}" for m in median)
@@ -642,7 +650,9 @@ def markdown_report(headers: list[dict[str, object]], readings: list[dict[str, o
         tally = row["counts"]
         counts = ", ".join(f"{status}: {n}" for status, n in tally.items()) if isinstance(
             tally, dict) else ""
-        lines.append(f"| {row['label']} | {row['artifact']} | {row['n']} | {row['status']} "
+        label = f"{row['label']} (lift {json.dumps(row['lift'], sort_keys=True)})" if row[
+            "lift"] else row["label"]
+        lines.append(f"| {label} | {row['artifact']} | {row['n']} | {row['status']} "
                      f"| {counts} | " + " | ".join(cells) + " |")
     return "\n".join(lines)
 
