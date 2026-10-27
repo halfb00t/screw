@@ -2199,3 +2199,15 @@ def test_the_export_cache_holds_the_largest_part_ok_at_all_three_artifacts() -> 
     assert "If any R19 reading shows the bytes at level 6 or 9 above the bytes at level 1" in rule
     assert "the phase stops and asks the owner" in rule
     assert "of the admitted part with the largest such sum" not in rule
+
+
+def test_the_trim_is_kept_only_if_its_max_memory_current_is_lower_at_every_artifact() -> None:
+    rule = " ".join(_rule(23).split())
+    assert ("`_release_arenas` (the trim) is kept only if the retained memory after an export "
+            "is lower with it than without, at every artifact") in rule
+    assert "the *arena readings* are readings (R2) of Z(A)" in rule
+    assert "5 repetitions (R3) with the trim on and 5 with it off" in rule
+    assert "The measure is the cgroup's `memory.current`, read after the export" in rule
+    assert ("the trim is kept only if the max with the trim on is lower than the max with it "
+            "off at every artifact") in rule
+    assert "`_release_arenas` is kept if" not in rule

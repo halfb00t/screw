@@ -442,8 +442,12 @@ the container's peak. With one worker, the container peak is that worker's peak.
 
 ## R23 - Tessellation, arenas and recycling
 
-The tessellation presets are kept. `_release_arenas` is kept if the retained memory after an export
-is lower with it than without. `max_tasks_per_child` stays unset unless the drift run shows growth
+The tessellation presets are kept. `_release_arenas` (the trim) is kept only if the retained memory
+after an export is lower with it than without, at every artifact. For each artifact A the *arena
+readings* are readings (R2) of Z(A), the drift run's part (below), at A: 5 repetitions (R3) with the
+trim on and 5 with it off. The measure is the cgroup's `memory.current`, read after the export. The
+maxima over the 5 repetitions are compared, and the trim is kept only if the max with the trim on is
+lower than the max with it off at every artifact. `max_tasks_per_child` stays unset unless the drift run shows growth
 above its allowance for any artifact; if it does, the phase stops and asks the owner, because no rule
 here sets a recycling value.
 
