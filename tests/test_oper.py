@@ -1874,8 +1874,10 @@ def test_the_required_tier_fixes_its_candidates_edge_draw_ties_and_duplicates() 
     assert "the first in file order is kept" in rule
     assert "a tie going to the label that sorts first" in rule
     assert "shuffled by `random.Random(20261026).shuffle`" in rule
-    assert "Under C3 `stl-preview` and `step` have no finite component" in rule
-    assert "the edge ratio is the point's enveloped build-seconds prediction" in rule
+    assert "Where no component is finite for A" in rule
+    assert "which under C3 is `stl-preview` and `step`" in rule
+    assert "the edge ratio is the point's enveloped build-seconds prediction, by this rule" in rule
+    assert "ranked by seconds and not by bytes" in rule
     assert "it stops at the first draw point that does not fit and skips none" in rule
 
 

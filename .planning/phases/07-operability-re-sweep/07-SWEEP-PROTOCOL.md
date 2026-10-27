@@ -430,10 +430,11 @@ that two implementations write the same list.
 2. *The budget edge.* The edge ratio of a point is the largest, over the targets (bytes, seconds, peak)
    whose component of the chosen budget (R13) is finite for A, of its enveloped prediction (R12) divided
    by that component. C1 has a finite component for every target; C2 only for the peak (4 x 10^9 bytes,
-   every artifact); C3 only for the raw bytes of `stl-fine` (Q). Under C3 `stl-preview` and `step` have
-   no finite component, being bounded only by the walls (R7 to R10), which a prediction is not divided
-   by: for them the edge ratio is the point's enveloped build-seconds prediction, so their edge is the
-   slowest part the model admits.
+   every artifact); C3 only for the raw bytes of `stl-fine` (Q). Where no component is finite for A,
+   which under C3 is `stl-preview` and `step` (bounded only by the walls, R7 to R10, which a prediction
+   is not divided by), the edge ratio is the point's enveloped build-seconds prediction, by this rule
+   and not as a stand-in for an infinite component: the edge of an artifact the budget leaves
+   unbounded is the slowest part the model admits, ranked by seconds and not by bytes.
 3. *The edge points.* The 3 candidates with the largest edge ratio, largest first, a tie going to the
    label that sorts first (plain string comparison).
 4. *The draw.* The other candidates, in file order, shuffled by `random.Random(20261026).shuffle`
