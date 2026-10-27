@@ -292,26 +292,25 @@ The load run starts the server in the image with `SCREW_BUILD_WORKERS = N`, a qu
 (`SCREW_MAX_QUEUED_BUILDS`) and 2N concurrent clients.
 
 *The mix.* The load run measures the cold worst case: no request repeats a part anywhere in a run,
-so neither cache can hit. A pass has 20 parts for each artifact, taken by one walk of the lists D(A) of
+so neither cache can hit. A run has 20 parts for each artifact, taken by one walk of the lists D(A) of
 R27 (the 3 edge points first, then the draw). The artifacts are walked in the order `stl-fine`, `step`,
 `stl-preview`, fixed here before any reading: `stl-preview`, the coarser mesh of the same solid, goes
 last so that the other two take the edge points that the artifacts would otherwise contend for. For
 each artifact the walk takes, 20 times, the first part of D(A) that is unused and whose `explore`
 reading is `ok` (a part that failed there is a tier failure, R29, and not a load sample). A part is
-used once any artifact has taken it in any pass of this run, so no part appears twice in a run, the
-three artifacts of one part included. Pass 1 walks the three artifacts in that order, 20 parts each,
-and pass 2 then walks them again for 20 more each; the walk goes on past R27's 10 minutes. If a list cannot supply its 40 parts the phase stops and
-asks the owner: no part is repeated to fill a gap. 20 is the floor of samples per reported p95, so each
-artifact reports its own p95 over its own 20. A pass's mix is its 60 requests (part, artifact), listed
-in the walk's order and shuffled once by a new `random.Random(20261026).shuffle`; each pass's order is
-the same in every repetition and at every N. A client takes the next request as soon as its previous
+used once any artifact has taken it, so no part appears twice in a run, the three artifacts of one
+part included; the walk goes on past R27's 10 minutes. If a list cannot supply its 20 parts the phase
+stops and asks the owner: no part is repeated to fill a gap. 20 is the floor of samples per reported
+p95, so each artifact reports its own p95 over its own 20. The mix of a run is its 60 requests (part,
+artifact), listed in the walk's order and shuffled once by a new `random.Random(20261026).shuffle`; the
+order is the same in every repetition and at every N. A client takes the next request as soon as its previous
 response is complete, and the first 2N start together. The `/api/health` probes of R24 and R25 are not
 part of the mix.
 
-*The passes.* A repetition runs two passes back to back on one server, each a mix of its own 60
-parts. The p95 (`statistics.quantiles(n=20)`, the 19th cut point) and the medians are over pass 1: 20
-samples per artifact and 60 over all requests. Pass 2 serves R23 and the end-of-load peak of R16, on a
-server that has already served pass 1. The container's cgroup peak is read at the end of each pass.
+*The measures.* The p95 (`statistics.quantiles(n=20)`, the 19th cut point) and the medians are over
+the run: 20 samples per artifact and 60 over all requests. The container's cgroup peak is read once,
+at the end of the run; it is a high-water mark, so that read covers the whole run. The run measures
+latency and the peak under load; growth across repeated builds is the drift run of R23.
 
 *The caches and the encoding.* Every repetition is a new container, so both caches start empty, and no
 part repeats, so neither can hit. `SCREW_EXPORT_CACHE_MB` is 1, the smallest value the server accepts
@@ -325,8 +324,8 @@ builds and serving, not gzip (R19 owns the level). 5 repetitions (R3).
 `W` is the max `memory_peak_bytes` over the N = 1 contention containers of every point of
 every bound set (R14), the memory extrema of each included. `B` is the max idle-server peak
 before load. `mem_limit(N)` is the larger of `W x N + B +` the export cache budget `+` the tmpfs
-size, and the max load peak at N (read at the end of pass 2), rounded up to 256 MiB. N qualifies when `mem_limit(N)` is under
-both 16 x 10^9 bytes and the smallest `MemTotal` any runner header recorded, and N is at most
+size, and the max load peak at N (read at the end of the load run, R15), rounded up to 256 MiB. N
+qualifies when `mem_limit(N)` is under both 16 x 10^9 bytes and the smallest `MemTotal` any runner header recorded, and N is at most
 `nproc - 1`. The pick is the qualifying N with the lowest load p95 over all requests (the max over
 its 5 repetitions of each repetition's p95, D-04), ties to the smaller N. 256 MiB is a rounding
 step fixed before the data: small against the 16 GB ceiling (about 1.7 %), large enough to be a visible
@@ -372,9 +371,35 @@ worker, measured in the load run.
 ## R23 - Tessellation, arenas and recycling
 
 The tessellation presets are kept. `_release_arenas` is kept if the retained memory after an export
-is lower with it than without. `max_tasks_per_child` stays unset unless the peak read after pass 2 of
-the load run (R15) is higher than the peak read after pass 1 by more than one cached solid
-(`W(4) - W(3)`); if it is, the phase stops and asks the owner, because no rule here sets a recycling value.
+is lower with it than without. `max_tasks_per_child` stays unset unless the drift run shows growth
+above its allowance for any artifact; if it does, the phase stops and asks the owner, because no rule
+here sets a recycling value.
+
+*The drift run.* It is separate from the load run, because a load run builds different parts and a
+larger transient build later in it would read as growth. For each artifact it builds one fixed part
+K = 20 times in a row, and compares the cgroup peak after build 1 with the peak after build K.
+
+- *The part.* Z(A) is the point of A's bound set (R14) with the largest `memory_peak_bytes` in its
+  `explore` reading, among those whose reading is `ok`, a tie going to the label that sorts first:
+  R14's measured memory extremum.
+- *K.* 20, the number of parts a load run takes for each artifact (R15).
+- *The reading.* One fresh container of the image under the R2 cap, one per artifact and repetition,
+  5 repetitions (R3). One process does what a pool worker does and nothing else: it builds and exports
+  Z(A) at A, K times, one after another. Before each build it empties the solid cache
+  (`screw.solid.clear_cache`), so every build is cold: the cache keeps at least one solid
+  (`int_env` floors `SCREW_SOLID_CACHE` at 1), so a repeat of one part would otherwise be a hit and
+  not a build. It runs below the HTTP layer, so the export cache and the response encoding play no part.
+  The peak is read as R2 says, after the build and its export, after every build; the rule reads builds
+  1 and K. The deadline is K x the artifact's timeout (R14).
+- *The drift.* The drift of a repetition is the peak after build K minus the peak after build 1; the
+  drift of the artifact is the max over its 5 repetitions. Any repetition that is not `ok`, or whose
+  readings after build 1 or build K are missing, leaves the artifact with no drift and the phase stops
+  and asks the owner.
+- *The allowance.* The drift above which recycling needs investigation is a number the owner fixes
+  before the first drift reading, in an amendment committed ahead of it; the drift run does not start
+  without it. No rule here derives one: the load run's cached-solid margin (`W(4) - W(3)`) does not
+  apply, because every build here starts from an empty solid cache, and `W(3)` is measured only when
+  R22 steps down.
 
 ## R24 - SCREW_WORKERS
 

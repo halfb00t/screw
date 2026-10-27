@@ -1860,7 +1860,8 @@ def test_the_load_run_is_the_cold_worst_case_with_no_part_repeated() -> None:
     assert "no request repeats a part anywhere in a run" in rule
     assert "The artifacts are walked in the order `stl-fine`, `step`, `stl-preview`" in rule
     assert "the three artifacts of one part included" in rule
-    assert "pass 2 then walks them again for 20 more each" in rule
+    assert "A run has 20 parts for each artifact" in rule
+    assert "pass" not in rule
     assert "no part is repeated to fill a gap" in rule
     assert "a new `random.Random(20261026).shuffle`" in rule
     assert "`SCREW_EXPORT_CACHE_MB` is 1" in rule
@@ -1899,5 +1900,40 @@ def test_explore_holds_enough_distinct_parts_for_a_load_run_that_repeats_none() 
     for point in _generated()["explore"]["points"]:
         key = json.dumps([point["kind"], point["params"]], sort_keys=True)
         parts.setdefault(point["artifact"], set()).add(key)
-    assert all(len(keys) >= 40 for keys in parts.values())  # 2 passes x 20 per artifact
-    assert len(set().union(*parts.values())) >= 120  # 2 passes x 60 parts, none shared
+    assert all(len(keys) >= 20 for keys in parts.values())  # 20 per artifact
+    assert len(set().union(*parts.values())) >= 60  # 3 x 20 parts, none shared
+
+
+def test_the_load_peak_is_read_once_at_the_end_of_one_run_and_drift_is_the_drift_runs() -> None:
+    load = " ".join(_rule(15).split())
+    assert "The container's cgroup peak is read once, at the end of the run" in load
+    assert "growth across repeated builds is the drift run of R23" in load
+    assert "read at the end of the load run, R15" in " ".join(_rule(16).split())
+
+
+def test_the_drift_run_builds_one_fixed_part_cold_k_times_and_compares_the_first_and_last_peak(
+) -> None:
+    rule = " ".join(_rule(23).split())
+    assert "It is separate from the load run" in rule
+    assert "K = 20 times in a row" in rule
+    assert "the point of A's bound set (R14) with the largest `memory_peak_bytes`" in rule
+    assert "among those whose reading is `ok`" in rule
+    assert "a tie going to the label that sorts first" in rule
+    assert "`screw.solid.clear_cache`" in rule
+    assert "compares the cgroup peak after build 1 with the peak after build K" in rule
+    assert "the drift of the artifact is the max over its 5 repetitions" in rule
+    assert "the drift run does not start without it" in rule
+    assert "pass 2" not in rule
+
+
+def test_a_repeated_part_would_hit_the_solid_cache_so_the_drift_run_empties_it(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    """The reason the drift run cannot just repeat a request: the cache keeps at least one solid,
+    and a repeat of the same validated params is a hit, not a build."""
+    from screw import int_env
+    from screw.solid import _build_cached, clear_cache
+
+    monkeypatch.setenv("SCREW_SOLID_CACHE", "0")
+    assert int_env("SCREW_SOLID_CACHE", 4) == 1
+    assert _build_cached.cache_parameters()["maxsize"] >= 1
+    clear_cache()  # exists, and is what the rule names
