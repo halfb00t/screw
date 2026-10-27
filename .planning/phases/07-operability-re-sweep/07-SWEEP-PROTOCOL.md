@@ -168,8 +168,8 @@ For a set with a new run, a shard is a run of consecutive points of the set in t
 file, and each point is charged a number of seconds. A shard is the longest such prefix of the points
 not yet placed whose summed charge stays under half the measure job's `timeout-minutes`; the shard
 count is the number of shards that places every point. Half leaves the other half for a slower runner
-instance and for the image build. A point whose own charge is not under that half stops the phase and
-asks the owner.
+instance and for the image build. A point of an explore-like set whose own charge is not under that half
+stops the phase and asks the owner; a reading of the contention, load and drift sets is ruled below.
 
 For a set of explore-like parts (`walls`, the walls confirm set and the R7 walk-down set), each point is
 charged the largest `wall_s` of any `explore` reading in its (kind, artifact) group, whatever the
@@ -178,9 +178,13 @@ wall measured for its kind of part at its artifact. A (kind, artifact) group wit
 is charged its `deadline_s`, as no figure is invented for it.
 
 For the contention, load and drift sets, no `explore` reading is a bound on a point, so each reading is
-charged its `deadline_s` (600 s, R2) and the shards are cut by the same rule; or the set runs as one
-job per repetition (the 5 repetitions of R3, each its own matrix job). The plan that dispatches the
-set states which before the dispatch.
+charged the deadline its own rule sets: 600 s where R2's deadline applies, and K x
+the artifact's timeout for a drift reading, that is 20 x that timeout (R23), which is not 600 s. The
+shards are cut by the same rule. A reading whose deadline does not fit under half the job's
+`timeout-minutes` runs as one job per repetition (the 5 repetitions of R3, each its own matrix job). A
+reading that cannot fit in a job at all, its deadline being no less than the job's `timeout-minutes`,
+stops the phase and asks the owner. The plan that dispatches the set states, before the dispatch, which
+way each of its readings runs.
 
 ## R7 - MAX_TURNS (D-08)
 

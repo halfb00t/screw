@@ -2103,8 +2103,15 @@ def test_a_shard_is_the_longest_file_order_prefix_that_fits_under_half_the_timeo
     assert "whatever the status of that reading" in rule
     assert "A (kind, artifact) group with no `explore` reading is charged its `deadline_s`" in rule
     assert "For the contention, load and drift sets" in rule
-    assert "each reading is charged its `deadline_s` (600 s, R2)" in rule
-    assert "or the set runs as one job per repetition" in rule
+    assert "each reading is charged the deadline its own rule sets: 600 s where R2's deadline" \
+        in rule
+    assert "and K x the artifact's timeout for a drift reading, that is 20 x that timeout (R23)" \
+        in rule
+    assert "(600 s, R2)" not in rule
+    assert "A reading whose deadline does not fit under half the job's `timeout-minutes` runs as" \
+        " one job per repetition" in rule
+    assert "A reading that cannot fit in a job at all" in rule
+    assert "stops the phase and asks the owner" in rule
 
 
 def test_a_worker_count_qualifies_only_with_five_ok_load_repetitions() -> None:
