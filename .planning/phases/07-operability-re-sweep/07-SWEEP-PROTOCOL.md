@@ -291,23 +291,34 @@ artifact is `ceil(2 x` that max `)` seconds. The 2 is D-09's factor.
 The load run starts the server in the image with `SCREW_BUILD_WORKERS = N`, a queue depth of 2N
 (`SCREW_MAX_QUEUED_BUILDS`) and 2N concurrent clients.
 
-*The mix.* Per artifact, 20 admitted parts: the artifact's 3 edge points of R27, then the admitted
-`explore` points in R27's draw order until there are 20 (the draw goes on past R27's 10 minutes if it
-must). 20 is the floor of samples per reported p95, so each artifact reports its own p95 over its own 20.
-The mix is the 60 requests (part, artifact), listed artifact by artifact in that order and shuffled once
-by `random.Random(20261026).shuffle`; that order is the same in every repetition and at every N. A
-client takes the next request as soon as its previous response is complete, and the first 2N start
-together.
+*The mix.* The load run measures the cold worst case: no request repeats a part anywhere in a run,
+so neither cache can hit. A pass has 20 parts for each artifact, taken by one walk of the lists D(A) of
+R27 (the 3 edge points first, then the draw). The artifacts are walked in the order `stl-fine`, `step`,
+`stl-preview`, fixed here before any reading: `stl-preview`, the coarser mesh of the same solid, goes
+last so that the other two take the edge points that the artifacts would otherwise contend for. For
+each artifact the walk takes, 20 times, the first part of D(A) that is unused and whose `explore`
+reading is `ok` (a part that failed there is a tier failure, R29, and not a load sample). A part is
+used once any artifact has taken it in any pass of this run, so no part appears twice in a run, the
+three artifacts of one part included. Pass 1 walks the three artifacts in that order, 20 parts each,
+and pass 2 then walks them again for 20 more each; the walk goes on past R27's 10 minutes. If a list cannot supply its 40 parts the phase stops and
+asks the owner: no part is repeated to fill a gap. 20 is the floor of samples per reported p95, so each
+artifact reports its own p95 over its own 20. A pass's mix is its 60 requests (part, artifact), listed
+in the walk's order and shuffled once by a new `random.Random(20261026).shuffle`; each pass's order is
+the same in every repetition and at every N. A client takes the next request as soon as its previous
+response is complete, and the first 2N start together. The `/api/health` probes of R24 and R25 are not
+part of the mix.
 
-*The passes.* A repetition runs the mix twice back to back on one server, pass 1 and pass 2, in the
-same order. The p95 (`statistics.quantiles(n=20)`, the 19th cut point) and the medians are over pass 1:
-20 samples per artifact and 60 over all requests. Pass 2 serves R23. The container's cgroup peak is read
-at the end of each pass.
+*The passes.* A repetition runs two passes back to back on one server, each a mix of its own 60
+parts. The p95 (`statistics.quantiles(n=20)`, the 19th cut point) and the medians are over pass 1: 20
+samples per artifact and 60 over all requests. Pass 2 serves R23 and the end-of-load peak of R16, on a
+server that has already served pass 1. The container's cgroup peak is read at the end of each pass.
 
-*The caches.* Every repetition is a new container, so both caches start empty. `SCREW_EXPORT_CACHE_MB`
-is 1, the smallest value the server accepts (`int_env` floors it at 1), so the export cache keeps no
-output over 1 MiB and the load measures builds; `SCREW_SOLID_CACHE` is 4 unless R22 is measuring a K.
-5 repetitions (R3).
+*The caches and the encoding.* Every repetition is a new container, so both caches start empty, and no
+part repeats, so neither can hit. `SCREW_EXPORT_CACHE_MB` is 1, the smallest value the server accepts
+(`int_env` floors it at 1): that cache can still store an output under 1 MiB, but with no repeated part
+it serves none, so the load measures builds. `SCREW_SOLID_CACHE` is 4 unless R22 is measuring a K. Every
+request carries `Accept-Encoding: identity`, so no response is compressed and the load measures
+builds and serving, not gzip (R19 owns the level). 5 repetitions (R3).
 
 ## R16 - The worker count and mem_limit (D-02, D-03)
 
@@ -385,10 +396,30 @@ rounded up to the 256 MiB step of R16 and inside `mem_limit`.
 
 ## R27 - The required tier (D-12)
 
-Per artifact, the 3 admitted points nearest the budget edge (the largest enveloped prediction over the
-budget), plus admitted `explore` points drawn in `random.Random(20261026)` order (the seed is the
-date of the owner's rulings, 2026-10-26, written as an integer; any fixed integer would do, and this
-one is fixed here) while the summed measured cold walls stay under 10 minutes (D-12's target).
+Per artifact A, the tier is taken from an ordered list D(A) of admitted points, fixed by these steps so
+that two implementations write the same list.
+
+1. *Candidates.* The admitted `explore` points at A, in the order of the `explore` file, deduplicated by
+   part: two points are one part when their kind and params are equal as JSON objects, and the first in
+   file order is kept.
+2. *The budget edge.* The edge ratio of a point is the largest, over the targets (bytes, seconds, peak)
+   whose component of the chosen budget (R13) is finite for A, of its enveloped prediction (R12) divided
+   by that component. C1 has a finite component for every target; C2 only for the peak (4 x 10^9 bytes,
+   every artifact); C3 only for the raw bytes of `stl-fine` (Q). Under C3 `stl-preview` and `step` have
+   no finite component, being bounded only by the walls (R7 to R10), which a prediction is not divided
+   by: for them the edge ratio is the point's enveloped build-seconds prediction, so their edge is the
+   slowest part the model admits.
+3. *The edge points.* The 3 candidates with the largest edge ratio, largest first, a tie going to the
+   label that sorts first (plain string comparison).
+4. *The draw.* The other candidates, in file order, shuffled by `random.Random(20261026).shuffle`
+   (CPython 3.12, a new generator for each artifact). The seed is the date of the owner's rulings,
+   2026-10-26, written as an integer; any fixed integer would do, and this one is fixed here.
+5. *The tier.* D(A) is the 3 edge points and then the draw. The tier takes the 3 edge points always,
+   then draw points in order, each only if the summed measured cold walls (`build_s + export_s` of the
+   `explore` readings) of the points taken, itself included, stay under 10 minutes (600 s, D-12's
+   target); it stops at the first draw point that does not fit and skips none. A point whose `explore`
+   reading is not `ok` has no wall to add; it is in the tier all the same, and if it fails again it
+   fails the tier (R29).
 
 ## R28 - The full tier (D-12)
 

@@ -1853,3 +1853,51 @@ def test_a_turn_bound_stands_only_on_ok_boundary_readings_and_otherwise_stops_th
     assert "or a reading it asks for that is missing" in rule
     assert "No turn bound is then awarded, 250 included," in rule
     assert "the phase stops and asks the owner" in rule
+
+
+def test_the_load_run_is_the_cold_worst_case_with_no_part_repeated() -> None:
+    rule = " ".join(_rule(15).split())
+    assert "no request repeats a part anywhere in a run" in rule
+    assert "The artifacts are walked in the order `stl-fine`, `step`, `stl-preview`" in rule
+    assert "the three artifacts of one part included" in rule
+    assert "pass 2 then walks them again for 20 more each" in rule
+    assert "no part is repeated to fill a gap" in rule
+    assert "a new `random.Random(20261026).shuffle`" in rule
+    assert "`SCREW_EXPORT_CACHE_MB` is 1" in rule
+    assert "Every request carries `Accept-Encoding: identity`" in rule
+
+
+def test_the_required_tier_fixes_its_candidates_edge_draw_ties_and_duplicates() -> None:
+    rule = " ".join(_rule(27).split())
+    assert "deduplicated by part" in rule
+    assert "the first in file order is kept" in rule
+    assert "a tie going to the label that sorts first" in rule
+    assert "shuffled by `random.Random(20261026).shuffle`" in rule
+    assert "Under C3 `stl-preview` and `step` have no finite component" in rule
+    assert "the edge ratio is the point's enveloped build-seconds prediction" in rule
+    assert "it stops at the first draw point that does not fit and skips none" in rule
+
+
+def test_the_seeded_shuffle_the_protocol_names_is_the_one_python_3_12_gives() -> None:
+    import random
+
+    order = list(range(12))
+    random.Random(20261026).shuffle(order)
+    assert order == [8, 11, 9, 10, 5, 0, 4, 6, 7, 2, 3, 1]
+
+
+def test_the_export_cache_setting_floors_at_one_so_the_load_run_cannot_turn_it_off(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    from screw import int_env
+
+    monkeypatch.setenv("SCREW_EXPORT_CACHE_MB", "0")
+    assert int_env("SCREW_EXPORT_CACHE_MB", 64) == 1
+
+
+def test_explore_holds_enough_distinct_parts_for_a_load_run_that_repeats_none() -> None:
+    parts: dict[str, set[str]] = {}
+    for point in _generated()["explore"]["points"]:
+        key = json.dumps([point["kind"], point["params"]], sort_keys=True)
+        parts.setdefault(point["artifact"], set()).add(key)
+    assert all(len(keys) >= 40 for keys in parts.values())  # 2 passes x 20 per artifact
+    assert len(set().union(*parts.values())) >= 120  # 2 passes x 60 parts, none shared
