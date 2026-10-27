@@ -3,7 +3,7 @@
 Written before any runner reading of the phase exists. Every selection rule, threshold, seed, set
 and rounding that Phase 7 applies to a measurement is fixed here, so a bound is credible because
 its rule was fixed before its data (the L11 method; `07-RESEARCH.md` Pattern 1). Plans 07-03 to
-07-17 apply these rules; none of them may change one (R30).
+07-20 apply these rules; none of them may change one (R30).
 
 - **Branch:** `gsd/phase-07-preregistration` (PR A: the harness, the point files and this file).
 - **Point files:** written by `bench/oper_sets.py`; `python -m bench.oper_sets --check` and
@@ -54,7 +54,7 @@ substituted figure.
 
 ## R3 - Repetitions (D-04, D-19)
 
-Exploration takes 1 repetition per point (`explore`, `walls`, `controls`). 5 repetitions are taken
+Exploration takes 1 repetition per point (`explore`, `walls`, `controls` and the R7 walk-down set). 5 repetitions are taken
 on `spread` and on every set that sets a bound: the Runs II bound set, the contention and load sets
 and the walls confirm set. The 5 repetitions of a point are 5 matrix jobs (`rep` 1 to 5), so 5
 runner instances. Per point the median and the max over its ok repetitions are recorded; a point
@@ -71,7 +71,10 @@ status; a disagreement keeps the stricter outcome, that is the lower wall.
 
 The *next step past* a decided value is: for R7, 10 turns more (260 where 250 stands); for R8, the next
 decade (1e6 where 1e5 stands); for R9 and R10, the next smaller walked value, which `walls` groups (c)
-and (d) already hold. A step that lies past a validator's own cap would be refused before the kernel, so
+and (d) already hold. Where R9 or R10 decides "above 0", no walked value lies below the decided one, so
+the confirm set for that rule is the smallest walked value (tail 1e-9 mm, root radius 1e-6 mm) for every
+cell of the rule, at 5 repetitions, and nothing past it. Any reading there that is not `ok` awards no
+floor, and the phase stops and asks the owner, as R7 does. A step that lies past a validator's own cap would be refused before the kernel, so
 `walls` group (f) holds it with a `lift`: one named guard replaced by one stated limit, `max_turns` for
 `MAX_TURNS` and `max_mm` for the `le` bound of every length field. Every other validator still runs,
 and the reading records the lift (`bench/oper_lift.py`). A reading past a cap awards nothing: R7 and R8
@@ -154,31 +157,53 @@ error text. The ruled-surface rows need a reference package and are out of this 
 ## R5 - The margin (D-19)
 
 The margin `m` is the largest `max / median - 1` of the cold wall (`build_s + export_s`) over the
-`spread` points, from their 5 repetitions. A bulk row of the full tier (R28), read once, is re-run at
+`spread` points, from their 5 repetitions. If any `spread` point has no median (a repetition that is
+not `ok`, or repetitions that are incomplete, R3), `m` has no number and the phase stops and asks the
+owner. A bulk row of the full tier (R28), read once, is re-run at
 5 repetitions when its single cold wall x (1 + `m`) reaches its artifact's timeout.
 
 ## R6 - Shard size (D-19)
 
-For a set with a new run, the shard size is the largest point count whose summed measured `wall_s`
-(from the explore records, per artifact and kind) stays under half the measure job's
-`timeout-minutes`; the shard count is the point count divided by it, rounded up. Half leaves the
-other half for a slower runner instance and for the image build.
+For a set with a new run, a shard is a run of consecutive points of the set in the order of its
+file, and each point is charged a number of seconds. A shard is the longest such prefix of the points
+not yet placed whose summed charge stays under half the measure job's `timeout-minutes`; the shard
+count is the number of shards that places every point. Half leaves the other half for a slower runner
+instance and for the image build. A point of an explore-like set whose own charge is not under that half
+stops the phase and asks the owner; a reading of the contention, load and drift sets is ruled below.
+
+For a set of explore-like parts (`walls`, the walls confirm set and the R7 walk-down set), each point is
+charged the largest `wall_s` of any `explore` reading in its (kind, artifact) group, whatever the
+status of that reading (`wall_s` is kept for every status, R2), so a part is charged the slowest cold
+wall measured for its kind of part at its artifact. A (kind, artifact) group with no `explore` reading
+is charged its `deadline_s`, as no figure is invented for it.
+
+For the contention, load and drift sets, no `explore` reading is a bound on a point, so each reading is
+charged the deadline its own rule sets: 600 s where R2's deadline applies, and K x
+the artifact's timeout for a drift reading, that is 20 x that timeout (R23), which is not 600 s. The
+shards are cut by the same rule, so a reading whose deadline alone fills a shard runs in a job of its
+own. A reading whose deadline is not under half the job's `timeout-minutes` stops the phase and asks
+the owner: the job timeout also counts the runner setup, the image build and the upload of the
+records, and the other half is kept for them.
 
 ## R7 - MAX_TURNS (D-08)
 
 A *cell* is a size, a hand and a kind (bolt rod or nut void): 15 x 2 x 2. A cell's *first ok step* is
-250 if its 250-turn reading (`walls`, group (a)) is `ok`. A `refused` or `crashed` reading starts a
-walk-down set for the cell at 240, 230, ... (step 10 turns), which goes on to the cell's first `ok`
-step; that step is then the cell's first ok step.
+250 if its 250-turn reading (`walls`, group (a)) is `ok`. A cell whose 250-turn reading is `refused`
+or `crashed` is in the *walk-down set*: the set reads every such cell at every step of 10 turns from
+240 down to 10, at 1 repetition, in one dispatch. The cell's first ok step is the highest of those
+steps whose reading is `ok`. A cell's readings below its first ok step are recorded and used for
+nothing: they are not boundary evidence (below) and no rule reads them; the 5-repetition confirm at T
+decides. A cell with no `ok` step has no first ok step, so no turn bound is awarded and the phase
+stops and asks the owner.
 
 The *candidate* T is the smallest first ok step over the cells. It is a provisional common value: the
-cells need not end their walks at the same step, and a cell is read at T only if T is its own first ok
-step or the confirmation set below asks for it. `MAX_TURNS` is T only if the confirmation readings
+cells need not end their walks at the same step. `MAX_TURNS` is T only if the confirmation readings
 (R3: the readings at T and at the next step past it, 5 repetitions) at T are `ok`, in all 5
-repetitions, for every cell. A
-cell whose first ok step is above T has not been read at T yet; the confirmation set reads it there.
-A confirmation reading at T that is not `ok`, or is missing, awards no turn bound, 250 included, and
-the phase stops and asks the owner; no other value is tried.
+repetitions, for every cell. The confirmation set reads every cell at T, at 5 repetitions taken fresh,
+whether or not that cell already has a 1-repetition reading at T (its own first ok step, or a step
+below it that the complete walk-down read): such a reading is not one of the 5 and stands in for none
+of them. A confirmation reading at T that is not `ok`, or is missing, awards no turn bound, 250
+included, and the phase stops and asks the owner; no other value is tried.
 
 The boundary evidence is every reading this walk asks for: the 250-turn readings, each walk-down
 reading down to a cell's first ok step, and the confirmation readings at T. The bound stands only on
@@ -211,7 +236,8 @@ is no number.
 
 Let F be the largest `tail` in `walls` group (c) whose reading is `refused` or `crashed` at any size or
 hand (F = 0 when none fails). `MIN_TAIL_MM` is the smallest power of ten at or above 100 F. If no reading
-fails down to 1e-9 mm, the floor stays "above 0" and the entry says the walk reached 1e-9 mm. 100 is
+fails down to 1e-9 mm, the floor stays "above 0" and the entry says the walk reached 1e-9 mm, but only if
+the confirm set of R3 at 1e-9 mm, for every size and hand, is `ok` in all 5 repetitions. 100 is
 two decades, a margin fixed here before any reading; it is a margin, not a measured figure.
 
 The value V this names stands only on `ok` readings. V must be a tail the walk holds (at most 1e-2),
@@ -225,7 +251,8 @@ either (R8). Otherwise there is no number: the phase stops and asks the owner.
 Let F be the largest root radius `r` in `walls` group (d) whose reading is `refused` or `crashed`, at
 any size, hand, rod or void (F = 0 when none fails). `MIN_ROOT_RADIUS_MM` is the smallest power of ten
 at or above 10 F. If no reading fails down to 1e-6 mm, the floor stays "above 0" and the entry says
-the walk reached 1e-6 mm. 10 is one decade, the coarsest margin that is still tighter than the
+the walk reached 1e-6 mm, but only if the confirm set of R3 at 1e-6 mm, for every size, hand, rod and
+void, is `ok` in all 5 repetitions. 10 is one decade, the coarsest margin that is still tighter than the
 tail rule's 100; the walk's own steps are half-decades, so 10 F sits at least two steps clear of F.
 
 The value V this names stands only on `ok` readings. V must be a radius the walk holds (1e-2 to 1e-6
@@ -251,7 +278,14 @@ dependency.
 For each (kind, artifact, target) the envelope `e` is `max(0, largest actual / predicted - 1)` over
 the fitted readings. A part is admitted if and only if `prediction x (1 + e)` is at most the budget
 for every target. A later reading (Runs II, either tier) above its envelope widens `e` and is
-recorded with its run id.
+recorded with its run id, but only a cold isolated reading widens it: a reading of a part in a fresh
+container with no other build running, which is a part reading of either tier, a contention reading at
+N = 1 and build 1 of a drift repetition. A contended wall (a contention reading at N = 2 or 3), a load
+request wall and a drift build 2 to K never widen `e`.
+
+D(A) (R27 steps 1 to 4), the bound set (R14) and the load mix (R15) are each fixed once, from the
+enveloped prediction they were first computed from, and are never redrawn when `e` widens. A widening
+changes admission and the final numbers only.
 
 ## R13 - The budget candidates (Q1, B-01)
 
@@ -271,7 +305,8 @@ build and bytes:
   as fine STL bytes at the peak per output byte of the largest measured fine STL. The preview and STEP
   artifacts are bounded only by the walls (R7 to R10).
 
-The owner rules (B-01). No candidate is a figure until then, and nothing downstream of the budget
+The owner rules (B-01), and the ruling is one of C1, C2 and C3: no other triple is offered or taken.
+No candidate is a figure until then, and nothing downstream of the budget
 (R14 to R29) runs before that ruling.
 
 ## R14 - The bound set, contention and the timeouts (D-09)
@@ -281,7 +316,7 @@ prediction, plus the worst measured admitted point (the largest cold wall in `ex
 memory extrema: the admitted point with the largest enveloped peak-bytes prediction and the admitted
 point with the largest measured peak (the largest `memory_peak_bytes` in `explore`). The candidates are
 the admitted `explore` points at that artifact (for the two measured choices, those whose reading is
-`ok`), a tie going to the label that sorts first; a point that is in two of these groups counts once, so the set holds 5 to 8 points. The
+`ok`), a tie going to the label that sorts first; a point that is in two of these groups counts once, so the set holds 5 to 8 points. The set is drawn once and is not redrawn when `e` widens (R12). The
 memory extrema are in it because W (R16) is read from the bound set's containers, and the heaviest
 point in memory need not be among the slowest. Contention runs, for every point P of the bound set and every N in {1, 2, 3}:
 P on one slot and, on each of the other N - 1 slots, one admitted point of the same artifact, all cold
@@ -325,7 +360,7 @@ part is repeated to fill a gap. The mix of a run is its 60 requests (part, artif
 order the artifacts took them and shuffled once by a new `random.Random(20261026).shuffle`; the order
 is the same in every repetition and at every N. A client takes the next request as soon as its
 previous response is complete, and the first 2N start together. The `/api/health` probes of R24 and
-R25 are not part of the mix.
+R25 are not part of the mix. The mix is drawn once and is not redrawn when `e` widens (R12).
 
 *The measures.* The p95 (`statistics.quantiles(n=20)`, the 19th cut point) and the medians are over
 the run: 20 samples per artifact and 60 over all requests. The container's cgroup peak is read once,
@@ -346,7 +381,8 @@ every bound set (R14), the memory extrema of each included. `B` is the max idle-
 before load. `mem_limit(N)` is the larger of `W x N + B +` the export cache budget `+` the tmpfs
 size, and the max load peak at N (read at the end of the load run, R15), rounded up to 256 MiB. N
 qualifies when `mem_limit(N)` is under both 16 x 10^9 bytes and the smallest `MemTotal` any runner header recorded, and N is at most
-`nproc - 1`. The pick is the qualifying N with the lowest load p95 over all requests (the max over
+`nproc - 1`, and only if all 5 of its load repetitions are `ok`. If no N qualifies, the phase stops
+and asks the owner. The pick is the qualifying N with the lowest load p95 over all requests (the max over
 its 5 repetitions of each repetition's p95, D-04), ties to the smaller N. 256 MiB is a rounding
 step fixed before the data: small against the 16 GB ceiling (about 1.7 %), large enough to be a visible
 margin and not an arithmetic residue.
@@ -354,7 +390,10 @@ margin and not an arithmetic residue.
 ## R17 - The queue depth
 
 `SCREW_MAX_QUEUED_BUILDS` stays 2N if the load run at the picked N shows no timeout and a peak at
-most `mem_limit`; otherwise it is N.
+most `mem_limit`; otherwise it is N. "No timeout" is checked on the existing load records of the
+picked N, after R14 has derived the timeouts: no request's wall, its queue wait plus its build, may
+exceed the timeout of its artifact under the queue-aware deadline (plan 07-02). The check needs no
+further runner time.
 
 ## R18 - Retry-After (D-11)
 
@@ -365,7 +404,8 @@ moves it.
 
 ## R19 - The gzip level
 
-Levels 1, 6 and 9 on the bound set's STL artifacts. A higher level is adopted only if it shrinks the
+Levels 1, 6 and 9 on the bound set's STL artifacts. A level's seconds and bytes are each the max over
+5 repetitions (R3), and the comparison below uses those maxima. A higher level is adopted only if it shrinks the
 bytes by at least 10 % and costs at most 1.5x the seconds of the level below it (1 is the start).
 The rule's shape is spur's; the thresholds are stated here for screw and are not carried figures.
 10 % is the least saving worth a higher level and 1.5x the most extra time accepted for it; both
@@ -386,7 +426,11 @@ part with the largest such sum, rounded up to a whole MiB.
 
 `SCREW_SOLID_CACHE` stays 4 if `mem_limit` computed with `W(4)` at the picked N still qualifies
 (R16), else it is the largest K in {3, 2, 1} that does. `W(K)` is the peak with K solids cached per
-worker, measured in the load run.
+worker. `W(K)` for every K from 1 to 4 is measured after R16's pick, by running the load mix of R15 at
+N = 1 with `SCREW_SOLID_CACHE` = K, 5 repetitions for each K measured, so that every `W(K)` this rule
+compares comes from the same instrument; `W(4)` is not taken from R16's W. K = 4 is measured first,
+then 3, 2 and 1, each only if the K above it did not qualify. `W(K)` is the max over the repetitions of
+the container's peak. With one worker, the container peak is that worker's peak.
 
 ## R23 - Tessellation, arenas and recycling
 
@@ -409,8 +453,8 @@ K = 20 times in a row, and compares the cgroup peak after build 1 with the peak 
   (`screw.solid.clear_cache`), so every build is cold: the cache keeps at least one solid
   (`int_env` floors `SCREW_SOLID_CACHE` at 1), so a repeat of one part would otherwise be a hit and
   not a build. It runs below the HTTP layer, so the export cache and the response encoding play no part.
-  The peak is read as R2 says, after the build and its export, after every build; the rule reads builds
-  1 and K. The deadline is K x the artifact's timeout (R14).
+  The peak is read as R2 says, after the build, its export and a level-1 gzip of the output, after every
+  build; the rule reads builds 1 and K. The deadline is K x the artifact's timeout (R14).
 - *The drift.* The drift of a repetition is the peak after build K minus the peak after build 1; the
   drift of the artifact is the max over its 5 repetitions. Any repetition that is not `ok`, or whose
   readings after build 1 or build K are missing, leaves the artifact with no drift and the phase stops
@@ -470,19 +514,23 @@ that two implementations write the same list.
    was killed, capped, refused or crashed at `explore` has no wall, and may take its whole deadline
    again. It is in the tier all the same, and if it fails again it fails the tier (R29).
 
-   Steps 1 to 4 need no timeout, so D(A) is fixed before the load run (R15). Step 5 needs the
+   Steps 1 to 4 need no timeout, so D(A) is fixed before the load run (R15), and it is not redrawn when
+   `e` widens (R12). Step 5 needs the
    timeouts, which R14 fixes after R16 has picked N, so the tier is built only then and never before.
    A point's charge is its `explore` reading and the timeout, each fixed before the tier is built.
 
 ## R28 - The full tier (D-12)
 
 Every catalogue row x 3 artifacts, the nut factorial, and the dense boundary: per artifact, size and
-hand, the largest admitted integer-turn length. One pass; R5 re-runs apply.
+hand, the largest admitted integer-turn length. One pass; R5 re-runs apply. A pair the cost model refuses is
+still read in the full tier and must return its expected refusal (422 or info status); it is not
+judged against the cost model.
 
 ## R29 - When a tier fails (D-07, D-12)
 
 A tier fails on any non-`ok` reading of an admitted point, a cold wall above its artifact's timeout,
-or `actual / predicted - 1` above its envelope for any target.
+or `actual / predicted - 1` above its envelope for any target. A pair the cost model refuses (R28) fails
+the tier only if it does not return its expected refusal; it has no cost to judge.
 
 ## R30 - Immutability
 
