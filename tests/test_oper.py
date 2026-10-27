@@ -2115,3 +2115,8 @@ def test_the_solid_cache_below_four_is_measured_after_the_pick_with_one_worker()
     assert "`W(K)` for K below 4 is measured after R16's pick" in rule
     assert "the load mix of R15 is run at N = 1 with `SCREW_SOLID_CACHE` = K, 5 repetitions" in rule
     assert "With one worker, the container peak is that worker's peak" in rule
+
+
+def test_the_budget_ruling_is_one_of_the_three_candidates() -> None:
+    rule = " ".join(_rule(13).split())
+    assert "the ruling is one of C1, C2 and C3: no other triple is offered or taken" in rule

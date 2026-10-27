@@ -289,7 +289,8 @@ build and bytes:
   as fine STL bytes at the peak per output byte of the largest measured fine STL. The preview and STEP
   artifacts are bounded only by the walls (R7 to R10).
 
-The owner rules (B-01). No candidate is a figure until then, and nothing downstream of the budget
+The owner rules (B-01), and the ruling is one of C1, C2 and C3: no other triple is offered or taken.
+No candidate is a figure until then, and nothing downstream of the budget
 (R14 to R29) runs before that ruling.
 
 ## R14 - The bound set, contention and the timeouts (D-09)
