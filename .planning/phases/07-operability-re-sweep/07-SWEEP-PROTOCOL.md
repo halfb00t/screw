@@ -255,9 +255,17 @@ The owner rules (B-01). No candidate is a figure until then, and nothing downstr
 The bound set of an artifact is the 5 admitted points with the largest enveloped build-seconds
 prediction, plus the worst measured admitted point (the largest cold wall in `explore`), which is
 one of the 5 or a sixth. Contention runs, for every point P of the bound set and every N in {1, 2, 3}:
-P on one slot and, on the other N - 1 slots, the N - 1 admitted points other than P with the largest
-enveloped build-seconds prediction, all cold and submitted together; the slots are distinct workers of
-the pool (chosen by the pool's affinity hash). Every (P, N) takes 5 repetitions (R3), so no
+P on one slot and, on each of the other N - 1 slots, one admitted point of the same artifact, all cold
+and submitted together. A slot is a worker of the pool, which routes a part to worker `hash(p) % N`
+with `p = KINDS[kind].model_validate(params)` (`BuildPool.executor_for`); the hash is of the field
+values and is the same in every process, so every slot is computed when the set is built, before any
+server runs. P has its own slot. The partner of each other slot is the admitted point other than P
+whose slot at this N is that one and whose enveloped build-seconds prediction is the largest, a tie
+going to the label that sorts first. The N points are therefore on N distinct workers and none waits
+behind another. A slot that holds no admitted point leaves that (P, N) unrunnable, and the phase stops
+and asks the owner: no rule here puts two points on one worker, which would leave a worker idle and
+measure less than N-way contention. The partners are chosen for each (P, N), since the slots depend
+on N. Every (P, N) takes 5 repetitions (R3), so no
 reading waits for a worker count that R16 has not yet picked. The *bound point* of an artifact is the P
 whose max cold wall over its 5 repetitions at the picked N (R16) is the largest. The timeout of the
 artifact is `ceil(2 x` that max `)` seconds. The 2 is D-09's factor.

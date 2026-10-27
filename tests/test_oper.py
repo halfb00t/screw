@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import functools
 import json
+import os
 import re
 import statistics
 import subprocess
@@ -1776,3 +1777,28 @@ def test_the_protocol_records_the_disposition_of_the_two_debt_items_it_leaves_op
                  "2026-10-14-m18-probe-one-entry-has-no-deadline-during-a-run.md"):
         assert item in text
         assert (REPO_ROOT / "docs" / "tech_debt" / "active" / item).is_file()
+
+
+def test_contention_partners_take_one_affinity_slot_each_so_the_workers_are_distinct() -> None:
+    rule = " ".join(_rule(14).split())
+    assert "on each of the other N - 1 slots, one admitted point" in rule
+    assert "`hash(p) % N`" in rule
+    assert "N distinct workers" in rule
+    assert "a tie going to the label that sorts first" in rule
+    assert "the phase stops and asks the owner" in rule
+
+
+def test_the_slot_the_protocol_computes_is_the_pools_and_is_the_same_in_every_process() -> None:
+    import inspect
+
+    from screw.pool import BuildPool
+
+    assert "hash(p) % self.workers" in inspect.getsource(BuildPool.executor_for)
+    code = ("from screw.params import KINDS; "
+            "ps = [KINDS['bolt'].model_validate({'length': n, 'thread_length': n}) "
+            "for n in (20, 30, 40)] + [KINDS['nut'].model_validate({'m': 6})]; "
+            "print([hash(p) % n for p in ps for n in (1, 2, 3)])")
+    seen = {subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
+                           check=True, env={**os.environ, "PYTHONHASHSEED": seed}).stdout
+            for seed in ("1", "2", "random")}
+    assert len(seen) == 1
