@@ -1,0 +1,2046 @@
+"""The operability runner harness (07-01): one reading per fresh container, no number it did not
+measure.
+
+Everything here is synthetic: a fake `/proc` and cgroup tree, canned child lines, text pins over
+the workflow. No Docker and, except for the one end-to-end child test, no kernel. What these
+tests protect is L02 for the harness: a capped, killed, crashed, refused or cgroup-blind reading
+must come out as a status and never as a plausible figure.
+"""
+
+from __future__ import annotations
+
+import functools
+import json
+import os
+import re
+import statistics
+import subprocess
+import sys
+from collections.abc import Mapping
+from pathlib import Path
+from typing import NotRequired, TypedDict
+
+import pytest
+
+import bench
+from bench import oper, oper_child
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+# --- the cgroup reader -------------------------------------------------------------------------
+
+
+def _fake_root(tmp_path: Path, *, mount: str, files: dict[str, str]) -> Path:
+    (tmp_path / "proc").mkdir()
+    (tmp_path / "proc" / "mounts").write_text(mount)
+    for name, text in files.items():
+        target = tmp_path / "sys" / "fs" / "cgroup" / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text)
+    return tmp_path
+
+
+V2_MOUNT = "cgroup2 /sys/fs/cgroup cgroup2 rw,nosuid,nodev,noexec,relatime 0 0\n"
+V1_MOUNT = "cgroup /sys/fs/cgroup/memory cgroup ro,nosuid,nodev,noexec,relatime,memory 0 0\n"
+
+
+def test_the_peak_is_read_from_cgroup_v2_memory_peak(tmp_path: Path) -> None:
+    root = _fake_root(tmp_path, mount=V2_MOUNT, files={"memory.peak": "5640192\n"})
+    assert oper_child.read_peak(root) == 5640192
+
+
+def test_the_peak_is_read_from_cgroup_v1_when_there_is_no_v2_mount(tmp_path: Path) -> None:
+    root = _fake_root(tmp_path, mount=V1_MOUNT,
+                      files={"memory/memory.max_usage_in_bytes": "7340032\n"})
+    assert oper_child.read_peak(root) == 7340032
+
+
+def test_no_cgroup_file_is_no_peak_not_a_zero(tmp_path: Path) -> None:
+    root = _fake_root(tmp_path, mount=V2_MOUNT, files={})
+    with pytest.raises(oper_child.CgroupUnavailable):
+        oper_child.read_peak(root)
+
+
+def test_a_v2_mount_without_memory_peak_does_not_fall_back_to_a_v1_file(tmp_path: Path) -> None:
+    # A kernel before 5.19 has no memory.peak; a stale v1-looking file must not stand in for it.
+    root = _fake_root(tmp_path, mount=V2_MOUNT,
+                      files={"memory/memory.max_usage_in_bytes": "7340032\n"})
+    with pytest.raises(oper_child.CgroupUnavailable):
+        oper_child.read_peak(root)
+
+
+def test_a_missing_mount_table_is_no_peak(tmp_path: Path) -> None:
+    with pytest.raises(oper_child.CgroupUnavailable):
+        oper_child.read_peak(tmp_path)
+
+
+@pytest.mark.parametrize("text", ["max\n", "abc\n", "-5\n", "", "1.5\n"])
+def test_a_peak_file_that_is_not_a_count_of_bytes_is_no_peak(tmp_path: Path, text: str) -> None:
+    root = _fake_root(tmp_path, mount=V2_MOUNT, files={"memory.peak": text})
+    with pytest.raises(oper_child.CgroupUnavailable):
+        oper_child.read_peak(root)
+
+
+def test_oom_kills_come_from_memory_events(tmp_path: Path) -> None:
+    root = _fake_root(tmp_path, mount=V2_MOUNT,
+                      files={"memory.events": "low 0\nhigh 0\nmax 3\noom 1\noom_kill 1\n"})
+    assert oper_child.oom_kills(root) == 1
+
+
+def test_oom_kills_are_unknown_not_zero_when_the_file_is_absent(tmp_path: Path) -> None:
+    assert oper_child.oom_kills(_fake_root(tmp_path, mount=V2_MOUNT, files={})) is None
+
+
+# --- the cap rule ------------------------------------------------------------------------------
+
+
+def test_a_peak_at_99_percent_of_the_cap_is_capped() -> None:
+    assert oper.is_capped(int(oper.CAP_BYTES * 0.99), oper.CAP_BYTES) is True
+
+
+def test_a_peak_one_byte_below_99_percent_of_the_cap_is_not_capped() -> None:
+    assert oper.is_capped(int(oper.CAP_BYTES * 0.99) - 1, oper.CAP_BYTES) is False
+
+
+# --- the child's line --------------------------------------------------------------------------
+
+
+def _ok_line(**over: object) -> str:
+    line: dict[str, object] = {
+        "status": "ok", "build_s": 1.5, "export_s": 0.25, "bytes": 1000, "triangles": 18,
+        "gzip1_bytes": 400, "maxrss_bytes": 90_000_000, "memory_peak_bytes": 120_000_000,
+        "oom_kills": 0, "cadquery": "2.8.0", "cadquery_ocp": "7.9.3.1.1"}
+    line.update(over)
+    return json.dumps(line)
+
+
+def test_a_well_formed_ok_line_parses() -> None:
+    record = oper.parse_child_line(_ok_line())
+    assert record["status"] == "ok"
+    assert record["memory_peak_bytes"] == 120_000_000
+
+
+@pytest.mark.parametrize("bad", ["NaN", "Infinity", "-Infinity", "-1", "-0.5"])
+def test_a_child_number_that_is_not_finite_and_non_negative_is_refused(bad: str) -> None:
+    line = _ok_line().replace("1.5", bad, 1)
+    with pytest.raises(ValueError, match=r"build_s|finite|negative|constant"):
+        oper.parse_child_line(line)
+
+
+def test_an_ok_line_missing_a_key_is_refused() -> None:
+    record = json.loads(_ok_line())
+    del record["memory_peak_bytes"]
+    with pytest.raises(ValueError, match="memory_peak_bytes"):
+        oper.parse_child_line(json.dumps(record))
+
+
+def test_a_line_that_is_not_json_is_refused() -> None:
+    with pytest.raises(ValueError, match="JSON"):
+        oper.parse_child_line("Traceback (most recent call last):")
+
+
+def test_a_json_line_that_is_not_an_object_is_refused() -> None:
+    with pytest.raises(ValueError, match="object"):
+        oper.parse_child_line("[1, 2]")
+
+
+def test_an_unknown_child_status_is_refused() -> None:
+    with pytest.raises(ValueError, match="status"):
+        oper.parse_child_line(json.dumps({"status": "great"}))
+
+
+@pytest.mark.parametrize("status", [[], {}, [1], {"a": 1}, 3, None],
+                         ids=["list", "object", "list-of-one", "object-of-one", "number", "null"])
+def test_a_status_that_is_not_text_is_refused_like_an_unknown_one(status: object) -> None:
+    with pytest.raises(ValueError, match="status"):
+        oper.parse_child_line(json.dumps({"status": status}))
+
+
+@pytest.mark.parametrize("stdout", ['{"status": []}', '{"status": {}}'], ids=["list", "object"])
+def test_a_status_that_is_not_text_is_a_crashed_reading_and_not_a_traceback(stdout: str) -> None:
+    record = _classify(stdout=stdout)
+    assert record["status"] == "crashed"
+    assert "status" in str(record["problem"])
+
+
+def test_a_refused_line_keeps_its_reason_and_drops_every_number() -> None:
+    line = json.dumps({"status": "refused", "error": "BuildError", "message": "no solid",
+                       "build_s": 3.0, "memory_peak_bytes": 5})
+    record = oper.parse_child_line(line)
+    assert record == {"status": "refused", "error": "BuildError", "message": "no solid"}
+
+
+# --- classification: a status, never a number the run did not earn -----------------------------
+
+NUMBER_KEYS = ("build_s", "export_s", "bytes", "memory_peak_bytes", "triangles", "gzip1_bytes",
+               "maxrss_bytes")
+
+
+def _classify(*, timed_out: bool = False, oom_killed: bool = False, exit_code: int = 0,
+              stdout: str | None = None, stderr: str = "") -> dict[str, object]:
+    return oper.classify(timed_out=timed_out, oom_killed=oom_killed, exit_code=exit_code,
+                         stdout=_ok_line() if stdout is None else stdout, stderr=stderr,
+                         cap=oper.CAP_BYTES)
+
+
+def test_a_clean_reading_is_ok_and_carries_its_numbers() -> None:
+    record = _classify()
+    assert record["status"] == "ok"
+    assert record["memory_peak_bytes"] == 120_000_000
+    assert record["build_s"] == 1.5
+
+
+REFUSED_LINE = json.dumps({"status": "refused", "error": "BuildError", "message": "no solid"})
+
+
+@pytest.mark.parametrize(
+    ("timed_out", "oom_killed", "exit_code", "stdout", "status"),
+    [
+        (False, True, 137, "", "capped"),
+        (False, False, 0, _ok_line(memory_peak_bytes=oper.CAP_BYTES), "capped"),
+        (False, False, 0, _ok_line(memory_peak_bytes=int(oper.CAP_BYTES * 0.99)), "capped"),
+        (True, False, 0, "", "killed"),
+        (False, False, 139, "", "crashed"),
+        (False, False, -11, "", "crashed"),
+        (False, False, 1, "", "crashed"),
+        (False, False, 0, "not json at all", "crashed"),
+        (False, False, 0, REFUSED_LINE, "refused"),
+        (False, False, 0, json.dumps({"status": "no_cgroup"}), "no_cgroup"),
+    ],
+    ids=["oom", "peak-at-cap", "peak-at-99-percent", "deadline", "sigsegv-exit", "signal-code",
+         "plain-failure", "garbage", "refused", "no-cgroup"],
+)
+def test_a_reading_that_is_not_ok_carries_no_number(
+        timed_out: bool, oom_killed: bool, exit_code: int, stdout: str, status: str) -> None:
+    record = _classify(timed_out=timed_out, oom_killed=oom_killed, exit_code=exit_code,
+                       stdout=stdout)
+    assert record["status"] == status
+    assert [key for key in NUMBER_KEYS if key in record] == []
+
+
+def test_a_capped_reading_that_still_printed_a_line_keeps_none_of_its_figures() -> None:
+    record = _classify(stdout=_ok_line(memory_peak_bytes=oper.CAP_BYTES))
+    assert "build_s" not in record
+    assert "memory_peak_bytes" not in record
+
+
+def test_a_refused_reading_names_its_class() -> None:
+    assert _classify(stdout=REFUSED_LINE)["error"] == "BuildError"
+
+
+def test_the_signal_and_the_stderr_tail_of_a_crash_are_kept_as_evidence() -> None:
+    record = _classify(exit_code=139, stdout="", stderr="x" * 5000)
+    assert record["exit_code"] == 139
+    tail = record["stderr_tail"]
+    assert isinstance(tail, str)
+    assert len(tail) <= 2000
+
+
+# --- the summary ---------------------------------------------------------------------------------
+
+
+def _reading(rep: int, status: str = "ok", *, build_s: float = 1.0, label: str = "p",
+             artifact: str = "stl-preview",
+             lift: dict[str, float] | None = None) -> dict[str, object]:
+    record: dict[str, object] = {"type": "reading", "label": label, "artifact": artifact,
+                                 "rep": rep, "status": status}
+    if lift is not None:
+        record["lift"] = lift
+    if status == "ok":
+        record.update(build_s=build_s, export_s=build_s / 10, bytes=100 * rep,
+                      memory_peak_bytes=1000 * rep)
+    return record
+
+
+def test_five_ok_repetitions_report_their_median_and_max() -> None:
+    builds = [3.0, 1.0, 2.0, 5.0, 4.0]
+    rows = oper.summarize([_reading(r, build_s=b) for r, b in enumerate(builds, 1)])
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["status"] == "ok"
+    median = row["median"]
+    maximum = row["max"]
+    assert isinstance(median, dict)
+    assert isinstance(maximum, dict)
+    assert median["build_s"] == statistics.median(builds)
+    assert maximum["build_s"] == max(builds)
+    assert maximum["memory_peak_bytes"] == 5000
+
+
+def test_a_point_with_one_capped_repetition_has_a_status_and_no_median_or_max() -> None:
+    readings = [_reading(r) for r in range(1, 5)] + [_reading(5, "capped")]
+    row = oper.summarize(readings)[0]
+    assert row["status"] == "capped"
+    assert row["median"] is None
+    assert row["max"] is None
+    assert row["counts"] == {"ok": 4, "capped": 1}
+
+
+def test_a_point_with_two_different_failures_is_mixed() -> None:
+    readings = [_reading(1, "capped"), _reading(2, "killed"), _reading(3)]
+    assert oper.summarize(readings)[0]["status"] == "mixed"
+
+
+def test_no_readings_summarize_to_no_rows() -> None:
+    assert oper.summarize([]) == []
+
+
+def test_points_are_summarized_separately_and_in_first_seen_order() -> None:
+    readings = [_reading(1, label="b"), _reading(1, label="a"), _reading(2, label="b")]
+    assert [(r["label"], r["n"]) for r in oper.summarize(readings)] == [("b", 2), ("a", 1)]
+
+
+def test_a_lifted_reading_keeps_its_own_row_and_cannot_supply_a_bound() -> None:
+    """Lifted and ordinary readings that share a label and artifact are two points: merging them
+    printed one numeric `ok` row for a part nobody can request."""
+    plain = [_reading(r, build_s=1.0) for r in range(1, 6)]
+    lifted = [_reading(r, build_s=9.0, lift={"max_mm": 1e6}) for r in range(1, 6)]
+    rows = oper.summarize(plain + lifted)
+    assert [(r["lift"], r["n"], r["status"]) for r in rows] == [
+        (None, 5, "ok"), ({"max_mm": 1e6}, 5, "ok")]
+    assert rows[0]["max"] is not None
+    assert rows[1]["median"] is None
+    assert rows[1]["max"] is None
+
+
+def test_two_lifts_of_one_label_are_two_rows() -> None:
+    readings = [_reading(1, lift={"max_turns": 260}), _reading(1, lift={"max_turns": 270})]
+    assert [r["lift"] for r in oper.summarize(readings)] == [
+        {"max_turns": 260}, {"max_turns": 270}]
+
+
+def test_a_lifted_row_names_its_lift_in_both_formats() -> None:
+    readings = [_reading(1, lift={"max_mm": 1e6})]
+    rows = oper.summarize(readings)
+    assert '"max_mm": 1000000.0' in oper.format_rows(rows)
+    assert '"max_mm": 1000000.0' in oper.markdown_report([], readings, rows)
+
+
+# --- the CLI -----------------------------------------------------------------------------------
+
+
+def test_summarizing_a_file_with_no_readings_says_so_and_exits_1(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    path = tmp_path / "empty.jsonl"
+    path.write_text(json.dumps({"type": "header", "nproc": 4}) + "\n")
+    assert oper.main(["summarize", str(path)]) == 1
+    captured = capsys.readouterr()
+    assert "no readings" in captured.err
+    assert captured.out == ""
+
+
+def test_summarizing_readings_prints_a_row_per_point(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    path = tmp_path / "one.jsonl"
+    lines = [json.dumps({"type": "header", "nproc": 4})]
+    lines += [json.dumps(_reading(r)) for r in range(1, 6)]
+    path.write_text("\n".join(lines) + "\n")
+    assert oper.main(["summarize", str(path)]) == 0
+    assert "stl-preview" in capsys.readouterr().out
+
+
+def test_params_parse_as_numbers_and_booleans() -> None:
+    assert oper.parse_params("d=6 pitch=1.25 left_hand=true") == {
+        "d": 6.0, "pitch": 1.25, "left_hand": True}
+    assert oper.parse_params("") == {}
+
+
+@pytest.mark.parametrize("text", ["d=abc", "d", "d=nan", "d=inf", "=3"])
+def test_an_unparseable_param_pair_is_refused_naming_it(text: str) -> None:
+    with pytest.raises(ValueError, match=text.split()[0]):
+        oper.parse_params(text)
+
+
+def test_the_point_command_refuses_a_bad_param_before_touching_docker(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    code = oper.main(["point", "--kind", "bolt", "--params", "d=abc", "--artifact", "stl-preview",
+                      "--image", "screw:none", "--reps", "1", "--out", "-"])
+    assert code == 2
+    assert "d=abc" in capsys.readouterr().err
+
+
+# --- the host facts ------------------------------------------------------------------------------
+
+CPUINFO = ("processor\t: 0\nvendor_id\t: GenuineIntel\n"
+           "model name\t: AMD EPYC 7763 64-Core Processor\ncpu MHz\t\t: 2445.4\n"
+           "processor\t: 1\nmodel name\t: AMD EPYC 7763 64-Core Processor\n")
+
+
+def test_the_cpu_model_is_the_first_model_name_line() -> None:
+    assert bench.cpu_model(CPUINFO) == "AMD EPYC 7763 64-Core Processor"
+
+
+def test_the_cpu_model_is_none_when_the_line_is_absent() -> None:
+    assert bench.cpu_model("processor\t: 0\nBogoMIPS\t: 48.00\n") is None
+    assert bench.cpu_model("") is None
+
+
+def test_host_facts_carry_the_d01_fields(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GITHUB_RUN_ID", "123")
+    monkeypatch.setenv("GITHUB_JOB", "measure")
+    monkeypatch.setenv("GITHUB_SHA", "abc")
+    facts = bench.host_facts()
+    for key in ("nproc", "mem_total_bytes", "cpu_model", "kernel", "machine"):
+        assert key in facts
+    assert facts["GITHUB_RUN_ID"] == "123"
+    assert facts["GITHUB_JOB"] == "measure"
+    assert facts["GITHUB_SHA"] == "abc"
+
+
+def test_host_facts_leave_out_github_ids_that_are_not_set(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    for name in ("GITHUB_RUN_ID", "GITHUB_JOB", "GITHUB_SHA"):
+        monkeypatch.delenv(name, raising=False)
+    assert not [key for key in bench.host_facts() if key.startswith("GITHUB_")]
+
+
+def test_every_report_names_the_cpu_model(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(bench, "cpu_model", lambda text=None: "Test CPU 9000")
+    assert "Test CPU 9000" in bench.machine_facts()
+
+
+# --- the container argv --------------------------------------------------------------------------
+
+
+def test_a_reading_runs_in_a_capped_container_that_is_not_auto_removed() -> None:
+    argv = oper.reading_argv("screw-oper-1-1", "screw:ci", REPO_ROOT, '{"kind": "bolt"}', 1000)
+    assert "--rm" not in argv  # the parent inspects OOMKilled, then removes it itself
+    assert "--memory=1000b" in argv
+    assert "--memory-swap=1000b" in argv
+    assert not [a for a in argv if a.startswith("--platform")]
+    assert argv[-3:-1] == ["-m", "bench.oper_child"]
+    assert argv[-1] == '{"kind": "bolt"}'
+    assert f"{REPO_ROOT}/bench:/probe/bench:ro" in argv
+
+
+# --- the child, end to end (one real kernel build) -----------------------------------------------
+
+
+def test_the_child_prints_exactly_one_line_with_a_status_and_no_number_it_could_not_read(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    point = json.dumps({"kind": "bolt", "params": {"d": 4.0, "length": 8.0, "thread_length": 8.0},
+                        "artifact": "stl-preview"})
+    assert oper_child.main([point]) == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert len(lines) == 1
+    record = oper.parse_child_line(lines[0])
+    # Outside a container with a cgroup (a laptop) the peak is unreadable: a status, no figure.
+    assert record["status"] in {"ok", "no_cgroup"}
+    if record["status"] == "ok":
+        assert isinstance(record["memory_peak_bytes"], int)
+        assert isinstance(record["bytes"], int)
+        assert isinstance(record["triangles"], int)
+    else:
+        assert "memory_peak_bytes" not in record
+        assert "build_s" not in record
+
+
+def test_the_peak_is_read_after_the_gzip_so_a_gzip_past_the_cap_is_capped(
+        monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """The gzip's memory counts: a peak read before it kept `ok` and numbers for a container the
+    compression pushed past 99 % of its cap without an OOM kill."""
+    import gzip
+
+    from screw import solid
+
+    peak = {"bytes": 1_000_000}
+    real_compress = gzip.compress
+
+    def compress(data: bytes, level: int) -> bytes:
+        peak["bytes"] = oper.CAP_BYTES  # the gzip is what takes the container to its cap
+        return real_compress(data, level)
+
+    monkeypatch.setattr(solid, "build", lambda p: None)
+    monkeypatch.setattr(solid, "export", lambda *_: bytes(84))
+    monkeypatch.setattr(gzip, "compress", compress)
+    monkeypatch.setattr(oper_child, "read_peak", lambda: peak["bytes"])
+    monkeypatch.setattr(oper_child, "oom_kills", lambda: 0)
+    point = {"kind": "bolt", "params": {}, "artifact": "stl-preview"}
+    assert oper_child.main([json.dumps(point)]) == 0
+    line = capsys.readouterr().out.strip()
+    assert oper.parse_child_line(line)["memory_peak_bytes"] == oper.CAP_BYTES
+    record = oper.classify(timed_out=False, oom_killed=False, exit_code=0, stdout=line, stderr="",
+                           cap=oper.CAP_BYTES)
+    assert record["status"] == "capped"
+    assert [key for key in NUMBER_KEYS if key in record] == []
+
+
+def test_a_kernel_refusal_is_a_refused_line_with_its_class(
+        monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    from screw import solid
+    from screw.build_errors import BuildError
+
+    def refuse(*_: object, **__: object) -> bytes:
+        raise BuildError("no solid for these parameters")
+
+    monkeypatch.setattr(solid, "export", refuse)
+    point = json.dumps({"kind": "bolt", "params": {}, "artifact": "step"})
+    assert oper_child.main([point]) == 0
+    record = oper.parse_child_line(capsys.readouterr().out.strip())
+    assert (record["status"], record["error"], record["message"]) == (
+        "refused", "BuildError", "no solid for these parameters")
+    assert "build_s" not in record
+
+
+@pytest.mark.parametrize("argv", [[], ["{not json"], ['{"kind": "washer", "params": {}, '
+                                                      '"artifact": "step"}'],
+                                  ['{"kind": "bolt", "params": {}, "artifact": "obj"}'],
+                                  ['{"kind": "bolt", "params": {"d": -1}, "artifact": "step"}']],
+                         ids=["no-arg", "bad-json", "unknown-kind", "unknown-artifact",
+                              "invalid-params"])
+def test_a_point_the_child_cannot_read_is_an_exit_2_with_no_line(
+        argv: list[str], capsys: pytest.CaptureFixture[str]) -> None:
+    assert oper_child.main(argv) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err != ""
+
+
+# --- the parent runs on a bare interpreter --------------------------------------------------------
+
+
+def test_importing_the_parent_loads_no_screw_module() -> None:
+    code = (f"import sys; sys.path.insert(0, {str(REPO_ROOT)!r}); import bench.oper; "
+            "print(sorted(m for m in sys.modules if m == 'screw' or m.startswith('screw.')))")
+    out = subprocess.run([sys.executable, "-I", "-c", code], capture_output=True, text=True,
+                         check=True).stdout.strip()
+    assert out == "[]"
+
+
+# --- the point files -----------------------------------------------------------------------------
+
+POINTS_DIR = REPO_ROOT / "bench" / "points"
+
+
+def _write_set(directory: Path, /, **over: object) -> Path:
+    spec: dict[str, object] = {
+        "set": "mini", "rule": "07-SWEEP-PROTOCOL.md R2", "reps": 2, "shards": 2,
+        "deadline_s": 60,
+        "points": [{"label": f"p{i}", "kind": "bolt", "params": {}, "artifact": "step"}
+                   for i in range(5)]}
+    spec.update(over)
+    path = directory / "mini.json"
+    path.write_text(json.dumps(spec))
+    return path
+
+
+def test_the_tracer_set_is_one_default_bolt_preview_with_five_repetitions() -> None:
+    spec = oper.load_set("tracer")
+    assert (spec.reps, spec.shards, spec.deadline_s) == (5, 1, 600)
+    assert [(p.label, p.kind, dict(p.params), p.artifact) for p in spec.points] == [
+        ("default-bolt", "bolt", {}, "stl-preview")]
+
+
+def test_the_tracer_file_names_the_protocol_rule_it_runs_under() -> None:
+    raw = json.loads((POINTS_DIR / "tracer.json").read_text())
+    assert raw["set"] == "tracer"
+    assert raw["rule"] == "07-SWEEP-PROTOCOL.md R2"
+
+
+@pytest.mark.parametrize("name", ["../x", "Tracer", "a/b", "", "tracer.json", "t racer", "a_b"])
+def test_a_set_name_outside_the_rule_is_refused_naming_it(name: str, tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match=re.escape(repr(name))):
+        oper.load_set(name, tmp_path)
+
+
+def test_a_set_with_no_file_is_refused_naming_it(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="'absent'"):
+        oper.load_set("absent", tmp_path)
+
+
+@pytest.mark.parametrize(
+    "over",
+    [{"reps": 0}, {"reps": 2.5}, {"reps": True}, {"shards": 0}, {"deadline_s": 0},
+     {"deadline_s": "60"}, {"points": []}, {"rule": 3}, {"set": "other"}, {"extra": 1},
+     {"points": [{"label": "a", "kind": "bolt", "params": {}, "artifact": "obj"}]},
+     {"points": [{"label": "a", "kind": "bolt", "params": {"d": "6"}, "artifact": "step"}]},
+     {"points": [{"label": "a", "kind": "bolt", "artifact": "step"}]},
+     {"points": [{"label": "a", "kind": "bolt", "params": {}, "artifact": "step", "x": 1}]},
+     {"points": [{"label": "a", "kind": "bolt", "params": {}, "artifact": "step"},
+                 {"label": "a", "kind": "bolt", "params": {}, "artifact": "step"}]}],
+    ids=["reps-zero", "reps-float", "reps-bool", "shards-zero", "deadline-zero", "deadline-text",
+         "no-points", "rule-not-text", "set-name-differs", "extra-key", "bad-artifact",
+         "text-param", "missing-params", "extra-point-key", "duplicate-label"],
+)
+def test_a_point_file_that_breaks_the_schema_is_refused(over: dict[str, object],
+                                                        tmp_path: Path) -> None:
+    _write_set(tmp_path, **over)
+    with pytest.raises(ValueError, match="mini"):
+        oper.load_set("mini", tmp_path)
+
+
+def test_a_point_file_missing_a_key_is_refused(tmp_path: Path) -> None:
+    path = _write_set(tmp_path)
+    raw = json.loads(path.read_text())
+    del raw["rule"]
+    path.write_text(json.dumps(raw))
+    with pytest.raises(ValueError, match="mini"):
+        oper.load_set("mini", tmp_path)
+
+
+def test_points_go_to_shards_round_robin_in_file_order(tmp_path: Path) -> None:
+    _write_set(tmp_path)
+    spec = oper.load_set("mini", tmp_path)
+    assert [p.label for p in oper.shard_points(spec, 1)] == ["p0", "p2", "p4"]
+    assert [p.label for p in oper.shard_points(spec, 2)] == ["p1", "p3"]
+
+
+def test_a_shard_past_the_points_is_empty(tmp_path: Path) -> None:
+    _write_set(tmp_path, shards=7)
+    assert oper.shard_points(oper.load_set("mini", tmp_path), 7) == []
+
+
+# --- the matrix ----------------------------------------------------------------------------------
+
+
+def test_the_tracer_matrix_is_five_repetitions_of_one_shard(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    assert oper.main(["matrix", "--set", "tracer"]) == 0
+    out = capsys.readouterr().out
+    assert out.count("\n") == 1
+    assert out.startswith("matrix=")
+    assert json.loads(out.removeprefix("matrix=")) == {
+        "include": [{"shard": 1, "rep": rep} for rep in range(1, 6)]}
+
+
+@pytest.mark.parametrize("name", ["../x", "Tracer", "no-such-set"])
+def test_the_matrix_refuses_a_bad_set_name_with_exit_2_naming_it(
+        name: str, capsys: pytest.CaptureFixture[str]) -> None:
+    assert oper.main(["matrix", "--set", name]) == 2
+    captured = capsys.readouterr()
+    assert repr(name) in captured.err
+    assert captured.out == ""
+
+
+# --- the run -------------------------------------------------------------------------------------
+
+
+def _stub_docker(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, int]]:
+    taken: list[tuple[str, int]] = []
+
+    def fake_reading(point: oper.Point, rep: int, image: str, cap: int, deadline_s: float,
+                     versions: Mapping[str, str] | None = None) -> dict[str, object]:
+        taken.append((point.label, rep))
+        return {"type": "reading", "label": point.label, "artifact": point.artifact, "rep": rep,
+                "status": "ok", "image": image, "cap": cap, "deadline_s": deadline_s}
+
+    monkeypatch.setattr(oper, "run_reading", fake_reading)
+    monkeypatch.setattr(oper, "_image_versions", lambda image: {"cadquery": "2.8.0"})
+    monkeypatch.setattr(oper, "header", lambda image, versions: {"type": "header", "image": image})
+    return taken
+
+
+def test_a_shard_measures_its_points_once_each_with_the_given_rep(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    sets = tmp_path / "sets"
+    sets.mkdir()
+    _write_set(sets, reps=5)
+    monkeypatch.setattr(oper, "POINTS_DIR", sets)
+    taken = _stub_docker(monkeypatch)
+    out = tmp_path / "out.jsonl"
+    assert oper.main(["run", "--set", "mini", "--shard", "1", "--rep", "3", "--image", "screw:x",
+                      "--out", str(out)]) == 0
+    assert taken == [("p0", 3), ("p2", 3), ("p4", 3)]
+    records = [json.loads(line) for line in out.read_text().splitlines()]
+    assert [r["type"] for r in records] == ["header", "reading", "reading", "reading"]
+    assert records[1]["cap"] == oper.CAP_BYTES
+    assert records[1]["deadline_s"] == 60
+
+
+def test_two_runs_of_one_file_write_the_same_order(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    sets = tmp_path / "sets"
+    sets.mkdir()
+    _write_set(sets)
+    monkeypatch.setattr(oper, "POINTS_DIR", sets)
+    _stub_docker(monkeypatch)
+    texts = []
+    for run in ("a", "b"):
+        out = tmp_path / f"{run}.jsonl"
+        assert oper.main(["run", "--set", "mini", "--shard", "2", "--rep", "1", "--image", "i",
+                          "--out", str(out)]) == 0
+        texts.append(out.read_text())
+    assert texts[0] == texts[1]
+
+
+def test_a_shard_with_no_points_writes_the_header_and_succeeds(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    sets = tmp_path / "sets"
+    sets.mkdir()
+    _write_set(sets, shards=7)
+    monkeypatch.setattr(oper, "POINTS_DIR", sets)
+    taken = _stub_docker(monkeypatch)
+    out = tmp_path / "out.jsonl"
+    assert oper.main(["run", "--set", "mini", "--shard", "7", "--rep", "1", "--image", "i",
+                      "--out", str(out)]) == 0
+    assert taken == []
+    assert [json.loads(line)["type"] for line in out.read_text().splitlines()] == ["header"]
+
+
+@pytest.mark.parametrize(("shard", "rep"), [("0", "1"), ("3", "1"), ("1", "0"), ("1", "3")])
+def test_a_shard_or_rep_outside_the_set_is_refused_with_exit_2(
+        shard: str, rep: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    sets = tmp_path / "sets"
+    sets.mkdir()
+    _write_set(sets)  # 2 shards, 2 reps
+    monkeypatch.setattr(oper, "POINTS_DIR", sets)
+    taken = _stub_docker(monkeypatch)
+    assert oper.main(["run", "--set", "mini", "--shard", shard, "--rep", rep, "--image", "i",
+                      "--out", str(tmp_path / "o.jsonl")]) == 2
+    assert taken == []
+    assert "mini" in capsys.readouterr().err
+
+
+# --- the per-run markdown ------------------------------------------------------------------------
+
+
+def test_the_markdown_summary_lists_host_facts_status_counts_and_one_row_per_point(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    first = tmp_path / "a.jsonl"
+    second = tmp_path / "b.jsonl"
+    header = {"type": "header", "nproc": 4, "cpu_model": "AMD EPYC 7763", "kernel": "6.8.0"}
+    first.write_text("\n".join([json.dumps(header)]
+                               + [json.dumps(_reading(r)) for r in (1, 2)]) + "\n")
+    other = {**header, "cpu_model": "Intel Xeon 8370C"}
+    second.write_text("\n".join(
+        [json.dumps(other), json.dumps(_reading(3)), json.dumps(_reading(4, "capped"))]) + "\n")
+    assert oper.main(["summarize", str(first), str(second), "--markdown"]) == 0
+    out = capsys.readouterr().out
+    assert "| nproc | 4 |" in out
+    assert "AMD EPYC 7763" in out
+    assert "Intel Xeon 8370C" in out  # GitHub mixes CPU generations: both are shown
+    assert "ok: 3" in out
+    assert "capped: 1" in out
+    assert out.count("| p |") == 1
+    assert "capped" in out
+
+
+def test_the_markdown_summary_of_no_readings_is_the_same_refusal(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    path = tmp_path / "h.jsonl"
+    path.write_text(json.dumps({"type": "header", "nproc": 4}) + "\n")
+    assert oper.main(["summarize", str(path), "--markdown"]) == 1
+    captured = capsys.readouterr()
+    assert "no readings" in captured.err
+    assert captured.out == ""
+
+
+# --- the workflow's trust surface (T-3-14, T-07-02) ----------------------------------------------
+
+WORKFLOW_YML = REPO_ROOT / ".github" / "workflows" / "operability.yml"
+
+
+def _run_values(text: str) -> list[str]:
+    """Every `run:` value of a workflow, inline or block scalar, as one string each."""
+    lines = text.splitlines()
+    values: list[str] = []
+    for i, line in enumerate(lines):
+        match = re.match(r"^(\s*)(?:-\s+)?run:\s*(.*)$", line)
+        if not match:
+            continue
+        indent = len(match.group(1))
+        value = [match.group(2)]
+        for follow in lines[i + 1:]:
+            if follow.strip() and len(follow) - len(follow.lstrip()) <= indent:
+                break
+            value.append(follow)
+        values.append("\n".join(value))
+    return values
+
+
+def test_the_workflow_starts_only_on_a_dispatch() -> None:
+    text = WORKFLOW_YML.read_text()
+    assert re.search(r"^on:\n  workflow_dispatch:", text, re.MULTILINE)
+    assert not re.search(r"^\s*(pull_request|pull_request_target|push|schedule)\s*:", text,
+                         re.MULTILINE)
+
+
+def test_the_workflow_reads_the_repository_and_names_no_secret() -> None:
+    text = WORKFLOW_YML.read_text()
+    assert re.search(r"^permissions:\n  contents: read$", text, re.MULTILINE)
+    assert "secrets." not in text
+
+
+def test_the_set_input_reaches_a_script_only_through_an_env_variable() -> None:
+    text = WORKFLOW_YML.read_text()
+    runs = _run_values(text)
+    assert runs, "no run: steps found"
+    assert not [run for run in runs if "${{ inputs." in run]
+    assert re.search(r"^\s+SET: \$\{\{ inputs\.set \}\}$", text, re.MULTILINE)
+    assert 'python -m bench.oper matrix --set "$SET"' in text
+    assert 'python -m bench.oper run --set "$SET"' in text
+
+
+def test_the_workflow_builds_the_image_from_the_commit_under_test() -> None:
+    text = WORKFLOW_YML.read_text()
+    assert "docker/build-push-action@v6" in text
+    assert re.search(r"^\s+load: true$", text, re.MULTILINE)
+    assert re.search(r"^\s+tags: screw:ci$", text, re.MULTILINE)
+    assert "--image screw:ci" in text
+
+
+def test_the_measure_job_has_a_timeout_and_keeps_the_artifact_of_a_red_run() -> None:
+    text = WORKFLOW_YML.read_text()
+    assert re.search(r"^\s+timeout-minutes: \d+$", text, re.MULTILINE)
+    assert "fail-fast: false" in text
+    upload = text.index("actions/upload-artifact@v4")
+    assert "if: always()" in text[upload - 200:upload + 200]
+
+
+def test_the_matrix_job_feeds_the_measure_job() -> None:
+    text = WORKFLOW_YML.read_text()
+    assert "needs: plan" in text
+    assert "fromJSON(needs.plan.outputs.matrix)" in text
+
+
+# --- the make target -----------------------------------------------------------------------------
+
+
+def test_make_lists_the_runner_harness() -> None:
+    out = subprocess.run(["make", "-s", "help"], cwd=REPO_ROOT, capture_output=True, text=True,
+                         check=True).stdout
+    assert [line for line in out.splitlines() if line.split()[:1] == ["bench.oper"]]
+
+
+# --- the probes (07-03): the walls and the controls are read through the same parent ------------
+
+TAIL_ARGS: dict[str, float | bool] = {
+    "d": 6.0, "pitch": 1.0, "turns": 3, "tail": 0.01, "left_hand": False}
+NAIVE_ARGS: dict[str, float | bool] = {"d": 8.0, "pitch": 1.25, "length": 10.0}
+PIPE_ARGS: dict[str, float | bool] = {"d": 6.0, "pitch": 1.0, "turns": 3, "left_hand": False}
+
+
+def _probe(probe: str = "tail", args: Mapping[str, object] | None = None,
+           label: str = "t") -> dict[str, object]:
+    return {"label": label, "kind": "probe", "probe": probe,
+            "args": dict(TAIL_ARGS if args is None else args)}
+
+
+def test_a_probe_point_loads_with_its_name_and_arguments(tmp_path: Path) -> None:
+    _write_set(tmp_path, points=[_probe(), _probe("naive", NAIVE_ARGS, "n"),
+                                 _probe("one_pipe", PIPE_ARGS, "o")])
+    points = oper.load_set("mini", tmp_path).points
+    assert [(p.label, p.kind, p.artifact) for p in points] == [
+        ("t", "probe", "tail"), ("n", "probe", "naive"), ("o", "probe", "one_pipe")]
+    assert dict(points[0].params) == TAIL_ARGS
+
+
+def test_a_probe_point_reaches_the_child_as_its_name_and_arguments(tmp_path: Path) -> None:
+    _write_set(tmp_path, points=[_probe()])
+    (point,) = oper.load_set("mini", tmp_path).points
+    assert json.loads(point.as_json()) == {"kind": "probe", "probe": "tail", "args": TAIL_ARGS}
+
+
+def _without(args: Mapping[str, object], key: str) -> dict[str, object]:
+    return {k: v for k, v in args.items() if k != key}
+
+
+@pytest.mark.parametrize(
+    ("point", "named"),
+    [(_probe("twist"), "'twist'"),
+     (_probe("tail", _without(TAIL_ARGS, "turns")), "turns"),
+     (_probe("naive", {**NAIVE_ARGS, "left_hand": False}), "left_hand"),
+     (_probe("one_pipe", _without(PIPE_ARGS, "left_hand")), "left_hand"),
+     (_probe("tail", {**TAIL_ARGS, "tail": "0.01"}), "argument 'tail'"),
+     (_probe("tail", {**TAIL_ARGS, "tail": True}), "argument 'tail'"),
+     (_probe("tail", {**TAIL_ARGS, "tail": 0}), "argument 'tail'"),
+     (_probe("tail", {**TAIL_ARGS, "left_hand": 1}), "argument 'left_hand'"),
+     ({**_probe(), "artifact": "stl-preview"}, "'t'"),
+     ({"label": "t", "kind": "probe", "args": TAIL_ARGS}, "'t'")],
+    ids=["unknown-probe", "missing-arg", "extra-arg", "missing-hand", "text-arg", "bool-arg",
+         "zero-arg", "number-hand", "artifact-on-a-probe", "no-probe-name"])
+def test_a_probe_point_that_breaks_its_schema_is_refused_naming_it(
+        point: dict[str, object], named: str, tmp_path: Path) -> None:
+    _write_set(tmp_path, points=[point])
+    with pytest.raises(ValueError, match=re.escape(named)):
+        oper.load_set("mini", tmp_path)
+
+
+def test_the_matrix_refuses_a_bad_probe_with_exit_2_naming_it(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    _write_set(tmp_path, points=[_probe("twist")])
+    monkeypatch.setattr(oper, "POINTS_DIR", tmp_path)
+    assert oper.main(["matrix", "--set", "mini"]) == 2
+    assert "'twist'" in capsys.readouterr().err
+
+
+def _probe_line(**over: object) -> str:
+    line: dict[str, object] = {
+        "status": "ok", "build_s": 0.4, "solids": 1, "valid": True, "volume_ratio": 1.00001,
+        "maxrss_bytes": 90_000_000, "memory_peak_bytes": 120_000_000, "oom_kills": 0,
+        "cadquery": "2.8.0", "cadquery_ocp": "7.9.3.1.1"}
+    line.update(over)
+    return json.dumps(line)
+
+
+def test_a_probe_line_parses_when_a_probe_is_expected() -> None:
+    record = oper.parse_child_line(_probe_line(), probe=True)
+    assert (record["solids"], record["valid"], record["volume_ratio"]) == (1, True, 1.00001)
+
+
+def test_an_inverted_solid_keeps_its_negative_volume_ratio() -> None:
+    # one_pipe at 160 to 171 turns reads about -1 times the closed form with isValid() True
+    # (bench/thread_spike/helical.py); the sign is the finding, so it is not a refusable number.
+    record = oper.parse_child_line(_probe_line(volume_ratio=-1.0), probe=True)
+    assert record["volume_ratio"] == -1.0
+
+
+@pytest.mark.parametrize("over", [{"build_s": -1.0}, {"solids": -1}, {"volume_ratio": "NaN"}],
+                         ids=["negative-seconds", "negative-count", "nan-ratio"])
+def test_a_probe_line_with_a_number_that_cannot_be_true_is_refused(over: dict[str, object]) -> None:
+    line = _probe_line(**over).replace('"NaN"', "NaN")
+    with pytest.raises(ValueError, match="child line"):
+        oper.parse_child_line(line, probe=True)
+
+
+@pytest.mark.parametrize("key", ["build_s", "solids", "valid", "volume_ratio",
+                                 "memory_peak_bytes"])
+def test_a_probe_line_missing_a_field_is_refused(key: str) -> None:
+    record = json.loads(_probe_line())
+    del record[key]
+    with pytest.raises(ValueError, match=key):
+        oper.parse_child_line(json.dumps(record), probe=True)
+
+
+def test_a_part_line_is_not_a_probe_line_and_a_probe_line_is_not_a_part_line() -> None:
+    with pytest.raises(ValueError, match="solids"):
+        oper.parse_child_line(_ok_line(), probe=True)
+    with pytest.raises(ValueError, match="export_s"):
+        oper.parse_child_line(_probe_line())
+
+
+def test_a_clean_probe_is_ok_and_keeps_what_it_found() -> None:
+    record = oper.classify(timed_out=False, oom_killed=False, exit_code=0, stdout=_probe_line(),
+                           stderr="", cap=oper.CAP_BYTES, probe=True)
+    assert record["status"] == "ok"
+    assert (record["solids"], record["volume_ratio"]) == (1, 1.00001)
+
+
+@pytest.mark.parametrize("exit_code", [139, -11], ids=["container-exit", "signal"])
+def test_a_probe_that_crashes_the_container_is_crashed_with_no_number(exit_code: int) -> None:
+    # The tail walk crosses the kernel's SIGSEGV wall on purpose (D-08, T-07-07): the container
+    # absorbs it, the reading says so, and the parent goes on to the next point.
+    record = oper.classify(timed_out=False, oom_killed=False, exit_code=exit_code, stdout="",
+                           stderr="", cap=oper.CAP_BYTES, probe=True)
+    assert record["status"] == "crashed"
+    assert record["exit_code"] == exit_code
+    assert [k for k in (*NUMBER_KEYS, "solids", "volume_ratio", "valid") if k in record] == []
+
+
+def test_a_capped_probe_that_still_printed_a_line_keeps_none_of_its_findings() -> None:
+    record = oper.classify(timed_out=False, oom_killed=True, exit_code=137, stdout=_probe_line(),
+                           stderr="", cap=oper.CAP_BYTES, probe=True)
+    assert record == {"status": "capped"}
+
+
+def _probe_reading(rep: int, status: str = "ok", *, build_s: float = 1.0) -> dict[str, object]:
+    record: dict[str, object] = {"type": "reading", "label": "t", "kind": "probe",
+                                 "artifact": "tail", "rep": rep, "status": status}
+    if status == "ok":
+        record.update(build_s=build_s, solids=1, valid=True, volume_ratio=1.0,
+                      memory_peak_bytes=1000 * rep)
+    return record
+
+
+def test_probe_readings_report_the_median_and_max_of_what_a_probe_measures() -> None:
+    readings = [_probe_reading(r, build_s=b) for r, b in enumerate([3.0, 1.0, 2.0], 1)]
+    row = oper.summarize(readings, expected_reps=[1, 2, 3])[0]
+    assert row["status"] == "ok"
+    assert row["median"] == {"build_s": 2.0, "memory_peak_bytes": 2000}
+    assert row["max"] == {"build_s": 3.0, "memory_peak_bytes": 3000}
+
+
+def test_a_probe_summary_prints_in_both_formats_without_inventing_an_export(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    path = tmp_path / "p.jsonl"
+    lines = [json.dumps({"type": "header", "nproc": 4})]
+    lines += [json.dumps(_probe_reading(r)) for r in (1, 2)] + [json.dumps(
+        {**_probe_reading(3, "crashed"), "exit_code": 139})]
+    path.write_text("\n".join(lines) + "\n")
+    assert oper.main(["summarize", str(path), "--reps", "1,2,3"]) == 0
+    assert "crashed" in capsys.readouterr().out
+    ok = tmp_path / "ok.jsonl"
+    ok.write_text("\n".join(lines[:3]) + "\n")
+    assert oper.main(["summarize", str(ok), "--reps", "1,2"]) == 0
+    assert "build_s" in capsys.readouterr().out
+    assert oper.main(["summarize", str(ok), "--reps", "1,2", "--markdown"]) == 0
+    row = [line for line in capsys.readouterr().out.splitlines() if line.startswith("| t |")]
+    assert len(row) == 1
+    assert "| - | - | - | - |" in row[0]  # no export seconds and no bytes: a dash, not a zero
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [["--kind", "probe", "--artifact", "step"], ["--kind", "probe"],
+     ["--kind", "probe", "--probe", "twist"], ["--kind", "bolt"],
+     ["--kind", "bolt", "--artifact", "step", "--probe", "tail"]],
+    ids=["artifact-on-a-probe", "no-probe-name", "unknown-probe", "no-artifact",
+         "probe-on-a-part"])
+def test_the_point_command_refuses_a_misplaced_probe_or_artifact_before_touching_docker(
+        argv: list[str], capsys: pytest.CaptureFixture[str]) -> None:
+    code = oper.main(["point", *argv, "--params", "d=6", "--image", "screw:none", "--reps", "1",
+                      "--out", "-"])
+    assert code == 2
+    assert capsys.readouterr().err.startswith("oper: ")
+
+
+# --- the probes, in the child (real kernel, each builds in under a second) -----------------------
+
+
+def test_the_tail_probe_builds_one_valid_solid_inside_the_gate() -> None:
+    from screw.calc.thread import T_GATE
+
+    result = oper_child.run_probe({"probe": "tail", "args": TAIL_ARGS})
+    assert result["status"] == "ok"
+    assert (result["solids"], result["valid"]) == (1, True)
+    ratio = result["volume_ratio"]
+    assert isinstance(ratio, float)
+    assert abs(ratio - 1) <= T_GATE
+    assert isinstance(result["build_s"], float)
+
+
+def _guard() -> object:
+    from screw.solid import helical
+
+    return vars(helical)["MIN_TAIL_MM"]
+
+
+def test_the_tail_probe_lowers_the_builder_guard_for_the_call_and_restores_it(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    from screw.solid import helical
+
+    saved = _guard()
+    assert isinstance(saved, float)
+    assert saved > 0
+    seen: list[object] = []
+    real = helical.thread
+
+    def spy(*args: float, **kwargs: bool) -> object:
+        seen.append(_guard())
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(helical, "thread", spy)
+    oper_child.run_probe({"probe": "tail", "args": TAIL_ARGS})
+    assert seen == [0.0]
+    assert _guard() == saved
+
+
+def test_the_tail_probe_restores_the_guard_when_the_build_fails(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    from screw.solid import helical
+
+    saved = _guard()
+
+    def fail(*_: object, **__: object) -> object:
+        raise RuntimeError("Standard_Failure")
+
+    monkeypatch.setattr(helical, "twist", fail)
+    result = oper_child.run_probe({"probe": "tail", "args": TAIL_ARGS})
+    assert _guard() == saved
+    assert (result["status"], result["error"]) == ("refused", "RuntimeError")
+    assert "Standard_Failure" in str(result["message"])
+    assert [k for k in ("build_s", "solids", "valid", "volume_ratio") if k in result] == []
+
+
+def test_the_one_pipe_control_builds_the_twist_without_a_gate() -> None:
+    result = oper_child.run_probe({"probe": "one_pipe", "args": PIPE_ARGS})
+    assert result["status"] == "ok"
+    assert (result["solids"], result["valid"]) == (1, True)
+    ratio = result["volume_ratio"]
+    assert isinstance(ratio, float)
+    assert abs(ratio - 1) < 1e-3
+
+
+def test_the_naive_control_reports_what_it_built_or_the_kernel_error() -> None:
+    # macOS arm64 gives one valid solid at about a quarter of the closed form; linux/amd64 may
+    # raise `Null TopoDS_Shape` (L11 platform note). Either is a record, never an exception.
+    result = oper_child.run_probe({"probe": "naive", "args": NAIVE_ARGS})
+    if result["status"] == "ok":
+        assert isinstance(result["solids"], int)
+        assert isinstance(result["valid"], bool)
+        assert isinstance(result["volume_ratio"], float)
+    else:
+        assert result["status"] == "refused"
+        assert isinstance(result["error"], str)
+
+
+def test_a_kernel_exception_in_a_control_is_a_refused_record_with_its_class_and_text(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    from bench.thread_spike import helical as spike
+
+    def fail(*_: object, **__: object) -> object:
+        raise ValueError("Null TopoDS_Shape")
+
+    monkeypatch.setattr(spike, "naive_sweep_fuse", fail)
+    result = oper_child.run_probe({"probe": "naive", "args": NAIVE_ARGS})
+    assert result == {"status": "refused", "error": "ValueError", "message": "Null TopoDS_Shape"}
+
+
+def test_a_probe_the_child_does_not_know_is_a_key_error_not_a_reading() -> None:
+    with pytest.raises(KeyError, match="twist"):
+        oper_child.run_probe({"probe": "twist", "args": {}})
+
+
+def test_the_child_prints_one_line_for_a_probe(capsys: pytest.CaptureFixture[str]) -> None:
+    point = json.dumps({"kind": "probe", "probe": "tail", "args": TAIL_ARGS})
+    assert oper_child.main([point]) == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert len(lines) == 1
+    record = oper.parse_child_line(lines[0], probe=True) if '"ok"' in lines[0] \
+        else oper.parse_child_line(lines[0])
+    # Outside a container with a cgroup (a laptop) the peak is unreadable: a status, no finding.
+    assert record["status"] in {"ok", "no_cgroup"}
+    if record["status"] == "no_cgroup":
+        assert "volume_ratio" not in record
+
+
+@pytest.mark.parametrize("argv", [['{"kind": "probe", "probe": "twist", "args": {}}'],
+                                  ['{"kind": "probe", "probe": "tail"}'],
+                                  ['{"kind": "probe", "args": {}}']],
+                         ids=["unknown-probe", "no-args", "no-probe-name"])
+def test_a_probe_the_child_cannot_read_is_an_exit_2_with_no_line(
+        argv: list[str], capsys: pytest.CaptureFixture[str]) -> None:
+    assert oper_child.main(argv) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err != ""
+
+
+# --- the pre-registered point sets (07-03): the generator is their only definition --------------
+
+EXPECTED_SHAPE = {"explore": (1, 40, 600), "spread": (5, 12, 600), "walls": (1, 20, 600),
+                  "controls": (1, 4, 600)}  # reps, shards, deadline_s: protocol R3 and R4
+SET_NAMES = tuple(EXPECTED_SHAPE)
+
+
+class _Point(TypedDict, total=False):
+    """A point as the generator writes it: a part has `params` and `artifact`, a probe has
+    `probe` and `args`; `preset` marks a catalogue row and `lift` a point past a cap."""
+
+    label: str
+    kind: str
+    params: dict[str, float | bool]
+    artifact: str
+    preset: str
+    lift: dict[str, float]
+    probe: str
+    args: dict[str, float | bool]
+
+
+class _Dropped(TypedDict):
+    label: str
+    kind: str
+    params: dict[str, float | bool]
+    artifacts: list[str]
+    error: str
+    lift: NotRequired[dict[str, float]]
+
+
+class _Doc(TypedDict):
+    set: str
+    rule: str
+    reps: int
+    shards: int
+    deadline_s: int
+    points: list[_Point]
+    dropped: list[_Dropped]
+    notes: list[str]
+
+
+@functools.cache
+def _generated() -> dict[str, _Doc]:
+    from bench import oper_sets
+
+    return {name: json.loads(text) for name, text in oper_sets.generate().items()}
+
+
+def _parts(name: str) -> list[_Point]:
+    return [p for p in _generated()[name]["points"] if p["kind"] != "probe"]
+
+
+def _by_label(name: str) -> dict[str, list[_Point]]:
+    labelled: dict[str, list[_Point]] = {}
+    for point in _generated()[name]["points"]:
+        labelled.setdefault(point["label"], []).append(point)
+    return labelled
+
+
+def test_the_generator_lists_the_four_sets_and_gives_the_same_text_twice() -> None:
+    from bench import oper_sets
+
+    first = oper_sets.generate()
+    assert tuple(first) == SET_NAMES
+    assert oper_sets.generate() == first
+
+
+@pytest.mark.parametrize("name", SET_NAMES)
+def test_each_set_carries_the_reps_shards_and_deadline_the_protocol_fixes(name: str) -> None:
+    doc = _generated()[name]
+    assert doc["set"] == name
+    assert doc["rule"] == "07-SWEEP-PROTOCOL.md R4"
+    assert (doc["reps"], doc["shards"], doc["deadline_s"]) == EXPECTED_SHAPE[name]
+    assert doc["deadline_s"] == oper.DEADLINE_S
+
+
+@pytest.mark.parametrize("name", SET_NAMES)
+def test_the_runner_loads_every_set_the_generator_writes(name: str, tmp_path: Path) -> None:
+    from bench import oper_sets
+
+    (tmp_path / f"{name}.json").write_text(oper_sets.generate()[name])
+    spec = oper.load_set(name, tmp_path)
+    assert len(spec.points) == len(_generated()[name]["points"])
+
+
+def test_the_committed_point_files_are_what_the_generator_writes(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    from bench import oper_sets
+
+    assert oper_sets.main(["--check"]) == 0
+    assert "integer L/P: 201 of 294" in capsys.readouterr().out
+
+
+def test_check_names_the_first_file_that_differs_and_exits_1(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    from bench import oper_sets
+
+    for name, text in oper_sets.generate().items():
+        (tmp_path / f"{name}.json").write_text(text)
+    (tmp_path / "walls.json").write_text("{}\n")
+    (tmp_path / "spread.json").write_text(
+        (tmp_path / "spread.json").read_text().replace('"reps": 5', '"reps": 4'))
+    monkeypatch.setattr(oper_sets, "POINTS_DIR", tmp_path)
+    assert oper_sets.main(["--check"]) == 1
+    err = capsys.readouterr().err
+    assert "spread.json" in err
+    assert "walls.json" not in err  # the first one only
+
+
+def test_check_of_a_missing_file_is_a_difference(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    from bench import oper_sets
+
+    monkeypatch.setattr(oper_sets, "POINTS_DIR", tmp_path)
+    assert oper_sets.main(["--check"]) == 1
+    assert "explore.json" in capsys.readouterr().err
+
+
+def test_writing_twice_gives_byte_identical_files(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from bench import oper_sets
+
+    monkeypatch.setattr(oper_sets, "POINTS_DIR", tmp_path)
+    assert oper_sets.main([]) == 0
+    first = {p.name: p.read_bytes() for p in tmp_path.glob("*.json")}
+    assert sorted(first) == sorted(f"{name}.json" for name in SET_NAMES)
+    assert oper_sets.main([]) == 0
+    assert {p.name: p.read_bytes() for p in tmp_path.glob("*.json")} == first
+    assert all(data.endswith(b"\n") and not data.endswith(b"\n\n") for data in first.values())
+
+
+@pytest.mark.parametrize("name", SET_NAMES)
+def test_a_point_file_stays_small_enough_to_review(name: str) -> None:
+    from bench import oper_sets
+
+    assert len(oper_sets.generate()[name]) < 5_000_000
+
+
+def test_201_of_the_294_catalogue_rows_have_an_integer_turn_count_by_exact_decimals() -> None:
+    from bench import oper_sets
+
+    assert oper_sets.integer_turn_rows() == (201, 294)
+
+
+def test_explore_holds_every_catalogue_row_at_each_of_the_three_artifacts() -> None:
+    from screw.tables.presets import catalogue, expand, expand_nut, nut_catalogue
+
+    labelled = _by_label("explore")
+    artifacts = ["stl-preview", "stl-fine", "step"]
+    for row in catalogue():
+        points = labelled[row.id]
+        assert [p["artifact"] for p in points] == artifacts
+        assert all(p["preset"] == row.id and p["kind"] == "bolt" for p in points)
+        assert all(p["params"] == expand(row.id) for p in points)
+    for nut_row in nut_catalogue():
+        points = labelled[nut_row.id]
+        assert [p["artifact"] for p in points] == artifacts
+        assert all(p["preset"] == nut_row.id and p["kind"] == "nut" for p in points)
+        assert all(p["params"] == expand_nut(nut_row.id) for p in points)
+    assert sum(1 for p in _generated()["explore"]["points"] if "preset" in p) == 924
+
+
+def test_the_bolt_factorial_has_an_integer_turn_count_by_construction() -> None:
+    from screw.calc.thread import _exact
+
+    factorial = [p for p in _parts("explore") if p["label"].startswith("bolt-d")]
+    assert len({p["label"] for p in factorial}) > 100
+    for point in factorial:
+        params = point["params"]
+        assert params["thread_length"] == params["length"]
+        turns = _exact(params["length"]) / _exact(params["pitch"])
+        assert turns.denominator == 1
+        assert turns in (3, 30, 240)
+    assert {p["params"]["left_hand"] for p in factorial} == {False, True}
+
+
+def test_the_nut_factorial_covers_both_clearances_and_the_left_hand_subset() -> None:
+    nuts = [p for p in _parts("explore") if p["label"].startswith("nut-d")]
+    assert {p["params"]["clearance"] for p in nuts} == {0.15, 5.0}
+    left = [p for p in nuts if p["params"]["left_hand"]]
+    assert left
+    assert {p["params"]["clearance"] for p in left} == {0.15}
+    assert all(p["params"]["s"] == round(1.6 * p["params"]["d"], 4) for p in left)
+
+
+def test_the_four_recorded_corners_are_in_explore_at_the_artifact_they_were_recorded_with() -> None:
+    labelled = _by_label("explore")
+    fine = ["corner-d100-L200", "corner-d100-p5-L1250", "corner-d6-p0.1-L25"]
+    for label in fine:
+        assert [p["artifact"] for p in labelled[label]] == ["stl-fine"]
+    assert labelled["corner-d100-L200"][0]["params"] == {
+        "d": 100.0, "length": 200.0, "s": 200.0, "k": 50.0, "thread_length": 200.0}
+
+
+def test_a_corner_the_model_refuses_is_dropped_with_its_error_and_never_measured() -> None:
+    # d = 1e5 needs s above d, and s is bounded by the same 1e5 (head_too_small, params.py): the
+    # recorded corner is not a request anyone can make, which the file says instead of hiding.
+    dropped = {d["label"]: d for d in _generated()["explore"]["dropped"]}
+    assert dropped["corner-d1e5-p1-L1"]["error"] == "less_than_equal"
+    assert "corner-d1e5-p1-L1" not in _by_label("explore")
+
+
+@pytest.mark.parametrize("name", SET_NAMES)
+def test_every_part_point_validates_in_the_parameter_model(name: str) -> None:
+    from bench import oper_lift
+
+    for point in _parts(name):
+        oper_lift.validate(point["kind"], point["params"], point.get("lift"))
+
+
+@pytest.mark.parametrize("name", SET_NAMES)
+def test_every_dropped_combination_is_refused_by_the_model_with_the_error_it_names(
+        name: str) -> None:
+    from pydantic import ValidationError
+
+    from bench import oper_lift
+
+    for entry in _generated()[name]["dropped"]:
+        assert set(entry) - {"lift"} == {"label", "kind", "params", "artifacts", "error"}
+        with pytest.raises(ValidationError) as caught:
+            oper_lift.validate(entry["kind"], entry["params"], entry.get("lift"))
+        assert caught.value.errors()[0]["type"] == entry["error"]
+
+
+def test_the_factorial_refusals_are_listed_and_not_silent() -> None:
+    errors = {d["error"] for d in _generated()["explore"]["dropped"]}
+    assert {"pitch_too_coarse", "turn_cap", "nut_too_thin"} <= errors
+
+
+def test_no_label_is_used_twice_for_the_same_artifact() -> None:
+    for name in SET_NAMES:
+        pairs = [(p["label"], p.get("artifact", p.get("probe")))
+                 for p in _generated()[name]["points"]]
+        assert len(pairs) == len(set(pairs))
+
+
+def test_spread_is_the_defaults_and_the_last_rows_at_three_artifacts_each() -> None:
+    from screw.tables.presets import catalogue, nut_catalogue
+
+    labelled = _by_label("spread")
+    assert list(labelled) == ["default-bolt", "default-nut", catalogue()[-1].id,
+                              nut_catalogue()[-1].id]
+    assert all(len(points) == 3 for points in labelled.values())
+    assert labelled["default-bolt"][0]["params"] == {}
+    assert len(_generated()["spread"]["points"]) == 12
+
+
+# --- walls ---------------------------------------------------------------------------------------
+
+
+def _walls(prefix: str) -> list[_Point]:
+    return [p for p in _generated()["walls"]["points"] if p["label"].startswith(prefix)]
+
+
+def test_the_turn_walls_are_250_turns_at_the_15_sizes_both_hands_rod_and_void() -> None:
+    from bench.thread_spike.maths import PITCH
+    from screw.calc.thread import _exact
+
+    bolts, nuts = _walls("turns-bolt-"), _walls("turns-nut-")
+    assert len(bolts) == len(nuts) == 15 * 2
+    for point in bolts:
+        params = point["params"]
+        pitch = _exact(params["pitch"])
+        assert _exact(params["thread_length"]) == _exact(params["length"]) == 250 * pitch
+        assert point["artifact"] == "stl-preview"
+    for point in nuts:
+        params = point["params"]
+        pitch = _exact(params["pitch"])
+        assert _exact(params["m"]) + 2 * pitch == 250 * pitch
+    sizes = {p["label"].split("-")[2] for p in bolts}
+    assert sizes == set(PITCH)
+    assert {p["params"]["left_hand"] for p in bolts} == {False, True}
+
+
+def test_the_field_ceiling_corners_sit_at_1e3_1e4_and_1e5() -> None:
+    ceilings = _walls("ceiling-")
+    assert len(ceilings) == 3 * 9
+    by_label = {p["label"]: p["params"] for p in ceilings}
+    for x in (1e3, 1e4, 1e5):
+        tag = f"{x:g}"
+        assert by_label[f"ceiling-bolt-s-{tag}"] == {"s": x}
+        assert by_label[f"ceiling-bolt-k-{tag}"] == {"k": x}
+        assert by_label[f"ceiling-bolt-length-{tag}"] == {"length": x}
+        assert by_label[f"ceiling-nut-s-{tag}"] == {"s": x}
+        bolt_d = by_label[f"ceiling-bolt-d-{tag}"]
+        assert bolt_d["s"] == x
+        assert bolt_d["d"] < x
+        both = by_label[f"ceiling-bolt-thread-{tag}"]
+        assert both["thread_length"] == both["length"] == x
+        assert both["pitch"] == x / 250
+        nut_m = by_label[f"ceiling-nut-m-{tag}"]
+        assert nut_m["m"] == x
+        assert nut_m["pitch"] * 248 >= x  # rounded up, so the void stays at or under 250 turns
+
+
+def test_the_diameter_probe_holds_the_largest_d_the_head_rule_admits_at_its_s() -> None:
+    from decimal import Context, Decimal
+
+    from screw.params import BoltParams
+
+    by_label = {p["label"]: p["params"] for p in _walls("ceiling-bolt-d-")}
+    assert {label: params["d"] for label, params in by_label.items()} == {
+        "ceiling-bolt-d-1000": 999.999, "ceiling-bolt-d-10000": 9999.99,
+        "ceiling-bolt-d-100000": 99999.9}
+    for params in by_label.values():
+        BoltParams.model_validate(params)
+        # the next number of 6 significant figures up is no longer under s: the model refuses it
+        above = float(Context(prec=6).next_plus(Decimal(repr(params["d"]))))
+        with pytest.raises(ValueError, match="across-flats"):
+            BoltParams.model_validate({**params, "d": above})
+
+
+def test_the_clearance_probe_holds_the_largest_clearance_nut_too_thin_admits_at_its_s() -> None:
+    from decimal import Context, Decimal
+
+    from screw.params import NutParams
+
+    by_label = {p["label"]: p["params"] for p in _walls("ceiling-nut-clearance-")}
+    assert {label: params["clearance"] for label, params in by_label.items()} == {
+        "ceiling-nut-clearance-1000": 496.999, "ceiling-nut-clearance-10000": 4996.99,
+        "ceiling-nut-clearance-100000": 49996.9}
+    for x, params in zip((1e3, 1e4, 1e5), by_label.values(), strict=True):
+        assert (params["d"], params["s"]) == (6.0, x)
+        NutParams.model_validate(params)
+        above = float(Context(prec=6).next_plus(Decimal(repr(params["clearance"]))))
+        with pytest.raises(ValueError, match="across flats"):
+            NutParams.model_validate({**params, "clearance": above})
+
+
+def test_the_nut_diameter_probe_holds_the_largest_d_nut_too_thin_admits_at_its_s() -> None:
+    from decimal import Context, Decimal
+
+    from screw.params import NutParams
+
+    by_label = {p["label"]: p["params"] for p in _walls("ceiling-nut-d-")}
+    assert {label: params["d"] for label, params in by_label.items()} == {
+        "ceiling-nut-d-1000": 999.699, "ceiling-nut-d-10000": 9999.69,
+        "ceiling-nut-d-100000": 99999.6}
+    for x, params in zip((1e3, 1e4, 1e5), by_label.values(), strict=True):
+        assert params["s"] == x
+        assert "clearance" not in params  # the default 0.15, which the protocol states
+        NutParams.model_validate(params)
+        above = float(Context(prec=6).next_plus(Decimal(repr(params["d"]))))
+        with pytest.raises(ValueError, match="across flats"):
+            NutParams.model_validate({**params, "d": above})
+
+
+def test_the_protocol_ties_the_nut_diameter_ceiling_to_its_probe_and_tested_value() -> None:
+    rule = " ".join(_rule(8).split())
+    assert "nut `d` the `ceiling-nut-d` reading" in rule
+    assert "nut `d`, whose tested value is the largest under X - 2 x 0.15 (99999.6 at 1e5)" in rule
+    assert "nut `d`: a nut with `s` = X" in " ".join(_protocol().split())
+
+
+def test_the_tail_walk_runs_eight_decades_at_three_sizes_and_both_hands() -> None:
+    tails = _walls("tail-")
+    assert len(tails) == 3 * 2 * 8
+    assert all(p["kind"] == "probe" and p["probe"] == "tail" for p in tails)
+    assert {p["args"]["tail"] for p in tails} == {float(f"1e-{i}") for i in range(2, 10)}
+    assert {(p["args"]["d"], p["args"]["pitch"]) for p in tails} == {
+        (6.0, 1.0), (2.0, 0.4), (20.0, 2.5)}
+    assert all(p["args"]["turns"] == 3 for p in tails)
+    assert {p["args"]["left_hand"] for p in tails} == {False, True}
+
+
+def test_the_root_radius_walk_reaches_the_radius_it_names_at_every_size_and_hand() -> None:
+    from screw.calc.thread import thread_depth
+
+    points = _walls("root-")
+    assert len(points) == 15 * 2 * 9 * 2
+    radii = set()
+    for point in points:
+        params = point["params"]
+        target = float(point["label"].rsplit("-r", 1)[1])
+        radii.add(target)
+        realised = params["d"] / 2 - thread_depth(params["pitch"])
+        if point["kind"] == "nut":
+            realised += 0.15
+        assert realised > 0
+        assert realised == pytest.approx(target, rel=1e-3)
+    assert radii == {1e-2, 3e-3, 1e-3, 3e-4, 1e-4, 3e-5, 1e-5, 3e-6, 1e-6}
+
+
+def test_walls_include_the_nuts_the_two_open_nut_debt_items_name() -> None:
+    lead = _walls("nutlead-")
+    assert len(lead) == 3 * 3
+    assert {(p["params"]["d"], p["params"]["m"], p["params"]["clearance"]) for p in lead} == {
+        (2.0, 12.0, 0.1), (8.0, 38.0, 0.1), (14.0, 46.0, 0.1)}
+    assert {p["params"]["s"] for p in lead} == {1e3, 1e4, 1e5}
+    countersink = _walls("nutcsk-")
+    assert {(p["params"]["pitch"], p["params"]["clearance"]) for p in countersink} == {
+        (1.5, 0.05), (1.8, 0.05), (1.5, 0.01)}
+    assert all(p["params"]["d"] == 2.0 and p["params"]["s"] == 4.0 and p["params"]["m"] == 3.0
+               for p in countersink)
+
+
+# --- controls ------------------------------------------------------------------------------------
+
+
+def test_the_controls_run_the_thread_spikes_positions_on_the_sample_sizes_right_hand() -> None:
+    from bench.thread_spike.maths import PITCH, SAMPLE_SIZES, standard_max
+
+    points = _generated()["controls"]["points"]
+    assert all(p["kind"] == "probe" for p in points)
+    naive = [p for p in points if p["probe"] == "naive"]
+    pipe = [p for p in points if p["probe"] == "one_pipe"]
+    assert len(naive) + len(pipe) == len(points)
+    assert all(p["args"]["left_hand"] is False for p in pipe)
+    for size in SAMPLE_SIZES:
+        d, pitch = PITCH[size]
+        lengths = {p["args"]["length"] for p in naive if p["label"].startswith(f"naive-{size}-")}
+        assert lengths == {float(x) for x in {10 * pitch, 10, 20, standard_max(d)}}
+        turns = {p["args"]["turns"] for p in pipe if p["label"].startswith(f"one_pipe-{size}-")}
+        wanted = {float(standard_max(d) / pitch), 100.0, 160.0, 200.0, 250.0}
+        assert turns == wanted
+
+
+# --- the loader accepts what the generator adds --------------------------------------------------
+
+
+def test_a_point_file_may_carry_dropped_notes_and_a_preset_per_point(tmp_path: Path) -> None:
+    point = {"label": "a", "kind": "bolt", "params": {}, "artifact": "step", "preset": "iso:x"}
+    _write_set(tmp_path, points=[point], dropped=[{"label": "b"}], notes=["why"])
+    assert oper.load_set("mini", tmp_path).points[0].label == "a"
+
+
+@pytest.mark.parametrize(
+    "over",
+    [{"dropped": "no"}, {"notes": "no"}, {"notes": [1]},
+     {"points": [{"label": "a", "kind": "bolt", "params": {}, "artifact": "step", "preset": 3}]}],
+    ids=["dropped-not-a-list", "notes-not-a-list", "note-not-text", "preset-not-text"])
+def test_the_added_keys_are_held_to_their_types(over: dict[str, object], tmp_path: Path) -> None:
+    _write_set(tmp_path, **over)
+    with pytest.raises(ValueError, match="mini"):
+        oper.load_set("mini", tmp_path)
+
+
+def test_one_part_may_be_listed_once_per_artifact_but_not_twice_for_one(tmp_path: Path) -> None:
+    def part(artifact: str) -> dict[str, object]:
+        return {"label": "a", "kind": "bolt", "params": {}, "artifact": artifact}
+
+    _write_set(tmp_path, points=[part("step"), part("stl-fine")])
+    assert len(oper.load_set("mini", tmp_path).points) == 2
+    _write_set(tmp_path, points=[part("step"), part("step")])
+    with pytest.raises(ValueError, match="mini"):
+        oper.load_set("mini", tmp_path)
+
+
+# --- a point past a validator cap lifts that one guard (07 R3) -----------------------------------
+
+SHORT_ROD = {"d": 2.0, "pitch": 0.4, "length": 104.0, "thread_length": 104.0}  # 260 turns
+
+
+def _lift_error(kind: str, params: Mapping[str, float | bool],
+                lift: Mapping[str, float] | None = None) -> str | None:
+    from pydantic import ValidationError
+
+    from bench import oper_lift
+
+    try:
+        oper_lift.validate(kind, params, lift)
+    except ValidationError as exc:
+        return str(exc.errors()[0]["type"])
+    return None
+
+
+def test_the_parent_and_the_lift_module_name_the_same_guards() -> None:
+    from bench import oper_lift
+
+    assert oper.LIFT_ARGS == oper_lift.LIFTS
+
+
+def test_a_turn_lift_admits_the_turns_it_names_and_not_one_more() -> None:
+    assert _lift_error("bolt", SHORT_ROD) == "turn_cap"
+    assert _lift_error("bolt", SHORT_ROD, {"max_turns": 260}) is None
+    longer = {**SHORT_ROD, "length": 104.4, "thread_length": 104.4}
+    assert _lift_error("bolt", longer, {"max_turns": 260}) == "turn_cap"
+    void = {"d": 2.0, "pitch": 0.4, "m": 103.2, "s": 4.0}  # m + 2 pitch is 260 turns
+    assert _lift_error("nut", void) == "turn_cap"
+    assert _lift_error("nut", void, {"max_turns": 260}) is None
+
+
+def test_a_turn_lift_leaves_every_other_guard_in_place_and_restores_the_cap() -> None:
+    from screw.calc import thread
+
+    assert _lift_error("bolt", {**SHORT_ROD, "s": 1.0}, {"max_turns": 260}) == "head_too_small"
+    assert thread.MAX_TURNS == 250
+    assert _lift_error("bolt", {**SHORT_ROD, "d": -1.0}, {"max_turns": 260}) == "greater_than"
+    assert thread.MAX_TURNS == 250
+
+
+def test_a_field_lift_admits_the_bound_it_names_and_not_a_decade_more() -> None:
+    assert _lift_error("bolt", {"s": 1e6}) == "less_than_equal"
+    assert _lift_error("bolt", {"s": 1e6}, {"max_mm": 1e6}) is None
+    assert _lift_error("bolt", {"s": 1e7}, {"max_mm": 1e6}) == "less_than_equal"
+    assert _lift_error("nut", {"s": 1e6, "clearance": 4e5}, {"max_mm": 1e6}) is None
+
+
+def test_a_field_lift_leaves_every_other_guard_in_place_and_the_classes_untouched() -> None:
+    from annotated_types import Le
+
+    from screw.params import BoltParams, NutParams
+
+    assert _lift_error("bolt", {"d": 5e5, "s": 4e5}, {"max_mm": 1e6}) == "head_too_small"
+    assert _lift_error("nut", {"s": 1e5, "clearance": 5e5}, {"max_mm": 1e6}) == "nut_too_thin"
+    assert _lift_error("bolt", {"length": 1e6, "pitch": 1e-3, "thread_length": 1e6},
+                       {"max_mm": 1e6}) == "turn_cap"
+    for model in (BoltParams, NutParams):
+        assert [m.le for m in model.model_fields["s"].metadata if isinstance(m, Le)] == [1e5]
+
+
+@pytest.mark.parametrize("lift", [{}, {"max_turns": 260, "max_mm": 1e6}, {"max_pitch": 3}],
+                         ids=["empty-is-no-lift", "two-guards", "unknown-guard"])
+def test_a_lift_must_name_exactly_one_known_guard(lift: dict[str, float]) -> None:
+    from bench import oper_lift
+
+    if lift == {}:
+        assert oper_lift.validate("bolt", {}, lift).kind == "bolt"
+    else:
+        with pytest.raises(ValueError, match="exactly one"):
+            oper_lift.validate("bolt", {}, lift)
+
+
+def test_a_lift_reaches_the_child_and_only_when_a_point_has_one(tmp_path: Path) -> None:
+    plain = {"label": "a", "kind": "bolt", "params": {}, "artifact": "step"}
+    lifted = {**plain, "label": "b", "lift": {"max_mm": 1e6}}
+    _write_set(tmp_path, points=[plain, lifted])
+    first, second = oper.load_set("mini", tmp_path).points
+    assert first.lift is None
+    assert "lift" not in json.loads(first.as_json())
+    assert second.lift == {"max_mm": 1e6}
+    assert json.loads(second.as_json())["lift"] == {"max_mm": 1e6}
+
+
+@pytest.mark.parametrize(
+    "lift",
+    [{}, {"max_turns": 260, "max_mm": 1e6}, {"max_pitch": 3}, "max_mm", ["max_mm"],
+     {"max_turns": 260.5}, {"max_turns": 0}, {"max_turns": True}, {"max_mm": 0},
+     {"max_mm": "1e6"}, {"max_mm": False}],
+    ids=["empty", "two-guards", "unknown-guard", "text", "list", "fractional-turns", "zero-turns",
+         "bool-turns", "zero-mm", "text-mm", "bool-mm"])
+def test_a_lift_that_breaks_its_schema_is_refused_naming_the_point(
+        lift: object, tmp_path: Path) -> None:
+    point = {"label": "lifted", "kind": "bolt", "params": {}, "artifact": "step", "lift": lift}
+    _write_set(tmp_path, points=[point])
+    with pytest.raises(ValueError, match="lifted"):
+        oper.load_set("mini", tmp_path)
+
+
+def test_a_probe_cannot_carry_a_lift(tmp_path: Path) -> None:
+    _write_set(tmp_path, points=[{**_probe(), "lift": {"max_mm": 1e6}}])
+    with pytest.raises(ValueError, match="'t'"):
+        oper.load_set("mini", tmp_path)
+
+
+def test_a_reading_past_a_guard_records_which_guard_it_lifted(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    def run(argv: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(argv, 0, stdout=_ok_line(), stderr="")
+
+    def docker(*args: str, **_: object) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(args, 0, stdout="false 0", stderr="")
+
+    monkeypatch.setattr(subprocess, "run", run)
+    monkeypatch.setattr(oper, "_docker", docker)
+    plain = oper.Point("a", "bolt", {}, "step")
+    lifted = oper.Point("b", "bolt", {"s": 2e5}, "step", {"max_mm": 1e6})
+    assert "lift" not in oper.run_reading(plain, 1, "screw:x", oper.CAP_BYTES, 60)
+    assert oper.run_reading(lifted, 1, "screw:x", oper.CAP_BYTES, 60)["lift"] == {"max_mm": 1e6}
+
+
+def test_the_child_validates_a_lifted_point_with_the_guard_lifted(
+        monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    from screw import solid
+    from screw.params import FastenerParams
+
+    built: list[FastenerParams] = []
+    monkeypatch.setattr(solid, "build", lambda p: built.append(p))
+    monkeypatch.setattr(solid, "export", lambda *_: bytes(84))
+    point = {"kind": "bolt", "params": {"s": 2e5}, "artifact": "stl-preview"}
+    assert oper_child.main([json.dumps(point)]) == 2  # refused unlifted: less_than_equal
+    assert built == []
+    capsys.readouterr()
+    assert oper_child.main([json.dumps({**point, "lift": {"max_mm": 1e6}})]) == 0
+    assert len(built) == 1
+    assert getattr(built[0], "s") == 2e5  # noqa: B009 -- FastenerParams has no `s`, a bolt does
+    assert oper_child.main([json.dumps({**point, "lift": {"max_pitch": 1}})]) == 2
+
+
+def test_walls_past_the_caps_hold_260_turns_and_the_next_decade_each_with_its_one_lift() -> None:
+    beyond = _walls("beyond-")
+    assert len(beyond) == 15 * 2 * 2 + 9
+    assert all(p["artifact"] == "stl-preview" and p["kind"] != "probe" for p in beyond)
+    turns = [p for p in beyond if p["label"].startswith("beyond-turns-")]
+    assert len(turns) == 60
+    assert {tuple(p["lift"].items()) for p in turns} == {(("max_turns", 260),)}
+    fields = [p for p in beyond if not p["label"].startswith("beyond-turns-")]
+    assert {tuple(p["lift"].items()) for p in fields} == {(("max_mm", 1e6),)}
+    assert {p["label"] for p in fields} == {
+        f"beyond-{field}-1000000" for field in (
+            "bolt-d", "bolt-length", "bolt-s", "bolt-k", "bolt-thread", "nut-s", "nut-clearance",
+            "nut-d", "nut-m")}
+
+
+def test_every_past_the_cap_point_is_refused_by_the_plain_model_and_by_it_alone() -> None:
+    from screw.params import KINDS
+
+    for point in _walls("beyond-"):
+        assert _lift_error(point["kind"], point["params"]) in {"turn_cap", "less_than_equal"}
+        assert _lift_error(point["kind"], point["params"], point["lift"]) is None
+        assert point["kind"] in KINDS
+
+
+# --- the protocol the point files are registered in (07-03) ---------------------------------------
+
+PROTOCOL = REPO_ROOT / ".planning" / "phases" / "07-operability-re-sweep" / "07-SWEEP-PROTOCOL.md"
+
+
+def _protocol() -> str:
+    return PROTOCOL.read_text()
+
+
+def test_the_protocol_states_thirty_rules_once_each_in_order() -> None:
+    headings = re.findall(r"^## R(\d+) ", _protocol(), re.MULTILINE)
+    assert headings == [str(n) for n in range(1, 31)]
+
+
+def test_every_point_file_names_a_rule_the_protocol_states() -> None:
+    for name in ("tracer", *SET_NAMES):
+        rule = json.loads((POINTS_DIR / f"{name}.json").read_text())["rule"]
+        match = re.fullmatch(r"07-SWEEP-PROTOCOL\.md R(\d+)", rule)
+        assert match, rule
+        assert f"\n## R{match.group(1)} " in _protocol()
+
+
+def test_the_protocol_table_gives_each_set_the_shape_and_counts_its_file_has() -> None:
+    rows = {m.group(1): [int(x) for x in m.groups()[1:]] for m in re.finditer(
+        r"^\| (explore|spread|walls|controls) \| (\d+) \| (\d+) \| (\d+) \| (\d+) \| (\d+) \|",
+        _protocol(), re.MULTILINE)}
+    assert sorted(rows) == sorted(SET_NAMES)
+    for name in SET_NAMES:
+        doc = _generated()[name]
+        assert rows[name] == [doc["reps"], doc["shards"], doc["deadline_s"], len(doc["points"]),
+                              len(doc["dropped"])], name
+
+
+def _rule(number: int) -> str:
+    text = _protocol()
+    start = text.index(f"\n## R{number} ")
+    return text[start:text.index("\n## R", start + 1)]
+
+
+@pytest.mark.parametrize("number", [9, 10])
+def test_a_floor_stands_only_on_ok_readings_and_otherwise_stops_the_phase(number: int) -> None:
+    rule = " ".join(_rule(number).split())
+    assert "stands only on `ok` readings" in rule
+    assert "`capped` reading sets no F" in rule
+    assert "the phase stops and asks the owner" in rule
+
+
+def test_the_protocol_names_the_git_blob_sha_of_every_committed_point_file() -> None:
+    import hashlib
+
+    quoted = dict(re.findall(r"`(\w+)\.json`\s+`([0-9a-f]{40})`", _protocol()))
+    assert sorted(quoted) == sorted(("tracer", *SET_NAMES))
+    for name, sha in quoted.items():
+        data = (POINTS_DIR / f"{name}.json").read_bytes()
+        assert hashlib.sha1(b"blob %d\0" % len(data) + data).hexdigest() == sha, name
+
+
+def test_the_protocol_fixes_every_number_a_rule_needs_before_any_reading() -> None:
+    text = _protocol()
+    for needle in ("random.Random(20261026)", "at least 10 %", "1.5x", "256 MiB",
+                   "4 x 10^9 bytes", "ceil(2 x", "statistics.quantiles(n=20)"):
+        assert needle in text, needle
+
+
+def test_no_rule_carries_the_macos_tail_floor_or_spurs_export_budget_as_a_value() -> None:
+    text = _protocol()
+    assert "64 MiB" not in text
+    assert "stays 1e-3" not in text
+    assert "1e-3 sits" not in text
+    assert "above 0" in _rule(9)
+
+
+def test_the_protocol_records_the_disposition_of_the_two_debt_items_it_leaves_open() -> None:
+    text = _protocol()
+    for item in ("2026-10-10-spike-protocol-amendments-before-next-campaign.md",
+                 "2026-10-14-m18-probe-one-entry-has-no-deadline-during-a-run.md"):
+        assert item in text
+        assert (REPO_ROOT / "docs" / "tech_debt" / "active" / item).is_file()
+
+
+def test_contention_partners_take_one_affinity_slot_each_so_the_workers_are_distinct() -> None:
+    rule = " ".join(_rule(14).split())
+    assert "on each of the other N - 1 slots, one admitted point" in rule
+    assert "`hash(p) % N`" in rule
+    assert "N distinct workers" in rule
+    assert "a tie going to the label that sorts first" in rule
+    assert "the phase stops and asks the owner" in rule
+
+
+def test_the_slot_the_protocol_computes_is_the_pools_and_is_the_same_in_every_process() -> None:
+    import inspect
+
+    from screw.pool import BuildPool
+
+    assert "hash(p) % self.workers" in inspect.getsource(BuildPool.executor_for)
+    code = ("from screw.params import KINDS; "
+            "ps = [KINDS['bolt'].model_validate({'length': n, 'thread_length': n}) "
+            "for n in (20, 30, 40)] + [KINDS['nut'].model_validate({'m': 6})]; "
+            "print([hash(p) % n for p in ps for n in (1, 2, 3)])")
+    seen = {subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
+                           check=True, env={**os.environ, "PYTHONHASHSEED": seed}).stdout
+            for seed in ("1", "2", "random")}
+    assert len(seen) == 1
+
+
+@pytest.mark.parametrize("number", [11, 13])
+def test_a_point_supplies_a_fit_or_calibration_figure_only_if_every_repetition_is_ok(
+        number: int) -> None:
+    rule = " ".join(_rule(number).split())
+    assert "whose every repetition is `ok`" in rule
+    assert "per-point max, R11" in rule or "has no max (R3) and is not fitted" in rule
+    assert "no ok reading" not in rule
+
+
+def test_the_bound_set_holds_the_memory_extrema_that_w_is_read_from() -> None:
+    rule = " ".join(_rule(14).split())
+    assert "the admitted point with the largest enveloped peak-bytes prediction" in rule
+    assert "the admitted point with the largest measured peak" in rule
+    assert "the set holds 5 to 8 points" in rule
+    assert "the memory extrema of each included" in " ".join(_rule(16).split())
+
+
+def test_a_turn_bound_stands_only_on_ok_boundary_readings_and_otherwise_stops_the_phase() -> None:
+    rule = " ".join(_rule(7).split())
+    assert "The bound stands only on `ok` readings" in rule
+    assert "A `killed`, `capped` or `no_cgroup` reading in that evidence" in rule
+    assert "or a reading it asks for that is missing" in rule
+    assert "No turn bound is then awarded, 250 included," in rule
+    assert "the phase stops and asks the owner" in rule
+
+
+def test_the_load_run_is_the_cold_worst_case_with_no_part_repeated() -> None:
+    rule = " ".join(_rule(15).split())
+    assert "no request repeats a part anywhere in a run" in rule
+    assert "The artifacts take their parts in the order `stl-fine`, `step`, `stl-preview`" in rule
+    assert "Each artifact takes its parts on its own" in rule
+    assert "the first 3 parts of its own edge ranking" in rule
+    assert "takes its next-ranked ones by its own edge ranking, so every artifact keeps" in rule
+    assert "the three artifacts of one part included" in rule
+    assert "A run has 20 parts for each artifact" in rule
+    assert "pass" not in rule
+    assert "no part is repeated to fill a gap" in rule
+    assert "a new `random.Random(20261026).shuffle`" in rule
+    assert "`SCREW_EXPORT_CACHE_MB` is 1" in rule
+    assert "Every request carries `Accept-Encoding: identity`" in rule
+
+
+def test_the_required_tier_fixes_its_candidates_edge_draw_ties_and_duplicates() -> None:
+    rule = " ".join(_rule(27).split())
+    assert "deduplicated by part" in rule
+    assert "the first in file order is kept" in rule
+    assert "a tie going to the label that sorts first" in rule
+    assert "shuffled by `random.Random(20261026).shuffle`" in rule
+    assert "The *edge ranking* is every candidate ordered by edge ratio, largest first" in rule
+    assert "Where no component is finite for A" in rule
+    assert "which under C3 is `stl-preview` and `step`" in rule
+    assert "the edge ratio is the point's enveloped build-seconds prediction, by this rule" in rule
+    assert "ranked by seconds and not by bytes" in rule
+    assert "it stops at the first draw point that does not fit and skips none" in rule
+    assert "otherwise the artifact's full timeout (R14)" in rule
+    assert "Steps 1 to 4 need no timeout, so D(A) is fixed before the load run (R15)" in rule
+    assert "the tier is built only then and never before" in rule
+
+
+def test_the_seeded_shuffle_the_protocol_names_is_the_one_python_3_12_gives() -> None:
+    import random
+
+    order = list(range(12))
+    random.Random(20261026).shuffle(order)
+    assert order == [8, 11, 9, 10, 5, 0, 4, 6, 7, 2, 3, 1]
+
+
+def test_the_export_cache_setting_floors_at_one_so_the_load_run_cannot_turn_it_off(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    from screw import int_env
+
+    monkeypatch.setenv("SCREW_EXPORT_CACHE_MB", "0")
+    assert int_env("SCREW_EXPORT_CACHE_MB", 64) == 1
+
+
+def test_explore_holds_enough_distinct_parts_for_a_load_run_that_repeats_none() -> None:
+    parts: dict[str, set[str]] = {}
+    for point in _generated()["explore"]["points"]:
+        key = json.dumps([point["kind"], point["params"]], sort_keys=True)
+        parts.setdefault(point["artifact"], set()).add(key)
+    assert all(len(keys) >= 20 for keys in parts.values())  # 20 per artifact
+    assert len(set().union(*parts.values())) >= 60  # 3 x 20 parts, none shared
+
+
+def test_the_load_peak_is_read_once_at_the_end_of_one_run_and_drift_is_the_drift_runs() -> None:
+    load = " ".join(_rule(15).split())
+    assert "The container's cgroup peak is read once, at the end of the run" in load
+    assert "growth across repeated builds is the drift run of R23" in load
+    assert "read at the end of the load run, R15" in " ".join(_rule(16).split())
+
+
+def test_the_drift_run_builds_one_fixed_part_cold_k_times_and_compares_the_first_and_last_peak(
+) -> None:
+    rule = " ".join(_rule(23).split())
+    assert "It is separate from the load run" in rule
+    assert "K = 20 times in a row" in rule
+    assert "the point of A's bound set (R14) with the largest `memory_peak_bytes`" in rule
+    assert "among those whose reading is `ok`" in rule
+    assert "a tie going to the label that sorts first" in rule
+    assert "`screw.solid.clear_cache`" in rule
+    assert "compares the cgroup peak after build 1 with the peak after build K" in rule
+    assert "the drift of the artifact is the max over its 5 repetitions" in rule
+    assert "exceeds 0.10 x the smallest peak after build 1 among its 5 repetitions" in rule
+    assert "Drift adds nothing to R16's `mem_limit(N)`" in rule
+    assert "the owner fixes" not in rule
+    assert "pass 2" not in rule
+
+
+def test_a_repeated_part_would_hit_the_solid_cache_so_the_drift_run_empties_it(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    """The reason the drift run cannot just repeat a request: the cache keeps at least one solid,
+    and a repeat of the same validated params is a hit, not a build."""
+    from screw import int_env
+    from screw.solid import _build_cached, clear_cache
+
+    monkeypatch.setenv("SCREW_SOLID_CACHE", "0")
+    assert int_env("SCREW_SOLID_CACHE", 4) == 1
+    assert _build_cached.cache_parameters()["maxsize"] >= 1
+    clear_cache()  # exists, and is what the rule names
+
+
+def test_the_turn_bound_is_a_common_candidate_that_every_cell_is_confirmed_at() -> None:
+    rule = " ".join(_rule(7).split())
+    assert "A *cell* is a size, a hand and a kind" in rule
+    assert "The *candidate* T is the smallest first ok step over the cells" in rule
+    assert "`MAX_TURNS` is T only if the confirmation readings" in rule
+    assert "are `ok`, in all 5 repetitions, for every cell" in rule
+    assert "the confirmation set reads it there" in rule
+    assert "A confirmation reading at T that is not `ok`, or is missing, awards no turn" in rule
+    assert "the confirmation readings at T" in rule
+    assert "For R7 the value is the candidate T" in " ".join(_rule(3).split())
+
+
+# --- the repetitions a summary expects (R3) -------------------------------------------------------
+
+
+def test_four_distinct_repetitions_are_incomplete_and_carry_no_median_or_max() -> None:
+    row = oper.summarize([_reading(r) for r in (1, 2, 3, 4)])[0]
+    assert row["status"] == "incomplete"
+    assert row["n"] == 4
+    assert row["median"] is None
+    assert row["max"] is None
+
+
+def test_five_copies_of_one_repetition_are_incomplete_and_carry_no_median_or_max() -> None:
+    row = oper.summarize([_reading(1)] * 5)[0]
+    assert row["status"] == "incomplete"
+    assert row["n"] == 5
+    assert row["reps"] == [1, 1, 1, 1, 1]
+    assert row["median"] is None
+    assert row["max"] is None
+
+
+def test_a_sixth_repetition_or_a_foreign_one_is_incomplete() -> None:
+    assert oper.summarize([_reading(r) for r in range(1, 7)])[0]["status"] == "incomplete"
+    assert oper.summarize([_reading(r) for r in (1, 2, 3, 4, 6)])[0]["status"] == "incomplete"
+
+
+def test_the_expected_repetitions_are_the_callers_and_in_any_order() -> None:
+    explore = oper.summarize([_reading(1)], expected_reps=[1])[0]
+    assert explore["status"] == "ok"
+    assert explore["max"] is not None
+    shuffled = oper.summarize([_reading(r) for r in (3, 1, 5, 2, 4)])[0]
+    assert shuffled["status"] == "ok"
+    assert oper.summarize([_reading(2)], expected_reps=[1])[0]["status"] == "incomplete"
+
+
+def test_a_failing_repetition_keeps_its_own_status_before_the_incomplete_one() -> None:
+    row = oper.summarize([_reading(1), _reading(2, "capped")])[0]
+    assert row["status"] == "capped"
+    assert row["median"] is None
+
+
+def test_a_lifted_row_with_missing_repetitions_is_incomplete_too() -> None:
+    row = oper.summarize([_reading(r, lift={"max_mm": 1e6}) for r in (1, 2)])[0]
+    assert row["status"] == "incomplete"
+
+
+def test_an_incomplete_point_prints_its_repetitions_and_no_figures(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    path = tmp_path / "dup.jsonl"
+    path.write_text("\n".join(json.dumps(_reading(1)) for _ in range(5)) + "\n")
+    assert oper.main(["summarize", str(path)]) == 0
+    text = capsys.readouterr().out
+    assert "incomplete" in text
+    assert "reps seen [1, 1, 1, 1, 1]" in text
+    assert "median" not in text
+    assert oper.main(["summarize", str(path), "--markdown"]) == 0
+    markdown = capsys.readouterr().out
+    assert "reps seen [1, 1, 1, 1, 1]" in markdown
+    assert "| p | stl-preview | 5 | incomplete |" in markdown
+    assert oper.main(["summarize", str(path), "--reps", "1"]) == 0  # one rep expected: five copies
+    assert "incomplete" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("text", ["", "0", "1,1", "a", "1,,2", "-1"])
+def test_a_bad_expected_repetitions_list_is_refused_with_exit_2(
+        text: str, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    path = tmp_path / "one.jsonl"
+    path.write_text(json.dumps(_reading(1)) + "\n")
+    assert oper.main(["summarize", str(path), "--reps", text]) == 2
+    assert "--reps" in capsys.readouterr().err
+
+
+def test_the_job_summary_expects_the_one_repetition_of_its_job() -> None:
+    workflow = (REPO_ROOT / ".github" / "workflows" / "operability.yml").read_text()
+    assert 'summarize --markdown --reps "$REP"' in workflow
+
+
+def test_the_protocol_asks_for_the_distinct_repetitions_and_the_harness_enforces_it() -> None:
+    rule = " ".join(_rule(3).split())
+    assert "`rep` 1 to the set's reps, each exactly once" in rule
+    assert "is `incomplete` and has no median and no max" in rule
+    assert oper.BOUND_REPS == (1, 2, 3, 4, 5)
+    assert "(`bench.oper.summarize`)" in rule

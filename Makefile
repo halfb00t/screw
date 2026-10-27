@@ -29,7 +29,7 @@ CONSTRAINT := $(if $(wildcard requirements.txt),PIP_CONSTRAINT=requirements.txt,
 .PHONY: help venv verify lint typecheck lint-imports no-fake-done test serve lock \
 	    check image smoke up down logs vendor vendor-check \
 	    worktree.bootstrap worktree.new worktree.land pr.land clean clean-docker \
-	    bench bench.build bench.export bench.latency bench.memory bench.thread grid pair
+	    bench bench.build bench.export bench.latency bench.memory bench.thread bench.oper grid pair
 
 help:  ## list the targets
 	@grep -hE '^[a-z][a-z.-]*:.*##' $(MAKEFILE_LIST) | sed 's/:[^#]*##/\t/' | expand -t18
@@ -182,6 +182,12 @@ bench.export: $(STAMP)  ## gzip level table (L19) and mesh-copy cost (L24) for o
 # and needs no service: the kernel runs in a worker subprocess it spawns itself.
 bench.thread: $(STAMP)  ## thread spike (Phase 2): ARGS="smoke" | "check-protocol" | ...
 	$(PY) -m bench.thread_spike $(ARGS)
+
+# The operability runner harness (Phase 7): one reading per fresh container of the production
+# image. Only a run on the GitHub runner (.github/workflows/operability.yml) may set a bound
+# (07 D-01); on a laptop this is a path check.
+bench.oper: $(STAMP)  ## runner harness (07): ARGS="point ..." | "run --set S ..." | "summarize FILE"
+	$(PY) -m bench.oper $(ARGS)
 
 # The committed three.js bundle is a build artefact; these two make it reproducible from
 # web/ (spur L11). They need node 22; the gate does not, CI's vendor-bundle job runs the check.
