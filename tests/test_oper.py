@@ -9,6 +9,7 @@ must come out as a status and never as a plausible figure.
 
 from __future__ import annotations
 
+import functools
 import json
 import re
 import statistics
@@ -16,6 +17,7 @@ import subprocess
 import sys
 from collections.abc import Mapping
 from pathlib import Path
+from typing import TypedDict
 
 import pytest
 
@@ -1031,3 +1033,393 @@ def test_a_probe_the_child_cannot_read_is_an_exit_2_with_no_line(
     captured = capsys.readouterr()
     assert captured.out == ""
     assert captured.err != ""
+
+
+# --- the pre-registered point sets (07-03): the generator is their only definition --------------
+
+EXPECTED_SHAPE = {"explore": (1, 40, 600), "spread": (5, 12, 600), "walls": (1, 20, 600),
+                  "controls": (1, 4, 600)}  # reps, shards, deadline_s: protocol R3 and R4
+SET_NAMES = tuple(EXPECTED_SHAPE)
+
+
+class _Point(TypedDict, total=False):
+    """A point as the generator writes it: a part has `params` and `artifact`, a probe has
+    `probe` and `args`; `preset` marks a catalogue row."""
+
+    label: str
+    kind: str
+    params: dict[str, float | bool]
+    artifact: str
+    preset: str
+    probe: str
+    args: dict[str, float | bool]
+
+
+class _Dropped(TypedDict):
+    label: str
+    kind: str
+    params: dict[str, float | bool]
+    artifacts: list[str]
+    error: str
+
+
+class _Doc(TypedDict):
+    set: str
+    rule: str
+    reps: int
+    shards: int
+    deadline_s: int
+    points: list[_Point]
+    dropped: list[_Dropped]
+    notes: list[str]
+
+
+@functools.cache
+def _generated() -> dict[str, _Doc]:
+    from bench import oper_sets
+
+    return {name: json.loads(text) for name, text in oper_sets.generate().items()}
+
+
+def _parts(name: str) -> list[_Point]:
+    return [p for p in _generated()[name]["points"] if p["kind"] != "probe"]
+
+
+def _by_label(name: str) -> dict[str, list[_Point]]:
+    labelled: dict[str, list[_Point]] = {}
+    for point in _generated()[name]["points"]:
+        labelled.setdefault(point["label"], []).append(point)
+    return labelled
+
+
+def test_the_generator_lists_the_four_sets_and_gives_the_same_text_twice() -> None:
+    from bench import oper_sets
+
+    first = oper_sets.generate()
+    assert tuple(first) == SET_NAMES
+    assert oper_sets.generate() == first
+
+
+@pytest.mark.parametrize("name", SET_NAMES)
+def test_each_set_carries_the_reps_shards_and_deadline_the_protocol_fixes(name: str) -> None:
+    doc = _generated()[name]
+    assert doc["set"] == name
+    assert doc["rule"] == "07-SWEEP-PROTOCOL.md R4"
+    assert (doc["reps"], doc["shards"], doc["deadline_s"]) == EXPECTED_SHAPE[name]
+    assert doc["deadline_s"] == oper.DEADLINE_S
+
+
+@pytest.mark.parametrize("name", SET_NAMES)
+def test_the_runner_loads_every_set_the_generator_writes(name: str, tmp_path: Path) -> None:
+    from bench import oper_sets
+
+    (tmp_path / f"{name}.json").write_text(oper_sets.generate()[name])
+    spec = oper.load_set(name, tmp_path)
+    assert len(spec.points) == len(_generated()[name]["points"])
+
+
+def test_the_committed_point_files_are_what_the_generator_writes(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    from bench import oper_sets
+
+    assert oper_sets.main(["--check"]) == 0
+    assert "integer L/P: 201 of 294" in capsys.readouterr().out
+
+
+def test_check_names_the_first_file_that_differs_and_exits_1(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    from bench import oper_sets
+
+    for name, text in oper_sets.generate().items():
+        (tmp_path / f"{name}.json").write_text(text)
+    (tmp_path / "walls.json").write_text("{}\n")
+    (tmp_path / "spread.json").write_text(
+        (tmp_path / "spread.json").read_text().replace('"reps": 5', '"reps": 4'))
+    monkeypatch.setattr(oper_sets, "POINTS_DIR", tmp_path)
+    assert oper_sets.main(["--check"]) == 1
+    err = capsys.readouterr().err
+    assert "spread.json" in err
+    assert "walls.json" not in err  # the first one only
+
+
+def test_check_of_a_missing_file_is_a_difference(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    from bench import oper_sets
+
+    monkeypatch.setattr(oper_sets, "POINTS_DIR", tmp_path)
+    assert oper_sets.main(["--check"]) == 1
+    assert "explore.json" in capsys.readouterr().err
+
+
+def test_writing_twice_gives_byte_identical_files(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from bench import oper_sets
+
+    monkeypatch.setattr(oper_sets, "POINTS_DIR", tmp_path)
+    assert oper_sets.main([]) == 0
+    first = {p.name: p.read_bytes() for p in tmp_path.glob("*.json")}
+    assert sorted(first) == sorted(f"{name}.json" for name in SET_NAMES)
+    assert oper_sets.main([]) == 0
+    assert {p.name: p.read_bytes() for p in tmp_path.glob("*.json")} == first
+    assert all(data.endswith(b"\n") and not data.endswith(b"\n\n") for data in first.values())
+
+
+@pytest.mark.parametrize("name", SET_NAMES)
+def test_a_point_file_stays_small_enough_to_review(name: str) -> None:
+    from bench import oper_sets
+
+    assert len(oper_sets.generate()[name]) < 5_000_000
+
+
+def test_201_of_the_294_catalogue_rows_have_an_integer_turn_count_by_exact_decimals() -> None:
+    from bench import oper_sets
+
+    assert oper_sets.integer_turn_rows() == (201, 294)
+
+
+def test_explore_holds_every_catalogue_row_at_each_of_the_three_artifacts() -> None:
+    from screw.tables.presets import catalogue, expand, expand_nut, nut_catalogue
+
+    labelled = _by_label("explore")
+    artifacts = ["stl-preview", "stl-fine", "step"]
+    for row in catalogue():
+        points = labelled[row.id]
+        assert [p["artifact"] for p in points] == artifacts
+        assert all(p["preset"] == row.id and p["kind"] == "bolt" for p in points)
+        assert all(p["params"] == expand(row.id) for p in points)
+    for nut_row in nut_catalogue():
+        points = labelled[nut_row.id]
+        assert [p["artifact"] for p in points] == artifacts
+        assert all(p["preset"] == nut_row.id and p["kind"] == "nut" for p in points)
+        assert all(p["params"] == expand_nut(nut_row.id) for p in points)
+    assert sum(1 for p in _generated()["explore"]["points"] if "preset" in p) == 924
+
+
+def test_the_bolt_factorial_has_an_integer_turn_count_by_construction() -> None:
+    from screw.calc.thread import _exact
+
+    factorial = [p for p in _parts("explore") if p["label"].startswith("bolt-d")]
+    assert len({p["label"] for p in factorial}) > 100
+    for point in factorial:
+        params = point["params"]
+        assert params["thread_length"] == params["length"]
+        turns = _exact(params["length"]) / _exact(params["pitch"])
+        assert turns.denominator == 1
+        assert turns in (3, 30, 240)
+    assert {p["params"]["left_hand"] for p in factorial} == {False, True}
+
+
+def test_the_nut_factorial_covers_both_clearances_and_the_left_hand_subset() -> None:
+    nuts = [p for p in _parts("explore") if p["label"].startswith("nut-d")]
+    assert {p["params"]["clearance"] for p in nuts} == {0.15, 5.0}
+    left = [p for p in nuts if p["params"]["left_hand"]]
+    assert left
+    assert {p["params"]["clearance"] for p in left} == {0.15}
+    assert all(p["params"]["s"] == round(1.6 * p["params"]["d"], 4) for p in left)
+
+
+def test_the_four_recorded_corners_are_in_explore_at_the_artifact_they_were_recorded_with() -> None:
+    labelled = _by_label("explore")
+    fine = ["corner-d100-L200", "corner-d100-p5-L1250", "corner-d6-p0.1-L25"]
+    for label in fine:
+        assert [p["artifact"] for p in labelled[label]] == ["stl-fine"]
+    assert labelled["corner-d100-L200"][0]["params"] == {
+        "d": 100.0, "length": 200.0, "s": 200.0, "k": 50.0, "thread_length": 200.0}
+
+
+def test_a_corner_the_model_refuses_is_dropped_with_its_error_and_never_measured() -> None:
+    # d = 1e5 needs s above d, and s is bounded by the same 1e5 (head_too_small, params.py): the
+    # recorded corner is not a request anyone can make, which the file says instead of hiding.
+    dropped = {d["label"]: d for d in _generated()["explore"]["dropped"]}
+    assert dropped["corner-d1e5-p1-L1"]["error"] == "less_than_equal"
+    assert "corner-d1e5-p1-L1" not in _by_label("explore")
+
+
+@pytest.mark.parametrize("name", SET_NAMES)
+def test_every_part_point_validates_in_the_parameter_model(name: str) -> None:
+    from screw.params import KINDS
+
+    for point in _parts(name):
+        KINDS[point["kind"]].model_validate(point["params"])
+
+
+@pytest.mark.parametrize("name", SET_NAMES)
+def test_every_dropped_combination_is_refused_by_the_model_with_the_error_it_names(
+        name: str) -> None:
+    from pydantic import ValidationError
+
+    from screw.params import KINDS
+
+    for entry in _generated()[name]["dropped"]:
+        assert set(entry) == {"label", "kind", "params", "artifacts", "error"}
+        with pytest.raises(ValidationError) as caught:
+            KINDS[entry["kind"]].model_validate(entry["params"])
+        assert caught.value.errors()[0]["type"] == entry["error"]
+
+
+def test_the_factorial_refusals_are_listed_and_not_silent() -> None:
+    errors = {d["error"] for d in _generated()["explore"]["dropped"]}
+    assert {"pitch_too_coarse", "turn_cap", "nut_too_thin"} <= errors
+
+
+def test_no_label_is_used_twice_for_the_same_artifact() -> None:
+    for name in SET_NAMES:
+        pairs = [(p["label"], p.get("artifact", p.get("probe")))
+                 for p in _generated()[name]["points"]]
+        assert len(pairs) == len(set(pairs))
+
+
+def test_spread_is_the_defaults_and_the_last_rows_at_three_artifacts_each() -> None:
+    from screw.tables.presets import catalogue, nut_catalogue
+
+    labelled = _by_label("spread")
+    assert list(labelled) == ["default-bolt", "default-nut", catalogue()[-1].id,
+                              nut_catalogue()[-1].id]
+    assert all(len(points) == 3 for points in labelled.values())
+    assert labelled["default-bolt"][0]["params"] == {}
+    assert len(_generated()["spread"]["points"]) == 12
+
+
+# --- walls ---------------------------------------------------------------------------------------
+
+
+def _walls(prefix: str) -> list[_Point]:
+    return [p for p in _generated()["walls"]["points"] if p["label"].startswith(prefix)]
+
+
+def test_the_turn_walls_are_250_turns_at_the_15_sizes_both_hands_rod_and_void() -> None:
+    from bench.thread_spike.maths import PITCH
+    from screw.calc.thread import _exact
+
+    bolts, nuts = _walls("turns-bolt-"), _walls("turns-nut-")
+    assert len(bolts) == len(nuts) == 15 * 2
+    for point in bolts:
+        params = point["params"]
+        pitch = _exact(params["pitch"])
+        assert _exact(params["thread_length"]) == _exact(params["length"]) == 250 * pitch
+        assert point["artifact"] == "stl-preview"
+    for point in nuts:
+        params = point["params"]
+        pitch = _exact(params["pitch"])
+        assert _exact(params["m"]) + 2 * pitch == 250 * pitch
+    sizes = {p["label"].split("-")[2] for p in bolts}
+    assert sizes == set(PITCH)
+    assert {p["params"]["left_hand"] for p in bolts} == {False, True}
+
+
+def test_the_field_ceiling_corners_sit_at_1e3_1e4_and_1e5() -> None:
+    ceilings = _walls("ceiling-")
+    assert len(ceilings) == 3 * 7
+    by_label = {p["label"]: p["params"] for p in ceilings}
+    for x in (1e3, 1e4, 1e5):
+        tag = f"{x:g}"
+        assert by_label[f"ceiling-bolt-s-{tag}"] == {"s": x}
+        assert by_label[f"ceiling-bolt-k-{tag}"] == {"k": x}
+        assert by_label[f"ceiling-bolt-length-{tag}"] == {"length": x}
+        assert by_label[f"ceiling-nut-s-{tag}"] == {"s": x}
+        bolt_d = by_label[f"ceiling-bolt-d-{tag}"]
+        assert bolt_d["s"] == x
+        assert bolt_d["d"] == pytest.approx(x / 1.6)
+        both = by_label[f"ceiling-bolt-thread-{tag}"]
+        assert both["thread_length"] == both["length"] == x
+        assert both["pitch"] == x / 250
+        nut_m = by_label[f"ceiling-nut-m-{tag}"]
+        assert nut_m["m"] == x
+        assert nut_m["pitch"] * 248 >= x  # rounded up, so the void stays at or under 250 turns
+    assert "clearance" in " ".join(_generated()["walls"]["notes"])
+
+
+def test_the_tail_walk_runs_eight_decades_at_three_sizes_and_both_hands() -> None:
+    tails = _walls("tail-")
+    assert len(tails) == 3 * 2 * 8
+    assert all(p["kind"] == "probe" and p["probe"] == "tail" for p in tails)
+    assert {p["args"]["tail"] for p in tails} == {float(f"1e-{i}") for i in range(2, 10)}
+    assert {(p["args"]["d"], p["args"]["pitch"]) for p in tails} == {
+        (6.0, 1.0), (2.0, 0.4), (20.0, 2.5)}
+    assert all(p["args"]["turns"] == 3 for p in tails)
+    assert {p["args"]["left_hand"] for p in tails} == {False, True}
+
+
+def test_the_root_radius_walk_reaches_the_radius_it_names_at_every_size_and_hand() -> None:
+    from screw.calc.thread import thread_depth
+
+    points = _walls("root-")
+    assert len(points) == 15 * 2 * 9 * 2
+    radii = set()
+    for point in points:
+        params = point["params"]
+        target = float(point["label"].rsplit("-r", 1)[1])
+        radii.add(target)
+        realised = params["d"] / 2 - thread_depth(params["pitch"])
+        if point["kind"] == "nut":
+            realised += 0.15
+        assert realised > 0
+        assert realised == pytest.approx(target, rel=1e-3)
+    assert radii == {1e-2, 3e-3, 1e-3, 3e-4, 1e-4, 3e-5, 1e-5, 3e-6, 1e-6}
+
+
+def test_walls_include_the_nuts_the_two_open_nut_debt_items_name() -> None:
+    lead = _walls("nutlead-")
+    assert len(lead) == 3 * 3
+    assert {(p["params"]["d"], p["params"]["m"], p["params"]["clearance"]) for p in lead} == {
+        (2.0, 12.0, 0.1), (8.0, 38.0, 0.1), (14.0, 46.0, 0.1)}
+    assert {p["params"]["s"] for p in lead} == {1e3, 1e4, 1e5}
+    countersink = _walls("nutcsk-")
+    assert {(p["params"]["pitch"], p["params"]["clearance"]) for p in countersink} == {
+        (1.5, 0.05), (1.8, 0.05), (1.5, 0.01)}
+    assert all(p["params"]["d"] == 2.0 and p["params"]["s"] == 4.0 and p["params"]["m"] == 3.0
+               for p in countersink)
+
+
+# --- controls ------------------------------------------------------------------------------------
+
+
+def test_the_controls_run_the_thread_spikes_positions_on_the_sample_sizes_right_hand() -> None:
+    from bench.thread_spike.maths import PITCH, SAMPLE_SIZES, standard_max
+
+    points = _generated()["controls"]["points"]
+    assert all(p["kind"] == "probe" for p in points)
+    naive = [p for p in points if p["probe"] == "naive"]
+    pipe = [p for p in points if p["probe"] == "one_pipe"]
+    assert len(naive) + len(pipe) == len(points)
+    assert all(p["args"]["left_hand"] is False for p in pipe)
+    for size in SAMPLE_SIZES:
+        d, pitch = PITCH[size]
+        lengths = {p["args"]["length"] for p in naive if p["label"].startswith(f"naive-{size}-")}
+        assert lengths == {float(x) for x in {10 * pitch, 10, 20, standard_max(d)}}
+        turns = {p["args"]["turns"] for p in pipe if p["label"].startswith(f"one_pipe-{size}-")}
+        wanted = {float(standard_max(d) / pitch), 100.0, 160.0, 200.0, 250.0}
+        assert turns == wanted
+
+
+# --- the loader accepts what the generator adds --------------------------------------------------
+
+
+def test_a_point_file_may_carry_dropped_notes_and_a_preset_per_point(tmp_path: Path) -> None:
+    point = {"label": "a", "kind": "bolt", "params": {}, "artifact": "step", "preset": "iso:x"}
+    _write_set(tmp_path, points=[point], dropped=[{"label": "b"}], notes=["why"])
+    assert oper.load_set("mini", tmp_path).points[0].label == "a"
+
+
+@pytest.mark.parametrize(
+    "over",
+    [{"dropped": "no"}, {"notes": "no"}, {"notes": [1]},
+     {"points": [{"label": "a", "kind": "bolt", "params": {}, "artifact": "step", "preset": 3}]}],
+    ids=["dropped-not-a-list", "notes-not-a-list", "note-not-text", "preset-not-text"])
+def test_the_added_keys_are_held_to_their_types(over: dict[str, object], tmp_path: Path) -> None:
+    _write_set(tmp_path, **over)
+    with pytest.raises(ValueError, match="mini"):
+        oper.load_set("mini", tmp_path)
+
+
+def test_one_part_may_be_listed_once_per_artifact_but_not_twice_for_one(tmp_path: Path) -> None:
+    def part(artifact: str) -> dict[str, object]:
+        return {"label": "a", "kind": "bolt", "params": {}, "artifact": artifact}
+
+    _write_set(tmp_path, points=[part("step"), part("stl-fine")])
+    assert len(oper.load_set("mini", tmp_path).points) == 2
+    _write_set(tmp_path, points=[part("step"), part("step")])
+    with pytest.raises(ValueError, match="mini"):
+        oper.load_set("mini", tmp_path)

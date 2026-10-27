@@ -1,0 +1,8739 @@
+{
+ "set": "walls",
+ "rule": "07-SWEEP-PROTOCOL.md R4",
+ "reps": 1,
+ "shards": 20,
+ "deadline_s": 600,
+ "points": [
+  {
+   "label": "turns-bolt-M2-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 100.0,
+    "thread_length": 100.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-nut-M2-right",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 99.2,
+    "s": 3.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-bolt-M2-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 100.0,
+    "thread_length": 100.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-nut-M2-left",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 99.2,
+    "s": 3.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-bolt-M2.5-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 112.5,
+    "thread_length": 112.5,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-nut-M2.5-right",
+   "kind": "nut",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "m": 111.6,
+    "s": 4.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-bolt-M2.5-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 112.5,
+    "thread_length": 112.5,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-nut-M2.5-left",
+   "kind": "nut",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "m": 111.6,
+    "s": 4.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-bolt-M3-right",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 125.0,
+    "thread_length": 125.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-nut-M3-right",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "m": 124.0,
+    "s": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-bolt-M3-left",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 125.0,
+    "thread_length": 125.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-nut-M3-left",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "m": 124.0,
+    "s": 4.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-bolt-M3.5-right",
+   "kind": "bolt",
+   "params": {
+    "d": 3.5,
+    "pitch": 0.6,
+    "length": 150.0,
+    "thread_length": 150.0,
+    "s": 5.6,
+    "k": 2.1,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-nut-M3.5-right",
+   "kind": "nut",
+   "params": {
+    "d": 3.5,
+    "pitch": 0.6,
+    "m": 148.8,
+    "s": 5.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-bolt-M3.5-left",
+   "kind": "bolt",
+   "params": {
+    "d": 3.5,
+    "pitch": 0.6,
+    "length": 150.0,
+    "thread_length": 150.0,
+    "s": 5.6,
+    "k": 2.1,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-nut-M3.5-left",
+   "kind": "nut",
+   "params": {
+    "d": 3.5,
+    "pitch": 0.6,
+    "m": 148.8,
+    "s": 5.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-bolt-M4-right",
+   "kind": "bolt",
+   "params": {
+    "d": 4.0,
+    "pitch": 0.7,
+    "length": 175.0,
+    "thread_length": 175.0,
+    "s": 6.4,
+    "k": 2.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-nut-M4-right",
+   "kind": "nut",
+   "params": {
+    "d": 4.0,
+    "pitch": 0.7,
+    "m": 173.6,
+    "s": 6.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-bolt-M4-left",
+   "kind": "bolt",
+   "params": {
+    "d": 4.0,
+    "pitch": 0.7,
+    "length": 175.0,
+    "thread_length": 175.0,
+    "s": 6.4,
+    "k": 2.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-nut-M4-left",
+   "kind": "nut",
+   "params": {
+    "d": 4.0,
+    "pitch": 0.7,
+    "m": 173.6,
+    "s": 6.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-bolt-M5-right",
+   "kind": "bolt",
+   "params": {
+    "d": 5.0,
+    "pitch": 0.8,
+    "length": 200.0,
+    "thread_length": 200.0,
+    "s": 8.0,
+    "k": 3.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-nut-M5-right",
+   "kind": "nut",
+   "params": {
+    "d": 5.0,
+    "pitch": 0.8,
+    "m": 198.4,
+    "s": 8.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-bolt-M5-left",
+   "kind": "bolt",
+   "params": {
+    "d": 5.0,
+    "pitch": 0.8,
+    "length": 200.0,
+    "thread_length": 200.0,
+    "s": 8.0,
+    "k": 3.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-nut-M5-left",
+   "kind": "nut",
+   "params": {
+    "d": 5.0,
+    "pitch": 0.8,
+    "m": 198.4,
+    "s": 8.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-bolt-M6-right",
+   "kind": "bolt",
+   "params": {
+    "d": 6.0,
+    "pitch": 1.0,
+    "length": 250.0,
+    "thread_length": 250.0,
+    "s": 9.6,
+    "k": 3.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-nut-M6-right",
+   "kind": "nut",
+   "params": {
+    "d": 6.0,
+    "pitch": 1.0,
+    "m": 248.0,
+    "s": 9.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-bolt-M6-left",
+   "kind": "bolt",
+   "params": {
+    "d": 6.0,
+    "pitch": 1.0,
+    "length": 250.0,
+    "thread_length": 250.0,
+    "s": 9.6,
+    "k": 3.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-nut-M6-left",
+   "kind": "nut",
+   "params": {
+    "d": 6.0,
+    "pitch": 1.0,
+    "m": 248.0,
+    "s": 9.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-bolt-M7-right",
+   "kind": "bolt",
+   "params": {
+    "d": 7.0,
+    "pitch": 1.0,
+    "length": 250.0,
+    "thread_length": 250.0,
+    "s": 11.2,
+    "k": 4.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-nut-M7-right",
+   "kind": "nut",
+   "params": {
+    "d": 7.0,
+    "pitch": 1.0,
+    "m": 248.0,
+    "s": 11.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-bolt-M7-left",
+   "kind": "bolt",
+   "params": {
+    "d": 7.0,
+    "pitch": 1.0,
+    "length": 250.0,
+    "thread_length": 250.0,
+    "s": 11.2,
+    "k": 4.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-nut-M7-left",
+   "kind": "nut",
+   "params": {
+    "d": 7.0,
+    "pitch": 1.0,
+    "m": 248.0,
+    "s": 11.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-bolt-M8-right",
+   "kind": "bolt",
+   "params": {
+    "d": 8.0,
+    "pitch": 1.25,
+    "length": 312.5,
+    "thread_length": 312.5,
+    "s": 12.8,
+    "k": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-nut-M8-right",
+   "kind": "nut",
+   "params": {
+    "d": 8.0,
+    "pitch": 1.25,
+    "m": 310.0,
+    "s": 12.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-bolt-M8-left",
+   "kind": "bolt",
+   "params": {
+    "d": 8.0,
+    "pitch": 1.25,
+    "length": 312.5,
+    "thread_length": 312.5,
+    "s": 12.8,
+    "k": 4.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-nut-M8-left",
+   "kind": "nut",
+   "params": {
+    "d": 8.0,
+    "pitch": 1.25,
+    "m": 310.0,
+    "s": 12.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-bolt-M10-right",
+   "kind": "bolt",
+   "params": {
+    "d": 10.0,
+    "pitch": 1.5,
+    "length": 375.0,
+    "thread_length": 375.0,
+    "s": 16.0,
+    "k": 6.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-nut-M10-right",
+   "kind": "nut",
+   "params": {
+    "d": 10.0,
+    "pitch": 1.5,
+    "m": 372.0,
+    "s": 16.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-bolt-M10-left",
+   "kind": "bolt",
+   "params": {
+    "d": 10.0,
+    "pitch": 1.5,
+    "length": 375.0,
+    "thread_length": 375.0,
+    "s": 16.0,
+    "k": 6.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-nut-M10-left",
+   "kind": "nut",
+   "params": {
+    "d": 10.0,
+    "pitch": 1.5,
+    "m": 372.0,
+    "s": 16.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-bolt-M12-right",
+   "kind": "bolt",
+   "params": {
+    "d": 12.0,
+    "pitch": 1.75,
+    "length": 437.5,
+    "thread_length": 437.5,
+    "s": 19.2,
+    "k": 7.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-nut-M12-right",
+   "kind": "nut",
+   "params": {
+    "d": 12.0,
+    "pitch": 1.75,
+    "m": 434.0,
+    "s": 19.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-bolt-M12-left",
+   "kind": "bolt",
+   "params": {
+    "d": 12.0,
+    "pitch": 1.75,
+    "length": 437.5,
+    "thread_length": 437.5,
+    "s": 19.2,
+    "k": 7.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-nut-M12-left",
+   "kind": "nut",
+   "params": {
+    "d": 12.0,
+    "pitch": 1.75,
+    "m": 434.0,
+    "s": 19.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-bolt-M14-right",
+   "kind": "bolt",
+   "params": {
+    "d": 14.0,
+    "pitch": 2.0,
+    "length": 500.0,
+    "thread_length": 500.0,
+    "s": 22.4,
+    "k": 8.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-nut-M14-right",
+   "kind": "nut",
+   "params": {
+    "d": 14.0,
+    "pitch": 2.0,
+    "m": 496.0,
+    "s": 22.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-bolt-M14-left",
+   "kind": "bolt",
+   "params": {
+    "d": 14.0,
+    "pitch": 2.0,
+    "length": 500.0,
+    "thread_length": 500.0,
+    "s": 22.4,
+    "k": 8.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-nut-M14-left",
+   "kind": "nut",
+   "params": {
+    "d": 14.0,
+    "pitch": 2.0,
+    "m": 496.0,
+    "s": 22.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-bolt-M16-right",
+   "kind": "bolt",
+   "params": {
+    "d": 16.0,
+    "pitch": 2.0,
+    "length": 500.0,
+    "thread_length": 500.0,
+    "s": 25.6,
+    "k": 9.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-nut-M16-right",
+   "kind": "nut",
+   "params": {
+    "d": 16.0,
+    "pitch": 2.0,
+    "m": 496.0,
+    "s": 25.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-bolt-M16-left",
+   "kind": "bolt",
+   "params": {
+    "d": 16.0,
+    "pitch": 2.0,
+    "length": 500.0,
+    "thread_length": 500.0,
+    "s": 25.6,
+    "k": 9.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-nut-M16-left",
+   "kind": "nut",
+   "params": {
+    "d": 16.0,
+    "pitch": 2.0,
+    "m": 496.0,
+    "s": 25.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-bolt-M18-right",
+   "kind": "bolt",
+   "params": {
+    "d": 18.0,
+    "pitch": 2.5,
+    "length": 625.0,
+    "thread_length": 625.0,
+    "s": 28.8,
+    "k": 10.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-nut-M18-right",
+   "kind": "nut",
+   "params": {
+    "d": 18.0,
+    "pitch": 2.5,
+    "m": 620.0,
+    "s": 28.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-bolt-M18-left",
+   "kind": "bolt",
+   "params": {
+    "d": 18.0,
+    "pitch": 2.5,
+    "length": 625.0,
+    "thread_length": 625.0,
+    "s": 28.8,
+    "k": 10.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-nut-M18-left",
+   "kind": "nut",
+   "params": {
+    "d": 18.0,
+    "pitch": 2.5,
+    "m": 620.0,
+    "s": 28.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-bolt-M20-right",
+   "kind": "bolt",
+   "params": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "length": 625.0,
+    "thread_length": 625.0,
+    "s": 32.0,
+    "k": 12.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-nut-M20-right",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "m": 620.0,
+    "s": 32.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-bolt-M20-left",
+   "kind": "bolt",
+   "params": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "length": 625.0,
+    "thread_length": 625.0,
+    "s": 32.0,
+    "k": 12.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-nut-M20-left",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "m": 620.0,
+    "s": 32.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "ceiling-bolt-d-1000",
+   "kind": "bolt",
+   "params": {
+    "d": 625.0,
+    "s": 1000.0,
+    "k": 375.0,
+    "thread_length": 1.0
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "ceiling-bolt-length-1000",
+   "kind": "bolt",
+   "params": {
+    "length": 1000.0
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "ceiling-bolt-s-1000",
+   "kind": "bolt",
+   "params": {
+    "s": 1000.0
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "ceiling-bolt-k-1000",
+   "kind": "bolt",
+   "params": {
+    "k": 1000.0
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "ceiling-bolt-thread-1000",
+   "kind": "bolt",
+   "params": {
+    "d": 8.0,
+    "pitch": 4.0,
+    "length": 1000.0,
+    "thread_length": 1000.0,
+    "s": 12.8,
+    "k": 4.8
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "ceiling-nut-s-1000",
+   "kind": "nut",
+   "params": {
+    "s": 1000.0
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "ceiling-nut-m-1000",
+   "kind": "nut",
+   "params": {
+    "d": 10.0807,
+    "pitch": 4.03226,
+    "m": 1000.0,
+    "s": 16.1291
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "ceiling-bolt-d-10000",
+   "kind": "bolt",
+   "params": {
+    "d": 6250.0,
+    "s": 10000.0,
+    "k": 3750.0,
+    "thread_length": 1.0
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "ceiling-bolt-length-10000",
+   "kind": "bolt",
+   "params": {
+    "length": 10000.0
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "ceiling-bolt-s-10000",
+   "kind": "bolt",
+   "params": {
+    "s": 10000.0
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "ceiling-bolt-k-10000",
+   "kind": "bolt",
+   "params": {
+    "k": 10000.0
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "ceiling-bolt-thread-10000",
+   "kind": "bolt",
+   "params": {
+    "d": 80.0,
+    "pitch": 40.0,
+    "length": 10000.0,
+    "thread_length": 10000.0,
+    "s": 128.0,
+    "k": 48.0
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "ceiling-nut-s-10000",
+   "kind": "nut",
+   "params": {
+    "s": 10000.0
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "ceiling-nut-m-10000",
+   "kind": "nut",
+   "params": {
+    "d": 100.807,
+    "pitch": 40.3226,
+    "m": 10000.0,
+    "s": 161.291
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "ceiling-bolt-d-100000",
+   "kind": "bolt",
+   "params": {
+    "d": 62500.0,
+    "s": 100000.0,
+    "k": 37500.0,
+    "thread_length": 1.0
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "ceiling-bolt-length-100000",
+   "kind": "bolt",
+   "params": {
+    "length": 100000.0
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "ceiling-bolt-s-100000",
+   "kind": "bolt",
+   "params": {
+    "s": 100000.0
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "ceiling-bolt-k-100000",
+   "kind": "bolt",
+   "params": {
+    "k": 100000.0
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "ceiling-bolt-thread-100000",
+   "kind": "bolt",
+   "params": {
+    "d": 800.0,
+    "pitch": 400.0,
+    "length": 100000.0,
+    "thread_length": 100000.0,
+    "s": 1280.0,
+    "k": 480.0
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "ceiling-nut-s-100000",
+   "kind": "nut",
+   "params": {
+    "s": 100000.0
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "ceiling-nut-m-100000",
+   "kind": "nut",
+   "params": {
+    "d": 1008.07,
+    "pitch": 403.226,
+    "m": 100000.0,
+    "s": 1612.91
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "tail-d6-p1-right-1e-2",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 6.0,
+    "pitch": 1.0,
+    "turns": 3,
+    "tail": 0.01,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "tail-d6-p1-right-1e-3",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 6.0,
+    "pitch": 1.0,
+    "turns": 3,
+    "tail": 0.001,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "tail-d6-p1-right-1e-4",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 6.0,
+    "pitch": 1.0,
+    "turns": 3,
+    "tail": 0.0001,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "tail-d6-p1-right-1e-5",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 6.0,
+    "pitch": 1.0,
+    "turns": 3,
+    "tail": 1e-05,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "tail-d6-p1-right-1e-6",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 6.0,
+    "pitch": 1.0,
+    "turns": 3,
+    "tail": 1e-06,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "tail-d6-p1-right-1e-7",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 6.0,
+    "pitch": 1.0,
+    "turns": 3,
+    "tail": 1e-07,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "tail-d6-p1-right-1e-8",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 6.0,
+    "pitch": 1.0,
+    "turns": 3,
+    "tail": 1e-08,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "tail-d6-p1-right-1e-9",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 6.0,
+    "pitch": 1.0,
+    "turns": 3,
+    "tail": 1e-09,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "tail-d6-p1-left-1e-2",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 6.0,
+    "pitch": 1.0,
+    "turns": 3,
+    "tail": 0.01,
+    "left_hand": true
+   }
+  },
+  {
+   "label": "tail-d6-p1-left-1e-3",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 6.0,
+    "pitch": 1.0,
+    "turns": 3,
+    "tail": 0.001,
+    "left_hand": true
+   }
+  },
+  {
+   "label": "tail-d6-p1-left-1e-4",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 6.0,
+    "pitch": 1.0,
+    "turns": 3,
+    "tail": 0.0001,
+    "left_hand": true
+   }
+  },
+  {
+   "label": "tail-d6-p1-left-1e-5",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 6.0,
+    "pitch": 1.0,
+    "turns": 3,
+    "tail": 1e-05,
+    "left_hand": true
+   }
+  },
+  {
+   "label": "tail-d6-p1-left-1e-6",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 6.0,
+    "pitch": 1.0,
+    "turns": 3,
+    "tail": 1e-06,
+    "left_hand": true
+   }
+  },
+  {
+   "label": "tail-d6-p1-left-1e-7",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 6.0,
+    "pitch": 1.0,
+    "turns": 3,
+    "tail": 1e-07,
+    "left_hand": true
+   }
+  },
+  {
+   "label": "tail-d6-p1-left-1e-8",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 6.0,
+    "pitch": 1.0,
+    "turns": 3,
+    "tail": 1e-08,
+    "left_hand": true
+   }
+  },
+  {
+   "label": "tail-d6-p1-left-1e-9",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 6.0,
+    "pitch": 1.0,
+    "turns": 3,
+    "tail": 1e-09,
+    "left_hand": true
+   }
+  },
+  {
+   "label": "tail-d2-p0.4-right-1e-2",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "turns": 3,
+    "tail": 0.01,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "tail-d2-p0.4-right-1e-3",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "turns": 3,
+    "tail": 0.001,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "tail-d2-p0.4-right-1e-4",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "turns": 3,
+    "tail": 0.0001,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "tail-d2-p0.4-right-1e-5",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "turns": 3,
+    "tail": 1e-05,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "tail-d2-p0.4-right-1e-6",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "turns": 3,
+    "tail": 1e-06,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "tail-d2-p0.4-right-1e-7",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "turns": 3,
+    "tail": 1e-07,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "tail-d2-p0.4-right-1e-8",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "turns": 3,
+    "tail": 1e-08,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "tail-d2-p0.4-right-1e-9",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "turns": 3,
+    "tail": 1e-09,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "tail-d2-p0.4-left-1e-2",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "turns": 3,
+    "tail": 0.01,
+    "left_hand": true
+   }
+  },
+  {
+   "label": "tail-d2-p0.4-left-1e-3",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "turns": 3,
+    "tail": 0.001,
+    "left_hand": true
+   }
+  },
+  {
+   "label": "tail-d2-p0.4-left-1e-4",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "turns": 3,
+    "tail": 0.0001,
+    "left_hand": true
+   }
+  },
+  {
+   "label": "tail-d2-p0.4-left-1e-5",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "turns": 3,
+    "tail": 1e-05,
+    "left_hand": true
+   }
+  },
+  {
+   "label": "tail-d2-p0.4-left-1e-6",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "turns": 3,
+    "tail": 1e-06,
+    "left_hand": true
+   }
+  },
+  {
+   "label": "tail-d2-p0.4-left-1e-7",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "turns": 3,
+    "tail": 1e-07,
+    "left_hand": true
+   }
+  },
+  {
+   "label": "tail-d2-p0.4-left-1e-8",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "turns": 3,
+    "tail": 1e-08,
+    "left_hand": true
+   }
+  },
+  {
+   "label": "tail-d2-p0.4-left-1e-9",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "turns": 3,
+    "tail": 1e-09,
+    "left_hand": true
+   }
+  },
+  {
+   "label": "tail-d20-p2.5-right-1e-2",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "turns": 3,
+    "tail": 0.01,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "tail-d20-p2.5-right-1e-3",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "turns": 3,
+    "tail": 0.001,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "tail-d20-p2.5-right-1e-4",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "turns": 3,
+    "tail": 0.0001,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "tail-d20-p2.5-right-1e-5",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "turns": 3,
+    "tail": 1e-05,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "tail-d20-p2.5-right-1e-6",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "turns": 3,
+    "tail": 1e-06,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "tail-d20-p2.5-right-1e-7",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "turns": 3,
+    "tail": 1e-07,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "tail-d20-p2.5-right-1e-8",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "turns": 3,
+    "tail": 1e-08,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "tail-d20-p2.5-right-1e-9",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "turns": 3,
+    "tail": 1e-09,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "tail-d20-p2.5-left-1e-2",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "turns": 3,
+    "tail": 0.01,
+    "left_hand": true
+   }
+  },
+  {
+   "label": "tail-d20-p2.5-left-1e-3",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "turns": 3,
+    "tail": 0.001,
+    "left_hand": true
+   }
+  },
+  {
+   "label": "tail-d20-p2.5-left-1e-4",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "turns": 3,
+    "tail": 0.0001,
+    "left_hand": true
+   }
+  },
+  {
+   "label": "tail-d20-p2.5-left-1e-5",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "turns": 3,
+    "tail": 1e-05,
+    "left_hand": true
+   }
+  },
+  {
+   "label": "tail-d20-p2.5-left-1e-6",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "turns": 3,
+    "tail": 1e-06,
+    "left_hand": true
+   }
+  },
+  {
+   "label": "tail-d20-p2.5-left-1e-7",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "turns": 3,
+    "tail": 1e-07,
+    "left_hand": true
+   }
+  },
+  {
+   "label": "tail-d20-p2.5-left-1e-8",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "turns": 3,
+    "tail": 1e-08,
+    "left_hand": true
+   }
+  },
+  {
+   "label": "tail-d20-p2.5-left-1e-9",
+   "kind": "probe",
+   "probe": "tail",
+   "args": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "turns": 3,
+    "tail": 1e-09,
+    "left_hand": true
+   }
+  },
+  {
+   "label": "root-bolt-M2-right-r0.01",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 1.8290456527927346,
+    "length": 5.487136958378204,
+    "thread_length": 5.487136958378204,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2-right-r0.01",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 2.1061737820037547,
+    "m": 6.318521346011265,
+    "s": 3.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M2-right-r0.003",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 1.8419782988225821,
+    "length": 5.525934896467747,
+    "thread_length": 5.525934896467747,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2-right-r0.003",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 2.1191064280336027,
+    "m": 6.357319284100808,
+    "s": 3.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M2-right-r0.001",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 1.8456733405453958,
+    "length": 5.537020021636187,
+    "thread_length": 5.537020021636187,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2-right-r0.001",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 2.1228014697564164,
+    "m": 6.3684044092692496,
+    "s": 3.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M2-right-r0.0003",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 1.8469666051483806,
+    "length": 5.540899815445142,
+    "thread_length": 5.540899815445142,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2-right-r0.0003",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 2.1240947343594008,
+    "m": 6.372284203078202,
+    "s": 3.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M2-right-r0.0001",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 1.847336109320662,
+    "length": 5.542008327961986,
+    "thread_length": 5.542008327961986,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2-right-r0.0001",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 2.124464238531682,
+    "m": 6.373392715595046,
+    "s": 3.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M2-right-r3e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 1.8474654357809606,
+    "length": 5.542396307342882,
+    "thread_length": 5.542396307342882,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2-right-r3e-05",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 2.1245935649919807,
+    "m": 6.373780694975942,
+    "s": 3.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M2-right-r1e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 1.8475023861981887,
+    "length": 5.542507158594566,
+    "thread_length": 5.542507158594566,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2-right-r1e-05",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 2.124630515409209,
+    "m": 6.373891546227627,
+    "s": 3.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M2-right-r3e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 1.8475153188442184,
+    "length": 5.542545956532655,
+    "thread_length": 5.542545956532655,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2-right-r3e-06",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 2.1246434480552385,
+    "m": 6.373930344165716,
+    "s": 3.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M2-right-r1e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 1.8475190138859412,
+    "length": 5.542557041657823,
+    "thread_length": 5.542557041657823,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2-right-r1e-06",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 2.124647143096962,
+    "m": 6.373941429290886,
+    "s": 3.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M2-left-r0.01",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 1.8290456527927346,
+    "length": 5.487136958378204,
+    "thread_length": 5.487136958378204,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2-left-r0.01",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 2.1061737820037547,
+    "m": 6.318521346011265,
+    "s": 3.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M2-left-r0.003",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 1.8419782988225821,
+    "length": 5.525934896467747,
+    "thread_length": 5.525934896467747,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2-left-r0.003",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 2.1191064280336027,
+    "m": 6.357319284100808,
+    "s": 3.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M2-left-r0.001",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 1.8456733405453958,
+    "length": 5.537020021636187,
+    "thread_length": 5.537020021636187,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2-left-r0.001",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 2.1228014697564164,
+    "m": 6.3684044092692496,
+    "s": 3.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M2-left-r0.0003",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 1.8469666051483806,
+    "length": 5.540899815445142,
+    "thread_length": 5.540899815445142,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2-left-r0.0003",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 2.1240947343594008,
+    "m": 6.372284203078202,
+    "s": 3.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M2-left-r0.0001",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 1.847336109320662,
+    "length": 5.542008327961986,
+    "thread_length": 5.542008327961986,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2-left-r0.0001",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 2.124464238531682,
+    "m": 6.373392715595046,
+    "s": 3.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M2-left-r3e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 1.8474654357809606,
+    "length": 5.542396307342882,
+    "thread_length": 5.542396307342882,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2-left-r3e-05",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 2.1245935649919807,
+    "m": 6.373780694975942,
+    "s": 3.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M2-left-r1e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 1.8475023861981887,
+    "length": 5.542507158594566,
+    "thread_length": 5.542507158594566,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2-left-r1e-05",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 2.124630515409209,
+    "m": 6.373891546227627,
+    "s": 3.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M2-left-r3e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 1.8475153188442184,
+    "length": 5.542545956532655,
+    "thread_length": 5.542545956532655,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2-left-r3e-06",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 2.1246434480552385,
+    "m": 6.373930344165716,
+    "s": 3.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M2-left-r1e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 1.8475190138859412,
+    "length": 5.542557041657823,
+    "thread_length": 5.542557041657823,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2-left-r1e-06",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 2.124647143096962,
+    "m": 6.373941429290886,
+    "s": 3.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M2.5-right-r0.01",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.290925868144435,
+    "length": 6.872777604433305,
+    "thread_length": 6.872777604433305,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2.5-right-r0.01",
+   "kind": "nut",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.5680539973554555,
+    "m": 7.704161992066366,
+    "s": 4.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M2.5-right-r0.003",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.303858514174283,
+    "length": 6.911575542522849,
+    "thread_length": 6.911575542522849,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2.5-right-r0.003",
+   "kind": "nut",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.5809866433853035,
+    "m": 7.74295993015591,
+    "s": 4.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M2.5-right-r0.001",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.3075535558970968,
+    "length": 6.92266066769129,
+    "thread_length": 6.92266066769129,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2.5-right-r0.001",
+   "kind": "nut",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.584681685108117,
+    "m": 7.754045055324351,
+    "s": 4.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M2.5-right-r0.0003",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.308846820500081,
+    "length": 6.9265404615002435,
+    "thread_length": 6.9265404615002435,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2.5-right-r0.0003",
+   "kind": "nut",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.5859749497111015,
+    "m": 7.757924849133305,
+    "s": 4.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M2.5-right-r0.0001",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.3092163246723625,
+    "length": 6.927648974017087,
+    "thread_length": 6.927648974017087,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2.5-right-r0.0001",
+   "kind": "nut",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.586344453883383,
+    "m": 7.759033361650149,
+    "s": 4.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M2.5-right-r3e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.309345651132661,
+    "length": 6.928036953397983,
+    "thread_length": 6.928036953397983,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2.5-right-r3e-05",
+   "kind": "nut",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.5864737803436815,
+    "m": 7.759421341031045,
+    "s": 4.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M2.5-right-r1e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.3093826015498893,
+    "length": 6.928147804649668,
+    "thread_length": 6.928147804649668,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2.5-right-r1e-05",
+   "kind": "nut",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.5865107307609096,
+    "m": 7.7595321922827285,
+    "s": 4.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M2.5-right-r3e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.309395534195919,
+    "length": 6.928186602587757,
+    "thread_length": 6.928186602587757,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2.5-right-r3e-06",
+   "kind": "nut",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.5865236634069393,
+    "m": 7.759570990220817,
+    "s": 4.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M2.5-right-r1e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.309399229237642,
+    "length": 6.9281976877129265,
+    "thread_length": 6.9281976877129265,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2.5-right-r1e-06",
+   "kind": "nut",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.586527358448662,
+    "m": 7.759582075345986,
+    "s": 4.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M2.5-left-r0.01",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.290925868144435,
+    "length": 6.872777604433305,
+    "thread_length": 6.872777604433305,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2.5-left-r0.01",
+   "kind": "nut",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.5680539973554555,
+    "m": 7.704161992066366,
+    "s": 4.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M2.5-left-r0.003",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.303858514174283,
+    "length": 6.911575542522849,
+    "thread_length": 6.911575542522849,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2.5-left-r0.003",
+   "kind": "nut",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.5809866433853035,
+    "m": 7.74295993015591,
+    "s": 4.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M2.5-left-r0.001",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.3075535558970968,
+    "length": 6.92266066769129,
+    "thread_length": 6.92266066769129,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2.5-left-r0.001",
+   "kind": "nut",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.584681685108117,
+    "m": 7.754045055324351,
+    "s": 4.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M2.5-left-r0.0003",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.308846820500081,
+    "length": 6.9265404615002435,
+    "thread_length": 6.9265404615002435,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2.5-left-r0.0003",
+   "kind": "nut",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.5859749497111015,
+    "m": 7.757924849133305,
+    "s": 4.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M2.5-left-r0.0001",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.3092163246723625,
+    "length": 6.927648974017087,
+    "thread_length": 6.927648974017087,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2.5-left-r0.0001",
+   "kind": "nut",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.586344453883383,
+    "m": 7.759033361650149,
+    "s": 4.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M2.5-left-r3e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.309345651132661,
+    "length": 6.928036953397983,
+    "thread_length": 6.928036953397983,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2.5-left-r3e-05",
+   "kind": "nut",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.5864737803436815,
+    "m": 7.759421341031045,
+    "s": 4.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M2.5-left-r1e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.3093826015498893,
+    "length": 6.928147804649668,
+    "thread_length": 6.928147804649668,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2.5-left-r1e-05",
+   "kind": "nut",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.5865107307609096,
+    "m": 7.7595321922827285,
+    "s": 4.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M2.5-left-r3e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.309395534195919,
+    "length": 6.928186602587757,
+    "thread_length": 6.928186602587757,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2.5-left-r3e-06",
+   "kind": "nut",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.5865236634069393,
+    "m": 7.759570990220817,
+    "s": 4.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M2.5-left-r1e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.309399229237642,
+    "length": 6.9281976877129265,
+    "thread_length": 6.9281976877129265,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2.5-left-r1e-06",
+   "kind": "nut",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.586527358448662,
+    "m": 7.759582075345986,
+    "s": 4.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M3-right-r0.01",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 2.752806083496136,
+    "length": 8.258418250488408,
+    "thread_length": 8.258418250488408,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3-right-r0.01",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 3.0299342127071562,
+    "m": 9.08980263812147,
+    "s": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M3-right-r0.003",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 2.765738729525984,
+    "length": 8.297216188577952,
+    "thread_length": 8.297216188577952,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3-right-r0.003",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 3.042866858737004,
+    "m": 9.128600576211012,
+    "s": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M3-right-r0.001",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 2.7694337712487975,
+    "length": 8.308301313746393,
+    "thread_length": 8.308301313746393,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3-right-r0.001",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 3.0465619004598175,
+    "m": 9.139685701379452,
+    "s": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M3-right-r0.0003",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 2.770727035851782,
+    "length": 8.312181107555347,
+    "thread_length": 8.312181107555347,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3-right-r0.0003",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 3.0478551650628023,
+    "m": 9.143565495188406,
+    "s": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M3-right-r0.0001",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 2.7710965400240632,
+    "length": 8.31328962007219,
+    "thread_length": 8.31328962007219,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3-right-r0.0001",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 3.0482246692350836,
+    "m": 9.144674007705252,
+    "s": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M3-right-r3e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 2.771225866484362,
+    "length": 8.313677599453086,
+    "thread_length": 8.313677599453086,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3-right-r3e-05",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 3.0483539956953822,
+    "m": 9.145061987086146,
+    "s": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M3-right-r1e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 2.7712628169015896,
+    "length": 8.313788450704768,
+    "thread_length": 8.313788450704768,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3-right-r1e-05",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 3.0483909461126104,
+    "m": 9.145172838337832,
+    "s": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M3-right-r3e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 2.7712757495476197,
+    "length": 8.313827248642859,
+    "thread_length": 8.313827248642859,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3-right-r3e-06",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 3.04840387875864,
+    "m": 9.14521163627592,
+    "s": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M3-right-r1e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 2.7712794445893425,
+    "length": 8.313838333768027,
+    "thread_length": 8.313838333768027,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3-right-r1e-06",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 3.048407573800363,
+    "m": 9.145222721401089,
+    "s": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M3-left-r0.01",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 2.752806083496136,
+    "length": 8.258418250488408,
+    "thread_length": 8.258418250488408,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3-left-r0.01",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 3.0299342127071562,
+    "m": 9.08980263812147,
+    "s": 4.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M3-left-r0.003",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 2.765738729525984,
+    "length": 8.297216188577952,
+    "thread_length": 8.297216188577952,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3-left-r0.003",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 3.042866858737004,
+    "m": 9.128600576211012,
+    "s": 4.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M3-left-r0.001",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 2.7694337712487975,
+    "length": 8.308301313746393,
+    "thread_length": 8.308301313746393,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3-left-r0.001",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 3.0465619004598175,
+    "m": 9.139685701379452,
+    "s": 4.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M3-left-r0.0003",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 2.770727035851782,
+    "length": 8.312181107555347,
+    "thread_length": 8.312181107555347,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3-left-r0.0003",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 3.0478551650628023,
+    "m": 9.143565495188406,
+    "s": 4.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M3-left-r0.0001",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 2.7710965400240632,
+    "length": 8.31328962007219,
+    "thread_length": 8.31328962007219,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3-left-r0.0001",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 3.0482246692350836,
+    "m": 9.144674007705252,
+    "s": 4.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M3-left-r3e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 2.771225866484362,
+    "length": 8.313677599453086,
+    "thread_length": 8.313677599453086,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3-left-r3e-05",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 3.0483539956953822,
+    "m": 9.145061987086146,
+    "s": 4.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M3-left-r1e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 2.7712628169015896,
+    "length": 8.313788450704768,
+    "thread_length": 8.313788450704768,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3-left-r1e-05",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 3.0483909461126104,
+    "m": 9.145172838337832,
+    "s": 4.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M3-left-r3e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 2.7712757495476197,
+    "length": 8.313827248642859,
+    "thread_length": 8.313827248642859,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3-left-r3e-06",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 3.04840387875864,
+    "m": 9.14521163627592,
+    "s": 4.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M3-left-r1e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 2.7712794445893425,
+    "length": 8.313838333768027,
+    "thread_length": 8.313838333768027,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3-left-r1e-06",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 3.048407573800363,
+    "m": 9.145222721401089,
+    "s": 4.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M3.5-right-r0.01",
+   "kind": "bolt",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.2146862988478366,
+    "length": 9.644058896543509,
+    "thread_length": 9.644058896543509,
+    "s": 5.6,
+    "k": 2.1,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3.5-right-r0.01",
+   "kind": "nut",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.491814428058857,
+    "m": 10.47544328417657,
+    "s": 5.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M3.5-right-r0.003",
+   "kind": "bolt",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.2276189448776846,
+    "length": 9.682856834633053,
+    "thread_length": 9.682856834633053,
+    "s": 5.6,
+    "k": 2.1,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3.5-right-r0.003",
+   "kind": "nut",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.5047470740887046,
+    "m": 10.514241222266113,
+    "s": 5.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M3.5-right-r0.001",
+   "kind": "bolt",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.231313986600498,
+    "length": 9.693941959801494,
+    "thread_length": 9.693941959801494,
+    "s": 5.6,
+    "k": 2.1,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3.5-right-r0.001",
+   "kind": "nut",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.508442115811518,
+    "m": 10.525326347434554,
+    "s": 5.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M3.5-right-r0.0003",
+   "kind": "bolt",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.2326072512034827,
+    "length": 9.697821753610448,
+    "thread_length": 9.697821753610448,
+    "s": 5.6,
+    "k": 2.1,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3.5-right-r0.0003",
+   "kind": "nut",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.509735380414503,
+    "m": 10.52920614124351,
+    "s": 5.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M3.5-right-r0.0001",
+   "kind": "bolt",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.232976755375764,
+    "length": 9.698930266127292,
+    "thread_length": 9.698930266127292,
+    "s": 5.6,
+    "k": 2.1,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3.5-right-r0.0001",
+   "kind": "nut",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.5101048845867844,
+    "m": 10.530314653760353,
+    "s": 5.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M3.5-right-r3e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.2331060818360626,
+    "length": 9.699318245508188,
+    "thread_length": 9.699318245508188,
+    "s": 5.6,
+    "k": 2.1,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3.5-right-r3e-05",
+   "kind": "nut",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.5102342110470826,
+    "m": 10.530702633141248,
+    "s": 5.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M3.5-right-r1e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.2331430322532904,
+    "length": 9.699429096759872,
+    "thread_length": 9.699429096759872,
+    "s": 5.6,
+    "k": 2.1,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3.5-right-r1e-05",
+   "kind": "nut",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.510271161464311,
+    "m": 10.530813484392933,
+    "s": 5.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M3.5-right-r3e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.2331559648993204,
+    "length": 9.69946789469796,
+    "thread_length": 9.69946789469796,
+    "s": 5.6,
+    "k": 2.1,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3.5-right-r3e-06",
+   "kind": "nut",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.510284094110341,
+    "m": 10.530852282331022,
+    "s": 5.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M3.5-right-r1e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.2331596599410433,
+    "length": 9.69947897982313,
+    "thread_length": 9.69947897982313,
+    "s": 5.6,
+    "k": 2.1,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3.5-right-r1e-06",
+   "kind": "nut",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.5102877891520636,
+    "m": 10.530863367456192,
+    "s": 5.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M3.5-left-r0.01",
+   "kind": "bolt",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.2146862988478366,
+    "length": 9.644058896543509,
+    "thread_length": 9.644058896543509,
+    "s": 5.6,
+    "k": 2.1,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3.5-left-r0.01",
+   "kind": "nut",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.491814428058857,
+    "m": 10.47544328417657,
+    "s": 5.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M3.5-left-r0.003",
+   "kind": "bolt",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.2276189448776846,
+    "length": 9.682856834633053,
+    "thread_length": 9.682856834633053,
+    "s": 5.6,
+    "k": 2.1,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3.5-left-r0.003",
+   "kind": "nut",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.5047470740887046,
+    "m": 10.514241222266113,
+    "s": 5.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M3.5-left-r0.001",
+   "kind": "bolt",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.231313986600498,
+    "length": 9.693941959801494,
+    "thread_length": 9.693941959801494,
+    "s": 5.6,
+    "k": 2.1,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3.5-left-r0.001",
+   "kind": "nut",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.508442115811518,
+    "m": 10.525326347434554,
+    "s": 5.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M3.5-left-r0.0003",
+   "kind": "bolt",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.2326072512034827,
+    "length": 9.697821753610448,
+    "thread_length": 9.697821753610448,
+    "s": 5.6,
+    "k": 2.1,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3.5-left-r0.0003",
+   "kind": "nut",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.509735380414503,
+    "m": 10.52920614124351,
+    "s": 5.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M3.5-left-r0.0001",
+   "kind": "bolt",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.232976755375764,
+    "length": 9.698930266127292,
+    "thread_length": 9.698930266127292,
+    "s": 5.6,
+    "k": 2.1,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3.5-left-r0.0001",
+   "kind": "nut",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.5101048845867844,
+    "m": 10.530314653760353,
+    "s": 5.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M3.5-left-r3e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.2331060818360626,
+    "length": 9.699318245508188,
+    "thread_length": 9.699318245508188,
+    "s": 5.6,
+    "k": 2.1,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3.5-left-r3e-05",
+   "kind": "nut",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.5102342110470826,
+    "m": 10.530702633141248,
+    "s": 5.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M3.5-left-r1e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.2331430322532904,
+    "length": 9.699429096759872,
+    "thread_length": 9.699429096759872,
+    "s": 5.6,
+    "k": 2.1,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3.5-left-r1e-05",
+   "kind": "nut",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.510271161464311,
+    "m": 10.530813484392933,
+    "s": 5.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M3.5-left-r3e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.2331559648993204,
+    "length": 9.69946789469796,
+    "thread_length": 9.69946789469796,
+    "s": 5.6,
+    "k": 2.1,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3.5-left-r3e-06",
+   "kind": "nut",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.510284094110341,
+    "m": 10.530852282331022,
+    "s": 5.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M3.5-left-r1e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.2331596599410433,
+    "length": 9.69947897982313,
+    "thread_length": 9.69947897982313,
+    "s": 5.6,
+    "k": 2.1,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3.5-left-r1e-06",
+   "kind": "nut",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.5102877891520636,
+    "m": 10.530863367456192,
+    "s": 5.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M4-right-r0.01",
+   "kind": "bolt",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.6765665141995374,
+    "length": 11.029699542598612,
+    "thread_length": 11.029699542598612,
+    "s": 6.4,
+    "k": 2.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M4-right-r0.01",
+   "kind": "nut",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.9536946434105578,
+    "m": 11.861083930231674,
+    "s": 6.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M4-right-r0.003",
+   "kind": "bolt",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.689499160229385,
+    "length": 11.068497480688155,
+    "thread_length": 11.068497480688155,
+    "s": 6.4,
+    "k": 2.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M4-right-r0.003",
+   "kind": "nut",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.966627289440405,
+    "m": 11.899881868321215,
+    "s": 6.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M4-right-r0.001",
+   "kind": "bolt",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.6931942019521986,
+    "length": 11.079582605856595,
+    "thread_length": 11.079582605856595,
+    "s": 6.4,
+    "k": 2.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M4-right-r0.001",
+   "kind": "nut",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.970322331163219,
+    "m": 11.910966993489657,
+    "s": 6.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M4-right-r0.0003",
+   "kind": "bolt",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.6944874665551835,
+    "length": 11.08346239966555,
+    "thread_length": 11.08346239966555,
+    "s": 6.4,
+    "k": 2.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M4-right-r0.0003",
+   "kind": "nut",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.971615595766204,
+    "m": 11.914846787298611,
+    "s": 6.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M4-right-r0.0001",
+   "kind": "bolt",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.6948569707274648,
+    "length": 11.084570912182395,
+    "thread_length": 11.084570912182395,
+    "s": 6.4,
+    "k": 2.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M4-right-r0.0001",
+   "kind": "nut",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.971985099938485,
+    "m": 11.915955299815455,
+    "s": 6.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M4-right-r3e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.694986297187763,
+    "length": 11.08495889156329,
+    "thread_length": 11.08495889156329,
+    "s": 6.4,
+    "k": 2.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M4-right-r3e-05",
+   "kind": "nut",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.9721144263987838,
+    "m": 11.91634327919635,
+    "s": 6.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M4-right-r1e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.695023247604991,
+    "length": 11.085069742814973,
+    "thread_length": 11.085069742814973,
+    "s": 6.4,
+    "k": 2.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M4-right-r1e-05",
+   "kind": "nut",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.9721513768160115,
+    "m": 11.916454130448034,
+    "s": 6.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M4-right-r3e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.695036180251021,
+    "length": 11.085108540753064,
+    "thread_length": 11.085108540753064,
+    "s": 6.4,
+    "k": 2.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M4-right-r3e-06",
+   "kind": "nut",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.9721643094620416,
+    "m": 11.916492928386125,
+    "s": 6.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M4-right-r1e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.695039875292744,
+    "length": 11.085119625878232,
+    "thread_length": 11.085119625878232,
+    "s": 6.4,
+    "k": 2.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M4-right-r1e-06",
+   "kind": "nut",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.972168004503765,
+    "m": 11.916504013511295,
+    "s": 6.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M4-left-r0.01",
+   "kind": "bolt",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.6765665141995374,
+    "length": 11.029699542598612,
+    "thread_length": 11.029699542598612,
+    "s": 6.4,
+    "k": 2.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M4-left-r0.01",
+   "kind": "nut",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.9536946434105578,
+    "m": 11.861083930231674,
+    "s": 6.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M4-left-r0.003",
+   "kind": "bolt",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.689499160229385,
+    "length": 11.068497480688155,
+    "thread_length": 11.068497480688155,
+    "s": 6.4,
+    "k": 2.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M4-left-r0.003",
+   "kind": "nut",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.966627289440405,
+    "m": 11.899881868321215,
+    "s": 6.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M4-left-r0.001",
+   "kind": "bolt",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.6931942019521986,
+    "length": 11.079582605856595,
+    "thread_length": 11.079582605856595,
+    "s": 6.4,
+    "k": 2.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M4-left-r0.001",
+   "kind": "nut",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.970322331163219,
+    "m": 11.910966993489657,
+    "s": 6.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M4-left-r0.0003",
+   "kind": "bolt",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.6944874665551835,
+    "length": 11.08346239966555,
+    "thread_length": 11.08346239966555,
+    "s": 6.4,
+    "k": 2.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M4-left-r0.0003",
+   "kind": "nut",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.971615595766204,
+    "m": 11.914846787298611,
+    "s": 6.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M4-left-r0.0001",
+   "kind": "bolt",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.6948569707274648,
+    "length": 11.084570912182395,
+    "thread_length": 11.084570912182395,
+    "s": 6.4,
+    "k": 2.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M4-left-r0.0001",
+   "kind": "nut",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.971985099938485,
+    "m": 11.915955299815455,
+    "s": 6.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M4-left-r3e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.694986297187763,
+    "length": 11.08495889156329,
+    "thread_length": 11.08495889156329,
+    "s": 6.4,
+    "k": 2.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M4-left-r3e-05",
+   "kind": "nut",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.9721144263987838,
+    "m": 11.91634327919635,
+    "s": 6.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M4-left-r1e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.695023247604991,
+    "length": 11.085069742814973,
+    "thread_length": 11.085069742814973,
+    "s": 6.4,
+    "k": 2.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M4-left-r1e-05",
+   "kind": "nut",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.9721513768160115,
+    "m": 11.916454130448034,
+    "s": 6.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M4-left-r3e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.695036180251021,
+    "length": 11.085108540753064,
+    "thread_length": 11.085108540753064,
+    "s": 6.4,
+    "k": 2.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M4-left-r3e-06",
+   "kind": "nut",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.9721643094620416,
+    "m": 11.916492928386125,
+    "s": 6.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M4-left-r1e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.695039875292744,
+    "length": 11.085119625878232,
+    "thread_length": 11.085119625878232,
+    "s": 6.4,
+    "k": 2.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M4-left-r1e-06",
+   "kind": "nut",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.972168004503765,
+    "m": 11.916504013511295,
+    "s": 6.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M5-right-r0.01",
+   "kind": "bolt",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.600326944902939,
+    "length": 13.800980834708817,
+    "thread_length": 13.800980834708817,
+    "s": 8.0,
+    "k": 3.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M5-right-r0.01",
+   "kind": "nut",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.877455074113959,
+    "m": 14.632365222341877,
+    "s": 8.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M5-right-r0.003",
+   "kind": "bolt",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.613259590932786,
+    "length": 13.839778772798358,
+    "thread_length": 13.839778772798358,
+    "s": 8.0,
+    "k": 3.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M5-right-r0.003",
+   "kind": "nut",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.890387720143806,
+    "m": 14.67116316043142,
+    "s": 8.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M5-right-r0.001",
+   "kind": "bolt",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.6169546326556,
+    "length": 13.8508638979668,
+    "thread_length": 13.8508638979668,
+    "s": 8.0,
+    "k": 3.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M5-right-r0.001",
+   "kind": "nut",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.8940827618666205,
+    "m": 14.682248285599862,
+    "s": 8.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M5-right-r0.0003",
+   "kind": "bolt",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.618247897258584,
+    "length": 13.854743691775752,
+    "thread_length": 13.854743691775752,
+    "s": 8.0,
+    "k": 3.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M5-right-r0.0003",
+   "kind": "nut",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.895376026469605,
+    "m": 14.686128079408814,
+    "s": 8.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M5-right-r0.0001",
+   "kind": "bolt",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.618617401430866,
+    "length": 13.855852204292598,
+    "thread_length": 13.855852204292598,
+    "s": 8.0,
+    "k": 3.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M5-right-r0.0001",
+   "kind": "nut",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.895745530641887,
+    "m": 14.687236591925661,
+    "s": 8.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M5-right-r3e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.618746727891164,
+    "length": 13.856240183673492,
+    "thread_length": 13.856240183673492,
+    "s": 8.0,
+    "k": 3.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M5-right-r3e-05",
+   "kind": "nut",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.895874857102185,
+    "m": 14.687624571306554,
+    "s": 8.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M5-right-r1e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.618783678308392,
+    "length": 13.856351034925176,
+    "thread_length": 13.856351034925176,
+    "s": 8.0,
+    "k": 3.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M5-right-r1e-05",
+   "kind": "nut",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.895911807519413,
+    "m": 14.687735422558239,
+    "s": 8.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M5-right-r3e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.618796610954423,
+    "length": 13.856389832863268,
+    "thread_length": 13.856389832863268,
+    "s": 8.0,
+    "k": 3.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M5-right-r3e-06",
+   "kind": "nut",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.895924740165443,
+    "m": 14.687774220496328,
+    "s": 8.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M5-right-r1e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.618800305996145,
+    "length": 13.856400917988434,
+    "thread_length": 13.856400917988434,
+    "s": 8.0,
+    "k": 3.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M5-right-r1e-06",
+   "kind": "nut",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.895928435207166,
+    "m": 14.687785305621498,
+    "s": 8.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M5-left-r0.01",
+   "kind": "bolt",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.600326944902939,
+    "length": 13.800980834708817,
+    "thread_length": 13.800980834708817,
+    "s": 8.0,
+    "k": 3.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M5-left-r0.01",
+   "kind": "nut",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.877455074113959,
+    "m": 14.632365222341877,
+    "s": 8.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M5-left-r0.003",
+   "kind": "bolt",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.613259590932786,
+    "length": 13.839778772798358,
+    "thread_length": 13.839778772798358,
+    "s": 8.0,
+    "k": 3.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M5-left-r0.003",
+   "kind": "nut",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.890387720143806,
+    "m": 14.67116316043142,
+    "s": 8.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M5-left-r0.001",
+   "kind": "bolt",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.6169546326556,
+    "length": 13.8508638979668,
+    "thread_length": 13.8508638979668,
+    "s": 8.0,
+    "k": 3.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M5-left-r0.001",
+   "kind": "nut",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.8940827618666205,
+    "m": 14.682248285599862,
+    "s": 8.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M5-left-r0.0003",
+   "kind": "bolt",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.618247897258584,
+    "length": 13.854743691775752,
+    "thread_length": 13.854743691775752,
+    "s": 8.0,
+    "k": 3.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M5-left-r0.0003",
+   "kind": "nut",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.895376026469605,
+    "m": 14.686128079408814,
+    "s": 8.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M5-left-r0.0001",
+   "kind": "bolt",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.618617401430866,
+    "length": 13.855852204292598,
+    "thread_length": 13.855852204292598,
+    "s": 8.0,
+    "k": 3.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M5-left-r0.0001",
+   "kind": "nut",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.895745530641887,
+    "m": 14.687236591925661,
+    "s": 8.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M5-left-r3e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.618746727891164,
+    "length": 13.856240183673492,
+    "thread_length": 13.856240183673492,
+    "s": 8.0,
+    "k": 3.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M5-left-r3e-05",
+   "kind": "nut",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.895874857102185,
+    "m": 14.687624571306554,
+    "s": 8.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M5-left-r1e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.618783678308392,
+    "length": 13.856351034925176,
+    "thread_length": 13.856351034925176,
+    "s": 8.0,
+    "k": 3.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M5-left-r1e-05",
+   "kind": "nut",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.895911807519413,
+    "m": 14.687735422558239,
+    "s": 8.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M5-left-r3e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.618796610954423,
+    "length": 13.856389832863268,
+    "thread_length": 13.856389832863268,
+    "s": 8.0,
+    "k": 3.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M5-left-r3e-06",
+   "kind": "nut",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.895924740165443,
+    "m": 14.687774220496328,
+    "s": 8.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M5-left-r1e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.618800305996145,
+    "length": 13.856400917988434,
+    "thread_length": 13.856400917988434,
+    "s": 8.0,
+    "k": 3.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M5-left-r1e-06",
+   "kind": "nut",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.895928435207166,
+    "m": 14.687785305621498,
+    "s": 8.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M6-right-r0.01",
+   "kind": "bolt",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.5240873756063404,
+    "length": 16.57226212681902,
+    "thread_length": 16.57226212681902,
+    "s": 9.6,
+    "k": 3.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M6-right-r0.01",
+   "kind": "nut",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.80121550481736,
+    "m": 17.40364651445208,
+    "s": 9.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M6-right-r0.003",
+   "kind": "bolt",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.537020021636187,
+    "length": 16.61106006490856,
+    "thread_length": 16.61106006490856,
+    "s": 9.6,
+    "k": 3.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M6-right-r0.003",
+   "kind": "nut",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.814148150847208,
+    "m": 17.442444452541622,
+    "s": 9.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M6-right-r0.001",
+   "kind": "bolt",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.540715063359001,
+    "length": 16.622145190077003,
+    "thread_length": 16.622145190077003,
+    "s": 9.6,
+    "k": 3.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M6-right-r0.001",
+   "kind": "nut",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.817843192570021,
+    "m": 17.453529577710064,
+    "s": 9.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M6-right-r0.0003",
+   "kind": "bolt",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.542008327961986,
+    "length": 16.626024983885955,
+    "thread_length": 16.626024983885955,
+    "s": 9.6,
+    "k": 3.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M6-right-r0.0003",
+   "kind": "nut",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.819136457173006,
+    "m": 17.45740937151902,
+    "s": 9.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M6-right-r0.0001",
+   "kind": "bolt",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.5423778321342665,
+    "length": 16.6271334964028,
+    "thread_length": 16.6271334964028,
+    "s": 9.6,
+    "k": 3.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M6-right-r0.0001",
+   "kind": "nut",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.819505961345288,
+    "m": 17.458517884035864,
+    "s": 9.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M6-right-r3e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.5425071585945656,
+    "length": 16.627521475783695,
+    "thread_length": 16.627521475783695,
+    "s": 9.6,
+    "k": 3.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M6-right-r3e-05",
+   "kind": "nut",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.819635287805586,
+    "m": 17.45890586341676,
+    "s": 9.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M6-right-r1e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.542544109011794,
+    "length": 16.627632327035382,
+    "thread_length": 16.627632327035382,
+    "s": 9.6,
+    "k": 3.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M6-right-r1e-05",
+   "kind": "nut",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.819672238222814,
+    "m": 17.45901671466844,
+    "s": 9.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M6-right-r3e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.542557041657823,
+    "length": 16.62767112497347,
+    "thread_length": 16.62767112497347,
+    "s": 9.6,
+    "k": 3.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M6-right-r3e-06",
+   "kind": "nut",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.819685170868844,
+    "m": 17.459055512606533,
+    "s": 9.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M6-right-r1e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.542560736699547,
+    "length": 16.62768221009864,
+    "thread_length": 16.62768221009864,
+    "s": 9.6,
+    "k": 3.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M6-right-r1e-06",
+   "kind": "nut",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.819688865910567,
+    "m": 17.459066597731702,
+    "s": 9.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M6-left-r0.01",
+   "kind": "bolt",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.5240873756063404,
+    "length": 16.57226212681902,
+    "thread_length": 16.57226212681902,
+    "s": 9.6,
+    "k": 3.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M6-left-r0.01",
+   "kind": "nut",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.80121550481736,
+    "m": 17.40364651445208,
+    "s": 9.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M6-left-r0.003",
+   "kind": "bolt",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.537020021636187,
+    "length": 16.61106006490856,
+    "thread_length": 16.61106006490856,
+    "s": 9.6,
+    "k": 3.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M6-left-r0.003",
+   "kind": "nut",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.814148150847208,
+    "m": 17.442444452541622,
+    "s": 9.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M6-left-r0.001",
+   "kind": "bolt",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.540715063359001,
+    "length": 16.622145190077003,
+    "thread_length": 16.622145190077003,
+    "s": 9.6,
+    "k": 3.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M6-left-r0.001",
+   "kind": "nut",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.817843192570021,
+    "m": 17.453529577710064,
+    "s": 9.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M6-left-r0.0003",
+   "kind": "bolt",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.542008327961986,
+    "length": 16.626024983885955,
+    "thread_length": 16.626024983885955,
+    "s": 9.6,
+    "k": 3.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M6-left-r0.0003",
+   "kind": "nut",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.819136457173006,
+    "m": 17.45740937151902,
+    "s": 9.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M6-left-r0.0001",
+   "kind": "bolt",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.5423778321342665,
+    "length": 16.6271334964028,
+    "thread_length": 16.6271334964028,
+    "s": 9.6,
+    "k": 3.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M6-left-r0.0001",
+   "kind": "nut",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.819505961345288,
+    "m": 17.458517884035864,
+    "s": 9.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M6-left-r3e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.5425071585945656,
+    "length": 16.627521475783695,
+    "thread_length": 16.627521475783695,
+    "s": 9.6,
+    "k": 3.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M6-left-r3e-05",
+   "kind": "nut",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.819635287805586,
+    "m": 17.45890586341676,
+    "s": 9.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M6-left-r1e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.542544109011794,
+    "length": 16.627632327035382,
+    "thread_length": 16.627632327035382,
+    "s": 9.6,
+    "k": 3.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M6-left-r1e-05",
+   "kind": "nut",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.819672238222814,
+    "m": 17.45901671466844,
+    "s": 9.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M6-left-r3e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.542557041657823,
+    "length": 16.62767112497347,
+    "thread_length": 16.62767112497347,
+    "s": 9.6,
+    "k": 3.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M6-left-r3e-06",
+   "kind": "nut",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.819685170868844,
+    "m": 17.459055512606533,
+    "s": 9.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M6-left-r1e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.542560736699547,
+    "length": 16.62768221009864,
+    "thread_length": 16.62768221009864,
+    "s": 9.6,
+    "k": 3.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M6-left-r1e-06",
+   "kind": "nut",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.819688865910567,
+    "m": 17.459066597731702,
+    "s": 9.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M7-right-r0.01",
+   "kind": "bolt",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.447847806309742,
+    "length": 19.343543418929226,
+    "thread_length": 19.343543418929226,
+    "s": 11.2,
+    "k": 4.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M7-right-r0.01",
+   "kind": "nut",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.724975935520762,
+    "m": 20.174927806562287,
+    "s": 11.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M7-right-r0.003",
+   "kind": "bolt",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.460780452339589,
+    "length": 19.382341357018767,
+    "thread_length": 19.382341357018767,
+    "s": 11.2,
+    "k": 4.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M7-right-r0.003",
+   "kind": "nut",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.737908581550609,
+    "m": 20.213725744651825,
+    "s": 11.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M7-right-r0.001",
+   "kind": "bolt",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.464475494062403,
+    "length": 19.39342648218721,
+    "thread_length": 19.39342648218721,
+    "s": 11.2,
+    "k": 4.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M7-right-r0.001",
+   "kind": "nut",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.741603623273423,
+    "m": 20.224810869820267,
+    "s": 11.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M7-right-r0.0003",
+   "kind": "bolt",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.465768758665387,
+    "length": 19.39730627599616,
+    "thread_length": 19.39730627599616,
+    "s": 11.2,
+    "k": 4.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M7-right-r0.0003",
+   "kind": "nut",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.742896887876408,
+    "m": 20.228690663629223,
+    "s": 11.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M7-right-r0.0001",
+   "kind": "bolt",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.466138262837668,
+    "length": 19.398414788513005,
+    "thread_length": 19.398414788513005,
+    "s": 11.2,
+    "k": 4.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M7-right-r0.0001",
+   "kind": "nut",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.743266392048689,
+    "m": 20.229799176146066,
+    "s": 11.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M7-right-r3e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.466267589297967,
+    "length": 19.3988027678939,
+    "thread_length": 19.3988027678939,
+    "s": 11.2,
+    "k": 4.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M7-right-r3e-05",
+   "kind": "nut",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.743395718508988,
+    "m": 20.230187155526963,
+    "s": 11.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M7-right-r1e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.466304539715195,
+    "length": 19.398913619145585,
+    "thread_length": 19.398913619145585,
+    "s": 11.2,
+    "k": 4.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M7-right-r1e-05",
+   "kind": "nut",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.743432668926215,
+    "m": 20.230298006778646,
+    "s": 11.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M7-right-r3e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.466317472361225,
+    "length": 19.398952417083674,
+    "thread_length": 19.398952417083674,
+    "s": 11.2,
+    "k": 4.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M7-right-r3e-06",
+   "kind": "nut",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.743445601572246,
+    "m": 20.230336804716735,
+    "s": 11.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M7-right-r1e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.466321167402947,
+    "length": 19.398963502208844,
+    "thread_length": 19.398963502208844,
+    "s": 11.2,
+    "k": 4.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M7-right-r1e-06",
+   "kind": "nut",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.743449296613969,
+    "m": 20.23034788984191,
+    "s": 11.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M7-left-r0.01",
+   "kind": "bolt",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.447847806309742,
+    "length": 19.343543418929226,
+    "thread_length": 19.343543418929226,
+    "s": 11.2,
+    "k": 4.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M7-left-r0.01",
+   "kind": "nut",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.724975935520762,
+    "m": 20.174927806562287,
+    "s": 11.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M7-left-r0.003",
+   "kind": "bolt",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.460780452339589,
+    "length": 19.382341357018767,
+    "thread_length": 19.382341357018767,
+    "s": 11.2,
+    "k": 4.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M7-left-r0.003",
+   "kind": "nut",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.737908581550609,
+    "m": 20.213725744651825,
+    "s": 11.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M7-left-r0.001",
+   "kind": "bolt",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.464475494062403,
+    "length": 19.39342648218721,
+    "thread_length": 19.39342648218721,
+    "s": 11.2,
+    "k": 4.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M7-left-r0.001",
+   "kind": "nut",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.741603623273423,
+    "m": 20.224810869820267,
+    "s": 11.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M7-left-r0.0003",
+   "kind": "bolt",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.465768758665387,
+    "length": 19.39730627599616,
+    "thread_length": 19.39730627599616,
+    "s": 11.2,
+    "k": 4.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M7-left-r0.0003",
+   "kind": "nut",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.742896887876408,
+    "m": 20.228690663629223,
+    "s": 11.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M7-left-r0.0001",
+   "kind": "bolt",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.466138262837668,
+    "length": 19.398414788513005,
+    "thread_length": 19.398414788513005,
+    "s": 11.2,
+    "k": 4.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M7-left-r0.0001",
+   "kind": "nut",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.743266392048689,
+    "m": 20.229799176146066,
+    "s": 11.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M7-left-r3e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.466267589297967,
+    "length": 19.3988027678939,
+    "thread_length": 19.3988027678939,
+    "s": 11.2,
+    "k": 4.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M7-left-r3e-05",
+   "kind": "nut",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.743395718508988,
+    "m": 20.230187155526963,
+    "s": 11.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M7-left-r1e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.466304539715195,
+    "length": 19.398913619145585,
+    "thread_length": 19.398913619145585,
+    "s": 11.2,
+    "k": 4.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M7-left-r1e-05",
+   "kind": "nut",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.743432668926215,
+    "m": 20.230298006778646,
+    "s": 11.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M7-left-r3e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.466317472361225,
+    "length": 19.398952417083674,
+    "thread_length": 19.398952417083674,
+    "s": 11.2,
+    "k": 4.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M7-left-r3e-06",
+   "kind": "nut",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.743445601572246,
+    "m": 20.230336804716735,
+    "s": 11.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M7-left-r1e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.466321167402947,
+    "length": 19.398963502208844,
+    "thread_length": 19.398963502208844,
+    "s": 11.2,
+    "k": 4.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M7-left-r1e-06",
+   "kind": "nut",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.743449296613969,
+    "m": 20.23034788984191,
+    "s": 11.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M8-right-r0.01",
+   "kind": "bolt",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.371608237013143,
+    "length": 22.11482471103943,
+    "thread_length": 22.11482471103943,
+    "s": 12.8,
+    "k": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M8-right-r0.01",
+   "kind": "nut",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.6487363662241625,
+    "m": 22.946209098672487,
+    "s": 12.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M8-right-r0.003",
+   "kind": "bolt",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.38454088304299,
+    "length": 22.15362264912897,
+    "thread_length": 22.15362264912897,
+    "s": 12.8,
+    "k": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M8-right-r0.003",
+   "kind": "nut",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.661669012254011,
+    "m": 22.985007036762035,
+    "s": 12.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M8-right-r0.001",
+   "kind": "bolt",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.388235924765804,
+    "length": 22.164707774297412,
+    "thread_length": 22.164707774297412,
+    "s": 12.8,
+    "k": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M8-right-r0.001",
+   "kind": "nut",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.665364053976824,
+    "m": 22.996092161930473,
+    "s": 12.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M8-right-r0.0003",
+   "kind": "bolt",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.389529189368788,
+    "length": 22.168587568106364,
+    "thread_length": 22.168587568106364,
+    "s": 12.8,
+    "k": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M8-right-r0.0003",
+   "kind": "nut",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.6666573185798095,
+    "m": 22.99997195573943,
+    "s": 12.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M8-right-r0.0001",
+   "kind": "bolt",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.3898986935410695,
+    "length": 22.169696080623208,
+    "thread_length": 22.169696080623208,
+    "s": 12.8,
+    "k": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M8-right-r0.0001",
+   "kind": "nut",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.6670268227520895,
+    "m": 23.00108046825627,
+    "s": 12.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M8-right-r3e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.390028020001368,
+    "length": 22.170084060004104,
+    "thread_length": 22.170084060004104,
+    "s": 12.8,
+    "k": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M8-right-r3e-05",
+   "kind": "nut",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.6671561492123885,
+    "m": 23.001468447637166,
+    "s": 12.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M8-right-r1e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.390064970418597,
+    "length": 22.17019491125579,
+    "thread_length": 22.17019491125579,
+    "s": 12.8,
+    "k": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M8-right-r1e-05",
+   "kind": "nut",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.667193099629617,
+    "m": 23.00157929888885,
+    "s": 12.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M8-right-r3e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.390077903064626,
+    "length": 22.17023370919388,
+    "thread_length": 22.17023370919388,
+    "s": 12.8,
+    "k": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M8-right-r3e-06",
+   "kind": "nut",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.667206032275646,
+    "m": 23.001618096826938,
+    "s": 12.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M8-right-r1e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.390081598106349,
+    "length": 22.170244794319046,
+    "thread_length": 22.170244794319046,
+    "s": 12.8,
+    "k": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M8-right-r1e-06",
+   "kind": "nut",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.66720972731737,
+    "m": 23.001629181952108,
+    "s": 12.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M8-left-r0.01",
+   "kind": "bolt",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.371608237013143,
+    "length": 22.11482471103943,
+    "thread_length": 22.11482471103943,
+    "s": 12.8,
+    "k": 4.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M8-left-r0.01",
+   "kind": "nut",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.6487363662241625,
+    "m": 22.946209098672487,
+    "s": 12.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M8-left-r0.003",
+   "kind": "bolt",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.38454088304299,
+    "length": 22.15362264912897,
+    "thread_length": 22.15362264912897,
+    "s": 12.8,
+    "k": 4.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M8-left-r0.003",
+   "kind": "nut",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.661669012254011,
+    "m": 22.985007036762035,
+    "s": 12.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M8-left-r0.001",
+   "kind": "bolt",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.388235924765804,
+    "length": 22.164707774297412,
+    "thread_length": 22.164707774297412,
+    "s": 12.8,
+    "k": 4.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M8-left-r0.001",
+   "kind": "nut",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.665364053976824,
+    "m": 22.996092161930473,
+    "s": 12.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M8-left-r0.0003",
+   "kind": "bolt",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.389529189368788,
+    "length": 22.168587568106364,
+    "thread_length": 22.168587568106364,
+    "s": 12.8,
+    "k": 4.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M8-left-r0.0003",
+   "kind": "nut",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.6666573185798095,
+    "m": 22.99997195573943,
+    "s": 12.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M8-left-r0.0001",
+   "kind": "bolt",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.3898986935410695,
+    "length": 22.169696080623208,
+    "thread_length": 22.169696080623208,
+    "s": 12.8,
+    "k": 4.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M8-left-r0.0001",
+   "kind": "nut",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.6670268227520895,
+    "m": 23.00108046825627,
+    "s": 12.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M8-left-r3e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.390028020001368,
+    "length": 22.170084060004104,
+    "thread_length": 22.170084060004104,
+    "s": 12.8,
+    "k": 4.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M8-left-r3e-05",
+   "kind": "nut",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.6671561492123885,
+    "m": 23.001468447637166,
+    "s": 12.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M8-left-r1e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.390064970418597,
+    "length": 22.17019491125579,
+    "thread_length": 22.17019491125579,
+    "s": 12.8,
+    "k": 4.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M8-left-r1e-05",
+   "kind": "nut",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.667193099629617,
+    "m": 23.00157929888885,
+    "s": 12.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M8-left-r3e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.390077903064626,
+    "length": 22.17023370919388,
+    "thread_length": 22.17023370919388,
+    "s": 12.8,
+    "k": 4.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M8-left-r3e-06",
+   "kind": "nut",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.667206032275646,
+    "m": 23.001618096826938,
+    "s": 12.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M8-left-r1e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.390081598106349,
+    "length": 22.170244794319046,
+    "thread_length": 22.170244794319046,
+    "s": 12.8,
+    "k": 4.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M8-left-r1e-06",
+   "kind": "nut",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.66720972731737,
+    "m": 23.001629181952108,
+    "s": 12.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M10-right-r0.01",
+   "kind": "bolt",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.219129098419945,
+    "length": 27.657387295259834,
+    "thread_length": 27.657387295259834,
+    "s": 16.0,
+    "k": 6.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M10-right-r0.01",
+   "kind": "nut",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.496257227630965,
+    "m": 28.488771682892896,
+    "s": 16.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M10-right-r0.003",
+   "kind": "bolt",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.232061744449792,
+    "length": 27.696185233349375,
+    "thread_length": 27.696185233349375,
+    "s": 16.0,
+    "k": 6.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M10-right-r0.003",
+   "kind": "nut",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.509189873660814,
+    "m": 28.52756962098244,
+    "s": 16.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M10-right-r0.001",
+   "kind": "bolt",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.235756786172606,
+    "length": 27.707270358517817,
+    "thread_length": 27.707270358517817,
+    "s": 16.0,
+    "k": 6.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M10-right-r0.001",
+   "kind": "nut",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.512884915383626,
+    "m": 28.53865474615088,
+    "s": 16.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M10-right-r0.0003",
+   "kind": "bolt",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.237050050775592,
+    "length": 27.711150152326773,
+    "thread_length": 27.711150152326773,
+    "s": 16.0,
+    "k": 6.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M10-right-r0.0003",
+   "kind": "nut",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.514178179986612,
+    "m": 28.542534539959835,
+    "s": 16.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M10-right-r0.0001",
+   "kind": "bolt",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.237419554947873,
+    "length": 27.71225866484362,
+    "thread_length": 27.71225866484362,
+    "s": 16.0,
+    "k": 6.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M10-right-r0.0001",
+   "kind": "nut",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.514547684158892,
+    "m": 28.543643052476675,
+    "s": 16.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M10-right-r3e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.237548881408172,
+    "length": 27.712646644224513,
+    "thread_length": 27.712646644224513,
+    "s": 16.0,
+    "k": 6.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M10-right-r3e-05",
+   "kind": "nut",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.514677010619192,
+    "m": 28.544031031857575,
+    "s": 16.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M10-right-r1e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.2375858318254,
+    "length": 27.712757495476204,
+    "thread_length": 27.712757495476204,
+    "s": 16.0,
+    "k": 6.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M10-right-r1e-05",
+   "kind": "nut",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.514713961036419,
+    "m": 28.544141883109255,
+    "s": 16.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M10-right-r3e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.237598764471429,
+    "length": 27.712796293414286,
+    "thread_length": 27.712796293414286,
+    "s": 16.0,
+    "k": 6.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M10-right-r3e-06",
+   "kind": "nut",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.514726893682449,
+    "m": 28.544180681047344,
+    "s": 16.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M10-right-r1e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.237602459513152,
+    "length": 27.712807378539456,
+    "thread_length": 27.712807378539456,
+    "s": 16.0,
+    "k": 6.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M10-right-r1e-06",
+   "kind": "nut",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.514730588724172,
+    "m": 28.544191766172517,
+    "s": 16.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M10-left-r0.01",
+   "kind": "bolt",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.219129098419945,
+    "length": 27.657387295259834,
+    "thread_length": 27.657387295259834,
+    "s": 16.0,
+    "k": 6.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M10-left-r0.01",
+   "kind": "nut",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.496257227630965,
+    "m": 28.488771682892896,
+    "s": 16.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M10-left-r0.003",
+   "kind": "bolt",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.232061744449792,
+    "length": 27.696185233349375,
+    "thread_length": 27.696185233349375,
+    "s": 16.0,
+    "k": 6.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M10-left-r0.003",
+   "kind": "nut",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.509189873660814,
+    "m": 28.52756962098244,
+    "s": 16.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M10-left-r0.001",
+   "kind": "bolt",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.235756786172606,
+    "length": 27.707270358517817,
+    "thread_length": 27.707270358517817,
+    "s": 16.0,
+    "k": 6.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M10-left-r0.001",
+   "kind": "nut",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.512884915383626,
+    "m": 28.53865474615088,
+    "s": 16.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M10-left-r0.0003",
+   "kind": "bolt",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.237050050775592,
+    "length": 27.711150152326773,
+    "thread_length": 27.711150152326773,
+    "s": 16.0,
+    "k": 6.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M10-left-r0.0003",
+   "kind": "nut",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.514178179986612,
+    "m": 28.542534539959835,
+    "s": 16.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M10-left-r0.0001",
+   "kind": "bolt",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.237419554947873,
+    "length": 27.71225866484362,
+    "thread_length": 27.71225866484362,
+    "s": 16.0,
+    "k": 6.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M10-left-r0.0001",
+   "kind": "nut",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.514547684158892,
+    "m": 28.543643052476675,
+    "s": 16.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M10-left-r3e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.237548881408172,
+    "length": 27.712646644224513,
+    "thread_length": 27.712646644224513,
+    "s": 16.0,
+    "k": 6.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M10-left-r3e-05",
+   "kind": "nut",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.514677010619192,
+    "m": 28.544031031857575,
+    "s": 16.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M10-left-r1e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.2375858318254,
+    "length": 27.712757495476204,
+    "thread_length": 27.712757495476204,
+    "s": 16.0,
+    "k": 6.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M10-left-r1e-05",
+   "kind": "nut",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.514713961036419,
+    "m": 28.544141883109255,
+    "s": 16.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M10-left-r3e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.237598764471429,
+    "length": 27.712796293414286,
+    "thread_length": 27.712796293414286,
+    "s": 16.0,
+    "k": 6.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M10-left-r3e-06",
+   "kind": "nut",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.514726893682449,
+    "m": 28.544180681047344,
+    "s": 16.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M10-left-r1e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.237602459513152,
+    "length": 27.712807378539456,
+    "thread_length": 27.712807378539456,
+    "s": 16.0,
+    "k": 6.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M10-left-r1e-06",
+   "kind": "nut",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.514730588724172,
+    "m": 28.544191766172517,
+    "s": 16.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M12-right-r0.01",
+   "kind": "bolt",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.066649959826748,
+    "length": 33.19994987948024,
+    "thread_length": 33.19994987948024,
+    "s": 19.2,
+    "k": 7.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M12-right-r0.01",
+   "kind": "nut",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.343778089037768,
+    "m": 34.0313342671133,
+    "s": 19.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M12-right-r0.003",
+   "kind": "bolt",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.079582605856595,
+    "length": 33.23874781756979,
+    "thread_length": 33.23874781756979,
+    "s": 19.2,
+    "k": 7.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M12-right-r0.003",
+   "kind": "nut",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.356710735067617,
+    "m": 34.07013220520285,
+    "s": 19.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M12-right-r0.001",
+   "kind": "bolt",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.083277647579408,
+    "length": 33.24983294273822,
+    "thread_length": 33.24983294273822,
+    "s": 19.2,
+    "k": 7.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M12-right-r0.001",
+   "kind": "nut",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.36040577679043,
+    "m": 34.08121733037129,
+    "s": 19.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M12-right-r0.0003",
+   "kind": "bolt",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.084570912182393,
+    "length": 33.25371273654718,
+    "thread_length": 33.25371273654718,
+    "s": 19.2,
+    "k": 7.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M12-right-r0.0003",
+   "kind": "nut",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.361699041393415,
+    "m": 34.085097124180244,
+    "s": 19.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M12-right-r0.0001",
+   "kind": "bolt",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.084940416354675,
+    "length": 33.25482124906402,
+    "thread_length": 33.25482124906402,
+    "s": 19.2,
+    "k": 7.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M12-right-r0.0001",
+   "kind": "nut",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.362068545565695,
+    "m": 34.08620563669709,
+    "s": 19.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M12-right-r3e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.085069742814975,
+    "length": 33.255209228444926,
+    "thread_length": 33.255209228444926,
+    "s": 19.2,
+    "k": 7.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M12-right-r3e-05",
+   "kind": "nut",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.362197872025993,
+    "m": 34.08659361607798,
+    "s": 19.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M12-right-r1e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.085106693232202,
+    "length": 33.2553200796966,
+    "thread_length": 33.2553200796966,
+    "s": 19.2,
+    "k": 7.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M12-right-r1e-05",
+   "kind": "nut",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.362234822443222,
+    "m": 34.08670446732967,
+    "s": 19.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M12-right-r3e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.085119625878232,
+    "length": 33.25535887763469,
+    "thread_length": 33.25535887763469,
+    "s": 19.2,
+    "k": 7.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M12-right-r3e-06",
+   "kind": "nut",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.362247755089252,
+    "m": 34.086743265267756,
+    "s": 19.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M12-right-r1e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.085123320919955,
+    "length": 33.255369962759865,
+    "thread_length": 33.255369962759865,
+    "s": 19.2,
+    "k": 7.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M12-right-r1e-06",
+   "kind": "nut",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.362251450130975,
+    "m": 34.08675435039292,
+    "s": 19.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M12-left-r0.01",
+   "kind": "bolt",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.066649959826748,
+    "length": 33.19994987948024,
+    "thread_length": 33.19994987948024,
+    "s": 19.2,
+    "k": 7.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M12-left-r0.01",
+   "kind": "nut",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.343778089037768,
+    "m": 34.0313342671133,
+    "s": 19.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M12-left-r0.003",
+   "kind": "bolt",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.079582605856595,
+    "length": 33.23874781756979,
+    "thread_length": 33.23874781756979,
+    "s": 19.2,
+    "k": 7.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M12-left-r0.003",
+   "kind": "nut",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.356710735067617,
+    "m": 34.07013220520285,
+    "s": 19.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M12-left-r0.001",
+   "kind": "bolt",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.083277647579408,
+    "length": 33.24983294273822,
+    "thread_length": 33.24983294273822,
+    "s": 19.2,
+    "k": 7.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M12-left-r0.001",
+   "kind": "nut",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.36040577679043,
+    "m": 34.08121733037129,
+    "s": 19.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M12-left-r0.0003",
+   "kind": "bolt",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.084570912182393,
+    "length": 33.25371273654718,
+    "thread_length": 33.25371273654718,
+    "s": 19.2,
+    "k": 7.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M12-left-r0.0003",
+   "kind": "nut",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.361699041393415,
+    "m": 34.085097124180244,
+    "s": 19.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M12-left-r0.0001",
+   "kind": "bolt",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.084940416354675,
+    "length": 33.25482124906402,
+    "thread_length": 33.25482124906402,
+    "s": 19.2,
+    "k": 7.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M12-left-r0.0001",
+   "kind": "nut",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.362068545565695,
+    "m": 34.08620563669709,
+    "s": 19.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M12-left-r3e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.085069742814975,
+    "length": 33.255209228444926,
+    "thread_length": 33.255209228444926,
+    "s": 19.2,
+    "k": 7.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M12-left-r3e-05",
+   "kind": "nut",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.362197872025993,
+    "m": 34.08659361607798,
+    "s": 19.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M12-left-r1e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.085106693232202,
+    "length": 33.2553200796966,
+    "thread_length": 33.2553200796966,
+    "s": 19.2,
+    "k": 7.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M12-left-r1e-05",
+   "kind": "nut",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.362234822443222,
+    "m": 34.08670446732967,
+    "s": 19.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M12-left-r3e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.085119625878232,
+    "length": 33.25535887763469,
+    "thread_length": 33.25535887763469,
+    "s": 19.2,
+    "k": 7.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M12-left-r3e-06",
+   "kind": "nut",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.362247755089252,
+    "m": 34.086743265267756,
+    "s": 19.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M12-left-r1e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.085123320919955,
+    "length": 33.255369962759865,
+    "thread_length": 33.255369962759865,
+    "s": 19.2,
+    "k": 7.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M12-left-r1e-06",
+   "kind": "nut",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.362251450130975,
+    "m": 34.08675435039292,
+    "s": 19.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M14-right-r0.01",
+   "kind": "bolt",
+   "params": {
+    "d": 14.0,
+    "pitch": 12.91417082123355,
+    "length": 38.74251246370065,
+    "thread_length": 38.74251246370065,
+    "s": 22.4,
+    "k": 8.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M14-right-r0.01",
+   "kind": "nut",
+   "params": {
+    "d": 14.0,
+    "pitch": 13.19129895044457,
+    "m": 39.573896851333714,
+    "s": 22.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M14-right-r0.003",
+   "kind": "bolt",
+   "params": {
+    "d": 14.0,
+    "pitch": 12.927103467263398,
+    "length": 38.78131040179019,
+    "thread_length": 38.78131040179019,
+    "s": 22.4,
+    "k": 8.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M14-right-r0.003",
+   "kind": "nut",
+   "params": {
+    "d": 14.0,
+    "pitch": 13.204231596474418,
+    "m": 39.61269478942326,
+    "s": 22.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M14-right-r0.001",
+   "kind": "bolt",
+   "params": {
+    "d": 14.0,
+    "pitch": 12.93079850898621,
+    "length": 38.79239552695863,
+    "thread_length": 38.79239552695863,
+    "s": 22.4,
+    "k": 8.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M14-right-r0.001",
+   "kind": "nut",
+   "params": {
+    "d": 14.0,
+    "pitch": 13.207926638197232,
+    "m": 39.623779914591694,
+    "s": 22.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M14-right-r0.0003",
+   "kind": "bolt",
+   "params": {
+    "d": 14.0,
+    "pitch": 12.932091773589196,
+    "length": 38.79627532076759,
+    "thread_length": 38.79627532076759,
+    "s": 22.4,
+    "k": 8.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M14-right-r0.0003",
+   "kind": "nut",
+   "params": {
+    "d": 14.0,
+    "pitch": 13.209219902800218,
+    "m": 39.62765970840066,
+    "s": 22.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M14-right-r0.0001",
+   "kind": "bolt",
+   "params": {
+    "d": 14.0,
+    "pitch": 12.932461277761478,
+    "length": 38.797383833284435,
+    "thread_length": 38.797383833284435,
+    "s": 22.4,
+    "k": 8.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M14-right-r0.0001",
+   "kind": "nut",
+   "params": {
+    "d": 14.0,
+    "pitch": 13.209589406972498,
+    "m": 39.62876822091749,
+    "s": 22.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M14-right-r3e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 14.0,
+    "pitch": 12.932590604221776,
+    "length": 38.79777181266533,
+    "thread_length": 38.79777181266533,
+    "s": 22.4,
+    "k": 8.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M14-right-r3e-05",
+   "kind": "nut",
+   "params": {
+    "d": 14.0,
+    "pitch": 13.209718733432796,
+    "m": 39.62915620029839,
+    "s": 22.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M14-right-r1e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 14.0,
+    "pitch": 12.932627554639005,
+    "length": 38.797882663917015,
+    "thread_length": 38.797882663917015,
+    "s": 22.4,
+    "k": 8.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M14-right-r1e-05",
+   "kind": "nut",
+   "params": {
+    "d": 14.0,
+    "pitch": 13.209755683850025,
+    "m": 39.62926705155007,
+    "s": 22.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M14-right-r3e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 14.0,
+    "pitch": 12.932640487285033,
+    "length": 38.7979214618551,
+    "thread_length": 38.7979214618551,
+    "s": 22.4,
+    "k": 8.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M14-right-r3e-06",
+   "kind": "nut",
+   "params": {
+    "d": 14.0,
+    "pitch": 13.209768616496055,
+    "m": 39.62930584948816,
+    "s": 22.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M14-right-r1e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 14.0,
+    "pitch": 12.932644182326756,
+    "length": 38.79793254698027,
+    "thread_length": 38.79793254698027,
+    "s": 22.4,
+    "k": 8.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M14-right-r1e-06",
+   "kind": "nut",
+   "params": {
+    "d": 14.0,
+    "pitch": 13.209772311537778,
+    "m": 39.629316934613335,
+    "s": 22.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M14-left-r0.01",
+   "kind": "bolt",
+   "params": {
+    "d": 14.0,
+    "pitch": 12.91417082123355,
+    "length": 38.74251246370065,
+    "thread_length": 38.74251246370065,
+    "s": 22.4,
+    "k": 8.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M14-left-r0.01",
+   "kind": "nut",
+   "params": {
+    "d": 14.0,
+    "pitch": 13.19129895044457,
+    "m": 39.573896851333714,
+    "s": 22.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M14-left-r0.003",
+   "kind": "bolt",
+   "params": {
+    "d": 14.0,
+    "pitch": 12.927103467263398,
+    "length": 38.78131040179019,
+    "thread_length": 38.78131040179019,
+    "s": 22.4,
+    "k": 8.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M14-left-r0.003",
+   "kind": "nut",
+   "params": {
+    "d": 14.0,
+    "pitch": 13.204231596474418,
+    "m": 39.61269478942326,
+    "s": 22.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M14-left-r0.001",
+   "kind": "bolt",
+   "params": {
+    "d": 14.0,
+    "pitch": 12.93079850898621,
+    "length": 38.79239552695863,
+    "thread_length": 38.79239552695863,
+    "s": 22.4,
+    "k": 8.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M14-left-r0.001",
+   "kind": "nut",
+   "params": {
+    "d": 14.0,
+    "pitch": 13.207926638197232,
+    "m": 39.623779914591694,
+    "s": 22.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M14-left-r0.0003",
+   "kind": "bolt",
+   "params": {
+    "d": 14.0,
+    "pitch": 12.932091773589196,
+    "length": 38.79627532076759,
+    "thread_length": 38.79627532076759,
+    "s": 22.4,
+    "k": 8.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M14-left-r0.0003",
+   "kind": "nut",
+   "params": {
+    "d": 14.0,
+    "pitch": 13.209219902800218,
+    "m": 39.62765970840066,
+    "s": 22.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M14-left-r0.0001",
+   "kind": "bolt",
+   "params": {
+    "d": 14.0,
+    "pitch": 12.932461277761478,
+    "length": 38.797383833284435,
+    "thread_length": 38.797383833284435,
+    "s": 22.4,
+    "k": 8.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M14-left-r0.0001",
+   "kind": "nut",
+   "params": {
+    "d": 14.0,
+    "pitch": 13.209589406972498,
+    "m": 39.62876822091749,
+    "s": 22.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M14-left-r3e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 14.0,
+    "pitch": 12.932590604221776,
+    "length": 38.79777181266533,
+    "thread_length": 38.79777181266533,
+    "s": 22.4,
+    "k": 8.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M14-left-r3e-05",
+   "kind": "nut",
+   "params": {
+    "d": 14.0,
+    "pitch": 13.209718733432796,
+    "m": 39.62915620029839,
+    "s": 22.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M14-left-r1e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 14.0,
+    "pitch": 12.932627554639005,
+    "length": 38.797882663917015,
+    "thread_length": 38.797882663917015,
+    "s": 22.4,
+    "k": 8.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M14-left-r1e-05",
+   "kind": "nut",
+   "params": {
+    "d": 14.0,
+    "pitch": 13.209755683850025,
+    "m": 39.62926705155007,
+    "s": 22.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M14-left-r3e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 14.0,
+    "pitch": 12.932640487285033,
+    "length": 38.7979214618551,
+    "thread_length": 38.7979214618551,
+    "s": 22.4,
+    "k": 8.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M14-left-r3e-06",
+   "kind": "nut",
+   "params": {
+    "d": 14.0,
+    "pitch": 13.209768616496055,
+    "m": 39.62930584948816,
+    "s": 22.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M14-left-r1e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 14.0,
+    "pitch": 12.932644182326756,
+    "length": 38.79793254698027,
+    "thread_length": 38.79793254698027,
+    "s": 22.4,
+    "k": 8.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M14-left-r1e-06",
+   "kind": "nut",
+   "params": {
+    "d": 14.0,
+    "pitch": 13.209772311537778,
+    "m": 39.629316934613335,
+    "s": 22.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M16-right-r0.01",
+   "kind": "bolt",
+   "params": {
+    "d": 16.0,
+    "pitch": 14.761691682640354,
+    "length": 44.28507504792106,
+    "thread_length": 44.28507504792106,
+    "s": 25.6,
+    "k": 9.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M16-right-r0.01",
+   "kind": "nut",
+   "params": {
+    "d": 16.0,
+    "pitch": 15.038819811851374,
+    "m": 45.11645943555412,
+    "s": 25.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M16-right-r0.003",
+   "kind": "bolt",
+   "params": {
+    "d": 16.0,
+    "pitch": 14.7746243286702,
+    "length": 44.3238729860106,
+    "thread_length": 44.3238729860106,
+    "s": 25.6,
+    "k": 9.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M16-right-r0.003",
+   "kind": "nut",
+   "params": {
+    "d": 16.0,
+    "pitch": 15.051752457881221,
+    "m": 45.155257373643664,
+    "s": 25.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M16-right-r0.001",
+   "kind": "bolt",
+   "params": {
+    "d": 16.0,
+    "pitch": 14.778319370393014,
+    "length": 44.33495811117904,
+    "thread_length": 44.33495811117904,
+    "s": 25.6,
+    "k": 9.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M16-right-r0.001",
+   "kind": "nut",
+   "params": {
+    "d": 16.0,
+    "pitch": 15.055447499604034,
+    "m": 45.1663424988121,
+    "s": 25.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M16-right-r0.0003",
+   "kind": "bolt",
+   "params": {
+    "d": 16.0,
+    "pitch": 14.779612634995999,
+    "length": 44.338837904988,
+    "thread_length": 44.338837904988,
+    "s": 25.6,
+    "k": 9.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M16-right-r0.0003",
+   "kind": "nut",
+   "params": {
+    "d": 16.0,
+    "pitch": 15.056740764207019,
+    "m": 45.170222292621055,
+    "s": 25.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M16-right-r0.0001",
+   "kind": "bolt",
+   "params": {
+    "d": 16.0,
+    "pitch": 14.77998213916828,
+    "length": 44.33994641750484,
+    "thread_length": 44.33994641750484,
+    "s": 25.6,
+    "k": 9.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M16-right-r0.0001",
+   "kind": "nut",
+   "params": {
+    "d": 16.0,
+    "pitch": 15.057110268379303,
+    "m": 45.171330805137906,
+    "s": 25.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M16-right-r3e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 16.0,
+    "pitch": 14.780111465628579,
+    "length": 44.34033439688574,
+    "thread_length": 44.34033439688574,
+    "s": 25.6,
+    "k": 9.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M16-right-r3e-05",
+   "kind": "nut",
+   "params": {
+    "d": 16.0,
+    "pitch": 15.057239594839599,
+    "m": 45.171718784518795,
+    "s": 25.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M16-right-r1e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 16.0,
+    "pitch": 14.780148416045808,
+    "length": 44.34044524813743,
+    "thread_length": 44.34044524813743,
+    "s": 25.6,
+    "k": 9.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M16-right-r1e-05",
+   "kind": "nut",
+   "params": {
+    "d": 16.0,
+    "pitch": 15.057276545256828,
+    "m": 45.171829635770486,
+    "s": 25.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M16-right-r3e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 16.0,
+    "pitch": 14.780161348691836,
+    "length": 44.34048404607551,
+    "thread_length": 44.34048404607551,
+    "s": 25.6,
+    "k": 9.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M16-right-r3e-06",
+   "kind": "nut",
+   "params": {
+    "d": 16.0,
+    "pitch": 15.05728947790286,
+    "m": 45.17186843370858,
+    "s": 25.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M16-right-r1e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 16.0,
+    "pitch": 14.78016504373356,
+    "length": 44.340495131200676,
+    "thread_length": 44.340495131200676,
+    "s": 25.6,
+    "k": 9.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M16-right-r1e-06",
+   "kind": "nut",
+   "params": {
+    "d": 16.0,
+    "pitch": 15.05729317294458,
+    "m": 45.171879518833734,
+    "s": 25.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M16-left-r0.01",
+   "kind": "bolt",
+   "params": {
+    "d": 16.0,
+    "pitch": 14.761691682640354,
+    "length": 44.28507504792106,
+    "thread_length": 44.28507504792106,
+    "s": 25.6,
+    "k": 9.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M16-left-r0.01",
+   "kind": "nut",
+   "params": {
+    "d": 16.0,
+    "pitch": 15.038819811851374,
+    "m": 45.11645943555412,
+    "s": 25.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M16-left-r0.003",
+   "kind": "bolt",
+   "params": {
+    "d": 16.0,
+    "pitch": 14.7746243286702,
+    "length": 44.3238729860106,
+    "thread_length": 44.3238729860106,
+    "s": 25.6,
+    "k": 9.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M16-left-r0.003",
+   "kind": "nut",
+   "params": {
+    "d": 16.0,
+    "pitch": 15.051752457881221,
+    "m": 45.155257373643664,
+    "s": 25.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M16-left-r0.001",
+   "kind": "bolt",
+   "params": {
+    "d": 16.0,
+    "pitch": 14.778319370393014,
+    "length": 44.33495811117904,
+    "thread_length": 44.33495811117904,
+    "s": 25.6,
+    "k": 9.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M16-left-r0.001",
+   "kind": "nut",
+   "params": {
+    "d": 16.0,
+    "pitch": 15.055447499604034,
+    "m": 45.1663424988121,
+    "s": 25.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M16-left-r0.0003",
+   "kind": "bolt",
+   "params": {
+    "d": 16.0,
+    "pitch": 14.779612634995999,
+    "length": 44.338837904988,
+    "thread_length": 44.338837904988,
+    "s": 25.6,
+    "k": 9.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M16-left-r0.0003",
+   "kind": "nut",
+   "params": {
+    "d": 16.0,
+    "pitch": 15.056740764207019,
+    "m": 45.170222292621055,
+    "s": 25.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M16-left-r0.0001",
+   "kind": "bolt",
+   "params": {
+    "d": 16.0,
+    "pitch": 14.77998213916828,
+    "length": 44.33994641750484,
+    "thread_length": 44.33994641750484,
+    "s": 25.6,
+    "k": 9.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M16-left-r0.0001",
+   "kind": "nut",
+   "params": {
+    "d": 16.0,
+    "pitch": 15.057110268379303,
+    "m": 45.171330805137906,
+    "s": 25.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M16-left-r3e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 16.0,
+    "pitch": 14.780111465628579,
+    "length": 44.34033439688574,
+    "thread_length": 44.34033439688574,
+    "s": 25.6,
+    "k": 9.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M16-left-r3e-05",
+   "kind": "nut",
+   "params": {
+    "d": 16.0,
+    "pitch": 15.057239594839599,
+    "m": 45.171718784518795,
+    "s": 25.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M16-left-r1e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 16.0,
+    "pitch": 14.780148416045808,
+    "length": 44.34044524813743,
+    "thread_length": 44.34044524813743,
+    "s": 25.6,
+    "k": 9.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M16-left-r1e-05",
+   "kind": "nut",
+   "params": {
+    "d": 16.0,
+    "pitch": 15.057276545256828,
+    "m": 45.171829635770486,
+    "s": 25.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M16-left-r3e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 16.0,
+    "pitch": 14.780161348691836,
+    "length": 44.34048404607551,
+    "thread_length": 44.34048404607551,
+    "s": 25.6,
+    "k": 9.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M16-left-r3e-06",
+   "kind": "nut",
+   "params": {
+    "d": 16.0,
+    "pitch": 15.05728947790286,
+    "m": 45.17186843370858,
+    "s": 25.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M16-left-r1e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 16.0,
+    "pitch": 14.78016504373356,
+    "length": 44.340495131200676,
+    "thread_length": 44.340495131200676,
+    "s": 25.6,
+    "k": 9.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M16-left-r1e-06",
+   "kind": "nut",
+   "params": {
+    "d": 16.0,
+    "pitch": 15.05729317294458,
+    "m": 45.171879518833734,
+    "s": 25.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M18-right-r0.01",
+   "kind": "bolt",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.609212544047157,
+    "length": 49.827637632141474,
+    "thread_length": 49.827637632141474,
+    "s": 28.8,
+    "k": 10.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M18-right-r0.01",
+   "kind": "nut",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.88634067325818,
+    "m": 50.65902201977454,
+    "s": 28.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M18-right-r0.003",
+   "kind": "bolt",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.622145190077003,
+    "length": 49.866435570231005,
+    "thread_length": 49.866435570231005,
+    "s": 28.8,
+    "k": 10.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M18-right-r0.003",
+   "kind": "nut",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.899273319288024,
+    "m": 50.69781995786407,
+    "s": 28.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M18-right-r0.001",
+   "kind": "bolt",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.625840231799817,
+    "length": 49.877520695399454,
+    "thread_length": 49.877520695399454,
+    "s": 28.8,
+    "k": 10.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M18-right-r0.001",
+   "kind": "nut",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.902968361010835,
+    "m": 50.708905083032505,
+    "s": 28.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M18-right-r0.0003",
+   "kind": "bolt",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.627133496402802,
+    "length": 49.8814004892084,
+    "thread_length": 49.8814004892084,
+    "s": 28.8,
+    "k": 10.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M18-right-r0.0003",
+   "kind": "nut",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.90426162561382,
+    "m": 50.71278487684146,
+    "s": 28.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M18-right-r0.0001",
+   "kind": "bolt",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.627503000575082,
+    "length": 49.882509001725246,
+    "thread_length": 49.882509001725246,
+    "s": 28.8,
+    "k": 10.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M18-right-r0.0001",
+   "kind": "nut",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.904631129786104,
+    "m": 50.71389338935831,
+    "s": 28.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M18-right-r3e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.627632327035382,
+    "length": 49.88289698110614,
+    "thread_length": 49.88289698110614,
+    "s": 28.8,
+    "k": 10.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M18-right-r3e-05",
+   "kind": "nut",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.9047604562464,
+    "m": 50.7142813687392,
+    "s": 28.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M18-right-r1e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.62766927745261,
+    "length": 49.88300783235783,
+    "thread_length": 49.88300783235783,
+    "s": 28.8,
+    "k": 10.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M18-right-r1e-05",
+   "kind": "nut",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.904797406663633,
+    "m": 50.7143922199909,
+    "s": 28.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M18-right-r3e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.62768221009864,
+    "length": 49.88304663029592,
+    "thread_length": 49.88304663029592,
+    "s": 28.8,
+    "k": 10.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M18-right-r3e-06",
+   "kind": "nut",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.904810339309662,
+    "m": 50.71443101792899,
+    "s": 28.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M18-right-r1e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.627685905140364,
+    "length": 49.88305771542109,
+    "thread_length": 49.88305771542109,
+    "s": 28.8,
+    "k": 10.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M18-right-r1e-06",
+   "kind": "nut",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.904814034351382,
+    "m": 50.71444210305415,
+    "s": 28.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M18-left-r0.01",
+   "kind": "bolt",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.609212544047157,
+    "length": 49.827637632141474,
+    "thread_length": 49.827637632141474,
+    "s": 28.8,
+    "k": 10.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M18-left-r0.01",
+   "kind": "nut",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.88634067325818,
+    "m": 50.65902201977454,
+    "s": 28.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M18-left-r0.003",
+   "kind": "bolt",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.622145190077003,
+    "length": 49.866435570231005,
+    "thread_length": 49.866435570231005,
+    "s": 28.8,
+    "k": 10.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M18-left-r0.003",
+   "kind": "nut",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.899273319288024,
+    "m": 50.69781995786407,
+    "s": 28.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M18-left-r0.001",
+   "kind": "bolt",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.625840231799817,
+    "length": 49.877520695399454,
+    "thread_length": 49.877520695399454,
+    "s": 28.8,
+    "k": 10.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M18-left-r0.001",
+   "kind": "nut",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.902968361010835,
+    "m": 50.708905083032505,
+    "s": 28.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M18-left-r0.0003",
+   "kind": "bolt",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.627133496402802,
+    "length": 49.8814004892084,
+    "thread_length": 49.8814004892084,
+    "s": 28.8,
+    "k": 10.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M18-left-r0.0003",
+   "kind": "nut",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.90426162561382,
+    "m": 50.71278487684146,
+    "s": 28.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M18-left-r0.0001",
+   "kind": "bolt",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.627503000575082,
+    "length": 49.882509001725246,
+    "thread_length": 49.882509001725246,
+    "s": 28.8,
+    "k": 10.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M18-left-r0.0001",
+   "kind": "nut",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.904631129786104,
+    "m": 50.71389338935831,
+    "s": 28.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M18-left-r3e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.627632327035382,
+    "length": 49.88289698110614,
+    "thread_length": 49.88289698110614,
+    "s": 28.8,
+    "k": 10.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M18-left-r3e-05",
+   "kind": "nut",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.9047604562464,
+    "m": 50.7142813687392,
+    "s": 28.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M18-left-r1e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.62766927745261,
+    "length": 49.88300783235783,
+    "thread_length": 49.88300783235783,
+    "s": 28.8,
+    "k": 10.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M18-left-r1e-05",
+   "kind": "nut",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.904797406663633,
+    "m": 50.7143922199909,
+    "s": 28.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M18-left-r3e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.62768221009864,
+    "length": 49.88304663029592,
+    "thread_length": 49.88304663029592,
+    "s": 28.8,
+    "k": 10.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M18-left-r3e-06",
+   "kind": "nut",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.904810339309662,
+    "m": 50.71443101792899,
+    "s": 28.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M18-left-r1e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.627685905140364,
+    "length": 49.88305771542109,
+    "thread_length": 49.88305771542109,
+    "s": 28.8,
+    "k": 10.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M18-left-r1e-06",
+   "kind": "nut",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.904814034351382,
+    "m": 50.71444210305415,
+    "s": 28.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M20-right-r0.01",
+   "kind": "bolt",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.45673340545396,
+    "length": 55.37020021636188,
+    "thread_length": 55.37020021636188,
+    "s": 32.0,
+    "k": 12.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M20-right-r0.01",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.733861534664978,
+    "m": 56.20158460399493,
+    "s": 32.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M20-right-r0.003",
+   "kind": "bolt",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.469666051483806,
+    "length": 55.40899815445142,
+    "thread_length": 55.40899815445142,
+    "s": 32.0,
+    "k": 12.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M20-right-r0.003",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.746794180694828,
+    "m": 56.24038254208448,
+    "s": 32.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M20-right-r0.001",
+   "kind": "bolt",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.47336109320662,
+    "length": 55.42008327961986,
+    "thread_length": 55.42008327961986,
+    "s": 32.0,
+    "k": 12.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M20-right-r0.001",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.750489222417638,
+    "m": 56.25146766725291,
+    "s": 32.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M20-right-r0.0003",
+   "kind": "bolt",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.474654357809605,
+    "length": 55.423963073428816,
+    "thread_length": 55.423963073428816,
+    "s": 32.0,
+    "k": 12.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M20-right-r0.0003",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.751782487020623,
+    "m": 56.255347461061874,
+    "s": 32.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M20-right-r0.0001",
+   "kind": "bolt",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.475023861981885,
+    "length": 55.42507158594566,
+    "thread_length": 55.42507158594566,
+    "s": 32.0,
+    "k": 12.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M20-right-r0.0001",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.752151991192907,
+    "m": 56.256455973578724,
+    "s": 32.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M20-right-r3e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.47515318844218,
+    "length": 55.42545956532655,
+    "thread_length": 55.42545956532655,
+    "s": 32.0,
+    "k": 12.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M20-right-r3e-05",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.752281317653203,
+    "m": 56.25684395295961,
+    "s": 32.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M20-right-r1e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.475190138859414,
+    "length": 55.42557041657824,
+    "thread_length": 55.42557041657824,
+    "s": 32.0,
+    "k": 12.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M20-right-r1e-05",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.752318268070436,
+    "m": 56.256954804211304,
+    "s": 32.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M20-right-r3e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.475203071505444,
+    "length": 55.42560921451633,
+    "thread_length": 55.42560921451633,
+    "s": 32.0,
+    "k": 12.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M20-right-r3e-06",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.752331200716466,
+    "m": 56.25699360214939,
+    "s": 32.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M20-right-r1e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.475206766547167,
+    "length": 55.4256202996415,
+    "thread_length": 55.4256202996415,
+    "s": 32.0,
+    "k": 12.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M20-right-r1e-06",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.752334895758185,
+    "m": 56.25700468727456,
+    "s": 32.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M20-left-r0.01",
+   "kind": "bolt",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.45673340545396,
+    "length": 55.37020021636188,
+    "thread_length": 55.37020021636188,
+    "s": 32.0,
+    "k": 12.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M20-left-r0.01",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.733861534664978,
+    "m": 56.20158460399493,
+    "s": 32.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M20-left-r0.003",
+   "kind": "bolt",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.469666051483806,
+    "length": 55.40899815445142,
+    "thread_length": 55.40899815445142,
+    "s": 32.0,
+    "k": 12.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M20-left-r0.003",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.746794180694828,
+    "m": 56.24038254208448,
+    "s": 32.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M20-left-r0.001",
+   "kind": "bolt",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.47336109320662,
+    "length": 55.42008327961986,
+    "thread_length": 55.42008327961986,
+    "s": 32.0,
+    "k": 12.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M20-left-r0.001",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.750489222417638,
+    "m": 56.25146766725291,
+    "s": 32.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M20-left-r0.0003",
+   "kind": "bolt",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.474654357809605,
+    "length": 55.423963073428816,
+    "thread_length": 55.423963073428816,
+    "s": 32.0,
+    "k": 12.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M20-left-r0.0003",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.751782487020623,
+    "m": 56.255347461061874,
+    "s": 32.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M20-left-r0.0001",
+   "kind": "bolt",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.475023861981885,
+    "length": 55.42507158594566,
+    "thread_length": 55.42507158594566,
+    "s": 32.0,
+    "k": 12.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M20-left-r0.0001",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.752151991192907,
+    "m": 56.256455973578724,
+    "s": 32.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M20-left-r3e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.47515318844218,
+    "length": 55.42545956532655,
+    "thread_length": 55.42545956532655,
+    "s": 32.0,
+    "k": 12.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M20-left-r3e-05",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.752281317653203,
+    "m": 56.25684395295961,
+    "s": 32.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M20-left-r1e-05",
+   "kind": "bolt",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.475190138859414,
+    "length": 55.42557041657824,
+    "thread_length": 55.42557041657824,
+    "s": 32.0,
+    "k": 12.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M20-left-r1e-05",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.752318268070436,
+    "m": 56.256954804211304,
+    "s": 32.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M20-left-r3e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.475203071505444,
+    "length": 55.42560921451633,
+    "thread_length": 55.42560921451633,
+    "s": 32.0,
+    "k": 12.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M20-left-r3e-06",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.752331200716466,
+    "m": 56.25699360214939,
+    "s": 32.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-bolt-M20-left-r1e-06",
+   "kind": "bolt",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.475206766547167,
+    "length": 55.4256202996415,
+    "thread_length": 55.4256202996415,
+    "s": 32.0,
+    "k": 12.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M20-left-r1e-06",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.752334895758185,
+    "m": 56.25700468727456,
+    "s": 32.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "nutlead-M2-s1000",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 12.0,
+    "s": 1000.0,
+    "clearance": 0.1
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "nutlead-M2-s10000",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 12.0,
+    "s": 10000.0,
+    "clearance": 0.1
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "nutlead-M2-s100000",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 12.0,
+    "s": 100000.0,
+    "clearance": 0.1
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "nutlead-M8-s1000",
+   "kind": "nut",
+   "params": {
+    "d": 8.0,
+    "pitch": 1.25,
+    "m": 38.0,
+    "s": 1000.0,
+    "clearance": 0.1
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "nutlead-M8-s10000",
+   "kind": "nut",
+   "params": {
+    "d": 8.0,
+    "pitch": 1.25,
+    "m": 38.0,
+    "s": 10000.0,
+    "clearance": 0.1
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "nutlead-M8-s100000",
+   "kind": "nut",
+   "params": {
+    "d": 8.0,
+    "pitch": 1.25,
+    "m": 38.0,
+    "s": 100000.0,
+    "clearance": 0.1
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "nutlead-M14-s1000",
+   "kind": "nut",
+   "params": {
+    "d": 14.0,
+    "pitch": 2.0,
+    "m": 46.0,
+    "s": 1000.0,
+    "clearance": 0.1
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "nutlead-M14-s10000",
+   "kind": "nut",
+   "params": {
+    "d": 14.0,
+    "pitch": 2.0,
+    "m": 46.0,
+    "s": 10000.0,
+    "clearance": 0.1
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "nutlead-M14-s100000",
+   "kind": "nut",
+   "params": {
+    "d": 14.0,
+    "pitch": 2.0,
+    "m": 46.0,
+    "s": 100000.0,
+    "clearance": 0.1
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "nutcsk-d2-s4-m3-c0.05-p1.5",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 1.5,
+    "m": 3.0,
+    "s": 4.0,
+    "clearance": 0.05
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "nutcsk-d2-s4-m3-c0.05-p1.8",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 1.8,
+    "m": 3.0,
+    "s": 4.0,
+    "clearance": 0.05
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "nutcsk-d2-s4-m3-c0.01-p1.5",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 1.5,
+    "m": 3.0,
+    "s": 4.0,
+    "clearance": 0.01
+   },
+   "artifact": "stl-preview"
+  }
+ ],
+ "dropped": [],
+ "notes": [
+  "preview STL unless a probe; (a) turns: 250 turns at the 15 L11 sizes, both hands, bolt (t = L = 250 P) and nut (m = 248 P, so the void m + 2 P is 250 turns), exact decimals",
+  "(b) field ceilings at 1e3, 1e4 and 1e5 mm: bolt d at the largest the decade allows (s = X, d = X / 1.6), length, s, k, thread_length with L = t = X at 250 turns, nut s, nut m at 250 turns of void (pitch rounded up so the void stays at or under the cap)",
+  "nut clearance has no corner of its own: nut_too_thin already bounds it by s",
+  "(c) tails: the `tail` probe at 3 sizes, both hands, 1e-2 down to 1e-9 mm with the builder's guard lowered in the probe only, 3 whole turns before the tail",
+  "(d) root radius walk: for each size and hand, r from 1e-2 down to 1e-6 mm for the bolt (d/2 - 5H/8 = r) and the nut void (d/2 - 5H/8 + 0.15 = r); the pitch is solved to full float precision, 3 turns",
+  "(e) the nuts the lead-in and countersink debt items name, at s 1e3, 1e4 and 1e5 and at the countersink item's d 2, s 4, m 3 pitches and clearances"
+ ]
+}

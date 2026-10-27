@@ -84,7 +84,11 @@ POINTS_DIR = _REPO_ROOT / "bench" / "points"
 _ARTIFACTS = ("stl-preview", "stl-fine", "step")
 _SET_NAME_CHARS = frozenset("abcdefghijklmnopqrstuvwxyz0123456789-")
 _SET_KEYS = frozenset({"set", "rule", "reps", "shards", "deadline_s", "points"})
+# What the generator (`bench.oper_sets`) adds: the combinations the parameter model refused and
+# why the set holds what it holds. The runner never reads either; it only checks their shape.
+_SET_OPTIONAL_KEYS = frozenset({"dropped", "notes"})
 _POINT_KEYS = frozenset({"label", "kind", "params", "artifact"})
+_POINT_OPTIONAL_KEYS = frozenset({"preset"})  # the catalogue row id a point was expanded from
 
 
 @dataclass(frozen=True)
@@ -394,8 +398,12 @@ def _load_probe(where: str, raw: dict[str, object]) -> Point:
 def _load_point(name: str, raw: object) -> Point:
     if isinstance(raw, dict) and raw.get("kind") == PROBE_KIND:
         return _load_probe(f"set {name!r}", raw)
-    if not isinstance(raw, dict) or set(raw) != _POINT_KEYS:
-        _refuse(f"set {name!r}: a point needs exactly the keys {sorted(_POINT_KEYS)}")
+    allowed = _POINT_KEYS | _POINT_OPTIONAL_KEYS
+    if not isinstance(raw, dict) or not _POINT_KEYS <= set(raw) <= allowed:
+        _refuse(f"set {name!r}: a point needs the keys {sorted(_POINT_KEYS)} "
+                f"and may add {sorted(_POINT_OPTIONAL_KEYS)}")
+    if "preset" in raw and not isinstance(raw["preset"], str):
+        _refuse(f"set {name!r}: a point's preset is the text of a catalogue row id")
     label, kind, params, artifact = raw["label"], raw["kind"], raw["params"], raw["artifact"]
     if not (isinstance(label, str) and label and isinstance(kind, str) and kind):
         _refuse(f"set {name!r}: a point's label and kind are non-empty text")
@@ -424,8 +432,13 @@ def load_set(name: str, directory: Path | None = None) -> PointSet:
         _refuse(f"set {name!r}: no point file at {path}")
     except json.JSONDecodeError as exc:
         _refuse(f"set {name!r}: {path} is not JSON ({exc})")
-    if not isinstance(raw, dict) or set(raw) != _SET_KEYS:
-        _refuse(f"set {name!r}: a point file needs exactly the keys {sorted(_SET_KEYS)}")
+    if not isinstance(raw, dict) or not _SET_KEYS <= set(raw) <= _SET_KEYS | _SET_OPTIONAL_KEYS:
+        _refuse(f"set {name!r}: a point file needs the keys {sorted(_SET_KEYS)} "
+                f"and may add {sorted(_SET_OPTIONAL_KEYS)}")
+    if not isinstance(raw.get("dropped", []), list) or not (
+            isinstance(raw.get("notes", []), list)
+            and all(isinstance(note, str) for note in raw.get("notes", []))):
+        _refuse(f"set {name!r}: dropped is a list and notes is a list of text")
     if raw["set"] != name or not isinstance(raw["rule"], str):
         _refuse(f"set {name!r}: `set` must repeat the file's name and `rule` must be text")
     if not (_is_count(raw["reps"]) and _is_count(raw["shards"])):
@@ -435,8 +448,8 @@ def load_set(name: str, directory: Path | None = None) -> PointSet:
     if not isinstance(raw["points"], list) or not raw["points"]:
         _refuse(f"set {name!r}: points is a non-empty list")
     points = tuple(_load_point(name, entry) for entry in raw["points"])
-    if len({p.label for p in points}) != len(points):
-        _refuse(f"set {name!r}: point labels must be unique")
+    if len({(p.label, p.artifact) for p in points}) != len(points):
+        _refuse(f"set {name!r}: a label may be listed once per artifact, not twice for one")
     return PointSet(name=name, rule=raw["rule"], reps=raw["reps"], shards=raw["shards"],
                     deadline_s=float(raw["deadline_s"]), points=points)
 
