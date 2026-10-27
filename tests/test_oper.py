@@ -1423,3 +1423,51 @@ def test_one_part_may_be_listed_once_per_artifact_but_not_twice_for_one(tmp_path
     _write_set(tmp_path, points=[part("step"), part("step")])
     with pytest.raises(ValueError, match="mini"):
         oper.load_set("mini", tmp_path)
+
+
+# --- the protocol the point files are registered in (07-03) ---------------------------------------
+
+PROTOCOL = REPO_ROOT / ".planning" / "phases" / "07-operability-re-sweep" / "07-SWEEP-PROTOCOL.md"
+
+
+def _protocol() -> str:
+    return PROTOCOL.read_text()
+
+
+def test_the_protocol_states_thirty_rules_once_each_in_order() -> None:
+    headings = re.findall(r"^## R(\d+) ", _protocol(), re.MULTILINE)
+    assert headings == [str(n) for n in range(1, 31)]
+
+
+def test_every_point_file_names_a_rule_the_protocol_states() -> None:
+    for name in ("tracer", *SET_NAMES):
+        rule = json.loads((POINTS_DIR / f"{name}.json").read_text())["rule"]
+        match = re.fullmatch(r"07-SWEEP-PROTOCOL\.md R(\d+)", rule)
+        assert match, rule
+        assert f"\n## R{match.group(1)} " in _protocol()
+
+
+def test_the_protocol_table_gives_each_set_the_shape_and_counts_its_file_has() -> None:
+    rows = {m.group(1): [int(x) for x in m.groups()[1:]] for m in re.finditer(
+        r"^\| (explore|spread|walls|controls) \| (\d+) \| (\d+) \| (\d+) \| (\d+) \| (\d+) \|",
+        _protocol(), re.MULTILINE)}
+    assert sorted(rows) == sorted(SET_NAMES)
+    for name in SET_NAMES:
+        doc = _generated()[name]
+        assert rows[name] == [doc["reps"], doc["shards"], doc["deadline_s"], len(doc["points"]),
+                              len(doc["dropped"])], name
+
+
+def test_the_protocol_fixes_every_number_a_rule_needs_before_any_reading() -> None:
+    text = _protocol()
+    for needle in ("random.Random(20261026)", "at least 10 %", "1.5x", "256 MiB", "64 MiB",
+                   "4 x 10^9 bytes", "ceil(2 x", "statistics.quantiles(n=20)"):
+        assert needle in text, needle
+
+
+def test_the_protocol_records_the_disposition_of_the_two_debt_items_it_leaves_open() -> None:
+    text = _protocol()
+    for item in ("2026-10-10-spike-protocol-amendments-before-next-campaign.md",
+                 "2026-10-14-m18-probe-one-entry-has-no-deadline-during-a-run.md"):
+        assert item in text
+        assert (REPO_ROOT / "docs" / "tech_debt" / "active" / item).is_file()
