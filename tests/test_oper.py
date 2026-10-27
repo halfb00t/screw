@@ -1325,7 +1325,7 @@ def test_the_turn_walls_are_250_turns_at_the_15_sizes_both_hands_rod_and_void() 
 
 def test_the_field_ceiling_corners_sit_at_1e3_1e4_and_1e5() -> None:
     ceilings = _walls("ceiling-")
-    assert len(ceilings) == 3 * 7
+    assert len(ceilings) == 3 * 8
     by_label = {p["label"]: p["params"] for p in ceilings}
     for x in (1e3, 1e4, 1e5):
         tag = f"{x:g}"
@@ -1342,7 +1342,6 @@ def test_the_field_ceiling_corners_sit_at_1e3_1e4_and_1e5() -> None:
         nut_m = by_label[f"ceiling-nut-m-{tag}"]
         assert nut_m["m"] == x
         assert nut_m["pitch"] * 248 >= x  # rounded up, so the void stays at or under 250 turns
-    assert "clearance" in " ".join(_generated()["walls"]["notes"])
 
 
 def test_the_diameter_probe_holds_the_largest_d_the_head_rule_admits_at_its_s() -> None:
@@ -1360,6 +1359,23 @@ def test_the_diameter_probe_holds_the_largest_d_the_head_rule_admits_at_its_s() 
         above = float(Context(prec=6).next_plus(Decimal(repr(params["d"]))))
         with pytest.raises(ValueError, match="across-flats"):
             BoltParams.model_validate({**params, "d": above})
+
+
+def test_the_clearance_probe_holds_the_largest_clearance_nut_too_thin_admits_at_its_s() -> None:
+    from decimal import Context, Decimal
+
+    from screw.params import NutParams
+
+    by_label = {p["label"]: p["params"] for p in _walls("ceiling-nut-clearance-")}
+    assert {label: params["clearance"] for label, params in by_label.items()} == {
+        "ceiling-nut-clearance-1000": 496.999, "ceiling-nut-clearance-10000": 4996.99,
+        "ceiling-nut-clearance-100000": 49996.9}
+    for x, params in zip((1e3, 1e4, 1e5), by_label.values(), strict=True):
+        assert (params["d"], params["s"]) == (6.0, x)
+        NutParams.model_validate(params)
+        above = float(Context(prec=6).next_plus(Decimal(repr(params["clearance"]))))
+        with pytest.raises(ValueError, match="across flats"):
+            NutParams.model_validate({**params, "clearance": above})
 
 
 def test_the_tail_walk_runs_eight_decades_at_three_sizes_and_both_hands() -> None:

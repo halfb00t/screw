@@ -10,7 +10,7 @@ its rule was fixed before its data (the L11 method; `07-RESEARCH.md` Pattern 1).
   `tests/test_oper.py` fail when a committed file is not what it writes or when a sha below is not the
   git blob sha of the committed file. Git blob shas: `explore.json` `c2b5f05e23e46c09b0b73a424a85b9c178e703e3`,
   `spread.json` `52ef3a8506251a8254b05fb31cbf0ed4b6adaa06`, `walls.json`
-  `cc959513e13c25b78cfaa5292fdd81e50ab31b54`, `controls.json`
+  `67dc81f50cee7c393ef88adc2c50cbafb4014c5d`, `controls.json`
   `0e95d12b50b155a57be1e32ec3dffe859d0b7174`, and the tracer `tracer.json`
   `16d1928fb1ab30f6fbac5179dfa34d74d7e276c1`.
 - **Decisions applied:** `07-CONTEXT.md` D-01 to D-19, and the standing rules L02 (a number the tool
@@ -77,7 +77,7 @@ in the file's `dropped` array with the pydantic error type. `s` and `k` written 
 | --- | --- | --- | --- | --- | --- | --- |
 | explore | 1 | 40 | 600 | 1692 | 76 | fit data for the cost model (R11) |
 | spread | 5 | 12 | 600 | 12 | 0 | the margin of repeated cold readings (R5) |
-| walls | 1 | 20 | 600 | 681 | 0 | the kernel outer walls (R7 to R10) |
+| walls | 1 | 20 | 600 | 684 | 0 | the kernel outer walls (R7 to R10) |
 | controls | 1 | 4 | 600 | 69 | 0 | the known-bad constructions, natively (L11 platform note) |
 
 Every set runs at 600 s per reading; the shard counts are chosen before any timing exists and R6
@@ -111,8 +111,10 @@ significant figures under X (999.999, 9999.99, 99999.9; the head rule is `s > d`
 admitted at that `s`; pitch 1, `thread_length` 1, `k = 0.6 d`); bolt `length` = X; bolt `s` =
 X; bolt `k` = X; bolt `thread_length = length = X` at `pitch = X / 250` and `d = 2 pitch` rounded up
 to 6 figures; nut `s` = X; nut `m` = X at `pitch` = X / 248 rounded up to 6 figures (so the void
-stays at or under 250 turns), `d = 2.5 pitch`, `s = 1.6 d`. Nut `clearance` has no corner of its
-own because `nut_too_thin` already bounds it by `s`. (c) Tails: the `tail` probe at (d, pitch) in
+stays at or under 250 turns), `d = 2.5 pitch`, `s = 1.6 d`; nut `clearance`: the default nut (`d` 6)
+with `s` = X and `clearance` the largest number of 6 significant figures under (X - 6) / 2 (496.999,
+4996.99, 49996.9; `nut_too_thin` is `s > d + 2 clearance`, so no larger clearance is admitted at that `s`
+and the field's own bound of X cannot be reached). (c) Tails: the `tail` probe at (d, pitch) in
 {(6, 1), (2, 0.4), (20, 2.5)}, both hands, 3 whole turns plus a tail in {1e-2, 1e-3, ... 1e-9} mm,
 with the builder's guard (`MIN_TAIL_MM`) lowered inside the probe only and restored after it.
 (d) Root radius: for each of the 15 sizes, both hands, and `r` in {1e-2, 3e-3, 1e-3, 3e-4, 1e-4,
@@ -158,12 +160,12 @@ The readings that bear on a field (`walls`, group (b) and (e)): bolt `d` the `ce
 bolt `length` the `ceiling-bolt-length` and `ceiling-bolt-thread` readings; bolt `s` the
 `ceiling-bolt-s` and `ceiling-bolt-d` readings; bolt `k` the `ceiling-bolt-k` reading; bolt
 `thread_length` the `ceiling-bolt-thread` reading; nut `s` the `ceiling-nut-s` reading and the
-`nutlead` readings; nut `m` the `ceiling-nut-m` reading; nut `clearance` the nut readings, since it
-has no corner of its own. A field's ceiling is the largest decade in {1e3, 1e4, 1e5} mm at which
+`nutlead` readings; nut `m` the `ceiling-nut-m` reading; nut `clearance` the `ceiling-nut-clearance` reading. A field's ceiling is the largest decade in {1e3, 1e4, 1e5} mm at which
 every reading that bears on it is `ok`, and its value is the field's *tested value* at that decade: X,
 except for the bolt `d`, whose tested value is the largest number of 6 significant figures under X
-(99999.9 at 1e5): the readings never hold `d` at X, and the head rule admits nothing between the two. A
-ceiling is never written above a value a reading tested. A `refused` or `crashed` reading counts against its decade;
+(99999.9 at 1e5), and the nut `clearance`, whose tested value is the largest under (X - 6) / 2
+(49996.9 at 1e5): the readings never hold either at X, and the head and nut rules admit nothing between
+the two. A ceiling is never written above a value a reading tested. A `refused` or `crashed` reading counts against its decade;
 a `killed` or `capped` reading is cost and does not move a wall, but cannot raise one either (that
 decade is not confirmed). `MAX_FIELD_MM` is the ceiling value the most fields share, a tie going to the
 lower value, and each field whose ceiling differs gets its own named constant

@@ -246,6 +246,7 @@ def spread() -> _Set:
 # --- walls ---------------------------------------------------------------------------------------
 
 CEILINGS = (1e3, 1e4, 1e5)
+NUT_CLEARANCE_D = 6.0  # NutParams.d, frozen (L02): the default nut, so only s and clearance move
 TAIL_SIZES = ((6.0, 1.0), (2.0, 0.4), (20.0, 2.5))
 TAIL_DECADES = tuple(range(2, 10))
 ROOT_RADII = (1e-2, 3e-3, 1e-3, 3e-4, 1e-4, 3e-5, 1e-5, 3e-6, 1e-6)
@@ -283,6 +284,12 @@ def _ceiling_walls(out: _Set) -> None:
                  {"d": d, "pitch": pitch, "length": x, "thread_length": x,
                   "s": _scaled(d, "1.6"), "k": _scaled(d, "0.6")}, PREVIEW)
         out.part(f"ceiling-nut-s-{tag}", "nut", {"s": x}, PREVIEW)
+        # nut_too_thin is s > d + 2 c, so at s = X the largest clearance is the largest value
+        # under (X - d) / 2. Success at a large s alone says nothing about a large clearance.
+        out.part(f"ceiling-nut-clearance-{tag}", "nut",
+                 {"d": NUT_CLEARANCE_D, "s": x,
+                  "clearance": _below((Decimal(repr(x)) - Decimal(repr(NUT_CLEARANCE_D))) / 2)},
+                 PREVIEW)
         # Pitch rounded up so m + 2 P stays at or under 250 turns of the rounded pitch.
         nut_pitch = _round_sig(Decimal(repr(x)) / Decimal(248), ROUND_CEILING)
         nut_d = _scaled(nut_pitch, "2.5")
@@ -342,7 +349,8 @@ def walls() -> _Set:
         "figures under X with s = X (the head rule is s > d), length, s, k, thread_length with "
         "L = t = X at 250 turns, nut s, "
         "nut m at 250 turns of void (pitch rounded up so the void stays at or under the cap)",
-        "nut clearance has no corner of its own: nut_too_thin already bounds it by s",
+        "nut clearance: the default nut at s = X with the largest clearance of 6 significant "
+        "figures under (X - d) / 2, the most nut_too_thin (s > d + 2 c) admits at that s",
         "(c) tails: the `tail` probe at 3 sizes, both hands, 1e-2 down to 1e-9 mm with the "
         "builder's guard lowered in the probe only, 3 whole turns before the tail",
         "(d) root radius walk: for each size and hand, r from 1e-2 down to 1e-6 mm for the "
