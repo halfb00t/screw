@@ -71,7 +71,10 @@ status; a disagreement keeps the stricter outcome, that is the lower wall.
 
 The *next step past* a decided value is: for R7, 10 turns more (260 where 250 stands); for R8, the next
 decade (1e6 where 1e5 stands); for R9 and R10, the next smaller walked value, which `walls` groups (c)
-and (d) already hold. A step that lies past a validator's own cap would be refused before the kernel, so
+and (d) already hold. Where R9 or R10 decides "above 0", no walked value lies below the decided one, so
+the confirm set for that rule is the smallest walked value (tail 1e-9 mm, root radius 1e-6 mm) for every
+cell of the rule, at 5 repetitions, and nothing past it. Any reading there that is not `ok` awards no
+floor, and the phase stops and asks the owner, as R7 does. A step that lies past a validator's own cap would be refused before the kernel, so
 `walls` group (f) holds it with a `lift`: one named guard replaced by one stated limit, `max_turns` for
 `MAX_TURNS` and `max_mm` for the `le` bound of every length field. Every other validator still runs,
 and the reading records the lift (`bench/oper_lift.py`). A reading past a cap awards nothing: R7 and R8
@@ -211,7 +214,8 @@ is no number.
 
 Let F be the largest `tail` in `walls` group (c) whose reading is `refused` or `crashed` at any size or
 hand (F = 0 when none fails). `MIN_TAIL_MM` is the smallest power of ten at or above 100 F. If no reading
-fails down to 1e-9 mm, the floor stays "above 0" and the entry says the walk reached 1e-9 mm. 100 is
+fails down to 1e-9 mm, the floor stays "above 0" and the entry says the walk reached 1e-9 mm, but only if
+the confirm set of R3 at 1e-9 mm, for every size and hand, is `ok` in all 5 repetitions. 100 is
 two decades, a margin fixed here before any reading; it is a margin, not a measured figure.
 
 The value V this names stands only on `ok` readings. V must be a tail the walk holds (at most 1e-2),
@@ -225,7 +229,8 @@ either (R8). Otherwise there is no number: the phase stops and asks the owner.
 Let F be the largest root radius `r` in `walls` group (d) whose reading is `refused` or `crashed`, at
 any size, hand, rod or void (F = 0 when none fails). `MIN_ROOT_RADIUS_MM` is the smallest power of ten
 at or above 10 F. If no reading fails down to 1e-6 mm, the floor stays "above 0" and the entry says
-the walk reached 1e-6 mm. 10 is one decade, the coarsest margin that is still tighter than the
+the walk reached 1e-6 mm, but only if the confirm set of R3 at 1e-6 mm, for every size, hand, rod and
+void, is `ok` in all 5 repetitions. 10 is one decade, the coarsest margin that is still tighter than the
 tail rule's 100; the walk's own steps are half-decades, so 10 F sits at least two steps clear of F.
 
 The value V this names stands only on `ok` readings. V must be a radius the walk holds (1e-2 to 1e-6

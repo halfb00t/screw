@@ -2044,3 +2044,16 @@ def test_the_protocol_asks_for_the_distinct_repetitions_and_the_harness_enforces
     assert "is `incomplete` and has no median and no max" in rule
     assert oper.BOUND_REPS == (1, 2, 3, 4, 5)
     assert "(`bench.oper.summarize`)" in rule
+
+
+# --- the gap rulings (PR A2): each new rule is pinned by its key phrase ---------------------------
+
+
+def test_an_above_zero_floor_is_confirmed_at_its_smallest_walked_value() -> None:
+    rule = " ".join(_rule(3).split())
+    assert "Where R9 or R10 decides \"above 0\"" in rule
+    assert "the smallest walked value (tail 1e-9 mm, root radius 1e-6 mm) for every cell" in rule
+    assert "Any reading there that is not `ok` awards no floor" in rule
+    assert "the confirm set of R3 at 1e-9 mm, for every size and hand" in " ".join(_rule(9).split())
+    assert "the confirm set of R3 at 1e-6 mm, for every size, hand, rod and void" in " ".join(
+        _rule(10).split())
