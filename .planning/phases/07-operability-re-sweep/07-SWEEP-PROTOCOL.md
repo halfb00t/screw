@@ -423,8 +423,12 @@ the chosen level. The bodies are `/api/health`, every catalogue row's info docum
 
 ## R21 - The export cache
 
-`SCREW_EXPORT_CACHE_MB` holds both encodings (raw and gzip) of all three artifacts of the admitted
-part with the largest such sum, rounded up to a whole MiB.
+`SCREW_EXPORT_CACHE_MB` holds both encodings (raw and gzip) of all three artifacts of the candidate
+part with the largest such sum, rounded up to a whole MiB. The candidates are the `explore` parts that
+are admitted at all 3 artifacts and whose `explore` readings are `ok` at all 3. A candidate's sum is
+the raw `bytes` and the `gzip1_bytes` of those three readings: the gzip level-1 bytes are the upper
+bound of the gzip encoding at any level R19 adopts. If any R19 reading shows the bytes at level 6 or 9
+above the bytes at level 1, that bound does not hold and the phase stops and asks the owner.
 
 ## R22 - The solid cache
 

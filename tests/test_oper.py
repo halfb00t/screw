@@ -2188,3 +2188,14 @@ def test_a_gzip_level_passes_at_every_stl_bound_point_against_the_adopted_level(
             "10 to 16 points") in rule
     assert "Level 9 is compared with the adopted level, not with level 6" in rule
     assert "the level below it" not in rule
+
+
+def test_the_export_cache_holds_the_largest_part_ok_at_all_three_artifacts() -> None:
+    rule = " ".join(_rule(21).split())
+    assert "of all three artifacts of the candidate part with the largest such sum" in rule
+    assert ("The candidates are the `explore` parts that are admitted at all 3 artifacts "
+            "and whose `explore` readings are `ok` at all 3") in rule
+    assert "the gzip level-1 bytes are the upper bound" in rule
+    assert "If any R19 reading shows the bytes at level 6 or 9 above the bytes at level 1" in rule
+    assert "the phase stops and asks the owner" in rule
+    assert "of the admitted part with the largest such sum" not in rule
