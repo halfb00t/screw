@@ -486,7 +486,9 @@ asks the owner.
 
 ## R25 - The HEALTHCHECK
 
-`--timeout` is `ceil(2 x` the max health wall under load `)` seconds. `--start-period` is 2 x the max
+`--timeout` is `ceil(2 x` the max health wall under load `)` seconds. The health wall is the wall of
+the `HEALTHCHECK` command, and the max is taken over the 5 load readings of the picked N (R16), the 5
+repetitions of its load run (R15). `--start-period` is 2 x the max
 time to the first healthy response, rounded up to 10 s. `--interval` 30 s and `--retries` 3 are
 Docker's documented defaults and are cited as such.
 

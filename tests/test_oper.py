@@ -2211,3 +2211,10 @@ def test_the_trim_is_kept_only_if_its_max_memory_current_is_lower_at_every_artif
     assert ("the trim is kept only if the max with the trim on is lower than the max with it "
             "off at every artifact") in rule
     assert "`_release_arenas` is kept if" not in rule
+
+
+def test_the_health_wall_is_the_healthcheck_commands_over_the_picked_ns_load_readings() -> None:
+    rule = " ".join(_rule(25).split())
+    assert "`--timeout` is `ceil(2 x` the max health wall under load `)` seconds" in rule
+    assert "The health wall is the wall of the `HEALTHCHECK` command" in rule
+    assert "the max is taken over the 5 load readings of the picked N" in rule
