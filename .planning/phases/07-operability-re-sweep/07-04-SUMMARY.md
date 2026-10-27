@@ -124,3 +124,5 @@ None. No new network endpoint, auth path or trust boundary appeared; the workflo
 The workflow is active on main and the phase branch is on origin, so plan 07-05 can dispatch `operability` with `--ref gsd/phase-07-operability-re-sweep`. The rules are frozen by the merge and older than every figure.
 
 ## Self-Check: PASSED
+
+9dea01e, 80d70d7 and cd02386 are ancestors of the phase branch. bfb4064 is the PR A head and is an ancestor of gsd/phase-07-preregistration, not of the phase branch: the squash merge replaced it with 9dea01e.

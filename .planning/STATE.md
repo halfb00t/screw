@@ -3,17 +3,17 @@ gsd_state_version: "1.0"
 current_phase: 07
 current_phase_name: Operability Re-sweep
 status: executing
-stopped_at: "Completed 07-03-PLAN.md (PR A #22 open, landing is plan 07-04)"
-last_updated: "2026-10-27T03:21:47.134Z"
+stopped_at: Completed 07-04-PLAN.md
+last_updated: "2026-10-27T11:36:28.070Z"
 last_activity: 2026-10-27
 last_activity_desc: Phase 07 execution started
-state_head: 92028e5744adbcff18380b0fb4ebca56fd7c5287
+state_head: d5a386732e5b5e7e398b4ff4aaf2890e773fef34
 progress:
   total_phases: 8
   completed_phases: 7
   total_plans: 102
-  completed_plans: 85
-  percent: 83
+  completed_plans: 86
+  percent: 84
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-10-25)
 ## Current Position
 
 Phase: 07 (Operability Re-sweep) — EXECUTING
-Plan: 2 of 20
+Plan: 3 of 20
 Status: Ready to execute
 Last activity: 2026-10-27 — Phase 07 execution started
 
-Progress: [████████░░] 83%
+Progress: [████████░░] 84%
 
 ## Performance Metrics
 
@@ -147,6 +147,7 @@ Progress: [████████░░] 83%
 | Phase 07 P01 | 28 min | 2 tasks | 8 files |
 | Phase 07 P02 | 19 min | 3 tasks | 8 files |
 | Phase 07 P03 | 39 min | 3 tasks | 12 files |
+| Phase 07 P04 | multi-session | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -297,6 +298,7 @@ Recent decisions affecting current work:
 - [Phase 07]: 07-03: a probe ok line carries solids, valid and a signed volume_ratio and no export; volume_ratio is the only number allowed below 0 — one_pipe at 160 turns builds an inverted solid (measured -0.99999) that still reports valid; export_s and bytes would be made-up numbers (L02)
 - [Phase 07]: 07-03: a point label may be listed once per artifact; the root-radius walk solves the pitch to full float precision — one part keeps one label across its three artifacts; a 6-figure pitch moves the root radius by more than the 1e-6 mm end of the walk
 - [Phase 07]: 07-03: the fourth recorded corner (d 1e5) is in explore.json dropped, not measured; the protocol defines the cold wall as build_s + export_s — s must exceed d and is bounded by 1e5 so no such bolt exists; R5, R12 and R14 need one wall definition fixed before any reading
+- [Phase 07]: 07-04: PR A landed as squash 9dea01e; rules R1-R30 frozen; owner rulings on R23 drift run, edge ranking by seconds, next-best edge, full-timeout charge for non-ok tier points
 
 ### Pending Todos
 
@@ -344,6 +346,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-27T03:21:46.894Z
-Stopped at: Completed 07-03-PLAN.md (PR A #22 open, landing is plan 07-04)
+Last session: 2026-10-27T11:36:27.865Z
+Stopped at: Completed 07-04-PLAN.md
 Resume file: None
