@@ -250,17 +250,33 @@ artifact is `ceil(2 x` that max `)` seconds. The 2 is D-09's factor.
 
 ## R15 - The load run (D-03)
 
-The load run starts the server in the image with `SCREW_BUILD_WORKERS = N`, a queue depth of 2N and
-2N concurrent clients, a fixed mix of admitted parts over all three artifacts, and at least 20
-samples per reported p95 (`statistics.quantiles(n=20)`, the 19th cut point). The peak is the
-container's cgroup peak read at the end. 5 repetitions (R3).
+The load run starts the server in the image with `SCREW_BUILD_WORKERS = N`, a queue depth of 2N
+(`SCREW_MAX_QUEUED_BUILDS`) and 2N concurrent clients.
+
+*The mix.* Per artifact, 20 admitted parts: the artifact's 3 edge points of R27, then the admitted
+`explore` points in R27's draw order until there are 20 (the draw goes on past R27's 10 minutes if it
+must). 20 is the floor of samples per reported p95, so each artifact reports its own p95 over its own 20.
+The mix is the 60 requests (part, artifact), listed artifact by artifact in that order and shuffled once
+by `random.Random(20261026).shuffle`; that order is the same in every repetition and at every N. A
+client takes the next request as soon as its previous response is complete, and the first 2N start
+together.
+
+*The passes.* A repetition runs the mix twice back to back on one server, pass 1 and pass 2, in the
+same order. The p95 (`statistics.quantiles(n=20)`, the 19th cut point) and the medians are over pass 1:
+20 samples per artifact and 60 over all requests. Pass 2 serves R23. The container's cgroup peak is read
+at the end of each pass.
+
+*The caches.* Every repetition is a new container, so both caches start empty. `SCREW_EXPORT_CACHE_MB`
+is 1, the smallest value the server accepts (`int_env` floors it at 1), so the export cache keeps no
+output over 1 MiB and the load measures builds; `SCREW_SOLID_CACHE` is 4 unless R22 is measuring a K.
+5 repetitions (R3).
 
 ## R16 - The worker count and mem_limit (D-02, D-03)
 
 `W` is the max `memory_peak_bytes` over the N = 1 contention containers of every point of
 every bound set (R14). `B` is the max idle-server peak
 before load. `mem_limit(N)` is the larger of `W x N + B +` the export cache budget `+` the tmpfs
-size, and the max load peak at N, rounded up to 256 MiB. N qualifies when `mem_limit(N)` is under
+size, and the max load peak at N (read at the end of pass 2), rounded up to 256 MiB. N qualifies when `mem_limit(N)` is under
 both 16 x 10^9 bytes and the smallest `MemTotal` any runner header recorded, and N is at most
 `nproc - 1`. The pick is the qualifying N with the lowest load p95 over all requests (the max over
 its 5 repetitions of each repetition's p95, D-04), ties to the smaller N. 256 MiB is a rounding
@@ -307,9 +323,9 @@ worker, measured in the load run.
 ## R23 - Tessellation, arenas and recycling
 
 The tessellation presets are kept. `_release_arenas` is kept if the retained memory after an export
-is lower with it than without. `max_tasks_per_child` stays unset unless the second pass over the load
-mix peaks higher than the first by more than one cached solid (`W(4) - W(3)`); if it does, the phase
-stops and asks the owner, because no rule here sets a recycling value.
+is lower with it than without. `max_tasks_per_child` stays unset unless the peak read after pass 2 of
+the load run (R15) is higher than the peak read after pass 1 by more than one cached solid
+(`W(4) - W(3)`); if it is, the phase stops and asks the owner, because no rule here sets a recycling value.
 
 ## R24 - SCREW_WORKERS
 
