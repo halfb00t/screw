@@ -423,10 +423,11 @@ part with the largest such sum, rounded up to a whole MiB.
 
 `SCREW_SOLID_CACHE` stays 4 if `mem_limit` computed with `W(4)` at the picked N still qualifies
 (R16), else it is the largest K in {3, 2, 1} that does. `W(K)` is the peak with K solids cached per
-worker, measured in the load run. `W(4)` is R16's W. `W(K)` for K below 4 is measured after R16's pick:
-the load mix of R15 is run at N = 1 with `SCREW_SOLID_CACHE` = K, 5 repetitions for each K measured
-(3, then 2, then 1, each only if the K above it did not qualify), and `W(K)` is the max over the
-repetitions of the container's peak. With one worker, the container peak is that worker's peak.
+worker. `W(K)` for every K from 1 to 4 is measured after R16's pick, by running the load mix of R15 at
+N = 1 with `SCREW_SOLID_CACHE` = K, 5 repetitions for each K measured, so that every `W(K)` this rule
+compares comes from the same instrument; `W(4)` is not taken from R16's W. K = 4 is measured first,
+then 3, 2 and 1, each only if the K above it did not qualify. `W(K)` is the max over the repetitions of
+the container's peak. With one worker, the container peak is that worker's peak.
 
 ## R23 - Tessellation, arenas and recycling
 
