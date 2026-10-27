@@ -2057,3 +2057,13 @@ def test_an_above_zero_floor_is_confirmed_at_its_smallest_walked_value() -> None
     assert "the confirm set of R3 at 1e-9 mm, for every size and hand" in " ".join(_rule(9).split())
     assert "the confirm set of R3 at 1e-6 mm, for every size, hand, rod and void" in " ".join(
         _rule(10).split())
+
+
+def test_the_walk_down_reads_every_step_once_and_the_confirm_decides() -> None:
+    rule = " ".join(_rule(7).split())
+    assert "every step of 10 turns from 240 down to 10, at 1 repetition, in one dispatch" in rule
+    assert "The cell's first ok step is the highest of those steps whose reading is `ok`" in rule
+    assert "A cell's readings below its first ok step are recorded and used for nothing" in rule
+    assert "the 5-repetition confirm at T decides" in rule
+    assert "A cell with no `ok` step has no first ok step" in rule
+    assert "the R7 walk-down set" in " ".join(_rule(3).split())

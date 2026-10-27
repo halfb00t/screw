@@ -54,7 +54,7 @@ substituted figure.
 
 ## R3 - Repetitions (D-04, D-19)
 
-Exploration takes 1 repetition per point (`explore`, `walls`, `controls`). 5 repetitions are taken
+Exploration takes 1 repetition per point (`explore`, `walls`, `controls` and the R7 walk-down set). 5 repetitions are taken
 on `spread` and on every set that sets a bound: the Runs II bound set, the contention and load sets
 and the walls confirm set. The 5 repetitions of a point are 5 matrix jobs (`rep` 1 to 5), so 5
 runner instances. Per point the median and the max over its ok repetitions are recorded; a point
@@ -170,9 +170,13 @@ other half for a slower runner instance and for the image build.
 ## R7 - MAX_TURNS (D-08)
 
 A *cell* is a size, a hand and a kind (bolt rod or nut void): 15 x 2 x 2. A cell's *first ok step* is
-250 if its 250-turn reading (`walls`, group (a)) is `ok`. A `refused` or `crashed` reading starts a
-walk-down set for the cell at 240, 230, ... (step 10 turns), which goes on to the cell's first `ok`
-step; that step is then the cell's first ok step.
+250 if its 250-turn reading (`walls`, group (a)) is `ok`. A cell whose 250-turn reading is `refused`
+or `crashed` is in the *walk-down set*: the set reads every such cell at every step of 10 turns from
+240 down to 10, at 1 repetition, in one dispatch. The cell's first ok step is the highest of those
+steps whose reading is `ok`. A cell's readings below its first ok step are recorded and used for
+nothing: they are not boundary evidence (below) and no rule reads them; the 5-repetition confirm at T
+decides. A cell with no `ok` step has no first ok step, so no turn bound is awarded and the phase
+stops and asks the owner.
 
 The *candidate* T is the smallest first ok step over the cells. It is a provisional common value: the
 cells need not end their walks at the same step, and a cell is read at T only if T is its own first ok
