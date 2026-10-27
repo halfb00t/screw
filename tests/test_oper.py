@@ -1883,6 +1883,9 @@ def test_the_required_tier_fixes_its_candidates_edge_draw_ties_and_duplicates() 
     assert "the edge ratio is the point's enveloped build-seconds prediction, by this rule" in rule
     assert "ranked by seconds and not by bytes" in rule
     assert "it stops at the first draw point that does not fit and skips none" in rule
+    assert "otherwise the artifact's full timeout (R14)" in rule
+    assert "Steps 1 to 4 need no timeout, so D(A) is fixed before the load run (R15)" in rule
+    assert "the tier is built only then and never before" in rule
 
 
 def test_the_seeded_shuffle_the_protocol_names_is_the_one_python_3_12_gives() -> None:

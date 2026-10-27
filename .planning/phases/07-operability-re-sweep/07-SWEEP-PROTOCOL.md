@@ -449,11 +449,16 @@ that two implementations write the same list.
    (CPython 3.12, a new generator for each artifact). The seed is the date of the owner's rulings,
    2026-10-26, written as an integer; any fixed integer would do, and this one is fixed here.
 5. *The tier.* D(A) is the 3 edge points and then the draw. The tier takes the 3 edge points always,
-   then draw points in order, each only if the summed measured cold walls (`build_s + export_s` of the
-   `explore` readings) of the points taken, itself included, stay under 10 minutes (600 s, D-12's
-   target); it stops at the first draw point that does not fit and skips none. A point whose `explore`
-   reading is not `ok` has no wall to add; it is in the tier all the same, and if it fails again it
-   fails the tier (R29).
+   then draw points in order, each only if the summed charges of the points taken, itself included,
+   stay under 10 minutes (600 s, D-12's target); it stops at the first draw point that does not fit
+   and skips none. The charge of a point is the cold wall (`build_s + export_s`) of its `explore`
+   reading when that reading is `ok`, and otherwise the artifact's full timeout (R14): a point that
+   was killed, capped, refused or crashed at `explore` has no wall, and may take its whole deadline
+   again. It is in the tier all the same, and if it fails again it fails the tier (R29).
+
+   Steps 1 to 4 need no timeout, so D(A) is fixed before the load run (R15). Step 5 needs the
+   timeouts, which R14 fixes after R16 has picked N, so the tier is built only then and never before.
+   A point's charge is its `explore` reading and the timeout, each fixed before the tier is built.
 
 ## R28 - The full tier (D-12)
 
