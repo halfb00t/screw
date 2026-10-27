@@ -415,11 +415,12 @@ K = 20 times in a row, and compares the cgroup peak after build 1 with the peak 
   drift of the artifact is the max over its 5 repetitions. Any repetition that is not `ok`, or whose
   readings after build 1 or build K are missing, leaves the artifact with no drift and the phase stops
   and asks the owner.
-- *The allowance.* The drift above which recycling needs investigation is a number the owner fixes
-  before the first drift reading, in an amendment committed ahead of it; the drift run does not start
-  without it. No rule here derives one: the load run's cached-solid margin (`W(4) - W(3)`) does not
-  apply, because every build here starts from an empty solid cache, and `W(3)` is measured only when
-  R22 steps down.
+- *The allowance.* The drift of an artifact is above its allowance when it exceeds 0.10 x the
+  smallest peak after build 1 among its 5 repetitions. The owner fixed the fraction before any
+  reading: it scales with the part, and 10 % sits above the run-to-run spread expected between cold
+  builds of one part. It is a pre-registered allowance, not a measured figure.
+- *Memory limit.* Drift adds nothing to R16's `mem_limit(N)`: drift above the allowance stops the
+  phase, so a drift term in the limit would count the same growth twice.
 
 ## R24 - SCREW_WORKERS
 

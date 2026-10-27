@@ -1931,7 +1931,9 @@ def test_the_drift_run_builds_one_fixed_part_cold_k_times_and_compares_the_first
     assert "`screw.solid.clear_cache`" in rule
     assert "compares the cgroup peak after build 1 with the peak after build K" in rule
     assert "the drift of the artifact is the max over its 5 repetitions" in rule
-    assert "the drift run does not start without it" in rule
+    assert "exceeds 0.10 x the smallest peak after build 1 among its 5 repetitions" in rule
+    assert "Drift adds nothing to R16's `mem_limit(N)`" in rule
+    assert "the owner fixes" not in rule
     assert "pass 2" not in rule
 
 
