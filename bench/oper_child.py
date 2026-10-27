@@ -267,8 +267,7 @@ def main(argv: list[str]) -> int:
         return 2
     # screw is imported here and not at the top so `import bench.oper_child` stays cheap and the
     # tests of the cgroup reader never pay for the kernel.
-    from pydantic import ValidationError
-
+    from bench import oper_lift
     from screw import solid
     from screw.build_errors import BuildError
     from screw.params import KINDS
@@ -277,8 +276,9 @@ def main(argv: list[str]) -> int:
         print(f"bad point {argv[0]!r}: unknown kind {kind!r}", file=sys.stderr)
         return 2
     try:
-        p = KINDS[kind].model_validate(params)
-    except ValidationError as exc:
+        # `lift` is a past-the-cap point's one lifted guard; every other validator still runs.
+        p = oper_lift.validate(kind, params, point.get("lift"))
+    except ValueError as exc:  # a pydantic ValidationError is one
         print(f"bad point {argv[0]!r}: {exc}", file=sys.stderr)
         return 2
 

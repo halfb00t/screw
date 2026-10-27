@@ -17,7 +17,7 @@ import subprocess
 import sys
 from collections.abc import Mapping
 from pathlib import Path
-from typing import TypedDict
+from typing import NotRequired, TypedDict
 
 import pytest
 
@@ -1058,13 +1058,14 @@ SET_NAMES = tuple(EXPECTED_SHAPE)
 
 class _Point(TypedDict, total=False):
     """A point as the generator writes it: a part has `params` and `artifact`, a probe has
-    `probe` and `args`; `preset` marks a catalogue row."""
+    `probe` and `args`; `preset` marks a catalogue row and `lift` a point past a cap."""
 
     label: str
     kind: str
     params: dict[str, float | bool]
     artifact: str
     preset: str
+    lift: dict[str, float]
     probe: str
     args: dict[str, float | bool]
 
@@ -1075,6 +1076,7 @@ class _Dropped(TypedDict):
     params: dict[str, float | bool]
     artifacts: list[str]
     error: str
+    lift: NotRequired[dict[str, float]]
 
 
 class _Doc(TypedDict):
@@ -1253,10 +1255,10 @@ def test_a_corner_the_model_refuses_is_dropped_with_its_error_and_never_measured
 
 @pytest.mark.parametrize("name", SET_NAMES)
 def test_every_part_point_validates_in_the_parameter_model(name: str) -> None:
-    from screw.params import KINDS
+    from bench import oper_lift
 
     for point in _parts(name):
-        KINDS[point["kind"]].model_validate(point["params"])
+        oper_lift.validate(point["kind"], point["params"], point.get("lift"))
 
 
 @pytest.mark.parametrize("name", SET_NAMES)
@@ -1264,12 +1266,12 @@ def test_every_dropped_combination_is_refused_by_the_model_with_the_error_it_nam
         name: str) -> None:
     from pydantic import ValidationError
 
-    from screw.params import KINDS
+    from bench import oper_lift
 
     for entry in _generated()[name]["dropped"]:
-        assert set(entry) == {"label", "kind", "params", "artifacts", "error"}
+        assert set(entry) - {"lift"} == {"label", "kind", "params", "artifacts", "error"}
         with pytest.raises(ValidationError) as caught:
-            KINDS[entry["kind"]].model_validate(entry["params"])
+            oper_lift.validate(entry["kind"], entry["params"], entry.get("lift"))
         assert caught.value.errors()[0]["type"] == entry["error"]
 
 
@@ -1470,6 +1472,171 @@ def test_one_part_may_be_listed_once_per_artifact_but_not_twice_for_one(tmp_path
     _write_set(tmp_path, points=[part("step"), part("step")])
     with pytest.raises(ValueError, match="mini"):
         oper.load_set("mini", tmp_path)
+
+
+# --- a point past a validator cap lifts that one guard (07 R3) -----------------------------------
+
+SHORT_ROD = {"d": 2.0, "pitch": 0.4, "length": 104.0, "thread_length": 104.0}  # 260 turns
+
+
+def _lift_error(kind: str, params: Mapping[str, float | bool],
+                lift: Mapping[str, float] | None = None) -> str | None:
+    from pydantic import ValidationError
+
+    from bench import oper_lift
+
+    try:
+        oper_lift.validate(kind, params, lift)
+    except ValidationError as exc:
+        return str(exc.errors()[0]["type"])
+    return None
+
+
+def test_the_parent_and_the_lift_module_name_the_same_guards() -> None:
+    from bench import oper_lift
+
+    assert oper.LIFT_ARGS == oper_lift.LIFTS
+
+
+def test_a_turn_lift_admits_the_turns_it_names_and_not_one_more() -> None:
+    assert _lift_error("bolt", SHORT_ROD) == "turn_cap"
+    assert _lift_error("bolt", SHORT_ROD, {"max_turns": 260}) is None
+    longer = {**SHORT_ROD, "length": 104.4, "thread_length": 104.4}
+    assert _lift_error("bolt", longer, {"max_turns": 260}) == "turn_cap"
+    void = {"d": 2.0, "pitch": 0.4, "m": 103.2, "s": 4.0}  # m + 2 pitch is 260 turns
+    assert _lift_error("nut", void) == "turn_cap"
+    assert _lift_error("nut", void, {"max_turns": 260}) is None
+
+
+def test_a_turn_lift_leaves_every_other_guard_in_place_and_restores_the_cap() -> None:
+    from screw.calc import thread
+
+    assert _lift_error("bolt", {**SHORT_ROD, "s": 1.0}, {"max_turns": 260}) == "head_too_small"
+    assert thread.MAX_TURNS == 250
+    assert _lift_error("bolt", {**SHORT_ROD, "d": -1.0}, {"max_turns": 260}) == "greater_than"
+    assert thread.MAX_TURNS == 250
+
+
+def test_a_field_lift_admits_the_bound_it_names_and_not_a_decade_more() -> None:
+    assert _lift_error("bolt", {"s": 1e6}) == "less_than_equal"
+    assert _lift_error("bolt", {"s": 1e6}, {"max_mm": 1e6}) is None
+    assert _lift_error("bolt", {"s": 1e7}, {"max_mm": 1e6}) == "less_than_equal"
+    assert _lift_error("nut", {"s": 1e6, "clearance": 4e5}, {"max_mm": 1e6}) is None
+
+
+def test_a_field_lift_leaves_every_other_guard_in_place_and_the_classes_untouched() -> None:
+    from annotated_types import Le
+
+    from screw.params import BoltParams, NutParams
+
+    assert _lift_error("bolt", {"d": 5e5, "s": 4e5}, {"max_mm": 1e6}) == "head_too_small"
+    assert _lift_error("nut", {"s": 1e5, "clearance": 5e5}, {"max_mm": 1e6}) == "nut_too_thin"
+    assert _lift_error("bolt", {"length": 1e6, "pitch": 1e-3, "thread_length": 1e6},
+                       {"max_mm": 1e6}) == "turn_cap"
+    for model in (BoltParams, NutParams):
+        assert [m.le for m in model.model_fields["s"].metadata if isinstance(m, Le)] == [1e5]
+
+
+@pytest.mark.parametrize("lift", [{}, {"max_turns": 260, "max_mm": 1e6}, {"max_pitch": 3}],
+                         ids=["empty-is-no-lift", "two-guards", "unknown-guard"])
+def test_a_lift_must_name_exactly_one_known_guard(lift: dict[str, float]) -> None:
+    from bench import oper_lift
+
+    if lift == {}:
+        assert oper_lift.validate("bolt", {}, lift).kind == "bolt"
+    else:
+        with pytest.raises(ValueError, match="exactly one"):
+            oper_lift.validate("bolt", {}, lift)
+
+
+def test_a_lift_reaches_the_child_and_only_when_a_point_has_one(tmp_path: Path) -> None:
+    plain = {"label": "a", "kind": "bolt", "params": {}, "artifact": "step"}
+    lifted = {**plain, "label": "b", "lift": {"max_mm": 1e6}}
+    _write_set(tmp_path, points=[plain, lifted])
+    first, second = oper.load_set("mini", tmp_path).points
+    assert first.lift is None
+    assert "lift" not in json.loads(first.as_json())
+    assert second.lift == {"max_mm": 1e6}
+    assert json.loads(second.as_json())["lift"] == {"max_mm": 1e6}
+
+
+@pytest.mark.parametrize(
+    "lift",
+    [{}, {"max_turns": 260, "max_mm": 1e6}, {"max_pitch": 3}, "max_mm", ["max_mm"],
+     {"max_turns": 260.5}, {"max_turns": 0}, {"max_turns": True}, {"max_mm": 0},
+     {"max_mm": "1e6"}, {"max_mm": False}],
+    ids=["empty", "two-guards", "unknown-guard", "text", "list", "fractional-turns", "zero-turns",
+         "bool-turns", "zero-mm", "text-mm", "bool-mm"])
+def test_a_lift_that_breaks_its_schema_is_refused_naming_the_point(
+        lift: object, tmp_path: Path) -> None:
+    point = {"label": "lifted", "kind": "bolt", "params": {}, "artifact": "step", "lift": lift}
+    _write_set(tmp_path, points=[point])
+    with pytest.raises(ValueError, match="lifted"):
+        oper.load_set("mini", tmp_path)
+
+
+def test_a_probe_cannot_carry_a_lift(tmp_path: Path) -> None:
+    _write_set(tmp_path, points=[{**_probe(), "lift": {"max_mm": 1e6}}])
+    with pytest.raises(ValueError, match="'t'"):
+        oper.load_set("mini", tmp_path)
+
+
+def test_a_reading_past_a_guard_records_which_guard_it_lifted(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    def run(argv: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(argv, 0, stdout=_ok_line(), stderr="")
+
+    def docker(*args: str, **_: object) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(args, 0, stdout="false 0", stderr="")
+
+    monkeypatch.setattr(subprocess, "run", run)
+    monkeypatch.setattr(oper, "_docker", docker)
+    plain = oper.Point("a", "bolt", {}, "step")
+    lifted = oper.Point("b", "bolt", {"s": 2e5}, "step", {"max_mm": 1e6})
+    assert "lift" not in oper.run_reading(plain, 1, "screw:x", oper.CAP_BYTES, 60)
+    assert oper.run_reading(lifted, 1, "screw:x", oper.CAP_BYTES, 60)["lift"] == {"max_mm": 1e6}
+
+
+def test_the_child_validates_a_lifted_point_with_the_guard_lifted(
+        monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    from screw import solid
+    from screw.params import FastenerParams
+
+    built: list[FastenerParams] = []
+    monkeypatch.setattr(solid, "build", lambda p: built.append(p))
+    monkeypatch.setattr(solid, "export", lambda *_: bytes(84))
+    point = {"kind": "bolt", "params": {"s": 2e5}, "artifact": "stl-preview"}
+    assert oper_child.main([json.dumps(point)]) == 2  # refused unlifted: less_than_equal
+    assert built == []
+    capsys.readouterr()
+    assert oper_child.main([json.dumps({**point, "lift": {"max_mm": 1e6}})]) == 0
+    assert len(built) == 1
+    assert getattr(built[0], "s") == 2e5  # noqa: B009 -- FastenerParams has no `s`, a bolt does
+    assert oper_child.main([json.dumps({**point, "lift": {"max_pitch": 1}})]) == 2
+
+
+def test_walls_past_the_caps_hold_260_turns_and_the_next_decade_each_with_its_one_lift() -> None:
+    beyond = _walls("beyond-")
+    assert len(beyond) == 15 * 2 * 2 + 8
+    assert all(p["artifact"] == "stl-preview" and p["kind"] != "probe" for p in beyond)
+    turns = [p for p in beyond if p["label"].startswith("beyond-turns-")]
+    assert len(turns) == 60
+    assert {tuple(p["lift"].items()) for p in turns} == {(("max_turns", 260),)}
+    fields = [p for p in beyond if not p["label"].startswith("beyond-turns-")]
+    assert {tuple(p["lift"].items()) for p in fields} == {(("max_mm", 1e6),)}
+    assert {p["label"] for p in fields} == {
+        f"beyond-{field}-1000000" for field in (
+            "bolt-d", "bolt-length", "bolt-s", "bolt-k", "bolt-thread", "nut-s", "nut-clearance",
+            "nut-m")}
+
+
+def test_every_past_the_cap_point_is_refused_by_the_plain_model_and_by_it_alone() -> None:
+    from screw.params import KINDS
+
+    for point in _walls("beyond-"):
+        assert _lift_error(point["kind"], point["params"]) in {"turn_cap", "less_than_equal"}
+        assert _lift_error(point["kind"], point["params"], point["lift"]) is None
+        assert point["kind"] in KINDS
 
 
 # --- the protocol the point files are registered in (07-03) ---------------------------------------

@@ -27,13 +27,14 @@ from fractions import Fraction
 
 from pydantic import ValidationError
 
+from bench import oper_lift
 from bench.oper import DEADLINE_S, POINTS_DIR
 from bench.thread_spike.maths import PITCH, SAMPLE_SIZES, standard_max
 from screw.calc.thread import _exact, thread_depth
-from screw.params import KINDS
 from screw.tables.presets import catalogue, expand, expand_nut, nut_catalogue
 
 type Params = Mapping[str, float | bool]
+type Lift = Mapping[str, float]
 
 ARTIFACTS = ("stl-preview", "stl-fine", "step")
 PREVIEW = ("stl-preview",)
@@ -80,10 +81,11 @@ def _frac(text: str) -> Fraction:
     return Fraction(text)
 
 
-def _refusal(kind: str, params: Params) -> str | None:
-    """The pydantic error type with which the parameter model refuses `params`, or `None`."""
+def _refusal(kind: str, params: Params, lift: Lift | None = None) -> str | None:
+    """The pydantic error type with which the parameter model refuses `params` (with the one
+    guard `lift` names lifted, if any), or `None`."""
     try:
-        KINDS[kind].model_validate(params)
+        oper_lift.validate(kind, params, lift)
     except ValidationError as exc:
         return str(exc.errors()[0]["type"])
     return None
@@ -107,19 +109,25 @@ class _Set:
         self.points.append(point)
 
     def part(self, label: str, kind: str, params: Params, artifacts: tuple[str, ...] = ARTIFACTS,
-             preset: str | None = None) -> None:
+             preset: str | None = None, lift: Lift | None = None) -> None:
         """`params` of `kind` at each of `artifacts`, or one `dropped` entry if the model
-        refuses them (the model does not look at the artifact, so a part is judged once)."""
-        error = _refusal(kind, params)
+        refuses them (the model does not look at the artifact, so a part is judged once). A
+        `lift` is the one guard a past-the-cap point lifts (`bench.oper_lift`)."""
+        error = _refusal(kind, params, lift)
         if error is not None:
-            self.dropped.append({"label": label, "kind": kind, "params": dict(params),
-                                 "artifacts": list(artifacts), "error": error})
+            refused: dict[str, object] = {"label": label, "kind": kind, "params": dict(params),
+                                          "artifacts": list(artifacts), "error": error}
+            if lift is not None:
+                refused["lift"] = dict(lift)
+            self.dropped.append(refused)
             return
         for artifact in artifacts:
             point: dict[str, object] = {"label": label, "kind": kind, "params": dict(params),
                                         "artifact": artifact}
             if preset is not None:
                 point["preset"] = preset
+            if lift is not None:
+                point["lift"] = dict(lift)
             self._add(point)
 
     def probe(self, label: str, probe: str, args: Params) -> None:
@@ -246,6 +254,9 @@ def spread() -> _Set:
 # --- walls ---------------------------------------------------------------------------------------
 
 CEILINGS = (1e3, 1e4, 1e5)
+MAX_TURNS_NOW = 250  # calc.thread.MAX_TURNS as R7 measures it
+BEYOND_TURNS = 260  # one 10-turn step past it (R7's walk-down step)
+BEYOND_CEILINGS = (1e6,)  # one decade past the 1e5 field ceiling (R8's grid)
 NUT_CLEARANCE_D = 6.0  # NutParams.d, frozen (L02): the default nut, so only s and clearance move
 TAIL_SIZES = ((6.0, 1.0), (2.0, 0.4), (20.0, 2.5))
 TAIL_DECADES = tuple(range(2, 10))
@@ -255,46 +266,64 @@ LEAD_IN_CEILINGS = (1e3, 1e4, 1e5)
 COUNTERSINK_NUTS = ((0.05, 1.5), (0.05, 1.8), (0.01, 1.5))
 
 
-def _turn_walls(out: _Set) -> None:
+def _turn_walls(out: _Set, turns: int = MAX_TURNS_NOW, prefix: str = "turns",
+                lift: Lift | None = None) -> None:
+    """The rod and the void at `turns` turns at each size and hand; the void the builder makes is
+    `m + 2 pitch`, so `m` is two pitches short."""
     for size, (d_exact, pitch_exact) in PITCH.items():
         d, pitch = _dec(d_exact), _dec(pitch_exact)
         for left in (False, True):
-            thread = _dec(250 * pitch_exact)
-            out.part(f"turns-bolt-{size}-{_hand(left)}", "bolt",
+            thread = _dec(turns * pitch_exact)
+            out.part(f"{prefix}-bolt-{size}-{_hand(left)}", "bolt",
                      {"d": d, "pitch": pitch, "length": thread, "thread_length": thread,
-                      "s": _scaled(d, "1.6"), "k": _scaled(d, "0.6"), "left_hand": left}, PREVIEW)
-            out.part(f"turns-nut-{size}-{_hand(left)}", "nut",
-                     {"d": d, "pitch": pitch, "m": _dec(248 * pitch_exact),
-                      "s": _scaled(d, "1.6"), "left_hand": left}, PREVIEW)
+                      "s": _scaled(d, "1.6"), "k": _scaled(d, "0.6"), "left_hand": left},
+                     PREVIEW, lift=lift)
+            out.part(f"{prefix}-nut-{size}-{_hand(left)}", "nut",
+                     {"d": d, "pitch": pitch, "m": _dec((turns - 2) * pitch_exact),
+                      "s": _scaled(d, "1.6"), "left_hand": left}, PREVIEW, lift=lift)
 
 
-def _ceiling_walls(out: _Set) -> None:
-    for x in CEILINGS:
-        tag = f"{x:g}"
+def _ceiling_walls(out: _Set, decades: tuple[float, ...] = CEILINGS, prefix: str = "ceiling",
+                   lift: Lift | None = None) -> None:
+    """The field ceiling corners at each decade X of `decades`. A `lift` is the guard a decade
+    past the validator's own bound needs (`bench.oper_lift`)."""
+
+    def part(label: str, kind: str, params: Params) -> None:
+        out.part(label, kind, params, PREVIEW, lift=lift)
+
+    for x in decades:
+        tag = f"{x:.0f}"
         # The head rule is s > d, so with s = X the largest d is the largest value under X.
         d_max = _below(Decimal(repr(x)))
-        out.part(f"ceiling-bolt-d-{tag}", "bolt",
-                 {"d": d_max, "s": x, "k": _scaled(d_max, "0.6"), "thread_length": 1.0}, PREVIEW)
-        out.part(f"ceiling-bolt-length-{tag}", "bolt", {"length": x}, PREVIEW)
-        out.part(f"ceiling-bolt-s-{tag}", "bolt", {"s": x}, PREVIEW)
-        out.part(f"ceiling-bolt-k-{tag}", "bolt", {"k": x}, PREVIEW)
+        part(f"{prefix}-bolt-d-{tag}", "bolt",
+             {"d": d_max, "s": x, "k": _scaled(d_max, "0.6"), "thread_length": 1.0})
+        part(f"{prefix}-bolt-length-{tag}", "bolt", {"length": x})
+        part(f"{prefix}-bolt-s-{tag}", "bolt", {"s": x})
+        part(f"{prefix}-bolt-k-{tag}", "bolt", {"k": x})
         pitch = _dec(Fraction(repr(x)) / 250)
         d = _round_sig(Decimal(repr(2 * pitch)), ROUND_CEILING)
-        out.part(f"ceiling-bolt-thread-{tag}", "bolt",
-                 {"d": d, "pitch": pitch, "length": x, "thread_length": x,
-                  "s": _scaled(d, "1.6"), "k": _scaled(d, "0.6")}, PREVIEW)
-        out.part(f"ceiling-nut-s-{tag}", "nut", {"s": x}, PREVIEW)
+        part(f"{prefix}-bolt-thread-{tag}", "bolt",
+             {"d": d, "pitch": pitch, "length": x, "thread_length": x,
+              "s": _scaled(d, "1.6"), "k": _scaled(d, "0.6")})
+        part(f"{prefix}-nut-s-{tag}", "nut", {"s": x})
         # nut_too_thin is s > d + 2 c, so at s = X the largest clearance is the largest value
         # under (X - d) / 2. Success at a large s alone says nothing about a large clearance.
-        out.part(f"ceiling-nut-clearance-{tag}", "nut",
-                 {"d": NUT_CLEARANCE_D, "s": x,
-                  "clearance": _below((Decimal(repr(x)) - Decimal(repr(NUT_CLEARANCE_D))) / 2)},
-                 PREVIEW)
+        part(f"{prefix}-nut-clearance-{tag}", "nut",
+             {"d": NUT_CLEARANCE_D, "s": x,
+              "clearance": _below((Decimal(repr(x)) - Decimal(repr(NUT_CLEARANCE_D))) / 2)})
         # Pitch rounded up so m + 2 P stays at or under 250 turns of the rounded pitch.
         nut_pitch = _round_sig(Decimal(repr(x)) / Decimal(248), ROUND_CEILING)
         nut_d = _scaled(nut_pitch, "2.5")
-        out.part(f"ceiling-nut-m-{tag}", "nut",
-                 {"d": nut_d, "pitch": nut_pitch, "m": x, "s": _scaled(nut_d, "1.6")}, PREVIEW)
+        part(f"{prefix}-nut-m-{tag}", "nut",
+             {"d": nut_d, "pitch": nut_pitch, "m": x, "s": _scaled(nut_d, "1.6")})
+
+
+def _beyond_walls(out: _Set) -> None:
+    """The confirmation probes of R3: the readings one step past each validator cap, the turn cap
+    and the field bound, each with only that guard lifted, so they reach the kernel."""
+    _turn_walls(out, BEYOND_TURNS, "beyond-turns", {"max_turns": BEYOND_TURNS})
+    for x in BEYOND_CEILINGS:
+        _ceiling_walls(out, (x,), "beyond", {"max_mm": x})
 
 
 def _tail_walls(out: _Set) -> None:
@@ -358,12 +387,16 @@ def walls() -> _Set:
         "full float precision, 3 turns",
         "(e) the nuts the lead-in and countersink debt items name, at s 1e3, 1e4 and 1e5 and at "
         "the countersink item's d 2, s 4, m 3 pitches and clearances",
+        "(f) the confirmation probes of R3, one step past each validator cap with only that guard "
+        "lifted (`lift`): 260 turns for the rod and the void of (a) with MAX_TURNS lifted to "
+        "260, and the corners of (b) at 1e6 mm with the le bound of every field lifted to 1e6",
     ])
     _turn_walls(out)
     _ceiling_walls(out)
     _tail_walls(out)
     _root_walls(out)
     _nut_debt_walls(out)
+    _beyond_walls(out)
     return out
 
 

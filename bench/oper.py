@@ -88,7 +88,10 @@ _SET_KEYS = frozenset({"set", "rule", "reps", "shards", "deadline_s", "points"})
 # why the set holds what it holds. The runner never reads either; it only checks their shape.
 _SET_OPTIONAL_KEYS = frozenset({"dropped", "notes"})
 _POINT_KEYS = frozenset({"label", "kind", "params", "artifact"})
-_POINT_OPTIONAL_KEYS = frozenset({"preset"})  # the catalogue row id a point was expanded from
+# `preset` is the catalogue row id a point was expanded from; `lift` names the one validator guard
+# a past-the-cap point lifts (`bench.oper_lift`), as `{"max_turns": 260}` or `{"max_mm": 1e6}`.
+_POINT_OPTIONAL_KEYS = frozenset({"preset", "lift"})
+LIFT_ARGS = ("max_turns", "max_mm")
 
 
 @dataclass(frozen=True)
@@ -102,13 +105,17 @@ class Point:
     kind: str
     params: Mapping[str, float | bool]
     artifact: str
+    lift: Mapping[str, float] | None = None
 
     def as_json(self) -> str:
         if self.kind == PROBE_KIND:
             return json.dumps({"kind": PROBE_KIND, "probe": self.artifact,
                                "args": dict(self.params)}, sort_keys=True, allow_nan=False)
-        return json.dumps({"kind": self.kind, "params": dict(self.params),
-                           "artifact": self.artifact}, sort_keys=True, allow_nan=False)
+        part: dict[str, object] = {"kind": self.kind, "params": dict(self.params),
+                                   "artifact": self.artifact}
+        if self.lift:
+            part["lift"] = dict(self.lift)
+        return json.dumps(part, sort_keys=True, allow_nan=False)
 
 
 @dataclass(frozen=True)
@@ -280,6 +287,8 @@ def run_reading(point: Point, rep: int, image: str, cap: int, deadline_s: float,
         "type": "reading", "label": point.label, "kind": point.kind, "params": dict(point.params),
         "artifact": point.artifact, "rep": rep, "load1": load1, "container": name, **result,
         "wall_s": wall_s}
+    if point.lift:
+        record["lift"] = dict(point.lift)  # a reading past a guard says which guard it lifted
     for key in ("cadquery", "cadquery_ocp"):
         if key not in record and versions is not None:
             record[key] = versions.get(key)
@@ -396,6 +405,21 @@ def _load_probe(where: str, raw: dict[str, object]) -> Point:
     return Point(label=label, kind=PROBE_KIND, params=dict(args), artifact=probe)
 
 
+def _load_lift(name: str, raw: dict[str, object]) -> dict[str, float] | None:
+    """A part point's `lift`, or `None`: exactly one guard of `LIFT_ARGS` and its new limit, a
+    whole number of turns for `max_turns` and a number above 0 for `max_mm`."""
+    if "lift" not in raw:
+        return None
+    lift, label = raw["lift"], raw.get("label")
+    if not (isinstance(lift, dict) and len(lift) == 1 and next(iter(lift)) in LIFT_ARGS):
+        _refuse(f"set {name!r}: point {label!r} lift names exactly one of {list(LIFT_ARGS)}")
+    ((guard, limit),) = lift.items()
+    if not (_is_count(limit) if guard == "max_turns" else _is_number(limit) and limit > 0):
+        _refuse(f"set {name!r}: point {label!r} lift {guard!r} is {limit!r}, "
+                f"not {'a whole number of turns' if guard == 'max_turns' else 'a number above 0'}")
+    return {guard: limit}
+
+
 def _load_point(name: str, raw: object) -> Point:
     if isinstance(raw, dict) and raw.get("kind") == PROBE_KIND:
         return _load_probe(f"set {name!r}", raw)
@@ -405,6 +429,7 @@ def _load_point(name: str, raw: object) -> Point:
                 f"and may add {sorted(_POINT_OPTIONAL_KEYS)}")
     if "preset" in raw and not isinstance(raw["preset"], str):
         _refuse(f"set {name!r}: a point's preset is the text of a catalogue row id")
+    lift = _load_lift(name, raw)
     label, kind, params, artifact = raw["label"], raw["kind"], raw["params"], raw["artifact"]
     if not (isinstance(label, str) and label and isinstance(kind, str) and kind):
         _refuse(f"set {name!r}: a point's label and kind are non-empty text")
@@ -414,7 +439,7 @@ def _load_point(name: str, raw: object) -> Point:
             isinstance(key, str) and (isinstance(value, bool) or _is_number(value))
             for key, value in params.items()):
         _refuse(f"set {name!r}: point {label!r} params are names with a number or true/false")
-    return Point(label=label, kind=kind, params=dict(params), artifact=str(artifact))
+    return Point(label=label, kind=kind, params=dict(params), artifact=str(artifact), lift=lift)
 
 
 def load_set(name: str, directory: Path | None = None) -> PointSet:

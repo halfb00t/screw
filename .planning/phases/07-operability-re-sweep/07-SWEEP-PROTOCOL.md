@@ -10,7 +10,7 @@ its rule was fixed before its data (the L11 method; `07-RESEARCH.md` Pattern 1).
   `tests/test_oper.py` fail when a committed file is not what it writes or when a sha below is not the
   git blob sha of the committed file. Git blob shas: `explore.json` `c2b5f05e23e46c09b0b73a424a85b9c178e703e3`,
   `spread.json` `52ef3a8506251a8254b05fb31cbf0ed4b6adaa06`, `walls.json`
-  `67dc81f50cee7c393ef88adc2c50cbafb4014c5d`, `controls.json`
+  `b0b997307bdc0fb1c3e2e47b428730159616622c`, `controls.json`
   `0e95d12b50b155a57be1e32ec3dffe859d0b7174`, and the tracer `tracer.json`
   `16d1928fb1ab30f6fbac5179dfa34d74d7e276c1`.
 - **Decisions applied:** `07-CONTEXT.md` D-01 to D-19, and the standing rules L02 (a number the tool
@@ -64,6 +64,14 @@ The walls confirm set is, for each of R7 to R10, the readings at the value the r
 the next step past it, re-run at 5 repetitions. A point decides only when its 5 repetitions agree in
 status; a disagreement keeps the stricter outcome, that is the lower wall.
 
+The *next step past* a decided value is: for R7, 10 turns more (260 where 250 stands); for R8, the next
+decade (1e6 where 1e5 stands); for R9 and R10, the next smaller walked value, which `walls` groups (c)
+and (d) already hold. A step that lies past a validator's own cap would be refused before the kernel, so
+`walls` group (f) holds it with a `lift`: one named guard replaced by one stated limit, `max_turns` for
+`MAX_TURNS` and `max_mm` for the `le` bound of every length field. Every other validator still runs,
+and the reading records the lift (`bench/oper_lift.py`). A reading past a cap awards nothing: R7 and R8
+never raise a cap above its present value.
+
 ## R4 - The four first sets (D-04, D-05, D-08, D-17, D-18)
 
 `bench/oper_sets.py` is the only definition; `python -m bench.oper_sets --check` fails when a
@@ -77,7 +85,7 @@ in the file's `dropped` array with the pydantic error type. `s` and `k` written 
 | --- | --- | --- | --- | --- | --- | --- |
 | explore | 1 | 40 | 600 | 1692 | 76 | fit data for the cost model (R11) |
 | spread | 5 | 12 | 600 | 12 | 0 | the margin of repeated cold readings (R5) |
-| walls | 1 | 20 | 600 | 684 | 0 | the kernel outer walls (R7 to R10) |
+| walls | 1 | 20 | 600 | 752 | 0 | the kernel outer walls (R7 to R10) |
 | controls | 1 | 4 | 600 | 69 | 0 | the known-bad constructions, natively (L11 platform note) |
 
 Every set runs at 600 s per reading; the shard counts are chosen before any timing exists and R6
@@ -125,7 +133,10 @@ radius by up to about 5e-6 mm, which is more than the 1e-6 mm end of the walk, s
 in the label would not be the radius walked. (e) The nuts the two open nut debt items name, so their
 fate is decided by records: the lead-in item's M2 (m 12), M8 (m 38) and M14 (m 46) at `clearance`
 0.1 and `s` in {1e3, 1e4, 1e5}, and the countersink item's `d` 2, `s` 4, `m` 3 nuts at `clearance`
-0.05 with pitch 1.5 and 1.8 and at `clearance` 0.01 with pitch 1.5.
+0.05 with pitch 1.5 and 1.8 and at `clearance` 0.01 with pitch 1.5. (f) Past the caps, the
+confirmation probes of R3, each with the one guard it needs lifted (`lift`): the rod and the void of (a)
+at 260 turns (`max_turns` 260; `m = 258 x pitch`), and the eight corners of (b) at X = 1e6 mm
+(`max_mm` 1e6), same constructions, labelled `beyond-`.
 
 **controls.** `naive_sweep_fuse` at {10 pitch, 10, 20, standard max} mm and `one_pipe` at the
 standard max and at 100, 160, 200 and 250 turns, on the sample sizes (M2, M2.5, M3, M6, M8, M10,
