@@ -1946,3 +1946,15 @@ def test_a_repeated_part_would_hit_the_solid_cache_so_the_drift_run_empties_it(
     assert int_env("SCREW_SOLID_CACHE", 4) == 1
     assert _build_cached.cache_parameters()["maxsize"] >= 1
     clear_cache()  # exists, and is what the rule names
+
+
+def test_the_turn_bound_is_a_common_candidate_that_every_cell_is_confirmed_at() -> None:
+    rule = " ".join(_rule(7).split())
+    assert "A *cell* is a size, a hand and a kind" in rule
+    assert "The *candidate* T is the smallest first ok step over the cells" in rule
+    assert "`MAX_TURNS` is T only if the confirmation readings" in rule
+    assert "are `ok`, in all 5 repetitions, for every cell" in rule
+    assert "the confirmation set reads it there" in rule
+    assert "A confirmation reading at T that is not `ok`, or is missing, awards no turn" in rule
+    assert "the confirmation readings at T" in rule
+    assert "For R7 the value is the candidate T" in " ".join(_rule(3).split())

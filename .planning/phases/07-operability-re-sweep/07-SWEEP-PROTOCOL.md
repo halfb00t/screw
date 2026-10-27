@@ -62,7 +62,8 @@ with any repetition that is not ok has no median and no max (`bench.oper.summari
 the max.
 
 The walls confirm set is, for each of R7 to R10, the readings at the value the rule decides and at
-the next step past it, re-run at 5 repetitions. A point decides only when its 5 repetitions agree in
+the next step past it, re-run at 5 repetitions. For R7 the value is the candidate T, read for every
+size, hand and kind (R7). A point decides only when its 5 repetitions agree in
 status; a disagreement keeps the stricter outcome, that is the lower wall.
 
 The *next step past* a decided value is: for R7, 10 turns more (260 where 250 stands); for R8, the next
@@ -162,17 +163,26 @@ other half for a slower runner instance and for the image build.
 
 ## R7 - MAX_TURNS (D-08)
 
-`MAX_TURNS` stays 250 if every 250-turn wall reading (`walls`, group (a): bolt rod and nut void, 15
-sizes, both hands) is `ok`. A `refused` or `crashed` reading at a size starts a walk-down set at 240,
-230, ... (step 10 turns) for that size and hand and kind, which goes on to that size's first `ok` step;
-`MAX_TURNS` becomes the largest step that is `ok` at every size, hand and kind.
+A *cell* is a size, a hand and a kind (bolt rod or nut void): 15 x 2 x 2. A cell's *first ok step* is
+250 if its 250-turn reading (`walls`, group (a)) is `ok`. A `refused` or `crashed` reading starts a
+walk-down set for the cell at 240, 230, ... (step 10 turns), which goes on to the cell's first `ok`
+step; that step is then the cell's first ok step.
 
-The boundary evidence is every reading this walk asks for: the 250-turn readings and each walk-down
-reading down to a size's first `ok` step. The bound stands only on `ok` readings. A `killed`, `capped`
-or `no_cgroup` reading in that evidence, or a reading it asks for that is missing, is cost, an
-unreadable peak or a gap, not a kernel wall: it starts no walk-down and moves no wall, and it cannot
-support a bound either. No turn bound is then awarded, 250 included, and the phase stops and asks the
-owner.
+The *candidate* T is the smallest first ok step over the cells. It is a provisional common value: the
+cells need not end their walks at the same step, and a cell is read at T only if T is its own first ok
+step or the confirmation set below asks for it. `MAX_TURNS` is T only if the confirmation readings
+(R3: the readings at T and at the next step past it, 5 repetitions) at T are `ok`, in all 5
+repetitions, for every cell. A
+cell whose first ok step is above T has not been read at T yet; the confirmation set reads it there.
+A confirmation reading at T that is not `ok`, or is missing, awards no turn bound, 250 included, and
+the phase stops and asks the owner; no other value is tried.
+
+The boundary evidence is every reading this walk asks for: the 250-turn readings, each walk-down
+reading down to a cell's first ok step, and the confirmation readings at T. The bound stands only on
+`ok` readings. A `killed`, `capped` or `no_cgroup` reading in that evidence, or a reading it asks for
+that is missing, is cost, an unreadable peak or a gap, not a kernel wall: it starts no walk-down and
+moves no wall, and it cannot support a bound either. No turn bound is then awarded, 250 included, and
+the phase stops and asks the owner.
 
 ## R8 - The field ceilings (D-08)
 
