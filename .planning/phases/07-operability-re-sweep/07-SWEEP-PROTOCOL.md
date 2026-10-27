@@ -385,7 +385,8 @@ qualifies when `mem_limit(N)` is under both 16 x 10^9 bytes and the smallest `Me
 and asks the owner. The pick is the qualifying N with the lowest load p95 over all requests (the max over
 its 5 repetitions of each repetition's p95, D-04), ties to the smaller N. 256 MiB is a rounding
 step fixed before the data: small against the 16 GB ceiling (about 1.7 %), large enough to be a visible
-margin and not an arithmetic residue.
+margin and not an arithmetic residue. The `mem_limit` that ships is the larger of `mem_limit(N)` at
+the picked N built from this W and the one built from `W(K)` at the K R22 keeps.
 
 ## R17 - The queue depth
 
@@ -438,7 +439,9 @@ worker. `W(K)` for every K from 1 to 4 is measured after R16's pick, by running 
 N = 1 with `SCREW_SOLID_CACHE` = K, 5 repetitions for each K measured, so that every `W(K)` this rule
 compares comes from the same instrument; `W(4)` is not taken from R16's W. K = 4 is measured first,
 then 3, 2 and 1, each only if the K above it did not qualify. `W(K)` is the max over the repetitions of
-the container's peak. With one worker, the container peak is that worker's peak.
+the container's peak. With one worker, the container peak is that worker's peak. The `mem_limit` that
+ships is the larger of the one built from R16's W and the one built from `W(K)` at the K this rule
+keeps, both computed as R16 computes `mem_limit(N)` at the picked N.
 
 ## R23 - Tessellation, arenas and recycling
 

@@ -2229,3 +2229,14 @@ def test_the_dense_boundary_is_bolts_at_coarse_pitch_with_the_largest_admitted_t
     assert ("where n is the largest whole number of turns at which that bolt is admitted "
             "at that artifact") in rule
     assert "the largest admitted integer-turn length" not in rule
+
+
+def test_the_shipped_mem_limit_is_the_larger_of_the_ones_from_w_and_from_w_k() -> None:
+    r16 = " ".join(_rule(16).split())
+    assert ("The `mem_limit` that ships is the larger of `mem_limit(N)` at the picked N built "
+            "from this W and the one built from `W(K)` at the K R22 keeps") in r16
+    r22 = " ".join(_rule(22).split())
+    assert ("The `mem_limit` that ships is the larger of the one built from R16's W and the one "
+            "built from `W(K)` at the K this rule keeps") in r22
+    assert "both computed as R16 computes `mem_limit(N)` at the picked N" in r22
+    assert "`W(4)` is not taken from R16's W" in r22
