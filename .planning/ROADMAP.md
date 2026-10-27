@@ -399,7 +399,7 @@ Plans:
   3. A CI job builds every allowed configuration inside the timeout; a configuration that cannot is capped and warned or refused with a `422` naming the fields, never silently shortened.
   4. With the measured bounds in place, CAD builds still run in worker processes off the event loop, and `make check` (in-image smoke test, vendored-bundle byte check) passes.
 
-**Plans**: 2/20 plans executed (sequential waves 1-14; the pre-registration lands on main as its own PR, A, before any runner reading)
+**Plans**: 3/20 plans executed (sequential waves 1-14; the pre-registration lands on main as its own PR, A, before any runner reading)
 
 Plans:
 **Wave 1**
@@ -407,7 +407,7 @@ Plans:
 - [x] 07-02-PLAN.md — The queue-aware per-build deadline (D-14), one timeout per artifact from code constants in `calc/cost.py` (D-09, D-16), the cost-model miss event (D-07)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 07-03-PLAN.md — The probes, the deterministic point sets and the pre-registered protocol R1-R30; the two older debt items it leaves open recorded; PR A opened (D-02 to D-05, D-18)
+- [x] 07-03-PLAN.md — The probes, the deterministic point sets and the pre-registered protocol R1-R30; the two older debt items it leaves open recorded; PR A opened (D-02 to D-05, D-18)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 07-04-PLAN.md — Codex review of PR A, land it through `make pr.land`, push the phase branch so later dispatches can run from it
@@ -464,4 +464,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 2 
 | 5. Hex Nut and Kernel Pair Proof | 25/25 | Complete    | 2026-10-22 |
 | 6. Printed Pair Acceptance | 10/10 | Complete    | 2026-10-24 |
 | 6.1. Bolt head chamfer (INSERTED) | 5/5 | Complete    | 2026-10-25 |
-| 7. Operability Re-sweep | 2/20 | In Progress | - |
+| 7. Operability Re-sweep | 3/20 | In Progress | - |
