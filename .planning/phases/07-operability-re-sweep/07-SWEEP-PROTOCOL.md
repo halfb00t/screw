@@ -217,8 +217,9 @@ One model per (kind, artifact, target), with the targets raw bytes, build second
 plus that artifact's export) and cgroup peak bytes. Ordinary least squares of the natural log of the
 target on: for the bolt, ln d, ln pitch, ln turns (built thread length divided by pitch,
 `calc.thread.built_thread_length`), ln length, ln s, ln k and `left_hand` (0 or 1); for the nut, ln
-d, ln pitch, ln s, ln m, `clearance` and `left_hand`. It is fitted on the per-point max over the ok
-readings of every `explore` and `spread` point; a point with no ok reading is not fitted. The
+d, ln pitch, ln s, ln m, `clearance` and `left_hand`. It is fitted on the per-point max of every
+`explore` and `spread` point whose every repetition is `ok`; a point with any repetition that is not
+`ok` has no max (R3) and is not fitted, however many of its other repetitions were `ok`. The
 tessellation presets are kept (R23). The model is kernel-free (`calc` import boundary) and adds no
 dependency.
 
@@ -242,10 +243,10 @@ build and bytes:
   equal shares, one per vCPU, of which three are builds (N is at most 3, D-03) and one is kept for
   uvicorn, gzip, the caches and tmpfs. The seconds and bytes components are unbounded.
 - **C3, bytes-bound.** The fine STL raw bytes are at most Q = 4 x 10^9 / rho, where rho is the cgroup
-  peak divided by the raw bytes of the `stl-fine` point with the largest raw bytes among the ok
-  `explore` and `spread` points (the per-point max, R11): C2's peak share written as fine STL bytes at
-  the peak per output byte of the largest measured fine STL. The preview and STEP artifacts are
-  bounded only by the walls (R7 to R10).
+  peak divided by the raw bytes of the `stl-fine` point with the largest raw bytes among the `explore`
+  and `spread` points whose every repetition is `ok` (the per-point max, R11): C2's peak share written
+  as fine STL bytes at the peak per output byte of the largest measured fine STL. The preview and STEP
+  artifacts are bounded only by the walls (R7 to R10).
 
 The owner rules (B-01). No candidate is a figure until then, and nothing downstream of the budget
 (R14 to R29) runs before that ruling.

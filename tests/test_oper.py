@@ -1802,3 +1802,12 @@ def test_the_slot_the_protocol_computes_is_the_pools_and_is_the_same_in_every_pr
                            check=True, env={**os.environ, "PYTHONHASHSEED": seed}).stdout
             for seed in ("1", "2", "random")}
     assert len(seen) == 1
+
+
+@pytest.mark.parametrize("number", [11, 13])
+def test_a_point_supplies_a_fit_or_calibration_figure_only_if_every_repetition_is_ok(
+        number: int) -> None:
+    rule = " ".join(_rule(number).split())
+    assert "whose every repetition is `ok`" in rule
+    assert "per-point max, R11" in rule or "has no max (R3) and is not fitted" in rule
+    assert "no ok reading" not in rule
