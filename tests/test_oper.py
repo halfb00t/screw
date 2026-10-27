@@ -2120,3 +2120,9 @@ def test_the_solid_cache_below_four_is_measured_after_the_pick_with_one_worker()
 def test_the_budget_ruling_is_one_of_the_three_candidates() -> None:
     rule = " ".join(_rule(13).split())
     assert "the ruling is one of C1, C2 and C3: no other triple is offered or taken" in rule
+
+
+def test_the_gzip_levels_are_compared_on_the_max_over_five_repetitions() -> None:
+    rule = " ".join(_rule(19).split())
+    assert "A level's seconds and bytes are each the max over 5 repetitions (R3)" in rule
+    assert "the comparison below uses those maxima" in rule

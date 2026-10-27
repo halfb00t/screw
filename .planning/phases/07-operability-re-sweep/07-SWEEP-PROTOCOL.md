@@ -388,7 +388,8 @@ moves it.
 
 ## R19 - The gzip level
 
-Levels 1, 6 and 9 on the bound set's STL artifacts. A higher level is adopted only if it shrinks the
+Levels 1, 6 and 9 on the bound set's STL artifacts. A level's seconds and bytes are each the max over
+5 repetitions (R3), and the comparison below uses those maxima. A higher level is adopted only if it shrinks the
 bytes by at least 10 % and costs at most 1.5x the seconds of the level below it (1 is the start).
 The rule's shape is spur's; the thresholds are stated here for screw and are not carried figures.
 10 % is the least saving worth a higher level and 1.5x the most extra time accepted for it; both
