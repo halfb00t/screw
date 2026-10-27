@@ -1836,3 +1836,11 @@ def test_a_point_supplies_a_fit_or_calibration_figure_only_if_every_repetition_i
     assert "whose every repetition is `ok`" in rule
     assert "per-point max, R11" in rule or "has no max (R3) and is not fitted" in rule
     assert "no ok reading" not in rule
+
+
+def test_the_bound_set_holds_the_memory_extrema_that_w_is_read_from() -> None:
+    rule = " ".join(_rule(14).split())
+    assert "the admitted point with the largest enveloped peak-bytes prediction" in rule
+    assert "the admitted point with the largest measured peak" in rule
+    assert "the set holds 5 to 8 points" in rule
+    assert "the memory extrema of each included" in " ".join(_rule(16).split())
