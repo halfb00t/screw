@@ -62,9 +62,35 @@ def _tails(decades: Iterable[int], status: str) -> dict[str, str]:
             for k in decades for d, pitch in oper_sets.TAIL_SIZES for left in (False, True)}
 
 
-def _roots(radii: Iterable[float], status: str) -> dict[str, str]:
+def _roots(radii: Iterable[float], status: str,
+           kinds: tuple[str, ...] = ("bolt", "nut")) -> dict[str, str]:
     return {oper_sets._root_label(kind, size, left, r): status for r in radii
-            for size in PITCH for left in (False, True) for kind in ("bolt", "nut")}
+            for size in PITCH for left in (False, True) for kind in kinds}
+
+
+def _void_walk(radii: Iterable[float], status: str) -> dict[str, str]:
+    """The void-walk labels at `radii`: nuts only, as no rod is walked above 1e-2 mm."""
+    return _roots(radii, status, ("nut",))
+
+
+def _voids(over: Mapping[str, str] | None = None, drop: Iterable[str] = ()) -> list[Raw]:
+    """A reading of every void-walk point, ok unless `over` says otherwise, minus `drop`."""
+    over, gone = over or {}, set(drop)
+    return [_reading(p, over.get(str(p["label"]), "ok")) for p in oper_sets.void_walk_points()
+            if p["label"] not in gone]
+
+
+def _decide(walls: list[Raw], down: Iterable[Raw] = (),
+            voids: list[Raw] | None = None) -> oper_sets.Decision:
+    """`decide_walls` over a void walk that is all ok unless given."""
+    return oper_sets.decide_walls(walls, down, _voids() if voids is None else voids)
+
+
+def _walls_as_read() -> dict[str, str]:
+    """Walls group (d) as the first runner reading found it: every nut void refused at all nine
+    radii, the rods refused from 3e-4 mm down (so F = 3e-4 from the rods alone, before G25)."""
+    return (_roots(oper_sets.ROOT_RADII, "refused", ("nut",))
+            | _roots(oper_sets.ROOT_RADII[3:], "refused", ("bolt",)))
 
 
 def _stop(rule: str, naming: str = "") -> pytest.RaisesExc[ProtocolStop]:
@@ -231,7 +257,7 @@ def test_the_walk_down_set_is_written_with_its_shards_and_sources(tmp_path: Path
 
 
 def test_all_250_turn_readings_ok_give_t_250_and_the_tested_values_at_1e5() -> None:
-    decision = oper_sets.decide_walls(_walls())
+    decision = _decide(_walls())
     assert decision.t == 250
     assert decision.max_field_mm == 1e5
     values = {key: c.value for key, c in decision.ceilings.items()}
@@ -242,12 +268,12 @@ def test_all_250_turn_readings_ok_give_t_250_and_the_tested_values_at_1e5() -> N
               if key not in {("bolt", "d"), ("nut", "clearance"), ("nut", "d")}]
     assert others == [1e5] * 6
     assert (decision.tail.v, decision.root.v) == (None, None)
-    assert (decision.tail.read, decision.root.read) == (48, 540)
+    assert (decision.tail.read, decision.root.read) == (48, 660)
 
 
 def test_a_walked_cell_ends_at_its_first_ok_step_and_t_is_the_smallest() -> None:
     down = _down("nut-M8-left", {240: "refused", 230: "ok", 220: "ok"})
-    decision = oper_sets.decide_walls(_walls({"turns-nut-M8-left": "refused"}), down)
+    decision = _decide(_walls({"turns-nut-M8-left": "refused"}), down)
     assert decision.first_ok["nut-M8-left"] == 230
     assert decision.t == 230
     assert "turns230-nut-M8-left" in decision.turn_labels
@@ -256,8 +282,7 @@ def test_a_walked_cell_ends_at_its_first_ok_step_and_t_is_the_smallest() -> None
 
 def test_a_reading_below_the_first_ok_step_is_evidence_of_nothing() -> None:
     steps = dict.fromkeys(range(240, 200, -10), "refused") | {200: "ok", 190: "refused"}
-    decision = oper_sets.decide_walls(_walls({"turns-bolt-M3-right": "crashed"}),
-                                      _down("bolt-M3-right", steps))
+    decision = _decide(_walls({"turns-bolt-M3-right": "crashed"}), _down("bolt-M3-right", steps))
     assert decision.first_ok["bolt-M3-right"] == 200
     assert decision.t == 200
 
@@ -265,111 +290,152 @@ def test_a_reading_below_the_first_ok_step_is_evidence_of_nothing() -> None:
 @pytest.mark.parametrize("status", ["killed", "capped", "no_cgroup"])
 def test_a_walk_down_reading_that_is_cost_stops_the_phase(status: str) -> None:
     with _stop("R7"):
-        oper_sets.decide_walls(_walls({"turns-nut-M8-left": "refused"}),
-                               _down("nut-M8-left", {240: "refused", 230: status}))
+        _decide(_walls({"turns-nut-M8-left": "refused"}),
+                _down("nut-M8-left", {240: "refused", 230: status}))
 
 
 def test_a_walk_down_reading_that_is_missing_stops_the_phase() -> None:
     with _stop("R7", "turns230-nut-M8-left"):
-        oper_sets.decide_walls(_walls({"turns-nut-M8-left": "refused"}),
-                               _down("nut-M8-left", {240: "refused"}))
+        _decide(_walls({"turns-nut-M8-left": "refused"}), _down("nut-M8-left", {240: "refused"}))
 
 
 def test_a_cell_with_no_ok_step_stops_the_phase() -> None:
     every = dict.fromkeys(oper_sets.TURN_STEPS, "refused")
     with _stop("R7", "no ok step"):
-        oper_sets.decide_walls(_walls({"turns-nut-M8-left": "refused"}),
-                               _down("nut-M8-left", every))
+        _decide(_walls({"turns-nut-M8-left": "refused"}), _down("nut-M8-left", every))
 
 
 def test_a_refused_nutlead_reading_drops_the_nut_s_ceiling_a_decade() -> None:
-    decision = oper_sets.decide_walls(_walls({"nutlead-M8-s100000": "refused"}))
+    decision = _decide(_walls({"nutlead-M8-s100000": "refused"}))
     assert decision.ceilings[("nut", "s")].decade == 1e4
     assert decision.ceilings[("nut", "m")].decade == 1e5
     assert decision.max_field_mm == 1e5  # eight fields still share 1e5
 
 
 def test_a_killed_reading_does_not_move_a_wall_but_cannot_raise_one() -> None:
-    decision = oper_sets.decide_walls(_walls({"ceiling-bolt-k-100000": "killed",
-                                              "ceiling-bolt-k-10000": "capped"}))
+    decision = _decide(_walls({"ceiling-bolt-k-100000": "killed",
+                               "ceiling-bolt-k-10000": "capped"}))
     assert decision.ceilings[("bolt", "k")].decade == 1e3
 
 
 def test_lifted_readings_past_a_cap_change_nothing() -> None:
     assert any(p.get("lift") for p in _walls_points())
     lifted = {str(p["label"]): "refused" for p in _walls_points() if p.get("lift")}
-    assert oper_sets.decide_walls(_walls(lifted)) == oper_sets.decide_walls(_walls())
-    assert oper_sets.decide_walls(_walls(drop=lifted)) == oper_sets.decide_walls(_walls())
+    assert _decide(_walls(lifted)) == _decide(_walls())
+    assert _decide(_walls(drop=lifted)) == _decide(_walls())
 
 
 def test_a_field_with_no_ok_decade_stops_the_phase() -> None:
     every = {f"ceiling-bolt-k-{x}": "refused" for x in (1000, 10000, 100000)}
     with _stop("R8"):
-        oper_sets.decide_walls(_walls(every))
+        _decide(_walls(every))
 
 
 def test_a_missing_field_reading_stops_the_phase() -> None:
     with _stop("R8", "ceiling-nut-m-100000"):
-        oper_sets.decide_walls(_walls(drop=["ceiling-nut-m-100000"]))
+        _decide(_walls(drop=["ceiling-nut-m-100000"]))
 
 
 def test_the_ceiling_shared_by_most_fields_is_max_field_mm_and_a_tie_goes_low() -> None:
     low = {f"ceiling-{stem}-100000": "refused"
            for stem in ("bolt-length", "bolt-s", "bolt-k", "nut-m", "nut-clearance")}
-    assert oper_sets.decide_walls(_walls(low)).max_field_mm == 1e4  # 5 fields at 1e4, 4 at 1e5
-    assert oper_sets.decide_walls(_walls({"ceiling-bolt-k-100000": "refused",
-                                          "ceiling-nut-m-100000": "refused"})).max_field_mm == 1e5
+    assert _decide(_walls(low)).max_field_mm == 1e4  # 5 fields at 1e4, 4 at 1e5
+    assert _decide(_walls({"ceiling-bolt-k-100000": "refused",
+                           "ceiling-nut-m-100000": "refused"})).max_field_mm == 1e5
     three = {f"ceiling-{stem}-{x}": "refused" for stem in ("bolt-k", "nut-m", "nut-clearance")
              for x in (10000, 100000)}
     three |= {f"ceiling-{stem}-100000": "refused" for stem in ("bolt-length", "bolt-s", "nut-d")}
-    assert oper_sets.decide_walls(_walls(three)).max_field_mm == 1e3  # 3, 3 and 3: the lowest
+    assert _decide(_walls(three)).max_field_mm == 1e3  # 3, 3 and 3: the lowest
 
 
 def test_the_largest_failing_tail_sets_v_a_hundred_times_above_it() -> None:
-    decision = oper_sets.decide_walls(_walls(_tails([8, 9], "crashed") | _tails([5], "ok")))
+    decision = _decide(_walls(_tails([8, 9], "crashed") | _tails([5], "ok")))
     assert decision.tail.v == 1e-6
     assert decision.tail.failing[0].endswith("1e-8")
     assert len(decision.tail.failing) == 12
 
 
 def test_the_largest_failing_root_sets_v_ten_times_above_it() -> None:
-    decision = oper_sets.decide_walls(_walls(_roots([3e-5, 1e-5, 3e-6, 1e-6], "refused")))
+    decision = _decide(_walls(_roots([3e-5, 1e-5, 3e-6, 1e-6], "refused")))
     assert decision.root.v == 1e-3
 
 
 def test_one_failing_cell_is_enough_for_f() -> None:
     label = oper_sets._tail_label(2.0, 0.4, True, 6)
-    assert oper_sets.decide_walls(_walls({label: "refused"})).tail.v == 1e-4
+    assert _decide(_walls({label: "refused"})).tail.v == 1e-4
 
 
 def test_a_failing_tail_whose_v_lies_outside_the_walk_stops_the_phase() -> None:
     with _stop("R9"):
-        oper_sets.decide_walls(_walls(_tails([3, 4, 5, 6, 7, 8, 9], "crashed")))
+        _decide(_walls(_tails([3, 4, 5, 6, 7, 8, 9], "crashed")))
 
 
-def test_a_failing_root_whose_v_lies_outside_the_walk_stops_the_phase() -> None:
-    with _stop("R10"):
-        oper_sets.decide_walls(_walls(_roots([3e-3], "refused")))
+def test_a_failing_group_d_root_is_held_by_the_void_walk_above_it() -> None:
+    # Before the void walk, V = 1e-1 lay outside the walk and stopped the phase.
+    assert _decide(_walls(_roots([3e-3], "refused"))).root.v == 1e-1
+
+
+def test_voids_failing_through_1e_1_and_ok_at_3e_1_and_1_give_v_of_1_mm() -> None:
+    decision = _decide(_walls(_walls_as_read()), voids=_voids(_void_walk([3e-2, 1e-1], "refused")))
+    assert decision.root.v == 1.0
+    assert decision.root.read == 660
+    assert decision.root.failing[0] == oper_sets._root_label("nut", "M2", False, 0.1)
+
+
+def test_a_void_that_fails_at_1_mm_stops_the_phase_and_the_walk_is_not_extended() -> None:
+    voids = _voids(_void_walk(oper_sets.VOID_RADII, "refused"))
+    with _stop("R10", "V is 10"):
+        _decide(_walls(_walls_as_read()), voids=voids)
+
+
+def test_a_void_that_fails_at_3e_1_puts_v_above_the_walk() -> None:
+    with _stop("R10", "V is 10"):
+        _decide(_walls(_walls_as_read()), voids=_voids(_void_walk([3e-1], "refused")))
+
+
+def test_an_all_ok_void_walk_leaves_v_to_group_d() -> None:
+    nuts = _roots(oper_sets.ROOT_RADII, "refused", ("nut",))
+    assert _decide(_walls(nuts)).root.v == 1e-1
+    rods = _roots([3e-4], "refused", ("bolt",))
+    assert _decide(_walls(rods)).root.v == 1e-2
+
+
+def test_a_missing_void_reading_stops_the_phase() -> None:
+    label = oper_sets._root_label("nut", "M8", True, 3e-1)
+    with _stop("R10", label):
+        _decide(_walls(), voids=_voids(drop=[label]))
+
+
+def test_a_killed_void_at_or_above_v_stops_the_phase() -> None:
+    label = oper_sets._root_label("nut", "M8", True, 3e-1)
+    with _stop("R10", label):
+        _decide(_walls(_walls_as_read()), voids=_voids({label: "killed"}))
+
+
+def test_a_void_walk_label_read_in_the_walls_records_too_is_read_twice() -> None:
+    twice = oper_sets.void_walk_points()[0]
+    with _stop("R10", "read twice"):
+        _decide([*_walls(), _reading(twice)])
 
 
 def test_a_killed_reading_at_or_above_v_stops_the_phase() -> None:
     over = _tails([8, 9], "crashed") | _tails([5], "killed")
     with _stop("R9"):
-        oper_sets.decide_walls(_walls(over))
+        _decide(_walls(over))
     with _stop("R10"):
-        oper_sets.decide_walls(_walls(_roots([1e-5], "refused") | _roots([1e-3], "capped")))
+        _decide(_walls(_roots([1e-5], "refused") | _roots([1e-3], "capped")))
 
 
 def test_a_killed_reading_below_v_stops_nothing_and_sets_no_f() -> None:
-    decision = oper_sets.decide_walls(_walls(_tails([8, 9], "crashed") | _tails([7], "killed")))
+    decision = _decide(_walls(_tails([8, 9], "crashed") | _tails([7], "killed")))
     assert decision.tail.v == 1e-6
 
 
 def test_a_capped_reading_in_a_clean_walk_denies_above_zero() -> None:
     with _stop("R9"):
-        oper_sets.decide_walls(_walls({oper_sets._tail_label(6.0, 1.0, False, 9): "capped"}))
+        _decide(_walls({oper_sets._tail_label(6.0, 1.0, False, 9): "capped"}))
     with _stop("R10"):
-        oper_sets.decide_walls(_walls(_roots([1e-6], "no_cgroup")))
+        _decide(_walls(_roots([1e-6], "no_cgroup")))
 
 
 @pytest.mark.parametrize(("rule", "label"), [
@@ -377,15 +443,15 @@ def test_a_capped_reading_in_a_clean_walk_denies_above_zero() -> None:
     ("R10", oper_sets._root_label("nut", "M8", True, 1e-6))])
 def test_a_missing_tail_or_root_reading_stops_the_phase(rule: str, label: str) -> None:
     with _stop(rule):
-        oper_sets.decide_walls(_walls(drop=[label]))
+        _decide(_walls(drop=[label]))
 
 
 # --- R3: the walls confirm set -------------------------------------------------------------------
 
 
-def _decision(over: Mapping[str, str] | None = None,
-              down: list[Raw] | None = None) -> oper_sets.Decision:
-    return oper_sets.decide_walls(_walls(over), down or ())
+def _decision(over: Mapping[str, str] | None = None, down: list[Raw] | None = None,
+              voids: list[Raw] | None = None) -> oper_sets.Decision:
+    return _decide(_walls(over), down or (), voids)
 
 
 def _labels(points: Iterable[Mapping[str, object]]) -> list[str]:
@@ -467,6 +533,24 @@ def test_tail_and_root_are_confirmed_at_v_and_the_next_smaller_walked_value() ->
     assert {_root_of(lb) for lb in roots} == {"0.001", "0.0003"}
 
 
+def test_a_v_inside_the_void_walk_is_confirmed_at_v_and_the_next_smaller_void_radius() -> None:
+    held = {str(p["label"]): p for p in oper_sets.void_walk_points()}
+    top = _decision(_walls_as_read(), voids=_voids(_void_walk([3e-2, 1e-1], "refused")))
+    assert top.root.v == 1.0
+    points = oper_sets.confirm_points(top)
+    roots = [p for p in points if str(p["label"]).startswith("root-")]
+    assert len(roots) == 60
+    assert {_root_of(str(p["label"])) for p in roots} == {"1", "0.3"}
+    assert all(p == held[str(p["label"])] for p in roots)
+    assert not any(str(p["label"]).startswith("root-bolt-") for p in points)
+
+    low = oper_sets.confirm_points(_decision(_roots(oper_sets.ROOT_RADII, "refused", ("nut",))))
+    roots = [p for p in low if str(p["label"]).startswith("root-")]
+    assert len(roots) == 60
+    assert {_root_of(str(p["label"])) for p in roots} == {"0.1", "0.03"}
+    assert all(p == held[str(p["label"])] for p in roots)
+
+
 def test_above_zero_is_confirmed_at_the_smallest_walked_value_and_nothing_past_it() -> None:
     labels = _labels(oper_sets.confirm_points(_decision()))
     tails = [lb for lb in labels if lb.startswith("tail-")]
@@ -499,6 +583,7 @@ def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
                for kind, wall in (("bolt", 3000.0), ("nut", 2000.0))]
     _write_records(root / "explore", explore)
     _write_records(root / "walls", _walls())
+    _write_records(root / "voids", _voids())
     return root
 
 
@@ -554,15 +639,16 @@ def test_the_walk_down_and_confirm_files_are_written_and_checked_from_their_sour
     _write_records(repo / "down", _down("nut-M8-left", {240: "refused", 230: "ok"}))
     confirm = repo / "points" / "walls-confirm.json"
     assert oper_sets.main(["decide-walls", "--walls", str(repo / "walls2"), "--down",
-                           str(repo / "down")]) == 0
+                           str(repo / "down"), "--voids", str(repo / "voids")]) == 0
     assert "T = 230 turns" in capsys.readouterr().out
     assert oper_sets.main(["confirm", "--walls", str(repo / "walls2"), "--down",
-                           str(repo / "down"), "--explore", str(repo / "explore"),
-                           "--out", str(confirm)]) == 0
+                           str(repo / "down"), "--voids", str(repo / "voids"),
+                           "--explore", str(repo / "explore"), "--out", str(confirm)]) == 0
     doc = json.loads(confirm.read_text())
     assert doc["reps"] == 5
     assert sum(doc["shard_sizes"]) == len(doc["points"])
-    assert doc["sources"] == ["walls=walls2", "walls-down=down", "explore=explore"]
+    assert doc["sources"] == ["walls=walls2", "walls-down=down", "walls-voids=voids",
+                              "explore=explore"]
     spec = oper.load_set("walls-confirm", repo / "points")
     assert sum(len(oper.shard_points(spec, n)) for n in range(1, spec.shards + 1)) == \
         len(spec.points)
@@ -598,5 +684,51 @@ def test_a_stop_in_decide_walls_exits_3_and_names_the_rule(
         repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
     (repo / "walls2").mkdir()
     _write_records(repo / "walls2", _walls({"turns-nut-M8-left": "refused"}))
-    assert oper_sets.main(["decide-walls", "--walls", str(repo / "walls2")]) == 3
+    assert oper_sets.main(["decide-walls", "--walls", str(repo / "walls2"), "--voids",
+                           str(repo / "voids")]) == 3
     assert "oper_sets: stop (R7):" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("command", ["decide-walls", "confirm"])
+def test_decide_walls_and_confirm_cannot_run_without_the_void_walk(
+        repo: Path, command: str) -> None:
+    args = [command, "--walls", str(repo / "walls")]
+    if command == "confirm":
+        args += ["--explore", str(repo / "explore"), "--out", str(repo / "out.json")]
+    with pytest.raises(SystemExit) as stop:
+        oper_sets.main(args)
+    assert stop.value.code == 2
+
+
+def test_decide_walls_applies_the_amended_r10_to_group_d_and_the_void_walk(
+        repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _write_records(repo / "as-read", _walls(_walls_as_read()))
+    _write_records(repo / "voids-1", _voids(_void_walk([3e-2, 1e-1], "refused")))
+    args = ["decide-walls", "--walls", str(repo / "as-read"), "--voids", str(repo / "voids-1")]
+    assert oper_sets.main(args) == 0
+    assert "root (R10): V = 1 mm;" in capsys.readouterr().out
+
+    _write_records(repo / "voids-2", _voids(_void_walk(oper_sets.VOID_RADII, "refused")))
+    args = ["decide-walls", "--walls", str(repo / "as-read"), "--voids", str(repo / "voids-2")]
+    assert oper_sets.main(args) == 3
+    assert "oper_sets: stop (R10):" in capsys.readouterr().err
+
+
+def test_the_void_walk_is_written_with_its_shards_and_checked_from_its_source(
+        repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    voids = repo / "points" / "walls-voids.json"
+    assert oper_sets.main(["void-walk", "--explore", str(repo / "explore"),
+                           "--out", str(voids)]) == 0
+    assert "120 points in shards of [5, 5," in capsys.readouterr().out
+    doc = json.loads(voids.read_text())
+    assert doc["sources"] == ["explore=explore"]
+    assert doc["shard_sizes"] == [5] * 24  # nuts are charged 2000 s, half is 10500
+    assert (doc["set"], doc["reps"], doc["shards"]) == ("walls-voids", 1, 24)
+
+    for name, text in oper_sets.generate().items():
+        (repo / "points" / f"{name}.json").write_text(text)
+    assert oper_sets.main(["--check"]) == 0
+    voids.write_text(voids.read_text().replace('"reps": 1', '"reps": 2'))
+    capsys.readouterr()
+    assert oper_sets.main(["--check"]) == 1
+    assert "walls-voids.json" in capsys.readouterr().err

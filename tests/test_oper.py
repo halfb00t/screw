@@ -1527,6 +1527,65 @@ def test_the_root_radius_walk_reaches_the_radius_it_names_at_every_size_and_hand
     assert radii == {1e-2, 3e-3, 1e-3, 3e-4, 1e-4, 3e-5, 1e-5, 3e-6, 1e-6}
 
 
+def test_the_void_walk_is_the_group_d_nut_at_four_higher_radii() -> None:
+    from bench import oper_sets
+    from bench.thread_spike.maths import PITCH
+    from screw.calc.thread import thread_depth
+
+    walk = oper_sets._void_walk_set()
+    assert walk.dropped == []  # the parameter model refuses none of the 120
+    points: list[_Point] = json.loads(walk.text())["points"]
+    assert len(points) == 15 * 2 * 4
+    assert [p["label"] for p in points[:4]] == [
+        f"root-nut-{next(iter(PITCH))}-right-r{r:g}" for r in (0.03, 0.1, 0.3, 1.0)]
+    assert {p["label"].rsplit("-r", 1)[1] for p in points} == {"0.03", "0.1", "0.3", "1"}
+    for point in points:
+        params = point["params"]
+        assert point["kind"] == "nut"
+        assert point["artifact"] == "stl-preview"
+        assert set(point) == {"label", "kind", "params", "artifact"}  # no lift, no preset
+        assert set(params) == {"d", "pitch", "m", "s", "left_hand"}
+        assert params["pitch"] > 0
+        assert params["m"] == 3 * params["pitch"]
+        assert params["s"] == oper_sets._scaled(params["d"], "1.6")
+        target = float(point["label"].rsplit("-r", 1)[1])
+        realised = params["d"] / 2 - thread_depth(params["pitch"]) + 0.15
+        assert realised == pytest.approx(target, abs=1e-9)
+    assert min(p["params"]["pitch"] for p in points) == pytest.approx(0.277128, abs=1e-6)
+
+
+def test_the_void_walk_builds_its_nuts_as_group_d_builds_them() -> None:
+    from bench import oper_sets
+
+    nuts = _walls("root-nut-")
+    assert len(nuts) == 15 * 2 * 9
+    for point in nuts:
+        _, _, size, hand, radius = point["label"].split("-", 4)
+        built = oper_sets._void_cell(size, hand == "left", float(radius[1:]))
+        assert built == point["params"]
+
+
+def test_the_void_walk_labels_are_not_walls_labels() -> None:
+    from bench import oper_sets
+
+    walls = {p["label"] for p in _generated()["walls"]["points"]}
+    assert walls.isdisjoint(p["label"] for p in oper_sets.void_walk_points())
+
+
+def test_the_committed_void_walk_is_the_generators_from_the_explore_run() -> None:
+    from bench import oper_sets
+
+    spec = oper.load_set("walls-voids")
+    assert (spec.reps, spec.deadline_s) == (1, 600)
+    assert spec.rule == "07-SWEEP-PROTOCOL.md R10 (G25)"
+    assert spec.sources == ("explore=bench/results/phase-07/explore-40646117094",)
+    assert spec.shard_sizes is not None
+    assert sum(spec.shard_sizes) == 120 == len(spec.points)
+    expected = oper_sets.void_walk_points()
+    assert [(p.label, p.kind, dict(p.params), p.artifact) for p in spec.points] == [
+        (e["label"], e["kind"], e["params"], e["artifact"]) for e in expected]
+
+
 def test_walls_include_the_nuts_the_two_open_nut_debt_items_name() -> None:
     lead = _walls("nutlead-")
     assert len(lead) == 3 * 3

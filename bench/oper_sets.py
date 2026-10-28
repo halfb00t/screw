@@ -282,6 +282,9 @@ NUT_CLEARANCE_D = 6.0  # NutParams.d, frozen (L02): the default nut, so only s a
 TAIL_SIZES = ((6.0, 1.0), (2.0, 0.4), (20.0, 2.5))
 TAIL_DECADES = tuple(range(2, 10))
 ROOT_RADII = (1e-2, 3e-3, 1e-3, 3e-4, 1e-4, 3e-5, 1e-5, 3e-6, 1e-6)
+# R4 (d) and R10: the nut voids walked above group (d) after every group (d) void was refused. Every
+# pitch it solves is positive; the smallest is M2 at 1 mm, 0.277 mm.
+VOID_RADII = (3e-2, 1e-1, 3e-1, 1.0)
 LEAD_IN_NUTS = (("M2", 2.0, 0.4, 12.0), ("M8", 8.0, 1.25, 38.0), ("M14", 14.0, 2.0, 46.0))
 LEAD_IN_CEILINGS = (1e3, 1e4, 1e5)
 COUNTERSINK_NUTS = ((0.05, 1.5), (0.05, 1.8), (0.01, 1.5))
@@ -383,6 +386,14 @@ def _root_label(kind: str, size: str, left: bool, root: float) -> str:
     return f"root-{kind}-{size}-{_hand(left)}-r{root:g}"
 
 
+def _void_cell(size: str, left: bool, root: float) -> dict[str, float | bool]:
+    """The nut whose void has root radius `root` (3 turns). Shared by walls group (d) and the R10
+    void walk, so a void is the same part in both sets."""
+    d = _dec(PITCH[size][0])
+    pitch = _pitch_for_root(d, root - DEFAULT_NUT_CLEARANCE)
+    return {"d": d, "pitch": pitch, "m": 3 * pitch, "s": _scaled(d, "1.6"), "left_hand": left}
+
+
 def _root_walls(out: _Set) -> None:
     for size, (d_exact, _) in PITCH.items():
         d = _dec(d_exact)
@@ -394,10 +405,8 @@ def _root_walls(out: _Set) -> None:
                          {"d": d, "pitch": pitch, "length": thread, "thread_length": thread,
                           "s": _scaled(d, "1.6"), "k": _scaled(d, "0.6"), "left_hand": left},
                          PREVIEW)
-                void_pitch = _pitch_for_root(d, root - DEFAULT_NUT_CLEARANCE)
                 out.part(_root_label("nut", size, left, root), "nut",
-                         {"d": d, "pitch": void_pitch, "m": 3 * void_pitch,
-                          "s": _scaled(d, "1.6"), "left_hand": left}, PREVIEW)
+                         _void_cell(size, left, root), PREVIEW)
 
 
 def _nut_debt_walls(out: _Set) -> None:
@@ -473,7 +482,8 @@ def controls() -> _Set:
 # --- the sets and decisions that come from runner records ----------------------------------------
 #
 # Below this line the code applies R5 to R10 to committed records: the margin, R6's charges and
-# shards, the R7 walk-down set, the pre-confirm wall decisions and the walls confirm set. Each
+# shards, the R7 walk-down set, the R10 void walk, the pre-confirm wall decisions and the walls
+# confirm set. Each
 # derived set carries `sources` (the record directories it came from), so `--check` writes it
 # again and a hand edit fails. Every place a rule says "the phase stops and asks the owner" is a
 # `ProtocolStop`, which the command line turns into exit 3: no value is chosen past it (R30).
@@ -481,7 +491,7 @@ def controls() -> _Set:
 MEASURE_TIMEOUT_MIN = 350  # `timeout-minutes` of the `measure` job; a test pins it to the workflow
 HALF_JOB_S = MEASURE_TIMEOUT_MIN * 60 / 2  # R6: the other half is setup, image build and upload
 REPO_ROOT = POINTS_DIR.parents[1]
-GENERATED = ("walls-down", "walls-confirm")
+GENERATED = ("walls-down", "walls-voids", "walls-confirm")
 CELL_KINDS = ("bolt", "nut")
 TURN_STEPS = tuple(range(240, 0, -10))  # R7, G2: the walk-down from 240 turns to 10
 FAILED = frozenset({"refused", "crashed"})  # a kernel wall; killed and capped are cost (R7, R8)
@@ -670,6 +680,30 @@ def walk_down_points(walls_readings: Iterable[Reading]) -> list[dict[str, object
     return _walk_down_set(walls_readings).points
 
 
+# --- R10: the void walk --------------------------------------------------------------------------
+
+
+def _void_walk_set() -> _Set:
+    """The group (d) nut at the four radii above group (d), for each size and hand (G25)."""
+    out = _Set("walls-voids", reps=1, shards=1, rule="07-SWEEP-PROTOCOL.md R10 (G25)", notes=[
+        "the walls group (d) nut at r in {3e-2, 1e-1, 3e-1, 1} mm for each of the 15 sizes and "
+        "both hands, 3 turns, the pitch solved to full float precision (d/2 - 5H/8 + 0.15 = r), "
+        "1 repetition",
+        "walls run 40646134133 refused every group (d) nut void at every radius from 1e-2 mm "
+        "down, so R10 walks the voids upward; the walk is not extended past 1 mm (G25)"])
+    for size in PITCH:
+        for left in (False, True):
+            for root in VOID_RADII:
+                out.part(_root_label("nut", size, left, root), "nut",
+                         _void_cell(size, left, root), PREVIEW)
+    return out
+
+
+def void_walk_points() -> list[dict[str, object]]:
+    """The points of the void walk, in file order."""
+    return _void_walk_set().points
+
+
 # --- R7 to R10: the candidate walls --------------------------------------------------------------
 
 # The readings that bear on each R8 field, by stem; `ceiling-<stem>-<X>` is the reading at X mm,
@@ -817,25 +851,31 @@ def _tail_walk() -> list[tuple[float, list[str]]]:
 
 
 def _root_walk() -> list[tuple[float, list[str]]]:
-    return [(r, [_root_label(kind, size, left, r)
-                 for size in PITCH for left in (False, True) for kind in CELL_KINDS])
-            for r in ROOT_RADII]
+    """R10's walk from its largest radius down: the void walk (nuts only), then group (d)."""
+    voids = [(r, [_root_label("nut", size, left, r) for size in PITCH for left in (False, True)])
+             for r in sorted(VOID_RADII, reverse=True)]
+    group_d = [(r, [_root_label(kind, size, left, r)
+                    for size in PITCH for left in (False, True) for kind in CELL_KINDS])
+               for r in ROOT_RADII]
+    return [*voids, *group_d]
 
 
-def decide_walls(walls_readings: Iterable[Reading],
-                 down_readings: Iterable[Reading] = ()) -> Decision:
+def decide_walls(walls_readings: Iterable[Reading], down_readings: Iterable[Reading] = (),
+                 voids_readings: Iterable[Reading] = ()) -> Decision:
     """R7 to R10 before the confirm: T, each field's decade and tested value, V (or "above 0")
     for the tail and the root, each with the labels it rests on. A reading that a rule needs and
-    that is missing, or that is cost where a wall is needed, is a `ProtocolStop`."""
+    that is missing, or that is cost where a wall is needed, is a `ProtocolStop`. R10 reads
+    group (d) and the void walk as one walk, so a label in both is a stop."""
     walls = _index(walls_readings, "R7")
     down = _index(down_readings, "R7")
+    roots = _index([*walls.values(), *voids_readings], "R10")
     t, first_ok, turn_labels = _decide_turns(walls, down)
     ceilings = _decide_ceilings(walls)
     decades = [c.decade for c in ceilings.values()]
     shared = max(sorted(set(decades)), key=decades.count)  # a tie goes to the lower value
     return Decision(t, first_ok, turn_labels, ceilings, shared,
                     _decide_floor("R9", _tail_walk(), walls, 100),
-                    _decide_floor("R10", _root_walk(), walls, 10))
+                    _decide_floor("R10", _root_walk(), roots, 10))
 
 
 # --- R3: the walls confirm set -------------------------------------------------------------------
@@ -861,7 +901,7 @@ def _confirm_set(decision: Decision) -> _Set:
     exist (R3). Points past the turn cap and the field bound are the walls set's own lifted
     ones, copied verbatim with their `lift`; every other point is built by the walls' own
     constructors, so a cell is the same part in every set."""
-    source = {str(point["label"]): point for point in _walls_points()}
+    source = {str(point["label"]): point for point in [*_walls_points(), *void_walk_points()]}
     out = _Set("walls-confirm", reps=CONFIRM_REPS, shards=1, rule="07-SWEEP-PROTOCOL.md R3 (G1)",
                notes=[
                    "R7: all 60 cells at T and at T + 10 turns; R8: each field's bearing readings "
@@ -873,8 +913,8 @@ def _confirm_set(decision: Decision) -> _Set:
 
     def add(label: str) -> None:
         if label not in source:
-            raise ProtocolStop("R3", f"{label} is not a point of the walls set (the parameter "
-                                     "model refused it)")
+            raise ProtocolStop("R3", f"{label} is not a point of the walls set or the void walk "
+                                     "(the parameter model refused it)")
         if label not in seen:
             seen.add(label)
             out.copy(source[label])
@@ -922,11 +962,19 @@ def build_walk_down(walls_dir: str, explore_dir: str) -> _Set | None:
     return out
 
 
-def build_confirm(walls_dir: str, down_dir: str | None, explore_dir: str) -> _Set:
-    decision = decide_walls(_read(walls_dir), _read(down_dir) if down_dir else ())
+def build_void_walk(explore_dir: str) -> _Set:
+    """The void walk, sharded by R6 from an explore run."""
+    out = _void_walk_set()
+    out.sharded(charge_table(_read(explore_dir)), [f"explore={explore_dir}"])
+    return out
+
+
+def build_confirm(walls_dir: str, down_dir: str | None, voids_dir: str, explore_dir: str) -> _Set:
+    decision = decide_walls(_read(walls_dir), _read(down_dir) if down_dir else (),
+                            _read(voids_dir))
     out = _confirm_set(decision)
     sources = [f"walls={walls_dir}", *([f"walls-down={down_dir}"] if down_dir else []),
-               f"explore={explore_dir}"]
+               f"walls-voids={voids_dir}", f"explore={explore_dir}"]
     out.sharded(charge_table(_read(explore_dir)), sources)
     return out
 
@@ -935,12 +983,18 @@ def _regenerate(path: Path) -> str:
     """The text a derived point file would have if written again from its own `sources`."""
     raw = json.loads(path.read_text())
     sources = dict(str(entry).split("=", 1) for entry in raw.get("sources", []))
-    if "walls" not in sources or "explore" not in sources:
-        raise ValueError("it names no walls and explore sources")
+    needs = {"walls-down": ("walls", "explore"), "walls-voids": ("explore",),
+             "walls-confirm": ("walls", "walls-voids", "explore")}[path.stem]
+    missing = [name for name in needs if name not in sources]
+    if missing:
+        raise ValueError(f"it names no {' and '.join(missing)} source")
     if path.stem == "walls-down":
         out = build_walk_down(sources["walls"], sources["explore"])
+    elif path.stem == "walls-voids":
+        out = build_void_walk(sources["explore"])
     else:
-        out = build_confirm(sources["walls"], sources.get("walls-down"), sources["explore"])
+        out = build_confirm(sources["walls"], sources.get("walls-down"), sources["walls-voids"],
+                            sources["explore"])
     if out is None:
         raise ValueError("its sources need no such set")
     return out.text()
@@ -988,6 +1042,7 @@ def _run(args: argparse.Namespace) -> int:
     walls_dir = _relative(args.walls) if hasattr(args, "walls") else ""
     explore_dir = _relative(args.explore) if hasattr(args, "explore") else ""
     down_dir = _relative(args.down) if getattr(args, "down", None) else None
+    voids_dir = _relative(args.voids) if getattr(args, "voids", None) else ""
     if args.command == "margin":
         spread_set = spread()
         expected = {(str(p["label"]), str(p["artifact"])) for p in spread_set.points}
@@ -1001,10 +1056,15 @@ def _run(args: argparse.Namespace) -> int:
             return 0
         Path(args.out).write_text(down.text())
         print(f"{len(down.points)} points in shards of {down.shard_sizes}")
+    elif args.command == "void-walk":
+        voids = build_void_walk(explore_dir)
+        Path(args.out).write_text(voids.text())
+        print(f"{len(voids.points)} points in shards of {voids.shard_sizes}")
     elif args.command == "decide-walls":
-        _print_decision(decide_walls(_read(walls_dir), _read(down_dir) if down_dir else ()))
+        _print_decision(decide_walls(_read(walls_dir), _read(down_dir) if down_dir else (),
+                                     _read(voids_dir)))
     else:
-        confirm = build_confirm(walls_dir, down_dir, explore_dir)
+        confirm = build_confirm(walls_dir, down_dir, voids_dir, explore_dir)
         Path(args.out).write_text(confirm.text())
         print(f"{len(confirm.points)} points in shards of {confirm.shard_sizes}")
     return 0
@@ -1018,6 +1078,9 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("margin", help="R5 over a spread run").add_argument("--spread", required=True)
     sub.add_parser("charges", help="R6 charges over an explore run").add_argument(
         "--explore", required=True)
+    void_walk = sub.add_parser("void-walk", help="write the R10 void walk")
+    void_walk.add_argument("--explore", required=True)
+    void_walk.add_argument("--out", required=True)
     for name, helptext in (("walk-down", "write the R7 walk-down set"),
                            ("decide-walls", "R7 to R10 before the confirm"),
                            ("confirm", "write the walls confirm set")):
@@ -1025,6 +1088,7 @@ def main(argv: list[str] | None = None) -> int:
         command.add_argument("--walls", required=True)
         if name != "walk-down":
             command.add_argument("--down")
+            command.add_argument("--voids", required=True)
         if name != "decide-walls":
             command.add_argument("--explore", required=True)
             command.add_argument("--out", required=True)
