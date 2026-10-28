@@ -21,7 +21,7 @@ ARTIFACTS: Final[tuple[Artifact, ...]] = get_args(Artifact)
 # not a measurement of screw: M6 x 20 builds in 0.09 s (planner probe 2026-10-10), while an
 # in-cap off-row part can need minutes (03-RESEARCH Pitfall 5: d=100, pitch=5, length=1250,
 # fine STL 152.6 s and 7875 MiB peak RSS, single run, macOS arm64, not a bound). So these are
-# the backstop below the 250-turn cap (D-01, D-18), not a figure for the threads.
+# the backstop below the turn cap (D-01, D-18; `MAX_TURNS`), not a figure for the threads.
 #
 # Code constants with no environment override (D-16): a deployer on slower hardware re-sweeps
 # and a superseding log entry records the new figure, so the number in force always cites the

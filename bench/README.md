@@ -14,7 +14,7 @@ turns a measurement into a limit.
 - **`bench.build_time`** (`make bench.build`) -- build, fine-STL and STEP time per corpus part,
   in-process through `screw.solid`'s public surface, against `SCREW_BUILD_TIMEOUT`. Also the
   fine STL's byte and triangle counts.
-- **`bench.export_cost`** (`make bench.export SET="d=100 length=200"`) -- spur L19's gzip level
+- **`bench.export_cost`** (`make bench.export SET="d=100 length=90"`) -- spur L19's gzip level
   table with its selection rule, and L24's mesh-copy cost, for one part.
 - **`bench.latency`** (`make bench.latency`) -- does `/api/health` stay responsive while a
   build is in flight? `single` is one fine build of the heaviest corpus part; `concurrent` is
@@ -56,7 +56,7 @@ the hardware and the weather behind it.
 
 ```
 make bench.build                          # in-process, 12 corpus parts
-make bench.export SET="d=100 length=200"  # gzip table and mesh-copy cost for one part
+make bench.export SET="d=100 length=90"  # gzip table and mesh-copy cost for one part
 
 make serve                                # in one terminal, a fresh server
 make bench.latency                        # in another -- both load scenarios

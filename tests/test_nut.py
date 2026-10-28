@@ -46,7 +46,7 @@ from screw.calc.thread import (
     thread_depth,
     volume_check,
 )
-from screw.params import BoltParams, NutParams
+from screw.params import MAX_NUT_CLEARANCE_MM, BoltParams, NutParams
 from screw.solid import build, clear_cache, export, nut, precise_volume
 from screw.tables.presets import nut_catalogue
 
@@ -102,7 +102,7 @@ def test_the_nuts_precise_volume_is_inside_the_gate_of_its_closed_form(left_hand
 
 @pytest.mark.parametrize("clearance", [0.0, -0.05])
 def test_a_nominal_and_an_interference_nut_build(clearance: float) -> None:
-    # D-04: any finite clearance up to the interim bound is a part, not a 422.
+    # D-04: any finite clearance up to the wall is a part, not a 422.
     p = NutParams(clearance=clearance)
     shape = build(p)
     assert len(shape.Solids()) == 1
@@ -274,7 +274,7 @@ def test_a_clearance_the_model_cannot_take_is_refused_naming_clearance(raw: str,
 @pytest.mark.parametrize("raw", ["0", "-0.05", "0.1", "1.9"])
 def test_a_clearance_the_model_takes_is_a_200(raw: str) -> None:
     # The positive control of the refusals above: 0 and an interference are legal (D-04). The
-    # interim ceiling 100000 passes the field and is refused by the thin-nut rule (D-13, below):
+    # clearance wall 496.999 passes the field and is refused by the thin-nut rule (D-13, below):
     # with the default s of 10 the void is wider than the flats from c = 2 up.
     res = client.get("/api/nut/info", params={"clearance": raw})
     assert res.status_code == 200, (raw, res.text)
@@ -397,15 +397,15 @@ def test_a_nut_whose_flats_are_no_wider_than_its_void_is_refused_naming_three_fi
     assert msg.startswith("s, d and clearance: ")
     assert "wider than the flats" in msg
     assert NutParams(s=math.nextafter(d + 2 * c, math.inf), clearance=c).clearance == c
-    # The interim ceiling passes the clearance field and is refused here, not as less_than_equal.
-    assert _refusal(clearance=1e5)["type"] == "nut_too_thin"
+    # The clearance wall passes the field and is refused here, not as less_than_equal.
+    assert _refusal(clearance=MAX_NUT_CLEARANCE_MM)["type"] == "nut_too_thin"
     # A negative clearance shrinks the void: the same s that is thin at c = 0.1 is fine at -0.1.
     assert NutParams(s=6.1, clearance=-0.1).s == 6.1
 
 
 def test_the_turn_cap_judges_the_void_the_builder_makes() -> None:
-    # m + 2 pitch is what `solid/nut.py` sweeps: 248 pitches of m make exactly 250 turns.
-    for pitch, m in ((1.0, 248.0), (0.5, 124.0), (0.7, 173.6)):
+    # m + 2 pitch is what `solid/nut.py` sweeps: 88 pitches of m make exactly 90 turns.
+    for pitch, m in ((1.0, 88.0), (0.5, 44.0), (0.7, 61.6)):
         assert NutParams(pitch=pitch, m=m, clearance=0.1).m == m, (pitch, m)
         err = _refusal(pitch=pitch, m=math.nextafter(m, math.inf), clearance=0.1)
         assert err["type"] == "turn_cap"

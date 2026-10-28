@@ -166,7 +166,7 @@ def test_a_head_value_that_is_text_exits_2_naming_the_flag(
     (["export", "bolt", "-o", "unused.stl", "--s", "5"], "error: s and d: "),
     # length / pitch is past the float range: exit 2, not the OverflowError traceback (CR-01)
     (["info", "bolt", "--pitch", "5e-324"], "error: thread_length, length and pitch: inf turns"),
-    (["info", "bolt", "--pitch", "1e-310", "--length", "1e5"],
+    (["info", "bolt", "--pitch", "1e-310", "--length", "1e4"],
      "error: thread_length, length and pitch: inf turns"),
     (["export", "bolt", "-o", "unused.stl", "--pitch", "1e300"], "error: d and pitch:"),
 ])

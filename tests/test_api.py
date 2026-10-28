@@ -38,7 +38,7 @@ from screw.calc.thread import (
     head_chamfer_depths,
     head_chamfer_warnings,
 )
-from screw.params import DEFAULT_KIND, INTERIM_MAX_MM, KINDS, BoltParams, FastenerParams
+from screw.params import DEFAULT_KIND, KINDS, BoltParams, FastenerParams
 from screw.solid import Format, Quality, export, precise_volume
 from screw.tables.presets import catalogue
 
@@ -446,75 +446,79 @@ def test_quality_is_a_foreign_field_on_the_info_route() -> None:
     assert detail["loc"] == ["query", "quality"]
 
 
-def test_the_interim_bound_is_inclusive_and_the_next_value_is_refused() -> None:
-    # The number D-14 pinned. Phase 7 replaces it from the sweep and edits this line on
-    # purpose: the bound is a contract, not an accident of whichever constant is imported.
-    assert INTERIM_MAX_MM == 100000.0
-    bound = INTERIM_MAX_MM
-    just_over = math.nextafter(bound, math.inf)
-    assert just_over > bound
+# The walls of L20 (typed from the records: tests/test_oper_followup.py recomputes them): the field,
+# the value at the wall, and the other fields that make that corner a valid part.
+WALLS: list[tuple[str, str, float, Params]] = [
+    ("bolt", "d", 999.999, {"s": 1000.0}),
+    ("bolt", "length", 1e4, {}),
+    ("bolt", "s", 1000.0, {}),
+    ("bolt", "k", 1e5, {}),
+    ("bolt", "thread_length", 1e5, {}),
+    ("nut", "s", 1000.0, {}),
+    ("nut", "m", 1e4, {"d": 200.0, "pitch": 114.0, "s": 300.0}),
+    ("nut", "clearance", 496.999, {"s": 1000.0}),
+]
 
+
+@pytest.mark.parametrize(("kind", "field", "bound", "extra"), WALLS)
+def test_each_field_wall_is_inclusive_and_the_next_float_is_a_422_naming_the_field(
+        kind: str, field: str, bound: float, extra: Params) -> None:
+    assert client.get(f"/api/{kind}/info", params={**extra, field: bound}).status_code == 200
+    refused = client.get(f"/api/{kind}/info",
+                         params={**extra, field: math.nextafter(bound, math.inf)})
+    assert refused.status_code == 422
+    [detail] = refused.json()["detail"]
+    assert detail["loc"] == ["query", field]
+    assert detail["type"] == "less_than_equal"
+
+
+def test_the_nut_d_has_no_wall_of_its_own_and_stays_under_the_shared_one() -> None:
+    # G27: nut d is bounded by MAX_FIELD_MM (1e3) and by the cost model, not by a measured wall.
+    assert client.get("/api/nut/info", params={"d": 999.699, "s": 1000.0}).status_code == 200
+    refused = client.get("/api/nut/info", params={"d": math.nextafter(1000.0, math.inf)})
+    assert refused.status_code == 422
+    assert refused.json()["detail"][0]["loc"] == ["query", "d"]
+
+
+def test_a_part_at_the_walls_is_served_by_the_model_route_and_one_past_is_not() -> None:
     seen: list[FastenerParams] = []
 
     async def stub(p: FastenerParams, fmt: str, quality: str) -> bytes:
-        # A thread at d=1e5 does not mesh in 120 s (planner probe 2026-10-10), so the model
-        # route is exercised with a backend that records what it was asked for and returns
-        # the default part's preview.
+        # The model route is exercised with a backend that records what it was asked for and
+        # returns the default part's preview: these parts are walls, not meshes to build.
         seen.append(p)
         return export(BoltParams(), "stl", "preview")
 
-    # A length at the bound is 250 turns only at a coarse pitch (D-01); d = 1000 keeps its root
-    # radius above 0 there (research built d=1e5, pitch=400 at 1e5 mm in 1.74 s) and a head
-    # wider than d keeps head_too_small quiet (D-23).
-    at_bound: Params = {"pitch": 400.0, "d": 1000.0, "s": 1500.0, "k": 600.0, "length": bound}
-    assert client.get("/api/bolt/info", params=at_bound).status_code == 200
+    at_wall: Params = {"length": 1e4, "s": 1000.0, "d": 999.999, "k": 1e5}
     with _backend(stub):
-        r = client.get("/api/bolt/model.stl", params={**at_bound, "quality": "preview"})
+        r = client.get("/api/bolt/model.stl", params={**at_wall, "quality": "preview"})
     assert r.status_code == 200
-    assert len(r.content) > 84
     assert isinstance(seen[-1], BoltParams)
-    assert seen[-1].length == bound
-    over: Params = {**at_bound, "length": just_over}
+    assert (seen[-1].length, seen[-1].s, seen[-1].d, seen[-1].k) == (1e4, 1000.0, 999.999, 1e5)
+    over: Params = {**at_wall, "length": math.nextafter(1e4, math.inf)}
     for route in ("/api/bolt/info", "/api/bolt/model.stl"):
-        refused = client.get(route, params=over)
+        refused = client.get(route, params={**over, "quality": "preview"}
+                             if route.endswith(".stl") else over)
         assert refused.status_code == 422
         assert refused.json()["detail"][0]["loc"] == ["query", "length"]
 
-    # thread_length shares the bound (D-23): a 250-turn thread of 1e5 mm is served, one float
-    # above names the field. `length` is left out of the refused request: an explicit length at
-    # the bound with a thread_length past it is also the D-25 conflict, which is checked first.
-    thread_at_bound: Params = {**at_bound, "thread_length": bound}
-    assert client.get("/api/bolt/info", params=thread_at_bound).status_code == 200
-    no_length: Params = {k: v for k, v in thread_at_bound.items() if k != "length"}
+
+def test_a_bolt_at_the_d_wall_with_a_default_head_is_head_too_small() -> None:
+    # s is bounded by 1e3, which is above the d wall, so the head must be wider than the shank
+    # (D-23); the 422 names both fields and does not hide behind the field wall.
     for route in ("/api/bolt/info", "/api/bolt/model.stl"):
-        refused = client.get(route, params={**no_length, "thread_length": just_over})
-        assert refused.status_code == 422
-        assert refused.json()["detail"][0]["loc"] == ["query", "thread_length"]
+        query: Params = {"d": 999.999}
+        refused = client.get(route, params={**query, "quality": "preview"}
+                             if route.endswith(".stl") else query)
+        assert refused.status_code == 422, route
+        detail = refused.json()["detail"][0]
+        assert detail["type"] == "head_too_small"
+        assert detail["ctx"]["fields"] == ["s", "d"]
+        assert detail["msg"].startswith("s and d: ")
 
-    # d at the bound is refused outright: s cannot exceed the same bound, so no head is wider
-    # than d there (D-23). One float above is the bound itself, named on the field.
-    for route in ("/api/bolt/info", "/api/bolt/model.stl"):
-        for query in ({"d": bound}, {"d": bound, "length": 1e-7}):
-            refused = client.get(route, params={**query, "quality": "preview"}
-                                 if route.endswith(".stl") else query)
-            assert refused.status_code == 422, (route, query)
-            detail = refused.json()["detail"][0]
-            assert detail["type"] == "head_too_small"
-            assert detail["loc"] == ["query"]
-            assert detail["ctx"]["fields"] == ["s", "d"]
-            assert detail["msg"].startswith("s and d: ")
-        over_d = client.get(route, params={"d": just_over})
-        assert over_d.status_code == 422
-        assert over_d.json()["detail"][0]["loc"] == ["query", "d"]
 
-    # s and k at the bound are served; one float above names the field.
-    for field in ("s", "k"):
-        assert client.get("/api/bolt/info", params={field: bound}).status_code == 200
-        over_head = client.get("/api/bolt/info", params={field: just_over})
-        assert over_head.status_code == 422
-        assert over_head.json()["detail"][0]["loc"] == ["query", field]
-
-    # 1e200 overflows a float on the way to a volume (F2); the bound refuses it first.
+def test_a_huge_d_is_refused_before_it_overflows_a_volume() -> None:
+    # 1e200 overflows a float on the way to a volume (F2); the wall refuses it first.
     huge = client.get("/api/bolt/info", params={"d": 1e200})
     assert huge.status_code == 422
     assert huge.json()["detail"][0]["loc"] == ["query", "d"]
@@ -528,7 +532,7 @@ def test_the_interim_bound_is_inclusive_and_the_next_value_is_refused() -> None:
     ({"length": 300, "thread_length": 300}, "turn_cap", ["thread_length", "length", "pitch"]),
     # length / pitch is past the float range: a 422, not the 500 an OverflowError gave (CR-01)
     ({"pitch": 5e-324}, "turn_cap", ["thread_length", "length", "pitch"]),
-    ({"pitch": 1e-310, "length": 1e5}, "turn_cap", ["thread_length", "length", "pitch"]),
+    ({"pitch": 1e-310, "length": 1e4}, "turn_cap", ["thread_length", "length", "pitch"]),
 ])
 def test_a_thread_that_cannot_be_made_or_was_never_measured_is_a_422_naming_both_fields(
         route: str, query: Params, kind: str, fields: list[str]) -> None:
@@ -1501,14 +1505,14 @@ def test_an_explicit_head_chamfer_exactly_at_half_k_builds_uncapped_and_one_floa
 def test_a_length_below_the_floor_is_a_warned_info_document_and_a_422_build_error() -> None:
     # IN-01: the info document and the build agree on what is a part. The info document says so
     # with a warning and no turns or volume; the build names thread_length and length.
-    info = client.get("/api/bolt/info", params={"length": 0.0005})
+    info = client.get("/api/bolt/info", params={"length": 0.00005})
     assert info.status_code == 200
     body = info.json()
-    assert any(w.startswith("thread_length and length: a thread of 0.0005 mm is shorter")
+    assert any(w.startswith("thread_length and length: a thread of 5e-05 mm is shorter")
                for w in body["warnings"])
     assert {"turns", "volume"}.isdisjoint(row["key"] for row in body["rows"])
 
-    r = client.get("/api/bolt/model.stl", params={"length": 0.0005, "quality": "preview"})
+    r = client.get("/api/bolt/model.stl", params={"length": 0.00005, "quality": "preview"})
     assert r.status_code == 422
     detail = r.json()["detail"][0]
     assert detail["type"] == "build_error"

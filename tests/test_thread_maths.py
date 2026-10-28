@@ -45,7 +45,6 @@ from screw.calc.thread import (
     void_root_radius_refusal,
     volume_check,
 )
-from screw.params import INTERIM_MAX_MM
 from screw.solid import TESSELLATION
 
 
@@ -238,44 +237,48 @@ def test_a_root_radius_of_exactly_zero_is_refused() -> None:
     assert root_radius_refusal(2 * thread_depth(pitch), pitch) is not None
 
 
-def test_the_turn_cap_is_250_and_the_cap_row_is_accepted() -> None:
-    assert MAX_TURNS == 250
-    assert turn_cap_refusal(250.0, 1.0) is None
+def test_the_turn_cap_is_90_and_the_cap_row_is_accepted() -> None:
+    # Typed, not read back: T = 90 from walls run 40646134133, the walk-down run 40652801529 and
+    # the confirm run 40678150220 (tests/test_oper_followup.py recomputes it from the records).
+    assert MAX_TURNS == 90
+    assert turn_cap_refusal(90.0, 1.0) is None
 
 
-def test_one_ulp_past_250_turns_is_refused_naming_both_fields_and_the_run() -> None:
-    refusal = turn_cap_refusal(math.nextafter(250.0, math.inf), 1.0)
+def test_one_ulp_past_90_turns_is_refused_naming_both_fields_and_the_runs() -> None:
+    refusal = turn_cap_refusal(math.nextafter(90.0, math.inf), 1.0)
     assert refusal is not None
     assert refusal.startswith("thread_length, length and pitch: ")
-    assert "turns of built thread is past the 250-turn cap" in refusal
-    assert "250" in refusal
-    assert "2026-10-08-a-frontier" in refusal
+    assert "turns of built thread is past the 90-turn cap" in refusal
+    assert "linux/amd64" in refusal
+    for run in ("40646134133", "40652801529", "40678150220"):
+        assert run in refusal
+    assert "2026-10-08-a-frontier" not in refusal
     assert "{" not in refusal
     assert "}" not in refusal
 
 
 def test_turns_past_the_float_range_read_as_infinite_and_are_refused_in_words() -> None:
     # float(Fraction) raises OverflowError above about 1.8e308; the quotient has no finite
-    # reading, and "inf turns of built thread is past the 250-turn cap" is true.
+    # reading, and "inf turns of built thread is past the 90-turn cap" is true.
     assert turns_of(1e5, 1e-310) == math.inf
     assert turns_of(20.0, 5e-324) == math.inf
     refusal = turn_cap_refusal(20.0, 5e-324)
     assert refusal is not None
-    assert "inf turns of built thread is past the 250-turn cap" in refusal
+    assert "inf turns of built thread is past the 90-turn cap" in refusal
 
 
 @pytest.mark.parametrize("size", list(PITCH))
-def test_every_measured_250_turn_row_is_accepted(size: str) -> None:
+def test_every_size_is_accepted_at_the_cap(size: str) -> None:
     _, pitch = PITCH[size]
-    assert turn_cap_refusal(float(250 * pitch), float(pitch)) is None
+    assert turn_cap_refusal(float(MAX_TURNS * pitch), float(pitch)) is None
 
 
 def test_the_exact_decimal_reading_accepts_what_float_division_would_refuse() -> None:
-    # Pitfall 2: 175 / 0.7 is a float above 250 although the user typed exactly 250 turns,
-    # and the exact binary value of 0.6 would refuse M3.5 at 150 mm.
-    assert 175.0 / 0.7 > 250
-    assert turns_of(175.0, 0.7) == 250.0
-    assert turn_cap_refusal(175.0, 0.7) is None
+    # Pitfall 2: 2.7 / 0.03 is a float above 90 although the user typed exactly 90 turns,
+    # and the exact binary value of 0.6 would refuse M3.5 at 54 mm.
+    assert 2.7 / 0.03 > 90
+    assert turns_of(2.7, 0.03) == 90.0
+    assert turn_cap_refusal(2.7, 0.03) is None
     assert 5.4 / 0.6 != 9.0
     assert turns_of(5.4, 0.6) == 9.0
 
@@ -378,16 +381,19 @@ def test_an_off_row_part_has_no_bytes_cap_not_the_nearest_rows() -> None:
     (20.0, 10.0, 10.0),            # the default 20 below an explicit length: built to the length
     (18.0, 30.0, 18.0),            # a shank of 12 mm
     (30.0, 30.0, 30.0),            # no shank
-    (19.9995, 20.0, 20.0),         # a 0.0005 mm shank is folded into the thread (D-27)
-    (19.999, 20.0, 19.999),        # a 0.001 mm shank is kept: the fold is strictly below the floor
+    (4.99995, 5.0, 5.0),           # a 0.00005 mm shank is folded into the thread (D-27)
+    (4.9998, 5.0, 4.9998),         # a 0.0002 mm shank is kept: the fold is strictly below the floor
+    (19.999, 20.0, 19.999),        # a 0.001 mm shank was folded before L20 and is kept now
 ])
 def test_the_built_thread_is_the_thread_length_capped_at_the_length_and_a_sliver_is_folded(
         thread_length: float, length: float, built: float) -> None:
     assert built_thread_length(thread_length, length) == built
 
 
-def test_the_shank_floor_is_a_thousandth_of_a_millimetre() -> None:
-    assert MIN_TAIL_MM == 1e-3
+def test_the_shank_floor_is_a_ten_thousandth_of_a_millimetre() -> None:
+    # Typed, not read back: 1e-4 mm, 100 x the largest failing tail (1e-6 mm) of walls run
+    # 40646134133 (R9), confirmed in 5 repetitions at 1e-4 and 1e-5 mm by run 40678150220.
+    assert MIN_TAIL_MM == 1e-4
 
 
 def test_a_hex_prism_is_the_hexagon_area_times_the_height() -> None:
@@ -634,7 +640,7 @@ def test_nut_fine_stl_every_cap_is_recomputed_from_the_committed_records(run_id:
     assert (header["kind"], end["kind"]) == ("header", "end")
     assert header["run_id"] == run_id
     assert header["clearance_mm"] == NUT_FINE_STL_CLEARANCE
-    assert header["s_mm"] == 1e5 == INTERIM_MAX_MM
+    assert header["s_mm"] == 1e5    # the s the run was made at, above the 1e3 wall of L20
     assert header["budget_bytes"] == EXPORT_BUDGET
     # a preset change fails here until the caps are re-measured (T-05-50)
     assert header["preset"] == list(TESSELLATION["fine"])

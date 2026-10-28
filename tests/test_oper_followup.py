@@ -958,3 +958,28 @@ def test_derive_walls_exits_3_on_a_stop_and_on_an_above_zero_tail(
     assert oper_sets.main(["derive-walls", "--walls", str(repo / "w"),
                            "--confirm", str(repo / "c-bad")]) == 3
     assert "oper_sets: stop (R7):" in capsys.readouterr().err
+
+
+def test_the_source_constants_equal_what_derive_walls_gives_for_the_records() -> None:
+    """No wall in the code can drift from its evidence (07 D-08, D-18, T-07-19)."""
+    from screw import params
+    from screw.calc import thread
+
+    result = _committed()
+    assert result.max_turns == thread.MAX_TURNS
+    assert result.tail.v == thread.MIN_TAIL_MM
+    assert result.root.v == thread.MIN_ROOT_RADIUS_MM
+    assert result.max_field_mm == params.MAX_FIELD_MM
+    for name, value in result.constants.items():
+        assert getattr(params, name) == value, name
+    # every per-field constant in the source is one derive_walls printed, and the nut d has none
+    declared = {name for name in vars(params) if re.fullmatch(r"[A-Z_]*MAX_[A-Z_]*MM", name)}
+    assert declared == {"MAX_FIELD_MM", *result.constants}
+    assert "MAX_NUT_D_MM" not in declared
+    # a field with a wall of its own carries it, one without carries the shared one
+    for (kind, field), ceiling in result.ceilings.items():
+        model = params.KINDS[kind]
+        [le] = [m.le for m in model.model_fields[field].metadata if hasattr(m, "le")]
+        assert le == ceiling.value
+    [nut_d] = [m.le for m in params.NutParams.model_fields["d"].metadata if hasattr(m, "le")]
+    assert nut_d == params.MAX_FIELD_MM

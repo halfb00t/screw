@@ -26,7 +26,6 @@ Severity (grep-able `Severity:` field):
 | must | [The ISO standards Phase 5 reads are not purchased: rows come from free GOST texts of older editions](active/2026-10-20-iso-standards-not-purchased.md) | before the first release (after Phase 7), or any public release that claims ISO conformance |
 | nice | [The tip cut fails in the sliver of thread_length just above the cone's axial length](active/2026-10-20-tip-cone-degenerate-boolean-at-the-cone-length.md) | revisit if a real size meets the window, or when the tip length is next changed |
 | must | [The pair tier has not run on ubuntu: pair.yml can be dispatched only once it is on main](active/2026-10-14-first-pair-yml-dispatch.md) | the Phase 5 PR's merge to `main` |
-| must | [The nut's lead-in countersink piece gate refuses a valid nut at huge s and small clearance](active/2026-10-21-nut-lead-in-gate-refuses-a-valid-nut-at-huge-s.md) | before the nut's s ceiling is relied on, or the Phase 7 operability re-sweep (OPER-02) |
 | must | [The nut's size ceilings are interim; its fine-STL caps are measured on macOS arm64 only](active/2026-10-14-nut-interim-bounds.md) | Phase 7 operability re-sweep (OPER-02, OPER-03) |
 | must | [A valid in-cap request (d=100, length=200, default pitch) exceeds both interim backstops and is unrecorded](active/2026-10-11-default-pitch-d100-length200-exceeds-both-interim-backstops.md) | owner severity ruling; measure at the 30 s kill point |
 | nice | [The M18 probe's --one entry has no deadline when started by hand during a run](active/2026-10-14-m18-probe-one-entry-has-no-deadline-during-a-run.md) | the probe is reused, or the owner wants the entry closed completely |
@@ -41,6 +40,7 @@ Severity (grep-able `Severity:` field):
 
 | Item | Resolved in |
 |---|---|
+| [The nut's lead-in countersink piece gate refuses a valid nut at huge s and small clearance](resolved/2026-10-21-nut-lead-in-gate-refuses-a-valid-nut-at-huge-s.md) | this commit — feat(calc): re-measured MAX_TURNS, MIN_TAIL_MM and field ceilings as cited kernel walls (07 D-08) |
 | [Root radii down to about 3e-5 mm pass validation and then fail in the kernel with a generic message](resolved/2026-10-11-root-radius-floor-is-not-the-kernel-boundary.md) | this commit — feat(calc): refuse a root radius below the measured kernel floor (07 D-18) |
 | [The info document prints a whole head chamfer for a tiny angle the kernel refuses](resolved/2026-10-24-info-document-cannot-see-a-kernel-refused-head-chamfer.md) | this commit — fix(06.1): warn below the measured limit of the head chamfer instead of printing its rows |
 | [The nut has no fine-STL cap: its caps need their own measurement run](resolved/2026-10-14-nut-fine-stl-caps-unmeasured.md) | this commit — fix(05-19): refuse a nut's fine STL past its measured cap (plan 05-19) |

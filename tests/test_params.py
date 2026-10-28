@@ -10,9 +10,24 @@ import math
 import re
 
 import pytest
+from annotated_types import Le
 from pydantic import ValidationError
 
-from screw.params import DEFAULT_KIND, INTERIM_MAX_MM, KINDS, BoltParams, FastenerParams, NutParams
+from screw import params as params_module
+from screw.params import (
+    DEFAULT_KIND,
+    KINDS,
+    MAX_BOLT_D_MM,
+    MAX_BOLT_K_MM,
+    MAX_BOLT_LENGTH_MM,
+    MAX_BOLT_THREAD_LENGTH_MM,
+    MAX_FIELD_MM,
+    MAX_NUT_CLEARANCE_MM,
+    MAX_NUT_M_MM,
+    BoltParams,
+    FastenerParams,
+    NutParams,
+)
 from screw.tables import iso4032
 from screw.tables.presets import expand
 
@@ -117,41 +132,92 @@ def test_a_foreign_field_is_refused_as_extra_forbidden_naming_it() -> None:
     assert err["loc"] == ("m",)
 
 
-@pytest.mark.parametrize(("field", "extra"), [
-    # d at the bound needs s above it, which s's own bound forbids: the whole value is refused by
-    # head_too_small, so d is tested at the bound below.
-    # 250 turns at pitch 400, root radius above 0 at d = 1000, a head wider than d (D-23): the
-    # corner the bound admits (research built d=1e5, pitch=400 at 1e5 mm in 1.74 s).
-    ("length", {"pitch": 400.0, "d": 1000.0, "s": 1500.0, "k": 600.0}),
-    ("s", {}),
-    ("k", {}),
-    # 250 turns at pitch 400 needs the thread as long as the length (D-22, D-23).
-    ("thread_length", {"pitch": 400.0, "d": 1000.0, "s": 1500.0, "k": 600.0, "length": 1e5}),
-])
-def test_length_s_k_and_thread_length_are_accepted_at_the_interim_bound_and_refused_above_it(
-        field: str, extra: dict[str, float]) -> None:
-    assert INTERIM_MAX_MM == 1e5
-    assert getattr(BoltParams.model_validate({**extra, field: 1e5}), field) == 1e5
+# The walls of L20, typed here and not read back: the values the committed records give through
+# `bench.oper_sets.derive_walls` (tests/test_oper_followup.py recomputes every one of them).
+# (kind, field) -> (the value at the wall, the other fields that make the corner a valid part).
+CEILINGS = {
+    ("bolt", "d"): (999.999, {"s": 1000.0}),
+    ("bolt", "length"): (1e4, {}),
+    ("bolt", "s"): (1000.0, {}),
+    ("bolt", "k"): (1e5, {}),
+    # the thread longer than the length is built to the length (D-25), so it is a pure field wall
+    ("bolt", "thread_length"): (1e5, {}),
+    ("nut", "s"): (1000.0, {}),
+    ("nut", "d"): (1000.0, {}),    # no wall of its own (G27): the shared MAX_FIELD_MM
+    # 89.7 turns of void at pitch 114: the corner the wall admits (D-01), a nut wider than its void
+    ("nut", "m"): (1e4, {"d": 200.0, "pitch": 114.0, "s": 300.0}),
+    ("nut", "clearance"): (496.999, {"s": 1000.0}),
+}
+
+
+def test_the_walls_are_the_values_the_records_gave() -> None:
+    assert MAX_FIELD_MM == 1000.0
+    assert MAX_BOLT_D_MM == 999.999
+    assert MAX_BOLT_LENGTH_MM == 1e4
+    assert MAX_BOLT_K_MM == 1e5
+    assert MAX_BOLT_THREAD_LENGTH_MM == 1e5
+    assert MAX_NUT_M_MM == 1e4
+    assert MAX_NUT_CLEARANCE_MM == 496.999
+    assert not hasattr(params_module, "MAX_NUT_D_MM")    # G27: nut d has no wall of its own
+
+
+@pytest.mark.parametrize(("kind", "field"), list(CEILINGS))
+def test_a_field_is_accepted_at_its_wall_and_the_next_float_names_the_field(
+        kind: str, field: str) -> None:
+    bound, extra = CEILINGS[(kind, field)]
+    model = KINDS[kind]
+    if (kind, field) == ("nut", "d"):
+        # s must exceed d + 2 c, so the d that can be a nut is 999.699 at s 1e3 (the tested
+        # value); the wall is the field's `le`, checked on the next float.
+        assert model.model_validate({"d": 999.699, "s": 1000.0}).d == 999.699
+    else:
+        assert getattr(model.model_validate({**extra, field: bound}), field) == bound
     with pytest.raises(ValidationError) as caught:
-        BoltParams.model_validate({**extra, field: math.nextafter(1e5, math.inf)})
+        model.model_validate({**extra, field: math.nextafter(bound, math.inf)})
     [err] = caught.value.errors()
     assert err["loc"] == (field,)
     assert err["type"] == "less_than_equal"
+    assert err["ctx"]["le"] == bound
 
 
-def test_d_at_the_interim_bound_is_head_too_small_and_the_next_float_names_d() -> None:
-    # s cannot exceed INTERIM_MAX_MM, so d = INTERIM_MAX_MM can never have a head wider than it
-    # (D-23); one float above is the bound itself, caught on the field before any model rule.
+def test_each_kind_carries_its_own_d_wall_and_the_base_the_shared_one() -> None:
+    def wall(model: type[FastenerParams], name: str) -> float:
+        [le] = [m.le for m in model.model_fields[name].metadata if isinstance(m, Le)]
+        assert isinstance(le, float)
+        return le
+
+    assert wall(FastenerParams, "d") == MAX_FIELD_MM
+    assert wall(BoltParams, "d") == MAX_BOLT_D_MM
+    assert wall(NutParams, "d") == MAX_FIELD_MM
+    # one definition of the field: only the wall differs between the kinds
+    assert BoltParams.model_fields["d"].default == NutParams.model_fields["d"].default == 6.0
+    assert (BoltParams.model_fields["d"].json_schema_extra
+            == NutParams.model_fields["d"].json_schema_extra)
+    assert BoltParams.model_fields["d"].title == NutParams.model_fields["d"].title
+    assert list(BoltParams.model_fields)[:4] == ["d", "pitch", "left_hand", "length"]    # the slug
+
+
+def test_a_bolt_d_at_its_wall_needs_a_head_wider_than_it() -> None:
+    # s is bounded by MAX_FIELD_MM, which is above the d wall, so a head one wider than the
+    # shank is the only head there is (D-23).
     with pytest.raises(ValidationError) as caught:
-        BoltParams.model_validate({"d": 1e5, "s": 1e5})
+        BoltParams.model_validate({"d": MAX_BOLT_D_MM})
     [err] = caught.value.errors()
     assert err["type"] == "head_too_small"
-    assert err["loc"] == ()
     assert err["ctx"]["fields"] == ["s", "d"]
+    assert BoltParams.model_validate({"d": MAX_BOLT_D_MM, "s": MAX_FIELD_MM}).d == MAX_BOLT_D_MM
+
+
+def test_a_nut_at_the_clearance_wall_is_a_422_on_the_clearance_not_on_the_thin_nut_rule() -> None:
+    # nut_too_thin (s > d + 2 c) is a model rule and the field wall is the field's: the next float
+    # past the wall is caught on the field first (L02, a 422 naming `clearance`).
+    ok = NutParams.model_validate({"s": 1000.0, "clearance": MAX_NUT_CLEARANCE_MM})
+    assert ok.clearance == MAX_NUT_CLEARANCE_MM
     with pytest.raises(ValidationError) as caught:
-        BoltParams.model_validate({"d": math.nextafter(1e5, math.inf)})
+        NutParams.model_validate({"s": 1000.0,
+                                  "clearance": math.nextafter(MAX_NUT_CLEARANCE_MM, math.inf)})
     [err] = caught.value.errors()
-    assert (err["loc"], err["type"]) == (("d",), "less_than_equal")
+    assert err["loc"] == ("clearance",)
 
 
 def test_a_head_no_wider_than_the_shank_is_refused_naming_s_and_d() -> None:
@@ -182,11 +248,11 @@ def test_a_pitch_with_no_root_radius_is_refused_naming_d_and_pitch() -> None:
         assert err["msg"].startswith("d and pitch: ")
 
 
-def test_a_thread_past_250_turns_is_refused_naming_thread_length_length_and_pitch() -> None:
-    both = {"length": 250.0, "thread_length": 250.0}
-    assert BoltParams.model_validate(both).thread_length == 250.0
+def test_a_thread_past_90_turns_is_refused_naming_thread_length_length_and_pitch() -> None:
+    both = {"length": 90.0, "thread_length": 90.0}
+    assert BoltParams.model_validate(both).thread_length == 90.0
     with pytest.raises(ValidationError) as caught:
-        BoltParams.model_validate({"length": 250.5, "thread_length": 250.5})
+        BoltParams.model_validate({"length": 90.5, "thread_length": 90.5})
     [err] = caught.value.errors()
     assert err["type"] == "turn_cap"
     assert err["loc"] == ()
@@ -195,9 +261,9 @@ def test_a_thread_past_250_turns_is_refused_naming_thread_length_length_and_pitc
 
 
 def test_a_long_length_with_a_short_thread_is_accepted_the_cap_reads_the_built_thread() -> None:
-    # D-22: the 250-turn cap bounds the thread, the shank is one cylinder.
-    assert BoltParams.model_validate({"length": 1e5}).length == 1e5
-    assert BoltParams.model_validate({"length": 250.5}).length == 250.5
+    # D-22: the 90-turn cap bounds the thread, the shank is one cylinder.
+    assert BoltParams.model_validate({"length": MAX_BOLT_LENGTH_MM}).length == MAX_BOLT_LENGTH_MM
+    assert BoltParams.model_validate({"length": 90.5}).length == 90.5
 
 
 def test_a_thread_length_above_the_length_is_accepted_by_the_model() -> None:
@@ -207,7 +273,7 @@ def test_a_thread_length_above_the_length_is_accepted_by_the_model() -> None:
     assert (p.length, p.thread_length) == (10.0, 30.0)
 
 
-@pytest.mark.parametrize(("pitch", "length"), [(5e-324, 20.0), (1e-310, 1e5)])
+@pytest.mark.parametrize(("pitch", "length"), [(5e-324, 20.0), (1e-310, 1e4)])
 def test_a_pitch_past_the_float_range_of_turns_is_a_turn_cap_error_not_an_overflow(
         pitch: float, length: float) -> None:
     # length / pitch is above 1.8e308 here; float() of that quotient used to raise OverflowError,
@@ -218,13 +284,14 @@ def test_a_pitch_past_the_float_range_of_turns_is_a_turn_cap_error_not_an_overfl
     assert err["type"] == "turn_cap"
     assert err["ctx"]["fields"] == ["thread_length", "length", "pitch"]
     assert err["msg"].startswith(
-        "thread_length, length and pitch: inf turns of built thread is past the 250-turn cap")
+        "thread_length, length and pitch: inf turns of built thread is past the 90-turn cap")
 
 
-def test_the_measured_m4_250_turn_row_is_accepted() -> None:
-    # 175 / 0.7 is a float above 250; the user typed exactly 250 turns (Pitfall 2).
-    p = BoltParams.model_validate({"d": 4.0, "pitch": 0.7, "length": 175.0, "thread_length": 175.0})
-    assert (p.d, p.pitch, p.length, p.thread_length) == (4.0, 0.7, 175.0, 175.0)
+def test_the_exact_90_turn_row_is_accepted_though_float_division_reads_above_90() -> None:
+    # 2.7 / 0.03 is a float above 90; the user typed exactly 90 turns (Pitfall 2).
+    assert 2.7 / 0.03 > 90
+    p = BoltParams.model_validate({"d": 4.0, "pitch": 0.03, "length": 2.7, "thread_length": 2.7})
+    assert (p.d, p.pitch, p.length, p.thread_length) == (4.0, 0.03, 2.7, 2.7)
 
 
 def test_a_field_error_hides_the_model_rules_that_need_every_field() -> None:
@@ -328,9 +395,9 @@ def test_the_slug_tells_the_hands_apart() -> None:
 
 
 @pytest.mark.parametrize("values", [
-    {"d": 99999.0, "s": 1e5, "k": 1e5},
+    {"d": 999.0, "s": 1000.0, "k": 1e5},
     {"d": 0.03, "pitch": 0.005, "length": 0.05, "s": 0.04, "k": 0.01},
-    {"length": 1e5, "pitch": 400.0, "d": 1000.0, "s": 1500.0, "k": 600.0},
+    {"length": 1e4, "pitch": 112.0, "d": 200.0, "s": 300.0, "k": 120.0, "thread_length": 1e4},
     {"head_chamfer": 89.99999999999999},
     {"head_chamfer": 5e-324},
 ])

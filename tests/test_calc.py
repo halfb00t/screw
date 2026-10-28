@@ -162,13 +162,14 @@ def test_a_thread_length_equal_to_the_length_has_no_shank_and_no_warning() -> No
 
 
 def test_a_shank_too_short_to_model_is_folded_into_the_thread_and_warned() -> None:
-    # D-27: 0.0005 mm is below the 0.001 mm the builder can take.
-    info = derive(BoltParams(thread_length=19.9995))
+    # D-27: 0.00005 mm is below the 0.0001 mm the builder can take (L20; 4.99995 keeps six figures,
+    # which `:g` prints as they are).
+    info = derive(BoltParams(length=5.0, thread_length=4.99995))
     assert info.warnings[1:] == [
-        "thread_length 19.9995 leaves a plain shank of 0.0005 mm, shorter than the 0.001 mm the "
+        "thread_length 4.99995 leaves a plain shank of 5e-05 mm, shorter than the 0.0001 mm the "
         "builder can model: thread built to the full length", NO_ROW]
     rows = {r.key: r.value for r in info.rows}
-    assert (rows["thread_length"], rows["shank_length"]) == (20.0, 0.0)
+    assert (rows["thread_length"], rows["shank_length"]) == (5.0, 0.0)
 
 
 def test_a_shank_of_exactly_the_floor_keeps_its_shank_and_warns_of_nothing() -> None:
@@ -686,13 +687,13 @@ def test_every_registered_kinds_document_agrees_with_its_download_rule(
 
 
 SHORT_THREAD_WARNING = (
-    "thread_length and length: a thread of {t} mm is shorter than the 0.001 mm the builder can "
+    "thread_length and length: a thread of {t} mm is shorter than the 0.0001 mm the builder can "
     "model, so this part is not built; turns and volume not reported")
 
 
 @pytest.mark.parametrize(("params", "t"), [
-    (BoltParams(length=0.0005), "0.0005"),                  # the whole length is the thread
-    (BoltParams(length=30.0, thread_length=0.0005), "0.0005"),   # a short thread on a long shank
+    (BoltParams(length=0.00005), "5e-05"),                  # the whole length is the thread
+    (BoltParams(length=30.0, thread_length=0.00005), "5e-05"),   # a short thread on a long shank
 ])
 def test_a_thread_too_short_to_build_gets_a_warning_and_no_turns_or_volume(
         params: BoltParams, t: str) -> None:
@@ -706,8 +707,8 @@ def test_a_thread_too_short_to_build_gets_a_warning_and_no_turns_or_volume(
 
 
 def test_a_thread_of_exactly_the_floor_is_built_and_reports_turns_and_volume() -> None:
-    info = derive(BoltParams(length=0.001))
-    assert not any("shorter than the 0.001 mm the builder can model, so this part" in w
+    info = derive(BoltParams(length=0.0001))
+    assert not any("shorter than the 0.0001 mm the builder can model, so this part" in w
                    for w in info.warnings)
     keys = [r.key for r in info.rows]
     assert "turns" in keys
@@ -1430,8 +1431,8 @@ def test_clearance_length_and_thread_length_are_never_in_a_counterpart(p: Fasten
 def test_following_a_bolts_counterpart_gives_the_nut_row_of_its_size(nut: HexNut) -> None:
     size = next(s for s in iso262.SIZES if s.label == nut.size)
     head = next(h for h in HEADS if h.size == nut.size)
-    bolt = BoltParams(d=size.d, pitch=size.pitch, s=head.s, k=head.k, length=40.0,
-                      thread_length=40.0)
+    bolt = BoltParams(d=size.d, pitch=size.pitch, s=head.s, k=head.k, length=30.0,
+                      thread_length=30.0)
     follow = NutParams.model_validate({**_counterpart(bolt).fields, "clearance": 0.1})
     assert (follow.d, follow.pitch, follow.s, follow.m) == (size.d, size.pitch, nut.s, nut.m_max)
     assert follow.clearance == 0.1

@@ -12,6 +12,7 @@ import cadquery as cq
 import pytest
 from OCP.IFSelect import IFSelect_ReturnStatus
 
+from bench import oper_lift
 from bench.thread_spike.helical import naive_sweep_fuse, one_pipe
 from bench.thread_spike.maths import VOID_CLEARANCE
 from bench.thread_spike.measure import stl_check
@@ -127,18 +128,19 @@ def test_a_thread_length_above_the_length_builds_to_the_full_length() -> None:
 
 
 def test_a_shank_sliver_below_the_floor_is_folded_and_one_at_the_floor_is_built() -> None:
-    # D-27, T-04-08: 0.0005 mm folds into the thread; exactly 0.001 mm keeps a shank. Both are
-    # one valid solid inside both gates (the kernel path that crashed on a sliver, Alert 6).
-    folded = build(BoltParams(thread_length=19.9995))
+    # D-27, T-04-08: 0.00005 mm folds into the thread; 0.0002 mm, past the 0.0001 mm floor of L20,
+    # keeps a shank. Both are one valid solid inside both gates (the kernel path that crashed on
+    # a sliver, Alert 6).
+    folded = build(BoltParams(length=5.0, thread_length=4.99995))
     assert len(folded.Solids()) == 1
     assert folded.isValid()
     assert precise_volume(folded) == pytest.approx(
-        bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None, 30.0), rel=T_GATE)
-    kept = build(BoltParams(thread_length=19.999))
+        bolt_end_closed_volume(6.0, 1.0, 5.0, 10.0, 4.0, 5.0, True, None, 30.0), rel=T_GATE)
+    kept = build(BoltParams(length=5.0, thread_length=4.9998))
     assert len(kept.Solids()) == 1
     assert kept.isValid()
     assert precise_volume(kept) == pytest.approx(
-        bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 19.999, True, None, 30.0), rel=T_GATE)
+        bolt_end_closed_volume(6.0, 1.0, 5.0, 10.0, 4.0, 4.9998, True, None, 30.0), rel=T_GATE)
 
 
 def test_a_thread_below_the_floor_is_refused_naming_both_fields_before_the_kernel(
@@ -149,9 +151,9 @@ def test_a_thread_below_the_floor_is_refused_naming_both_fields_before_the_kerne
 
     monkeypatch.setattr(helical, "twist", unreachable)
     with pytest.raises(BuildError) as raised:
-        build(BoltParams(length=0.0005))
+        build(BoltParams(length=0.00005))
     assert str(raised.value).startswith("thread_length and length: ")
-    assert "0.0005" in str(raised.value)
+    assert "5e-05" in str(raised.value)
 
 
 def test_the_stl_is_binary_and_the_step_is_iso_10303() -> None:
@@ -499,8 +501,12 @@ def test_the_gate_refuses_the_inverted_one_pipe_twist_by_its_sign(
     # sweep above is positive and does not exercise the sign.
     inverted = one_pipe(6.0, 1.0, 160.0)
     assert inverted.isValid()
-    error = _assert_refused_and_not_cached(
-        monkeypatch, inverted, BoltParams(d=6.0, pitch=1.0, length=160.0, thread_length=160.0))
+    # 160 turns is past the model's 90 (L20) and the twist is the kernel's, so the closed form is
+    # read from the part under the guards of the registration (250 turns, L11)
+    part = oper_lift.registered(
+        "bolt", {"d": 6.0, "pitch": 1.0, "length": 160.0, "thread_length": 160.0})
+    assert isinstance(part, BoltParams)
+    error = _assert_refused_and_not_cached(monkeypatch, inverted, part)
     assert error < -1.5
 
 

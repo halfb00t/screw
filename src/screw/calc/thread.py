@@ -21,20 +21,31 @@ from fractions import Fraction
 # Loosening it needs a superseding entry and a re-run of the grid block.
 T_GATE = 9e-05
 
-# The most turns a bolt may ask for (D-01): L11's construction cap. The frontier walk
-# `2026-10-08-a-frontier` reached 250 turns with no stop at every size, both hands, rod and
-# void, and nothing above 250 is measured. A refusal and not a trim, because `length` is an
-# explicit choice (L02); the INTERIM 30 s build timeout is the backstop below it. Phase 7
-# replaces it with measured per-size caps (OPER-03).
-MAX_TURNS = 250
+# The most turns a part may ask for (D-01, D-08): a kernel outer wall measured on linux/amd64 on
+# the GitHub runner, never a budget; the cost model (L21) bounds cost inside it. Rule R7 of
+# `07-SWEEP-PROTOCOL.md`. A cell is a size, a hand and a kind (a rod, or a nut's void of `m` + 2
+# pitches): the 15 L11 sizes x 2 x 2 = 60. Walls run 40646134133 read every cell at 250 turns and 9
+# were refused; the walk-down run 40652801529 read those 9 cells at every step of 10 turns from
+# 240 down to 10, and their first ok steps were 100, 100, 210, 200, 90, 180, 90, 240 and 160. The
+# smallest of all 60 is 90 turns (`bolt-M2.5-right` and `bolt-M3-right`), the candidate T. Confirm
+# run 40678150220 read every cell at 90 turns in 5 repetitions, all ok (60 of 60 points), and at
+# 100 turns two cells, `bolt-M2.5-right` and `bolt-M3-right`, were refused in 5 of 5. A refusal and
+# not a trim, because `length` is an explicit choice (L02). It replaces L11's 250 turns, a macOS
+# arm64 frontier walk that the linux/amd64 kernel does not keep at every size.
+MAX_TURNS = 90
+_TURN_RUNS = "(runs 40646134133, 40652801529 and 40678150220)"
 
-# INTERIM (D-17): the shortest length, or sewn tail, the builder accepts, in mm. Research probe
-# 2026-10-10 at d=6, pitch=1: a twist of length <= 1e-8 mm SIGSEGVs the process before any check
-# can run, 3e-8 to 1e-6 mm raises, 1e-5 mm builds; as a sewn tail, 1e-5 to 1e-2 mm built one
-# valid solid at (6, 1), (2, 0.4) and (20, 2.5). 1e-3 sits 100x above the last failing tail.
-# Phase 7 re-measures (OPER-03). One definition for the builder, the closed form, the caps and
-# the info document (D-27).
-MIN_TAIL_MM = 1e-3
+# The shortest length, or sewn tail, the builder accepts, in mm (D-17, D-08): a kernel outer wall
+# measured on linux/amd64 on the GitHub runner, never a budget. Rule R9 of `07-SWEEP-PROTOCOL.md`.
+# Walls run 40646134133, group (c): the `tail` probe at (d, pitch) in (6, 1), (2, 0.4) and (20,
+# 2.5), both hands, 3 whole turns plus a tail from 1e-2 down to 1e-9 mm, with this guard lowered
+# inside the probe only. All 6 cells built a tail of 1e-2, 1e-3, 1e-4 and 1e-5 mm; 1e-6 and 1e-7
+# mm were refused at all 6, 1e-8 mm crashed at 4 and was refused at 2, and 1e-9 mm crashed at all
+# 6. The largest failing tail F is 1e-6 mm, and the floor is the smallest power of ten at or above
+# 100 F, 1e-4 mm (100 is a margin fixed before any reading, not a measured figure). Confirm run
+# 40678150220 read all 6 cells at 1e-4 and at 1e-5 mm in 5 repetitions, all ok. One definition for
+# the builder, the closed form, the caps and the info document (D-27).
+MIN_TAIL_MM = 1e-4
 
 # The smallest root radius d/2 - 5H/8 of a rod the kernel builds, in mm (07 D-18, rule R10 of
 # `07-SWEEP-PROTOCOL.md` as ruled by G26): a kernel outer wall measured on linux/amd64 on the
@@ -49,7 +60,6 @@ MIN_TAIL_MM = 1e-3
 # with d: an observation, no bound, kept as debt in
 # docs/tech_debt/active/2026-10-21-nut-countersink-cutter-crosses-the-axis-at-a-coarse-pitch.md.
 MIN_ROOT_RADIUS_MM = 1e-2
-
 
 def fundamental_height(pitch: float) -> float:
     """H = (sqrt(3) / 2) * P, the height of the sharp 60 degree triangle."""
@@ -347,8 +357,8 @@ def turn_cap_refusal(t: float, pitch: float) -> str | None:
     if _exact(t) <= MAX_TURNS * _exact(pitch):
         return None
     return (f"thread_length, length and pitch: {turns_of(t, pitch):g} turns of built thread is "
-            f"past the {MAX_TURNS}-turn cap, the most measured (run 2026-10-08-a-frontier); "
-            f"shorten thread_length or length, or raise pitch")
+            f"past the {MAX_TURNS}-turn cap, the most the kernel built at every size and hand on "
+            f"linux/amd64 {_TURN_RUNS}; shorten thread_length or length, or raise pitch")
 
 
 def void_root_radius_refusal(d: float, pitch: float, clearance: float) -> str | None:
@@ -381,8 +391,8 @@ def nut_turn_cap_refusal(m: float, pitch: float) -> str | None:
     if void <= MAX_TURNS * _exact(pitch):
         return None
     return (f"m and pitch: {float(void / _exact(pitch)):g} turns of void (m + 2 pitch, what the "
-            f"builder makes) is past the {MAX_TURNS}-turn cap, the most measured (run "
-            f"2026-10-08-a-frontier); lower m or raise pitch")
+            f"builder makes) is past the {MAX_TURNS}-turn cap, the most the kernel built at every "
+            f"size and hand on linux/amd64 {_TURN_RUNS}; lower m or raise pitch")
 
 
 # The fine-STL caps of the thirteen (d, pitch, left_hand) rod runs L11 measured (D-03, D-21): (d,
@@ -454,12 +464,13 @@ def fine_stl_refusal(d: float, pitch: float, t: float, left_hand: bool) -> str |
 # fine preset is (0.01 mm, 0.1 rad), the one tests/test_mesh.py pins and the cap records header
 # carries (a test compares them, so a preset change fails until the caps are re-measured). The run
 # measured at clearance NUT_FINE_STL_CLEARANCE (5.0 mm, the owner's R16 answer: the largest
-# clearance any GOST ISO 4032-2014 row's own s admits) and at s 1e5 mm (INTERIM_MAX_MM, the
-# largest s the model admits). Because s adds a near-constant number of bytes that does not grow
-# with m (the planner's 05-19 probe), a cap measured at the largest s holds for every s; the run's
+# clearance any GOST ISO 4032-2014 row's own s admits) and at s 1e5 mm (the largest s the model
+# admitted then; since L20 the nut's s is bounded by MAX_FIELD_MM, 1e3 mm). Because s adds a
+# near-constant number of bytes that does not grow with m (the planner's 05-19 probe), a cap
+# measured at the largest s holds for every smaller s; the run's
 # checks at clearances -0.05, 0, 0.1 and 2.5 and at the slimmest s at 5.0 all fit the budget where
 # the shipped build made the part (it refuses the others, which are no file:
-# docs/tech_debt/active/2026-10-21-nut-lead-in- gate-refuses-a-valid-nut-at-huge-s.md). A nut off
+# docs/tech_debt/resolved/2026-10-21-nut-lead-in-gate-refuses-a-valid-nut-at-huge-s.md). A nut off
 # these 30 keys gets no cap: the rods' FINE_STL_ROWS is never applied to a nut (R12) and a cap
 # from an unmeasured mapping to the nearest row is the plausible number L02 forbids (D-03). The
 # numbers are macOS arm64 and the INTERIM budget; Phase 7 re-measures on linux/amd64 (OPER-02).

@@ -1443,24 +1443,26 @@ def test_the_field_ceiling_corners_sit_at_1e3_1e4_and_1e5() -> None:
 def test_the_diameter_probe_holds_the_largest_d_the_head_rule_admits_at_its_s() -> None:
     from decimal import Context, Decimal
 
-    from screw.params import BoltParams
+    from bench import oper_lift
 
     by_label = {p["label"]: p["params"] for p in _walls("ceiling-bolt-d-")}
     assert {label: params["d"] for label, params in by_label.items()} == {
         "ceiling-bolt-d-1000": 999.999, "ceiling-bolt-d-10000": 9999.99,
         "ceiling-bolt-d-100000": 99999.9}
     for params in by_label.values():
-        BoltParams.model_validate(params)
+        # under the guards of the registration, whose field bound is the 1e5 the corners were
+        # chosen under (L20 moved the model's own to the measured walls)
+        oper_lift.registered("bolt", params)
         # the next number of 6 significant figures up is no longer under s: the model refuses it
         above = float(Context(prec=6).next_plus(Decimal(repr(params["d"]))))
         with pytest.raises(ValueError, match="across-flats"):
-            BoltParams.model_validate({**params, "d": above})
+            oper_lift.registered("bolt", {**params, "d": above})
 
 
 def test_the_clearance_probe_holds_the_largest_clearance_nut_too_thin_admits_at_its_s() -> None:
     from decimal import Context, Decimal
 
-    from screw.params import NutParams
+    from bench import oper_lift
 
     by_label = {p["label"]: p["params"] for p in _walls("ceiling-nut-clearance-")}
     assert {label: params["clearance"] for label, params in by_label.items()} == {
@@ -1468,16 +1470,16 @@ def test_the_clearance_probe_holds_the_largest_clearance_nut_too_thin_admits_at_
         "ceiling-nut-clearance-100000": 49996.9}
     for x, params in zip((1e3, 1e4, 1e5), by_label.values(), strict=True):
         assert (params["d"], params["s"]) == (6.0, x)
-        NutParams.model_validate(params)
+        oper_lift.registered("nut", params)
         above = float(Context(prec=6).next_plus(Decimal(repr(params["clearance"]))))
         with pytest.raises(ValueError, match="across flats"):
-            NutParams.model_validate({**params, "clearance": above})
+            oper_lift.registered("nut", {**params, "clearance": above})
 
 
 def test_the_nut_diameter_probe_holds_the_largest_d_nut_too_thin_admits_at_its_s() -> None:
     from decimal import Context, Decimal
 
-    from screw.params import NutParams
+    from bench import oper_lift
 
     by_label = {p["label"]: p["params"] for p in _walls("ceiling-nut-d-")}
     assert {label: params["d"] for label, params in by_label.items()} == {
@@ -1486,10 +1488,10 @@ def test_the_nut_diameter_probe_holds_the_largest_d_nut_too_thin_admits_at_its_s
     for x, params in zip((1e3, 1e4, 1e5), by_label.values(), strict=True):
         assert params["s"] == x
         assert "clearance" not in params  # the default 0.15, which the protocol states
-        NutParams.model_validate(params)
+        oper_lift.registered("nut", params)
         above = float(Context(prec=6).next_plus(Decimal(repr(params["d"]))))
         with pytest.raises(ValueError, match="across flats"):
-            NutParams.model_validate({**params, "d": above})
+            oper_lift.registered("nut", {**params, "d": above})
 
 
 def test_the_protocol_ties_the_nut_diameter_ceiling_to_its_probe_and_tested_value() -> None:
@@ -1658,13 +1660,17 @@ SHORT_ROD = {"d": 2.0, "pitch": 0.4, "length": 104.0, "thread_length": 104.0}  #
 
 
 def _lift_error(kind: str, params: Mapping[str, float | bool],
-                lift: Mapping[str, float] | None = None) -> str | None:
+                lift: Mapping[str, float] | None = None, *,
+                registered: bool = False) -> str | None:
+    """The error type the model gives `params` with `lift` lifted: the production model, or, with
+    `registered`, the guards the point files were registered under (250 turns, 1e5 mm)."""
     from pydantic import ValidationError
 
     from bench import oper_lift
 
+    check = oper_lift.registered if registered else oper_lift.validate
     try:
-        oper_lift.validate(kind, params, lift)
+        check(kind, params, lift)
     except ValidationError as exc:
         return str(exc.errors()[0]["type"])
     return None
@@ -1689,10 +1695,11 @@ def test_a_turn_lift_admits_the_turns_it_names_and_not_one_more() -> None:
 def test_a_turn_lift_leaves_every_other_guard_in_place_and_restores_the_cap() -> None:
     from screw.calc import thread
 
+    cap = thread.MAX_TURNS
     assert _lift_error("bolt", {**SHORT_ROD, "s": 1.0}, {"max_turns": 260}) == "head_too_small"
-    assert thread.MAX_TURNS == 250
+    assert cap == thread.MAX_TURNS
     assert _lift_error("bolt", {**SHORT_ROD, "d": -1.0}, {"max_turns": 260}) == "greater_than"
-    assert thread.MAX_TURNS == 250
+    assert cap == thread.MAX_TURNS
 
 
 def test_a_field_lift_admits_the_bound_it_names_and_not_a_decade_more() -> None:
@@ -1705,14 +1712,53 @@ def test_a_field_lift_admits_the_bound_it_names_and_not_a_decade_more() -> None:
 def test_a_field_lift_leaves_every_other_guard_in_place_and_the_classes_untouched() -> None:
     from annotated_types import Le
 
-    from screw.params import BoltParams, NutParams
+    from screw.params import MAX_FIELD_MM, BoltParams, NutParams
 
     assert _lift_error("bolt", {"d": 5e5, "s": 4e5}, {"max_mm": 1e6}) == "head_too_small"
     assert _lift_error("nut", {"s": 1e5, "clearance": 5e5}, {"max_mm": 1e6}) == "nut_too_thin"
     assert _lift_error("bolt", {"length": 1e6, "pitch": 1e-3, "thread_length": 1e6},
                        {"max_mm": 1e6}) == "turn_cap"
     for model in (BoltParams, NutParams):
-        assert [m.le for m in model.model_fields["s"].metadata if isinstance(m, Le)] == [1e5]
+        assert [m.le for m in model.model_fields["s"].metadata
+                if isinstance(m, Le)] == [MAX_FIELD_MM]
+
+
+def test_the_registered_guards_are_the_ones_the_point_files_were_made_under() -> None:
+    from screw.calc import thread
+
+    cap, floor = thread.MAX_TURNS, thread.MIN_ROOT_RADIUS_MM
+    rod = {"d": 2.0, "pitch": 0.4, "length": 100.0, "thread_length": 100.0}  # 250 turns
+    assert _lift_error("bolt", rod) == "turn_cap"    # the production cap is lower since L20
+    assert _lift_error("bolt", rod, registered=True) is None
+    past = {**rod, "length": 100.4, "thread_length": 100.4}
+    assert _lift_error("bolt", past, registered=True) == "turn_cap"
+    assert _lift_error("bolt", {"length": 1e5}) == "less_than_equal"
+    assert _lift_error("bolt", {"length": 1e5}, registered=True) is None
+    assert _lift_error("bolt", {"length": 1.0000001e5}, registered=True) == "less_than_equal"
+    # a root radius above 0, as L12 had it: the floor of L20 is not a registered guard
+    thin = {"d": 2.0, "pitch": 1.84, "length": 1.84, "thread_length": 1.84}
+    assert _lift_error("bolt", thin) == "pitch_too_coarse"
+    assert _lift_error("bolt", thin, registered=True) is None
+    gone = {"d": 2.0, "pitch": 1.85, "length": 1.85, "thread_length": 1.85}
+    assert _lift_error("bolt", gone, registered=True) == "pitch_too_coarse"    # root under 0
+    # and the production constants are back after every call, errors included
+    assert (cap, floor) == (thread.MAX_TURNS, thread.MIN_ROOT_RADIUS_MM)
+
+
+def test_a_registered_lift_names_exactly_one_known_guard_and_replaces_only_that_one() -> None:
+    from bench import oper_lift
+
+    assert _lift_error("bolt", SHORT_ROD, {"max_turns": 260}, registered=True) is None
+    longer = {**SHORT_ROD, "length": 104.4, "thread_length": 104.4}
+    assert _lift_error("bolt", longer, {"max_turns": 260}, registered=True) == "turn_cap"
+    assert _lift_error("bolt", {"s": 1e6}, registered=True) == "less_than_equal"
+    assert _lift_error("bolt", {"s": 1e6}, {"max_mm": 1e6}, registered=True) is None
+    # lifting the field bound leaves the turn cap at the registered 250, not the production 90
+    rod = {"d": 2.0, "pitch": 0.4, "length": 100.0, "thread_length": 100.0}
+    assert _lift_error("bolt", rod, {"max_mm": 1e6}, registered=True) is None
+    for lift in ({"max_turns": 260, "max_mm": 1e6}, {"max_pitch": 3}):
+        with pytest.raises(ValueError, match="exactly one"):
+            oper_lift.registered("bolt", {}, lift)
 
 
 @pytest.mark.parametrize("lift", [{}, {"max_turns": 260, "max_mm": 1e6}, {"max_pitch": 3}],
@@ -1812,8 +1858,10 @@ def test_every_past_the_cap_point_is_refused_by_the_plain_model_and_by_it_alone(
     from screw.params import KINDS
 
     for point in _walls("beyond-"):
-        assert _lift_error(point["kind"], point["params"]) in {"turn_cap", "less_than_equal"}
-        assert _lift_error(point["kind"], point["params"], point["lift"]) is None
+        # past the guards of the registration, whose caps are the ones the points step past
+        plain = _lift_error(point["kind"], point["params"], registered=True)
+        assert plain in {"turn_cap", "less_than_equal"}
+        assert _lift_error(point["kind"], point["params"], point["lift"], registered=True) is None
         assert point["kind"] in KINDS
 
 

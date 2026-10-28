@@ -10,8 +10,8 @@ Not part of `make verify`: it builds a fine STL (seconds, for a threaded part) a
 child processes for the mesh-copy comparison, and a timing assertion on shared hardware would
 flap.
 
-Run it as `make bench.export SET="d=100 length=200"`, or directly as
-`.venv/bin/python -m bench.export_cost --set "d=100 length=200"` from the repo root: the `-m`
+Run it as `make bench.export SET="d=100 length=90"`, or directly as
+`.venv/bin/python -m bench.export_cost --set "d=100 length=90"` from the repo root: the `-m`
 form puts the root on `sys.path` so `import bench` resolves (`tests/test_bench.py` says why).
 `--child {copy,in-place}` is internal: the mesh-copy section re-invokes this module as a
 subprocess with it, one fresh process per run, so the parent's own `ru_maxrss` is always that

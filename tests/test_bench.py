@@ -41,7 +41,7 @@ import httpx2 as httpx
 import pytest
 from pydantic import ValidationError
 
-from bench import end_cuts, mesh_deviation, nut_fine_caps
+from bench import end_cuts, mesh_deviation, nut_fine_caps, oper_lift
 from bench import quiet as quiet_module
 from bench.build_time import Timing, load_sweep, report, stl_size
 from bench.corpus import corpus
@@ -132,7 +132,7 @@ from bench.thread_spike.verdict import (
 )
 from screw import solid as screw_solid
 from screw.calc import thread as screw_thread
-from screw.params import INTERIM_MAX_MM, BoltParams, NutParams
+from screw.params import BoltParams, NutParams
 from screw.solid import helical as screw_helical
 
 
@@ -142,12 +142,13 @@ def test_the_skeleton_corpus_is_the_d_by_length_grid() -> None:
     harness and sets no bound (L07); Phase 7 replaces it with the threaded grid."""
     # Each entry pins a head, s = 2 d and k = d / 2: harness inputs so every entry passes
     # `s > d`, not ISO rows and not bounds (04-03, RESEARCH Alert 4). It also pins
-    # thread_length = length: the default 20 mm thread would quietly make the 200-turn part
-    # cheap (04-06).
+    # thread_length = length: the default 20 mm thread would quietly make the heaviest part
+    # cheap (04-06). The last length is 90 mm, 90 turns at the default pitch: the most the model
+    # admits since L20 (it was 200 mm, 200 turns).
     assert corpus() == [
         {"d": d, "length": length, "s": 2 * d, "k": d / 2, "thread_length": length}
         for d in (2.0, 6.0, 20.0, 100.0)
-        for length in (5.0, 20.0, 200.0)
+        for length in (5.0, 20.0, 90.0)
     ]
 
 
@@ -162,8 +163,8 @@ def test_the_default_sweep_is_the_corpus_labelled_by_every_key_it_pins() -> None
     sets = load_sweep()
     assert [label for label, _ in sets][:2] == [
         "d=2 length=5 s=4 k=1 thread_length=5", "d=2 length=20 s=4 k=1 thread_length=20"]
-    assert sets[-1] == ("d=100 length=200 s=200 k=50 thread_length=200",
-                        BoltParams(d=100.0, length=200.0, s=200.0, k=50.0, thread_length=200.0))
+    assert sets[-1] == ("d=100 length=90 s=200 k=50 thread_length=90",
+                        BoltParams(d=100.0, length=90.0, s=200.0, k=50.0, thread_length=90.0))
     assert len(sets) == 12
 
 
@@ -179,8 +180,8 @@ def test_a_sweep_file_set_that_is_not_a_bolt_is_refused_naming_it(tmp_path: Path
 
 
 def test_a_set_is_found_by_the_label_the_sweep_prints() -> None:
-    assert find_set(None, "d=100 length=200 s=200 k=50 thread_length=200") == BoltParams(
-        d=100.0, length=200.0, s=200.0, k=50.0, thread_length=200.0)
+    assert find_set(None, "d=100 length=90 s=200 k=50 thread_length=90") == BoltParams(
+        d=100.0, length=90.0, s=200.0, k=50.0, thread_length=90.0)
 
 
 def test_an_unknown_set_label_exits_2_and_lists_the_labels(
@@ -346,7 +347,7 @@ def test_the_concurrent_scenario_never_builds_the_single_scenarios_part() -> Non
     cache hit that puts no load on the server."""
     heaviest = corpus()[-1]
     assert heaviest == {
-        "d": 100.0, "length": 200.0, "s": 200.0, "k": 50.0, "thread_length": 200.0}
+        "d": 100.0, "length": 90.0, "s": 200.0, "k": 50.0, "thread_length": 90.0}
     assert heaviest not in corpus()[:10]
 
 
@@ -5164,18 +5165,24 @@ def test_nut_fine_caps_rule_reports_an_unmeasured_key() -> None:
 def test_nut_fine_caps_ladder_ends_at_the_turn_caps_largest_m() -> None:
     assert nut_fine_caps.ladder_end(0.45) == 111.6
     assert nut_fine_caps.ladder_end(0.7) == 173.6
+    # the ladder is the turn cap of the run (250 turns, L11), read under the guards it was made
+    # under: the model's cap is 90 since L20
     for pitch in (0.45, 0.7):
         end = nut_fine_caps.ladder_end(pitch)
-        NutParams(d=20.0, pitch=pitch, s=40.0, m=end, clearance=0.1, left_hand=False)
+        point = {"d": 20.0, "pitch": pitch, "s": 40.0, "m": end, "clearance": 0.1,
+                 "left_hand": False}
+        oper_lift.registered("nut", point)
         with pytest.raises(ValidationError, match="turn cap"):
-            NutParams(d=20.0, pitch=pitch, s=40.0, m=math.nextafter(end, math.inf),
-                      clearance=0.1, left_hand=False)
+            oper_lift.registered("nut", {**point, "m": math.nextafter(end, math.inf)})
+        with pytest.raises(ValidationError, match="90-turn cap"):
+            NutParams.model_validate(point)
 
 
 def test_nut_fine_caps_constants_are_the_ones_the_rods_and_the_owner_fixed() -> None:
     assert nut_fine_caps.BUDGET_BYTES is verdict_module.BUDGET_BYTES
     assert BUDGET_BYTES == 64 * 1024 * 1024
-    assert nut_fine_caps.S_MM == INTERIM_MAX_MM
+    assert nut_fine_caps.S_MM == 1e5    # the s the run was made at, above the 1e3 wall of L20
+    assert nut_fine_caps.RUN_TURNS == 250    # and the turn cap it was made under (L11)
     assert nut_fine_caps.CLEARANCE_MM == 5.0    # R16 option-a
     assert nut_fine_caps.RUN_ID == "2026-10-21-nut-fine-caps-amended"    # R17
     assert nut_fine_caps.RECORDS.name == "nut-fine-caps-amended.jsonl"
@@ -5189,8 +5196,9 @@ def test_nut_fine_caps_row_is_the_shipped_export_path() -> None:
     key = (2.0, 0.4, False)
     row = nut_fine_caps.measure("ladder", key, 1.0, nut_fine_caps.CLEARANCE_MM,
                                 nut_fine_caps.S_MM)
-    p = NutParams(d=2.0, pitch=0.4, s=nut_fine_caps.S_MM, m=1.0,
-                  clearance=nut_fine_caps.CLEARANCE_MM, left_hand=False)
+    p = oper_lift.registered("nut", {"d": 2.0, "pitch": 0.4, "s": nut_fine_caps.S_MM, "m": 1.0,
+                                     "clearance": nut_fine_caps.CLEARANCE_MM,
+                                     "left_hand": False})
     data = screw_solid.export(p, "stl", "fine")
     assert row.outcome == "built"
     assert row.raw_bytes == len(data)
