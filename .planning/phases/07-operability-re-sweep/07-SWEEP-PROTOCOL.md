@@ -245,6 +245,13 @@ lower value, and each field whose ceiling differs gets its own named constant
 (`MAX_<KIND>_<FIELD>_MM`). If a field has no `ok` decade, the phase stops and asks the owner: there
 is no number.
 
+The nut `d` gets no constant of its own. Its reading at 1e3 was `ok` once and `capped` in all 5 confirm
+repetitions, and its reading at 1e4 is `refused`, so it has no confirmed decade. A `capped` reading is
+cost, so the cost model's admission (R12) and the timeouts bound a large nut, not a wall. The nut `d`
+stays under the shared `MAX_FIELD_MM` only while that value lies below the nut `d`'s first refused
+decade (1e4). A shared value at or above that decade stops the phase and asks the owner. This
+sentence was added after the first runner reading by the owner's ruling that R30 asks for.
+
 ## R9 - MIN_TAIL_MM (D-08)
 
 Let F be the largest `tail` in `walls` group (c) whose reading is `refused` or `crashed` at any size or

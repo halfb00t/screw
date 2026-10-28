@@ -2427,3 +2427,18 @@ def test_the_rods_only_ruling_is_an_owner_ruling_after_the_void_walk_and_not_a_h
     assert protocol[protocol.index("## Harness fixes"):].startswith("## Harness fixes\n\nNone yet.")
     assert not re.search(r"\bG\d+\b", protocol)
     assert not re.search(r"\b\d{11}\b", protocol)
+
+
+def test_the_nut_diameter_gets_no_wall_and_stays_under_the_shared_ceiling_below_its_refusal(
+) -> None:
+    rule = " ".join(_rule(8).split())
+    assert "The nut `d` gets no constant of its own" in rule
+    assert "`capped` in all 5 confirm repetitions, and its reading at 1e4 is `refused`" in rule
+    assert "the cost model's admission (R12) and the timeouts bound a large nut, not a wall" in rule
+    assert ("stays under the shared `MAX_FIELD_MM` only while that value lies below the nut `d`'s "
+            "first refused decade (1e4)") in rule
+    assert "A shared value at or above that decade stops the phase and asks the owner" in rule
+    assert "added after the first runner reading by the owner's ruling that R30 asks for" in rule
+    rulings = (PROTOCOL.parent / "07-GAP-RULINGS.md").read_text()
+    assert "\n## Gap G27 (owner ruling after the walls confirm, 2026-10-28)\n" in rulings
+    assert re.search(r"^\| G27 \| R8 \| R8 writes no `MAX_NUT_D_MM`", rulings, re.MULTILINE)

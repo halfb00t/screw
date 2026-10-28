@@ -102,3 +102,16 @@ R6 describe and charge the void walk, contradict nothing here, and stand.
 | Gap | Rule(s) | Owner ruling |
 |---|---|---|
 | G26 | R3, R10 | R10 decides `MIN_ROOT_RADIUS_MM` from the rods of group (d) only: F is the largest failing rod `r` (3e-4 mm on the record); V is the smallest power of ten at or above 10 F (1e-2 mm); every rod reading at `r` >= V must be `ok`. The R3 confirm for R10 is rods only: V and the next smaller walked value, every size and hand, 5 repetitions. The nut readings of group (d) and the void walk are recorded, set no F and bear on no bound; `bench/RESULTS.md` states the r/d observation and takes no number from it. Debt (must): a nut whose void root ratio r/d is near or below about 0.12 is refused by the kernel (`StdFail_NotDone`), not by a guard; the trigger is a request for such a nut, or the point before a void guard is relied on. That debt is added to `docs/tech_debt/active/2026-10-21-nut-countersink-cutter-crosses-the-axis-at-a-coarse-pitch.md` instead of being filed twice: computed from the code over every void reading, that item's countersink inner radius is positive on each `ok` reading and negative on each refused one, and the cause is an assumption, not a reading. The root-radius-floor item takes the rod result, and plan 07-07 resolves it with the floor. |
+
+## Gap G27 (owner ruling after the walls confirm, 2026-10-28)
+
+Source: the walls confirm run 40678150220 (`bench/RESULTS.md`, "R3 outcome of the confirm run by
+candidate wall"). `ceiling-nut-d-1000` read `ok` once in walls run 40646134133 (peak 12663300096 B,
+92752773 B under the capped threshold of 12756052869 B) and `capped` in all 5 confirm repetitions;
+`ceiling-nut-d-10000` is `refused` 5 of 5. Under R3 (a point decides on its 5 repetitions) and R8 (a
+`capped` reading cannot raise a wall), nut `d` has no confirmed decade, which is R8's "no number" stop.
+This is a ruled change after R30's freeze, not a harness fix. The owner took the recommended option.
+
+| Gap | Rule(s) | Owner ruling |
+|---|---|---|
+| G27 | R8 | R8 writes no `MAX_NUT_D_MM`. The nut `d` limit is cost, not a wall: the cost model's admission (R12) and the timeouts bound a large nut. The nut `d` stays under the shared `MAX_FIELD_MM` (1000 on the candidate decision), which holds only while that value lies below the nut `d`'s first refused decade (1e4); otherwise the phase stops for the owner. Plan 07-07 writes no `MAX_NUT_D_MM`. |
