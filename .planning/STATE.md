@@ -3,17 +3,17 @@ gsd_state_version: "1.0"
 current_phase: 07
 current_phase_name: Operability Re-sweep
 status: executing
-stopped_at: Completed 07-06-PLAN.md
-last_updated: "2026-10-28T13:54:42.079Z"
+stopped_at: Completed 07-09-PLAN.md
+last_updated: "2026-10-28T15:35:56.570Z"
 last_activity: 2026-10-28
 last_activity_desc: Phase 07 execution started
-state_head: 2a0916bb8122ab83850b2ae95cd2e86b9030c417
+state_head: 90f4c0a2d645329b4673657974b61263e81a3c0f
 progress:
   total_phases: 8
   completed_phases: 7
   total_plans: 103
-  completed_plans: 89
-  percent: 86
+  completed_plans: 90
+  percent: 87
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-10-25)
 ## Current Position
 
 Phase: 07 (Operability Re-sweep) — EXECUTING
-Plan: 8 of 21
+Plan: 9 of 21
 Status: Ready to execute
-Last activity: 2026-10-28 — Plan 07-06 complete (Runs II instruments; runner smoke 40700137932 ok)
+Last activity: 2026-10-28 — Plan 07-09 complete (cost model fit.json and the C1-C3 budget table; owner rules B-01 in 07-10)
 
-Progress: [█████████░] 86%
+Progress: [█████████░] 87%
 
 ## Performance Metrics
 
@@ -151,6 +151,7 @@ Progress: [█████████░] 86%
 | Phase 07 P05 | 1h 40m | 3 tasks | 14 files |
 | Phase 07 P07 | 2 sessions | 3 tasks | 28 files |
 | Phase 07 P06 | 30 min | 3 tasks | 6 files |
+| Phase 07 P09 | 45min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -306,6 +307,7 @@ Recent decisions affecting current work:
 - [Phase 07]: L20: MAX_TURNS 90, MAX_FIELD_MM 1000 with per-field exceptions, MIN_TAIL_MM 1e-4, MIN_ROOT_RADIUS_MM 0.01; nut d has no wall constant (G27)
 - [Phase 07]: 07-06: an arena reading reads memory.current and VmRSS right after export(), before the level-1 gzip and the peak (G17 'read after the export'); owner to confirm before 07-15
 - [Phase 07]: 07-06: a trim-on arena reading where malloc_trim cannot load is not taken (crashed), never a trim-off reading under the trim-on name (L02)
+- [Phase 07]: 07-09: R11/R12 cost models fitted from explore 40646117094 and spread 40646125666 (fit.json); 07-BUDGET-TABLE.md generated with C1, C2, C3 for the owner's B-01 ruling
 
 ### Pending Todos
 
@@ -358,6 +360,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-28T13:54:41.812Z
-Stopped at: Completed 07-06-PLAN.md
+Last session: 2026-10-28T15:35:56.312Z
+Stopped at: Completed 07-09-PLAN.md
 Resume file: None
