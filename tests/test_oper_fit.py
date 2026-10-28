@@ -266,3 +266,99 @@ def test_the_committed_envelopes_cover_every_fitted_point() -> None:
     for p in points:
         for t in TARGETS:
             assert oper_fit.enveloped(models[p.kind, p.artifact, t], p.params) >= p.target(t)
+
+
+# --- the candidate table (R13, D-06) ----------------------------------------------------------
+
+
+def _document(points: list[oper_fit.FitPoint]) -> dict[str, object]:
+    return {"run_ids": {"explore": ["1"], "spread": ["2"]},
+            "models": [m.as_json() for m in oper_fit.fit(points)]}
+
+
+def _fine(label: str, nbytes: float, peak: float, reps: list[int],
+          statuses: list[str] | None = None) -> list[Raw]:
+    readings = _spread(label, reps, statuses)
+    for i, reading in enumerate(readings):
+        # The per-point max is the last repetition's; the others are lower.
+        reading["bytes"] = nbytes * (1.0 if i == len(readings) - 1 else 0.5)
+        reading["memory_peak_bytes"] = peak * (1.0 if i == 0 else 0.25)
+    return readings
+
+
+def _c3_points() -> list[oper_fit.FitPoint]:
+    explore = [r for r in _explore() if float(str(r["bytes"])) < 1e8]
+    spread = (_fine("basis", 2e8, 8e8, [1, 2, 3, 4, 5])
+              + _fine("capped-larger", 9e8, 1e9, [1, 2, 3, 4, 5], ["ok"] * 4 + ["capped"])
+              + _fine("four-larger", 9e8, 1e9, [1, 2, 3, 4]))
+    return oper_fit.fit_points(explore, spread)[0]
+
+
+def test_the_candidates_are_c1_c2_and_c3_and_nothing_else() -> None:
+    points = _c3_points()
+    cands = oper_fit.candidates(_document(points), points)
+    assert list(cands) == ["C1", "C2", "C3"]
+    for per_artifact in cands.values():
+        assert list(per_artifact) == list(ARTIFACTS)
+        assert all(len(triple) == 3 for triple in per_artifact.values())
+
+
+def test_c3_takes_rho_from_the_largest_all_ok_fine_stl_point() -> None:
+    points = _c3_points()
+    assert oper_fit.c3_basis(points).label == "basis"
+    c3 = oper_fit.candidates(_document(points), points)["C3"]
+    assert c3["stl-fine"] == (1e9, None, None)
+    assert c3["stl-preview"] == (None, None, None)
+    assert c3["step"] == (None, None, None)
+
+
+def test_c2_bounds_the_peak_at_4e9_and_nothing_else() -> None:
+    points = _c3_points()
+    c2 = oper_fit.candidates(_document(points), points)["C2"]
+    assert c2 == dict.fromkeys(ARTIFACTS, (None, None, 4e9))
+
+
+def test_c1_keeps_every_catalogue_row() -> None:
+    points = _c3_points()
+    document = _document(points)
+    models = oper_fit.models_of(document)
+    c1 = oper_fit.candidates(document, points)["C1"]
+    for artifact in ARTIFACTS:
+        assert None not in c1[artifact]
+        for part in oper_fit._catalogue_parts(artifact):
+            assert oper_fit.admitted(models, part, c1[artifact]), part.label
+
+
+def _pitch_model() -> dict[tuple[str, str, str], Model]:
+    # Seconds fall as 1 / pitch and nothing else moves: raising the pitch one form step admits.
+    zero = (0.0,) * 8
+    seconds = (0.0, 0.0, -1.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+    return {("bolt", "step", t): Model("bolt", "step", t, seconds if t == "seconds" else zero,
+                                       9, 8, 0.0, "") for t in TARGETS}
+
+
+def test_d06_reports_the_first_admitting_pitch_one_form_step_up() -> None:
+    part = oper_fit.Part("p", "bolt", "step", {"d": 6.0, "pitch": 1.0, "length": 25.0,
+                                               "thread_length": 25.0, "s": 10.0, "k": 4.0}, False)
+    budget = (None, 0.99, None)
+    assert not oper_fit.admitted(_pitch_model(), part, budget)
+    assert oper_fit.d06_trim(_pitch_model(), part, budget) == "pitch: admits at 1.05"
+
+
+def test_d06_reports_a_part_with_no_default_valued_field_as_explicit_only() -> None:
+    part = oper_fit.Part("p", "bolt", "step", {"d": 6.0, "pitch": 1.5, "length": 25.0,
+                                               "thread_length": 25.0, "s": 10.0, "k": 4.0}, False)
+    budget = (None, 0.5, None)
+    assert not oper_fit.admitted(_pitch_model(), part, budget)
+    assert oper_fit.d06_trim(_pitch_model(), part, budget) == "explicit only"
+
+
+def test_the_table_is_the_same_bytes_on_two_runs() -> None:
+    points = _c3_points()
+    document = _document(points)
+    explore = _explore()
+    first = oper_fit.table(document, points, explore, "fit.json")
+    assert first == oper_fit.table(document, points, explore, "fit.json")
+    assert [line for line in first.splitlines() if line.startswith("## C")] == [
+        "## C1, catalogue-complete", "## C2, memory-bound", "## C3, bytes-bound"]
+    assert first.count("D-06 evidence") == 3

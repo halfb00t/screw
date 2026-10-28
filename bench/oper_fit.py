@@ -27,17 +27,30 @@ import math
 import sys
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from decimal import Decimal
 from pathlib import Path
 
 import numpy as np
+from pydantic import ValidationError
 
 from bench.oper import _read_records, summarize
 from bench.oper_sets import ProtocolStop
 from screw.calc.cost import ARTIFACTS
-from screw.calc.thread import built_thread_length
-from screw.params import KINDS
+from screw.calc.thread import MAX_TURNS, MIN_ROOT_RADIUS_MM, MIN_TAIL_MM, built_thread_length
+from screw.params import (
+    KINDS,
+    MAX_BOLT_D_MM,
+    MAX_BOLT_K_MM,
+    MAX_BOLT_LENGTH_MM,
+    MAX_BOLT_THREAD_LENGTH_MM,
+    MAX_FIELD_MM,
+    MAX_NUT_CLEARANCE_MM,
+    MAX_NUT_M_MM,
+)
+from screw.tables.presets import catalogue, nut_catalogue
 
 type Params = Mapping[str, object]
+type Triple = tuple[float | None, float | None, float | None]
 
 # R13's order of a budget triple, and the reading field each target is read from. `seconds` is
 # the cold wall of R11, `build_s + export_s`, summed per reading before the per-point max.
@@ -292,6 +305,249 @@ def models_of(document: Mapping[str, object]) -> dict[tuple[str, str, str], Mode
     return {(m.kind, m.artifact, m.target): m for m in models}
 
 
+# --- the candidate table (R13, D-06) ----------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class Part:
+    """A part the table judges: a catalogue row or an explore free-space point, at an artifact."""
+
+    label: str
+    kind: str
+    artifact: str
+    params: Mapping[str, object]
+    catalogue: bool
+
+
+def _catalogue_parts(artifact: str) -> list[Part]:
+    return ([Part(row.id, "bolt", artifact, dict(row.fields), True) for row in catalogue()]
+            + [Part(row.id, "nut", artifact, dict(row.fields), True) for row in nut_catalogue()])
+
+
+def admitted(models: Mapping[tuple[str, str, str], Model], part: Part, budget: Triple) -> bool:
+    """R12 over every target of a part's kind at its artifact."""
+    return all(admit(predict(models[part.kind, part.artifact, t], part.params),
+                     models[part.kind, part.artifact, t].envelope, b)
+               for t, b in zip(TARGETS, budget, strict=True))
+
+
+def within_walls(kind: str, params: Params) -> bool:
+    """Whether the parameter model (the walls of L20 and every validator) takes the part."""
+    try:
+        KINDS[kind].model_validate(dict(params))
+    except ValidationError:
+        return False
+    return True
+
+
+def c3_basis(points: Sequence[FitPoint]) -> FitPoint:
+    """R13's rho point: the `stl-fine` point with the largest raw bytes among the explore and
+    spread points whose every repetition is ok (the fit input), a tie to the label first."""
+    fine = [p for p in points if p.artifact == "stl-fine"]
+    if not fine:
+        raise ProtocolStop("R13", "no stl-fine point is ok in every repetition, so rho has no "
+                                  "number")
+    return min(fine, key=lambda p: (-p.bytes, p.label, p.set))
+
+
+def candidates(document: Mapping[str, object], points: Sequence[FitPoint]
+               ) -> dict[str, dict[str, Triple]]:
+    """R13's three candidates per artifact as (bytes, seconds, peak), None for an unbounded
+    component, and nothing else (G10)."""
+    models = models_of(document)
+    c1: dict[str, Triple] = {}
+    for artifact in ARTIFACTS:
+        parts = _catalogue_parts(artifact)
+        top = [max(enveloped(models[p.kind, artifact, t], p.params) for p in parts)
+               for t in TARGETS]
+        c1[artifact] = (top[0], top[1], top[2])
+    basis = c3_basis(points)
+    q = PEAK_SHARE_BYTES / (basis.peak / basis.bytes)
+    return {
+        "C1": c1,
+        "C2": dict.fromkeys(ARTIFACTS, (None, None, PEAK_SHARE_BYTES)),
+        "C3": {a: (q, None, None) if a == "stl-fine" else (None, None, None) for a in ARTIFACTS},
+    }
+
+
+def _stepped(value: float, step: float, n: int) -> float:
+    # Decimal steps, so 20 - 3 x 0.5 is 18.5 and not 18.499999999999996: the value a form
+    # stepping from the default would send.
+    return float(Decimal(repr(value)) + n * Decimal(repr(step)))
+
+
+def d06_trim(models: Mapping[tuple[str, str, str], Model], part: Part, budget: Triple) -> str:
+    """D-06's evidence for one refused part: for each trimmable field at its frozen default, the
+    first value on its form step (a length or height trimmed, the pitch raised) that the walls and
+    the budget admit, or that none does; `explicit only` when no such field is at its default."""
+    fields = KINDS[part.kind].model_fields
+    steps = KINDS[part.kind].model_json_schema()["properties"]
+    full = _full(part.kind, part.params)
+    found: list[str] = []
+    for name, direction in TRIMMABLE[part.kind]:
+        default = fields[name].default
+        if full[name] != default:
+            continue
+        step = float(steps[name]["step"])
+        n = 1
+        result = f"{name}: no admitting value"
+        while (value := _stepped(default, step, direction * n)) > 0:
+            trial = Part(part.label, part.kind, part.artifact, full | {name: value},
+                         part.catalogue)
+            if not within_walls(part.kind, trial.params):
+                break
+            if admitted(models, trial, budget):
+                result = f"{name}: admits at {value!r}"
+                break
+            n += 1
+        found.append(result)
+    return "; ".join(found) if found else "explicit only"
+
+
+def _explore_parts(explore: Sequence[Mapping[str, object]]) -> dict[str, list[Part]]:
+    ids = {row.id for row in catalogue()} | {row.id for row in nut_catalogue()}
+    parts: dict[str, list[Part]] = {a: [] for a in ARTIFACTS}
+    seen: set[tuple[str, str]] = set()
+    for reading in explore:
+        label, artifact = str(reading["label"]), str(reading["artifact"])
+        params = reading["params"]
+        if label in ids or (label, artifact) in seen or not isinstance(params, dict):
+            continue
+        seen.add((label, artifact))
+        parts[artifact].append(Part(label, str(reading["kind"]), artifact, params, False))
+    return parts
+
+
+def _fmt(value: float | None) -> str:
+    return "unbounded" if value is None else repr(value)
+
+
+def _g(value: float | None) -> str:
+    return "-" if value is None else f"{value:.6g}"
+
+
+def table(document: Mapping[str, object], points: Sequence[FitPoint],
+          explore: Sequence[Mapping[str, object]], fit_path: str) -> str:
+    """`07-BUDGET-TABLE.md`: the three candidates of R13, each with what it keeps and refuses, and
+    the D-06 evidence. Plain text; the code writes no recommendation."""
+    models = models_of(document)
+    cands = candidates(document, points)
+    free = _explore_parts(explore)
+    readings: dict[tuple[str, str], Mapping[str, object]] = {
+        (str(r["label"]), str(r["artifact"])): r for r in explore}
+    runs = document["run_ids"]
+    if not isinstance(runs, dict):
+        raise TypeError("fit.json has no run ids")
+    basis = c3_basis(points)
+    rho = basis.peak / basis.bytes
+    lines = [
+        "# Phase 7 candidate budget table (R13, D-06)", "",
+        f"Generated by `python -m bench.oper_fit table` from `{fit_path}` and the committed "
+        "records; not edited by hand. Regenerating it must give the same bytes.", "",
+        f"Runs: explore {', '.join(runs['explore'])}, spread {', '.join(runs['spread'])} "
+        "(linux/amd64 GitHub runners, `bench/RESULTS.md`).", "",
+        f"Walls (L20): MAX_TURNS {MAX_TURNS}, MAX_FIELD_MM {MAX_FIELD_MM!r}, MAX_BOLT_D_MM "
+        f"{MAX_BOLT_D_MM!r}, MAX_BOLT_LENGTH_MM {MAX_BOLT_LENGTH_MM!r}, MAX_BOLT_K_MM "
+        f"{MAX_BOLT_K_MM!r}, MAX_BOLT_THREAD_LENGTH_MM {MAX_BOLT_THREAD_LENGTH_MM!r}, "
+        f"MAX_NUT_M_MM {MAX_NUT_M_MM!r}, MAX_NUT_CLEARANCE_MM {MAX_NUT_CLEARANCE_MM!r}, "
+        f"MIN_TAIL_MM {MIN_TAIL_MM!r}, MIN_ROOT_RADIUS_MM {MIN_ROOT_RADIUS_MM!r} (a rod floor, "
+        "G26). A part the parameter model refuses is a 422 under every candidate and is counted "
+        "as refused by the walls.", "",
+        "Admission (R12): a part is admitted iff prediction x (1 + e) is at most the component for "
+        "every bounded component; at the budget is admitted, one float above is refused. "
+        "Components are (raw bytes, cold build seconds = build_s + export_s, cgroup peak bytes).",
+        "", "## Envelopes", "",
+        "| kind | artifact | target | fitted points | rank | e | set by |",
+        "| --- | --- | --- | --- | --- | --- | --- |"]
+    lines += [f"| {m.kind} | {m.artifact} | {m.target} | {m.n} | {m.rank} | {m.envelope!r} | "
+              f"{m.envelope_set_by or '-'} |" for m in models.values()]
+    lines += ["", f"C3's rho: `stl-fine` point `{basis.set}:{basis.label}` ({basis.kind}), "
+              f"per-point max raw bytes {basis.bytes!r}, per-point max cgroup peak {basis.peak!r}, "
+              f"rho {rho!r}, Q = {PEAK_SHARE_BYTES!r} / rho = {PEAK_SHARE_BYTES / rho!r} bytes."]
+    titles = {"C1": "catalogue-complete", "C2": "memory-bound", "C3": "bytes-bound"}
+    for name, per_artifact in cands.items():
+        lines += ["", f"## {name}, {titles[name]}", "",
+                  "| artifact | budget (bytes, seconds, peak) | bolt catalogue kept / refused of "
+                  f"{len(catalogue())} | nut catalogue kept / refused of {len(nut_catalogue())} "
+                  "| free space admitted / refused by budget / refused by walls | predicted worst "
+                  "s, bytes, peak (enveloped) | measured worst s, bytes, peak (admitted, ok) | "
+                  "admitted with a non-ok explore reading |",
+                  "| --- | --- | --- | --- | --- | --- | --- | --- |"]
+        refused_rows: dict[str, list[str]] = {}
+        d06: list[tuple[Part, str]] = []
+        explicit = 0
+        for artifact in ARTIFACTS:
+            budget = per_artifact[artifact]
+            kept: dict[str, list[int]] = {"bolt": [0, 0], "nut": [0, 0]}
+            free_counts = [0, 0, 0]
+            worst_pred = [0.0, 0.0, 0.0]
+            worst_meas: list[float | None] = [None, None, None]
+            non_ok: dict[str, int] = {}
+            population = _catalogue_parts(artifact) + free[artifact]
+            for part in population:
+                if not within_walls(part.kind, part.params):
+                    if part.catalogue:
+                        kept[part.kind][1] += 1
+                        refused_rows.setdefault(artifact, []).append(f"{part.label} (walls)")
+                    else:
+                        free_counts[2] += 1
+                    continue
+                ok = admitted(models, part, budget)
+                if part.catalogue:
+                    kept[part.kind][0 if ok else 1] += 1
+                    if not ok:
+                        refused_rows.setdefault(artifact, []).append(part.label)
+                else:
+                    free_counts[0 if ok else 1] += 1
+                if not ok:
+                    trim = d06_trim(models, part, budget)
+                    if trim == "explicit only":
+                        explicit += 1
+                    else:
+                        d06.append((part, trim))
+                    continue
+                for i, t in enumerate(TARGETS):
+                    worst_pred[i] = max(worst_pred[i],
+                                        enveloped(models[part.kind, artifact, t], part.params))
+                reading = readings.get((part.label, artifact))
+                if reading is None:
+                    continue
+                if reading["status"] != "ok":
+                    status = str(reading["status"])
+                    non_ok[status] = non_ok.get(status, 0) + 1
+                    continue
+                measured = (_num(reading["bytes"]),
+                            _num(reading["build_s"]) + _num(reading["export_s"]),
+                            _num(reading["memory_peak_bytes"]))
+                worst_meas = [m if w is None else max(w, m)
+                              for w, m in zip(worst_meas, measured, strict=True)]
+            lines.append(
+                f"| {artifact} | ({', '.join(_fmt(b) for b in budget)}) "
+                f"| {kept['bolt'][0]} / {kept['bolt'][1]} | {kept['nut'][0]} / {kept['nut'][1]} "
+                f"| {free_counts[0]} / {free_counts[1]} / {free_counts[2]} "
+                f"| {_g(worst_pred[1])} s, {_g(worst_pred[0])} B, {_g(worst_pred[2])} B "
+                f"| {_g(worst_meas[1])} s, {_g(worst_meas[0])} B, {_g(worst_meas[2])} B "
+                f"| {sum(non_ok.values())}"
+                + "".join(f", {s} {n}" for s, n in sorted(non_ok.items())) + " |")
+        lines += ["", f"### {name}: D-06 evidence", "",
+                  "Refused points (catalogue and free space, inside the walls) with a bolt "
+                  "`thread_length` or `length`, a nut `m`, or a `pitch` at its frozen default, and "
+                  "the first value on the field's form step that the walls and this candidate "
+                  "admit.", ""]
+        if d06:
+            lines += ["| point | kind | artifact | trim |", "| --- | --- | --- | --- |"]
+            lines += [f"| {p.label} | {p.kind} | {p.artifact} | {trim} |" for p, trim in d06]
+        else:
+            lines.append("No refused point has such a field at its default.")
+        lines += ["", f"Refused points with no such field at its default (explicit only): "
+                  f"{explicit}.", "", f"### {name}: refused catalogue rows", ""]
+        if refused_rows:
+            lines += [f"- {a}: {', '.join(ids)}" for a, ids in refused_rows.items()]
+        else:
+            lines.append("None.")
+    return "\n".join(lines) + "\n"
+
+
 def _dump(document: Mapping[str, object]) -> str:
     # Sorted keys and `repr` floats (json's own), so the same records write the same bytes.
     return json.dumps(document, sort_keys=True, indent=1, allow_nan=False) + "\n"
@@ -301,12 +557,22 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m bench.oper_fit", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
     p_fit = sub.add_parser("fit", help="fit the models and write fit.json")
-    p_fit.add_argument("--explore", nargs="+", type=Path, required=True)
-    p_fit.add_argument("--spread", nargs="+", type=Path, required=True)
-    p_fit.add_argument("--out", required=True)
+    p_table = sub.add_parser("table", help="write the candidate budget table")
+    for p in (p_fit, p_table):
+        p.add_argument("--explore", nargs="+", type=Path, required=True)
+        p.add_argument("--spread", nargs="+", type=Path, required=True)
+        p.add_argument("--out", required=True)
+    p_table.add_argument("--fit", required=True)
     args = parser.parse_args(argv)
     try:
-        text = _dump(fit_document(args.explore, args.spread))
+        if args.command == "fit":
+            text = _dump(fit_document(args.explore, args.spread))
+        else:
+            document = json.loads(Path(args.fit).read_text())
+            _, explore = load_set("explore", args.explore)
+            _, spread = load_set("spread", args.spread)
+            points, _ = fit_points(explore, spread)
+            text = table(document, points, explore, args.fit)
     except ProtocolStop as exc:
         print(f"oper_fit: the phase stops for the owner {exc}", file=sys.stderr)
         return 3
