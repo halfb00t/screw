@@ -10291,3 +10291,37 @@ Each control row of the runner, next to L11's macOS arm64 outcome for the same c
 - THRD-04 row naive (8.0, 1.25, 10.0) (naive-M8-L10): 1 solid(s), valid True, volume ratio 0.231722: one valid solid, volume below half the closed form
 - THRD-04 row naive (20.0, 2.5, 10.0) (naive-M20-L10): 1 solid(s), valid True, volume ratio 0.219346: one valid solid, volume below half the closed form
 - THRD-04 row one-pipe (6.0, 1.0, 160 turns) (one_pipe-M6-t160): 1 solid(s), valid True, volume ratio -0.999995: one valid solid, volume inverted (below -0.5 times the closed form, the test's error < -1.5)
+
+### D-19 margin and R6 charges
+
+Both come from `python -m bench.oper_sets` over the committed records of the spread run 40646125666 and the explore run 40646117094; each cell is the command's output, put into a table.
+
+**Margin (R5, G3).** The cold wall is `build_s + export_s` of each reading; `m` is the largest `max / median - 1` over the 12 spread points, every one complete at repetitions 1 to 5 and ok (no point without a median, so no G3 stop).
+
+| point | artifact | median cold wall s | max cold wall s | max / median - 1 |
+| --- | --- | --- | --- | --- |
+| default-bolt | stl-preview | 2.110499190999974 | 2.1363796780000257 | 0.012262732490216921 |
+| iso4032:M20 | stl-preview | 2.6614660170000093 | 3.0202592229999823 | 0.13481036530551038 |
+| iso4032:M20 | stl-fine | 3.7548752579999984 | 4.739558092999999 | 0.2622411577860202 |
+| iso4032:M20 | step | 2.259308578999992 | 2.8088933559999987 | 0.24325352548489088 |
+| default-bolt | stl-fine | 3.9845434549999936 | 4.136267407999981 | 0.03807812732211424 |
+| default-bolt | step | 1.9532275739999818 | 2.0808743249999964 | 0.065351704378517 |
+| default-nut | stl-preview | 2.4645077259999937 | 2.491368682000001 | 0.010899116166944944 |
+| default-nut | stl-fine | 2.912370015000022 | 3.146872801000029 | 0.08051957161769008 |
+| default-nut | step | 2.4569704450000245 | 2.488935288999926 | 0.01300986101194268 |
+| iso4014:M20x200 | stl-preview | 3.595484694999982 | 3.678528082000014 | 0.023096576413053738 |
+| iso4014:M20x200 | stl-fine | 5.960165231000019 | 9.168338566000017 | 0.5382691940004687 |
+| iso4014:M20x200 | step | 2.8264241389999967 | 2.8569772710000336 | 0.01080981851890317 |
+
+`m = 0.5382691940004687, set by iso4014:M20x200 at stl-fine` (spread run 40646125666).
+
+**R6 charges (G4).** Per (kind, artifact) the largest `wall_s` over every explore reading of the group, whatever its status (explore run 40646117094, 1692 readings). Half of the measure job's `timeout-minutes` (350) is 10500 s. A point of a group absent here (a probe) is charged its `deadline_s`, 600 s.
+
+| kind | artifact | largest explore wall_s (every status) |
+| --- | --- | --- |
+| bolt | step | 29.94342979000004 |
+| bolt | stl-fine | 571.832342047 |
+| bolt | stl-preview | 600.731243473 |
+| nut | step | 37.973383033999994 |
+| nut | stl-fine | 576.08785283 |
+| nut | stl-preview | 74.68551229399986 |
