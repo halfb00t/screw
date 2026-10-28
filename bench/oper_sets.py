@@ -35,6 +35,7 @@ from bench import oper_lift
 from bench.oper import DEADLINE_S, POINTS_DIR, _read_records
 from bench.thread_spike.maths import PITCH, SAMPLE_SIZES, standard_max
 from screw.calc.thread import _exact, thread_depth
+from screw.params import KINDS
 from screw.tables.presets import catalogue, expand, expand_nut, nut_catalogue
 
 type Params = Mapping[str, float | bool]
@@ -1240,6 +1241,54 @@ def build_confirm(walls_dir: str, down_dir: str | None, explore_dir: str) -> _Se
     return out
 
 
+# --- the Runs II smoke (07-06): a path check of `bench.oper_bound`, not a figure ----------------
+
+SMOKE_RULE = "smoke, not a figure: 07-06 path check"
+SMOKE_ARTIFACT = "stl-preview"
+SMOKE_DRIFT_BUILDS = 3  # a small K for the path check; R23's K is 20, in the set 07-16 writes
+SMOKE_PARTNERS: tuple[tuple[str, Params], ...] = (
+    ("default-nut", {}), ("default-nut-left", {"left_hand": True}))
+
+
+def pool_slot(kind: str, params: Params, workers: int) -> int:
+    """The worker `BuildPool.executor_for` routes a part to: the hash of its validated field values
+    modulo N, the same in every process (R14), so a set can name the slot before any pool runs."""
+    return hash(KINDS[kind].model_validate(dict(params))) % workers
+
+
+def bound_smoke() -> _Set:
+    """The runner smoke of the Runs II instruments: a contention reading at N = 2 (the default
+    bolt as P and the first default nut on the other slot) and at N = 1, one drift of K = 3
+    and an arena reading with the trim on and off, all of the default bolt at `stl-preview`. It
+    proves the path on the runner and sets nothing; its readings are not recorded as data."""
+    out = _Set("bound-smoke", reps=1, shards=1, rule=SMOKE_RULE, notes=[
+        "A path check of bench.oper_bound on the runner (07-06 Task 3); no figure from it is a "
+        "bound or is recorded under bench/results."])
+    bolt: dict[str, object] = {"label": "default-bolt", "kind": "bolt", "params": {}}
+    p_slot = pool_slot("bolt", {}, 2)
+    partner = next(((label, params) for label, params in SMOKE_PARTNERS
+                    if pool_slot("nut", params, 2) != p_slot), None)
+    if partner is None:
+        raise ProtocolStop("R14", "neither default nut sits on another slot than the default "
+                                  "bolt at N = 2, so no partner leaves P its own worker")
+    label, params = partner
+    out.copy({"label": "contention-n2", "kind": "contention", "artifact": SMOKE_ARTIFACT,
+              "workers": 2, "points": [
+                  {**bolt, "slot": p_slot},
+                  {"label": label, "kind": "nut", "params": dict(params),
+                   "slot": pool_slot("nut", params, 2)}]})
+    out.copy({"label": "contention-n1", "kind": "contention", "artifact": SMOKE_ARTIFACT,
+              "workers": 1, "points": [{**bolt, "slot": pool_slot("bolt", {}, 1)}]})
+    part = {"kind": "bolt", "params": {}}
+    out.copy({"label": f"drift-k{SMOKE_DRIFT_BUILDS}", "kind": "drift",
+              "artifact": SMOKE_ARTIFACT, "part": part, "k": SMOKE_DRIFT_BUILDS,
+              "deadline_s": DEADLINE_S})
+    for trim in (True, False):
+        out.copy({"label": f"arenas-trim-{'on' if trim else 'off'}", "kind": "arenas",
+                  "artifact": SMOKE_ARTIFACT, "part": part, "trim": trim})
+    return out
+
+
 def _regenerate(path: Path) -> str:
     """The text a derived point file would have if written again from its own `sources`."""
     raw = json.loads(path.read_text())
@@ -1264,8 +1313,9 @@ def _regenerate(path: Path) -> str:
 
 
 def generate() -> dict[str, str]:
-    """The text of every point file, by set name, in the order the files are checked."""
-    return {s.name: s.text() for s in (explore(), spread(), walls(), controls())}
+    """The text of every point file written from code alone, by set name, in the order the files
+    are checked: the four pre-registered sets and the Runs II smoke."""
+    return {s.name: s.text() for s in (explore(), spread(), walls(), controls(), bound_smoke())}
 
 
 def _print_margin(result: Margin) -> None:

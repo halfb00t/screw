@@ -467,3 +467,45 @@ def test_the_child_dispatches_drift_and_arenas_points(
     assert oper_bound.main([json.dumps(point)]) == 0
     assert seen == [point]
     assert len(capsys.readouterr().out.splitlines()) == 1
+
+
+# --- the runner smoke (07-06 Task 3): generated, a path check and not a figure -------------------
+
+
+def test_the_smoke_set_is_generated_and_loads_with_its_slots_as_the_pool_routes_them(
+        tmp_path: Path) -> None:
+    from bench import oper, oper_sets
+
+    (tmp_path / "bound-smoke.json").write_text(oper_sets.generate()["bound-smoke"])
+    spec = oper.load_set("bound-smoke", tmp_path)
+    assert (spec.rule, spec.reps, spec.shards, spec.deadline_s) == (
+        "smoke, not a figure: 07-06 path check", 1, 1, 600)
+    assert [(p.label, p.kind, p.artifact) for p in spec.points] == [
+        ("contention-n2", "contention", "stl-preview"),
+        ("contention-n1", "contention", "stl-preview"),
+        ("drift-k3", "drift", "stl-preview"),
+        ("arenas-trim-on", "arenas", "stl-preview"),
+        ("arenas-trim-off", "arenas", "stl-preview")]
+    n2, n1, drift, on, off = (p.body or {} for p in spec.points)
+    members = n2["points"]
+    assert isinstance(members, list)
+    assert members[0] == {"label": "default-bolt", "kind": "bolt", "params": {}, "slot": 0}
+    assert [m["slot"] for m in members] == [_slot(m["kind"], m["params"], 2) for m in members]
+    assert sorted(m["slot"] for m in members) == [0, 1]
+    assert n1 == {"workers": 1, "points": [members[0]]}
+    assert (drift["k"], drift["deadline_s"]) == (3, 600)
+    assert (on["trim"], off["trim"]) == (True, False)
+
+
+def test_the_smoke_stops_when_no_default_nut_leaves_p_its_own_worker(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    from bench import oper_sets
+
+    monkeypatch.setattr(oper_sets, "pool_slot", lambda kind, params, workers: 0)
+    with pytest.raises(oper_sets.ProtocolStop, match="R14"):
+        oper_sets.bound_smoke()
+
+
+def test_the_smoke_is_not_recorded_as_data() -> None:
+    results = Path(__file__).resolve().parents[1] / "bench" / "results" / "phase-07"
+    assert not [path for path in results.iterdir() if "bound-smoke" in path.name]

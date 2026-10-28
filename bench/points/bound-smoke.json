@@ -1,0 +1,78 @@
+{
+ "set": "bound-smoke",
+ "rule": "smoke, not a figure: 07-06 path check",
+ "reps": 1,
+ "shards": 1,
+ "deadline_s": 600,
+ "points": [
+  {
+   "label": "contention-n2",
+   "kind": "contention",
+   "artifact": "stl-preview",
+   "workers": 2,
+   "points": [
+    {
+     "label": "default-bolt",
+     "kind": "bolt",
+     "params": {},
+     "slot": 0
+    },
+    {
+     "label": "default-nut",
+     "kind": "nut",
+     "params": {},
+     "slot": 1
+    }
+   ]
+  },
+  {
+   "label": "contention-n1",
+   "kind": "contention",
+   "artifact": "stl-preview",
+   "workers": 1,
+   "points": [
+    {
+     "label": "default-bolt",
+     "kind": "bolt",
+     "params": {},
+     "slot": 0
+    }
+   ]
+  },
+  {
+   "label": "drift-k3",
+   "kind": "drift",
+   "artifact": "stl-preview",
+   "part": {
+    "kind": "bolt",
+    "params": {}
+   },
+   "k": 3,
+   "deadline_s": 600
+  },
+  {
+   "label": "arenas-trim-on",
+   "kind": "arenas",
+   "artifact": "stl-preview",
+   "part": {
+    "kind": "bolt",
+    "params": {}
+   },
+   "trim": true
+  },
+  {
+   "label": "arenas-trim-off",
+   "kind": "arenas",
+   "artifact": "stl-preview",
+   "part": {
+    "kind": "bolt",
+    "params": {}
+   },
+   "trim": false
+  }
+ ],
+ "dropped": [],
+ "notes": [
+  "A path check of bench.oper_bound on the runner (07-06 Task 3); no figure from it is a bound or is recorded under bench/results."
+ ]
+}
