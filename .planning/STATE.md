@@ -3,17 +3,17 @@ gsd_state_version: "1.0"
 current_phase: 07
 current_phase_name: Operability Re-sweep
 status: executing
-stopped_at: Completed 07-07-PLAN.md
-last_updated: "2026-10-28T13:16:39.657Z"
+stopped_at: Completed 07-06-PLAN.md
+last_updated: "2026-10-28T13:54:42.079Z"
 last_activity: 2026-10-28
 last_activity_desc: Phase 07 execution started
-state_head: d65d3ab4f444eb612f74459e8f6f4fe117a8ffb9
+state_head: 2a0916bb8122ab83850b2ae95cd2e86b9030c417
 progress:
   total_phases: 8
   completed_phases: 7
   total_plans: 103
-  completed_plans: 88
-  percent: 85
+  completed_plans: 89
+  percent: 86
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-10-25)
 ## Current Position
 
 Phase: 07 (Operability Re-sweep) — EXECUTING
-Plan: 7 of 21
+Plan: 8 of 21
 Status: Ready to execute
-Last activity: 2026-10-28 — Plan 07-05 complete (Runs I recorded)
+Last activity: 2026-10-28 — Plan 07-06 complete (Runs II instruments; runner smoke 40700137932 ok)
 
-Progress: [█████████░] 85%
+Progress: [█████████░] 86%
 
 ## Performance Metrics
 
@@ -150,6 +150,7 @@ Progress: [█████████░] 85%
 | Phase 07 P04 | multi-session | 2 tasks | 8 files |
 | Phase 07 P05 | 1h 40m | 3 tasks | 14 files |
 | Phase 07 P07 | 2 sessions | 3 tasks | 28 files |
+| Phase 07 P06 | 30 min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -303,6 +304,8 @@ Recent decisions affecting current work:
 - [Phase 07]: 07-04: PR A landed as squash 9dea01e; rules R1-R30 frozen; owner rulings on R23 drift run, edge ranking by seconds, next-best edge, full-timeout charge for non-ok tier points
 - [Phase 07]: 07-05: R10 takes MIN_ROOT_RADIUS_MM from the rods only (G26); T = 90, MIN_TAIL_MM 1e-4 and MIN_ROOT_RADIUS_MM 1e-2 confirmed at 5 reps; the nut d ceiling at 1e3 mm read capped in 5 of 5 and awaits the owner before 07-07 — R3 confirm run 40678150220; a capped reading is cost and cannot raise a wall (R8)
 - [Phase 07]: L20: MAX_TURNS 90, MAX_FIELD_MM 1000 with per-field exceptions, MIN_TAIL_MM 1e-4, MIN_ROOT_RADIUS_MM 0.01; nut d has no wall constant (G27)
+- [Phase 07]: 07-06: an arena reading reads memory.current and VmRSS right after export(), before the level-1 gzip and the peak (G17 'read after the export'); owner to confirm before 07-15
+- [Phase 07]: 07-06: a trim-on arena reading where malloc_trim cannot load is not taken (crashed), never a trim-off reading under the trim-on name (L02)
 
 ### Pending Todos
 
@@ -355,6 +358,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-28T13:16:39.407Z
-Stopped at: Completed 07-07-PLAN.md
+Last session: 2026-10-28T13:54:41.812Z
+Stopped at: Completed 07-06-PLAN.md
 Resume file: None

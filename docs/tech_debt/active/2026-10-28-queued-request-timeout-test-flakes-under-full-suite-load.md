@@ -15,6 +15,22 @@ against its own clock. Under the full suite's load the test failed twice in one 
 so which assertion failed is not recorded. ASSUMPTION: the 0.6 s build ran past its 1.0 s
 timeout because the host was loaded.
 
+## Failure record
+2026-10-28, plan 07-06, the pre-commit `make verify` of the docs commit after 2a0916b, under
+`-n` load (1 failed, 4310 passed in 193.26s). The failing assertion, `tests/test_pool.py:615`:
+
+```
+>           assert results == [b"", b""]
+E           AssertionError: assert [BuildTimeout...or pending.')] == [b'', b'']
+E             At index 0 diff: BuildTimeout('Build exceeded its 1s per-build timeout. Try a coarser quality.') != b''
+```
+
+Captured log: one `worker.replaced` record, `"slot": 0, "cause": "timeout"`. Index 0 is the
+first request, the one with no build ahead of it: its own 0.6 s sleep ran past its 1.0 s timeout.
+So this failure is not the queue-aware deadline (D-14) cutting the queued request. It is the
+first build's 0.4 s of headroom being used up on a loaded host, which is what the ASSUMPTION above
+says.
+
 ## Why it matters
 `make verify` is the single gate (pre-commit, CI, `make worktree.land`). A gate test that fails
 on load teaches retrying until it is green. That hides a real regression of the queue-aware

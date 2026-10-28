@@ -399,7 +399,7 @@ Plans:
   3. A CI job builds every allowed configuration inside the timeout; a configuration that cannot is capped and warned or refused with a `422` naming the fields, never silently shortened.
   4. With the measured bounds in place, CAD builds still run in worker processes off the event loop, and `make check` (in-image smoke test, vendored-bundle byte check) passes.
 
-**Plans**: 6/21 plans executed (sequential waves 1-15; the pre-registration lands on main as its own PR, A, before any runner reading; 07-05 to 07-20 revised 2026-10-27 against PR A2's protocol, and 07-21 split out of 07-16)
+**Plans**: 7/21 plans executed (sequential waves 1-15; the pre-registration lands on main as its own PR, A, before any runner reading; 07-05 to 07-20 revised 2026-10-27 against PR A2's protocol, and 07-21 split out of 07-16)
 
 Plans:
 **Wave 1**
@@ -419,7 +419,7 @@ Plans:
 - [x] 07-07-PLAN.md — The measured walls from their 5-rep confirm: MAX_TURNS, the field ceilings, MIN_TAIL_MM, the root-radius floor; L20 (D-08, D-18)
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [ ] 07-06-PLAN.md — Runs II instruments: contention routed by the pool's hash, R23's drift and arena readings (D-09, D-02)
+- [x] 07-06-PLAN.md — Runs II instruments: contention routed by the pool's hash, R23's drift and arena readings (D-09, D-02)
 - [ ] 07-09-PLAN.md — Fit the cost model with its envelope; the budget candidate table for the owner (D-05, D-07)
 
 **Wave 7** *(blocked on Wave 6 completion)*
@@ -467,4 +467,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 2 
 | 5. Hex Nut and Kernel Pair Proof | 25/25 | Complete    | 2026-10-22 |
 | 6. Printed Pair Acceptance | 10/10 | Complete    | 2026-10-24 |
 | 6.1. Bolt head chamfer (INSERTED) | 5/5 | Complete    | 2026-10-25 |
-| 7. Operability Re-sweep | 6/21 | In Progress | - |
+| 7. Operability Re-sweep | 7/21 | In Progress | - |
