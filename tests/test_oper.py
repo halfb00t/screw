@@ -591,6 +591,39 @@ def test_a_shard_past_the_points_is_empty(tmp_path: Path) -> None:
     assert oper.shard_points(oper.load_set("mini", tmp_path), 7) == []
 
 
+def test_shard_sizes_cut_consecutive_slices_in_file_order(tmp_path: Path) -> None:
+    _write_set(tmp_path, shards=3, shard_sizes=[1, 3, 1])
+    spec = oper.load_set("mini", tmp_path)
+    assert spec.shard_sizes == (1, 3, 1)
+    assert [[p.label for p in oper.shard_points(spec, n)] for n in (1, 2, 3, 4)] == [
+        ["p0"], ["p1", "p2", "p3"], ["p4"], []]
+
+
+def test_a_set_without_shard_sizes_keeps_the_round_robin_split(tmp_path: Path) -> None:
+    _write_set(tmp_path)
+    assert oper.load_set("mini", tmp_path).shard_sizes is None
+
+
+@pytest.mark.parametrize(
+    "sizes",
+    [[2, 2], [3, 3, 3], [5, 0, 0], [2.5, 2.5, 0], [True, 2, 2], ["2", 2, 1], "2,2,1", 5],
+    ids=["too-few", "wrong-sum", "zero-size", "float", "bool", "text-entry", "text", "number"],
+)
+def test_shard_sizes_that_are_not_whole_numbers_summing_to_the_points_are_refused(
+        sizes: object, tmp_path: Path) -> None:
+    _write_set(tmp_path, shards=3, shard_sizes=sizes)
+    with pytest.raises(ValueError, match=r"mini.*shard_sizes"):
+        oper.load_set("mini", tmp_path)
+
+
+def test_sources_are_a_list_of_text(tmp_path: Path) -> None:
+    _write_set(tmp_path, sources=["walls=bench/results/phase-07/walls-1"])
+    assert oper.load_set("mini", tmp_path).sources == ("walls=bench/results/phase-07/walls-1",)
+    _write_set(tmp_path, sources=[3])
+    with pytest.raises(ValueError, match=r"mini.*sources"):
+        oper.load_set("mini", tmp_path)
+
+
 # --- the matrix ----------------------------------------------------------------------------------
 
 

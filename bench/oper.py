@@ -88,7 +88,9 @@ _SET_NAME_CHARS = frozenset("abcdefghijklmnopqrstuvwxyz0123456789-")
 _SET_KEYS = frozenset({"set", "rule", "reps", "shards", "deadline_s", "points"})
 # What the generator (`bench.oper_sets`) adds: the combinations the parameter model refused and
 # why the set holds what it holds. The runner never reads either; it only checks their shape.
-_SET_OPTIONAL_KEYS = frozenset({"dropped", "notes"})
+# `shard_sizes` and `sources` are written only by the sets generated from runner records (R6, R7,
+# R3): the size of each consecutive shard, and the record directories the set was derived from.
+_SET_OPTIONAL_KEYS = frozenset({"dropped", "notes", "shard_sizes", "sources"})
 _POINT_KEYS = frozenset({"label", "kind", "params", "artifact"})
 # `preset` is the catalogue row id a point was expanded from; `lift` names the one validator guard
 # a past-the-cap point lifts (`bench.oper_lift`), as `{"max_turns": 260}` or `{"max_mm": 1e6}`.
@@ -131,6 +133,8 @@ class PointSet:
     shards: int
     deadline_s: float
     points: tuple[Point, ...]
+    shard_sizes: tuple[int, ...] | None = None
+    sources: tuple[str, ...] = ()
 
 
 def is_capped(peak_bytes: int, cap_bytes: int) -> bool:
@@ -505,14 +509,31 @@ def load_set(name: str, directory: Path | None = None) -> PointSet:
     points = tuple(_load_point(name, entry) for entry in raw["points"])
     if len({(p.label, p.artifact) for p in points}) != len(points):
         _refuse(f"set {name!r}: a label may be listed once per artifact, not twice for one")
+    sizes = raw.get("shard_sizes")
+    if sizes is not None and not (
+            isinstance(sizes, list) and len(sizes) == raw["shards"]
+            and all(_is_count(size) for size in sizes) and sum(sizes) == len(points)):
+        _refuse(f"set {name!r}: shard_sizes is {raw['shards']} whole numbers of at least 1 "
+                f"that sum to the {len(points)} points")
+    sources = raw.get("sources", [])
+    if not (isinstance(sources, list) and all(isinstance(source, str) for source in sources)):
+        _refuse(f"set {name!r}: sources is a list of text")
     return PointSet(name=name, rule=raw["rule"], reps=raw["reps"], shards=raw["shards"],
-                    deadline_s=float(raw["deadline_s"]), points=points)
+                    deadline_s=float(raw["deadline_s"]), points=points,
+                    shard_sizes=None if sizes is None else tuple(sizes), sources=tuple(sources))
 
 
 def shard_points(spec: PointSet, shard: int) -> list[Point]:
-    """The points of 1-based `shard`: point `i` of the file (0-based) goes to shard
-    `i % shards + 1`, so two runs of one file split it the same way."""
-    return [p for i, p in enumerate(spec.points) if i % spec.shards + 1 == shard]
+    """The points of 1-based `shard`. With `shard_sizes` (R6, the sets generated from runner
+    records) the shard is the consecutive slice of that size; without it point `i` of the file
+    (0-based) goes to shard `i % shards + 1`, the split R4 fixed for the four first sets, so
+    two runs of one file split it the same way and those files did not change."""
+    if spec.shard_sizes is None:
+        return [p for i, p in enumerate(spec.points) if i % spec.shards + 1 == shard]
+    if not 1 <= shard <= len(spec.shard_sizes):
+        return []
+    start = sum(spec.shard_sizes[:shard - 1])
+    return list(spec.points[start:start + spec.shard_sizes[shard - 1]])
 
 
 def _image_versions(image: str) -> dict[str, str]:

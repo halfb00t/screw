@@ -20,15 +20,18 @@ from __future__ import annotations
 
 import argparse
 import json
+import statistics
 import sys
-from collections.abc import Mapping
+from collections.abc import Callable, Iterable, Mapping, Sequence
+from dataclasses import dataclass
 from decimal import ROUND_CEILING, ROUND_HALF_UP, Context, Decimal
 from fractions import Fraction
+from pathlib import Path
 
 from pydantic import ValidationError
 
 from bench import oper_lift
-from bench.oper import DEADLINE_S, POINTS_DIR
+from bench.oper import DEADLINE_S, POINTS_DIR, _read_records
 from bench.thread_spike.maths import PITCH, SAMPLE_SIZES, standard_max
 from screw.calc.thread import _exact, thread_depth
 from screw.tables.presets import catalogue, expand, expand_nut, nut_catalogue
@@ -95,8 +98,11 @@ class _Set:
     """One point file being written: the points in the order they are added, and what the model
     refused."""
 
-    def __init__(self, name: str, *, reps: int, shards: int, notes: list[str]) -> None:
-        self.name, self.reps, self.shards, self.notes = name, reps, shards, notes
+    def __init__(self, name: str, *, reps: int, shards: int, notes: list[str],
+                 rule: str = RULE) -> None:
+        self.name, self.reps, self.shards, self.notes, self.rule = name, reps, shards, notes, rule
+        self.shard_sizes: list[int] | None = None  # only the sets generated from records (R6)
+        self.sources: list[str] | None = None
         self.points: list[dict[str, object]] = []
         self.dropped: list[dict[str, object]] = []
         self._seen: set[tuple[str, str]] = set()
@@ -133,10 +139,25 @@ class _Set:
     def probe(self, label: str, probe: str, args: Params) -> None:
         self._add({"label": label, "kind": "probe", "probe": probe, "args": dict(args)})
 
+    def copy(self, point: Mapping[str, object]) -> None:
+        """A point of another set, verbatim: params, artifact and `lift` are not rebuilt."""
+        self._add(dict(point))
+
+    def sharded(self, table: Mapping[tuple[str, str], float], sources: list[str]) -> None:
+        """Cut the set into R6's consecutive shards from the explore charges and name the record
+        directories it was derived from, so `--check` can write it again."""
+        self.shard_sizes = shard_sizes(charges(self.points, table, DEADLINE_S), HALF_JOB_S)
+        self.shards, self.sources = len(self.shard_sizes), sources
+
     def text(self) -> str:
-        document = {"set": self.name, "rule": RULE, "reps": self.reps, "shards": self.shards,
-                    "deadline_s": DEADLINE_S, "points": self.points, "dropped": self.dropped,
-                    "notes": self.notes}
+        document: dict[str, object] = {
+            "set": self.name, "rule": self.rule, "reps": self.reps, "shards": self.shards,
+            "deadline_s": DEADLINE_S, "points": self.points, "dropped": self.dropped,
+            "notes": self.notes}
+        if self.shard_sizes is not None:
+            document["shard_sizes"] = self.shard_sizes
+        if self.sources is not None:
+            document["sources"] = self.sources
         return json.dumps(document, indent=1) + "\n"
 
 
@@ -266,21 +287,28 @@ LEAD_IN_CEILINGS = (1e3, 1e4, 1e5)
 COUNTERSINK_NUTS = ((0.05, 1.5), (0.05, 1.8), (0.01, 1.5))
 
 
+def _turn_cell(kind: str, size: str, left: bool, turns: int) -> dict[str, float | bool]:
+    """The rod (t = L = turns x P) or the void (`m` two pitches short of `turns`, as the builder
+    adds them) of one size and hand. Shared by the walls set (250 and 260 turns), the R7 walk-down
+    (240 down to 10) and the walls confirm set, so a cell is the same part at every step."""
+    d_exact, pitch_exact = PITCH[size]
+    d, pitch = _dec(d_exact), _dec(pitch_exact)
+    if kind == "bolt":
+        thread = _dec(turns * pitch_exact)
+        return {"d": d, "pitch": pitch, "length": thread, "thread_length": thread,
+                "s": _scaled(d, "1.6"), "k": _scaled(d, "0.6"), "left_hand": left}
+    return {"d": d, "pitch": pitch, "m": _dec((turns - 2) * pitch_exact),
+            "s": _scaled(d, "1.6"), "left_hand": left}
+
+
 def _turn_walls(out: _Set, turns: int = MAX_TURNS_NOW, prefix: str = "turns",
                 lift: Lift | None = None) -> None:
-    """The rod and the void at `turns` turns at each size and hand; the void the builder makes is
-    `m + 2 pitch`, so `m` is two pitches short."""
-    for size, (d_exact, pitch_exact) in PITCH.items():
-        d, pitch = _dec(d_exact), _dec(pitch_exact)
+    """The rod and the void at `turns` turns at each size and hand."""
+    for size in PITCH:
         for left in (False, True):
-            thread = _dec(turns * pitch_exact)
-            out.part(f"{prefix}-bolt-{size}-{_hand(left)}", "bolt",
-                     {"d": d, "pitch": pitch, "length": thread, "thread_length": thread,
-                      "s": _scaled(d, "1.6"), "k": _scaled(d, "0.6"), "left_hand": left},
-                     PREVIEW, lift=lift)
-            out.part(f"{prefix}-nut-{size}-{_hand(left)}", "nut",
-                     {"d": d, "pitch": pitch, "m": _dec((turns - 2) * pitch_exact),
-                      "s": _scaled(d, "1.6"), "left_hand": left}, PREVIEW, lift=lift)
+            for kind in ("bolt", "nut"):
+                out.part(f"{prefix}-{kind}-{size}-{_hand(left)}", kind,
+                         _turn_cell(kind, size, left, turns), PREVIEW, lift=lift)
 
 
 def _ceiling_walls(out: _Set, decades: tuple[float, ...] = CEILINGS, prefix: str = "ceiling",
@@ -331,11 +359,15 @@ def _beyond_walls(out: _Set) -> None:
         _ceiling_walls(out, (x,), "beyond", {"max_mm": x})
 
 
+def _tail_label(d: float, pitch: float, left: bool, decade: int) -> str:
+    return f"tail-d{d:g}-p{pitch:g}-{_hand(left)}-1e-{decade}"
+
+
 def _tail_walls(out: _Set) -> None:
     for d, pitch in TAIL_SIZES:
         for left in (False, True):
             for decade in TAIL_DECADES:
-                out.probe(f"tail-d{d:g}-p{pitch:g}-{_hand(left)}-1e-{decade}", "tail",
+                out.probe(_tail_label(d, pitch, left, decade), "tail",
                           {"d": d, "pitch": pitch, "turns": 3, "tail": float(f"1e-{decade}"),
                            "left_hand": left})
 
@@ -347,20 +379,23 @@ def _pitch_for_root(d: float, root: float) -> float:
     return (d / 2 - root) / thread_depth(1.0)
 
 
+def _root_label(kind: str, size: str, left: bool, root: float) -> str:
+    return f"root-{kind}-{size}-{_hand(left)}-r{root:g}"
+
+
 def _root_walls(out: _Set) -> None:
     for size, (d_exact, _) in PITCH.items():
         d = _dec(d_exact)
         for left in (False, True):
             for root in ROOT_RADII:
-                tag = f"{_hand(left)}-r{root:g}"
                 pitch = _pitch_for_root(d, root)
                 thread = 3 * pitch
-                out.part(f"root-bolt-{size}-{tag}", "bolt",
+                out.part(_root_label("bolt", size, left, root), "bolt",
                          {"d": d, "pitch": pitch, "length": thread, "thread_length": thread,
                           "s": _scaled(d, "1.6"), "k": _scaled(d, "0.6"), "left_hand": left},
                          PREVIEW)
                 void_pitch = _pitch_for_root(d, root - DEFAULT_NUT_CLEARANCE)
-                out.part(f"root-nut-{size}-{tag}", "nut",
+                out.part(_root_label("nut", size, left, root), "nut",
                          {"d": d, "pitch": void_pitch, "m": 3 * void_pitch,
                           "s": _scaled(d, "1.6"), "left_hand": left}, PREVIEW)
 
@@ -435,6 +470,482 @@ def controls() -> _Set:
     return out
 
 
+# --- the sets and decisions that come from runner records ----------------------------------------
+#
+# Below this line the code applies R5 to R10 to committed records: the margin, R6's charges and
+# shards, the R7 walk-down set, the pre-confirm wall decisions and the walls confirm set. Each
+# derived set carries `sources` (the record directories it came from), so `--check` writes it
+# again and a hand edit fails. Every place a rule says "the phase stops and asks the owner" is a
+# `ProtocolStop`, which the command line turns into exit 3: no value is chosen past it (R30).
+
+MEASURE_TIMEOUT_MIN = 350  # `timeout-minutes` of the `measure` job; a test pins it to the workflow
+HALF_JOB_S = MEASURE_TIMEOUT_MIN * 60 / 2  # R6: the other half is setup, image build and upload
+REPO_ROOT = POINTS_DIR.parents[1]
+GENERATED = ("walls-down", "walls-confirm")
+CELL_KINDS = ("bolt", "nut")
+TURN_STEPS = tuple(range(240, 0, -10))  # R7, G2: the walk-down from 240 turns to 10
+FAILED = frozenset({"refused", "crashed"})  # a kernel wall; killed and capped are cost (R7, R8)
+CONFIRM_REPS = 5
+
+type Reading = Mapping[str, object]
+type Table = Mapping[tuple[str, str], float]
+
+
+class ProtocolStop(ValueError):  # noqa: N818 - named by the plan and the rules, not an "error"
+    """A rule's "the phase stops and asks the owner": `rule` names it, `reason` the readings."""
+
+    def __init__(self, rule: str, reason: str) -> None:
+        super().__init__(f"({rule}): {reason}")
+        self.rule, self.reason = rule, reason
+
+
+def read_readings(directory: Path) -> list[Reading]:
+    """Every reading of a directory `gh run download -p 'oper-*'` wrote (one subdirectory per
+    artifact, one JSONL in each), in path order."""
+    files = sorted(str(path) for path in directory.glob("*/*.jsonl"))
+    if not files:
+        raise ValueError(f"no *.jsonl records under {directory}")
+    return list(_read_records(files)[1])
+
+
+def _number(reading: Reading, key: str) -> float:
+    value = reading.get(key)
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ProtocolStop("R2", f"the reading of {reading.get('label')} has no number {key}")
+    return float(value)
+
+
+def _index(readings: Iterable[Reading], rule: str) -> dict[str, Reading]:
+    """Readings by label. A label read twice is not a boundary reading of either (R3)."""
+    found: dict[str, Reading] = {}
+    for reading in readings:
+        label = str(reading["label"])
+        if label in found:
+            raise ProtocolStop(rule, f"{label} was read twice")
+        found[label] = reading
+    return found
+
+
+def _need(index: Mapping[str, Reading], label: str, rule: str) -> Reading:
+    if label not in index:
+        raise ProtocolStop(rule, f"the reading of {label} is missing")
+    return index[label]
+
+
+# --- R5: the margin ------------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class SpreadPoint:
+    label: str
+    artifact: str
+    median: float
+    maximum: float
+
+    @property
+    def ratio(self) -> float:
+        return self.maximum / self.median - 1
+
+
+@dataclass(frozen=True)
+class Margin:
+    """`m`, the point that sets it, and every point's figures for the record."""
+
+    m: float
+    label: str
+    artifact: str
+    points: tuple[SpreadPoint, ...]
+
+
+def margin(readings: Iterable[Reading],
+           expected: Iterable[tuple[str, str]] | None = None) -> Margin:
+    """R5: the largest `max / median - 1` of the cold wall (`build_s + export_s`) over the spread
+    points, from their 5 repetitions. A point with a repetition that is not `ok`, or whose
+    repetitions are not 1 to 5 each once (R3), or that is absent, has no median, so `m` has no
+    number: `ProtocolStop` (G3). No figure is taken over the rest."""
+    groups: dict[tuple[str, str], list[Reading]] = {}
+    for reading in readings:
+        groups.setdefault((str(reading["label"]), str(reading["artifact"])), []).append(reading)
+    for key in expected or ():
+        if key not in groups:
+            raise ProtocolStop("R5", f"spread point {key[0]} at {key[1]} has no readings, so no "
+                                     "median (G3)")
+    points: list[SpreadPoint] = []
+    for (label, artifact), group in groups.items():
+        reps = sorted(str(r.get("rep")) for r in group)
+        statuses = sorted({str(r["status"]) for r in group})
+        if reps != ["1", "2", "3", "4", "5"] or statuses != ["ok"]:
+            raise ProtocolStop("R5", f"spread point {label} at {artifact} has no median: "
+                                     f"repetitions {reps}, statuses {statuses} (G3)")
+        walls = [_number(r, "build_s") + _number(r, "export_s") for r in group]
+        points.append(SpreadPoint(label, artifact, statistics.median(walls), max(walls)))
+    if not points:
+        raise ProtocolStop("R5", "there are no spread readings, so no median (G3)")
+    worst = points[0]
+    for point in points[1:]:
+        if point.ratio > worst.ratio:
+            worst = point
+    return Margin(worst.ratio, worst.label, worst.artifact, tuple(points))
+
+
+# --- R6: charges and shards ----------------------------------------------------------------------
+
+
+def charge_table(explore_readings: Iterable[Reading]) -> dict[tuple[str, str], float]:
+    """R6, G4: per (kind, artifact) the largest `wall_s` of any explore reading of the group,
+    whatever its status: a reading killed at 600.4 s charges 600.4 (`wall_s` is kept for all)."""
+    table: dict[tuple[str, str], float] = {}
+    for reading in explore_readings:
+        key = (str(reading["kind"]), str(reading["artifact"]))
+        table[key] = max(table.get(key, 0.0), _number(reading, "wall_s"))
+    return table
+
+
+def _group(point: Mapping[str, object]) -> tuple[str, str]:
+    return str(point["kind"]), str(point.get("artifact", point.get("probe")))
+
+
+def charges(points: Iterable[Mapping[str, object]], table: Table,
+            deadline_s: float) -> list[float]:
+    """The seconds each point is charged: its group's largest explore wall, or, for a group with
+    no explore reading (a probe), its `deadline_s`: no figure is invented for it (G4)."""
+    return [table.get(_group(point), deadline_s) for point in points]
+
+
+def shard_sizes(charged: Sequence[float], half_s: float) -> list[int]:
+    """R6: the sizes of consecutive shards, each the longest prefix of the points not yet placed
+    whose summed charge stays strictly under `half_s`. A charge that is not under it alone stops
+    the phase: the job timeout also counts setup, the image build and the upload."""
+    sizes: list[int] = []
+    running = 0.0
+    for index, charge in enumerate(charged):
+        if charge >= half_s:
+            raise ProtocolStop("R6", f"point {index + 1} is charged {charge:g} s, not under half "
+                                     f"the job timeout ({half_s:g} s)")
+        if sizes and running + charge < half_s:
+            sizes[-1] += 1
+            running += charge
+        else:
+            sizes.append(1)
+            running = charge
+    return sizes
+
+
+# --- R7: the walk-down ---------------------------------------------------------------------------
+
+
+def _cells() -> list[tuple[str, str, bool]]:
+    """(kind, size, left) of the 60 cells, in the order the turn walls list them."""
+    return [(kind, size, left) for size in PITCH for left in (False, True) for kind in CELL_KINDS]
+
+
+def _stem(kind: str, size: str, left: bool) -> str:
+    return f"{kind}-{size}-{_hand(left)}"
+
+
+def _walk_down_set(walls_readings: Iterable[Reading]) -> _Set:
+    """The walk-down set (empty when every 250-turn reading is ok): every cell whose 250-turn
+    reading is refused or crashed, at every step from 240 to 10 turns, built as `walls` builds the
+    250 (G2). Any other reading of a cell, or none, is a gap and a stop (R7)."""
+    index = _index(walls_readings, "R7")
+    out = _Set("walls-down", reps=1, shards=1, rule="07-SWEEP-PROTOCOL.md R7 (G2)", notes=[
+        "every cell (size, hand, kind) whose 250-turn reading in `walls` is refused or crashed, at "
+        "every step of 10 turns from 240 down to 10, 1 repetition, read in one dispatch",
+        "a cell's readings below its first ok step are recorded and used for nothing (R7, G2)"])
+    for kind, size, left in _cells():
+        label = f"turns-{_stem(kind, size, left)}"
+        status = str(_need(index, label, "R7")["status"])
+        if status in FAILED:
+            for turns in TURN_STEPS:
+                out.part(f"turns{turns}-{_stem(kind, size, left)}", kind,
+                         _turn_cell(kind, size, left, turns), PREVIEW)
+        elif status != "ok":
+            raise ProtocolStop("R7", f"{label} is {status}, which is cost or a gap and not a "
+                                     "kernel wall: no turn bound is awarded, 250 included")
+    return out
+
+
+def walk_down_points(walls_readings: Iterable[Reading]) -> list[dict[str, object]]:
+    """The points of the walk-down set, in file order."""
+    return _walk_down_set(walls_readings).points
+
+
+# --- R7 to R10: the candidate walls --------------------------------------------------------------
+
+# The readings that bear on each R8 field, by stem; `ceiling-<stem>-<X>` is the reading at X mm,
+# `beyond-<stem>-1000000` the lifted one a decade past the last (R3), and `nutlead-<size>-s<X>`
+# the nuts the lead-in debt item names, which have no point past 1e5.
+FIELD_STEMS: dict[tuple[str, str], tuple[str, ...]] = {
+    ("bolt", "d"): ("bolt-d",),
+    ("bolt", "length"): ("bolt-length", "bolt-thread"),
+    ("bolt", "s"): ("bolt-s", "bolt-d"),
+    ("bolt", "k"): ("bolt-k",),
+    ("bolt", "thread_length"): ("bolt-thread",),
+    ("nut", "s"): ("nut-s", *(f"nutlead-{size}" for size, *_ in LEAD_IN_NUTS)),
+    ("nut", "d"): ("nut-d",),
+    ("nut", "m"): ("nut-m",),
+    ("nut", "clearance"): ("nut-clearance",),
+}
+
+
+def _bearing(stems: tuple[str, ...], x: float) -> list[str]:
+    """The labels of `stems` at X mm."""
+    labels: list[str] = []
+    for stem in stems:
+        if stem.startswith("nutlead-"):
+            if x <= CEILINGS[-1]:
+                labels.append(f"{stem}-s{x:g}")
+        else:
+            labels.append(f"{'ceiling' if x <= CEILINGS[-1] else 'beyond'}-{stem}-{x:.0f}")
+    return labels
+
+
+@dataclass(frozen=True)
+class Ceiling:
+    """A field's decided decade, its tested value (what the readings held, not always X) and the
+    labels that bear on it at that decade."""
+
+    decade: float
+    value: float
+    labels: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class Floor:
+    """R9 or R10: V, or `None` for "above 0"; the readings that failed and how many were read."""
+
+    v: float | None
+    failing: tuple[str, ...]
+    read: int
+
+
+@dataclass(frozen=True)
+class Decision:
+    t: int
+    first_ok: dict[str, int]
+    turn_labels: tuple[str, ...]
+    ceilings: dict[tuple[str, str], Ceiling]
+    max_field_mm: float
+    tail: Floor
+    root: Floor
+
+
+def _power_of_ten_at_or_above(x: Decimal) -> Decimal:
+    exponent = x.adjusted()
+    return Decimal(1).scaleb(exponent if x == Decimal(1).scaleb(exponent) else exponent + 1)
+
+
+def _decide_turns(walls: Mapping[str, Reading],
+                  down: Mapping[str, Reading]) -> tuple[int, dict[str, int], tuple[str, ...]]:
+    """R7: each cell's first ok step, 250 or the highest ok step of its walk-down, and T, the
+    smallest. The evidence is every reading down to a cell's first ok step; a reading in it that
+    is not ok or refused or crashed, or is missing, is a stop."""
+    first_ok: dict[str, int] = {}
+    evidence: list[str] = []
+    for kind, size, left in _cells():
+        stem = _stem(kind, size, left)
+        steps = [("turns", 250), *((f"turns{n}", n) for n in TURN_STEPS)]
+        for position, (prefix, turns) in enumerate(steps):
+            label = f"{prefix}-{stem}"
+            reading = _need(walls if position == 0 else down, label, "R7")
+            evidence.append(label)
+            status = str(reading["status"])
+            if status == "ok":
+                first_ok[stem] = turns
+                break
+            if status not in FAILED:
+                raise ProtocolStop("R7", f"{label} is {status}: cost or a gap in the boundary "
+                                         "evidence, not a kernel wall; no turn bound is awarded")
+        else:
+            raise ProtocolStop("R7", f"cell {stem} has no ok step from 240 down to 10 turns (G2)")
+    return min(first_ok.values()), first_ok, tuple(evidence)
+
+
+def _decide_ceilings(walls: Mapping[str, Reading]) -> dict[tuple[str, str], Ceiling]:
+    """R8: per field the largest decade at which every bearing reading is ok. A decade with a
+    refused, crashed, killed or capped reading is not confirmed; a lifted reading past 1e5 is
+    not among the decades (R3), so no ceiling is written above a tested value."""
+    found: dict[tuple[str, str], Ceiling] = {}
+    for (kind, field), stems in FIELD_STEMS.items():
+        for x in reversed(CEILINGS):
+            labels = _bearing(stems, x)
+            readings = [_need(walls, label, "R8") for label in labels]
+            if all(r["status"] == "ok" for r in readings):
+                params = readings[0]["params"]
+                assert isinstance(params, dict)
+                found[(kind, field)] = Ceiling(x, _number(params, field), tuple(labels))
+                break
+        else:
+            raise ProtocolStop("R8", f"{kind} {field} has no ok decade in 1e3, 1e4, 1e5 mm")
+    return found
+
+
+def _decide_floor(rule: str, walk: list[tuple[float, list[str]]], walls: Mapping[str, Reading],
+                  factor: int) -> Floor:
+    """R9 and R10 over a walk listed from its largest value down. F is the largest value with a
+    refused or crashed reading; V is the smallest power of ten at or above `factor` x F, and
+    must be a value the walk holds, with every reading at V or more ok. With no failure the
+    floor is "above 0" and every reading must be ok. Killed and capped readings set no F and
+    cannot support a bound (R8)."""
+    status = {label: str(_need(walls, label, rule)["status"])
+              for _, labels in walk for label in labels}
+    failing = [label for label, state in status.items() if state in FAILED]
+    read = len(status)
+    if not failing:
+        unreadable = [label for label, state in status.items() if state != "ok"]
+        if unreadable:
+            raise ProtocolStop(rule, f"no reading fails, but {unreadable[0]} is "
+                                     f"{status[unreadable[0]]}: 'above 0' needs every reading ok")
+        return Floor(None, (), read)
+    f = max(value for value, labels in walk if any(status[label] in FAILED for label in labels))
+    v = float(_power_of_ten_at_or_above(Decimal(repr(f)) * factor))
+    if v > walk[0][0]:
+        raise ProtocolStop(rule, f"the largest failing value is {f:g}, so V is {v:g}, which "
+                                 f"lies outside the walk (it holds at most {walk[0][0]:g})")
+    for value, labels in walk:
+        for label in labels:
+            if value >= v and status[label] != "ok":
+                raise ProtocolStop(rule, f"{label} at or above V = {v:g} is {status[label]}, "
+                                         "not ok")
+    return Floor(v, tuple(failing), read)
+
+
+def _tail_walk() -> list[tuple[float, list[str]]]:
+    return [(float(f"1e-{k}"), [_tail_label(d, pitch, left, k)
+                                for d, pitch in TAIL_SIZES for left in (False, True)])
+            for k in TAIL_DECADES]
+
+
+def _root_walk() -> list[tuple[float, list[str]]]:
+    return [(r, [_root_label(kind, size, left, r)
+                 for size in PITCH for left in (False, True) for kind in CELL_KINDS])
+            for r in ROOT_RADII]
+
+
+def decide_walls(walls_readings: Iterable[Reading],
+                 down_readings: Iterable[Reading] = ()) -> Decision:
+    """R7 to R10 before the confirm: T, each field's decade and tested value, V (or "above 0")
+    for the tail and the root, each with the labels it rests on. A reading that a rule needs and
+    that is missing, or that is cost where a wall is needed, is a `ProtocolStop`."""
+    walls = _index(walls_readings, "R7")
+    down = _index(down_readings, "R7")
+    t, first_ok, turn_labels = _decide_turns(walls, down)
+    ceilings = _decide_ceilings(walls)
+    decades = [c.decade for c in ceilings.values()]
+    shared = max(sorted(set(decades)), key=decades.count)  # a tie goes to the lower value
+    return Decision(t, first_ok, turn_labels, ceilings, shared,
+                    _decide_floor("R9", _tail_walk(), walls, 100),
+                    _decide_floor("R10", _root_walk(), walls, 10))
+
+
+# --- R3: the walls confirm set -------------------------------------------------------------------
+
+
+def _walls_points() -> list[dict[str, object]]:
+    return walls().points
+
+
+def _confirm_floor(add: Callable[[str], None], v: float | None,
+                   walk: list[tuple[float, list[str]]]) -> None:
+    """R9 and R10: every cell at V and at the next smaller walked value, or, for "above 0", only
+    the smallest walked value (G1). V is a value the walk holds."""
+    values = [value for value, _ in walk]
+    chosen = [walk[-1]] if v is None else walk[values.index(v):values.index(v) + 2]
+    for _, labels in chosen:
+        for label in labels:
+            add(label)
+
+
+def _confirm_set(decision: Decision) -> _Set:
+    """The walls confirm set at 5 repetitions, generated only once T and the other candidates
+    exist (R3). Points past the turn cap and the field bound are the walls set's own lifted
+    ones, copied verbatim with their `lift`; every other point is built by the walls' own
+    constructors, so a cell is the same part in every set."""
+    source = {str(point["label"]): point for point in _walls_points()}
+    out = _Set("walls-confirm", reps=CONFIRM_REPS, shards=1, rule="07-SWEEP-PROTOCOL.md R3 (G1)",
+               notes=[
+                   "R7: all 60 cells at T and at T + 10 turns; R8: each field's bearing readings "
+                   "at its decided decade and at the next; R9 and R10: V and the next smaller "
+                   "walked value, or only the smallest walked value for 'above 0'",
+                   "5 repetitions taken fresh: a reading of an earlier run is not one of the 5 "
+                   "(R7)"])
+    seen: set[str] = set()
+
+    def add(label: str) -> None:
+        if label not in source:
+            raise ProtocolStop("R3", f"{label} is not a point of the walls set (the parameter "
+                                     "model refused it)")
+        if label not in seen:
+            seen.add(label)
+            out.copy(source[label])
+
+    for turns in (decision.t, decision.t + 10):
+        for kind, size, left in _cells():
+            stem = _stem(kind, size, left)
+            if turns == MAX_TURNS_NOW:
+                add(f"turns-{stem}")
+            elif turns == BEYOND_TURNS:
+                add(f"beyond-turns-{stem}")
+            else:
+                out.part(f"turns{turns}-{stem}", kind, _turn_cell(kind, size, left, turns), PREVIEW)
+    for key, ceiling in decision.ceilings.items():
+        for x in (ceiling.decade, ceiling.decade * 10):
+            for label in _bearing(FIELD_STEMS[key], x):
+                add(label)
+    _confirm_floor(add, decision.tail.v, _tail_walk())
+    _confirm_floor(add, decision.root.v, _root_walk())
+    return out
+
+
+def confirm_points(decision: Decision) -> list[dict[str, object]]:
+    """The points of the walls confirm set, in file order."""
+    return _confirm_set(decision).points
+
+
+# --- building the files from record directories --------------------------------------------------
+
+
+def _relative(directory: str) -> str:
+    return Path(directory).resolve().relative_to(REPO_ROOT).as_posix()
+
+
+def _read(directory: str) -> list[Reading]:
+    return read_readings(REPO_ROOT / directory)
+
+
+def build_walk_down(walls_dir: str, explore_dir: str) -> _Set | None:
+    """The walk-down set from a walls run, or `None` when every 250-turn reading is ok."""
+    out = _walk_down_set(_read(walls_dir))
+    if not out.points:
+        return None
+    out.sharded(charge_table(_read(explore_dir)), [f"walls={walls_dir}", f"explore={explore_dir}"])
+    return out
+
+
+def build_confirm(walls_dir: str, down_dir: str | None, explore_dir: str) -> _Set:
+    decision = decide_walls(_read(walls_dir), _read(down_dir) if down_dir else ())
+    out = _confirm_set(decision)
+    sources = [f"walls={walls_dir}", *([f"walls-down={down_dir}"] if down_dir else []),
+               f"explore={explore_dir}"]
+    out.sharded(charge_table(_read(explore_dir)), sources)
+    return out
+
+
+def _regenerate(path: Path) -> str:
+    """The text a derived point file would have if written again from its own `sources`."""
+    raw = json.loads(path.read_text())
+    sources = dict(str(entry).split("=", 1) for entry in raw.get("sources", []))
+    if "walls" not in sources or "explore" not in sources:
+        raise ValueError("it names no walls and explore sources")
+    if path.stem == "walls-down":
+        out = build_walk_down(sources["walls"], sources["explore"])
+    else:
+        out = build_confirm(sources["walls"], sources.get("walls-down"), sources["explore"])
+    if out is None:
+        raise ValueError("its sources need no such set")
+    return out.text()
+
+
 # --- the command ---------------------------------------------------------------------------------
 
 
@@ -443,11 +954,90 @@ def generate() -> dict[str, str]:
     return {s.name: s.text() for s in (explore(), spread(), walls(), controls())}
 
 
+def _print_margin(result: Margin) -> None:
+    print("point | artifact | median cold wall s | max cold wall s | max / median - 1")
+    for point in result.points:
+        print(f"{point.label} | {point.artifact} | {point.median!r} | {point.maximum!r} | "
+              f"{point.ratio!r}")
+    print(f"m = {result.m!r}, set by {result.label} at {result.artifact}")
+
+
+def _print_charges(table: Table) -> None:
+    print("kind | artifact | largest explore wall_s (every status)")
+    for (kind, artifact), wall in sorted(table.items()):
+        print(f"{kind} | {artifact} | {wall!r}")
+
+
+def _print_decision(decision: Decision) -> None:
+    print(f"T = {decision.t} turns (smallest first ok step over 60 cells)")
+    for stem, first in decision.first_ok.items():
+        if first != MAX_TURNS_NOW:
+            print(f"  cell {stem}: first ok step {first}")
+    print(f"readings T rests on: {len(decision.turn_labels)}")
+    for (kind, field), ceiling in decision.ceilings.items():
+        print(f"{kind} {field}: decade {ceiling.decade:g}, tested value {ceiling.value!r}, "
+              f"rests on {', '.join(ceiling.labels)}")
+    print(f"MAX_FIELD_MM candidate: {decision.max_field_mm:g}")
+    for name, floor in (("tail (R9)", decision.tail), ("root (R10)", decision.root)):
+        value = "above 0" if floor.v is None else f"V = {floor.v:g} mm"
+        print(f"{name}: {value}; {floor.read} readings read, failing: "
+              f"{', '.join(floor.failing) or 'none'}")
+
+
+def _run(args: argparse.Namespace) -> int:
+    walls_dir = _relative(args.walls) if hasattr(args, "walls") else ""
+    explore_dir = _relative(args.explore) if hasattr(args, "explore") else ""
+    down_dir = _relative(args.down) if getattr(args, "down", None) else None
+    if args.command == "margin":
+        spread_set = spread()
+        expected = {(str(p["label"]), str(p["artifact"])) for p in spread_set.points}
+        _print_margin(margin(_read(_relative(args.spread)), expected))
+    elif args.command == "charges":
+        _print_charges(charge_table(_read(explore_dir)))
+    elif args.command == "walk-down":
+        down = build_walk_down(walls_dir, explore_dir)
+        if down is None:
+            print("no walk-down: every 250-turn reading is ok")
+            return 0
+        Path(args.out).write_text(down.text())
+        print(f"{len(down.points)} points in shards of {down.shard_sizes}")
+    elif args.command == "decide-walls":
+        _print_decision(decide_walls(_read(walls_dir), _read(down_dir) if down_dir else ()))
+    else:
+        confirm = build_confirm(walls_dir, down_dir, explore_dir)
+        Path(args.out).write_text(confirm.text())
+        print(f"{len(confirm.points)} points in shards of {confirm.shard_sizes}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m bench.oper_sets", description=__doc__)
     parser.add_argument("--check", action="store_true",
                         help="exit 1 naming the first committed file that is not what this writes")
+    sub = parser.add_subparsers(dest="command")
+    sub.add_parser("margin", help="R5 over a spread run").add_argument("--spread", required=True)
+    sub.add_parser("charges", help="R6 charges over an explore run").add_argument(
+        "--explore", required=True)
+    for name, helptext in (("walk-down", "write the R7 walk-down set"),
+                           ("decide-walls", "R7 to R10 before the confirm"),
+                           ("confirm", "write the walls confirm set")):
+        command = sub.add_parser(name, help=helptext)
+        command.add_argument("--walls", required=True)
+        if name != "walk-down":
+            command.add_argument("--down")
+        if name != "decide-walls":
+            command.add_argument("--explore", required=True)
+            command.add_argument("--out", required=True)
     args = parser.parse_args(argv)
+    if args.command is not None:
+        try:
+            return _run(args)
+        except ProtocolStop as exc:
+            print(f"oper_sets: stop {exc}", file=sys.stderr)
+            return 3
+        except ValueError as exc:
+            print(f"oper_sets: {exc}", file=sys.stderr)
+            return 2
     whole, rows = integer_turn_rows()
     print(f"integer L/P: {whole} of {rows}")
     texts = generate()
@@ -456,6 +1046,20 @@ def main(argv: list[str] | None = None) -> int:
             path = POINTS_DIR / f"{name}.json"
             if not path.is_file() or path.read_text() != text:
                 print(f"oper_sets: {path} is not what the generator writes", file=sys.stderr)
+                return 1
+        for name in GENERATED:
+            path = POINTS_DIR / f"{name}.json"
+            if not path.is_file():
+                continue
+            try:
+                same = path.read_text() == _regenerate(path)
+            except ValueError as exc:  # a stop is a ValueError: the sources no longer give a set
+                print(f"oper_sets: {path} cannot be written again from its sources: {exc}",
+                      file=sys.stderr)
+                return 1
+            if not same:
+                print(f"oper_sets: {path} is not what the generator writes from its sources",
+                      file=sys.stderr)
                 return 1
         return 0
     for name, text in texts.items():
