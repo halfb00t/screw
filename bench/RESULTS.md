@@ -10325,3 +10325,306 @@ Both come from `python -m bench.oper_sets` over the committed records of the spr
 | nut | step | 37.973383033999994 |
 | nut | stl-fine | 576.08785283 |
 | nut | stl-preview | 74.68551229399986 |
+
+### walls-down, run 40652801529
+
+- Dispatched sha: `4dd60e1cade32eddbc5beccdccfcb6b2c44f8115`
+- Records: `bench/results/phase-07/walls-down-40652801529/` (9 artifacts, 216 readings), run https://github.com/halfb00t/screw/actions/runs/40652801529
+- CPU models seen (jobs): AMD EPYC 7763 64-Core Processor (5); AMD EPYC 9V45 96-Core Processor (1); AMD EPYC 9V74 80-Core Processor (3)
+- Counts by status: ok: 131, refused: 85
+- One dispatch of walls-down.json (216 points of the 9 cells that were refused at 250 turns, in 9 R6 shards), dispatched at the commit that added the file; not split.
+- Summary: `python -m bench.oper summarize --markdown --reps 1` over the directory, as printed.
+
+### Host
+
+| fact | value |
+| --- | --- |
+| image | screw:ci |
+| image_id | sha256:237b8049e1627cc0f911ba5c8b74d7579762e5c883a9e9afaa3edd59b10c40d0, sha256:e5e95b94b64d61625a9623b379a513834446251533fa0f6cdbf6c1762f566d28, sha256:a42fb1ba7b2ea4ecd8d00755a5398cad7ebac95c19828c4dd2ab1e2016d5ad97, sha256:2752a7fd76e1d544238675b427a2c161ef2015f94656cb5829c95cbc1f569de6, sha256:343a71cdaff2d30b58892bc4638f786dcdb0143075c9937d420d8fc2321bb071, sha256:3a50adf9fa73f4b8b76f5a60f0b7d34b7b1a201245a0ba5e6d09779df142e4b7, sha256:d5643e70e27080b56678acd8f6e651af55f21fa05e6c8597a693e4c074804666, sha256:7f615c0e7759974963ec7e7207c8593de87f94e8c17e62d9637812f8af806cbd, sha256:b025f22b763cc69cbcf81336933fcbae3745a63a095c333201561bc1b9d84bee |
+| versions | {"cadquery": "2.8.0", "cadquery_ocp": "7.9.3.1.1"} |
+| nproc | 4 |
+| mem_total_bytes | 16759443456, 16759439360 |
+| cpu_model | AMD EPYC 7763 64-Core Processor, AMD EPYC 9V74 80-Core Processor, AMD EPYC 9V45 96-Core Processor |
+| kernel | 7.0.0-1017-azure |
+| machine | x86_64 |
+| GITHUB_RUN_ID | 40652801529 |
+| GITHUB_JOB | measure |
+| GITHUB_SHA | 4dd60e1cade32eddbc5beccdccfcb6b2c44f8115 |
+
+### Readings
+
+Status counts: refused: 85, ok: 131
+
+| point | artifact | n | status | counts | median build s | max build s | median export s | max export s | median bytes | max bytes | median peak bytes | max peak bytes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| turns240-bolt-M2-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns230-bolt-M2-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns220-bolt-M2-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns210-bolt-M2-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns200-bolt-M2-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns190-bolt-M2-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns180-bolt-M2-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns170-bolt-M2-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns160-bolt-M2-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns150-bolt-M2-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns140-bolt-M2-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns130-bolt-M2-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns120-bolt-M2-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns110-bolt-M2-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns100-bolt-M2-right | stl-preview | 1 | ok | ok: 1 | 10.296 | 10.296 | 0.518 | 0.518 | 3813284 | 3813284 | 265678848 | 265678848 |
+| turns90-bolt-M2-right | stl-preview | 1 | ok | ok: 1 | 9.266 | 9.266 | 0.465 | 0.465 | 3432284 | 3432284 | 260153344 | 260153344 |
+| turns80-bolt-M2-right | stl-preview | 1 | ok | ok: 1 | 8.034 | 8.034 | 0.441 | 0.441 | 3043584 | 3043584 | 258551808 | 258551808 |
+| turns70-bolt-M2-right | stl-preview | 1 | ok | ok: 1 | 6.900 | 6.900 | 0.368 | 0.368 | 2669784 | 2669784 | 251465728 | 251465728 |
+| turns60-bolt-M2-right | stl-preview | 1 | ok | ok: 1 | 5.930 | 5.930 | 0.317 | 0.317 | 2289384 | 2289384 | 248254464 | 248254464 |
+| turns50-bolt-M2-right | stl-preview | 1 | ok | ok: 1 | 4.847 | 4.847 | 0.260 | 0.260 | 1899984 | 1899984 | 242806784 | 242806784 |
+| turns40-bolt-M2-right | stl-preview | 1 | ok | ok: 1 | 3.789 | 3.789 | 0.212 | 0.212 | 1526584 | 1526584 | 240848896 | 240848896 |
+| turns30-bolt-M2-right | stl-preview | 1 | ok | ok: 1 | 3.015 | 3.015 | 0.210 | 0.210 | 1146284 | 1146284 | 236027904 | 236027904 |
+| turns20-bolt-M2-right | stl-preview | 1 | ok | ok: 1 | 2.264 | 2.264 | 0.111 | 0.111 | 757284 | 757284 | 218943488 | 218943488 |
+| turns10-bolt-M2-right | stl-preview | 1 | ok | ok: 1 | 1.372 | 1.372 | 0.058 | 0.058 | 383584 | 383584 | 214560768 | 214560768 |
+| turns240-nut-M2-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns230-nut-M2-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns220-nut-M2-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns210-nut-M2-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns200-nut-M2-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns190-nut-M2-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns180-nut-M2-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns170-nut-M2-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns160-nut-M2-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns150-nut-M2-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns140-nut-M2-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns130-nut-M2-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns120-nut-M2-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns110-nut-M2-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns100-nut-M2-right | stl-preview | 1 | ok | ok: 1 | 21.885 | 21.885 | 0.545 | 0.545 | 3941384 | 3941384 | 390283264 | 390283264 |
+| turns90-nut-M2-right | stl-preview | 1 | ok | ok: 1 | 19.660 | 19.660 | 0.492 | 0.492 | 3544784 | 3544784 | 376520704 | 376520704 |
+| turns80-nut-M2-right | stl-preview | 1 | ok | ok: 1 | 17.093 | 17.093 | 0.437 | 0.437 | 3145884 | 3145884 | 357093376 | 357093376 |
+| turns70-nut-M2-right | stl-preview | 1 | ok | ok: 1 | 14.932 | 14.932 | 0.381 | 0.381 | 2735184 | 2735184 | 346722304 | 346722304 |
+| turns60-nut-M2-right | stl-preview | 1 | ok | ok: 1 | 12.601 | 12.601 | 0.326 | 0.326 | 2341484 | 2341484 | 323997696 | 323997696 |
+| turns50-nut-M2-right | stl-preview | 1 | ok | ok: 1 | 10.538 | 10.538 | 0.272 | 0.272 | 1941284 | 1941284 | 308715520 | 308715520 |
+| turns40-nut-M2-right | stl-preview | 1 | ok | ok: 1 | 8.465 | 8.465 | 0.250 | 0.250 | 1531584 | 1531584 | 295649280 | 295649280 |
+| turns30-nut-M2-right | stl-preview | 1 | ok | ok: 1 | 7.278 | 7.278 | 0.163 | 0.163 | 1138984 | 1138984 | 262651904 | 262651904 |
+| turns20-nut-M2-right | stl-preview | 1 | ok | ok: 1 | 4.845 | 4.845 | 0.110 | 0.110 | 739084 | 739084 | 257875968 | 257875968 |
+| turns10-nut-M2-right | stl-preview | 1 | ok | ok: 1 | 3.574 | 3.574 | 0.054 | 0.054 | 329984 | 329984 | 238583808 | 238583808 |
+| turns240-bolt-M2-left | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns230-bolt-M2-left | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns220-bolt-M2-left | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns210-bolt-M2-left | stl-preview | 1 | ok | ok: 1 | 22.490 | 22.490 | 0.945 | 0.945 | 6808984 | 6808984 | 308940800 | 308940800 |
+| turns200-bolt-M2-left | stl-preview | 1 | ok | ok: 1 | 21.251 | 21.251 | 0.894 | 0.894 | 6480384 | 6480384 | 305127424 | 305127424 |
+| turns190-bolt-M2-left | stl-preview | 1 | ok | ok: 1 | 20.040 | 20.040 | 0.849 | 0.849 | 6160484 | 6160484 | 302039040 | 302039040 |
+| turns180-bolt-M2-left | stl-preview | 1 | ok | ok: 1 | 19.098 | 19.098 | 0.820 | 0.820 | 5837084 | 5837084 | 295378944 | 295378944 |
+| turns170-bolt-M2-left | stl-preview | 1 | ok | ok: 1 | 18.612 | 18.612 | 0.847 | 0.847 | 5508084 | 5508084 | 305471488 | 305471488 |
+| turns160-bolt-M2-left | stl-preview | 1 | ok | ok: 1 | 17.457 | 17.457 | 0.689 | 0.689 | 5187584 | 5187584 | 289304576 | 289304576 |
+| turns150-bolt-M2-left | stl-preview | 1 | ok | ok: 1 | 16.452 | 16.452 | 0.648 | 0.648 | 4865084 | 4865084 | 284164096 | 284164096 |
+| turns140-bolt-M2-left | stl-preview | 1 | ok | ok: 1 | 15.202 | 15.202 | 0.605 | 0.605 | 4537084 | 4537084 | 281051136 | 281051136 |
+| turns130-bolt-M2-left | stl-preview | 1 | ok | ok: 1 | 14.046 | 14.046 | 0.561 | 0.561 | 4216384 | 4216384 | 277118976 | 277118976 |
+| turns120-bolt-M2-left | stl-preview | 1 | ok | ok: 1 | 13.176 | 13.176 | 0.553 | 0.553 | 3893884 | 3893884 | 271822848 | 271822848 |
+| turns110-bolt-M2-left | stl-preview | 1 | ok | ok: 1 | 11.810 | 11.810 | 0.479 | 0.479 | 3565884 | 3565884 | 268161024 | 268161024 |
+| turns100-bolt-M2-left | stl-preview | 1 | ok | ok: 1 | 10.636 | 10.636 | 0.434 | 0.434 | 3245084 | 3245084 | 265240576 | 265240576 |
+| turns90-bolt-M2-left | stl-preview | 1 | ok | ok: 1 | 9.728 | 9.728 | 0.393 | 0.393 | 2922384 | 2922384 | 260005888 | 260005888 |
+| turns80-bolt-M2-left | stl-preview | 1 | ok | ok: 1 | 8.583 | 8.583 | 0.372 | 0.372 | 2593984 | 2593984 | 256311296 | 256311296 |
+| turns70-bolt-M2-left | stl-preview | 1 | ok | ok: 1 | 7.164 | 7.164 | 0.306 | 0.306 | 2273684 | 2273684 | 251940864 | 251940864 |
+| turns60-bolt-M2-left | stl-preview | 1 | ok | ok: 1 | 6.148 | 6.148 | 0.263 | 0.263 | 1950984 | 1950984 | 247275520 | 247275520 |
+| turns50-bolt-M2-left | stl-preview | 1 | ok | ok: 1 | 5.166 | 5.166 | 0.224 | 0.224 | 1623084 | 1623084 | 244523008 | 244523008 |
+| turns40-bolt-M2-left | stl-preview | 1 | ok | ok: 1 | 3.947 | 3.947 | 0.178 | 0.178 | 1302684 | 1302684 | 240017408 | 240017408 |
+| turns30-bolt-M2-left | stl-preview | 1 | ok | ok: 1 | 3.099 | 3.099 | 0.172 | 0.172 | 979684 | 979684 | 236859392 | 236859392 |
+| turns20-bolt-M2-left | stl-preview | 1 | ok | ok: 1 | 2.337 | 2.337 | 0.093 | 0.093 | 652084 | 652084 | 217714688 | 217714688 |
+| turns10-bolt-M2-left | stl-preview | 1 | ok | ok: 1 | 1.445 | 1.445 | 0.050 | 0.050 | 330984 | 330984 | 215203840 | 215203840 |
+| turns240-nut-M2-left | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns230-nut-M2-left | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns220-nut-M2-left | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns210-nut-M2-left | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns200-nut-M2-left | stl-preview | 1 | ok | ok: 1 | 45.220 | 45.220 | 0.928 | 0.928 | 6640484 | 6640484 | 562003968 | 562003968 |
+| turns190-nut-M2-left | stl-preview | 1 | ok | ok: 1 | 43.031 | 43.031 | 0.884 | 0.884 | 6294384 | 6294384 | 554430464 | 554430464 |
+| turns180-nut-M2-left | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns170-nut-M2-left | stl-preview | 1 | ok | ok: 1 | 38.526 | 38.526 | 0.789 | 0.789 | 5638784 | 5638784 | 516526080 | 516526080 |
+| turns160-nut-M2-left | stl-preview | 1 | ok | ok: 1 | 36.082 | 36.082 | 0.741 | 0.741 | 5292284 | 5292284 | 487788544 | 487788544 |
+| turns150-nut-M2-left | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns140-nut-M2-left | stl-preview | 1 | ok | ok: 1 | 30.992 | 30.992 | 0.651 | 0.651 | 4637484 | 4637484 | 469958656 | 469958656 |
+| turns130-nut-M2-left | stl-preview | 1 | ok | ok: 1 | 29.022 | 29.022 | 0.640 | 0.640 | 4290484 | 4290484 | 450170880 | 450170880 |
+| turns120-nut-M2-left | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns110-nut-M2-left | stl-preview | 1 | ok | ok: 1 | 24.144 | 24.144 | 0.642 | 0.642 | 3634984 | 3634984 | 416219136 | 416219136 |
+| turns100-nut-M2-left | stl-preview | 1 | ok | ok: 1 | 22.011 | 22.011 | 0.467 | 0.467 | 3288084 | 3288084 | 397930496 | 397930496 |
+| turns90-nut-M2-left | stl-preview | 1 | ok | ok: 1 | 19.582 | 19.582 | 0.418 | 0.418 | 2959484 | 2959484 | 372326400 | 372326400 |
+| turns80-nut-M2-left | stl-preview | 1 | ok | ok: 1 | 17.467 | 17.467 | 0.373 | 0.373 | 2632884 | 2632884 | 357593088 | 357593088 |
+| turns70-nut-M2-left | stl-preview | 1 | ok | ok: 1 | 15.040 | 15.040 | 0.326 | 0.326 | 2286384 | 2286384 | 349888512 | 349888512 |
+| turns60-nut-M2-left | stl-preview | 1 | ok | ok: 1 | 12.630 | 12.630 | 0.280 | 0.280 | 1956684 | 1956684 | 325541888 | 325541888 |
+| turns50-nut-M2-left | stl-preview | 1 | ok | ok: 1 | 10.332 | 10.332 | 0.233 | 0.233 | 1631284 | 1631284 | 302923776 | 302923776 |
+| turns40-nut-M2-left | stl-preview | 1 | ok | ok: 1 | 8.543 | 8.543 | 0.186 | 0.186 | 1283784 | 1283784 | 280494080 | 280494080 |
+| turns30-nut-M2-left | stl-preview | 1 | ok | ok: 1 | 7.052 | 7.052 | 0.140 | 0.140 | 954184 | 954184 | 270053376 | 270053376 |
+| turns20-nut-M2-left | stl-preview | 1 | ok | ok: 1 | 4.888 | 4.888 | 0.093 | 0.093 | 628784 | 628784 | 249765888 | 249765888 |
+| turns10-nut-M2-left | stl-preview | 1 | ok | ok: 1 | 3.428 | 3.428 | 0.046 | 0.046 | 281684 | 281684 | 240631808 | 240631808 |
+| turns240-bolt-M2.5-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns230-bolt-M2.5-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns220-bolt-M2.5-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns210-bolt-M2.5-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns200-bolt-M2.5-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns190-bolt-M2.5-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns180-bolt-M2.5-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns170-bolt-M2.5-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns160-bolt-M2.5-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns150-bolt-M2.5-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns140-bolt-M2.5-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns130-bolt-M2.5-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns120-bolt-M2.5-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns110-bolt-M2.5-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns100-bolt-M2.5-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns90-bolt-M2.5-right | stl-preview | 1 | ok | ok: 1 | 9.223 | 9.223 | 0.516 | 0.516 | 3729284 | 3729284 | 257044480 | 257044480 |
+| turns80-bolt-M2.5-right | stl-preview | 1 | ok | ok: 1 | 7.941 | 7.941 | 0.483 | 0.483 | 3317684 | 3317684 | 256536576 | 256536576 |
+| turns70-bolt-M2.5-right | stl-preview | 1 | ok | ok: 1 | 6.853 | 6.853 | 0.399 | 0.399 | 2901184 | 2901184 | 249753600 | 249753600 |
+| turns60-bolt-M2.5-right | stl-preview | 1 | ok | ok: 1 | 5.836 | 5.836 | 0.344 | 0.344 | 2488084 | 2488084 | 244953088 | 244953088 |
+| turns50-bolt-M2.5-right | stl-preview | 1 | ok | ok: 1 | 4.715 | 4.715 | 0.284 | 0.284 | 2075084 | 2075084 | 241479680 | 241479680 |
+| turns40-bolt-M2.5-right | stl-preview | 1 | ok | ok: 1 | 3.868 | 3.868 | 0.233 | 0.233 | 1658784 | 1658784 | 238055424 | 238055424 |
+| turns30-bolt-M2.5-right | stl-preview | 1 | ok | ok: 1 | 3.135 | 3.135 | 0.210 | 0.210 | 1243784 | 1243784 | 235032576 | 235032576 |
+| turns20-bolt-M2.5-right | stl-preview | 1 | ok | ok: 1 | 2.245 | 2.245 | 0.120 | 0.120 | 830984 | 830984 | 217194496 | 217194496 |
+| turns10-bolt-M2.5-right | stl-preview | 1 | ok | ok: 1 | 1.363 | 1.363 | 0.063 | 0.063 | 414784 | 414784 | 213651456 | 213651456 |
+| turns240-bolt-M2.5-left | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns230-bolt-M2.5-left | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns220-bolt-M2.5-left | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns210-bolt-M2.5-left | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns200-bolt-M2.5-left | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns190-bolt-M2.5-left | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns180-bolt-M2.5-left | stl-preview | 1 | ok | ok: 1 | 19.077 | 19.077 | 0.883 | 0.883 | 6119084 | 6119084 | 293392384 | 293392384 |
+| turns170-bolt-M2.5-left | stl-preview | 1 | ok | ok: 1 | 16.372 | 16.372 | 0.711 | 0.711 | 5789284 | 5789284 | 288997376 | 288997376 |
+| turns160-bolt-M2.5-left | stl-preview | 1 | ok | ok: 1 | 15.597 | 15.597 | 0.681 | 0.681 | 5438084 | 5438084 | 284991488 | 284991488 |
+| turns150-bolt-M2.5-left | stl-preview | 1 | ok | ok: 1 | 14.730 | 14.730 | 0.624 | 0.624 | 5096884 | 5096884 | 280498176 | 280498176 |
+| turns140-bolt-M2.5-left | stl-preview | 1 | ok | ok: 1 | 13.424 | 13.424 | 0.685 | 0.685 | 4769184 | 4769184 | 279126016 | 279126016 |
+| turns130-bolt-M2.5-left | stl-preview | 1 | ok | ok: 1 | 12.347 | 12.347 | 0.549 | 0.549 | 4418184 | 4418184 | 272334848 | 272334848 |
+| turns120-bolt-M2.5-left | stl-preview | 1 | ok | ok: 1 | 11.579 | 11.579 | 0.499 | 0.499 | 4079084 | 4079084 | 268943360 | 268943360 |
+| turns110-bolt-M2.5-left | stl-preview | 1 | ok | ok: 1 | 10.397 | 10.397 | 0.461 | 0.461 | 3750984 | 3750984 | 265093120 | 265093120 |
+| turns100-bolt-M2.5-left | stl-preview | 1 | ok | ok: 1 | 9.582 | 9.582 | 0.436 | 0.436 | 3399884 | 3399884 | 261623808 | 261623808 |
+| turns90-bolt-M2.5-left | stl-preview | 1 | ok | ok: 1 | 8.473 | 8.473 | 0.410 | 0.410 | 3060784 | 3060784 | 257654784 | 257654784 |
+| turns80-bolt-M2.5-left | stl-preview | 1 | ok | ok: 1 | 7.393 | 7.393 | 0.349 | 0.349 | 2732084 | 2732084 | 253009920 | 253009920 |
+| turns70-bolt-M2.5-left | stl-preview | 1 | ok | ok: 1 | 6.422 | 6.422 | 0.292 | 0.292 | 2380284 | 2380284 | 249323520 | 249323520 |
+| turns60-bolt-M2.5-left | stl-preview | 1 | ok | ok: 1 | 5.519 | 5.519 | 0.258 | 0.258 | 2043584 | 2043584 | 244654080 | 244654080 |
+| turns50-bolt-M2.5-left | stl-preview | 1 | ok | ok: 1 | 4.339 | 4.339 | 0.212 | 0.212 | 1716884 | 1716884 | 241332224 | 241332224 |
+| turns40-bolt-M2.5-left | stl-preview | 1 | ok | ok: 1 | 3.599 | 3.599 | 0.184 | 0.184 | 1366984 | 1366984 | 238280704 | 238280704 |
+| turns30-bolt-M2.5-left | stl-preview | 1 | ok | ok: 1 | 2.811 | 2.811 | 0.135 | 0.135 | 1026784 | 1026784 | 224628736 | 224628736 |
+| turns20-bolt-M2.5-left | stl-preview | 1 | ok | ok: 1 | 2.076 | 2.076 | 0.092 | 0.092 | 698284 | 698284 | 216907776 | 216907776 |
+| turns10-bolt-M2.5-left | stl-preview | 1 | ok | ok: 1 | 1.329 | 1.329 | 0.050 | 0.050 | 347084 | 347084 | 213086208 | 213086208 |
+| turns240-bolt-M3-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns230-bolt-M3-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns220-bolt-M3-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns210-bolt-M3-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns200-bolt-M3-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns190-bolt-M3-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns180-bolt-M3-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns170-bolt-M3-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns160-bolt-M3-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns150-bolt-M3-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns140-bolt-M3-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns130-bolt-M3-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns120-bolt-M3-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns110-bolt-M3-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns100-bolt-M3-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns90-bolt-M3-right | stl-preview | 1 | ok | ok: 1 | 6.022 | 6.022 | 0.335 | 0.335 | 3967184 | 3967184 | 257888256 | 257888256 |
+| turns80-bolt-M3-right | stl-preview | 1 | ok | ok: 1 | 5.369 | 5.369 | 0.299 | 0.299 | 3527884 | 3527884 | 254787584 | 254787584 |
+| turns70-bolt-M3-right | stl-preview | 1 | ok | ok: 1 | 6.763 | 6.763 | 0.444 | 0.444 | 3085084 | 3085084 | 250908672 | 250908672 |
+| turns60-bolt-M3-right | stl-preview | 1 | ok | ok: 1 | 5.789 | 5.789 | 0.380 | 0.380 | 2645184 | 2645184 | 246272000 | 246272000 |
+| turns50-bolt-M3-right | stl-preview | 1 | ok | ok: 1 | 4.767 | 4.767 | 0.323 | 0.323 | 2205884 | 2205884 | 242614272 | 242614272 |
+| turns40-bolt-M3-right | stl-preview | 1 | ok | ok: 1 | 3.723 | 3.723 | 0.258 | 0.258 | 1763284 | 1763284 | 239673344 | 239673344 |
+| turns30-bolt-M3-right | stl-preview | 1 | ok | ok: 1 | 3.144 | 3.144 | 0.207 | 0.207 | 1323184 | 1323184 | 233992192 | 233992192 |
+| turns20-bolt-M3-right | stl-preview | 1 | ok | ok: 1 | 2.389 | 2.389 | 0.132 | 0.132 | 883884 | 883884 | 217772032 | 217772032 |
+| turns10-bolt-M3-right | stl-preview | 1 | ok | ok: 1 | 1.424 | 1.424 | 0.072 | 0.072 | 441284 | 441284 | 214188032 | 214188032 |
+| turns240-nut-M3-right | stl-preview | 1 | ok | ok: 1 | 53.331 | 53.331 | 1.523 | 1.523 | 10738484 | 10738484 | 515391488 | 515391488 |
+| turns230-nut-M3-right | stl-preview | 1 | ok | ok: 1 | 51.322 | 51.322 | 1.524 | 1.524 | 10288184 | 10288184 | 511893504 | 511893504 |
+| turns220-nut-M3-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns210-nut-M3-right | stl-preview | 1 | ok | ok: 1 | 46.676 | 46.676 | 1.329 | 1.329 | 9383384 | 9383384 | 486465536 | 486465536 |
+| turns200-nut-M3-right | stl-preview | 1 | ok | ok: 1 | 44.709 | 44.709 | 1.266 | 1.266 | 8932684 | 8932684 | 470495232 | 470495232 |
+| turns190-nut-M3-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns180-nut-M3-right | stl-preview | 1 | ok | ok: 1 | 39.716 | 39.716 | 1.146 | 1.146 | 8028184 | 8028184 | 421175296 | 421175296 |
+| turns170-nut-M3-right | stl-preview | 1 | ok | ok: 1 | 37.634 | 37.634 | 1.081 | 1.081 | 7577284 | 7577284 | 440483840 | 440483840 |
+| turns160-nut-M3-right | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns150-nut-M3-right | stl-preview | 1 | ok | ok: 1 | 32.711 | 32.711 | 0.950 | 0.950 | 6672184 | 6672184 | 411893760 | 411893760 |
+| turns140-nut-M3-right | stl-preview | 1 | ok | ok: 1 | 30.866 | 30.866 | 0.887 | 0.887 | 6221384 | 6221384 | 397897728 | 397897728 |
+| turns130-nut-M3-right | stl-preview | 1 | ok | ok: 1 | 28.099 | 28.099 | 0.822 | 0.822 | 5763984 | 5763984 | 387612672 | 387612672 |
+| turns120-nut-M3-right | stl-preview | 1 | ok | ok: 1 | 25.815 | 25.815 | 0.757 | 0.757 | 5319684 | 5319684 | 366149632 | 366149632 |
+| turns110-nut-M3-right | stl-preview | 1 | ok | ok: 1 | 23.114 | 23.114 | 0.699 | 0.699 | 4869484 | 4869484 | 359018496 | 359018496 |
+| turns100-nut-M3-right | stl-preview | 1 | ok | ok: 1 | 21.030 | 21.030 | 0.632 | 0.632 | 4414584 | 4414584 | 350261248 | 350261248 |
+| turns90-nut-M3-right | stl-preview | 1 | ok | ok: 1 | 19.023 | 19.023 | 0.653 | 0.653 | 3969784 | 3969784 | 328556544 | 328556544 |
+| turns80-nut-M3-right | stl-preview | 1 | ok | ok: 1 | 16.224 | 16.224 | 0.505 | 0.505 | 3519884 | 3519884 | 322760704 | 322760704 |
+| turns70-nut-M3-right | stl-preview | 1 | ok | ok: 1 | 14.276 | 14.276 | 0.439 | 0.439 | 3065084 | 3065084 | 285847552 | 285847552 |
+| turns60-nut-M3-right | stl-preview | 1 | ok | ok: 1 | 12.436 | 12.436 | 0.379 | 0.379 | 2618984 | 2618984 | 294350848 | 294350848 |
+| turns50-nut-M3-right | stl-preview | 1 | ok | ok: 1 | 9.695 | 9.695 | 0.311 | 0.311 | 2168684 | 2168684 | 286408704 | 286408704 |
+| turns40-nut-M3-right | stl-preview | 1 | ok | ok: 1 | 8.354 | 8.354 | 0.317 | 0.317 | 1711384 | 1711384 | 267468800 | 267468800 |
+| turns30-nut-M3-right | stl-preview | 1 | ok | ok: 1 | 6.856 | 6.856 | 0.185 | 0.185 | 1265284 | 1265284 | 259387392 | 259387392 |
+| turns20-nut-M3-right | stl-preview | 1 | ok | ok: 1 | 4.771 | 4.771 | 0.121 | 0.121 | 814384 | 814384 | 247087104 | 247087104 |
+| turns10-nut-M3-right | stl-preview | 1 | ok | ok: 1 | 3.367 | 3.367 | 0.058 | 0.058 | 356384 | 356384 | 234733568 | 234733568 |
+| turns240-bolt-M3-left | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns230-bolt-M3-left | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns220-bolt-M3-left | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns210-bolt-M3-left | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns200-bolt-M3-left | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns190-bolt-M3-left | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns180-bolt-M3-left | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns170-bolt-M3-left | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| turns160-bolt-M3-left | stl-preview | 1 | ok | ok: 1 | 13.385 | 13.385 | 0.716 | 0.716 | 6043684 | 6043684 | 302669824 | 302669824 |
+| turns150-bolt-M3-left | stl-preview | 1 | ok | ok: 1 | 12.773 | 12.773 | 0.612 | 0.612 | 5666884 | 5666884 | 282501120 | 282501120 |
+| turns140-bolt-M3-left | stl-preview | 1 | ok | ok: 1 | 11.689 | 11.689 | 0.573 | 0.573 | 5297184 | 5297184 | 279486464 | 279486464 |
+| turns130-bolt-M3-left | stl-preview | 1 | ok | ok: 1 | 10.871 | 10.871 | 0.529 | 0.529 | 4913684 | 4913684 | 276189184 | 276189184 |
+| turns120-bolt-M3-left | stl-preview | 1 | ok | ok: 1 | 10.057 | 10.057 | 0.491 | 0.491 | 4536084 | 4536084 | 270323712 | 270323712 |
+| turns110-bolt-M3-left | stl-preview | 1 | ok | ok: 1 | 9.024 | 9.024 | 0.453 | 0.453 | 4166084 | 4166084 | 267116544 | 267116544 |
+| turns100-bolt-M3-left | stl-preview | 1 | ok | ok: 1 | 8.215 | 8.215 | 0.441 | 0.441 | 3780784 | 3780784 | 267845632 | 267845632 |
+| turns90-bolt-M3-left | stl-preview | 1 | ok | ok: 1 | 7.331 | 7.331 | 0.369 | 0.369 | 3403884 | 3403884 | 257728512 | 257728512 |
+| turns80-bolt-M3-left | stl-preview | 1 | ok | ok: 1 | 6.367 | 6.367 | 0.328 | 0.328 | 3033384 | 3033384 | 254779392 | 254779392 |
+| turns70-bolt-M3-left | stl-preview | 1 | ok | ok: 1 | 5.462 | 5.462 | 0.289 | 0.289 | 2648184 | 2648184 | 250462208 | 250462208 |
+| turns60-bolt-M3-left | stl-preview | 1 | ok | ok: 1 | 4.711 | 4.711 | 0.248 | 0.248 | 2271284 | 2271284 | 246439936 | 246439936 |
+| turns50-bolt-M3-left | stl-preview | 1 | ok | ok: 1 | 3.852 | 3.852 | 0.209 | 0.209 | 1901384 | 1901384 | 243363840 | 243363840 |
+| turns40-bolt-M3-left | stl-preview | 1 | ok | ok: 1 | 3.049 | 3.049 | 0.168 | 0.168 | 1516584 | 1516584 | 228540416 | 228540416 |
+| turns30-bolt-M3-left | stl-preview | 1 | ok | ok: 1 | 2.491 | 2.491 | 0.128 | 0.128 | 1138784 | 1138784 | 221523968 | 221523968 |
+| turns20-bolt-M3-left | stl-preview | 1 | ok | ok: 1 | 1.916 | 1.916 | 0.087 | 0.087 | 768384 | 768384 | 218013696 | 218013696 |
+| turns10-bolt-M3-left | stl-preview | 1 | ok | ok: 1 | 1.208 | 1.208 | 0.047 | 0.047 | 384284 | 384284 | 214118400 | 214118400 |
+
+
+#### R7 first ok step of the walked cells
+
+The first ok step of a cell is the highest step whose reading is ok (R7, G2); a cell with no row ran ok at 250 turns. `python -m bench.oper_sets decide-walls` computes it from the two directories.
+
+| cell | 250-turn reading | first ok step | readings it rests on |
+| --- | --- | --- | --- |
+| bolt-M2-right | refused | 100 | 16 |
+| nut-M2-right | refused | 100 | 16 |
+| bolt-M2-left | refused | 210 | 5 |
+| nut-M2-left | refused | 200 | 6 |
+| bolt-M2.5-right | refused | 90 | 17 |
+| bolt-M2.5-left | refused | 180 | 8 |
+| bolt-M3-right | refused | 90 | 17 |
+| nut-M3-right | refused | 240 | 2 |
+| bolt-M3-left | refused | 160 | 10 |
+
+The smallest first ok step over the 60 cells is 90 turns (the candidate T of R7).
+
+### D-08 stop at R10 (owner decision pending)
+
+`python -m bench.oper_sets decide-walls --walls bench/results/phase-07/walls-40646134133 --down bench/results/phase-07/walls-down-40652801529` exits 3:
+
+```
+oper_sets: stop (R10): the largest failing value is 0.01, so V is 0.1, which lies outside the walk (it holds at most 0.01)
+```
+
+No candidate walls are recorded, and the walls confirm set is not generated, until the owner rules (R10: "Otherwise there is no number: the phase stops and asks the owner"). The evidence is the status of the 540 group (d) readings of the walls run 40646134133, by kind and radius `r` (mm):
+
+| kind | r mm | readings by status |
+| --- | --- | --- |
+| bolt | 0.01 | ok: 30 |
+| bolt | 0.003 | ok: 30 |
+| bolt | 0.001 | ok: 30 |
+| bolt | 0.0003 | ok: 29, refused: 1 |
+| bolt | 0.0001 | ok: 29, refused: 1 |
+| bolt | 3e-05 | refused: 30 |
+| bolt | 1e-05 | refused: 30 |
+| bolt | 3e-06 | refused: 30 |
+| bolt | 1e-06 | refused: 30 |
+| nut | 0.01 | refused: 30 |
+| nut | 0.003 | refused: 30 |
+| nut | 0.001 | refused: 30 |
+| nut | 0.0003 | refused: 30 |
+| nut | 0.0001 | refused: 30 |
+| nut | 3e-05 | refused: 30 |
+| nut | 1e-05 | refused: 30 |
+| nut | 3e-06 | refused: 30 |
+| nut | 1e-06 | refused: 30 |
+
+Message prefixes of the refused readings (count): nut: `Geometry kernel failed (StdFail_NotDone); check d, pitch, le` (270); bolt: `Geometry kernel produced 0 solids from the tip cut for these` (2), `Geometry kernel failed (StdFail_NotDone); check d, pitch, le` (120).
+
+For scale (from `bench/points/walls.json`, not a reading): the nut point `root-nut-M8-right-r0.01` has pitch 7.6487363662241625 mm and `m` 22.946209098672487 mm, where the M8 coarse pitch of the L11 sizes is 1.25 mm; every one of the 270 nut readings is refused, at every radius from 1e-2 to 1e-6, and the bolt readings are not.
+
