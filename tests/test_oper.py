@@ -2256,3 +2256,17 @@ def test_a_missing_gzip_or_arena_max_stops_the_phase() -> None:
             "the phase stops and asks the owner")
     assert f"If a max the gzip comparison needs is missing {stop}" in " ".join(_rule(19).split())
     assert f"If a max the arena comparison needs is missing {stop}" in " ".join(_rule(23).split())
+
+
+# --- the gap ruling (PR A4): pinned by its key phrase ---------------------------------------------
+
+
+def test_a_gzip_or_arena_reading_is_charged_its_deadline_and_not_an_explore_wall() -> None:
+    rule = " ".join(_rule(6).split())
+    assert "a reading of the contention, load, drift, gzip and arena sets is ruled below" in rule
+    assert ("The R19 gzip set and the R23 arena set are charged the same way: each of their "
+            "readings is charged R2's 600 s") in rule
+    assert "a reading that does not fit stops the phase, by the rule above" in rule
+    assert "a gzip reading also compresses its output at levels 6 and 9" in rule
+    assert "the charge of neither set rests on a measured wall" in rule
+    assert "a reading of the contention, load and drift sets is ruled below" not in rule
