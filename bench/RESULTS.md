@@ -7511,3 +7511,41 @@ Print date: 21:53, 2026-10-23 (owner's reply). Fresh pair; no matrix or run-2 pa
 Owner's fit test: pass. Owner's reply, verbatim: "Path: ~/Downloads/3dprint / Print date: 21:53 10.23.2026 /
 Result: pass". The owner reported no turns and no notes beyond `pass`; the hand judgement is D-05's and is
 the owner's word, with no mechanical check behind it.
+
+## Phase 7 Runs I
+
+Runner readings of the operability sweep (plan 07-05), taken under `07-SWEEP-PROTOCOL.md` as amended through PR A4 (G1 to G24), on `ubuntu-latest` (07 D-01). Every figure below is `bench.oper summarize` output over the records committed under `bench/results/phase-07/`. Artifacts are downloaded with `gh run download <id> -p 'oper-*'`: the `docker/build-push-action` step also uploads `*.dockerbuild` build-record artifacts that `gh run download <id>` cannot unzip, so the plain command fails; the oper artifacts are the same files either way.
+
+### tracer, run 40645463872
+
+- Dispatched sha: `a142c278f8bba48df8a2405ec7e092d42b725421`
+- Records: `bench/results/phase-07/tracer-40645463872/` (5 artifacts, 5 readings), run https://github.com/halfb00t/screw/actions/runs/40645463872
+- CPU models seen (jobs): AMD EPYC 7763 64-Core Processor (4); AMD EPYC 9V74 80-Core Processor (1)
+- Counts by status: ok: 5
+- The five repetitions are five matrix jobs, five runner instances; each built its own image (five image ids, one per job).
+- Summary: `python -m bench.oper summarize --markdown --reps 1,2,3,4,5` over the directory, as printed.
+
+### Host
+
+| fact | value |
+| --- | --- |
+| image | screw:ci |
+| image_id | sha256:f296242f753ef18ef3b592fe48c6935643564710a15bbf82eb957cbf3fd5c076, sha256:844d93f21d2d9a5d62c76a5e1c99ae6318db3bbd264d92e0a85063d768c364ed, sha256:491e0343c08bc4276df54328076f59f08d12faa2ecd30b91e8b60afcd36fa8a4, sha256:46fc4c6c5700aef52b342f0600b4d001f827c50479172bb5ab580698b5dc4e84, sha256:0a2a8a1af5e34723aec3bf5fbd10aea2f497285a361d56e403c5a20d191de07c |
+| versions | {"cadquery": "2.8.0", "cadquery_ocp": "7.9.3.1.1"} |
+| nproc | 4 |
+| mem_total_bytes | 16759443456 |
+| cpu_model | AMD EPYC 7763 64-Core Processor, AMD EPYC 9V74 80-Core Processor |
+| kernel | 7.0.0-1017-azure |
+| machine | x86_64 |
+| GITHUB_RUN_ID | 40645463872 |
+| GITHUB_JOB | measure |
+| GITHUB_SHA | a142c278f8bba48df8a2405ec7e092d42b725421 |
+
+### Readings
+
+Status counts: ok: 5
+
+| point | artifact | n | status | counts | median build s | max build s | median export s | max export s | median bytes | max bytes | median peak bytes | max peak bytes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| default-bolt | stl-preview | 5 | ok | ok: 5 | 1.925 | 1.963 | 0.201 | 0.207 | 1587384 | 1587384 | 225189888 | 226586624 |
+
