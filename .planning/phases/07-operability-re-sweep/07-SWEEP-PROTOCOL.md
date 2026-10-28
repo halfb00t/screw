@@ -54,7 +54,7 @@ substituted figure.
 
 ## R3 - Repetitions (D-04, D-19)
 
-Exploration takes 1 repetition per point (`explore`, `walls`, `controls` and the R7 walk-down set). 5 repetitions are taken
+Exploration takes 1 repetition per point (`explore`, `walls`, `controls`, the R7 walk-down set and the void walk of R4 (d)). 5 repetitions are taken
 on `spread` and on every set that sets a bound: the Runs II bound set, the contention and load sets
 and the walls confirm set. The 5 repetitions of a point are 5 matrix jobs (`rep` 1 to 5), so 5
 runner instances. Per point the median and the max over its ok repetitions are recorded; a point
@@ -71,7 +71,9 @@ status; a disagreement keeps the stricter outcome, that is the lower wall.
 
 The *next step past* a decided value is: for R7, 10 turns more (260 where 250 stands); for R8, the next
 decade (1e6 where 1e5 stands); for R9 and R10, the next smaller walked value, which `walls` groups (c)
-and (d) already hold. Where R9 or R10 decides "above 0", no walked value lies below the decided one, so
+and (d) and the void walk of R4 (d) already hold; where V lies in the void walk, the confirm reads the
+void walk's points at V and at the next smaller walked value, nut voids only, as no rod is walked
+above 1e-2 mm. Where R9 or R10 decides "above 0", no walked value lies below the decided one, so
 the confirm set for that rule is the smallest walked value (tail 1e-9 mm, root radius 1e-6 mm) for every
 cell of the rule, at 5 repetitions, and nothing past it. Any reading there that is not `ok` awards no
 floor, and the phase stops and asks the owner, as R7 does. A step that lies past a validator's own cap would be refused before the kernel, so
@@ -140,7 +142,12 @@ with the builder's guard (`MIN_TAIL_MM`) lowered inside the probe only and resto
 whose pitch solves `d / 2 - thread_depth(pitch) + 0.15 = r`, 3 turns (nut `m` = 3 pitch). The pitch
 is solved to full float precision and not rounded to 6 figures: a 6-figure pitch moves the root
 radius by up to about 5e-6 mm, which is more than the 1e-6 mm end of the walk, so the radius named
-in the label would not be the radius walked. (e) The nuts the two open nut debt items name, so their
+in the label would not be the radius walked. Above 1e-2 mm the nut voids are walked in a set of their
+own, the void walk (`walls-voids`), added after the first runner reading by the owner's ruling that
+R30 asks for: for each of the 15 sizes and both hands, the nut of this group, built and labelled the
+same way, at `r` in {3e-2, 1e-1, 3e-1, 1} mm, 120 points at 1 repetition and R2's deadline. Every
+pitch it solves is positive. No rod is walked above 1e-2 mm, and the void walk is not extended past
+1 mm. (e) The nuts the two open nut debt items name, so their
 fate is decided by records: the lead-in item's M2 (m 12), M8 (m 38) and M14 (m 46) at `clearance`
 0.1 and `s` in {1e3, 1e4, 1e5}, and the countersink item's `d` 2, `s` 4, `m` 3 nuts at `clearance`
 0.05 with pitch 1.5 and 1.8 and at `clearance` 0.01 with pitch 1.5. (f) Past the caps, the
@@ -172,7 +179,7 @@ instance and for the image build. A point of an explore-like set whose own charg
 stops the phase and asks the owner; a reading of the contention, load, drift, gzip and arena sets is
 ruled below.
 
-For a set of explore-like parts (`walls`, the walls confirm set and the R7 walk-down set), each point is
+For a set of explore-like parts (`walls`, the walls confirm set, the R7 walk-down set and the void walk of R4 (d)), each point is
 charged the largest `wall_s` of any `explore` reading in its (kind, artifact) group, whatever the
 status of that reading (`wall_s` is kept for every status, R2), so a part is charged the slowest cold
 wall measured for its kind of part at its artifact. A (kind, artifact) group with no `explore` reading
@@ -255,18 +262,19 @@ either (R8). Otherwise there is no number: the phase stops and asks the owner.
 
 ## R10 - MIN_ROOT_RADIUS_MM (D-18)
 
-Let F be the largest root radius `r` in `walls` group (d) whose reading is `refused` or `crashed`, at
+Let F be the largest root radius `r` in `walls` group (d) and in the void walk of R4 (d) whose reading is `refused` or `crashed`, at
 any size, hand, rod or void (F = 0 when none fails). `MIN_ROOT_RADIUS_MM` is the smallest power of ten
 at or above 10 F. If no reading fails down to 1e-6 mm, the floor stays "above 0" and the entry says
 the walk reached 1e-6 mm, but only if the confirm set of R3 at 1e-6 mm, for every size, hand, rod and
 void, is `ok` in all 5 repetitions. 10 is one decade, the coarsest margin that is still tighter than the
 tail rule's 100; the walk's own steps are half-decades, so 10 F sits at least two steps clear of F.
 
-The value V this names stands only on `ok` readings. V must be a radius the walk holds (1e-2 to 1e-6
-as a power of ten), and every reading of group (d) at a radius of V or more, at every size and hand,
-rod and void, must be `ok`; for "above 0", every reading of group (d) must be `ok`. A `killed` or
-`capped` reading sets no F but cannot support a bound either (R8). Otherwise there is no number: the
-phase stops and asks the owner.
+The value V this names stands only on `ok` readings. V must be a radius the two walks hold, a power
+of ten from 1 mm down to 1e-6 mm, and every reading of group (d) and of the void walk at a radius of
+V or more, at every size and hand, rod and void, must be `ok`; for "above 0", every reading of both
+must be `ok`. A void reading that fails at 1 mm puts V above the walk: there is no number, and the
+walk is not extended. A `killed` or `capped` reading sets no F, being cost and not a wall, but it
+cannot support a bound either (R8). Otherwise there is no number: the phase stops and asks the owner.
 
 ## R11 - The cost model's form (D-05, D-17)
 

@@ -65,3 +65,19 @@ recommended option.
 | G24 | R6 | Each reading of the R19 gzip set and the R23 arena set is charged its deadline (R2's 600 s), as contention and load readings are, not its explore group's largest `wall_s`. A reading whose deadline is not under half the job's `timeout-minutes` stops the phase for the owner, as G4 rules. |
 
 Earlier rulings in the same review cycle (PR A, rounds 1–3) are recorded in `07-04-SUMMARY.md`.
+
+## Gap G25 (owner ruling after the first runner reading, 2026-10-28)
+
+Source: plan 07-05 halted at its R10 stop (`bench/RESULTS.md`, "D-08 stop at R10"). In walls run
+40646134133, group (d), the rods are `ok` at 1e-2, 3e-3 and 1e-3 mm in all 30 cells, so the rods alone
+give F = 3e-4 mm. The nut voids are `refused` (`StdFail_NotDone`) in all 270 readings, at every radius
+from 1e-2 down to 1e-6 mm. The void construction is valid geometry: D-04, `void_root_radius_refusal`
+accepts a root `d/2 - 5H/8 + c` above 0. So the refusals are a real void wall above 1e-2 mm. The
+ruling comes after the first runner reading of the phase, so R30's freeze had started. It is a rule
+change the owner ruled, as R30 requires ("A rule change stops the phase for the owner's ruling"). It
+is not a harness fix, and it is not listed under the protocol's "Harness fixes". It amends
+`07-SWEEP-PROTOCOL.md` R3, R4 (d), R6 and R10 on the phase branch `gsd/phase-07-operability-re-sweep`.
+
+| Gap | Rule(s) | Owner ruling |
+|---|---|---|
+| G25 | R3, R4 (d), R6, R10 | Walk the nut voids upward. For each of the 15 sizes and both hands, take the group (d) nut (pitch solving `d/2 - thread_depth(pitch) + 0.15 = r`, 3 turns, `m` = 3 pitch) at `r` in {3e-2, 1e-1, 3e-1, 1} mm. That is 120 readings at 1 repetition, with R2's deadline and the R6 explore-like charge (the largest explore `wall_s` of the (nut, stl-preview) group, or `deadline_s` if none). Every pitch is positive; the smallest is M2 at `r` = 1 mm, 0.277 mm. R10 then decides on group (d) and this walk together: F is the largest failing `r` over rods and voids at all radii; V is the smallest power of ten at or above 10 F, and may be any power of ten the walks hold from 1 mm down to 1e-6 mm; every reading of rods and voids at `r` >= V must be `ok`, otherwise there is no number and the phase stops again. If the voids still fail at 1 mm, that is an R10 stop and the walk is not extended. The R3 confirm set for R10 follows the existing rule (V and the next smaller walked value), using the void walk's radii where V lies in it. |

@@ -2303,3 +2303,41 @@ def test_a_gzip_or_arena_reading_is_charged_its_deadline_and_not_an_explore_wall
     assert "a gzip reading also compresses its output at levels 6 and 9" in rule
     assert "the charge of neither set rests on a measured wall" in rule
     assert "a reading of the contention, load and drift sets is ruled below" not in rule
+
+
+# --- the owner's ruling after the first runner reading (G25): pinned by its key phrase ------------
+
+
+def test_the_nut_voids_are_walked_above_1e_2_in_a_set_of_their_own() -> None:
+    r4 = " ".join(_rule(4).split())
+    assert ("Above 1e-2 mm the nut voids are walked in a set of their own, the void walk "
+            "(`walls-voids`)") in r4
+    assert "at `r` in {3e-2, 1e-1, 3e-1, 1} mm" in r4
+    assert "added after the first runner reading by the owner's ruling that R30 asks for" in r4
+    assert "the void walk is not extended past 1 mm" in r4
+    for number in (3, 6):
+        assert "the R7 walk-down set and the void walk of R4 (d)" in " ".join(
+            _rule(number).split())
+    assert ("where V lies in the void walk, the confirm reads the void walk's points at V and at "
+            "the next smaller walked value") in " ".join(_rule(3).split())
+
+
+def test_r10_decides_on_group_d_and_the_void_walk_together() -> None:
+    rule = " ".join(_rule(10).split())
+    assert "in `walls` group (d) and in the void walk of R4 (d)" in rule
+    assert ("V must be a radius the two walks hold, a power of ten from 1 mm down to 1e-6 mm"
+            ) in rule
+    assert "every reading of group (d) and of the void walk at a radius of V or more" in rule
+    assert "A void reading that fails at 1 mm puts V above the walk" in rule
+    assert "(1e-2 to 1e-6 as a power of ten)" not in rule
+
+
+def test_the_void_walk_ruling_is_an_owner_ruling_after_the_freeze_and_not_a_harness_fix() -> None:
+    rulings = (PROTOCOL.parent / "07-GAP-RULINGS.md").read_text()
+    assert ("\n## Gap G25 (owner ruling after the first runner reading, 2026-10-28)\n") in rulings
+    assert "40646134133" in rulings
+    assert re.search(r"^\| G25 \|", rulings, re.MULTILINE)
+    assert "not a harness fix" in rulings
+    protocol = _protocol()
+    assert protocol[protocol.index("## Harness fixes"):].startswith("## Harness fixes\n\nNone yet.")
+    assert not re.search(r"\bG\d+\b", protocol)
