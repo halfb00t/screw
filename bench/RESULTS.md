@@ -10628,3 +10628,156 @@ Message prefixes of the refused readings (count): nut: `Geometry kernel failed (
 
 For scale (from `bench/points/walls.json`, not a reading): the nut point `root-nut-M8-right-r0.01` has pitch 7.6487363662241625 mm and `m` 22.946209098672487 mm, where the M8 coarse pitch of the L11 sizes is 1.25 mm; every one of the 270 nut readings is refused, at every radius from 1e-2 to 1e-6, and the bolt readings are not.
 
+Ruled 2026-10-28 (G25, `.planning/phases/07-operability-re-sweep/07-GAP-RULINGS.md`): the nut voids are walked upward at 3e-2, 1e-1, 3e-1 and 1 mm (`bench/points/walls-voids.json`), and R10 decides on group (d) and that walk together; see `### walls-voids, run 40665307964`.
+
+### walls-voids, run 40665307964
+
+- Dispatched sha: `93afc8129dd6a28ca6fcdd84f8cc7a35d962e0ed`
+- Records: `bench/results/phase-07/walls-voids-40665307964/` (1 artifact, 120 readings), run https://github.com/halfb00t/screw/actions/runs/40665307964
+- CPU models seen (jobs): AMD EPYC 7763 64-Core Processor (1)
+- Counts by status: ok: 20, refused: 100
+- One dispatch of walls-voids.json (120 points of the R10 void walk, owner ruling G25, in 1 R6 shard), dispatched at the commit that added the file; not split.
+- Summary: `python -m bench.oper summarize --markdown --reps 1` over the directory, as printed.
+
+### Host
+
+| fact | value |
+| --- | --- |
+| image | screw:ci |
+| image_id | sha256:9f0c9934830bb5c0e2d623ee4a43b4a59cb3b3c9827f76f9a01ed0a45df326e1 |
+| versions | {"cadquery": "2.8.0", "cadquery_ocp": "7.9.3.1.1"} |
+| nproc | 4 |
+| mem_total_bytes | 16759443456 |
+| cpu_model | AMD EPYC 7763 64-Core Processor |
+| kernel | 7.0.0-1017-azure |
+| machine | x86_64 |
+| GITHUB_RUN_ID | 40665307964 |
+| GITHUB_JOB | measure |
+| GITHUB_SHA | 93afc8129dd6a28ca6fcdd84f8cc7a35d962e0ed |
+
+### Readings
+
+Status counts: refused: 100, ok: 20
+
+| point | artifact | n | status | counts | median build s | max build s | median export s | max export s | median bytes | max bytes | median peak bytes | max peak bytes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| root-nut-M2-right-r0.03 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M2-right-r0.1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M2-right-r0.3 | stl-preview | 1 | ok | ok: 1 | 1.758 | 1.758 | 0.022 | 0.022 | 127984 | 127984 | 212688896 | 212688896 |
+| root-nut-M2-right-r1 | stl-preview | 1 | ok | ok: 1 | 2.074 | 2.074 | 0.025 | 0.025 | 137284 | 137284 | 214900736 | 214900736 |
+| root-nut-M2-left-r0.03 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M2-left-r0.1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M2-left-r0.3 | stl-preview | 1 | ok | ok: 1 | 1.733 | 1.733 | 0.022 | 0.022 | 127184 | 127184 | 212840448 | 212840448 |
+| root-nut-M2-left-r1 | stl-preview | 1 | ok | ok: 1 | 2.065 | 2.065 | 0.023 | 0.023 | 125584 | 125584 | 215728128 | 215728128 |
+| root-nut-M2.5-right-r0.03 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M2.5-right-r0.1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M2.5-right-r0.3 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M2.5-right-r1 | stl-preview | 1 | ok | ok: 1 | 1.825 | 1.825 | 0.023 | 0.023 | 137784 | 137784 | 215199744 | 215199744 |
+| root-nut-M2.5-left-r0.03 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M2.5-left-r0.1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M2.5-left-r0.3 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M2.5-left-r1 | stl-preview | 1 | ok | ok: 1 | 1.890 | 1.890 | 0.023 | 0.023 | 128184 | 128184 | 215040000 | 215040000 |
+| root-nut-M3-right-r0.03 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M3-right-r0.1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M3-right-r0.3 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M3-right-r1 | stl-preview | 1 | ok | ok: 1 | 1.855 | 1.855 | 0.024 | 0.024 | 140784 | 140784 | 214679552 | 214679552 |
+| root-nut-M3-left-r0.03 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M3-left-r0.1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M3-left-r0.3 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M3-left-r1 | stl-preview | 1 | ok | ok: 1 | 1.768 | 1.768 | 0.023 | 0.023 | 133684 | 133684 | 213274624 | 213274624 |
+| root-nut-M3.5-right-r0.03 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M3.5-right-r0.1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M3.5-right-r0.3 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M3.5-right-r1 | stl-preview | 1 | ok | ok: 1 | 1.724 | 1.724 | 0.026 | 0.026 | 152784 | 152784 | 214056960 | 214056960 |
+| root-nut-M3.5-left-r0.03 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M3.5-left-r0.1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M3.5-left-r0.3 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M3.5-left-r1 | stl-preview | 1 | ok | ok: 1 | 1.581 | 1.581 | 0.026 | 0.026 | 147984 | 147984 | 212971520 | 212971520 |
+| root-nut-M4-right-r0.03 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M4-right-r0.1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M4-right-r0.3 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M4-right-r1 | stl-preview | 1 | ok | ok: 1 | 1.585 | 1.585 | 0.028 | 0.028 | 175284 | 175284 | 210944000 | 210944000 |
+| root-nut-M4-left-r0.03 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M4-left-r0.1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M4-left-r0.3 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M4-left-r1 | stl-preview | 1 | ok | ok: 1 | 1.492 | 1.492 | 0.028 | 0.028 | 163184 | 163184 | 211591168 | 211591168 |
+| root-nut-M5-right-r0.03 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M5-right-r0.1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M5-right-r0.3 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M5-right-r1 | stl-preview | 1 | ok | ok: 1 | 1.539 | 1.539 | 0.030 | 0.030 | 189484 | 189484 | 211607552 | 211607552 |
+| root-nut-M5-left-r0.03 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M5-left-r0.1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M5-left-r0.3 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M5-left-r1 | stl-preview | 1 | ok | ok: 1 | 1.484 | 1.484 | 0.029 | 0.029 | 176384 | 176384 | 211763200 | 211763200 |
+| root-nut-M6-right-r0.03 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M6-right-r0.1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M6-right-r0.3 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M6-right-r1 | stl-preview | 1 | ok | ok: 1 | 1.551 | 1.551 | 0.031 | 0.031 | 204884 | 204884 | 211730432 | 211730432 |
+| root-nut-M6-left-r0.03 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M6-left-r0.1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M6-left-r0.3 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M6-left-r1 | stl-preview | 1 | ok | ok: 1 | 1.589 | 1.589 | 0.034 | 0.034 | 192884 | 192884 | 212144128 | 212144128 |
+| root-nut-M7-right-r0.03 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M7-right-r0.1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M7-right-r0.3 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M7-right-r1 | stl-preview | 1 | ok | ok: 1 | 1.599 | 1.599 | 0.033 | 0.033 | 223584 | 223584 | 211488768 | 211488768 |
+| root-nut-M7-left-r0.03 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M7-left-r0.1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M7-left-r0.3 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M7-left-r1 | stl-preview | 1 | ok | ok: 1 | 1.650 | 1.650 | 0.031 | 0.031 | 200784 | 200784 | 211431424 | 211431424 |
+| root-nut-M8-right-r0.03 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M8-right-r0.1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M8-right-r0.3 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M8-right-r1 | stl-preview | 1 | ok | ok: 1 | 1.859 | 1.859 | 0.035 | 0.035 | 233484 | 233484 | 211550208 | 211550208 |
+| root-nut-M8-left-r0.03 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M8-left-r0.1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M8-left-r0.3 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M8-left-r1 | stl-preview | 1 | ok | ok: 1 | 1.866 | 1.866 | 0.033 | 0.033 | 218484 | 218484 | 211943424 | 211943424 |
+| root-nut-M10-right-r0.03 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M10-right-r0.1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M10-right-r0.3 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M10-right-r1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M10-left-r0.03 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M10-left-r0.1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M10-left-r0.3 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M10-left-r1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M12-right-r0.03 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M12-right-r0.1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M12-right-r0.3 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M12-right-r1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M12-left-r0.03 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M12-left-r0.1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M12-left-r0.3 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M12-left-r1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M14-right-r0.03 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M14-right-r0.1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M14-right-r0.3 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M14-right-r1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M14-left-r0.03 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M14-left-r0.1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M14-left-r0.3 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M14-left-r1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M16-right-r0.03 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M16-right-r0.1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M16-right-r0.3 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M16-right-r1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M16-left-r0.03 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M16-left-r0.1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M16-left-r0.3 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M16-left-r1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M18-right-r0.03 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M18-right-r0.1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M18-right-r0.3 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M18-right-r1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M18-left-r0.03 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M18-left-r0.1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M18-left-r0.3 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M18-left-r1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M20-right-r0.03 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M20-right-r0.1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M20-right-r0.3 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M20-right-r1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M20-left-r0.03 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M20-left-r0.1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M20-left-r0.3 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+| root-nut-M20-left-r1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
