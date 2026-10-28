@@ -10820,3 +10820,87 @@ No candidate walls are recorded, and the walls confirm set is not generated, unt
 The void walk readings that are refused at 1 mm are the nuts M10, M12, M14, M16, M18 and M20, both hands (12 readings, `root-nut-<size>-<hand>-r1`); the readings that are ok at 1 mm are the 18 nuts M2 to M8, both hands. Of the readings at 0.3 mm, only `root-nut-M2-right-r0.3` and `root-nut-M2-left-r0.3` are ok. All 100 refused void walk readings carry the message `Geometry kernel failed (StdFail_NotDone); check d, pitch, le`.
 
 G25 rules that a void failure at 1 mm, or a V above 1 mm, is an R10 stop, and the walk is not extended.
+
+Ruled 2026-10-28 (G26, `.planning/phases/07-operability-re-sweep/07-GAP-RULINGS.md`): R10 decides from the rods of group (d) only; the nut readings of group (d) and of the void walk are recorded and bear on no bound; see `### R10 void readings, an observation (no number is taken from it)` and `### candidate walls (before the confirm)`.
+
+### R10 void readings, an observation (no number is taken from it)
+
+The figures are recomputed from the committed records of the void walk run 40665307964 by this command (stdlib only, run from the repo root):
+
+```
+python3 -I -c "
+import glob, json
+rs = [json.loads(l) for f in sorted(glob.glob('bench/results/phase-07/walls-voids-40665307964/*/*.jsonl')) for l in open(f) if l.strip()]
+rs = [r for r in rs if r.get('type') == 'reading']
+ok = [r for r in rs if r['status'] == 'ok']; no = [r for r in rs if r['status'] != 'ok']
+rd = lambda r: float(r['label'].rsplit('-r', 1)[1]) / r['params']['d']
+pd = lambda r: r['params']['pitch'] / r['params']['d']
+print(f'readings {len(rs)}, ok {len(ok)}, not ok {len(no)} ({sorted({r[\"status\"] for r in no})})')
+print(f'r/d: ok min {min(map(rd, ok)):.4f}, not ok max {max(map(rd, no)):.4f}')
+print(f'pitch/d: ok max {max(map(pd, ok)):.4f}, not ok min {min(map(pd, no)):.4f}')
+"
+```
+
+Its output as printed:
+
+```
+readings 120, ok 20, not ok 100 (['refused'])
+r/d: ok min 0.1250, not ok max 0.1200
+pitch/d: ok max 0.7852, not ok min 0.7667
+```
+
+- Void walk run 40665307964, 120 readings at 1 repetition: 20 ok and 100 refused.
+- Every ok reading has a void root ratio r/d of 0.1250 or more, and every refused one 0.1200 or less.
+- pitch/d does not separate them (ok max 0.7852 > refused min 0.7667).
+- The group (d) voids of walls run 40646134133 (r <= 1e-2 mm) are refused at every radius (270 of 270, in the table above).
+- One repetition in one run: an observation, not a confirmed bound.
+- The void wall grows with `d`, so no floor in millimetres holds it, and under G26 no number is taken from it.
+- A nut in this range is refused by the kernel and by no guard, which stays open in `docs/tech_debt/active/2026-10-21-nut-countersink-cutter-crosses-the-axis-at-a-coarse-pitch.md`.
+
+### candidate walls (before the confirm)
+
+`python -m bench.oper_sets decide-walls --walls bench/results/phase-07/walls-40646134133 --down bench/results/phase-07/walls-down-40652801529` exits 0 under R10 as ruled by G26 (the rods of group (d) only; `--voids` is gone). Its stdout:
+
+```
+T = 90 turns (smallest first ok step over 60 cells)
+  cell bolt-M2-right: first ok step 100
+  cell nut-M2-right: first ok step 100
+  cell bolt-M2-left: first ok step 210
+  cell nut-M2-left: first ok step 200
+  cell bolt-M2.5-right: first ok step 90
+  cell bolt-M2.5-left: first ok step 180
+  cell bolt-M3-right: first ok step 90
+  cell nut-M3-right: first ok step 240
+  cell bolt-M3-left: first ok step 160
+readings T rests on: 148
+bolt d: decade 1000, tested value 999.999, rests on ceiling-bolt-d-1000
+bolt length: decade 10000, tested value 10000.0, rests on ceiling-bolt-length-10000, ceiling-bolt-thread-10000
+bolt s: decade 1000, tested value 1000.0, rests on ceiling-bolt-s-1000, ceiling-bolt-d-1000
+bolt k: decade 100000, tested value 100000.0, rests on ceiling-bolt-k-100000
+bolt thread_length: decade 100000, tested value 100000.0, rests on ceiling-bolt-thread-100000
+nut s: decade 1000, tested value 1000.0, rests on ceiling-nut-s-1000, nutlead-M2-s1000, nutlead-M8-s1000, nutlead-M14-s1000
+nut d: decade 1000, tested value 999.699, rests on ceiling-nut-d-1000
+nut m: decade 10000, tested value 10000.0, rests on ceiling-nut-m-10000
+nut clearance: decade 1000, tested value 496.999, rests on ceiling-nut-clearance-1000
+MAX_FIELD_MM candidate: 1000
+tail (R9): V = 0.0001 mm; 48 readings read, failing: tail-d6-p1-right-1e-6, tail-d6-p1-left-1e-6, tail-d2-p0.4-right-1e-6, tail-d2-p0.4-left-1e-6, tail-d20-p2.5-right-1e-6, tail-d20-p2.5-left-1e-6, tail-d6-p1-right-1e-7, tail-d6-p1-left-1e-7, tail-d2-p0.4-right-1e-7, tail-d2-p0.4-left-1e-7, tail-d20-p2.5-right-1e-7, tail-d20-p2.5-left-1e-7, tail-d6-p1-right-1e-8, tail-d6-p1-left-1e-8, tail-d2-p0.4-right-1e-8, tail-d2-p0.4-left-1e-8, tail-d20-p2.5-right-1e-8, tail-d20-p2.5-left-1e-8, tail-d6-p1-right-1e-9, tail-d6-p1-left-1e-9, tail-d2-p0.4-right-1e-9, tail-d2-p0.4-left-1e-9, tail-d20-p2.5-right-1e-9, tail-d20-p2.5-left-1e-9
+root (R10): V = 0.01 mm; 270 readings read, failing: root-bolt-M12-right-r0.0003, root-bolt-M6-right-r0.0001, root-bolt-M2-right-r3e-05, root-bolt-M2-left-r3e-05, root-bolt-M2.5-right-r3e-05, root-bolt-M2.5-left-r3e-05, root-bolt-M3-right-r3e-05, root-bolt-M3-left-r3e-05, root-bolt-M3.5-right-r3e-05, root-bolt-M3.5-left-r3e-05, root-bolt-M4-right-r3e-05, root-bolt-M4-left-r3e-05, root-bolt-M5-right-r3e-05, root-bolt-M5-left-r3e-05, root-bolt-M6-right-r3e-05, root-bolt-M6-left-r3e-05, root-bolt-M7-right-r3e-05, root-bolt-M7-left-r3e-05, root-bolt-M8-right-r3e-05, root-bolt-M8-left-r3e-05, root-bolt-M10-right-r3e-05, root-bolt-M10-left-r3e-05, root-bolt-M12-right-r3e-05, root-bolt-M12-left-r3e-05, root-bolt-M14-right-r3e-05, root-bolt-M14-left-r3e-05, root-bolt-M16-right-r3e-05, root-bolt-M16-left-r3e-05, root-bolt-M18-right-r3e-05, root-bolt-M18-left-r3e-05, root-bolt-M20-right-r3e-05, root-bolt-M20-left-r3e-05, root-bolt-M2-right-r1e-05, root-bolt-M2-left-r1e-05, root-bolt-M2.5-right-r1e-05, root-bolt-M2.5-left-r1e-05, root-bolt-M3-right-r1e-05, root-bolt-M3-left-r1e-05, root-bolt-M3.5-right-r1e-05, root-bolt-M3.5-left-r1e-05, root-bolt-M4-right-r1e-05, root-bolt-M4-left-r1e-05, root-bolt-M5-right-r1e-05, root-bolt-M5-left-r1e-05, root-bolt-M6-right-r1e-05, root-bolt-M6-left-r1e-05, root-bolt-M7-right-r1e-05, root-bolt-M7-left-r1e-05, root-bolt-M8-right-r1e-05, root-bolt-M8-left-r1e-05, root-bolt-M10-right-r1e-05, root-bolt-M10-left-r1e-05, root-bolt-M12-right-r1e-05, root-bolt-M12-left-r1e-05, root-bolt-M14-right-r1e-05, root-bolt-M14-left-r1e-05, root-bolt-M16-right-r1e-05, root-bolt-M16-left-r1e-05, root-bolt-M18-right-r1e-05, root-bolt-M18-left-r1e-05, root-bolt-M20-right-r1e-05, root-bolt-M20-left-r1e-05, root-bolt-M2-right-r3e-06, root-bolt-M2-left-r3e-06, root-bolt-M2.5-right-r3e-06, root-bolt-M2.5-left-r3e-06, root-bolt-M3-right-r3e-06, root-bolt-M3-left-r3e-06, root-bolt-M3.5-right-r3e-06, root-bolt-M3.5-left-r3e-06, root-bolt-M4-right-r3e-06, root-bolt-M4-left-r3e-06, root-bolt-M5-right-r3e-06, root-bolt-M5-left-r3e-06, root-bolt-M6-right-r3e-06, root-bolt-M6-left-r3e-06, root-bolt-M7-right-r3e-06, root-bolt-M7-left-r3e-06, root-bolt-M8-right-r3e-06, root-bolt-M8-left-r3e-06, root-bolt-M10-right-r3e-06, root-bolt-M10-left-r3e-06, root-bolt-M12-right-r3e-06, root-bolt-M12-left-r3e-06, root-bolt-M14-right-r3e-06, root-bolt-M14-left-r3e-06, root-bolt-M16-right-r3e-06, root-bolt-M16-left-r3e-06, root-bolt-M18-right-r3e-06, root-bolt-M18-left-r3e-06, root-bolt-M20-right-r3e-06, root-bolt-M20-left-r3e-06, root-bolt-M2-right-r1e-06, root-bolt-M2-left-r1e-06, root-bolt-M2.5-right-r1e-06, root-bolt-M2.5-left-r1e-06, root-bolt-M3-right-r1e-06, root-bolt-M3-left-r1e-06, root-bolt-M3.5-right-r1e-06, root-bolt-M3.5-left-r1e-06, root-bolt-M4-right-r1e-06, root-bolt-M4-left-r1e-06, root-bolt-M5-right-r1e-06, root-bolt-M5-left-r1e-06, root-bolt-M6-right-r1e-06, root-bolt-M6-left-r1e-06, root-bolt-M7-right-r1e-06, root-bolt-M7-left-r1e-06, root-bolt-M8-right-r1e-06, root-bolt-M8-left-r1e-06, root-bolt-M10-right-r1e-06, root-bolt-M10-left-r1e-06, root-bolt-M12-right-r1e-06, root-bolt-M12-left-r1e-06, root-bolt-M14-right-r1e-06, root-bolt-M14-left-r1e-06, root-bolt-M16-right-r1e-06, root-bolt-M16-left-r1e-06, root-bolt-M18-right-r1e-06, root-bolt-M18-left-r1e-06, root-bolt-M20-right-r1e-06, root-bolt-M20-left-r1e-06
+```
+
+| wall | candidate | rests on |
+| --- | --- | --- |
+| T (R7) | T = 90 turns | readings T rests on: 148; smallest first ok step 90 (`bolt-M2.5-right`, `bolt-M3-right`) |
+| bolt d (R8) | decade 1000, tested value 999.999 | ceiling-bolt-d-1000 |
+| bolt length (R8) | decade 10000, tested value 10000.0 | ceiling-bolt-length-10000, ceiling-bolt-thread-10000 |
+| bolt s (R8) | decade 1000, tested value 1000.0 | ceiling-bolt-s-1000, ceiling-bolt-d-1000 |
+| bolt k (R8) | decade 100000, tested value 100000.0 | ceiling-bolt-k-100000 |
+| bolt thread_length (R8) | decade 100000, tested value 100000.0 | ceiling-bolt-thread-100000 |
+| nut s (R8) | decade 1000, tested value 1000.0 | ceiling-nut-s-1000, nutlead-M2-s1000, nutlead-M8-s1000, nutlead-M14-s1000 |
+| nut d (R8) | decade 1000, tested value 999.699 | ceiling-nut-d-1000 |
+| nut m (R8) | decade 10000, tested value 10000.0 | ceiling-nut-m-10000 |
+| nut clearance (R8) | decade 1000, tested value 496.999 | ceiling-nut-clearance-1000 |
+| MAX_FIELD_MM (R8) | 1000 | the decades of the nine fields above |
+| MIN_TAIL_MM (R9) | V = 0.0001 mm | 48 readings read; failing from `tail-d6-p1-right-1e-6` to `tail-d20-p2.5-left-1e-9` |
+| MIN_ROOT_RADIUS_MM (R10) | V = 0.01 mm | 270 readings read (rods of group (d) only); largest failing rod radius 0.0003, `root-bolt-M12-right-r0.0003` |
+
+These are candidates, and the R3 confirm decides (plan 07-05 Task 3 step 4).
