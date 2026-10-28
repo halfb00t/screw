@@ -93,11 +93,19 @@ _SET_KEYS = frozenset({"set", "rule", "reps", "shards", "deadline_s", "points"})
 _SET_OPTIONAL_KEYS = frozenset({"dropped", "notes", "shard_sizes", "sources"})
 _POINT_KEYS = frozenset({"label", "kind", "params", "artifact"})
 # The Runs II kinds (07-06), read by `bench.oper_bound` in the container: a contention reading of
-# N points on N workers (R14). Each kind's own fields are checked by `_load_bound`.
-CONTENTION_KIND = "contention"
-BOUND_KINDS = frozenset({CONTENTION_KIND})
-_BOUND_KEYS = {CONTENTION_KIND: frozenset({"label", "kind", "artifact", "workers", "points"})}
+# N points on N workers (R14), a drift reading of one part built K times and an arena reading of
+# one part with the trim on or off (R23). Each kind's own fields are checked by `_load_bound`.
+CONTENTION_KIND, DRIFT_KIND, ARENAS_KIND = "contention", "drift", "arenas"
+BOUND_KINDS = frozenset({CONTENTION_KIND, DRIFT_KIND, ARENAS_KIND})
+_BOUND_KEYS = {CONTENTION_KIND: frozenset({"label", "kind", "artifact", "workers", "points"}),
+               DRIFT_KIND: frozenset({"label", "kind", "artifact", "part", "k", "deadline_s"}),
+               ARENAS_KIND: frozenset({"label", "kind", "artifact", "part", "trim"})}
 _MEMBER_KEYS = frozenset({"label", "kind", "params", "slot"})
+_PART_KEYS = frozenset({"kind", "params"})
+# R23: a drift compares the peak after build 1 with the peak after build K, so K is at least 2.
+MIN_DRIFT_BUILDS = 2
+# Whole numbers of bytes a Runs II ok line may add to a part's (arenas, R23).
+_BOUND_COUNTS = ("memory_current_bytes", "vm_rss_bytes")
 # R14's worker counts: N in {1, 2, 3}.
 CONTENTION_WORKERS = (1, 2, 3)
 # A bound child also reports a reading it cut itself (a build past the deadline, a build on the
@@ -121,9 +129,11 @@ class Point:
     params: Mapping[str, float | bool]
     artifact: str
     lift: Mapping[str, float] | None = None
-    # A Runs II point's own fields (`workers` and `points` for contention), passed to the child
-    # as they stand in the file.
+    # A Runs II point's own fields (`workers` and `points` for contention, `part`, `k` and
+    # `deadline_s` for drift, `part` and `trim` for arenas), passed to the child as they stand.
     body: Mapping[str, object] | None = None
+    # A drift reading's own deadline (K x the artifact's timeout, R23), in place of the set's.
+    deadline_s: float | None = None
 
     def as_json(self) -> str:
         if self.body is not None:
@@ -206,6 +216,15 @@ def parse_child_line(line: str, *, probe: bool = False, bound: bool = False) -> 
     for build in builds:
         for key, value in build.items():
             _check_number(str(key), value)
+    peaks = record.get("peaks", [])
+    if not (isinstance(peaks, list) and all(
+            isinstance(peak, int) and not isinstance(peak, bool) and peak >= 0
+            for peak in peaks)):
+        _refuse("child line: peaks is a list of whole numbers of bytes")
+    for key in _BOUND_COUNTS:
+        value = record.get(key, 0)
+        if isinstance(value, bool) or not isinstance(value, int):
+            _refuse(f"child line: {key} is {value!r}, not a whole number")
     if status != "ok":
         return {key: record[key] for key in _KEPT_WITHOUT_FIGURES if key in record}
     counts, seconds = (_PROBE_OK_COUNTS, _PROBE_OK_SECONDS) if probe else (_OK_COUNTS, _OK_SECONDS)
@@ -304,6 +323,8 @@ def run_reading(point: Point, rep: int, image: str, cap: int, deadline_s: float,
     because it sizes shards). `versions` is the header's, used when the child could not report
     its own."""
     name = f"screw-oper-{os.getpid()}-{next(_container_numbers)}"
+    if point.deadline_s is not None:
+        deadline_s = point.deadline_s  # a drift reading's own (R23)
     bound = point.kind in BOUND_KINDS
     argv = reading_argv(name, image, _REPO_ROOT, point.as_json(), cap,
                         "bench.oper_bound" if bound else "bench.oper_child")
@@ -513,10 +534,27 @@ def _load_member(name: str, label: object, raw: object, workers: int) -> dict[st
     return {"label": member_label, "kind": kind, "params": dict(params), "slot": slot}
 
 
+def _load_part(name: str, label: str, raw: object) -> dict[str, object]:
+    """The one part of a drift or arenas point: a part kind and its params."""
+    if not (isinstance(raw, dict) and set(raw) == _PART_KEYS):
+        _refuse(f"set {name!r}: {label!r} part has exactly the keys {sorted(_PART_KEYS)}")
+    kind, params = raw["kind"], raw["params"]
+    if not (isinstance(kind, str) and kind and kind != PROBE_KIND and kind not in BOUND_KINDS):
+        _refuse(f"set {name!r}: {label!r} part kind is the non-empty text of a part kind")
+    if not isinstance(params, dict) or not all(
+            isinstance(key, str) and (isinstance(value, bool) or _is_number(value))
+            for key, value in params.items()):
+        _refuse(f"set {name!r}: {label!r} part params are names with a number or true/false")
+    return {"kind": kind, "params": dict(params)}
+
+
 def _load_bound(name: str, raw: dict[str, object]) -> Point:
-    """A Runs II point, held to its kind's keys and types. A contention point (R14) lists P
-    first and then one partner per other worker: N in 1 to 3, N points on the N distinct slots
-    0 to N - 1, all built at the point's artifact."""
+    """A Runs II point, held to its kind's keys and types.
+
+    A contention point (R14) lists P first and then one partner per other worker: N in 1 to 3, N
+    points on the N distinct slots 0 to N - 1, all built at the point's artifact. A drift point
+    (R23) names one part, K builds (at least 2) and its own deadline in seconds; an arenas point
+    one part and whether the trim is on."""
     kind, label, artifact = raw["kind"], raw.get("label"), raw.get("artifact")
     if set(raw) != _BOUND_KEYS[str(kind)]:
         _refuse(f"set {name!r}: a {kind} point needs exactly the keys "
@@ -526,6 +564,23 @@ def _load_bound(name: str, raw: dict[str, object]) -> Point:
     if artifact not in _ARTIFACTS:
         _refuse(f"set {name!r}: {kind} {label!r} artifact {artifact!r} is not one of "
                 f"{list(_ARTIFACTS)}")
+    if kind == DRIFT_KIND:
+        k, deadline = raw["k"], raw["deadline_s"]
+        if not (_is_count(k) and isinstance(k, int) and k >= MIN_DRIFT_BUILDS):
+            _refuse(f"set {name!r}: drift {label!r} k is {k!r}, not a whole number of builds of "
+                    f"at least {MIN_DRIFT_BUILDS}")
+        if not (_is_number(deadline) and isinstance(deadline, int | float) and deadline > 0):
+            _refuse(f"set {name!r}: drift {label!r} deadline_s is {deadline!r}, not seconds "
+                    "above 0")
+        return Point(label=label, kind=DRIFT_KIND, params={}, artifact=str(artifact),
+                     body={"part": _load_part(name, label, raw["part"]), "k": k,
+                           "deadline_s": deadline}, deadline_s=float(deadline))
+    if kind == ARENAS_KIND:
+        trim = raw["trim"]
+        if not isinstance(trim, bool):
+            _refuse(f"set {name!r}: arenas {label!r} trim is {trim!r}, not true or false")
+        return Point(label=label, kind=ARENAS_KIND, params={}, artifact=str(artifact),
+                     body={"part": _load_part(name, label, raw["part"]), "trim": trim})
     workers, points = raw["workers"], raw["points"]
     if not isinstance(workers, int) or isinstance(workers, bool) or (
             workers not in CONTENTION_WORKERS):

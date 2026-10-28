@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import time
 from collections.abc import Callable, Mapping
 from pathlib import Path
@@ -222,3 +223,247 @@ def test_a_point_the_child_cannot_read_is_an_exit_2_with_no_line(
     captured = capsys.readouterr()
     assert captured.out == ""
     assert captured.err != ""
+
+
+# --- drift and arenas (R23) ----------------------------------------------------------------------
+
+DEFAULT_BOLT_PART = {"kind": "bolt", "params": {}}
+
+
+class _Kernel:
+    """Fakes of the kernel's build, export and cache clear, a gzip and a peak reader, writing
+    what they do to one log so a test reads the order."""
+
+    def __init__(self, *, refuse_at: int | None = None, peak_error: bool = False) -> None:
+        self.log: list[str] = []
+        self.builds = 0
+        self.refuse_at = refuse_at
+        self.peak_error = peak_error
+        self.trim_seen: list[object] = []
+        self.exported: list[tuple[object, str, str]] = []
+
+    def clear(self) -> None:
+        self.log.append("clear")
+
+    def build(self, p: object) -> object:
+        self.builds += 1
+        self.log.append("build")
+        if self.builds == self.refuse_at:
+            raise BuildError("no solid at this build")
+        return p
+
+    def export(self, p: object, fmt: str, quality: str) -> bytes:
+        from screw import solid
+
+        self.log.append("export")
+        self.exported.append((p, fmt, quality))
+        self.trim_seen.append(vars(solid)["_MALLOC_TRIM"])
+        return b"x" * (100 * self.builds)  # build 1's export is 100 bytes, later ones larger
+
+    def gzip1(self, data: bytes) -> bytes:
+        self.log.append("gzip")
+        return data[:10]
+
+    def peak(self) -> int:
+        self.log.append("peak")
+        if self.peak_error:
+            raise CgroupUnavailable("no memory.peak")
+        return PEAK + len(self.log)
+
+    def current(self) -> int:
+        self.log.append("current")
+        return 7_000_000
+
+    def rss(self) -> int:
+        self.log.append("rss")
+        return 5_000_000
+
+
+def _drift(kernel: _Kernel, k: int = 3) -> dict[str, object]:
+    point = {"kind": "drift", "artifact": "stl-preview", "part": DEFAULT_BOLT_PART, "k": k,
+             "deadline_s": 600}
+    return oper_bound.drift(point, build=kernel.build, export=kernel.export,
+                            read_peak=kernel.peak, clear=kernel.clear, gzip1=kernel.gzip1,
+                            oom_kills=lambda: 0)
+
+
+def test_a_drift_reading_builds_cold_and_reads_the_peak_after_the_gzip_each_time() -> None:
+    kernel = _Kernel()
+    record = _drift(kernel)
+    assert kernel.log == ["clear", "build", "export", "gzip", "peak"] * 3
+    assert [(fmt, quality) for _, fmt, quality in kernel.exported] == [("stl", "preview")] * 3
+    assert {type(p).__name__ for p, _, _ in kernel.exported} == {"BoltParams"}
+    assert record["status"] == "ok"
+    peaks = record["peaks"]
+    assert isinstance(peaks, list)
+    assert len(peaks) == 3
+    assert record["memory_peak_bytes"] == max(peaks)
+    assert record["bytes"] == 100  # build 1's, not a later build's
+    for key in ("build_s", "export_s"):
+        assert isinstance(record[key], float)
+
+
+def test_a_drift_reading_with_an_unreadable_cgroup_has_no_peaks() -> None:
+    record = _drift(_Kernel(peak_error=True))
+    assert record["status"] == "no_cgroup"
+    assert [key for key in (*FIGURE_KEYS, "peaks") if key in record] == []
+
+
+def test_a_drift_reading_refused_at_build_2_is_refused_with_no_peaks() -> None:
+    kernel = _Kernel(refuse_at=2)
+    record = _drift(kernel)
+    assert record["status"] == "refused"
+    assert record["error"] == "BuildError"
+    assert "build 2 of 3" in str(record["message"])
+    assert [key for key in (*FIGURE_KEYS, "peaks") if key in record] == []
+
+
+@pytest.mark.parametrize("k", [1, 2.0, True, None])
+def test_a_drift_of_fewer_than_two_whole_builds_is_refused(k: object) -> None:
+    point = {"kind": "drift", "artifact": "stl-preview", "part": DEFAULT_BOLT_PART, "k": k}
+    kernel = _Kernel()
+    with pytest.raises(ValueError, match="k is"):
+        oper_bound.drift(point, build=kernel.build, export=kernel.export, clear=kernel.clear)
+
+
+def test_a_drift_reading_of_a_real_part_takes_build_1s_figures() -> None:
+    peaks = iter([10, 20])
+    point = {"kind": "drift", "artifact": "stl-preview", "part": DEFAULT_BOLT_PART, "k": 2,
+             "deadline_s": 600}
+    record = oper_bound.drift(point, read_peak=lambda: next(peaks), oom_kills=lambda: None)
+    assert (record["status"], record["peaks"], record["memory_peak_bytes"]) == ("ok", [10, 20], 20)
+    assert isinstance(record["bytes"], int)
+    assert record["bytes"] > 84
+
+
+def _arenas(kernel: _Kernel, *, trim: bool) -> dict[str, object]:
+    point = {"kind": "arenas", "artifact": "stl-preview", "part": DEFAULT_BOLT_PART, "trim": trim}
+    return oper_bound.arenas(point, build=kernel.build, export=kernel.export,
+                             read_peak=kernel.peak, read_current=kernel.current,
+                             vm_rss=kernel.rss, clear=kernel.clear, gzip1=kernel.gzip1,
+                             oom_kills=lambda: 0)
+
+
+def _trim(size: int) -> int:
+    return 0
+
+
+@pytest.mark.parametrize("trim", [False, True])
+def test_an_arena_reading_sets_the_trim_for_the_call_and_restores_it(
+        trim: bool, monkeypatch: pytest.MonkeyPatch) -> None:
+    from screw import solid
+
+    monkeypatch.setattr(solid, "_MALLOC_TRIM", _trim)
+    kernel = _Kernel()
+    record = _arenas(kernel, trim=trim)
+    assert kernel.trim_seen == [_trim if trim else None]
+    assert vars(solid)["_MALLOC_TRIM"] is _trim
+    assert kernel.log == ["clear", "build", "export", "current", "rss", "gzip", "peak"]
+    assert record["status"] == "ok"
+    assert (record["memory_current_bytes"], record["vm_rss_bytes"]) == (7_000_000, 5_000_000)
+    assert record["memory_peak_bytes"] == PEAK + 7
+    assert record["bytes"] == 100
+
+
+def test_an_arena_reading_restores_the_trim_when_the_build_is_refused(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    from screw import solid
+
+    monkeypatch.setattr(solid, "_MALLOC_TRIM", _trim)
+    record = _arenas(_Kernel(refuse_at=1), trim=False)
+    assert record["status"] == "refused"
+    assert vars(solid)["_MALLOC_TRIM"] is _trim
+    assert [key for key in ("memory_current_bytes", "vm_rss_bytes", *FIGURE_KEYS)
+            if key in record] == []
+
+
+def test_a_trim_on_reading_without_malloc_trim_is_not_taken(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    from screw import solid
+
+    monkeypatch.setattr(solid, "_MALLOC_TRIM", None)
+    with pytest.raises(RuntimeError, match="malloc_trim"):
+        _arenas(_Kernel(), trim=True)
+
+
+def test_an_arena_reading_with_an_unreadable_cgroup_has_no_figure() -> None:
+    kernel = _Kernel()
+
+    def no_current() -> int:
+        raise CgroupUnavailable("no memory.current")
+
+    point = {"kind": "arenas", "artifact": "stl-preview", "part": DEFAULT_BOLT_PART,
+             "trim": False}
+    record = oper_bound.arenas(point, build=kernel.build, export=kernel.export,
+                               read_peak=kernel.peak, read_current=no_current, vm_rss=kernel.rss,
+                               clear=kernel.clear, gzip1=kernel.gzip1, oom_kills=lambda: 0)
+    assert record["status"] == "no_cgroup"
+    assert [key for key in ("memory_current_bytes", "vm_rss_bytes", *FIGURE_KEYS)
+            if key in record] == []
+
+
+def test_an_arena_reading_of_a_real_part_with_the_trim_off() -> None:
+    point = {"kind": "arenas", "artifact": "stl-preview", "part": DEFAULT_BOLT_PART,
+             "trim": False}
+    linux = sys.platform == "linux"  # /proc/self/status exists nowhere else
+    record = oper_bound.arenas(point, read_peak=lambda: 3, read_current=lambda: 2,
+                               vm_rss=oper_bound.vm_rss_bytes if linux else lambda: 1,
+                               oom_kills=lambda: None)
+    assert record["status"] == "ok"
+    rss = record["vm_rss_bytes"]
+    assert isinstance(rss, int)
+    assert rss > (1 if linux else 0)
+
+
+def _fake_tree(tmp_path: Path, mount: str, files: dict[str, str]) -> Path:
+    (tmp_path / "proc" / "self").mkdir(parents=True)
+    (tmp_path / "proc" / "mounts").write_text(mount)
+    for name, text in files.items():
+        target = tmp_path / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text)
+    return tmp_path
+
+
+V2_MOUNT = "cgroup2 /sys/fs/cgroup cgroup2 rw,nosuid,nodev,noexec,relatime 0 0\n"
+V1_MOUNT = "cgroup /sys/fs/cgroup/memory cgroup ro,nosuid,nodev,noexec,relatime,memory 0 0\n"
+
+
+def test_memory_current_is_read_from_cgroup_v2(tmp_path: Path) -> None:
+    root = _fake_tree(tmp_path, V2_MOUNT, {"sys/fs/cgroup/memory.current": "4096\n"})
+    assert oper_bound.read_current(root) == 4096
+
+
+def test_a_v1_host_has_no_memory_current_and_no_substitute(tmp_path: Path) -> None:
+    root = _fake_tree(tmp_path, V1_MOUNT,
+                      {"sys/fs/cgroup/memory/memory.usage_in_bytes": "4096\n"})
+    with pytest.raises(CgroupUnavailable):
+        oper_bound.read_current(root)
+
+
+def test_vm_rss_is_read_in_kilobytes_from_proc_self_status(tmp_path: Path) -> None:
+    root = _fake_tree(tmp_path, V2_MOUNT, {
+        "proc/self/status": "Name:\tpython\nVmHWM:\t  9000 kB\nVmRSS:\t  1234 kB\n"})
+    assert oper_bound.vm_rss_bytes(root) == 1234 * 1024
+
+
+def test_a_status_file_without_vm_rss_is_no_figure(tmp_path: Path) -> None:
+    root = _fake_tree(tmp_path, V2_MOUNT, {"proc/self/status": "Name:\tpython\n"})
+    with pytest.raises(RuntimeError, match="VmRSS"):
+        oper_bound.vm_rss_bytes(root)
+
+
+@pytest.mark.parametrize("kind", ["drift", "arenas"])
+def test_the_child_dispatches_drift_and_arenas_points(
+        kind: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    seen: list[Mapping[str, object]] = []
+
+    def fake(point: Mapping[str, object]) -> dict[str, object]:
+        seen.append(point)
+        return {"status": "ok"}
+
+    monkeypatch.setattr(oper_bound, kind, fake)
+    point = {"kind": kind, "artifact": "stl-preview", "part": DEFAULT_BOLT_PART}
+    assert oper_bound.main([json.dumps(point)]) == 0
+    assert seen == [point]
+    assert len(capsys.readouterr().out.splitlines()) == 1

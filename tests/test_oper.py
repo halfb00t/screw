@@ -895,6 +895,96 @@ def test_a_contention_reading_runs_the_bound_child(
         "ok", 2, [MEMBER_P, MEMBER_NUT])
 
 
+PART = {"kind": "bolt", "params": {}}
+
+
+def _drift_point(**over: object) -> dict[str, object]:
+    point: dict[str, object] = {"label": "d3", "kind": "drift", "artifact": "stl-preview",
+                                "part": PART, "k": 20, "deadline_s": 1200}
+    point.update(over)
+    return point
+
+
+def _arenas_point(**over: object) -> dict[str, object]:
+    point: dict[str, object] = {"label": "a-on", "kind": "arenas", "artifact": "step",
+                                "part": PART, "trim": True}
+    point.update(over)
+    return point
+
+
+def test_drift_and_arenas_points_reach_the_bound_child_as_they_stand(tmp_path: Path) -> None:
+    _write_set(tmp_path, points=[_drift_point(), _arenas_point(), _arenas_point(
+        label="a-off", trim=False)])
+    drift, on, off = oper.load_set("mini", tmp_path).points
+    assert drift.deadline_s == 1200
+    assert json.loads(drift.as_json()) == {"kind": "drift", "artifact": "stl-preview",
+                                           "part": PART, "k": 20, "deadline_s": 1200}
+    assert (on.deadline_s, json.loads(on.as_json())) == (
+        None, {"kind": "arenas", "artifact": "step", "part": PART, "trim": True})
+    assert off.body == {"part": PART, "trim": False}
+
+
+@pytest.mark.parametrize(
+    "point",
+    [_drift_point(k=1), _drift_point(k=2.0), _drift_point(k=True), _drift_point(deadline_s=0),
+     _drift_point(deadline_s="600"), _drift_point(deadline_s=True),
+     {k: v for k, v in _drift_point().items() if k != "deadline_s"},
+     _drift_point(part={"kind": "bolt", "params": {}, "lift": {"max_mm": 1e6}}),
+     _drift_point(part={"kind": "probe", "params": {}}),
+     _drift_point(part={"kind": "bolt", "params": {"d": "6"}}), _drift_point(part="bolt"),
+     _drift_point(trim=True), _arenas_point(trim="yes"), _arenas_point(trim=1),
+     {k: v for k, v in _arenas_point().items() if k != "trim"}, _arenas_point(k=2),
+     _arenas_point(artifact="obj"), _arenas_point(label=3)],
+    ids=["one-build", "float-k", "bool-k", "zero-deadline", "text-deadline", "bool-deadline",
+         "missing-deadline", "part-extra-key", "part-probe", "part-text-param", "part-not-object",
+         "drift-extra-key", "trim-text", "trim-number", "missing-trim", "arenas-extra-key",
+         "bad-artifact", "label-not-text"])
+def test_the_matrix_refuses_a_bad_drift_or_arenas_point_with_exit_2(
+        point: dict[str, object], tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    _write_set(tmp_path, points=[point])
+    monkeypatch.setattr(oper, "POINTS_DIR", tmp_path)
+    assert oper.main(["matrix", "--set", "mini"]) == 2
+    assert "mini" in capsys.readouterr().err
+
+
+def test_a_drift_reading_runs_under_its_own_deadline(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _write_set(tmp_path, points=[_drift_point()])
+    (point,) = oper.load_set("mini", tmp_path).points
+    timeouts: list[object] = []
+
+    def fake_run(argv: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        timeouts.append(kwargs.get("timeout"))
+        return subprocess.CompletedProcess(argv, 0, _bound_line(peaks=[5, 6], builds=[]), "")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(oper, "_docker", lambda *args, timeout=None: None)
+    monkeypatch.setattr(oper, "_inspect_exit", lambda name: (False, 0))
+    record = oper.run_reading(point, 1, "screw:ci", oper.CAP_BYTES, 600)
+    assert timeouts == [1200.0]
+    assert (record["status"], record["k"], record["peaks"]) == ("ok", 20, [5, 6])
+
+
+@pytest.mark.parametrize(
+    "line",
+    [_bound_line(peaks=[1, -2]), _bound_line(peaks=[1.5]), _bound_line(peaks=[True]),
+     _bound_line(peaks="many"), _bound_line(memory_current_bytes=1.5),
+     _bound_line(vm_rss_bytes=True)],
+    ids=["negative-peak", "float-peak", "bool-peak", "peaks-not-a-list", "float-current",
+         "bool-rss"])
+def test_a_drift_or_arena_line_with_a_figure_that_cannot_be_true_is_crashed(line: str) -> None:
+    record = _classify_bound(line)
+    assert record["status"] == "crashed"
+    assert [key for key in (*NUMBER_KEYS, "peaks", "builds") if key in record] == []
+
+
+def test_an_arena_line_keeps_both_measures_of_retained_memory() -> None:
+    record = _classify_bound(_bound_line(memory_current_bytes=7, vm_rss_bytes=5, builds=[]))
+    assert (record["status"], record["memory_current_bytes"], record["vm_rss_bytes"]) == (
+        "ok", 7, 5)
+
+
 # --- the workflow's trust surface (T-3-14, T-07-02) ----------------------------------------------
 
 WORKFLOW_YML = REPO_ROOT / ".github" / "workflows" / "operability.yml"
