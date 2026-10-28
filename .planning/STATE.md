@@ -3,17 +3,17 @@ gsd_state_version: "1.0"
 current_phase: 07
 current_phase_name: Operability Re-sweep
 status: executing
-stopped_at: Completed 07-04-PLAN.md
-last_updated: "2026-10-28T05:00:33.211Z"
-last_activity: 2026-10-27
+stopped_at: 07-05 halted at R10 owner stop (Task 3 step 3); SUMMARY status checkpoint
+last_updated: "2026-10-28T08:14:31.126Z"
+last_activity: 2026-10-28
 last_activity_desc: Phase 07 execution started
-state_head: 691078f25d287e6582f9921ee1d289d11fa449fb
+state_head: d4233bccca1434704df85adbdd0f1958383c9b06
 progress:
   total_phases: 8
   completed_phases: 7
   total_plans: 103
-  completed_plans: 86
-  percent: 83
+  completed_plans: 87
+  percent: 84
 ---
 
 # Project State
@@ -27,12 +27,12 @@ See: .planning/PROJECT.md (updated 2026-10-25)
 
 ## Current Position
 
-Phase: 07 (Operability Re-sweep) — READY TO EXECUTE
-Plan: 5 of 21
-Status: Ready to execute
-Last activity: 2026-10-28 - G24 ruled and amended (PR A4 #25 open); 07-05 waits for its merge
+Phase: 07 (Operability Re-sweep) — EXECUTING
+Plan: 1 of 21
+Status: Executing Phase 07
+Last activity: 2026-10-28 — Phase 07 execution started
 
-Progress: [████████░░] 83%
+Progress: [████████░░] 84%
 
 ## Performance Metrics
 
@@ -318,6 +318,7 @@ None yet.
 - Closed 2026-10-13: the roadmap is revised per L11's escape clause (direction: scope the proof, M18 reads `inconclusive`; D-14 rule unchanged; ROADMAP Phase 5 revision note and criteria 3 and 6; L11 revision-direction paragraph). Phase 5 is plannable.
 - Closed 2026-10-24: printability threshold (INFO-04) set to M4 from run `06-print-run-2` (L18, accepted under R10, weaker evidence than a pre-registered run).
 - Every research number is single-machine macOS arm64; linux/amd64 is unverified until Phase 7.
+- Plan 07-05 halted at an R10 owner stop: all 270 nut-void root readings (walls run 40646134133) are refused at every radius, so V = 1e-1 lies outside the walk; the owner must rule before candidate walls and the walls confirm set exist (see 07-05-SUMMARY.md)
 
 ### Quick Tasks Completed
 
@@ -348,6 +349,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-27T11:36:27.865Z
-Stopped at: Completed 07-04-PLAN.md
-Resume file: None
+Last session: 2026-10-28T08:14:23.931Z
+Stopped at: 07-05 halted at R10 owner stop (Task 3 step 3); SUMMARY status checkpoint
+Resume file: .planning/phases/07-operability-re-sweep/07-05-SUMMARY.md
