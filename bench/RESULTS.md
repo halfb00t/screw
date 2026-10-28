@@ -10904,3 +10904,289 @@ root (R10): V = 0.01 mm; 270 readings read, failing: root-bolt-M12-right-r0.0003
 | MIN_ROOT_RADIUS_MM (R10) | V = 0.01 mm | 270 readings read (rods of group (d) only); largest failing rod radius 0.0003, `root-bolt-M12-right-r0.0003` |
 
 These are candidates, and the R3 confirm decides (plan 07-05 Task 3 step 4).
+
+### walls-confirm, run 40678150220
+
+- Dispatched sha: `8992e1c2ceac712b6e1dcdc9afc0c871ba881d92`
+- Records: `bench/results/phase-07/walls-confirm-40678150220/` (45 artifacts, 1085 readings), run https://github.com/halfb00t/screw/actions/runs/40678150220
+- CPU models seen (jobs): AMD EPYC 7763 64-Core Processor (25); AMD EPYC 9V45 96-Core Processor (8); AMD EPYC 9V74 80-Core Processor (7); INTEL(R) XEON(R) PLATINUM 8573C (1); Intel(R) Xeon(R) 6973P-C (2); Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz (2)
+- Counts by status: capped: 10, killed: 5, ok: 1035, refused: 35
+- 9 shards x 5 repetitions = 45 jobs; every one of the 217 points has repetitions 1 to 5 once each and its 5 repetitions agree in status.
+- Summary: `python -m bench.oper summarize --markdown --reps 1,2,3,4,5` over the directory, as printed.
+
+### Host
+
+| fact | value |
+| --- | --- |
+| image | screw:ci |
+| image_id | sha256:2e124e5e60270fa3c57a8eacba20d0f4412b5e7dc3e28f043be8d39547bf7fdd, sha256:c4908fcc4c5fc053a40ae3c5d7c09ce2a5aa04ab72a3f2627749272ec2aa1cb0, sha256:7781fac2f7db379a78adb8039560526dbda30ded4419933f17bb2d5d5ae705d4, sha256:c2525a7d9e222346890bb4254d98662d4fe20af5f7478159c359dd17250b2afa, sha256:8fe5293f68702724f9fb9fb287f821e0f1b86fc67f04ef12c758bc7de4a65061, sha256:7c43db418a57e256182f9f1d51d63702f31d8b5fbf3e6c0de21630abb183dcce, sha256:16368211d6b41a36febe26d61064c33a4fd06a718cf7fa71b1348574fc641eeb, sha256:278834fbe23e5605ffd11b5a8f81739229bf19614b3f2c106950fd724f09e1d0, sha256:d5ce27060c8f92e4e3fc7da25f8162aeca29a403c645561f2cee85532daf1011, sha256:b601a37cff4bc14cb6d0f1f7cd9eebca157e722f2077cd85b551a11a50b5136d, sha256:363e24a26b997fd8a73ab34c359dbf22d842fd2a3cc24e432130debbbd060b20, sha256:9a119c78be5c5a2e848e20c8f5e7fd2ad2d96a40f22abfdd4954692e1585a057, sha256:b9fb5e567fdda06155d318bf42e4dc4d96a4c092da8089c11b3269e3d0b2ca6f, sha256:e33f2b0911e99997b38769465458227e6743ce47b64530985ce4e4ad2de4b0ab, sha256:8697d24c49ca9859ff407250c333a1bb10176f2697a85df240df189673eeb313, sha256:dd84f04f49b9e6772d43f817f629aec3a95bdc6bcdcbc0bb48c3c8fe5215e0db, sha256:f264c66188e6bb26ea1c84d46a460615f5085b1e90b245085b1070a634df67e3, sha256:13f59cceb470dd6d72e7a47dd0ce2b36f2663f0ccbc13d97aecefe51bd016030, sha256:bd354c20c27b791e92f61ba68abcd42c73f769f7a00e9b3e2af9ba0a8f3224f2, sha256:bf455e85d58fcde5ba2bf981066385b42028df27ec14f03b97e9c7ee3b9fb934, sha256:776ffd389c1fa80028921268224c3cb7023621c824bc5f24036efba2c0073b93, sha256:62f7bcd7876e4d2d573b0813219fbc6b8468b1ed21d2bda89c9c4fea6ace3da4, sha256:4bb5a4d7f4f3639f0c76893c588dc8cdc860675d4f422ea6e28198710fa298ab, sha256:58471824e40f30435e10f670d0938f6c186b32e5a532a529bc15394d812c0172, sha256:90d89478165ecfdaa1a81a341b3f5ef80b2edde6459bc31e3ec4b14ef36b0fcb, sha256:5cb060ce7e67cfbc118a80c9398aaf585a3de7909fc24c6e1cd22ce5581809a9, sha256:f32450e928b14acb8e3c078d9fba539e95be547d522a676591f27a19840b55e6, sha256:ddd78fb760cd0a341b6816dcfc9443e518cd713cdcb08226eb5436d6decae8de, sha256:6bc085a17ff128037167a17eb6aab8eb528023264f7bfb5a8cc7529ecebf3897, sha256:db8084f46419512a28167857e46b77d43bce584dd112e8b6e9162bc3367d29b8, sha256:905a1409e103db4e14527a0637de52de1d0ae4b571f9a96f37c1c0b46cead131, sha256:64140310f5eb09cbe161eaa9a92f5ea195b7d67789f7cb149339e78eae915273, sha256:90c91f03889c1a933839131a2d422265f264cb3a93220c84cd5dd6ab3b86470f, sha256:bdb520de47206d1fd7a1dc881a26bfcf7f72dbcc91ecc502cb2765f12222c0c7, sha256:5c2c82d8399ab3f9735bb4e8c3ae0deb1d5761ad09f4d294b4557077e8aae3cd, sha256:8fbb1fbaedc817101c80d6a2c757d5ad6e0617ea229c68f3aab80fb5d94fd565, sha256:c2685b938097c65a6c3c5bdbcfa320d198b963a0acfbb58a3002cadb177201aa, sha256:7160a148694cd91818f6135a0e6bbd45d3b8f6ff16f994ebc7854069b83dcb86, sha256:a331010e8c072fbdd47f5fc86a74ab6efdf310d3b468402eb84d2cd16e718cf9, sha256:6d52564a6646ca127944bd5c54101bd3de58bc6b6bc7668d9e4230682572496f, sha256:8e79ae6b0f7dfb1bda61f5a956821c1bc1822e4227c7625946f91ba35e541499, sha256:5a6f0e9f23de04c559316be79efc1752b779f8bf89e5912bd420de1c193ece18, sha256:aa855b85419e059fbe47f4e114a43e652440fce2574c7b8ba7cacb51a397e650, sha256:e520ef9b4c63a8f426106292a84253bd13435a81c1806b72108e9abe68c839ec, sha256:59ec1cf37b06d562161ff741ba2c8e7057f658df095becf7d4e53a8cf72aa73d |
+| versions | {"cadquery": "2.8.0", "cadquery_ocp": "7.9.3.1.1"} |
+| nproc | 4 |
+| mem_total_bytes | 16759443456, 16759439360, 16758407168, 16759435264, 16758403072, 16763777024 |
+| cpu_model | AMD EPYC 7763 64-Core Processor, AMD EPYC 9V45 96-Core Processor, AMD EPYC 9V74 80-Core Processor, Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz, Intel(R) Xeon(R) 6973P-C, INTEL(R) XEON(R) PLATINUM 8573C |
+| kernel | 7.0.0-1017-azure |
+| machine | x86_64 |
+| GITHUB_RUN_ID | 40678150220 |
+| GITHUB_JOB | measure |
+| GITHUB_SHA | 8992e1c2ceac712b6e1dcdc9afc0c871ba881d92 |
+
+### Readings
+
+Status counts: ok: 1035, refused: 35, capped: 10, killed: 5
+
+| point | artifact | n | status | counts | median build s | max build s | median export s | max export s | median bytes | max bytes | median peak bytes | max peak bytes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| turns90-bolt-M2-right | stl-preview | 5 | ok | ok: 5 | 8.829 | 9.363 | 0.468 | 0.473 | 3432284 | 3432284 | 260677632 | 261271552 |
+| turns90-nut-M2-right | stl-preview | 5 | ok | ok: 5 | 18.658 | 19.754 | 0.491 | 0.495 | 3544784 | 3544784 | 375029760 | 379650048 |
+| turns90-bolt-M2-left | stl-preview | 5 | ok | ok: 5 | 8.805 | 9.385 | 0.405 | 0.412 | 2922384 | 2922384 | 260562944 | 260640768 |
+| turns90-nut-M2-left | stl-preview | 5 | ok | ok: 5 | 18.711 | 19.656 | 0.416 | 0.426 | 2959484 | 2959484 | 376299520 | 380055552 |
+| turns90-bolt-M2.5-right | stl-preview | 5 | ok | ok: 5 | 8.786 | 9.241 | 0.507 | 0.522 | 3729284 | 3729284 | 256917504 | 257064960 |
+| turns90-nut-M2.5-right | stl-preview | 5 | ok | ok: 5 | 18.534 | 19.469 | 0.537 | 0.570 | 3734184 | 3734184 | 370851840 | 375934976 |
+| turns90-bolt-M2.5-left | stl-preview | 5 | ok | ok: 5 | 8.694 | 9.223 | 0.433 | 0.439 | 3060784 | 3060784 | 256839680 | 257011712 |
+| turns90-nut-M2.5-left | stl-preview | 5 | ok | ok: 5 | 18.440 | 19.575 | 0.467 | 0.468 | 3185684 | 3185684 | 373239808 | 376459264 |
+| turns90-bolt-M3-right | stl-preview | 5 | ok | ok: 5 | 8.664 | 9.260 | 0.565 | 0.576 | 3967184 | 3967184 | 258469888 | 258588672 |
+| turns90-nut-M3-right | stl-preview | 5 | ok | ok: 5 | 18.084 | 19.061 | 0.570 | 0.705 | 3969784 | 3969784 | 329273344 | 332361728 |
+| turns90-bolt-M3-left | stl-preview | 5 | ok | ok: 5 | 8.643 | 9.207 | 0.494 | 0.616 | 3403884 | 3403884 | 258441216 | 258834432 |
+| turns90-nut-M3-left | stl-preview | 5 | ok | ok: 5 | 18.242 | 19.143 | 0.517 | 0.621 | 3469084 | 3469084 | 329617408 | 334974976 |
+| turns90-bolt-M3.5-right | stl-preview | 5 | ok | ok: 5 | 5.078 | 5.272 | 0.625 | 0.634 | 4161284 | 4161284 | 257540096 | 267108352 |
+| turns90-nut-M3.5-right | stl-preview | 5 | ok | ok: 5 | 10.800 | 11.258 | 0.585 | 0.597 | 4314984 | 4314984 | 261586944 | 263356416 |
+| turns90-bolt-M3.5-left | stl-preview | 5 | ok | ok: 5 | 5.052 | 5.235 | 0.546 | 0.556 | 3604584 | 3604584 | 258371584 | 266620928 |
+| turns90-nut-M3.5-left | stl-preview | 5 | ok | ok: 5 | 10.852 | 11.569 | 0.601 | 0.611 | 4128884 | 4128884 | 261107712 | 261406720 |
+| turns90-bolt-M4-right | stl-preview | 5 | ok | ok: 5 | 5.025 | 5.335 | 0.645 | 0.653 | 4670584 | 4670584 | 259145728 | 271106048 |
+| turns90-nut-M4-right | stl-preview | 5 | ok | ok: 5 | 10.763 | 11.155 | 0.725 | 0.735 | 5553984 | 5553984 | 260788224 | 261341184 |
+| turns90-bolt-M4-left | stl-preview | 5 | ok | ok: 5 | 5.020 | 5.214 | 0.622 | 0.632 | 4346584 | 4346584 | 259047424 | 268877824 |
+| turns90-nut-M4-left | stl-preview | 5 | ok | ok: 5 | 10.764 | 11.194 | 0.668 | 0.677 | 4849484 | 4849484 | 260841472 | 262111232 |
+| turns90-bolt-M5-right | stl-preview | 5 | ok | ok: 5 | 5.328 | 5.439 | 0.867 | 0.890 | 6742484 | 6742484 | 276799488 | 283734016 |
+| turns90-nut-M5-right | stl-preview | 5 | ok | ok: 5 | 10.796 | 11.272 | 0.843 | 0.854 | 6636784 | 6636784 | 261365760 | 261967872 |
+| turns90-bolt-M5-left | stl-preview | 5 | ok | ok: 5 | 5.238 | 5.438 | 0.703 | 0.728 | 5330684 | 5330684 | 284520448 | 290652160 |
+| turns90-nut-M5-left | stl-preview | 5 | ok | ok: 5 | 10.774 | 11.269 | 0.694 | 0.717 | 5282184 | 5282184 | 261513216 | 262152192 |
+| turns90-bolt-M6-right | stl-preview | 5 | ok | ok: 5 | 5.315 | 5.516 | 0.871 | 0.886 | 7281984 | 7281984 | 285982720 | 292245504 |
+| turns90-nut-M6-right | stl-preview | 5 | ok | ok: 5 | 10.778 | 11.421 | 0.861 | 0.882 | 7186484 | 7186484 | 261804032 | 263757824 |
+| turns90-bolt-M6-left | stl-preview | 5 | ok | ok: 5 | 5.315 | 5.521 | 0.716 | 0.743 | 5760084 | 5760084 | 285077504 | 292265984 |
+| turns90-nut-M6-left | stl-preview | 5 | ok | ok: 5 | 10.730 | 11.183 | 0.700 | 0.722 | 5629384 | 5629384 | 260825088 | 262533120 |
+| turns90-bolt-M7-right | stl-preview | 5 | ok | ok: 5 | 5.365 | 5.575 | 0.898 | 0.914 | 7510784 | 7510784 | 291364864 | 295419904 |
+| turns90-nut-M7-right | stl-preview | 5 | ok | ok: 5 | 10.894 | 11.301 | 0.871 | 0.891 | 7312584 | 7312584 | 261959680 | 265138176 |
+| turns90-bolt-M7-left | stl-preview | 5 | ok | ok: 5 | 5.512 | 5.692 | 0.729 | 0.743 | 5958484 | 5958484 | 285294592 | 293126144 |
+| turns90-nut-M7-left | stl-preview | 5 | ok | ok: 5 | 11.015 | 11.579 | 0.715 | 0.722 | 5837484 | 5837484 | 261812224 | 262758400 |
+| turns90-bolt-M8-right | stl-preview | 5 | ok | ok: 5 | 5.442 | 5.640 | 0.970 | 0.983 | 7623184 | 7623184 | 285249536 | 297209856 |
+| turns90-nut-M8-right | stl-preview | 5 | ok | ok: 5 | 11.026 | 11.465 | 0.942 | 1.068 | 7537184 | 7537184 | 261726208 | 264839168 |
+| turns90-bolt-M8-left | stl-preview | 5 | ok | ok: 5 | 5.453 | 5.612 | 0.820 | 0.837 | 6242284 | 6242284 | 286162944 | 290549760 |
+| turns90-nut-M8-left | stl-preview | 5 | ok | ok: 5 | 10.953 | 11.472 | 0.774 | 0.808 | 5950784 | 5950784 | 261193728 | 262774784 |
+| turns90-bolt-M10-right | stl-preview | 5 | ok | ok: 5 | 5.490 | 5.688 | 1.049 | 1.159 | 8104884 | 8104884 | 289509376 | 291233792 |
+| turns90-nut-M10-right | stl-preview | 5 | ok | ok: 5 | 11.195 | 11.610 | 1.033 | 1.061 | 7875084 | 7875084 | 263151616 | 267341824 |
+| turns90-bolt-M10-left | stl-preview | 5 | ok | ok: 5 | 5.499 | 5.667 | 0.875 | 0.899 | 6579484 | 6579484 | 292319232 | 304144384 |
+| turns90-nut-M10-left | stl-preview | 5 | ok | ok: 5 | 11.066 | 11.593 | 0.866 | 0.893 | 6442884 | 6442884 | 261218304 | 263368704 |
+| turns90-bolt-M12-right | stl-preview | 5 | ok | ok: 5 | 5.521 | 5.738 | 1.161 | 1.182 | 8688584 | 8688584 | 302059520 | 308051968 |
+| turns90-nut-M12-right | stl-preview | 5 | ok | ok: 5 | 12.850 | 13.688 | 1.161 | 1.222 | 8364384 | 8364384 | 272195584 | 280514560 |
+| turns90-bolt-M12-left | stl-preview | 5 | ok | ok: 5 | 5.501 | 5.720 | 0.980 | 0.993 | 7152084 | 7152084 | 296611840 | 308555776 |
+| turns90-nut-M12-left | stl-preview | 5 | ok | ok: 5 | 12.789 | 13.278 | 1.010 | 1.041 | 7033384 | 7033384 | 268042240 | 275136512 |
+| turns90-bolt-M14-right | stl-preview | 5 | ok | ok: 5 | 5.641 | 5.832 | 1.347 | 1.357 | 9200184 | 9200184 | 295051264 | 305913856 |
+| turns90-nut-M14-right | stl-preview | 5 | ok | ok: 5 | 11.554 | 11.709 | 1.274 | 1.299 | 8958784 | 8958784 | 261750784 | 261996544 |
+| turns90-bolt-M14-left | stl-preview | 5 | ok | ok: 5 | 5.654 | 5.878 | 1.166 | 1.169 | 7698384 | 7698384 | 294559744 | 300396544 |
+| turns90-nut-M14-left | stl-preview | 5 | ok | ok: 5 | 11.269 | 11.648 | 1.138 | 1.145 | 7535284 | 7535284 | 261050368 | 264966144 |
+| turns90-bolt-M16-right | stl-preview | 5 | ok | ok: 5 | 5.749 | 6.089 | 2.104 | 2.146 | 14865784 | 14865784 | 305197056 | 317739008 |
+| turns90-nut-M16-right | stl-preview | 5 | ok | ok: 5 | 11.945 | 12.322 | 2.156 | 2.204 | 15064784 | 15064784 | 285974528 | 304242688 |
+| turns90-bolt-M16-left | stl-preview | 5 | ok | ok: 5 | 5.759 | 5.974 | 2.238 | 2.430 | 13949584 | 13949584 | 310820864 | 314531840 |
+| turns90-nut-M16-left | stl-preview | 5 | ok | ok: 5 | 12.003 | 12.364 | 2.425 | 2.509 | 14532084 | 14532084 | 283553792 | 289230848 |
+| turns90-bolt-M18-right | stl-preview | 5 | ok | ok: 5 | 5.732 | 5.990 | 2.943 | 3.318 | 23005284 | 23005284 | 335933440 | 348090368 |
+| turns90-nut-M18-right | stl-preview | 5 | ok | ok: 5 | 12.154 | 12.561 | 2.833 | 2.884 | 23056384 | 23056384 | 308051968 | 310202368 |
+| turns90-bolt-M18-left | stl-preview | 5 | ok | ok: 5 | 5.784 | 6.019 | 3.086 | 3.203 | 18986284 | 18986284 | 319778816 | 332083200 |
+| turns90-nut-M18-left | stl-preview | 5 | ok | ok: 5 | 12.166 | 12.564 | 2.613 | 2.659 | 18286584 | 18286584 | 290762752 | 299085824 |
+| turns90-bolt-M20-right | stl-preview | 5 | ok | ok: 5 | 5.731 | 5.940 | 2.827 | 3.283 | 25826084 | 25826084 | 342228992 | 350482432 |
+| turns90-nut-M20-right | stl-preview | 5 | ok | ok: 5 | 12.150 | 12.940 | 2.881 | 2.937 | 24995484 | 24995484 | 308523008 | 313122816 |
+| turns90-bolt-M20-left | stl-preview | 5 | ok | ok: 5 | 5.762 | 5.931 | 2.180 | 2.230 | 19987384 | 19987384 | 328998912 | 333090816 |
+| turns90-nut-M20-left | stl-preview | 5 | ok | ok: 5 | 12.188 | 12.695 | 2.276 | 2.336 | 19349884 | 19349884 | 287993856 | 292356096 |
+| turns100-bolt-M2-right | stl-preview | 5 | ok | ok: 5 | 10.295 | 10.322 | 0.516 | 0.532 | 3813284 | 3813284 | 264572928 | 264921088 |
+| turns100-nut-M2-right | stl-preview | 5 | ok | ok: 5 | 21.921 | 21.989 | 0.544 | 0.548 | 3941384 | 3941384 | 400998400 | 404021248 |
+| turns100-bolt-M2-left | stl-preview | 5 | ok | ok: 5 | 10.303 | 10.404 | 0.446 | 0.450 | 3245084 | 3245084 | 265629696 | 265920512 |
+| turns100-nut-M2-left | stl-preview | 5 | ok | ok: 5 | 22.064 | 22.084 | 0.461 | 0.468 | 3288084 | 3288084 | 397705216 | 399552512 |
+| turns100-bolt-M2.5-right | stl-preview | 5 | refused | refused: 5 | - | - | - | - | - | - | - | - |
+| turns100-nut-M2.5-right | stl-preview | 5 | ok | ok: 5 | 21.759 | 22.118 | 0.590 | 0.599 | 4151884 | 4151884 | 391266304 | 396644352 |
+| turns100-bolt-M2.5-left | stl-preview | 5 | ok | ok: 5 | 10.122 | 10.173 | 0.478 | 0.486 | 3399884 | 3399884 | 261292032 | 261591040 |
+| turns100-nut-M2.5-left | stl-preview | 5 | ok | ok: 5 | 21.777 | 22.261 | 0.512 | 0.519 | 3538984 | 3538984 | 400953344 | 404987904 |
+| turns100-bolt-M3-right | stl-preview | 5 | refused | refused: 5 | - | - | - | - | - | - | - | - |
+| turns100-nut-M3-right | stl-preview | 5 | ok | ok: 5 | 20.921 | 21.409 | 0.625 | 0.659 | 4414584 | 4414584 | 348704768 | 352559104 |
+| turns100-bolt-M3-left | stl-preview | 5 | ok | ok: 5 | 10.114 | 10.126 | 0.543 | 0.546 | 3780784 | 3780784 | 263094272 | 263954432 |
+| turns100-nut-M3-left | stl-preview | 5 | ok | ok: 5 | 21.082 | 21.202 | 0.558 | 0.561 | 3857484 | 3857484 | 355250176 | 357335040 |
+| turns100-bolt-M3.5-right | stl-preview | 5 | ok | ok: 5 | 5.613 | 5.645 | 0.688 | 0.695 | 4628584 | 4628584 | 262696960 | 264773632 |
+| turns100-nut-M3.5-right | stl-preview | 5 | ok | ok: 5 | 12.044 | 12.118 | 0.643 | 0.664 | 4807384 | 4807384 | 266526720 | 270200832 |
+| turns100-bolt-M3.5-left | stl-preview | 5 | ok | ok: 5 | 5.624 | 5.879 | 0.609 | 0.750 | 4003484 | 4003484 | 262836224 | 264826880 |
+| turns100-nut-M3.5-left | stl-preview | 5 | ok | ok: 5 | 12.009 | 12.067 | 0.661 | 0.666 | 4597384 | 4597384 | 269217792 | 269701120 |
+| turns100-bolt-M4-right | stl-preview | 5 | ok | ok: 5 | 5.546 | 5.598 | 0.708 | 0.715 | 5198084 | 5198084 | 264228864 | 267030528 |
+| turns100-nut-M4-right | stl-preview | 5 | ok | ok: 5 | 12.028 | 12.164 | 0.798 | 0.803 | 6184984 | 6184984 | 270729216 | 271290368 |
+| turns100-bolt-M4-left | stl-preview | 5 | ok | ok: 5 | 5.557 | 5.614 | 0.687 | 0.690 | 4833584 | 4833584 | 263684096 | 264830976 |
+| turns100-nut-M4-left | stl-preview | 5 | ok | ok: 5 | 12.079 | 12.122 | 0.734 | 0.736 | 5402184 | 5402184 | 270295040 | 270807040 |
+| turns100-bolt-M5-right | stl-preview | 5 | ok | ok: 5 | 5.783 | 5.808 | 0.947 | 0.966 | 7490384 | 7490384 | 293601280 | 300838912 |
+| turns100-nut-M5-right | stl-preview | 5 | ok | ok: 5 | 12.154 | 12.254 | 0.927 | 1.014 | 7394784 | 7394784 | 269840384 | 271282176 |
+| turns100-bolt-M5-left | stl-preview | 5 | ok | ok: 5 | 5.791 | 5.811 | 0.780 | 0.782 | 5921784 | 5921784 | 294162432 | 299184128 |
+| turns100-nut-M5-left | stl-preview | 5 | ok | ok: 5 | 12.123 | 12.156 | 0.772 | 0.779 | 5888884 | 5888884 | 269131776 | 271491072 |
+| turns100-bolt-M6-right | stl-preview | 5 | ok | ok: 5 | 5.892 | 5.937 | 0.969 | 0.972 | 8088184 | 8088184 | 300261376 | 306728960 |
+| turns100-nut-M6-right | stl-preview | 5 | ok | ok: 5 | 12.057 | 12.163 | 0.965 | 0.977 | 8019484 | 8019484 | 269746176 | 271343616 |
+| turns100-bolt-M6-left | stl-preview | 5 | ok | ok: 5 | 5.884 | 5.938 | 0.783 | 0.794 | 6398684 | 6398684 | 296996864 | 299347968 |
+| turns100-nut-M6-left | stl-preview | 5 | ok | ok: 5 | 12.031 | 12.090 | 0.777 | 0.802 | 6279684 | 6279684 | 267395072 | 269578240 |
+| turns100-bolt-M7-right | stl-preview | 5 | ok | ok: 5 | 5.939 | 5.986 | 0.991 | 1.006 | 8343284 | 8343284 | 301649920 | 306548736 |
+| turns100-nut-M7-right | stl-preview | 5 | ok | ok: 5 | 12.123 | 12.157 | 0.974 | 0.976 | 8156884 | 8156884 | 268472320 | 271495168 |
+| turns100-bolt-M7-left | stl-preview | 5 | ok | ok: 5 | 4.860 | 5.954 | 0.629 | 0.819 | 6620884 | 6620884 | 299327488 | 306692096 |
+| turns100-nut-M7-left | stl-preview | 5 | ok | ok: 5 | 9.731 | 12.255 | 0.622 | 0.796 | 6509984 | 6509984 | 269627392 | 271704064 |
+| turns100-bolt-M8-right | stl-preview | 5 | ok | ok: 5 | 4.802 | 5.877 | 0.852 | 1.083 | 8473184 | 8473184 | 297353216 | 303603712 |
+| turns100-nut-M8-right | stl-preview | 5 | ok | ok: 5 | 9.777 | 12.149 | 0.805 | 1.053 | 8411284 | 8411284 | 268578816 | 269545472 |
+| turns100-bolt-M8-left | stl-preview | 5 | ok | ok: 5 | 4.811 | 5.862 | 0.693 | 1.127 | 6940084 | 6940084 | 298086400 | 301240320 |
+| turns100-nut-M8-left | stl-preview | 5 | ok | ok: 5 | 9.655 | 12.093 | 0.672 | 0.868 | 6638284 | 6638284 | 269099008 | 270118912 |
+| turns100-bolt-M10-right | stl-preview | 5 | ok | ok: 5 | 4.814 | 5.908 | 0.906 | 1.163 | 9013484 | 9013484 | 313577472 | 317415424 |
+| turns100-nut-M10-right | stl-preview | 5 | ok | ok: 5 | 9.595 | 12.107 | 0.873 | 1.158 | 8786284 | 8786284 | 268472320 | 270270464 |
+| turns100-bolt-M10-left | stl-preview | 5 | ok | ok: 5 | 4.835 | 5.959 | 0.747 | 0.979 | 7318784 | 7318784 | 311316480 | 312582144 |
+| turns100-nut-M10-left | stl-preview | 5 | ok | ok: 5 | 9.774 | 12.180 | 0.735 | 0.965 | 7185684 | 7185684 | 269537280 | 269979648 |
+| turns100-bolt-M12-right | stl-preview | 5 | ok | ok: 5 | 4.870 | 6.053 | 0.980 | 1.306 | 9664484 | 9664484 | 314052608 | 323178496 |
+| turns100-nut-M12-right | stl-preview | 5 | ok | ok: 5 | 9.754 | 12.116 | 0.938 | 1.237 | 9327584 | 9327584 | 269373440 | 276611072 |
+| turns100-bolt-M12-left | stl-preview | 5 | ok | ok: 5 | 4.822 | 6.067 | 0.830 | 1.105 | 7959584 | 7959584 | 311767040 | 312889344 |
+| turns100-nut-M12-left | stl-preview | 5 | ok | ok: 5 | 9.687 | 12.216 | 0.803 | 1.313 | 7849384 | 7849384 | 268296192 | 269828096 |
+| turns100-bolt-M14-right | stl-preview | 5 | ok | ok: 5 | 4.908 | 6.113 | 1.153 | 1.504 | 10233484 | 10233484 | 317624320 | 323264512 |
+| turns100-nut-M14-right | stl-preview | 5 | ok | ok: 5 | 10.127 | 12.559 | 1.085 | 1.545 | 9992684 | 9992684 | 273448960 | 288673792 |
+| turns100-bolt-M14-left | stl-preview | 5 | ok | ok: 5 | 4.981 | 6.153 | 0.999 | 1.308 | 8568484 | 8568484 | 320704512 | 321986560 |
+| turns100-nut-M14-left | stl-preview | 5 | ok | ok: 5 | 9.971 | 12.578 | 0.968 | 1.363 | 8409184 | 8409184 | 269668352 | 278228992 |
+| turns100-bolt-M16-right | stl-preview | 5 | ok | ok: 5 | 5.021 | 6.243 | 1.792 | 2.520 | 16516184 | 16516184 | 332353536 | 345227264 |
+| turns100-nut-M16-right | stl-preview | 5 | ok | ok: 5 | 9.974 | 12.395 | 1.786 | 2.536 | 16773884 | 16773884 | 291663872 | 296390656 |
+| turns100-bolt-M16-left | stl-preview | 5 | ok | ok: 5 | 5.060 | 6.309 | 1.895 | 2.673 | 15491684 | 15491684 | 328515584 | 331878400 |
+| turns100-nut-M16-left | stl-preview | 5 | ok | ok: 5 | 10.083 | 12.596 | 1.958 | 2.764 | 16186784 | 16186784 | 290017280 | 295772160 |
+| turns100-bolt-M18-right | stl-preview | 5 | ok | ok: 5 | 5.077 | 6.278 | 2.423 | 3.453 | 25539184 | 25539184 | 348229632 | 351174656 |
+| turns100-nut-M18-right | stl-preview | 5 | ok | ok: 5 | 10.055 | 12.488 | 2.320 | 3.234 | 25729684 | 25729684 | 320573440 | 324333568 |
+| turns100-bolt-M18-left | stl-preview | 5 | ok | ok: 5 | 5.022 | 6.281 | 2.576 | 3.582 | 21091084 | 21091084 | 340889600 | 349581312 |
+| turns100-nut-M18-left | stl-preview | 5 | ok | ok: 5 | 10.040 | 12.479 | 2.148 | 3.027 | 20387784 | 20387784 | 309329920 | 310755328 |
+| turns100-bolt-M20-right | stl-preview | 5 | ok | ok: 5 | 4.987 | 6.254 | 2.472 | 3.355 | 28708384 | 28708384 | 354304000 | 356753408 |
+| turns100-nut-M20-right | stl-preview | 5 | ok | ok: 5 | 9.958 | 12.425 | 2.374 | 3.291 | 27905584 | 27905584 | 320483328 | 321028096 |
+| turns100-bolt-M20-left | stl-preview | 5 | ok | ok: 5 | 4.993 | 6.322 | 1.902 | 2.906 | 22221084 | 22221084 | 348450816 | 350593024 |
+| turns100-nut-M20-left | stl-preview | 5 | ok | ok: 5 | 9.885 | 12.434 | 1.880 | 2.606 | 21585484 | 21585484 | 303140864 | 308998144 |
+| ceiling-bolt-d-1000 | stl-preview | 5 | ok | ok: 5 | 5.295 | 5.578 | 3.239 | 3.306 | 11841984 | 11841984 | 860098560 | 868880384 |
+| ceiling-bolt-d-10000 | stl-preview | 5 | refused | refused: 5 | - | - | - | - | - | - | - | - |
+| ceiling-bolt-length-10000 | stl-preview | 5 | ok | ok: 5 | 2.617 | 2.644 | 0.201 | 0.203 | 1610484 | 1610484 | 223916032 | 225792000 |
+| ceiling-bolt-thread-10000 | stl-preview | 5 | ok | ok: 5 | 10.418 | 11.633 | 30.687 | 32.876 | 234290784 | 234290784 | 931954688 | 954236928 |
+| ceiling-bolt-length-100000 | stl-preview | 5 | refused | refused: 5 | - | - | - | - | - | - | - | - |
+| ceiling-bolt-thread-100000 | stl-preview | 5 | ok | ok: 5 | 10.325 | 11.003 | 418.668 | 456.328 | 1713047584 | 1713047584 | 5773602816 | 6153019392 |
+| ceiling-bolt-s-1000 | stl-preview | 5 | ok | ok: 5 | 1.915 | 2.002 | 0.208 | 0.239 | 1634784 | 1634784 | 223805440 | 225959936 |
+| ceiling-bolt-s-10000 | stl-preview | 5 | ok | ok: 5 | 1.902 | 2.127 | 0.228 | 0.269 | 1741584 | 1741584 | 227774464 | 228339712 |
+| ceiling-bolt-k-100000 | stl-preview | 5 | ok | ok: 5 | 1.989 | 2.350 | 0.202 | 0.220 | 1587384 | 1587384 | 225435648 | 226566144 |
+| beyond-bolt-k-1000000 (lift {"max_mm": 1000000.0}) | stl-preview | 5 | ok | ok: 5 | - | - | - | - | - | - | - | - |
+| beyond-bolt-thread-1000000 (lift {"max_mm": 1000000.0}) | stl-preview | 5 | capped | capped: 5 | - | - | - | - | - | - | - | - |
+| ceiling-nut-s-1000 | stl-preview | 5 | ok | ok: 5 | 2.114 | 2.333 | 0.062 | 0.075 | 426384 | 426384 | 214474752 | 215871488 |
+| nutlead-M2-s1000 | stl-preview | 5 | ok | ok: 5 | 5.776 | 5.944 | 0.172 | 0.173 | 1278084 | 1278084 | 231153664 | 232034304 |
+| nutlead-M8-s1000 | stl-preview | 5 | ok | ok: 5 | 4.735 | 4.995 | 0.337 | 0.360 | 2682484 | 2682484 | 231739392 | 232374272 |
+| nutlead-M14-s1000 | stl-preview | 5 | ok | ok: 5 | 4.437 | 4.776 | 0.345 | 0.355 | 2456684 | 2456684 | 228012032 | 228626432 |
+| ceiling-nut-s-10000 | stl-preview | 5 | ok | ok: 5 | 2.127 | 2.179 | 0.088 | 0.094 | 587184 | 587184 | 223399936 | 223727616 |
+| nutlead-M2-s10000 | stl-preview | 5 | refused | refused: 5 | - | - | - | - | - | - | - | - |
+| nutlead-M8-s10000 | stl-preview | 5 | ok | ok: 5 | 4.715 | 5.097 | 0.366 | 0.404 | 2804284 | 2804284 | 231940096 | 232747008 |
+| nutlead-M14-s10000 | stl-preview | 5 | ok | ok: 5 | 4.470 | 4.731 | 0.370 | 0.413 | 2581484 | 2581484 | 230514688 | 230854656 |
+| ceiling-nut-d-1000 | stl-preview | 5 | capped | capped: 5 | - | - | - | - | - | - | - | - |
+| ceiling-nut-d-10000 | stl-preview | 5 | refused | refused: 5 | - | - | - | - | - | - | - | - |
+| ceiling-nut-m-10000 | stl-preview | 5 | ok | ok: 5 | 23.874 | 26.397 | 39.002 | 42.362 | 298660684 | 298660684 | 1059831808 | 1084469248 |
+| ceiling-nut-m-100000 | stl-preview | 5 | killed | killed: 5 | - | - | - | - | - | - | - | - |
+| ceiling-nut-clearance-1000 | stl-preview | 5 | ok | ok: 5 | 5.270 | 5.340 | 45.376 | 49.592 | 102733434 | 102733434 | 6127947776 | 6337798144 |
+| ceiling-nut-clearance-10000 | stl-preview | 5 | refused | refused: 5 | - | - | - | - | - | - | - | - |
+| tail-d6-p1-right-1e-4 | tail | 5 | ok | ok: 5 | 0.050 | 0.052 | - | - | - | - | 201465856 | 201592832 |
+| tail-d6-p1-left-1e-4 | tail | 5 | ok | ok: 5 | 0.049 | 0.051 | - | - | - | - | 201547776 | 201596928 |
+| tail-d2-p0.4-right-1e-4 | tail | 5 | ok | ok: 5 | 0.047 | 0.053 | - | - | - | - | 201412608 | 201601024 |
+| tail-d2-p0.4-left-1e-4 | tail | 5 | ok | ok: 5 | 0.047 | 0.049 | - | - | - | - | 201580544 | 201859072 |
+| tail-d20-p2.5-right-1e-4 | tail | 5 | ok | ok: 5 | 0.050 | 0.052 | - | - | - | - | 201826304 | 201932800 |
+| tail-d20-p2.5-left-1e-4 | tail | 5 | ok | ok: 5 | 0.049 | 0.052 | - | - | - | - | 201588736 | 201854976 |
+| tail-d6-p1-right-1e-5 | tail | 5 | ok | ok: 5 | 0.050 | 0.053 | - | - | - | - | 201580544 | 201609216 |
+| tail-d6-p1-left-1e-5 | tail | 5 | ok | ok: 5 | 0.050 | 0.051 | - | - | - | - | 201510912 | 201650176 |
+| tail-d2-p0.4-right-1e-5 | tail | 5 | ok | ok: 5 | 0.048 | 0.049 | - | - | - | - | 201601024 | 201859072 |
+| tail-d2-p0.4-left-1e-5 | tail | 5 | ok | ok: 5 | 0.048 | 0.050 | - | - | - | - | 201592832 | 201789440 |
+| tail-d20-p2.5-right-1e-5 | tail | 5 | ok | ok: 5 | 0.049 | 0.051 | - | - | - | - | 201605120 | 201838592 |
+| tail-d20-p2.5-left-1e-5 | tail | 5 | ok | ok: 5 | 0.050 | 0.051 | - | - | - | - | 201596928 | 201809920 |
+| root-bolt-M2-right-r0.01 | stl-preview | 5 | ok | ok: 5 | 0.670 | 0.694 | 0.040 | 0.049 | 210684 | 210684 | 209960960 | 210354176 |
+| root-bolt-M2-left-r0.01 | stl-preview | 5 | ok | ok: 5 | 0.665 | 0.694 | 0.041 | 0.048 | 206184 | 206184 | 209977344 | 210468864 |
+| root-bolt-M2.5-right-r0.01 | stl-preview | 5 | ok | ok: 5 | 0.676 | 0.685 | 0.042 | 0.045 | 220684 | 220684 | 210468864 | 211152896 |
+| root-bolt-M2.5-left-r0.01 | stl-preview | 5 | ok | ok: 5 | 0.676 | 0.729 | 0.043 | 0.045 | 214084 | 214084 | 210251776 | 211066880 |
+| root-bolt-M3-right-r0.01 | stl-preview | 5 | ok | ok: 5 | 0.693 | 0.715 | 0.044 | 0.045 | 234184 | 234184 | 211337216 | 211828736 |
+| root-bolt-M3-left-r0.01 | stl-preview | 5 | ok | ok: 5 | 0.706 | 0.728 | 0.043 | 0.043 | 220284 | 220284 | 211050496 | 211316736 |
+| root-bolt-M3.5-right-r0.01 | stl-preview | 5 | ok | ok: 5 | 0.624 | 0.629 | 0.046 | 0.053 | 236284 | 236284 | 211275776 | 211845120 |
+| root-bolt-M3.5-left-r0.01 | stl-preview | 5 | ok | ok: 5 | 0.585 | 0.596 | 0.048 | 0.051 | 234384 | 234384 | 211304448 | 211968000 |
+| root-bolt-M4-right-r0.01 | stl-preview | 5 | ok | ok: 5 | 0.620 | 0.638 | 0.053 | 0.058 | 268584 | 268584 | 212250624 | 212860928 |
+| root-bolt-M4-left-r0.01 | stl-preview | 5 | ok | ok: 5 | 0.593 | 0.604 | 0.051 | 0.053 | 262384 | 262384 | 212496384 | 213086208 |
+| root-bolt-M5-right-r0.01 | stl-preview | 5 | ok | ok: 5 | 0.631 | 0.642 | 0.058 | 0.068 | 296384 | 296384 | 213110784 | 213426176 |
+| root-bolt-M5-left-r0.01 | stl-preview | 5 | ok | ok: 5 | 0.604 | 0.613 | 0.056 | 0.057 | 278584 | 278584 | 213331968 | 213614592 |
+| root-bolt-M6-right-r0.01 | stl-preview | 5 | ok | ok: 5 | 0.641 | 0.646 | 0.061 | 0.062 | 311284 | 311284 | 213319680 | 213868544 |
+| root-bolt-M6-left-r0.01 | stl-preview | 5 | ok | ok: 5 | 0.613 | 0.620 | 0.061 | 0.062 | 292684 | 292684 | 213344256 | 213970944 |
+| root-bolt-M7-right-r0.01 | stl-preview | 5 | ok | ok: 5 | 0.647 | 0.669 | 0.064 | 0.066 | 321784 | 321784 | 213934080 | 214151168 |
+| root-bolt-M7-left-r0.01 | stl-preview | 5 | ok | ok: 5 | 0.609 | 0.620 | 0.065 | 0.069 | 313084 | 313084 | 214294528 | 214433792 |
+| root-bolt-M8-right-r0.01 | stl-preview | 5 | ok | ok: 5 | 0.647 | 0.664 | 0.069 | 0.073 | 346284 | 346284 | 213848064 | 214646784 |
+| root-bolt-M8-left-r0.01 | stl-preview | 5 | ok | ok: 5 | 0.618 | 0.631 | 0.064 | 0.066 | 317084 | 317084 | 214171648 | 214302720 |
+| root-bolt-M10-right-r0.01 | stl-preview | 5 | ok | ok: 5 | 0.647 | 0.652 | 0.076 | 0.084 | 389984 | 389984 | 215392256 | 215519232 |
+| root-bolt-M10-left-r0.01 | stl-preview | 5 | ok | ok: 5 | 0.619 | 0.645 | 0.076 | 0.077 | 356184 | 356184 | 214679552 | 215212032 |
+| root-bolt-M12-right-r0.01 | stl-preview | 5 | ok | ok: 5 | 0.650 | 0.680 | 0.087 | 0.091 | 432084 | 432084 | 216858624 | 217042944 |
+| root-bolt-M12-left-r0.01 | stl-preview | 5 | ok | ok: 5 | 0.633 | 0.645 | 0.081 | 0.087 | 384784 | 384784 | 215801856 | 216485888 |
+| root-bolt-M14-right-r0.01 | stl-preview | 5 | ok | ok: 5 | 0.670 | 0.683 | 0.090 | 0.097 | 473684 | 473684 | 217223168 | 217931776 |
+| root-bolt-M14-left-r0.01 | stl-preview | 5 | ok | ok: 5 | 0.644 | 0.650 | 0.092 | 0.094 | 440084 | 440084 | 216756224 | 217333760 |
+| root-bolt-M16-right-r0.01 | stl-preview | 5 | ok | ok: 5 | 0.672 | 0.680 | 0.128 | 0.135 | 642584 | 642584 | 227241984 | 227434496 |
+| root-bolt-M16-left-r0.01 | stl-preview | 5 | ok | ok: 5 | 0.640 | 0.654 | 0.128 | 0.136 | 593084 | 593084 | 225636352 | 225931264 |
+| root-bolt-M18-right-r0.01 | stl-preview | 5 | ok | ok: 5 | 0.598 | 0.717 | 0.123 | 0.138 | 684184 | 684184 | 228757504 | 229175296 |
+| root-bolt-M18-left-r0.01 | stl-preview | 5 | ok | ok: 5 | 0.576 | 0.683 | 0.115 | 0.137 | 628184 | 628184 | 227708928 | 228245504 |
+| root-bolt-M20-right-r0.01 | stl-preview | 5 | ok | ok: 5 | 0.588 | 0.703 | 0.150 | 0.156 | 723484 | 723484 | 230567936 | 231075840 |
+| root-bolt-M20-left-r0.01 | stl-preview | 5 | ok | ok: 5 | 0.575 | 0.674 | 0.118 | 0.135 | 653484 | 653484 | 229609472 | 230125568 |
+| root-bolt-M2-right-r0.003 | stl-preview | 5 | ok | ok: 5 | 0.576 | 0.674 | 0.031 | 0.039 | 211984 | 211984 | 210046976 | 210452480 |
+| root-bolt-M2-left-r0.003 | stl-preview | 5 | ok | ok: 5 | 0.580 | 0.677 | 0.032 | 0.040 | 205384 | 205384 | 209694720 | 210116608 |
+| root-bolt-M2.5-right-r0.003 | stl-preview | 5 | ok | ok: 5 | 0.575 | 0.682 | 0.035 | 0.044 | 228684 | 228684 | 210493440 | 210997248 |
+| root-bolt-M2.5-left-r0.003 | stl-preview | 5 | ok | ok: 5 | 0.586 | 0.684 | 0.036 | 0.044 | 220784 | 220784 | 210554880 | 210800640 |
+| root-bolt-M3-right-r0.003 | stl-preview | 5 | ok | ok: 5 | 0.578 | 0.695 | 0.035 | 0.045 | 236584 | 236584 | 210952192 | 211263488 |
+| root-bolt-M3-left-r0.003 | stl-preview | 5 | ok | ok: 5 | 0.599 | 0.706 | 0.035 | 0.044 | 221684 | 221684 | 210550784 | 210796544 |
+| root-bolt-M3.5-right-r0.003 | stl-preview | 5 | ok | ok: 5 | 0.546 | 0.641 | 0.038 | 0.046 | 243284 | 243284 | 211542016 | 211931136 |
+| root-bolt-M3.5-left-r0.003 | stl-preview | 5 | ok | ok: 5 | 0.502 | 0.611 | 0.038 | 0.047 | 233684 | 233684 | 211292160 | 211902464 |
+| root-bolt-M4-right-r0.003 | stl-preview | 5 | ok | ok: 5 | 0.535 | 0.629 | 0.044 | 0.052 | 267584 | 267584 | 212271104 | 212328448 |
+| root-bolt-M4-left-r0.003 | stl-preview | 5 | ok | ok: 5 | 0.499 | 0.594 | 0.043 | 0.058 | 265984 | 265984 | 212512768 | 212733952 |
+| root-bolt-M5-right-r0.003 | stl-preview | 5 | ok | ok: 5 | 0.540 | 0.624 | 0.048 | 0.057 | 291784 | 291784 | 213307392 | 213336064 |
+| root-bolt-M5-left-r0.003 | stl-preview | 5 | ok | ok: 5 | 0.489 | 0.594 | 0.043 | 0.053 | 275584 | 275584 | 212893696 | 213118976 |
+| root-bolt-M6-right-r0.003 | stl-preview | 5 | ok | ok: 5 | 0.525 | 0.629 | 0.051 | 0.061 | 303784 | 303784 | 213323776 | 213893120 |
+| root-bolt-M6-left-r0.003 | stl-preview | 5 | ok | ok: 5 | 0.475 | 0.603 | 0.046 | 0.061 | 289584 | 289584 | 213663744 | 213987328 |
+| root-bolt-M7-right-r0.003 | stl-preview | 5 | ok | ok: 5 | 0.518 | 0.649 | 0.051 | 0.070 | 320484 | 320484 | 213848064 | 214122496 |
+| root-bolt-M7-left-r0.003 | stl-preview | 5 | ok | ok: 5 | 0.478 | 0.609 | 0.049 | 0.063 | 307584 | 307584 | 213999616 | 214654976 |
+| root-bolt-M8-right-r0.003 | stl-preview | 5 | ok | ok: 5 | 0.511 | 0.649 | 0.053 | 0.068 | 334284 | 334284 | 213590016 | 214171648 |
+| root-bolt-M8-left-r0.003 | stl-preview | 5 | ok | ok: 5 | 0.479 | 0.612 | 0.052 | 0.068 | 323384 | 323384 | 214204416 | 214376448 |
+| root-bolt-M10-right-r0.003 | stl-preview | 5 | ok | ok: 5 | 0.525 | 0.737 | 0.063 | 0.109 | 384384 | 384384 | 214872064 | 215416832 |
+| root-bolt-M10-left-r0.003 | stl-preview | 5 | ok | ok: 5 | 0.507 | 0.635 | 0.057 | 0.080 | 359684 | 359684 | 214740992 | 215228416 |
+| root-bolt-M12-right-r0.003 | stl-preview | 5 | ok | ok: 5 | 0.521 | 0.659 | 0.068 | 0.083 | 420984 | 420984 | 216469504 | 216752128 |
+| root-bolt-M12-left-r0.003 | stl-preview | 5 | ok | ok: 5 | 0.504 | 0.631 | 0.064 | 0.084 | 388384 | 388384 | 216383488 | 216752128 |
+| root-bolt-M14-right-r0.003 | stl-preview | 5 | ok | ok: 5 | 0.521 | 0.667 | 0.073 | 0.094 | 476684 | 476684 | 217288704 | 217743360 |
+| root-bolt-M14-left-r0.003 | stl-preview | 5 | ok | ok: 5 | 0.499 | 0.646 | 0.069 | 0.090 | 432684 | 432684 | 216940544 | 217501696 |
+| root-bolt-M16-right-r0.003 | stl-preview | 5 | ok | ok: 5 | 0.535 | 0.674 | 0.106 | 0.129 | 632584 | 632584 | 227086336 | 227586048 |
+| root-bolt-M16-left-r0.003 | stl-preview | 5 | ok | ok: 5 | 0.508 | 0.641 | 0.101 | 0.130 | 598884 | 598884 | 226013184 | 226213888 |
+| root-bolt-M18-right-r0.003 | stl-preview | 5 | ok | ok: 5 | 0.546 | 0.703 | 0.114 | 0.143 | 684884 | 684884 | 228810752 | 229621760 |
+| root-bolt-M18-left-r0.003 | stl-preview | 5 | ok | ok: 5 | 0.546 | 0.700 | 0.105 | 0.140 | 625984 | 625984 | 228077568 | 228298752 |
+| root-bolt-M20-right-r0.003 | stl-preview | 5 | ok | ok: 5 | 0.547 | 0.748 | 0.121 | 0.154 | 717784 | 717784 | 230653952 | 231108608 |
+| root-bolt-M20-left-r0.003 | stl-preview | 5 | ok | ok: 5 | 0.529 | 0.671 | 0.113 | 0.138 | 647284 | 647284 | 229298176 | 229535744 |
+
+
+#### R3 outcome of the confirm run by candidate wall
+
+Per candidate of `### candidate walls (before the confirm)`, the confirm points at the decided value and at the next step past it, each point's status over its 5 repetitions as `summarize` prints it. Generated from the committed records of run 40678150220 and the candidate decision of `decide-walls`; no figure is typed. The decided rows of T, R9 and R10 are all ok in 5 of 5 repetitions. Two decided rows are not: the `nut d` reading at its decided decade (`ceiling-nut-d-1000`) is `capped` in 5 of 5, and the lifted `beyond-bolt-thread-1000000` is `capped` in 5 of 5 (a lifted reading awards nothing, R3).
+
+| wall | candidate | value read | points (status over 5 repetitions) |
+| --- | --- | --- | --- |
+| MAX_TURNS (R7) | T = 90 | T = 90 turns | ok: 60 of 60 points |
+| MAX_TURNS (R7) | T = 90 | T + 10 = 100 turns | ok: 58, refused: 2 of 60 points |
+| MAX_TURNS (R7) | | turns100-bolt-M2.5-right | refused (refused: 5) |
+| MAX_TURNS (R7) | | turns100-bolt-M3-right | refused (refused: 5) |
+| bolt d (R8) | decade 1000, tested 999.999 | decided decade 1000 mm | `ceiling-bolt-d-1000`: ok (ok: 5) |
+| bolt d (R8) | decade 1000, tested 999.999 | next decade 10000 mm | `ceiling-bolt-d-10000`: refused (refused: 5) |
+| bolt length (R8) | decade 10000, tested 10000.0 | decided decade 10000 mm | `ceiling-bolt-length-10000`: ok (ok: 5); `ceiling-bolt-thread-10000`: ok (ok: 5) |
+| bolt length (R8) | decade 10000, tested 10000.0 | next decade 100000 mm | `ceiling-bolt-length-100000`: refused (refused: 5); `ceiling-bolt-thread-100000`: ok (ok: 5) |
+| bolt s (R8) | decade 1000, tested 1000.0 | decided decade 1000 mm | `ceiling-bolt-s-1000`: ok (ok: 5); `ceiling-bolt-d-1000`: ok (ok: 5) |
+| bolt s (R8) | decade 1000, tested 1000.0 | next decade 10000 mm | `ceiling-bolt-s-10000`: ok (ok: 5); `ceiling-bolt-d-10000`: refused (refused: 5) |
+| bolt k (R8) | decade 100000, tested 100000.0 | decided decade 100000 mm | `ceiling-bolt-k-100000`: ok (ok: 5) |
+| bolt k (R8) | decade 100000, tested 100000.0 | next decade 1e+06 mm | `beyond-bolt-k-1000000`: ok (ok: 5) |
+| bolt thread_length (R8) | decade 100000, tested 100000.0 | decided decade 100000 mm | `ceiling-bolt-thread-100000`: ok (ok: 5) |
+| bolt thread_length (R8) | decade 100000, tested 100000.0 | next decade 1e+06 mm | `beyond-bolt-thread-1000000`: capped (capped: 5) |
+| nut s (R8) | decade 1000, tested 1000.0 | decided decade 1000 mm | `ceiling-nut-s-1000`: ok (ok: 5); `nutlead-M2-s1000`: ok (ok: 5); `nutlead-M8-s1000`: ok (ok: 5); `nutlead-M14-s1000`: ok (ok: 5) |
+| nut s (R8) | decade 1000, tested 1000.0 | next decade 10000 mm | `ceiling-nut-s-10000`: ok (ok: 5); `nutlead-M2-s10000`: refused (refused: 5); `nutlead-M8-s10000`: ok (ok: 5); `nutlead-M14-s10000`: ok (ok: 5) |
+| nut d (R8) | decade 1000, tested 999.699 | decided decade 1000 mm | `ceiling-nut-d-1000`: capped (capped: 5) |
+| nut d (R8) | decade 1000, tested 999.699 | next decade 10000 mm | `ceiling-nut-d-10000`: refused (refused: 5) |
+| nut m (R8) | decade 10000, tested 10000.0 | decided decade 10000 mm | `ceiling-nut-m-10000`: ok (ok: 5) |
+| nut m (R8) | decade 10000, tested 10000.0 | next decade 100000 mm | `ceiling-nut-m-100000`: killed (killed: 5) |
+| nut clearance (R8) | decade 1000, tested 496.999 | decided decade 1000 mm | `ceiling-nut-clearance-1000`: ok (ok: 5) |
+| nut clearance (R8) | decade 1000, tested 496.999 | next decade 10000 mm | `ceiling-nut-clearance-10000`: refused (refused: 5) |
+| MIN_TAIL_MM (R9) | V = 0.0001 mm | V 0.0001 mm | ok: 6 of 6 points |
+| MIN_TAIL_MM (R9) | V = 0.0001 mm | next smaller walked value 1e-05 mm | ok: 6 of 6 points |
+| MIN_ROOT_RADIUS_MM (R10) | V = 0.01 mm | V 0.01 mm | ok: 30 of 30 points |
+| MIN_ROOT_RADIUS_MM (R10) | V = 0.01 mm | next smaller walked value 0.003 mm | ok: 30 of 30 points |
+| lifted readings (R3) | award nothing | past 1e5 mm | `beyond-bolt-k-1000000`: ok (ok: 5); `beyond-bolt-thread-1000000`: capped (capped: 5) |
+
+The same point in the first walls run (40646134133) was `ok` with `memory_peak_bytes` 12663300096, against the capped threshold of 12884901888 x 0.99 = 12756052869 bytes (`bench.oper.is_capped`): the reading sat 92752773 bytes under it, and the 5 confirm repetitions were all classified `capped` (an OOM kill or a peak at or above the threshold; a capped record keeps no figure, R2). A `capped` reading is cost and not a kernel wall (R8): it does not move a wall and cannot raise one, so the tested value 999.699 is not confirmed by this run. No rule of the protocol awards a nut `d` value from a capped confirm; the question goes to the owner before plan 07-07 writes `MAX_NUT_D_MM`.
