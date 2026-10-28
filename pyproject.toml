@@ -254,6 +254,7 @@ source_modules = [
     "bench.print_matrix",
     "bench.oper",  # the runner's parent: it runs on a bare setup-python interpreter (07 D-15)
     "bench.oper_sets",  # the sweep's point sets: it validates points, it never builds (07-03)
+    "bench.oper_fit",  # the cost model's fit: the model calc ships is kernel-free (07 D-05)
 ]
 forbidden_modules = ["cadquery", "OCP"]
 
