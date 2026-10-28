@@ -53,4 +53,15 @@ explore readings.
 | G22 | R19, R23 (arenas) | When a max that R19 (G15) or R23's arena comparison (G17) compares is missing (R3: a point with any repetition that is not `ok` has no max), the phase stops for the owner. |
 | G23 | header | Text fix: the header names plans 07-03 to 07-21. |
 
+## Gap G24 (owner answer before plan 07-05, 2026-10-28)
+
+Source: question Q5 of the PR A3 plan, left open there. R6 named no charge for the R19 gzip set or the
+R23 arena set, and R30 freezes R6 at the first runner reading. The ruling amends `07-SWEEP-PROTOCOL.md`
+through PR A4, which has to land before plan 07-05 takes the first reading. The owner took the
+recommended option.
+
+| Gap | Rule(s) | Owner ruling |
+|---|---|---|
+| G24 | R6 | Each reading of the R19 gzip set and the R23 arena set is charged its deadline (R2's 600 s), as contention and load readings are, not its explore group's largest `wall_s`. A reading whose deadline is not under half the job's `timeout-minutes` stops the phase for the owner, as G4 rules. |
+
 Earlier rulings in the same review cycle (PR A, rounds 1–3) are recorded in `07-04-SUMMARY.md`.
