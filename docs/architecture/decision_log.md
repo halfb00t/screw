@@ -283,6 +283,8 @@ which is the point.
 
 ## L11 — The thread is a sewn twist-section at K = 3, volumes are `BRepGProp` at eps 1e-6 gated at 9e-5, and the pair proof is not falsifiable at M18 (blocks Phase 5)
 
+Superseded in part by L20: the 250-turn `MAX_TURNS` frontier figure is 90 turns, re-measured on linux/amd64.
+
 Date: 2026-10-09. Decided by the owner at the Phase 2 verdict checkpoint on the
 pre-registered rules of `02-SPIKE.md`. Every value below names the
 `bench/RESULTS.md` entry (run id) that holds it; the rules that produced it are the ones in
@@ -445,6 +447,8 @@ re-runs the whole campaign). The unestablished seconds caps and the INTERIM budg
 reversible by design: Phase 7 re-measures them.
 
 ## L12 — The bolt is the L11 thread behind a gate in screw.solid; turns, root radius and the over-budget fine STL are refused, never trimmed; left_hand is on every kind
+
+Superseded in part by L20: the root-above-0 clause is a 0.01 mm floor and `MIN_TAIL_MM` is 1e-4 mm, both re-measured on linux/amd64.
 
 Date: 2026-10-10. Decided by the owner in the Phase 3 discussion (D-01 to D-16) and in the
 planning rulings D-17 to D-19, both on 2026-10-10. Where a value comes from L11 it names the
@@ -1532,3 +1536,96 @@ any of them changes parts people already linked). Costly for the 422 type, its `
 exit code (D-06: every client and the parity test read them) and for the warning texts, the note and the
 row labels (D-12, the published shape of the info document, L13). Reversible for where the cut runs in
 the pipeline and for its piece gate: both are internal.
+
+## L20 — The kernel's outer walls are re-measured on linux/amd64: 90 turns, a field ceiling of 1000 mm with four per-field exceptions, a 1e-4 mm tail and a 0.01 mm root-radius floor
+
+Date: 2026-10-28. Decided by D-08 and D-18 of Phase 7 and by the pre-registered rules R3 and R7 to R10
+of `07-SWEEP-PROTOCOL.md`, as ruled where they had gaps (G1, G2, G26 and G27 in `07-GAP-RULINGS.md`).
+Every constant below is recomputed from the committed records by `python -m bench.oper_sets
+derive-walls`, and `tests/test_oper_followup.py::test_the_source_constants_equal_what_derive_walls_gives_for_the_records`
+fails if a constant in `src/` drifts from what that command prints. Every run is a GitHub Actions run of
+`screw:ci` on linux/amd64 and has its entry in `bench/RESULTS.md`: walls 40646134133 (`### walls, run
+40646134133`), walls-down 40652801529, walls-confirm 40678150220, controls 40646142406 and the void walk
+40665307964.
+
+**What a wall is.** The largest request the kernel was seen to build at every size and hand the sweep
+walked, 5 repetitions in agreement (R3), and the first step past it as the model's refusal. A wall is
+not a budget: how long and how much memory a build that passes the model takes is the cost model's
+business (Phase 7 logs it separately), and a request inside every wall can still be refused for cost.
+L02 decides the branch: a request past a wall is a `422` naming the fields, never a trimmed part.
+
+**Turns, `MAX_TURNS` = 90 (R7).** T is the smallest first ok step over the 60 cells (9 of them refused
+at 250 turns in run 40646134133 and were walked down in run 40652801529). Two cells, `bolt-M2.5-right`
+and `bolt-M3-right`, first built at 90, so T = 90, resting on 148 readings. Confirm run 40678150220:
+the 60 cells at 90 turns were `ok` in all 5 repetitions (60 of 60 points), and 100 turns was refused in
+`turns100-bolt-M2.5-right` and `turns100-bolt-M3-right` (5 of 5) and ok in the other 58. The catalogue
+tops out at 80 turns. This replaces L11's 250, a macOS arm64 figure that the linux/amd64 kernel does not
+keep: 9 of 60 cells were refused at 250 there.
+
+**Field ceilings (R8).** `MAX_FIELD_MM` = 1000, the value most fields share (a tie goes to the lower).
+Each field's decided decade and tested value, with the confirm of the decade and of the one past it:
+
+| field | constant | value | past it in the confirm |
+|---|---|---|---|
+| bolt `d` | `MAX_BOLT_D_MM` | 999.999 | `ceiling-bolt-d-10000` refused 5 of 5 |
+| bolt `length` | `MAX_BOLT_LENGTH_MM` | 10000 | `ceiling-bolt-length-100000` refused 5 of 5 |
+| bolt `s` and nut `s` | `MAX_FIELD_MM` | 1000 | bolt `ceiling-bolt-s-10000` ok; nut `nutlead-M2-s10000` refused |
+| bolt `k` | `MAX_BOLT_K_MM` | 100000 | `beyond-bolt-k-1000000` ok (a lifted reading: it awards nothing) |
+| bolt `thread_length` | `MAX_BOLT_THREAD_LENGTH_MM` | 100000 | `beyond-bolt-thread-1000000` capped |
+| nut `m` | `MAX_NUT_M_MM` | 10000 | `ceiling-nut-m-100000` killed 5 of 5 |
+| nut `clearance` | `MAX_NUT_CLEARANCE_MM` | 496.999 | `ceiling-nut-clearance-10000` refused 5 of 5 |
+
+`d` 999.999 and `clearance` 496.999 are the largest 6-significant-figure values under the head rule
+(`s > d`) and the thin-nut rule (`s > d + 2 c`) at `s` = 1000. `thread_length` can exceed `length`
+because the builder caps the thread at the length (L12 D-25). In no case did the 5-repetition confirm
+make a decided decade stricter than its candidate. The nine decades are the ones `derive-walls` prints.
+
+**Nut `d` has no wall of its own (G27).** `ceiling-nut-d-1000` read `ok` once in run 40646134133, 92752773
+bytes under the capped threshold, and `capped` in all 5 confirm repetitions; `ceiling-nut-d-10000` was
+refused 5 of 5. By R8 a `capped` reading cannot raise a wall, so there is no confirmed decade and R8
+writes no number. The owner ruled that the nut `d` stays under the shared `MAX_FIELD_MM` (1000, below
+the first refused decade 1e4) and that its limit is cost. There is no `MAX_NUT_D_MM`.
+
+**Tail, `MIN_TAIL_MM` = 1e-4 mm (R9).** Tails 1e-2 to 1e-5 mm built `ok` at 6 of 6 cells; 1e-6 and 1e-7
+mm were refused, 1e-8 crashed 4 and was refused 2, and 1e-9 crashed 6 (48 readings, run 40646134133).
+F = 1e-6 mm is the largest failing tail and the floor is the smallest power of ten at or above 100 F,
+1e-4 mm. Confirm: 1e-4 and the next smaller walked value 1e-5 were `ok` at 6 of 6 points. This replaces
+L12's INTERIM 1e-3 mm.
+
+**Root radius, `MIN_ROOT_RADIUS_MM` = 0.01 mm (R10, G26).** The floor reads the rods of group (d) only: F
+= 3e-4 mm (`root-bolt-M12-right-r0.0003`, the largest failing rod, over 270 readings), and the floor is
+the smallest power of ten at or above 10 F, 0.01 mm. Confirm: 0.01 and 0.003 mm were `ok` at 30 of 30
+rod points. The model refuses a thread root below it (`pitch_too_coarse`), where L12 refused only a root
+at or below 0. The nut's void root rule uses the same constant as a guard and nothing more. It is not a
+measured void wall: the void walk (run 40665307964, 20 `ok` and 100 refused with `StdFail_NotDone`)
+puts the kernel's limit on a void's root ratio r/d, not on a length in millimetres, a ratio the sweep
+saw once and took no number from. That is the open debt
+`docs/tech_debt/active/2026-10-21-nut-countersink-cutter-crosses-the-axis-at-a-coarse-pitch.md`.
+
+**The controls (run 40646142406).** The 69 known-bad construction rows ran natively next to the builder,
+one repetition each. The one-pipe twist matches L11's macOS arm64 outcome on all 40 rows, in the 6
+digits printed, 8 of them inverted (ratio about -1) as before. The naive fuse differs in outcome on 8 of 29: 6
+rows that L11 built are refused with `Null TopoDS_Shape` on linux/amd64 and 2 that failed on macOS are
+one valid solid; the volume ratios of 2 more differ in the third or fifth decimal (`naive-M10-L20` 1.02492
+against 1.02662, `naive-M2.5-L25` 1.03572 against 1.03573). The four THRD-04 test rows of
+`tests/test_solid.py` all still do their job here: `naive-M2-L4`, `naive-M8-L10` and `naive-M20-L10` are
+one valid solid at volume ratios 0.290229, 0.231722 and 0.219346 (below the half the gate reads), and
+`one_pipe-M6-t160` is inverted at -0.999995. `naive-M6-L10`, the row swapped out of the tests, is
+`Null TopoDS_Shape` on the runner, as the L11 platform note says. No row changes.
+
+**What it supersedes.** L11's `MAX_TURNS` frontier figure of 250 turns; L12's "root above 0" clause (the
+floor is 0.01 mm) and its interim `MIN_TAIL_MM` of 1e-3 mm; L09's interim `INTERIM_MAX_MM` field ceiling
+of 1e5, renamed `MAX_FIELD_MM` and now a measured 1000 with the exceptions above. The bench tools that
+check the pre-registered point files keep the guards they were registered under
+(`bench.oper_lift.registered`), so those files do not move with the walls.
+
+**Evidence the walls came from.** The 24 failing tails and 122 failing rod roots are counted by
+`derive-walls` over run 40646134133; the T cells, by run 40652801529; the confirms, by run 40678150220.
+A reader who doubts a figure reruns `derive-walls` over `bench/results/phase-07/` and compares.
+
+Reason: the numbers the model accepts are numbers someone cuts metal to, so each is a confirmed figure
+from the platform the product runs on, and a macOS figure is no longer a stand-in (L02).
+
+Reversibility: reversible. Each wall is a constant in `src/screw/params.py` or `src/screw/calc/thread.py`
+and a re-run of the walls set (`bench/oper_sets`) re-derives it; the 422 texts cite the run ids and
+change with it. A shareable link past a lowered wall stops building, which is why the lowering is logged.
