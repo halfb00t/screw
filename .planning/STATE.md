@@ -4,10 +4,10 @@ current_phase: 07
 current_phase_name: Operability Re-sweep
 status: executing
 stopped_at: Completed 07-04-PLAN.md
-last_updated: "2026-10-27T17:33:11.724Z"
+last_updated: "2026-10-28T05:00:33.211Z"
 last_activity: 2026-10-27
 last_activity_desc: Phase 07 execution started
-state_head: 2777bb7eda7f1fed29687533998b6e967a86bed3
+state_head: 691078f25d287e6582f9921ee1d289d11fa449fb
 progress:
   total_phases: 8
   completed_phases: 7
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-25)
 Phase: 07 (Operability Re-sweep) — READY TO EXECUTE
 Plan: 5 of 21
 Status: Ready to execute
-Last activity: 2026-10-27 - Completed quick task 261027-va3: amend 07-SWEEP-PROTOCOL.md with G15-G23, pinned in tests/test_oper.py (PR A3 branch, unpushed)
+Last activity: 2026-10-28 - G24 ruled and amended (PR A4 #25 open); 07-05 waits for its merge
 
 Progress: [████████░░] 83%
 
@@ -331,6 +331,7 @@ None yet.
 | 6 | File the docs/ideas item "head and drive families beyond the hex head" (2026-10-13-head-and-drive-families.md) and its INDEX row | 2026-10-13 | 7618320 | — |
 | 261020-dpw | Source Phase 5 table values from free GOST equivalents (L14); ISO purchase deferred as debt | 2026-10-20 | e738d17 | [261020-dpw-record-the-free-gost-source-decision-for](./quick/261020-dpw-record-the-free-gost-source-decision-for/) |
 | 261027-va3 | amend 07-SWEEP-PROTOCOL.md with G15-G21 from 07-GAP-RULINGS.md, pin each in tests/test_oper.py (plus G22, G23; on branch gsd/phase-07-preregistration-a3) | 2026-10-27 | 2777bb7 | [261027-va3-amend-07-sweep-protocol-md-with-g15-g21-](./quick/261027-va3-amend-07-sweep-protocol-md-with-g15-g21-/) |
+| 9 | G24: charge R19 gzip and R23 arena readings their deadline in R6 (PR A4 #25), ruling and 07-15 updated | 2026-10-28 | 691078f | — |
 
 ### Roadmap Evolution
 
