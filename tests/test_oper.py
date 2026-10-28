@@ -760,6 +760,141 @@ def test_the_markdown_summary_of_no_readings_is_the_same_refusal(
     assert captured.out == ""
 
 
+# --- the Runs II points (07-06): contention, read by bench.oper_bound -----------------------------
+
+MEMBER_P = {"label": "default-bolt", "kind": "bolt", "params": {}, "slot": 0}
+MEMBER_NUT = {"label": "default-nut", "kind": "nut", "params": {}, "slot": 1}
+
+
+def _contention_point(**over: object) -> dict[str, object]:
+    point: dict[str, object] = {"label": "c2", "kind": "contention", "artifact": "stl-preview",
+                                "workers": 2, "points": [MEMBER_P, MEMBER_NUT]}
+    point.update(over)
+    return point
+
+
+def test_a_contention_point_reaches_the_bound_child_as_it_stands_in_the_file(
+        tmp_path: Path) -> None:
+    _write_set(tmp_path, points=[_contention_point()])
+    (point,) = oper.load_set("mini", tmp_path).points
+    assert (point.label, point.kind, point.artifact) == ("c2", "contention", "stl-preview")
+    assert json.loads(point.as_json()) == {"kind": "contention", "artifact": "stl-preview",
+                                           "workers": 2, "points": [MEMBER_P, MEMBER_NUT]}
+
+
+def test_one_worker_takes_the_bound_point_alone(tmp_path: Path) -> None:
+    _write_set(tmp_path, points=[_contention_point(workers=1, points=[MEMBER_P])])
+    (point,) = oper.load_set("mini", tmp_path).points
+    assert point.body == {"workers": 1, "points": [MEMBER_P]}
+
+
+@pytest.mark.parametrize(
+    "point",
+    [_contention_point(workers=0, points=[]), _contention_point(workers=4),
+     _contention_point(workers=2.0), _contention_point(workers=True),
+     _contention_point(points=[MEMBER_P]),
+     _contention_point(points=[MEMBER_P, {**MEMBER_NUT, "slot": 0}]),
+     _contention_point(points=[MEMBER_P, {**MEMBER_NUT, "slot": 2}]),
+     _contention_point(points=[MEMBER_P, {**MEMBER_NUT, "slot": True}]),
+     _contention_point(points=[MEMBER_P, {**MEMBER_NUT, "label": "default-bolt"}]),
+     _contention_point(points=[MEMBER_P, {**MEMBER_NUT, "params": {"d": "6"}}]),
+     _contention_point(points=[MEMBER_P, {**MEMBER_NUT, "kind": "contention"}]),
+     _contention_point(points=[MEMBER_P, {k: v for k, v in MEMBER_NUT.items() if k != "slot"}]),
+     _contention_point(points=[MEMBER_P, {**MEMBER_NUT, "artifact": "step"}]),
+     _contention_point(artifact="obj"), _contention_point(label=""),
+     _contention_point(params={}), _contention_point(points="P"),
+     {k: v for k, v in _contention_point().items() if k != "workers"},
+     {"label": "m", "kind": "memory", "artifact": "stl-preview", "part": {"kind": "bolt",
+                                                                          "params": {}},
+      "cache": 4}],
+    ids=["no-workers", "four-workers", "float-workers", "bool-workers", "fewer-points",
+         "two-on-one-slot", "slot-past-n", "bool-slot", "duplicate-label", "text-param",
+         "harness-kind", "missing-slot", "member-artifact", "bad-artifact", "empty-label",
+         "extra-key", "points-not-a-list", "missing-workers", "removed-memory-kind"])
+def test_the_matrix_refuses_a_bad_runs_ii_point_with_exit_2(
+        point: dict[str, object], tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    _write_set(tmp_path, points=[point])
+    monkeypatch.setattr(oper, "POINTS_DIR", tmp_path)
+    assert oper.main(["matrix", "--set", "mini"]) == 2
+    captured = capsys.readouterr()
+    assert "mini" in captured.err
+    assert captured.out == ""
+
+
+def _bound_line(**over: object) -> str:
+    line: dict[str, object] = {
+        "status": "ok", "build_s": 1.5, "export_s": 0.25, "bytes": 1000, "gzip1_bytes": 400,
+        "memory_peak_bytes": 120_000_000, "oom_kills": 0,
+        "builds": [{"label": "default-bolt", "slot": 0, "status": "ok", "build_s": 1.5,
+                    "export_s": 0.25, "bytes": 1000, "gzip1_bytes": 400}],
+        "cadquery": "2.8.0", "cadquery_ocp": "7.9.3.1.1"}
+    line.update(over)
+    return json.dumps(line)
+
+
+def _classify_bound(stdout: str) -> dict[str, object]:
+    return oper.classify(timed_out=False, oom_killed=False, exit_code=0, stdout=stdout,
+                         stderr="", cap=oper.CAP_BYTES, bound=True)
+
+
+def test_a_clean_contention_line_is_ok_with_every_build() -> None:
+    record = _classify_bound(_bound_line())
+    assert record["status"] == "ok"
+    assert record["build_s"] == 1.5
+    assert isinstance(record["builds"], list)
+
+
+@pytest.mark.parametrize(
+    ("line", "status"),
+    [(_bound_line(status="refused", error="BuildError", message="default-nut: no",
+                  memory_peak_bytes=oper.CAP_BYTES), "capped"),
+     (_bound_line(status="crashed", error="ArithmeticError", message="x", oom_kills=1),
+      "capped"),
+     (_bound_line(status="refused", error="BuildError", message="default-nut: no"), "refused"),
+     (json.dumps({"status": "crashed", "error": "SlotMismatch", "message": "slot 1, slot 0"}),
+      "crashed"),
+     (json.dumps({"status": "killed", "message": "1 of 2 builds"}), "killed"),
+     (json.dumps({"status": "no_cgroup"}), "no_cgroup"),
+     (_bound_line(builds=[{"label": "p", "build_s": -1.0}]), "crashed"),
+     (_bound_line(builds="none"), "crashed")],
+    ids=["refused-at-cap", "crashed-with-oom-kill", "refused", "slot-mismatch", "killed",
+         "no-cgroup", "negative-build-figure", "builds-not-a-list"])
+def test_a_contention_reading_that_is_not_ok_carries_no_number(line: str, status: str) -> None:
+    record = _classify_bound(line)
+    assert record["status"] == status
+    assert [key for key in (*NUMBER_KEYS, "builds") if key in record] == []
+
+
+def test_a_part_child_may_not_report_killed_or_crashed_itself() -> None:
+    for status in ("killed", "crashed"):
+        record = _classify(stdout=json.dumps({"status": status}))
+        assert (record["status"], "status" in str(record["problem"])) == ("crashed", True)
+
+
+def test_a_contention_reading_runs_the_bound_child(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _write_set(tmp_path, points=[_contention_point()])
+    (point,) = oper.load_set("mini", tmp_path).points
+    ran: list[tuple[list[str], float | None]] = []
+
+    def fake_run(argv: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        timeout = kwargs.get("timeout")
+        ran.append((argv, timeout if isinstance(timeout, float | int) else None))
+        return subprocess.CompletedProcess(argv, 0, _bound_line(), "")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(oper, "_docker", lambda *args, timeout=None: None)
+    monkeypatch.setattr(oper, "_inspect_exit", lambda name: (False, 0))
+    record = oper.run_reading(point, 1, "screw:ci", oper.CAP_BYTES, 600)
+    ((argv, timeout),) = ran
+    assert argv[-3:-1] == ["-m", "bench.oper_bound"]
+    assert json.loads(argv[-1])["points"] == [MEMBER_P, MEMBER_NUT]
+    assert timeout == 600
+    assert (record["status"], record["workers"], record["points"]) == (
+        "ok", 2, [MEMBER_P, MEMBER_NUT])
+
+
 # --- the workflow's trust surface (T-3-14, T-07-02) ----------------------------------------------
 
 WORKFLOW_YML = REPO_ROOT / ".github" / "workflows" / "operability.yml"

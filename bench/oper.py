@@ -92,6 +92,17 @@ _SET_KEYS = frozenset({"set", "rule", "reps", "shards", "deadline_s", "points"})
 # R3): the size of each consecutive shard, and the record directories the set was derived from.
 _SET_OPTIONAL_KEYS = frozenset({"dropped", "notes", "shard_sizes", "sources"})
 _POINT_KEYS = frozenset({"label", "kind", "params", "artifact"})
+# The Runs II kinds (07-06), read by `bench.oper_bound` in the container: a contention reading of
+# N points on N workers (R14). Each kind's own fields are checked by `_load_bound`.
+CONTENTION_KIND = "contention"
+BOUND_KINDS = frozenset({CONTENTION_KIND})
+_BOUND_KEYS = {CONTENTION_KIND: frozenset({"label", "kind", "artifact", "workers", "points"})}
+_MEMBER_KEYS = frozenset({"label", "kind", "params", "slot"})
+# R14's worker counts: N in {1, 2, 3}.
+CONTENTION_WORKERS = (1, 2, 3)
+# A bound child also reports a reading it cut itself (a build past the deadline, a build on the
+# wrong worker), which a part child never does.
+_BOUND_CHILD_STATUSES = _CHILD_STATUSES | {"killed", "crashed"}
 # `preset` is the catalogue row id a point was expanded from; `lift` names the one validator guard
 # a past-the-cap point lifts (`bench.oper_lift`), as `{"max_turns": 260}` or `{"max_mm": 1e6}`.
 _POINT_OPTIONAL_KEYS = frozenset({"preset", "lift"})
@@ -110,8 +121,14 @@ class Point:
     params: Mapping[str, float | bool]
     artifact: str
     lift: Mapping[str, float] | None = None
+    # A Runs II point's own fields (`workers` and `points` for contention), passed to the child
+    # as they stand in the file.
+    body: Mapping[str, object] | None = None
 
     def as_json(self) -> str:
+        if self.body is not None:
+            return json.dumps({"kind": self.kind, "artifact": self.artifact, **self.body},
+                              sort_keys=True, allow_nan=False)
         if self.kind == PROBE_KIND:
             return json.dumps({"kind": PROBE_KIND, "probe": self.artifact,
                                "args": dict(self.params)}, sort_keys=True, allow_nan=False)
@@ -159,14 +176,16 @@ def _check_number(key: str, value: object) -> None:
         raise ValueError(f"child line: {key} is {value!r}, not a finite non-negative number")
 
 
-def parse_child_line(line: str, *, probe: bool = False) -> dict[str, object]:
+def parse_child_line(line: str, *, probe: bool = False, bound: bool = False) -> dict[str, object]:
     """One child line as a record, or `ValueError`.
 
     Refuses NaN, infinity and negatives anywhere (but a probe's volume ratio, which is signed), a
     missing key on an ok line, an unknown status and anything that is not one JSON object. A
     line that is not ok is cut down to its reason: a refused child has no business reporting a
     build time (L02, T-07-01). `probe` says what the parent asked for, so a part's ok line is not
-    taken for a probe's and the other way round.
+    taken for a probe's and the other way round. `bound` is a Runs II child (`bench.oper_bound`),
+    which may also report `killed` and `crashed`; the numbers inside its `builds` are held to the
+    same rule as the top-level ones.
     """
     try:
         record = json.loads(line, parse_constant=_refuse_constant)
@@ -175,11 +194,18 @@ def parse_child_line(line: str, *, probe: bool = False) -> dict[str, object]:
     if not isinstance(record, dict):
         _refuse(f"child line is not a JSON object: {line[:120]!r}")
     status = record.get("status")
+    statuses = _BOUND_CHILD_STATUSES if bound else _CHILD_STATUSES
     # A list or an object is unhashable and cannot be tested for membership: type first.
-    if not isinstance(status, str) or status not in _CHILD_STATUSES:
-        raise ValueError(f"child line has status {status!r}, not one of {sorted(_CHILD_STATUSES)}")
+    if not isinstance(status, str) or status not in statuses:
+        raise ValueError(f"child line has status {status!r}, not one of {sorted(statuses)}")
     for key, value in record.items():
         _check_number(str(key), value)
+    builds = record.get("builds", [])
+    if not (isinstance(builds, list) and all(isinstance(build, dict) for build in builds)):
+        _refuse("child line: builds is a list of objects")
+    for build in builds:
+        for key, value in build.items():
+            _check_number(str(key), value)
     if status != "ok":
         return {key: record[key] for key in _KEPT_WITHOUT_FIGURES if key in record}
     counts, seconds = (_PROBE_OK_COUNTS, _PROBE_OK_SECONDS) if probe else (_OK_COUNTS, _OK_SECONDS)
@@ -200,7 +226,7 @@ def parse_child_line(line: str, *, probe: bool = False) -> dict[str, object]:
 
 
 def classify(*, timed_out: bool, oom_killed: bool, exit_code: int, stdout: str, stderr: str,
-             cap: int, probe: bool = False) -> dict[str, object]:
+             cap: int, probe: bool = False, bound: bool = False) -> dict[str, object]:
     """How a reading ended, as `status` plus only what that status may carry.
 
     In order: past the deadline is `killed`; Docker's `OOMKilled` is `capped`; any non-zero exit
@@ -208,6 +234,11 @@ def classify(*, timed_out: bool, oom_killed: bool, exit_code: int, stdout: str, 
     code and the stderr tail as evidence; the child's own `refused` and `no_cgroup` stand; an ok
     line whose peak is at the cap, or whose cgroup counted an OOM kill, is `capped`. Only a clean
     ok line keeps its figures. `probe` is whether the point was a probe (see `parse_child_line`).
+
+    A Runs II reading (`bound`) can end badly with the container's peak read (a build refused or
+    crashed after the others ran), so its cap test comes before the child's own status: a refused
+    build in a container at its cap is `capped` (R2's order), and only then is the child's
+    status taken.
     """
     if timed_out:
         return {"status": "killed"}
@@ -221,29 +252,34 @@ def classify(*, timed_out: bool, oom_killed: bool, exit_code: int, stdout: str, 
     if not lines:
         return {**crashed, "problem": "the child printed no line"}
     try:
-        child = parse_child_line(lines[-1], probe=probe)
+        child = parse_child_line(lines[-1], probe=probe, bound=bound)
     except ValueError as exc:
         return {**crashed, "problem": str(exc)}
-    if child["status"] != "ok":
+    # parse_child_line accepted the line, so it is one JSON object; the full line, because a
+    # line that is not ok has had its peak cut from `child`.
+    full = json.loads(lines[-1]) if bound else child
+    if child["status"] != "ok" and not bound:
         return child
-    peak = child["memory_peak_bytes"]
-    kills = child.get("oom_kills")
+    peak = full.get("memory_peak_bytes")
+    kills = full.get("oom_kills")
     if (isinstance(peak, int) and is_capped(peak, cap)) or (isinstance(kills, int) and kills > 0):
         return {"status": "capped",
                 **{key: child[key] for key in ("cadquery", "cadquery_ocp") if key in child}}
     return child
 
 
-def reading_argv(name: str, image: str, repo_root: Path, point_json: str, cap: int) -> list[str]:
+def reading_argv(name: str, image: str, repo_root: Path, point_json: str, cap: int,
+                 module: str = "bench.oper_child") -> list[str]:
     """The argv for one reading. A list, never a shell string. House shape of
     `bench.thread_spike.runner.container_argv` with three differences: no `--rm`, because the
     parent must `docker inspect` the stopped container for `OOMKilled` before removing it; the
     memory and swap caps both at `cap`, so the cap is a wall and not a suggestion; and no
     `--platform`, so the host's `DOCKER_DEFAULT_PLATFORM` decides (native on the runner). The
-    image runs as uid 10001 and has no `bench/`, so the repository's is mounted read-only."""
+    image runs as uid 10001 and has no `bench/`, so the repository's is mounted read-only.
+    `module` is the child: `bench.oper_bound` for a Runs II point."""
     return ["docker", "run", "--name", name, f"--memory={cap}b", f"--memory-swap={cap}b",
             "--entrypoint", "python", "-v", f"{repo_root}/bench:/probe/bench:ro",
-            "-e", "PYTHONPATH=/probe", image, "-m", "bench.oper_child", point_json]
+            "-e", "PYTHONPATH=/probe", image, "-m", module, point_json]
 
 
 def _docker(*args: str, timeout: float | None = None) -> subprocess.CompletedProcess[str]:
@@ -268,7 +304,9 @@ def run_reading(point: Point, rep: int, image: str, cap: int, deadline_s: float,
     because it sizes shards). `versions` is the header's, used when the child could not report
     its own."""
     name = f"screw-oper-{os.getpid()}-{next(_container_numbers)}"
-    argv = reading_argv(name, image, _REPO_ROOT, point.as_json(), cap)
+    bound = point.kind in BOUND_KINDS
+    argv = reading_argv(name, image, _REPO_ROOT, point.as_json(), cap,
+                        "bench.oper_bound" if bound else "bench.oper_child")
     load1 = os.getloadavg()[0]
     started = time.perf_counter()
     timed_out = False
@@ -288,11 +326,12 @@ def run_reading(point: Point, rep: int, image: str, cap: int, deadline_s: float,
     wall_s = time.perf_counter() - started
     result = classify(timed_out=timed_out, oom_killed=oom_killed,
                       exit_code=returncode if container_exit is None else container_exit,
-                      stdout=stdout, stderr=stderr, cap=cap, probe=point.kind == PROBE_KIND)
+                      stdout=stdout, stderr=stderr, cap=cap, probe=point.kind == PROBE_KIND,
+                      bound=bound)
     record: dict[str, object] = {
         "type": "reading", "label": point.label, "kind": point.kind, "params": dict(point.params),
-        "artifact": point.artifact, "rep": rep, "load1": load1, "container": name, **result,
-        "wall_s": wall_s}
+        "artifact": point.artifact, "rep": rep, "load1": load1, "container": name,
+        **(point.body or {}), **result, "wall_s": wall_s}
     if point.lift:
         record["lift"] = dict(point.lift)  # a reading past a guard says which guard it lifted
     for key in ("cadquery", "cadquery_ocp"):
@@ -453,9 +492,62 @@ def _load_lift(name: str, raw: dict[str, object]) -> dict[str, float] | None:
     return {guard: limit}
 
 
+def _load_member(name: str, label: object, raw: object, workers: int) -> dict[str, object]:
+    """One point of a contention reading: a part and the slot 0 to N - 1 the set computed."""
+    if not (isinstance(raw, dict) and set(raw) == _MEMBER_KEYS):
+        _refuse(f"set {name!r}: contention {label!r} lists points with exactly the keys "
+                f"{sorted(_MEMBER_KEYS)}")
+    member_label, kind, params, slot = raw["label"], raw["kind"], raw["params"], raw["slot"]
+    if not (isinstance(member_label, str) and member_label and isinstance(kind, str) and kind
+            and kind != PROBE_KIND and kind not in BOUND_KINDS):
+        _refuse(f"set {name!r}: contention {label!r} lists a point whose label and part kind are "
+                "non-empty text")
+    if not isinstance(params, dict) or not all(
+            isinstance(key, str) and (isinstance(value, bool) or _is_number(value))
+            for key, value in params.items()):
+        _refuse(f"set {name!r}: contention {label!r} point {member_label!r} params are names "
+                "with a number or true/false")
+    if isinstance(slot, bool) or not isinstance(slot, int) or not 0 <= slot < workers:
+        _refuse(f"set {name!r}: contention {label!r} point {member_label!r} slot is {slot!r}, "
+                f"not a worker 0 to {workers - 1}")
+    return {"label": member_label, "kind": kind, "params": dict(params), "slot": slot}
+
+
+def _load_bound(name: str, raw: dict[str, object]) -> Point:
+    """A Runs II point, held to its kind's keys and types. A contention point (R14) lists P
+    first and then one partner per other worker: N in 1 to 3, N points on the N distinct slots
+    0 to N - 1, all built at the point's artifact."""
+    kind, label, artifact = raw["kind"], raw.get("label"), raw.get("artifact")
+    if set(raw) != _BOUND_KEYS[str(kind)]:
+        _refuse(f"set {name!r}: a {kind} point needs exactly the keys "
+                f"{sorted(_BOUND_KEYS[str(kind)])}")
+    if not (isinstance(label, str) and label):
+        _refuse(f"set {name!r}: a {kind} point's label is non-empty text")
+    if artifact not in _ARTIFACTS:
+        _refuse(f"set {name!r}: {kind} {label!r} artifact {artifact!r} is not one of "
+                f"{list(_ARTIFACTS)}")
+    workers, points = raw["workers"], raw["points"]
+    if not isinstance(workers, int) or isinstance(workers, bool) or (
+            workers not in CONTENTION_WORKERS):
+        _refuse(f"set {name!r}: contention {label!r} workers is {workers!r}, not one of "
+                f"{list(CONTENTION_WORKERS)} (R14)")
+    if not (isinstance(points, list) and len(points) == workers):
+        _refuse(f"set {name!r}: contention {label!r} lists {workers} points, P and one partner "
+                "per other worker (R14)")
+    members = [_load_member(name, label, member, int(workers)) for member in points]
+    if len({member["slot"] for member in members}) != len(members):
+        _refuse(f"set {name!r}: contention {label!r} puts two points on one slot (R14)")
+    if len({member["label"] for member in members}) != len(members):
+        _refuse(f"set {name!r}: contention {label!r} lists one label twice")
+    return Point(label=label, kind=str(kind), params={}, artifact=str(artifact),
+                 body={"workers": workers, "points": members})
+
+
 def _load_point(name: str, raw: object) -> Point:
     if isinstance(raw, dict) and raw.get("kind") == PROBE_KIND:
         return _load_probe(f"set {name!r}", raw)
+    if isinstance(raw, dict) and raw.get("kind") in BOUND_KINDS:
+        return _load_bound(name, raw)
     allowed = _POINT_KEYS | _POINT_OPTIONAL_KEYS
     if not isinstance(raw, dict) or not _POINT_KEYS <= set(raw) <= allowed:
         _refuse(f"set {name!r}: a point needs the keys {sorted(_POINT_KEYS)} "
