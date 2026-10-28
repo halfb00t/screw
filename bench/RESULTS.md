@@ -10781,3 +10781,42 @@ Status counts: refused: 100, ok: 20
 | root-nut-M20-left-r0.1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
 | root-nut-M20-left-r0.3 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
 | root-nut-M20-left-r1 | stl-preview | 1 | refused | refused: 1 | - | - | - | - | - | - | - | - |
+
+### D-08 stop at R10 after the void walk (owner decision pending)
+
+`python -m bench.oper_sets decide-walls --walls bench/results/phase-07/walls-40646134133 --down bench/results/phase-07/walls-down-40652801529 --voids bench/results/phase-07/walls-voids-40665307964` exits 3:
+
+```
+oper_sets: stop (R10): the largest failing value is 1, so V is 10, which lies outside the walk (it holds at most 1)
+```
+
+No candidate walls are recorded, and the walls confirm set is not generated, until the owner rules (R10: "A void reading that fails at 1 mm puts V above the walk: there is no number, and the walk is not extended"). The evidence is the status of the 540 group (d) readings of the walls run 40646134133 and of the 120 void walk readings of run 40665307964, by kind and radius `r` (mm):
+
+| kind | r mm | readings by status |
+| --- | --- | --- |
+| nut (void walk) | 1 | ok: 18, refused: 12 |
+| nut (void walk) | 0.3 | ok: 2, refused: 28 |
+| nut (void walk) | 0.1 | refused: 30 |
+| nut (void walk) | 0.03 | refused: 30 |
+| bolt | 0.01 | ok: 30 |
+| bolt | 0.003 | ok: 30 |
+| bolt | 0.001 | ok: 30 |
+| bolt | 0.0003 | ok: 29, refused: 1 |
+| bolt | 0.0001 | ok: 29, refused: 1 |
+| bolt | 3e-05 | refused: 30 |
+| bolt | 1e-05 | refused: 30 |
+| bolt | 3e-06 | refused: 30 |
+| bolt | 1e-06 | refused: 30 |
+| nut | 0.01 | refused: 30 |
+| nut | 0.003 | refused: 30 |
+| nut | 0.001 | refused: 30 |
+| nut | 0.0003 | refused: 30 |
+| nut | 0.0001 | refused: 30 |
+| nut | 3e-05 | refused: 30 |
+| nut | 1e-05 | refused: 30 |
+| nut | 3e-06 | refused: 30 |
+| nut | 1e-06 | refused: 30 |
+
+The void walk readings that are refused at 1 mm are the nuts M10, M12, M14, M16, M18 and M20, both hands (12 readings, `root-nut-<size>-<hand>-r1`); the readings that are ok at 1 mm are the 18 nuts M2 to M8, both hands. Of the readings at 0.3 mm, only `root-nut-M2-right-r0.3` and `root-nut-M2-left-r0.3` are ok. All 100 refused void walk readings carry the message `Geometry kernel failed (StdFail_NotDone); check d, pitch, le`.
+
+G25 rules that a void failure at 1 mm, or a V above 1 mm, is an R10 stop, and the walk is not extended.
