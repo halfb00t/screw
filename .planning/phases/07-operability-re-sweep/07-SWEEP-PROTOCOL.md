@@ -169,7 +169,8 @@ file, and each point is charged a number of seconds. A shard is the longest such
 not yet placed whose summed charge stays under half the measure job's `timeout-minutes`; the shard
 count is the number of shards that places every point. Half leaves the other half for a slower runner
 instance and for the image build. A point of an explore-like set whose own charge is not under that half
-stops the phase and asks the owner; a reading of the contention, load and drift sets is ruled below.
+stops the phase and asks the owner; a reading of the contention, load, drift, gzip and arena sets is
+ruled below.
 
 For a set of explore-like parts (`walls`, the walls confirm set and the R7 walk-down set), each point is
 charged the largest `wall_s` of any `explore` reading in its (kind, artifact) group, whatever the
@@ -184,6 +185,12 @@ shards are cut by the same rule, so a reading whose deadline alone fills a shard
 own. A reading whose deadline is not under half the job's `timeout-minutes` stops the phase and asks
 the owner: the job timeout also counts the runner setup, the image build and the upload of the
 records, and the other half is kept for them.
+
+The R19 gzip set and the R23 arena set are charged the same way: each of their readings is charged
+R2's 600 s, and their shards are cut, and a reading that does not fit stops the phase, by the rule
+above. Their parts have `explore` readings, but those walls are not taken as a bound: a gzip reading
+also compresses its output at levels 6 and 9, which no `explore` wall includes, and the arena readings
+are charged alike, so the charge of neither set rests on a measured wall.
 
 ## R7 - MAX_TURNS (D-08)
 
