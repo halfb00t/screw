@@ -81,3 +81,24 @@ is not a harness fix, and it is not listed under the protocol's "Harness fixes".
 | Gap | Rule(s) | Owner ruling |
 |---|---|---|
 | G25 | R3, R4 (d), R6, R10 | Walk the nut voids upward. For each of the 15 sizes and both hands, take the group (d) nut (pitch solving `d/2 - thread_depth(pitch) + 0.15 = r`, 3 turns, `m` = 3 pitch) at `r` in {3e-2, 1e-1, 3e-1, 1} mm. That is 120 readings at 1 repetition, with R2's deadline and the R6 explore-like charge (the largest explore `wall_s` of the (nut, stl-preview) group, or `deadline_s` if none). Every pitch is positive; the smallest is M2 at `r` = 1 mm, 0.277 mm. R10 then decides on group (d) and this walk together: F is the largest failing `r` over rods and voids at all radii; V is the smallest power of ten at or above 10 F, and may be any power of ten the walks hold from 1 mm down to 1e-6 mm; every reading of rods and voids at `r` >= V must be `ok`, otherwise there is no number and the phase stops again. If the voids still fail at 1 mm, that is an R10 stop and the walk is not extended. The R3 confirm set for R10 follows the existing rule (V and the next smaller walked value), using the void walk's radii where V lies in it. |
+
+## Gap G26 (owner ruling after the void walk, 2026-10-28)
+
+Source: the R10 stop after the void walk (`bench/RESULTS.md`, "D-08 stop at R10 after the void walk").
+Void walk run 40665307964 read the 120 nuts once: 20 `ok` and 100 `refused` (`StdFail_NotDone`). Over
+the committed records, every `ok` reading has a void root ratio r/d of 0.1250 or more, and every
+refused one 0.1200 or less. pitch/d does not separate them (`ok` max 0.7852, refused min 0.7667). So
+the void wall scales with `d`, and no absolute floor in millimetres can hold it. The group (d) voids
+(r <= 1e-2 mm) of walls run 40646134133 are all refused (270 of 270). That is one repetition in one
+run: an observation, not a confirmed bound. The rods of group (d) give F = 3e-4 mm. As before G25, the
+rods are walked from 1e-2 mm down, so V must be a radius that walk holds, and a rod failing above
+1e-3 mm puts V above it and stops the phase. This is the second rule change after the first runner
+reading, so R30's freeze had started. It is a rule change the owner ruled, as R30 requires. It is not
+a harness fix, and it is not listed under the protocol's "Harness fixes". It supersedes the part of
+G25 that has R10 decide on the voids; G25's void walk stands as recorded. It amends
+`07-SWEEP-PROTOCOL.md` R3 and R10 on the phase branch `gsd/phase-07-operability-re-sweep`. R4 (d) and
+R6 describe and charge the void walk, contradict nothing here, and stand.
+
+| Gap | Rule(s) | Owner ruling |
+|---|---|---|
+| G26 | R3, R10 | R10 decides `MIN_ROOT_RADIUS_MM` from the rods of group (d) only: F is the largest failing rod `r` (3e-4 mm on the record); V is the smallest power of ten at or above 10 F (1e-2 mm); every rod reading at `r` >= V must be `ok`. The R3 confirm for R10 is rods only: V and the next smaller walked value, every size and hand, 5 repetitions. The nut readings of group (d) and the void walk are recorded, set no F and bear on no bound; `bench/RESULTS.md` states the r/d observation and takes no number from it. Debt (must): a nut whose void root ratio r/d is near or below about 0.12 is refused by the kernel (`StdFail_NotDone`), not by a guard; the trigger is a request for such a nut, or the point before a void guard is relied on. That debt is added to `docs/tech_debt/active/2026-10-21-nut-countersink-cutter-crosses-the-axis-at-a-coarse-pitch.md` instead of being filed twice: computed from the code over every void reading, that item's countersink inner radius is positive on each `ok` reading and negative on each refused one, and the cause is an assumption, not a reading. The root-radius-floor item takes the rod result, and plan 07-07 resolves it with the floor. |

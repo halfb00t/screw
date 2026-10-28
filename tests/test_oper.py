@@ -2149,7 +2149,7 @@ def test_an_above_zero_floor_is_confirmed_at_its_smallest_walked_value() -> None
     assert "the smallest walked value (tail 1e-9 mm, root radius 1e-6 mm) for every cell" in rule
     assert "Any reading there that is not `ok` awards no floor" in rule
     assert "the confirm set of R3 at 1e-9 mm, for every size and hand" in " ".join(_rule(9).split())
-    assert "the confirm set of R3 at 1e-6 mm, for every size, hand, rod and void" in " ".join(
+    assert "the confirm set of R3 at 1e-6 mm, for every size and hand, rods only" in " ".join(
         _rule(10).split())
 
 
@@ -2377,18 +2377,6 @@ def test_the_nut_voids_are_walked_above_1e_2_in_a_set_of_their_own() -> None:
     for number in (3, 6):
         assert "the R7 walk-down set and the void walk of R4 (d)" in " ".join(
             _rule(number).split())
-    assert ("where V lies in the void walk, the confirm reads the void walk's points at V and at "
-            "the next smaller walked value") in " ".join(_rule(3).split())
-
-
-def test_r10_decides_on_group_d_and_the_void_walk_together() -> None:
-    rule = " ".join(_rule(10).split())
-    assert "in `walls` group (d) and in the void walk of R4 (d)" in rule
-    assert ("V must be a radius the two walks hold, a power of ten from 1 mm down to 1e-6 mm"
-            ) in rule
-    assert "every reading of group (d) and of the void walk at a radius of V or more" in rule
-    assert "A void reading that fails at 1 mm puts V above the walk" in rule
-    assert "(1e-2 to 1e-6 as a power of ten)" not in rule
 
 
 def test_the_void_walk_ruling_is_an_owner_ruling_after_the_freeze_and_not_a_harness_fix() -> None:
@@ -2400,3 +2388,42 @@ def test_the_void_walk_ruling_is_an_owner_ruling_after_the_freeze_and_not_a_harn
     protocol = _protocol()
     assert protocol[protocol.index("## Harness fixes"):].startswith("## Harness fixes\n\nNone yet.")
     assert not re.search(r"\bG\d+\b", protocol)
+
+
+# --- the owner's ruling after the void walk (G26): pinned by its key phrase ----------------------
+
+
+def test_r10_decides_on_the_rods_of_group_d_only() -> None:
+    rule = " ".join(_rule(10).split())
+    assert "Let F be the largest root radius `r` of a rod in `walls` group (d)" in rule
+    assert ("V must be a radius the rods of group (d) hold, a power of ten from 1e-2 mm down to "
+            "1e-6 mm") in rule
+    assert "every rod reading of group (d) at a radius of V or more" in rule
+    assert "The nut voids bear on no bound" in rule
+    assert "set no F, need not be `ok` for V and are not in the R3 confirm" in rule
+    assert ("The owner ruled this after the first runner reading, once the void walk had been "
+            "read, as R30 asks") in rule
+    assert "in `walls` group (d) and in the void walk of R4 (d)" not in rule
+    assert "V must be a radius the two walks hold" not in rule
+    assert "A void reading that fails at 1 mm puts V above the walk" not in rule
+    assert "for every size, hand, rod and void" not in rule
+
+
+def test_the_r10_confirm_reads_the_rods_only() -> None:
+    rule = " ".join(_rule(3).split())
+    assert ("which `walls` groups (c) and (d) already hold; for R10 the confirm reads the rods "
+            "of group (d) only") in rule
+    assert "where V lies in the void walk" not in rule
+
+
+def test_the_rods_only_ruling_is_an_owner_ruling_after_the_void_walk_and_not_a_harness_fix(
+) -> None:
+    rulings = (PROTOCOL.parent / "07-GAP-RULINGS.md").read_text()
+    assert "\n## Gap G26 (owner ruling after the void walk, 2026-10-28)\n" in rulings
+    for figure in ("40665307964", "0.1250", "0.1200", "0.7852", "0.7667", "not a harness fix"):
+        assert figure in rulings
+    assert re.search(r"^\| G26 \| R3, R10 \|", rulings, re.MULTILINE)
+    protocol = _protocol()
+    assert protocol[protocol.index("## Harness fixes"):].startswith("## Harness fixes\n\nNone yet.")
+    assert not re.search(r"\bG\d+\b", protocol)
+    assert not re.search(r"\b\d{11}\b", protocol)

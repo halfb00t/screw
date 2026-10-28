@@ -71,9 +71,8 @@ status; a disagreement keeps the stricter outcome, that is the lower wall.
 
 The *next step past* a decided value is: for R7, 10 turns more (260 where 250 stands); for R8, the next
 decade (1e6 where 1e5 stands); for R9 and R10, the next smaller walked value, which `walls` groups (c)
-and (d) and the void walk of R4 (d) already hold; where V lies in the void walk, the confirm reads the
-void walk's points at V and at the next smaller walked value, nut voids only, as no rod is walked
-above 1e-2 mm. Where R9 or R10 decides "above 0", no walked value lies below the decided one, so
+and (d) already hold; for R10 the confirm reads the rods of group (d) only, as the nut voids bear on
+no bound (R10). Where R9 or R10 decides "above 0", no walked value lies below the decided one, so
 the confirm set for that rule is the smallest walked value (tail 1e-9 mm, root radius 1e-6 mm) for every
 cell of the rule, at 5 repetitions, and nothing past it. Any reading there that is not `ok` awards no
 floor, and the phase stops and asks the owner, as R7 does. A step that lies past a validator's own cap would be refused before the kernel, so
@@ -262,19 +261,26 @@ either (R8). Otherwise there is no number: the phase stops and asks the owner.
 
 ## R10 - MIN_ROOT_RADIUS_MM (D-18)
 
-Let F be the largest root radius `r` in `walls` group (d) and in the void walk of R4 (d) whose reading is `refused` or `crashed`, at
-any size, hand, rod or void (F = 0 when none fails). `MIN_ROOT_RADIUS_MM` is the smallest power of ten
-at or above 10 F. If no reading fails down to 1e-6 mm, the floor stays "above 0" and the entry says
-the walk reached 1e-6 mm, but only if the confirm set of R3 at 1e-6 mm, for every size, hand, rod and
-void, is `ok` in all 5 repetitions. 10 is one decade, the coarsest margin that is still tighter than the
-tail rule's 100; the walk's own steps are half-decades, so 10 F sits at least two steps clear of F.
+Let F be the largest root radius `r` of a rod in `walls` group (d) whose reading is `refused` or
+`crashed`, at any size or hand (F = 0 when none fails). `MIN_ROOT_RADIUS_MM` is the smallest power of
+ten at or above 10 F. If no rod reading fails down to 1e-6 mm, the floor stays "above 0" and the entry
+says the walk reached 1e-6 mm, but only if the confirm set of R3 at 1e-6 mm, for every size and hand,
+rods only, is `ok` in all 5 repetitions. 10 is one decade, the coarsest margin that is still tighter
+than the tail rule's 100; the walk's own steps are half-decades, so 10 F sits at least two steps clear
+of F.
 
-The value V this names stands only on `ok` readings. V must be a radius the two walks hold, a power
-of ten from 1 mm down to 1e-6 mm, and every reading of group (d) and of the void walk at a radius of
-V or more, at every size and hand, rod and void, must be `ok`; for "above 0", every reading of both
-must be `ok`. A void reading that fails at 1 mm puts V above the walk: there is no number, and the
-walk is not extended. A `killed` or `capped` reading sets no F, being cost and not a wall, but it
-cannot support a bound either (R8). Otherwise there is no number: the phase stops and asks the owner.
+The value V this names stands only on `ok` readings. V must be a radius the rods of group (d) hold, a
+power of ten from 1e-2 mm down to 1e-6 mm, and every rod reading of group (d) at a radius of V or
+more, at every size and hand, must be `ok`; for "above 0", every rod reading of group (d) must be
+`ok`. A `killed` or `capped` reading sets no F, being cost and not a wall, but it cannot support a
+bound either (R8). Otherwise there is no number: the phase stops and asks the owner.
+
+The nut voids bear on no bound: the nut readings of group (d) and the readings of the void walk of R4
+(d) are recorded, set no F, need not be `ok` for V and are not in the R3 confirm. The owner ruled this
+after the first runner reading, once the void walk had been read, as R30 asks: in one reading each,
+the voids failed up to a root radius that grows with `d`, so no single floor in millimetres holds
+them. That is an observation and not a bound; a void the kernel refuses is refused by no guard before
+the build, and stays open as debt.
 
 ## R11 - The cost model's form (D-05, D-17)
 
