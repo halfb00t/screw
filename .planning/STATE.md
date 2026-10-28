@@ -3,11 +3,11 @@ gsd_state_version: "1.0"
 current_phase: 07
 current_phase_name: Operability Re-sweep
 status: executing
-stopped_at: 07-05 halted at R10 owner stop (Task 3 step 3); SUMMARY status checkpoint
-last_updated: "2026-10-28T11:03:05.305Z"
+stopped_at: Completed 07-05-PLAN.md
+last_updated: "2026-10-28T11:55:18.291Z"
 last_activity: 2026-10-28
 last_activity_desc: Phase 07 execution started
-state_head: 1af91605787b49dbe1388c3e8595e2e7bad5d432
+state_head: b23bbf6b5a0a0e6fd0aedfa6ef8b22b0e17cce6a
 progress:
   total_phases: 8
   completed_phases: 7
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-10-25)
 ## Current Position
 
 Phase: 07 (Operability Re-sweep) — EXECUTING
-Plan: 1 of 21
-Status: Executing Phase 07
-Last activity: 2026-10-28 — Phase 07 execution started
+Plan: 6 of 21
+Status: Ready to execute
+Last activity: 2026-10-28 — Plan 07-05 complete (Runs I recorded)
 
 Progress: [████████░░] 84%
 
@@ -148,6 +148,7 @@ Progress: [████████░░] 84%
 | Phase 07 P02 | 19 min | 3 tasks | 8 files |
 | Phase 07 P03 | 39 min | 3 tasks | 12 files |
 | Phase 07 P04 | multi-session | 2 tasks | 8 files |
+| Phase 07 P05 | 1h 40m | 3 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -299,6 +300,7 @@ Recent decisions affecting current work:
 - [Phase 07]: 07-03: a point label may be listed once per artifact; the root-radius walk solves the pitch to full float precision — one part keeps one label across its three artifacts; a 6-figure pitch moves the root radius by more than the 1e-6 mm end of the walk
 - [Phase 07]: 07-03: the fourth recorded corner (d 1e5) is in explore.json dropped, not measured; the protocol defines the cold wall as build_s + export_s — s must exceed d and is bounded by 1e5 so no such bolt exists; R5, R12 and R14 need one wall definition fixed before any reading
 - [Phase 07]: 07-04: PR A landed as squash 9dea01e; rules R1-R30 frozen; owner rulings on R23 drift run, edge ranking by seconds, next-best edge, full-timeout charge for non-ok tier points
+- [Phase 07]: 07-05: R10 takes MIN_ROOT_RADIUS_MM from the rods only (G26); T = 90, MIN_TAIL_MM 1e-4 and MIN_ROOT_RADIUS_MM 1e-2 confirmed at 5 reps; the nut d ceiling at 1e3 mm read capped in 5 of 5 and awaits the owner before 07-07 — R3 confirm run 40678150220; a capped reading is cost and cannot raise a wall (R8)
 
 ### Pending Todos
 
@@ -318,7 +320,7 @@ None yet.
 - Closed 2026-10-13: the roadmap is revised per L11's escape clause (direction: scope the proof, M18 reads `inconclusive`; D-14 rule unchanged; ROADMAP Phase 5 revision note and criteria 3 and 6; L11 revision-direction paragraph). Phase 5 is plannable.
 - Closed 2026-10-24: printability threshold (INFO-04) set to M4 from run `06-print-run-2` (L18, accepted under R10, weaker evidence than a pre-registered run).
 - Every research number is single-machine macOS arm64; linux/amd64 is unverified until Phase 7.
-- Plan 07-05 halted at an R10 owner stop: all 270 nut-void root readings (walls run 40646134133) are refused at every radius, so V = 1e-1 lies outside the walk; the owner must rule before candidate walls and the walls confirm set exist (see 07-05-SUMMARY.md)
+- Closed 2026-10-28: the R10 owner stop of plan 07-05 (nut voids refused at every radius) was ruled as G25 and G26 (R10 from the rods only). Open for plan 07-07: the nut `d` ceiling read `capped` in 5 of 5 confirm repetitions at 1e3 mm and is not confirmed (`07-05-SUMMARY.md`, owner question).
 
 ### Quick Tasks Completed
 
@@ -351,6 +353,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-28T08:14:23.931Z
-Stopped at: 07-05 halted at R10 owner stop (Task 3 step 3); SUMMARY status checkpoint
-Resume file: .planning/phases/07-operability-re-sweep/07-05-SUMMARY.md
+Last session: 2026-10-28T11:55:18.046Z
+Stopped at: Completed 07-05-PLAN.md
+Resume file: None

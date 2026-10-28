@@ -399,7 +399,7 @@ Plans:
   3. A CI job builds every allowed configuration inside the timeout; a configuration that cannot is capped and warned or refused with a `422` naming the fields, never silently shortened.
   4. With the measured bounds in place, CAD builds still run in worker processes off the event loop, and `make check` (in-image smoke test, vendored-bundle byte check) passes.
 
-**Plans**: 4/21 plans executed (sequential waves 1-15; the pre-registration lands on main as its own PR, A, before any runner reading; 07-05 to 07-20 revised 2026-10-27 against PR A2's protocol, and 07-21 split out of 07-16)
+**Plans**: 5/21 plans executed (sequential waves 1-15; the pre-registration lands on main as its own PR, A, before any runner reading; 07-05 to 07-20 revised 2026-10-27 against PR A2's protocol, and 07-21 split out of 07-16)
 
 Plans:
 **Wave 1**
@@ -413,7 +413,7 @@ Plans:
 - [x] 07-04-PLAN.md — Codex review of PR A, land it through `make pr.land`, push the phase branch so later dispatches can run from it
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 07-05-PLAN.md — Runs I on the runner: explore, spread, walls, controls; the R5 margin and R6 charges; the R7 walk-down in one dispatch; the walls confirm at 5 reps after T (D-01 to D-05, D-19)
+- [x] 07-05-PLAN.md — Runs I on the runner: explore, spread, walls, controls; the R5 margin and R6 charges; the R7 walk-down in one dispatch; the walls confirm at 5 reps after T (D-01 to D-05, D-19)
 
 **Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 07-07-PLAN.md — The measured walls from their 5-rep confirm: MAX_TURNS, the field ceilings, MIN_TAIL_MM, the root-radius floor; L20 (D-08, D-18)
@@ -467,4 +467,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 2 
 | 5. Hex Nut and Kernel Pair Proof | 25/25 | Complete    | 2026-10-22 |
 | 6. Printed Pair Acceptance | 10/10 | Complete    | 2026-10-24 |
 | 6.1. Bolt head chamfer (INSERTED) | 5/5 | Complete    | 2026-10-25 |
-| 7. Operability Re-sweep | 4/21 | In Progress | - |
+| 7. Operability Re-sweep | 5/21 | In Progress | - |
