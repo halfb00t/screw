@@ -2168,9 +2168,91 @@ def test_a_refused_pair_is_read_in_the_full_tier_and_must_return_its_refusal() -
 
 def test_the_protocol_header_names_every_plan_that_applies_its_rules() -> None:
     header = " ".join(_protocol().split("\n## R1 ")[0].split())
-    assert "Plans 07-03 to 07-20 apply these rules" in header
+    assert "Plans 07-03 to 07-21 apply these rules" in header
+    assert "07-20 apply" not in header
 
 
 def test_each_drift_build_is_gzipped_before_its_peak_is_read() -> None:
     rule = " ".join(_rule(23).split())
     assert "after the build, its export and a level-1 gzip of the output, after every build" in rule
+
+
+# --- the gap rulings (PR A3): each new rule is pinned by its key phrase ---------------------------
+
+
+def test_a_gzip_level_passes_at_every_stl_bound_point_against_the_adopted_level() -> None:
+    rule = " ".join(_rule(19).split())
+    assert "Level 1 is the start; level 6 is tried first, then level 9" in rule
+    assert "costs at most 1.5x the seconds of the adopted level" in rule
+    assert "it must pass at every point of the STL bound set on its own" in rule
+    assert ("the points of the `stl-preview` and `stl-fine` bound sets (R14) together, "
+            "10 to 16 points") in rule
+    assert "Level 9 is compared with the adopted level, not with level 6" in rule
+    assert "the level below it" not in rule
+
+
+def test_the_export_cache_holds_the_largest_part_ok_at_all_three_artifacts() -> None:
+    rule = " ".join(_rule(21).split())
+    assert "of all three artifacts of the candidate part with the largest such sum" in rule
+    assert ("The candidates are the `explore` parts that are admitted at all 3 artifacts "
+            "and whose `explore` readings are `ok` at all 3") in rule
+    assert "the gzip level-1 bytes are the upper bound" in rule
+    assert "If any R19 reading shows the bytes at level 6 or 9 above the bytes at level 1" in rule
+    assert "the phase stops and asks the owner" in rule
+    assert "of the admitted part with the largest such sum" not in rule
+
+
+def test_the_trim_is_kept_only_if_its_max_memory_current_is_lower_at_every_artifact() -> None:
+    rule = " ".join(_rule(23).split())
+    assert ("`_release_arenas` (the trim) is kept only if the retained memory after an export "
+            "is lower with it than without, at every artifact") in rule
+    assert "the *arena readings* are readings (R2) of Z(A)" in rule
+    assert "5 repetitions (R3) with the trim on and 5 with it off" in rule
+    assert "The measure is the cgroup's `memory.current`, read after the export" in rule
+    assert ("the trim is kept only if the max with the trim on is lower than the max with it "
+            "off at every artifact") in rule
+    assert "`_release_arenas` is kept if" not in rule
+
+
+def test_the_health_wall_is_the_healthcheck_commands_over_the_picked_ns_load_readings() -> None:
+    rule = " ".join(_rule(25).split())
+    assert "`--timeout` is `ceil(2 x` the max health wall under load `)` seconds" in rule
+    assert "The health wall is the wall of the `HEALTHCHECK` command" in rule
+    assert "the max is taken over the 5 load readings of the picked N" in rule
+
+
+def test_the_dense_boundary_is_bolts_at_coarse_pitch_with_the_largest_admitted_turns() -> None:
+    rule = " ".join(_rule(28).split())
+    assert "The dense boundary is bolt only" in rule
+    assert "for each of the 15 L11 sizes and both hands" in rule
+    assert ("at the size's coarse pitch P with `s = 1.6 d`, `k = 0.6 d` and "
+            "`thread_length = length = n x P`") in rule
+    assert ("where n is the largest whole number of turns at which that bolt is admitted "
+            "at that artifact") in rule
+    assert "the largest admitted integer-turn length" not in rule
+
+
+def test_the_shipped_mem_limit_is_the_larger_of_the_ones_from_w_and_from_w_k() -> None:
+    r16 = " ".join(_rule(16).split())
+    assert ("The `mem_limit` that ships is the larger of `mem_limit(N)` at the picked N built "
+            "from this W and the one built from `W(K)` at the K R22 keeps") in r16
+    r22 = " ".join(_rule(22).split())
+    assert ("The `mem_limit` that ships is the larger of the one built from R16's W and the one "
+            "built from `W(K)` at the K this rule keeps") in r22
+    assert "both computed as R16 computes `mem_limit(N)` at the picked N" in r22
+    assert "`W(4)` is not taken from R16's W" in r22
+
+
+def test_gzip_and_arena_readings_are_cold_isolated_and_widen_the_envelope() -> None:
+    rule = " ".join(_rule(12).split())
+    assert "only a cold isolated reading widens it" in rule
+    assert ("a part reading of either tier, a gzip reading of R19, an arena reading of R23, "
+            "a contention reading at N = 1") in rule
+    assert "a load request wall and a drift build 2 to K never widen `e`" in rule
+
+
+def test_a_missing_gzip_or_arena_max_stops_the_phase() -> None:
+    stop = ("(R3: a point with any repetition that is not `ok` has no max), "
+            "the phase stops and asks the owner")
+    assert f"If a max the gzip comparison needs is missing {stop}" in " ".join(_rule(19).split())
+    assert f"If a max the arena comparison needs is missing {stop}" in " ".join(_rule(23).split())

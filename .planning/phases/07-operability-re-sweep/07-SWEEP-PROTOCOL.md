@@ -3,7 +3,7 @@
 Written before any runner reading of the phase exists. Every selection rule, threshold, seed, set
 and rounding that Phase 7 applies to a measurement is fixed here, so a bound is credible because
 its rule was fixed before its data (the L11 method; `07-RESEARCH.md` Pattern 1). Plans 07-03 to
-07-20 apply these rules; none of them may change one (R30).
+07-21 apply these rules; none of them may change one (R30).
 
 - **Branch:** `gsd/phase-07-preregistration` (PR A: the harness, the point files and this file).
 - **Point files:** written by `bench/oper_sets.py`; `python -m bench.oper_sets --check` and
@@ -279,8 +279,8 @@ For each (kind, artifact, target) the envelope `e` is `max(0, largest actual / p
 the fitted readings. A part is admitted if and only if `prediction x (1 + e)` is at most the budget
 for every target. A later reading (Runs II, either tier) above its envelope widens `e` and is
 recorded with its run id, but only a cold isolated reading widens it: a reading of a part in a fresh
-container with no other build running, which is a part reading of either tier, a contention reading at
-N = 1 and build 1 of a drift repetition. A contended wall (a contention reading at N = 2 or 3), a load
+container with no other build running, which is a part reading of either tier, a gzip reading of R19,
+an arena reading of R23, a contention reading at N = 1 and build 1 of a drift repetition. A contended wall (a contention reading at N = 2 or 3), a load
 request wall and a drift build 2 to K never widen `e`.
 
 D(A) (R27 steps 1 to 4), the bound set (R14) and the load mix (R15) are each fixed once, from the
@@ -385,7 +385,8 @@ qualifies when `mem_limit(N)` is under both 16 x 10^9 bytes and the smallest `Me
 and asks the owner. The pick is the qualifying N with the lowest load p95 over all requests (the max over
 its 5 repetitions of each repetition's p95, D-04), ties to the smaller N. 256 MiB is a rounding
 step fixed before the data: small against the 16 GB ceiling (about 1.7 %), large enough to be a visible
-margin and not an arithmetic residue.
+margin and not an arithmetic residue. The `mem_limit` that ships is the larger of `mem_limit(N)` at
+the picked N built from this W and the one built from `W(K)` at the K R22 keeps.
 
 ## R17 - The queue depth
 
@@ -405,8 +406,13 @@ moves it.
 ## R19 - The gzip level
 
 Levels 1, 6 and 9 on the bound set's STL artifacts. A level's seconds and bytes are each the max over
-5 repetitions (R3), and the comparison below uses those maxima. A higher level is adopted only if it shrinks the
-bytes by at least 10 % and costs at most 1.5x the seconds of the level below it (1 is the start).
+5 repetitions (R3), and the comparison below uses those maxima. Level 1 is the start; level 6 is tried
+first, then level 9. A higher level is adopted only if it shrinks the bytes by at least 10 % and costs
+at most 1.5x the seconds of the adopted level, and it must pass at every point of the STL bound set on
+its own: the points of the `stl-preview` and `stl-fine` bound sets (R14) together, 10 to 16 points.
+Level 9 is compared with the adopted level, not with level 6: with level 1 when level 6 was not
+adopted. If a max the gzip comparison needs is missing (R3: a point with any repetition that is not
+`ok` has no max), the phase stops and asks the owner.
 The rule's shape is spur's; the thresholds are stated here for screw and are not carried figures.
 10 % is the least saving worth a higher level and 1.5x the most extra time accepted for it; both
 are round numbers chosen before any gzip reading, and neither is derived from a measurement.
@@ -419,8 +425,12 @@ the chosen level. The bodies are `/api/health`, every catalogue row's info docum
 
 ## R21 - The export cache
 
-`SCREW_EXPORT_CACHE_MB` holds both encodings (raw and gzip) of all three artifacts of the admitted
-part with the largest such sum, rounded up to a whole MiB.
+`SCREW_EXPORT_CACHE_MB` holds both encodings (raw and gzip) of all three artifacts of the candidate
+part with the largest such sum, rounded up to a whole MiB. The candidates are the `explore` parts that
+are admitted at all 3 artifacts and whose `explore` readings are `ok` at all 3. A candidate's sum is
+the raw `bytes` and the `gzip1_bytes` of those three readings: the gzip level-1 bytes are the upper
+bound of the gzip encoding at any level R19 adopts. If any R19 reading shows the bytes at level 6 or 9
+above the bytes at level 1, that bound does not hold and the phase stops and asks the owner.
 
 ## R22 - The solid cache
 
@@ -430,14 +440,21 @@ worker. `W(K)` for every K from 1 to 4 is measured after R16's pick, by running 
 N = 1 with `SCREW_SOLID_CACHE` = K, 5 repetitions for each K measured, so that every `W(K)` this rule
 compares comes from the same instrument; `W(4)` is not taken from R16's W. K = 4 is measured first,
 then 3, 2 and 1, each only if the K above it did not qualify. `W(K)` is the max over the repetitions of
-the container's peak. With one worker, the container peak is that worker's peak.
+the container's peak. With one worker, the container peak is that worker's peak. The `mem_limit` that
+ships is the larger of the one built from R16's W and the one built from `W(K)` at the K this rule
+keeps, both computed as R16 computes `mem_limit(N)` at the picked N.
 
 ## R23 - Tessellation, arenas and recycling
 
-The tessellation presets are kept. `_release_arenas` is kept if the retained memory after an export
-is lower with it than without. `max_tasks_per_child` stays unset unless the drift run shows growth
-above its allowance for any artifact; if it does, the phase stops and asks the owner, because no rule
-here sets a recycling value.
+The tessellation presets are kept. `_release_arenas` (the trim) is kept only if the retained memory
+after an export is lower with it than without, at every artifact. For each artifact A the *arena
+readings* are readings (R2) of Z(A), the drift run's part (below), at A: 5 repetitions (R3) with the
+trim on and 5 with it off. The measure is the cgroup's `memory.current`, read after the export. The
+maxima over the 5 repetitions are compared, and the trim is kept only if the max with the trim on is
+lower than the max with it off at every artifact. If a max the arena comparison needs is missing (R3:
+a point with any repetition that is not `ok` has no max), the phase stops and asks the owner.
+`max_tasks_per_child` stays unset unless the drift run shows growth above its allowance for any
+artifact; if it does, the phase stops and asks the owner, because no rule here sets a recycling value.
 
 *The drift run.* It is separate from the load run, because a load run builds different parts and a
 larger transient build later in it would read as growth. For each artifact it builds one fixed part
@@ -474,7 +491,9 @@ asks the owner.
 
 ## R25 - The HEALTHCHECK
 
-`--timeout` is `ceil(2 x` the max health wall under load `)` seconds. `--start-period` is 2 x the max
+`--timeout` is `ceil(2 x` the max health wall under load `)` seconds. The health wall is the wall of
+the `HEALTHCHECK` command, and the max is taken over the 5 load readings of the picked N (R16), the 5
+repetitions of its load run (R15). `--start-period` is 2 x the max
 time to the first healthy response, rounded up to 10 s. `--interval` 30 s and `--retries` 3 are
 Docker's documented defaults and are cited as such.
 
@@ -521,8 +540,11 @@ that two implementations write the same list.
 
 ## R28 - The full tier (D-12)
 
-Every catalogue row x 3 artifacts, the nut factorial, and the dense boundary: per artifact, size and
-hand, the largest admitted integer-turn length. One pass; R5 re-runs apply. A pair the cost model refuses is
+Every catalogue row x 3 artifacts, the nut factorial, and the dense boundary. The dense boundary is
+bolt only: per artifact, for each of the 15 L11 sizes and both hands, the bolt at the size's coarse
+pitch P with `s = 1.6 d`, `k = 0.6 d` and `thread_length = length = n x P` (R4), where n is the
+largest whole number of turns at which that bolt is admitted at that artifact. One pass; R5 re-runs
+apply. A pair the cost model refuses is
 still read in the full tier and must return its expected refusal (422 or info status); it is not
 judged against the cost model.
 
