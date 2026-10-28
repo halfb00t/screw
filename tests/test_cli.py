@@ -156,6 +156,9 @@ def test_a_head_value_that_is_text_exits_2_naming_the_flag(
 
 @pytest.mark.parametrize(("argv", "prefix"), [
     (["info", "bolt", "--pitch", "6"], "error: d and pitch:"),
+    # 5.53 mm leaves a root radius of 0.0069 mm: above 0 (the old rule built it) and under the
+    # 0.01 mm floor the kernel was measured to build down to (07 D-18, L20).
+    (["info", "bolt", "--pitch", "5.53"], "error: d and pitch:"),
     (["info", "bolt", "--length", "300", "--thread-length", "300"],
      "error: thread_length, length and pitch:"),
     # head_too_small (D-23): the CLI prints no type, so the text names both fields.
@@ -250,11 +253,12 @@ def test_an_unknown_output_extension_exits_1_from_the_real_process(tmp_path: Pat
 
 
 def test_a_kernel_failure_stops_the_export_and_writes_nothing(tmp_path: Path) -> None:
-    # These pass the model (all positive) and the kernel builds one valid solid of them whose
-    # volume is off the closed form (+9.59e-03 in the research probe): the gate refuses it.
+    # These pass the model (a root radius of 0.0123 mm, above the 0.01 mm floor) and the kernel
+    # builds one valid solid of them whose volume is off the closed form (-1.829e-04): the gate
+    # refuses it.
     out = tmp_path / "b.stl"
-    code = _exit_code(["export", "bolt", "-o", str(out), "--d", "0.001", "--pitch", "0.0001",
-                       "--length", "0.01"])
+    code = _exit_code(["export", "bolt", "-o", str(out), "--d", "0.03", "--pitch", "0.005",
+                       "--length", "0.05"])
     assert isinstance(code, str)
     assert code.startswith("error: ")
     assert not out.exists()

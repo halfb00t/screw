@@ -14,6 +14,7 @@ from screw.calc.thread import (
     FINE_STL_ROWS,
     HEAD_CHAMFER_BAND_DEG,
     MAX_TURNS,
+    MIN_ROOT_RADIUS_MM,
     MIN_TAIL_MM,
     NUT_FINE_STL_CLEARANCE,
     NUT_FINE_STL_ROWS,
@@ -41,6 +42,7 @@ from screw.calc.thread import (
     thread_length_conflict,
     turn_cap_refusal,
     turns_of,
+    void_root_radius_refusal,
     volume_check,
 )
 from screw.params import INTERIM_MAX_MM
@@ -129,16 +131,61 @@ def test_the_refusal_names_both_volumes_and_the_bound() -> None:
     assert "9e-05" in refusal
 
 
-def test_a_pitch_one_part_in_a_billion_inside_the_root_bound_is_accepted_and_outside_refused(
+def test_a_pitch_one_part_in_a_billion_inside_the_root_floor_is_accepted_and_outside_refused(
 ) -> None:
-    # The largest pitch with a root radius above 0 for d = 6: d / 2 = 5H/8 at P = 5.5426.
-    largest = 6.0 / (2 * thread_depth(1.0))
+    # The largest pitch whose root radius is at least the floor, for d = 6: P = 5.52408 mm.
+    largest = (6.0 / 2 - MIN_ROOT_RADIUS_MM) / thread_depth(1.0)
     assert root_radius_refusal(6.0, largest * (1 - 1e-9)) is None
     refusal = root_radius_refusal(6.0, largest * (1 + 1e-9))
     assert refusal is not None
     assert refusal.startswith("d and pitch: ")
     assert "ISO 68-1:2023" in refusal
-    assert "5.54" in refusal   # the largest pitch for d = 6 is 5.5426 mm, named in the text
+    assert "must be at least 0.01 mm" in refusal
+    assert "linux/amd64" in refusal
+    assert "40646134133" in refusal   # the walls run the floor was measured in
+    assert "5.52" in refusal   # the largest pitch for d = 6 is 5.52408 mm, named in the text
+    assert "{" not in refusal
+    assert "}" not in refusal
+
+
+def _largest_pitch_at_the_floor(d: float) -> float:
+    """The largest float pitch the rule accepts for d, found by stepping from the closed form."""
+    pitch = (d / 2 - MIN_ROOT_RADIUS_MM) / thread_depth(1.0)
+    while root_radius_refusal(d, pitch) is not None:
+        pitch = math.nextafter(pitch, 0.0)
+    while root_radius_refusal(d, math.nextafter(pitch, math.inf)) is None:
+        pitch = math.nextafter(pitch, math.inf)
+    return pitch
+
+
+@pytest.mark.parametrize("d", [0.1, 1.1, 6.0, 20.0, 1e3])
+def test_a_root_radius_at_the_floor_is_accepted_and_the_next_float_pitch_is_refused(
+        d: float) -> None:
+    pitch = _largest_pitch_at_the_floor(d)
+    assert d / 2 - thread_depth(pitch) >= MIN_ROOT_RADIUS_MM
+    assert root_radius_refusal(d, pitch) is None
+    past = math.nextafter(pitch, math.inf)
+    assert d / 2 - thread_depth(past) < MIN_ROOT_RADIUS_MM
+    refusal = root_radius_refusal(d, past)
+    assert refusal is not None
+    assert refusal.startswith("d and pitch: ")
+
+
+def test_the_void_rule_holds_the_same_floor_with_the_clearance() -> None:
+    d, pitch = 2.0, 1.8
+    # the clearance that puts the void's root exactly at the floor, found the same way
+    clearance = MIN_ROOT_RADIUS_MM - (d / 2 - thread_depth(pitch))
+    while void_root_radius_refusal(d, pitch, clearance) is not None:
+        clearance = math.nextafter(clearance, math.inf)
+    while void_root_radius_refusal(d, pitch, math.nextafter(clearance, -math.inf)) is None:
+        clearance = math.nextafter(clearance, -math.inf)
+    assert d / 2 - thread_depth(pitch) + clearance >= MIN_ROOT_RADIUS_MM
+    below = math.nextafter(clearance, -math.inf)
+    assert d / 2 - thread_depth(pitch) + below < MIN_ROOT_RADIUS_MM
+    refusal = void_root_radius_refusal(d, pitch, below)
+    assert refusal is not None
+    assert refusal.startswith("d, pitch and clearance: ")
+    assert "must be at least 0.01 mm" in refusal
     assert "{" not in refusal
     assert "}" not in refusal
 
@@ -152,6 +199,8 @@ def _printed_largest_pitch(refusal: str) -> float:
 def test_the_largest_pitch_the_refusal_prints_is_one_the_same_rule_accepts() -> None:
     # `:g` of the supremum rounded to nearest and was refused again for 993 of these 1999
     # diameters (d 1.1 printed 1.01614 against a limit of 1.016136). Feed each printed number back.
+    # d 0.1 .. 0.2 leave a radius under twice the floor for some pitches, and the floor itself
+    # takes d 0.02 away: every d here is above it, so every d has a pitch to print.
     for tenths in range(1, 2000):
         d = tenths / 10
         refusal = root_radius_refusal(d, 1e6)
@@ -159,28 +208,32 @@ def test_the_largest_pitch_the_refusal_prints_is_one_the_same_rule_accepts() -> 
         printed = _printed_largest_pitch(refusal)
         assert root_radius_refusal(d, printed) is None, (d, printed)
         # still "the largest": within 6-figure truncation of the supremum, not a timid number
-        supremum = d / (2 * thread_depth(1.0))
+        supremum = (d / 2 - MIN_ROOT_RADIUS_MM) / thread_depth(1.0)
         assert printed >= supremum * (1 - 1e-5), (d, printed, supremum)
 
 
-@pytest.mark.parametrize("d", [1e-300, 0.0001, 1.1, 6.0, 1e5])
+@pytest.mark.parametrize("d", [0.0201, 1.1, 6.0, 1e5])
 def test_the_largest_pitch_is_accepted_across_the_range_of_d(d: float) -> None:
     refusal = root_radius_refusal(d, 1e300)
     assert refusal is not None
     assert root_radius_refusal(d, _printed_largest_pitch(refusal)) is None
 
 
-def test_a_d_with_no_representable_accepted_pitch_prints_no_number() -> None:
-    # d = 5e-324: d / 2 underflows to 0 and every pitch has a root radius of 0 or below, so any
-    # pitch printed would be a plausible number the rule refuses (L02). The refusal stands alone.
-    refusal = root_radius_refusal(5e-324, 1.0)
+@pytest.mark.parametrize("d", [5e-324, 1e-300, 0.0001, 0.0199])
+def test_a_d_with_no_accepted_pitch_prints_no_number(d: float) -> None:
+    # d under twice the floor: even a pitch of 0+ leaves a root radius of d / 2 or less, under the
+    # floor, so every pitch is refused and any pitch printed would be a plausible number the rule
+    # refuses (L02). The refusal stands alone. (d = 5e-324: d / 2 underflows to 0.)
+    refusal = root_radius_refusal(d, 1.0)
     assert refusal is not None
     assert "largest pitch" not in refusal
     assert refusal.startswith("d and pitch: ")
+    assert root_radius_refusal(d, 1e-300) is not None
 
 
 def test_a_root_radius_of_exactly_zero_is_refused() -> None:
-    # `> 0`, not `>= 0`: a zero root radius is a section pinched to a point on the axis.
+    # Far under the floor, and the case the old rule (`> 0`) was written for: a zero root radius
+    # is a section pinched to a point on the axis.
     pitch = 1.0
     assert root_radius_refusal(2 * thread_depth(pitch), pitch) is not None
 

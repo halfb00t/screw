@@ -329,7 +329,7 @@ def test_the_slug_tells_the_hands_apart() -> None:
 
 @pytest.mark.parametrize("values", [
     {"d": 99999.0, "s": 1e5, "k": 1e5},
-    {"d": 0.001, "pitch": 0.0001, "length": 0.01, "s": 0.002, "k": 0.001},
+    {"d": 0.03, "pitch": 0.005, "length": 0.05, "s": 0.04, "k": 0.01},
     {"length": 1e5, "pitch": 400.0, "d": 1000.0, "s": 1500.0, "k": 600.0},
     {"head_chamfer": 89.99999999999999},
     {"head_chamfer": 5e-324},

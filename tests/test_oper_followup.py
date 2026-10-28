@@ -694,3 +694,267 @@ def test_the_void_walk_is_written_with_its_shards_and_checked_from_its_source(
     capsys.readouterr()
     assert oper_sets.main(["--check"]) == 1
     assert "walls-voids.json" in capsys.readouterr().err
+
+
+# --- R3, R7 to R10: the walls, decided with their confirm (07-07) ---------------------------------
+
+REPS = (1, 2, 3, 4, 5)
+WALLS_DIRS = ("walls-40646134133", "walls-down-40652801529", "walls-confirm-40678150220")
+
+
+def _confirm_of(decision: oper_sets.Decision, over: Mapping[str, str] | None = None,
+                rep_over: Mapping[tuple[str, int], str] | None = None,
+                drop: Iterable[tuple[str, int]] = ()) -> list[Raw]:
+    """The 5 repetitions of every point of the confirm set the candidate asks for, ok unless
+    `over` (a label, all repetitions) or `rep_over` (one repetition) says otherwise."""
+    over, rep_over, gone = over or {}, rep_over or {}, set(drop)
+    return [_reading(p, rep_over.get((str(p["label"]), rep), over.get(str(p["label"]), "ok")), rep)
+            for p in oper_sets.confirm_points(decision) for rep in REPS
+            if (str(p["label"]), rep) not in gone]
+
+
+def _derive(walls_over: Mapping[str, str] | None = None, down: list[Raw] | None = None,
+            over: Mapping[str, str] | None = None,
+            rep_over: Mapping[tuple[str, int], str] | None = None,
+            drop: Iterable[tuple[str, int]] = ()) -> oper_sets.Derived:
+    walls = _walls(walls_over)
+    confirm = _confirm_of(_decide(walls, down or ()), over, rep_over, drop)
+    return oper_sets.derive_walls(walls, down or (), confirm)
+
+
+def _confirm_dup(confirm: list[Raw], label: str) -> list[Raw]:
+    """`confirm` with repetition 4 of `label` replaced by a second copy of repetition 3."""
+    return [r | {"rep": 3} if (r["label"], r["rep"]) == (label, 4) else r for r in confirm]
+
+
+def test_every_cell_ok_five_times_at_250_confirms_250_and_the_tested_values() -> None:
+    result = _derive()
+    assert result.max_turns == 250
+    assert len(result.turn_labels) == 60
+    assert result.max_field_mm == 1e5
+    assert result.constants == {"MAX_BOLT_D_MM": 99999.9, "MAX_NUT_D_MM": 99999.6,
+                                "MAX_NUT_CLEARANCE_MM": 49996.9}
+    assert (result.tail.v, result.root.v) == (None, None)
+    assert result.notes == ()
+
+
+def test_a_refused_250_cell_walked_down_and_confirmed_at_240_gives_240() -> None:
+    down = _down("nut-M8-left", {240: "ok"})
+    result = _derive({"turns-nut-M8-left": "refused"}, down)
+    assert result.max_turns == 240
+    assert "turns240-nut-M8-left" in result.turn_labels
+    assert result.past["MAX_TURNS"].startswith("250 turns")
+
+
+def test_a_killed_250_reading_awards_no_turn_bound_250_included() -> None:
+    walls = _walls({"turns-bolt-M2-right": "killed"})
+    with _stop("R7", "turns-bolt-M2-right"):
+        oper_sets.derive_walls(walls, (), [])
+
+
+def test_a_confirm_repetition_at_t_that_is_not_ok_awards_no_turn_bound() -> None:
+    with _stop("R7", "turns-bolt-M8-left"):
+        _derive(rep_over={("turns-bolt-M8-left", 4): "capped"})
+
+
+def test_a_confirm_at_t_missing_a_repetition_for_one_cell_awards_no_turn_bound() -> None:
+    with _stop("R7", "turns-nut-M14-right"):
+        _derive(drop=[("turns-nut-M14-right", 2)])
+
+
+def test_a_confirm_at_t_missing_for_a_cell_awards_no_turn_bound() -> None:
+    with _stop("R7", "turns-nut-M14-right"):
+        _derive(drop=[("turns-nut-M14-right", rep) for rep in REPS])
+
+
+def test_a_cell_with_no_ok_walk_down_step_or_a_gap_above_it_awards_no_turn_bound() -> None:
+    every = dict.fromkeys(oper_sets.TURN_STEPS, "refused")
+    with _stop("R7", "no ok step"):
+        _derive({"turns-nut-M8-left": "refused"}, _down("nut-M8-left", every))
+    with _stop("R7", "turns230-nut-M8-left"):
+        _derive({"turns-nut-M8-left": "refused"}, _down("nut-M8-left", {240: "refused"}))
+
+
+def test_a_confirm_point_without_repetitions_one_to_five_each_once_stops_at_r3() -> None:
+    walls = _walls()
+    confirm = _confirm_dup(_confirm_of(_decide(walls)), "turns-bolt-M2-right")
+    with _stop("R3", "turns-bolt-M2-right"):
+        oper_sets.derive_walls(walls, (), confirm)
+
+
+def test_a_lifted_ok_reading_past_a_cap_awards_nothing() -> None:
+    result = _derive(over={"beyond-bolt-k-1000000": "ok", "beyond-bolt-thread-1000000": "ok"})
+    assert result.max_turns == 250
+    assert all(c.decade <= 1e5 and c.value <= 1e5 for c in result.ceilings.values())
+    lifted = [str(p["label"]) for p in _walls_points() if p.get("lift")]
+    refused = _derive(over=dict.fromkeys(lifted, "refused"))
+    assert refused.max_turns == 250
+    assert refused.constants == result.constants
+
+
+def test_a_confirm_repetition_at_the_decided_decade_that_fails_makes_the_ceiling_stricter() -> None:
+    result = _derive(rep_over={("ceiling-bolt-k-100000", 3): "refused"})
+    assert result.ceilings[("bolt", "k")].decade == 1e4
+    assert result.constants["MAX_BOLT_K_MM"] == 1e4
+    assert result.max_field_mm == 1e5
+    assert any(note.startswith("bolt k:") and "stricter" in note for note in result.notes)
+
+
+def test_a_cost_repetition_at_the_decided_decade_cannot_hold_it() -> None:
+    result = _derive(rep_over={("ceiling-nut-m-100000", 2): "capped"})
+    assert result.ceilings[("nut", "m")].decade == 1e4
+
+
+def test_a_candidate_decade_the_confirm_does_not_hold_stops_the_phase() -> None:
+    with _stop("R8", "ceiling-bolt-k-100000"):
+        _derive(drop=[("ceiling-bolt-k-100000", rep) for rep in REPS])
+
+
+def test_a_field_with_no_ok_decade_stops_the_phase_after_the_confirm_too() -> None:
+    every = {f"ceiling-bolt-k-{x}": "refused" for x in (1000, 10000, 100000)}
+    with _stop("R8", "bolt k"):
+        oper_sets.derive_walls(_walls(every), (), [])
+
+
+@pytest.mark.parametrize(("decades", "tail"), [((8, 9), 1e-6), ((4, 5, 6, 7, 8, 9), 1e-2)])
+def test_the_largest_failing_tail_sets_the_floor_a_hundred_times_above_it(
+        decades: tuple[int, ...], tail: float) -> None:
+    result = _derive(_tails(decades, "refused"))
+    assert result.tail.v == tail
+    assert result.root.v is None
+
+
+def test_a_tail_floor_outside_the_walk_or_over_a_killed_reading_stops_the_phase() -> None:
+    with _stop("R9", "outside the walk"):
+        _derive(_tails(range(3, 10), "refused"))
+    with _stop("R9", "killed"):
+        _derive(_tails((8, 9), "refused") | {oper_sets._tail_label(6.0, 1.0, False, 3): "killed"})
+
+
+def test_above_zero_stands_only_on_the_smallest_tail_read_ok_five_times() -> None:
+    result = _derive()
+    assert result.tail.v is None
+    assert result.tail.read == 48
+    label = oper_sets._tail_label(6.0, 1.0, False, 9)
+    with _stop("R9", "G1"):
+        _derive(rep_over={(label, 2): "crashed"})
+    with _stop("R9", "G1"):
+        _derive(rep_over={(label, 5): "capped"})
+    with _stop("R9", "G1"):
+        _derive(drop=[(label, rep) for rep in REPS])
+    with _stop("R9", "above 0"):
+        _decide(_walls(_tails((5,), "capped")))
+
+
+def test_a_confirm_repetition_below_the_floor_makes_it_stricter_only_if_it_was_confirmed() -> None:
+    label = oper_sets._tail_label(6.0, 1.0, False, 5)  # the step past V = 1e-4, read in the confirm
+    with _stop("R9", "no confirm reading tested"):
+        _derive(_tails((6, 7, 8, 9), "refused"), rep_over={(label, 3): "refused"})
+
+
+def test_the_largest_failing_rod_root_sets_the_floor_ten_times_above_it() -> None:
+    result = _derive(_roots([3e-5, 1e-5, 3e-6, 1e-6], "refused", ("bolt",)))
+    assert result.root.v == 1e-3
+    assert result.tail.v is None
+
+
+def test_voids_refused_everywhere_are_no_part_of_the_root_floor() -> None:
+    result = _derive(_walls_as_read())
+    assert result.root.v == 1e-2
+    assert result.root.read == 270
+
+
+def test_above_zero_for_the_root_stands_only_on_the_smallest_rod_read_ok_five_times() -> None:
+    result = _derive()
+    assert result.root.v is None
+    smallest = [str(p["label"]) for p in oper_sets.confirm_points(_decide(_walls()))
+                if str(p["label"]).startswith("root-") and str(p["label"]).endswith("-r1e-06")]
+    assert len(smallest) == 30  # the rods, every size and hand; no nut void
+    assert all("-bolt-" in label for label in smallest)
+    with _stop("R10", "G1"):
+        _derive(rep_over={(smallest[0], 3): "refused"})
+
+
+def test_a_nut_d_with_no_confirmed_decade_needs_a_shared_ceiling_below_its_refused_decade() -> None:
+    cost = {"ceiling-nut-d-1000": "capped"}
+    refused = {f"ceiling-nut-d-{x}": "refused" for x in (10000, 100000)}
+    with _stop("R8", "G27"):
+        _derive(refused, over=cost)  # the shared ceiling is 1e5, not below the refused decade 1e4
+    with _stop("R8", "nut d has no ok decade"):
+        _derive(refused, over={"ceiling-nut-d-1000": "refused"})  # a wall, not cost
+    with _stop("R8", "nut d has no ok decade"):
+        _derive({"ceiling-nut-d-1000": "refused"} | refused)
+
+
+def _read_all() -> tuple[list[oper_sets.Reading], list[oper_sets.Reading],
+                         list[oper_sets.Reading]]:
+    base = REPO_ROOT / "bench" / "results" / "phase-07"
+    walls, down, confirm = (oper_sets.read_readings(base / name) for name in WALLS_DIRS)
+    return walls, down, confirm
+
+
+@functools.cache
+def _committed() -> oper_sets.Derived:
+    walls, down, confirm = _read_all()
+    return oper_sets.derive_walls(walls, down, confirm)
+
+
+def test_the_committed_records_give_the_walls_07_07_writes() -> None:
+    result = _committed()
+    assert result.max_turns == 90
+    assert result.max_field_mm == 1000.0
+    assert result.constants == {
+        "MAX_BOLT_D_MM": 999.999, "MAX_BOLT_LENGTH_MM": 10000.0, "MAX_BOLT_K_MM": 100000.0,
+        "MAX_BOLT_THREAD_LENGTH_MM": 100000.0, "MAX_NUT_M_MM": 10000.0,
+        "MAX_NUT_CLEARANCE_MM": 496.999}
+    assert ("nut", "d") in result.cost_limited
+    assert ("nut", "d") not in result.ceilings
+    assert result.cost_limited[("nut", "d")] == 1e4
+    assert (result.tail.v, result.root.v) == (1e-4, 1e-2)
+    assert len(result.notes) == 1
+    assert result.notes[0].startswith("nut d:")
+
+
+def test_the_committed_records_leave_the_walls_the_candidate_decided_but_nut_d() -> None:
+    walls, down, _ = _read_all()
+    result = _committed()
+    candidate = oper_sets.decide_walls(walls, down)
+    assert candidate.t == result.max_turns
+    for key, ceiling in result.ceilings.items():
+        assert ceiling == candidate.ceilings[key]
+    assert (candidate.tail.v, candidate.root.v) == (result.tail.v, result.root.v)
+
+
+def test_derive_walls_prints_each_wall_with_its_readings_and_the_nut_d_exception(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    base = REPO_ROOT / "bench" / "results" / "phase-07"
+    walls, down, confirm = (str(base / name) for name in WALLS_DIRS)
+    args = ["derive-walls", "--walls", walls, "--down", down, "--confirm", confirm]
+    assert oper_sets.main(args) == 0
+    out = capsys.readouterr().out
+    assert "MAX_TURNS = 90 " in out
+    assert "MAX_FIELD_MM = 1000.0 " in out
+    assert "MAX_BOLT_D_MM = 999.999" in out
+    assert "MIN_TAIL_MM = 0.0001 " in out
+    assert "MIN_ROOT_RADIUS_MM = 0.01 " in out
+    assert "MAX_NUT_D_MM" not in out
+    assert "nut d: no constant of its own (G27" in out
+
+
+def test_derive_walls_exits_3_on_a_stop_and_on_an_above_zero_tail(
+        repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    walls = _walls()
+    _write_records(repo / "w", walls)
+    _write_records(repo / "c-ok", _confirm_of(_decide(walls)))
+    args = ["derive-walls", "--walls", str(repo / "w"), "--confirm", str(repo / "c-ok")]
+    assert oper_sets.main(args) == 3
+    captured = capsys.readouterr()
+    assert "MIN_ROOT_RADIUS_MM = above 0" in captured.out
+    assert "oper_sets: stop (R9):" in captured.err
+    assert "builder's guard" in captured.err
+
+    _write_records(repo / "c-bad", _confirm_of(
+        _decide(walls), rep_over={("turns-bolt-M2-right", 4): "capped"}))
+    assert oper_sets.main(["derive-walls", "--walls", str(repo / "w"),
+                           "--confirm", str(repo / "c-bad")]) == 3
+    assert "oper_sets: stop (R7):" in capsys.readouterr().err

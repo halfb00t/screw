@@ -324,6 +324,10 @@ def test_the_kernel_bound_grows_for_a_small_or_tall_head_and_has_a_floor_for_the
     assert head_chamfer_kernel_bound(100.0, 40.0) == HEAD_CHAMFER_KERNEL_FLOOR_DEG
     assert head_chamfer_kernel_bound(1.0, 0.4) == pytest.approx(1.4e-3)
     assert head_chamfer_kernel_bound(10.0, 400.0) == pytest.approx(1.4e-2)
+    # s * s underflows to 0.0 at 1e-170: the bound overflows to inf and does not divide by zero
+    # (k / s / s with k = 4 is 4e340)
+    # (the model no longer accepts such a head, but the guard is in the function, not the model).
+    assert head_chamfer_kernel_bound(1e-170, 4.0) == math.inf
     angle = 1e-3
     assert _below_bound_warnings(derive(BoltParams(head_chamfer=angle))) == []
     small = BoltParams(d=0.5, pitch=0.1, length=5.0, thread_length=5.0, s=1.0, k=0.4,

@@ -7,10 +7,11 @@ and `--check` (run by `tests/test_oper.py`, so by `make verify`) fails when a co
 not what this code writes, so a point file cannot drift from its generator or be edited by hand
 after a reading exists (R30).
 
-Kernel-free: a point is validated with the parameter model (`KINDS[kind].model_validate`) and
-never built. A combination the model refuses is not measured and is not hidden: it goes in the
-file's `dropped` array with the pydantic error type. Floats are written with `repr`, which reads
-back exactly; the same code writes the same bytes, in the order it lists the points.
+Kernel-free: a point is validated with the parameter model under the guards of the registration
+(`bench.oper_lift.registered`, so the files do not move with the walls of L20) and never built. A
+combination the model refuses is not measured and is not hidden: it goes in the file's `dropped`
+array with the pydantic error type. Floats are written with `repr`, which reads back exactly; the
+same code writes the same bytes, in the order it lists the points.
 
 Symbols: `d` major diameter, `P` pitch, `L` length, `t` thread length, `s` across flats, `k` head
 height, `m` nut height, `c` radial clearance, `r` root radius `d/2 - 5H/8` (plus `c` for a nut).
@@ -85,10 +86,12 @@ def _frac(text: str) -> Fraction:
 
 
 def _refusal(kind: str, params: Params, lift: Lift | None = None) -> str | None:
-    """The pydantic error type with which the parameter model refuses `params` (with the one
-    guard `lift` names lifted, if any), or `None`."""
+    """The pydantic error type with which the parameter model refuses `params` under the guards
+    of the registration (with the one guard `lift` names lifted, if any), or `None`. Not the
+    production guards: the point files are pre-registered (R30) and must not move when L20 sets
+    the walls the sweep measured (`bench.oper_lift.registered`)."""
     try:
-        oper_lift.validate(kind, params, lift)
+        oper_lift.registered(kind, params, lift)
     except ValidationError as exc:
         return str(exc.errors()[0]["type"])
     return None
@@ -815,15 +818,13 @@ def _decide_ceilings(walls: Mapping[str, Reading]) -> dict[tuple[str, str], Ceil
     return found
 
 
-def _decide_floor(rule: str, walk: list[tuple[float, list[str]]], walls: Mapping[str, Reading],
-                  factor: int) -> Floor:
-    """R9 and R10 over a walk listed from its largest value down. F is the largest value with a
-    refused or crashed reading; V is the smallest power of ten at or above `factor` x F, and
-    must be a value the walk holds, with every reading at V or more ok. With no failure the
-    floor is "above 0" and every reading must be ok. Killed and capped readings set no F and
-    cannot support a bound (R8)."""
-    status = {label: str(_need(walls, label, rule)["status"])
-              for _, labels in walk for label in labels}
+def _floor_from_status(rule: str, walk: list[tuple[float, list[str]]],
+                       status: Mapping[str, str], factor: int) -> Floor:
+    """R9 and R10 over a walk listed from its largest value down, given the status of each label.
+    F is the largest value with a refused or crashed reading; V is the smallest power of ten at or
+    above `factor` x F, and must be a value the walk holds, with every reading at V or more ok.
+    With no failure the floor is "above 0" and every reading must be ok. Killed and capped
+    readings set no F and cannot support a bound (R8)."""
     failing = [label for label, state in status.items() if state in FAILED]
     read = len(status)
     if not failing:
@@ -843,6 +844,14 @@ def _decide_floor(rule: str, walk: list[tuple[float, list[str]]], walls: Mapping
                 raise ProtocolStop(rule, f"{label} at or above V = {v:g} is {status[label]}, "
                                          "not ok")
     return Floor(v, tuple(failing), read)
+
+
+def _decide_floor(rule: str, walk: list[tuple[float, list[str]]], walls: Mapping[str, Reading],
+                  factor: int) -> Floor:
+    """R9 and R10 over the walls readings alone, before the confirm."""
+    status = {label: str(_need(walls, label, rule)["status"])
+              for _, labels in walk for label in labels}
+    return _floor_from_status(rule, walk, status, factor)
 
 
 def _tail_walk() -> list[tuple[float, list[str]]]:
@@ -941,6 +950,260 @@ def confirm_points(decision: Decision) -> list[dict[str, object]]:
     return _confirm_set(decision).points
 
 
+# --- R3, R7 to R10: the walls, decided with their confirm ----------------------------------------
+
+# G27: the fields whose limit is cost and not a wall when the confirm reads `capped` at their one
+# decade below the first refused one. They write no constant of their own and stay under the
+# shared MAX_FIELD_MM, which must lie below that refused decade (R8).
+COST_LIMITED = frozenset({("nut", "d")})
+
+
+@dataclass(frozen=True)
+class Derived:
+    """The walls R3 and R7 to R10 decide from the walls, walk-down and confirm records: what to
+    write into the code (`max_turns`, `max_field_mm`, `constants`, the two floors) and what each
+    rests on, for the log (`past`, `notes`)."""
+
+    candidate: Decision
+    max_turns: int
+    turn_labels: tuple[str, ...]
+    ceilings: dict[tuple[str, str], Ceiling]
+    cost_limited: dict[tuple[str, str], float]  # field -> its first refused decade, mm
+    max_field_mm: float
+    constants: dict[str, float]
+    tail: Floor
+    root: Floor
+    past: dict[str, str]  # wall -> the confirm readings one step past it
+    notes: tuple[str, ...]  # where the final value differs from the candidate
+
+
+def _confirm_groups(readings: Iterable[Reading]) -> dict[str, list[Reading]]:
+    found: dict[str, list[Reading]] = {}
+    for reading in readings:
+        found.setdefault(str(reading["label"]), []).append(reading)
+    return found
+
+
+def _five(confirm: Mapping[str, list[Reading]], label: str, rule: str) -> list[Reading]:
+    """The 5 repetitions of a confirm point. The repetitions must be the ones asked for, 1 to 5
+    each once (R3): a copy of one is `R3`'s stop, a gap is the stop of the rule that needs the
+    point."""
+    group = confirm.get(label)
+    if not group:
+        raise ProtocolStop(rule, f"the confirm reading of {label} is missing (R3)")
+    wanted = list(range(1, CONFIRM_REPS + 1))
+    reps = [r.get("rep") for r in group]
+    if (len(set(map(str, reps))) != len(reps)
+            or any(isinstance(rep, bool) or rep not in wanted for rep in reps)):
+        raise ProtocolStop("R3", f"the confirm of {label} has repetitions "
+                                 f"{sorted(map(str, reps))}, not 1 to 5 each once")
+    gaps = [rep for rep in wanted if rep not in reps]
+    if gaps:
+        raise ProtocolStop(rule, f"the confirm of {label} lacks repetitions {gaps} of 1 to 5 (R3)")
+    return group
+
+
+def _worst(states: Iterable[str]) -> str:
+    """A disagreement keeps the stricter outcome (R3): a kernel failure over cost over ok."""
+    found = list(states)
+    for state in found:
+        if state in FAILED:
+            return state
+    return next((state for state in found if state != "ok"), "ok")
+
+
+def _state(label: str, walls: Mapping[str, Reading], confirm: Mapping[str, list[Reading]],
+           rule: str) -> str:
+    """The status of a label: its walls reading, and where the confirm holds it, the 5 confirm
+    repetitions, the stricter of them all."""
+    state = str(_need(walls, label, rule)["status"])
+    if label in confirm:
+        return _worst([state, *(str(r["status"]) for r in _five(confirm, label, rule))])
+    return state
+
+
+def _turn_label(turns: int, stem: str) -> str:
+    if turns == MAX_TURNS_NOW:
+        return f"turns-{stem}"
+    return f"beyond-turns-{stem}" if turns == BEYOND_TURNS else f"turns{turns}-{stem}"
+
+
+def _summary(confirm: Mapping[str, list[Reading]], labels: Sequence[str]) -> str:
+    """The confirm statuses of `labels` over their 5 repetitions, for the log: one clause per
+    distinct outcome, with the labels when there are few and their number when there are many."""
+    by_outcome: dict[str, list[str]] = {}
+    for label in labels:
+        if label not in confirm:
+            by_outcome.setdefault("not read", []).append(label)
+            continue
+        counts: dict[str, int] = {}
+        for reading in _five(confirm, label, "R3"):
+            counts[str(reading["status"])] = counts.get(str(reading["status"]), 0) + 1
+        outcome = ", ".join(f"{k} {v}" for k, v in sorted(counts.items()))
+        by_outcome.setdefault(outcome, []).append(label)
+    return "; ".join(
+        f"{', '.join(found)}: {outcome}" if len(found) <= 4
+        else f"{len(found)} of {len(labels)} points: {outcome}"
+        for outcome, found in by_outcome.items())
+
+
+def _derive_turns(t: int, confirm: Mapping[str, list[Reading]]) -> tuple[str, ...]:
+    """R7: `MAX_TURNS` is T only if every cell is ok in all 5 confirm repetitions at T. Anything
+    else, a gap included, awards no turn bound, 250 included, and stops the phase."""
+    labels: list[str] = []
+    for kind, size, left in _cells():
+        label = _turn_label(t, _stem(kind, size, left))
+        group = _five(confirm, label, "R7")
+        bad = [r for r in group if r["status"] != "ok"]
+        if bad:
+            raise ProtocolStop("R7", f"the confirm of {label} at T = {t} is {bad[0]['status']} in "
+                                     f"{len(bad)} of 5 repetitions: no turn bound is awarded, "
+                                     "250 included")
+        labels.append(label)
+    return tuple(labels)
+
+
+def _derive_ceilings(
+        candidate: Decision, walls: Mapping[str, Reading],
+        confirm: Mapping[str, list[Reading]]) -> tuple[dict[tuple[str, str], Ceiling],
+                                                      dict[tuple[str, str], float]]:
+    """R8 over the walls readings and the confirm together: a field's ceiling is the largest
+    decade at which every bearing reading is ok in both, the tested value that decade held. A
+    candidate decade the confirm does not hold stops the phase; a decade the confirm lowered the
+    candidate to is a stricter wall and needs none. A reading past 1e5 is lifted and is never a
+    decade here (R3)."""
+    ceilings: dict[tuple[str, str], Ceiling] = {}
+    cost_limited: dict[tuple[str, str], float] = {}
+    for key, stems in FIELD_STEMS.items():
+        kind, field = key
+        states_by_decade: dict[float, list[str]] = {}
+        for x in reversed(CEILINGS):
+            labels = _bearing(stems, x)
+            states = [_state(label, walls, confirm, "R8") for label in labels]
+            states_by_decade[x] = states
+            if not all(state == "ok" for state in states):
+                continue
+            if x >= candidate.ceilings[key].decade:
+                unheld = [label for label in labels if label not in confirm]
+                if unheld:
+                    raise ProtocolStop("R8", f"no confirm reading tested {kind} {field} at "
+                                             f"{x:g} mm: {unheld[0]} is missing (R3)")
+            params = _need(walls, labels[0], "R8")["params"]
+            assert isinstance(params, dict)
+            ceilings[key] = Ceiling(x, _number(params, field), tuple(labels))
+            break
+        else:
+            refused = [x for x, states in states_by_decade.items()
+                       if any(state in FAILED for state in states)]
+            lowest = states_by_decade[CEILINGS[0]]
+            if key in COST_LIMITED and refused and not any(s in FAILED for s in lowest):
+                cost_limited[key] = min(refused)
+                continue
+            raise ProtocolStop("R8", f"{kind} {field} has no ok decade in 1e3, 1e4, 1e5 mm after "
+                                     "the confirm")
+    return ceilings, cost_limited
+
+
+def _derive_floor(rule: str, walk: list[tuple[float, list[str]]], candidate: Floor,
+                  walls: Mapping[str, Reading], confirm: Mapping[str, list[Reading]],
+                  factor: int) -> Floor:
+    """R9 or R10 over the walls readings and the confirm together. A confirm repetition that
+    fails sets an F the walls did not (a stricter, higher floor), and V must then have been
+    confirmed itself, never taken from one repetition (R3). "Above 0" stands only on the
+    confirm at the smallest walked value for every cell, ok in all 5 repetitions (G1)."""
+    status = {label: _state(label, walls, confirm, rule) for _, labels in walk for label in labels}
+    if candidate.v is None:
+        for label in walk[-1][1]:
+            if label not in confirm:
+                raise ProtocolStop(rule, f"'above 0' needs the confirm at {walk[-1][0]:g}, and "
+                                         f"{label} is missing: no floor is awarded (G1)")
+        bad = [label for label, state in status.items() if state != "ok"]
+        if bad:
+            raise ProtocolStop(rule, f"'above 0' needs every reading ok, and {bad[0]} is "
+                                     f"{status[bad[0]]} after the confirm: no floor is awarded "
+                                     "(G1)")
+        return Floor(None, (), len(status))
+    floor = _floor_from_status(rule, walk, status, factor)
+    assert floor.v is not None
+    held = [label for value, labels in walk if value == floor.v for label in labels]
+    unheld = [label for label in held if label not in confirm]
+    if unheld:
+        raise ProtocolStop(rule, f"after the confirm V = {floor.v:g}, and no confirm reading "
+                                 f"tested it: {unheld[0]} is missing (R3)")
+    return floor
+
+
+def derive_walls(walls_readings: Iterable[Reading], down_readings: Iterable[Reading],
+                 confirm_readings: Iterable[Reading]) -> Derived:
+    """R7 to R10 and R3: the candidate walls of `decide_walls`, then the walls confirm applied to
+    them (07 D-08, D-18).
+
+    R7: `MAX_TURNS` is T only when every one of the 60 cells has all 5 confirm repetitions at T
+    ok. R8 to R10 are computed over the walls readings and the confirm readings together, so a
+    confirm can only make a wall stricter. A reading past a cap is lifted and awards nothing: it
+    never raises `MAX_TURNS` above 250 nor a ceiling above 1e5. Every place a rule stops the phase
+    is a `ProtocolStop`; none of them picks a value.
+    """
+    walls_list, down_list = list(walls_readings), list(down_readings)
+    walls = _index(walls_list, "R7")
+    candidate = decide_walls(walls_list, down_list)
+    confirm = _confirm_groups(confirm_readings)
+    turn_labels = _derive_turns(candidate.t, confirm)
+    ceilings, cost_limited = _derive_ceilings(candidate, walls, confirm)
+    values = [ceiling.value for ceiling in ceilings.values()]
+    shared = max(sorted(set(values)), key=values.count)  # a tie goes to the lower value
+    for (kind, field), first_refused in cost_limited.items():
+        if shared >= first_refused:
+            raise ProtocolStop("R8", f"{kind} {field} has no confirmed decade and its first "
+                                     f"refused decade is {first_refused:g} mm, and the shared "
+                                     f"MAX_FIELD_MM {shared:g} is not below it (G27)")
+    constants = {f"MAX_{kind.upper()}_{field.upper()}_MM": ceiling.value
+                 for (kind, field), ceiling in ceilings.items() if ceiling.value != shared}
+    tail = _derive_floor("R9", _tail_walk(), candidate.tail, walls, confirm, 100)
+    root = _derive_floor("R10", _root_walk(), candidate.root, walls, confirm, 10)
+
+    past: dict[str, str] = {}
+    step = candidate.t + 10
+    step_labels = [_turn_label(step, _stem(*cell)) for cell in _cells()]
+    past["MAX_TURNS"] = f"{step} turns, {_summary(confirm, step_labels)}"
+    for key, ceiling in ceilings.items():
+        past[f"{key[0]} {key[1]}"] = _summary(confirm, _bearing(FIELD_STEMS[key],
+                                                                ceiling.decade * 10))
+    for key in cost_limited:
+        past[f"{key[0]} {key[1]}"] = _summary(confirm, _bearing(FIELD_STEMS[key], CEILINGS[0]))
+    for name, floor, walk in (("MIN_TAIL_MM", tail, _tail_walk()),
+                              ("MIN_ROOT_RADIUS_MM", root, _root_walk())):
+        values_walked = [value for value, _ in walk]
+        if floor.v is not None and values_walked.index(floor.v) + 1 < len(walk):
+            past[name] = _summary(confirm, walk[values_walked.index(floor.v) + 1][1])
+    return Derived(candidate, candidate.t, turn_labels, ceilings, cost_limited, shared,
+                   constants, tail, root, past, _differences(candidate, ceilings, cost_limited,
+                                                             tail, root))
+
+
+def _differences(candidate: Decision, ceilings: Mapping[tuple[str, str], Ceiling],
+                 cost_limited: Mapping[tuple[str, str], float], tail: Floor,
+                 root: Floor) -> tuple[str, ...]:
+    """Where the final wall differs from the candidate of `decide_walls` (R3: the confirm
+    decides)."""
+    notes: list[str] = []
+    for key, first in candidate.ceilings.items():
+        final = ceilings.get(key)
+        if final is None:
+            notes.append(f"{key[0]} {key[1]}: candidate decade {first.decade:g} (tested "
+                         f"{first.value!r}) is not confirmed (cost), so no constant of its own "
+                         f"(first refused decade {cost_limited[key]:g} mm, G27)")
+        elif (final.decade, final.value) != (first.decade, first.value):
+            notes.append(f"{key[0]} {key[1]}: candidate decade {first.decade:g} (tested "
+                         f"{first.value!r}), final decade {final.decade:g} (tested "
+                         f"{final.value!r}): the confirm made it stricter")
+    for name, final_floor, first_floor in (("MIN_TAIL_MM", tail, candidate.tail),
+                                           ("MIN_ROOT_RADIUS_MM", root, candidate.root)):
+        if final_floor.v != first_floor.v:
+            notes.append(f"{name}: candidate {first_floor.v!r}, final {final_floor.v!r}")
+    return tuple(notes)
+
+
 # --- building the files from record directories --------------------------------------------------
 
 
@@ -1035,6 +1298,43 @@ def _print_decision(decision: Decision) -> None:
               f"{', '.join(floor.failing) or 'none'}")
 
 
+def _print_derived(result: Derived) -> None:
+    """Each wall with its rule, what it rests on and the confirm one step past it (07 D-08,
+    D-18)."""
+    candidate = result.candidate
+    print(f"MAX_TURNS = {result.max_turns}  (R7: T, the smallest first ok step over 60 cells; "
+          f"{len(candidate.turn_labels)} walls and walk-down readings, then the confirm at "
+          f"{result.max_turns} turns: {len(result.turn_labels)} cells x 5 repetitions, all ok)")
+    print(f"  past it: {result.past['MAX_TURNS']}")
+    print(f"MAX_FIELD_MM = {result.max_field_mm!r}  (R8: the ceiling value the most fields share, "
+          "a tie to the lower)")
+    for (kind, field), ceiling in result.ceilings.items():
+        name = f"MAX_{kind.upper()}_{field.upper()}_MM"
+        constant = name if name in result.constants else "MAX_FIELD_MM"
+        print(f"{kind} {field}: {ceiling.value!r} mm (decade {ceiling.decade:g}, constant "
+              f"{constant}); rests on {', '.join(ceiling.labels)}")
+        print(f"  past it: {result.past[f'{kind} {field}']}")
+    for name, value in result.constants.items():
+        print(f"{name} = {value!r}")
+    for (kind, field), first_refused in result.cost_limited.items():
+        print(f"{kind} {field}: no constant of its own (G27: its limit is cost, first refused "
+              f"decade {first_refused:g} mm); under MAX_FIELD_MM {result.max_field_mm!r}")
+        print(f"  at the decade below: {result.past[f'{kind} {field}']}")
+    for name, floor in (("MIN_TAIL_MM", result.tail), ("MIN_ROOT_RADIUS_MM", result.root)):
+        shown = "above 0" if floor.v is None else repr(floor.v)
+        rule = "R9" if name == "MIN_TAIL_MM" else "R10"
+        failing = (f"{len(floor.failing)} failing, the largest value at {floor.failing[0]}"
+                   if floor.failing else "none failing")
+        print(f"{name} = {shown}  ({rule}: {floor.read} readings read after the confirm, "
+              f"{failing})")
+        if name in result.past:
+            print(f"  past it: {result.past[name]}")
+    for note in result.notes:
+        print(f"differs from the candidate: {note}")
+    if not result.notes:
+        print("differs from the candidate: nowhere")
+
+
 def _run(args: argparse.Namespace) -> int:
     walls_dir = _relative(args.walls) if hasattr(args, "walls") else ""
     explore_dir = _relative(args.explore) if hasattr(args, "explore") else ""
@@ -1058,6 +1358,16 @@ def _run(args: argparse.Namespace) -> int:
         print(f"{len(voids.points)} points in shards of {voids.shard_sizes}")
     elif args.command == "decide-walls":
         _print_decision(decide_walls(_read(walls_dir), _read(down_dir) if down_dir else ()))
+    elif args.command == "derive-walls":
+        result = derive_walls(_read(walls_dir), _read(down_dir) if down_dir else (),
+                              _read(_relative(args.confirm)))
+        _print_derived(result)
+        if result.tail.v is None:
+            # MIN_TAIL_MM is also the builder's crash guard (helical.py folds a sliver below it),
+            # and no rule says what it becomes when the walk finds no failing tail.
+            raise ProtocolStop("R9", "the tail floor is 'above 0', and MIN_TAIL_MM is also the "
+                                     "builder's guard against a kernel crash on a float leftover: "
+                                     "no rule says what it becomes, so the owner rules")
     else:
         confirm = build_confirm(walls_dir, down_dir, explore_dir)
         Path(args.out).write_text(confirm.text())
@@ -1078,12 +1388,15 @@ def main(argv: list[str] | None = None) -> int:
     void_walk.add_argument("--out", required=True)
     for name, helptext in (("walk-down", "write the R7 walk-down set"),
                            ("decide-walls", "R7 to R10 before the confirm"),
-                           ("confirm", "write the walls confirm set")):
+                           ("confirm", "write the walls confirm set"),
+                           ("derive-walls", "R3 and R7 to R10: the walls with their confirm")):
         command = sub.add_parser(name, help=helptext)
         command.add_argument("--walls", required=True)
         if name != "walk-down":
             command.add_argument("--down")
-        if name != "decide-walls":
+        if name == "derive-walls":
+            command.add_argument("--confirm", required=True)
+        elif name != "decide-walls":
             command.add_argument("--explore", required=True)
             command.add_argument("--out", required=True)
     args = parser.parse_args(argv)

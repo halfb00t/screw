@@ -376,11 +376,12 @@ def test_preview_has_fewer_triangles_than_fine() -> None:
 
 
 def test_a_solid_the_kernel_builds_with_the_wrong_volume_is_a_build_error() -> None:
-    # d=0.001, pitch=0.0001, length=0.01 builds one valid solid whose volume is off the closed
-    # form: +9.59e-03 in the research probe, +9.858e-03 in the run that wrote this test. The
-    # gate refuses it, naming the volume and the signed relative error.
-    with pytest.raises(BuildError, match=r"precise volume .*relative error \+\d\.\d+e-03"):
-        export(BoltParams(d=0.001, pitch=0.0001, length=0.01), "step")
+    # d=0.03, pitch=0.005, length=0.05 (a root radius of 0.0123 mm, just above the 0.01 mm floor)
+    # builds one valid solid whose volume is off the closed form: -1.829e-04 in the run that wrote
+    # this test, +9.59e-03 at d=0.001 in the research probe, a part the floor now refuses before
+    # the kernel. The gate refuses it, naming the volume and the signed relative error.
+    with pytest.raises(BuildError, match=r"precise volume .*relative error [+-]\d\.\d+e-0\d"):
+        export(BoltParams(d=0.03, pitch=0.005, length=0.05), "step")
 
 
 def _two_boxes() -> cq.Shape:

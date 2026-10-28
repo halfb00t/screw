@@ -1,12 +1,20 @@
 """A reading one step past a guard, with that guard lifted and no other (07 R3, D-08).
 
 The walls the sweep confirms are at the validator's own caps: 250 turns (`MAX_TURNS`) and 1e5 mm
-(`INTERIM_MAX_MM`, the `le` of every length field). The confirmation reads the next step past each,
+(the `le` of every length field), as the sweep found them. The confirmation reads the next step
+past each,
 which `KINDS[kind].model_validate` refuses (`turn_cap`, `less_than_equal`), so without a lift the
 point could never reach the kernel and the confirmation would only confirm the validator. A point
 names the one guard it lifts and the new limit; every other validator runs as written, and the
 production classes are not touched: `max_mm` builds a subclass, `max_turns` restores the module
 constant before it returns.
+
+`registered` is the other half (07 D-08, L20): the point files are pre-registered (R30) and
+`bench.oper_sets` drops the parts the model refuses, so once the model's walls moved to the
+measured ones a file generated against the model would change with every wall. `registered`
+validates under the guards the sweep was registered under (250 turns, 1e5 mm on every length
+field, a root radius above 0), so a point file and the derived sets depend on the records and on
+this module, never on the production constants those records set.
 
 Kernel-free, like `screw.params`. Not imported by `bench.oper`, which stays standard-library only.
 """
@@ -23,6 +31,13 @@ from screw.calc import thread
 from screw.params import KINDS, FastenerParams
 
 LIFTS = ("max_turns", "max_mm")
+
+# The guards of the registration, before any wall was measured (L11 for the turns, F1 for the
+# millimetres, L12 for the root). Frozen here on purpose: they are what the point files were
+# generated under, not what the product accepts now.
+REGISTERED_TURNS = 250
+REGISTERED_MM = 1e5
+ABOVE_ZERO = 5e-324  # `root >= ABOVE_ZERO` is `root > 0` for a float
 
 
 def _with_field_bound(model: type[FastenerParams], bound: float) -> type[FastenerParams]:
@@ -58,6 +73,35 @@ def _turn_cap(turns: int) -> Iterator[None]:
         module["MAX_TURNS"] = saved
 
 
+@contextmanager
+def _root_floor(floor: float) -> Iterator[None]:
+    """`MIN_ROOT_RADIUS_MM` at `floor` for the validation inside the block, like `_turn_cap`."""
+    module = vars(thread)
+    saved = module["MIN_ROOT_RADIUS_MM"]
+    module["MIN_ROOT_RADIUS_MM"] = floor
+    try:
+        yield
+    finally:
+        module["MIN_ROOT_RADIUS_MM"] = saved
+
+
+def _check(lift: Mapping[str, float] | None) -> None:
+    if lift and (len(lift) != 1 or next(iter(lift)) not in LIFTS):
+        raise ValueError(f"a lift names exactly one of {list(LIFTS)}, not {dict(lift)}")
+
+
+def registered(kind: str, params: Mapping[str, float | bool],
+               lift: Mapping[str, float] | None = None) -> FastenerParams:
+    """The validated parameters of `kind` under the guards of the registration, with the one
+    guard `lift` names lifted to the limit it gives, as in `validate`. Raises
+    `pydantic.ValidationError` for what those guards refuse."""
+    _check(lift)
+    limits = {"max_turns": float(REGISTERED_TURNS), "max_mm": REGISTERED_MM, **(lift or {})}
+    model = _with_field_bound(KINDS[kind], limits["max_mm"])
+    with _turn_cap(int(limits["max_turns"])), _root_floor(ABOVE_ZERO):
+        return model.model_validate(params)
+
+
 def validate(kind: str, params: Mapping[str, float | bool],
              lift: Mapping[str, float] | None = None) -> FastenerParams:
     """The validated parameters of `kind`, with the one guard `lift` names lifted to the limit it
@@ -67,8 +111,7 @@ def validate(kind: str, params: Mapping[str, float | bool],
     model = KINDS[kind]
     if not lift:
         return model.model_validate(params)
-    if len(lift) != 1 or next(iter(lift)) not in LIFTS:
-        raise ValueError(f"a lift names exactly one of {list(LIFTS)}, not {dict(lift)}")
+    _check(lift)
     ((guard, limit),) = lift.items()
     if guard == "max_mm":
         return _with_field_bound(model, limit).model_validate(params)

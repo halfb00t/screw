@@ -523,6 +523,7 @@ def test_the_interim_bound_is_inclusive_and_the_next_value_is_refused() -> None:
 @pytest.mark.parametrize("route", ["/api/bolt/info", "/api/bolt/model.stl"])
 @pytest.mark.parametrize(("query", "kind", "fields"), [
     ({"pitch": 6}, "pitch_too_coarse", ["d", "pitch"]),
+    ({"pitch": 5.53}, "pitch_too_coarse", ["d", "pitch"]),   # root 0.0069 mm, under the floor
     ({"pitch": 1e300}, "pitch_too_coarse", ["d", "pitch"]),
     ({"length": 300, "thread_length": 300}, "turn_cap", ["thread_length", "length", "pitch"]),
     # length / pitch is past the float range: a 422, not the 500 an OverflowError gave (CR-01)
@@ -544,6 +545,25 @@ def test_a_thread_that_cannot_be_made_or_was_never_measured_is_a_422_naming_both
     assert detail["msg"].startswith(named + ": ")
 
 
+def test_a_pitch_one_float_past_the_root_floor_is_a_422_naming_d_and_pitch() -> None:
+    from screw.calc.thread import MIN_ROOT_RADIUS_MM, root_radius_refusal, thread_depth
+
+    pitch = (6.0 / 2 - MIN_ROOT_RADIUS_MM) / thread_depth(1.0)
+    while root_radius_refusal(6.0, pitch) is not None:
+        pitch = math.nextafter(pitch, 0.0)
+    while root_radius_refusal(6.0, math.nextafter(pitch, math.inf)) is None:
+        pitch = math.nextafter(pitch, math.inf)
+    # exactly at the floor: served (OPER-03, the adjacency edge); one float above: refused
+    assert client.get("/api/bolt/info", params={"pitch": pitch}).status_code == 200
+    r = client.get("/api/bolt/info", params={"pitch": math.nextafter(pitch, math.inf)})
+    assert r.status_code == 422
+    [detail] = r.json()["detail"]
+    assert detail["type"] == "pitch_too_coarse"
+    assert detail["ctx"]["fields"] == ["d", "pitch"]
+    assert detail["msg"].startswith("d and pitch: ")
+    assert "must be at least 0.01 mm" in detail["msg"]
+
+
 @pytest.mark.parametrize("route", ["/api/bolt/info", "/api/bolt/model.stl"])
 def test_a_head_no_wider_than_the_shank_is_a_422_naming_s_and_d(route: str) -> None:
     for s in (6.0, 5.0):
@@ -563,11 +583,11 @@ def test_a_head_one_ulp_wider_than_the_shank_is_served() -> None:
 
 
 def test_a_solid_the_kernel_gets_wrong_is_a_422_build_error() -> None:
-    """These parameters pass validation (positive, finite) and build one valid solid whose
-    volume is off the closed form (+9.59e-03 in the research probe); the gate turns that
+    """These parameters pass validation (a root radius of 0.0123 mm, above the 0.01 mm floor) and
+    build one valid solid whose volume is off the closed form (-1.829e-04); the gate turns that
     into a BuildError, not a served file."""
     r = client.get("/api/bolt/model.stl", params={
-        "d": 0.001, "pitch": 0.0001, "length": 0.01, "quality": "preview"})
+        "d": 0.03, "pitch": 0.005, "length": 0.05, "quality": "preview"})
     assert r.status_code == 422
     detail = r.json()["detail"][0]
     assert detail["type"] == "build_error"
@@ -1420,15 +1440,17 @@ def test_an_unreadable_s_or_k_beside_a_deep_head_chamfer_is_its_field_422_not_th
     assert details[0]["type"] != "head_chamfer_conflict"
 
 
-def test_a_head_so_small_its_width_squared_underflows_is_a_document_not_a_500() -> None:
-    # Codex review of PR #21: s = 1e-170 passes the model, and s * s == 0.0 raised
-    # ZeroDivisionError in the kernel bound. The bound is now inf, so the chamfer rows are withheld.
+def test_a_head_so_small_its_width_squared_underflows_is_a_422_naming_d_and_pitch() -> None:
+    # Codex review of PR #21: s = 1e-170 passed the model, and s * s == 0.0 raised
+    # ZeroDivisionError in the kernel bound (a 500). The root-radius floor (07 D-18) now refuses
+    # every d under 0.02 mm before a head is judged, so the request is a 422 and not a document;
+    # `head_chamfer_kernel_bound` keeps its guard, tested in test_calc.py.
     r = client.get("/api/bolt/info",
                    params={"s": "1e-170", "d": "1e-171", "pitch": "1e-172", "length": "1e-171"})
-    assert r.status_code == 200
-    body = r.json()
-    assert "head_chamfer" not in {row["key"] for row in body["rows"]}
-    assert any("may be refused as a build error" in w for w in body["warnings"])
+    assert r.status_code == 422
+    [detail] = r.json()["detail"]
+    assert detail["type"] == "pitch_too_coarse"
+    assert detail["ctx"]["fields"] == ["d", "pitch"]
 
 
 def test_a_repeated_head_chamfer_is_the_duplicate_422_not_the_conflict() -> None:

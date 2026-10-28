@@ -59,6 +59,14 @@ at the rod floor (candidate 1e-2 mm) would not hold it: every void reading at r 
 refused.
 
 ## Next step
+Plan 07-07 (L20) set the rod floor (`MIN_ROOT_RADIUS_MM`, 1e-2 mm) and applied it to the void's root
+radius as a guard only; it does not hold this item. The three nuts of walls set (e) that the 05-20
+probe named (d 2, s 4, m 3: clearance 0.05 at pitch 1.5 and 1.8, clearance 0.01 at pitch 1.5) were
+read on the runner in walls run 40646134133 (labels `nutcsk-d2-s4-m3-c0.05-p1.5`,
+`nutcsk-d2-s4-m3-c0.05-p1.8`, `nutcsk-d2-s4-m3-c0.01-p1.5`): all three `refused` by the kernel
+(`Geometry kernel failed (StdFail_NotDone)`), and the model still accepts all three (void root radii
+0.238, 0.076 and 0.198 mm, over the floor), so the item stays active.
+
 Revisit before the nut's pitch or clearance range is relied on, or together with the root-radius floor
 item, or on a request for a nut whose void root ratio r/d is near or below 0.12, or before a void
 guard is relied on. Cap the inner radius, measure the smallest void root radius that builds, and refuse below it

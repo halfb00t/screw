@@ -1350,8 +1350,9 @@ def test_a_corner_the_model_refuses_is_dropped_with_its_error_and_never_measured
 def test_every_part_point_validates_in_the_parameter_model(name: str) -> None:
     from bench import oper_lift
 
+    # Under the guards of the registration: the point files do not move with the walls L20 sets.
     for point in _parts(name):
-        oper_lift.validate(point["kind"], point["params"], point.get("lift"))
+        oper_lift.registered(point["kind"], point["params"], point.get("lift"))
 
 
 @pytest.mark.parametrize("name", SET_NAMES)
@@ -1364,7 +1365,7 @@ def test_every_dropped_combination_is_refused_by_the_model_with_the_error_it_nam
     for entry in _generated()[name]["dropped"]:
         assert set(entry) - {"lift"} == {"label", "kind", "params", "artifacts", "error"}
         with pytest.raises(ValidationError) as caught:
-            oper_lift.validate(entry["kind"], entry["params"], entry.get("lift"))
+            oper_lift.registered(entry["kind"], entry["params"], entry.get("lift"))
         assert caught.value.errors()[0]["type"] == entry["error"]
 
 

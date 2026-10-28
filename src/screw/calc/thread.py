@@ -36,6 +36,20 @@ MAX_TURNS = 250
 # the info document (D-27).
 MIN_TAIL_MM = 1e-3
 
+# The smallest root radius d/2 - 5H/8 of a rod the kernel builds, in mm (07 D-18, rule R10 of
+# `07-SWEEP-PROTOCOL.md` as ruled by G26): a kernel outer wall measured on linux/amd64 on the
+# GitHub runner, never a budget. Walls run 40646134133, group (d), the rods of the 15 L11 sizes in
+# both hands at root radii from 1e-2 down to 1e-6 mm: every rod built at 1e-2, 3e-3 and 1e-3 mm,
+# the largest failing radius F is 3e-4 mm (root-bolt-M12-right-r0.0003, one of 30 refused, the
+# other 29 built), and every rod from 3e-5 mm down was refused. The floor is the smallest power
+# of ten at or above 10 F, 1e-2 mm. Confirm run 40678150220 read all 30 rods at 1e-2 and at 3e-3
+# mm in 5 repetitions each, all ok. The nut void's root radius is held to the same number as a
+# guard and nothing more: no void was measured against it. In the void walk (run 40665307964, one
+# repetition) the kernel refused voids with root radii far above it, and where it refused grew
+# with d: an observation, no bound, kept as debt in
+# docs/tech_debt/active/2026-10-21-nut-countersink-cutter-crosses-the-axis-at-a-coarse-pitch.md.
+MIN_ROOT_RADIUS_MM = 1e-2
+
 
 def fundamental_height(pitch: float) -> float:
     """H = (sqrt(3) / 2) * P, the height of the sharp 60 degree triangle."""
@@ -276,38 +290,47 @@ def turns_of(length: float, pitch: float) -> float:
 
 
 def _largest_accepted_pitch(d: float) -> float | None:
-    """The largest pitch of at most 6 significant figures whose root radius is above 0, or None.
+    """The largest pitch of at most 6 significant figures whose root radius is at least
+    `MIN_ROOT_RADIUS_MM`, or None.
 
-    `d / (2 * thread_depth(1.0))` is the supremum, where the root radius is exactly 0 and is
-    refused; `:g` rounds to nearest, so printing it sent back a pitch the same rule refused for
-    993 of the 1999 diameters 0.1 .. 199.9 (d 1.1 printed 1.01614 against a limit of 1.016136).
-    Truncating toward zero and re-checking with the very test the refusal uses makes the printed
-    number one the user can type. Fewer digits are tried when 6 still land on the boundary, and
-    None (no number) is the answer when none does (a subnormal d), never a plausible one (L02).
+    `(d / 2 - MIN_ROOT_RADIUS_MM) / thread_depth(1.0)` is the supremum, where the root radius is
+    exactly the floor; `:g` rounds to nearest, so printing it sent back a pitch the same rule
+    refused for 993 of the 1999 diameters 0.1 .. 199.9 (d 1.1 printed 1.01614 against a limit of
+    1.016136). Truncating toward zero and re-checking with the very test the refusal uses makes
+    the printed number one the user can type. Fewer digits are tried when 6 still land on the
+    boundary, and None (no number) is the answer when none does (a d whose radius is under the
+    floor, a subnormal d), never a plausible one (L02).
     """
-    supremum = d / (2 * thread_depth(1.0))
+    supremum = (d / 2 - MIN_ROOT_RADIUS_MM) / thread_depth(1.0)
     if not (math.isfinite(supremum) and supremum > 0):
         return None
     exact = Decimal(repr(supremum))
     for figures in range(6, 0, -1):
         candidate = float(exact.quantize(Decimal(1).scaleb(exact.adjusted() - figures + 1),
                                          rounding=ROUND_DOWN))
-        if candidate > 0 and d / 2 - thread_depth(candidate) > 0:
+        if candidate > 0 and d / 2 - thread_depth(candidate) >= MIN_ROOT_RADIUS_MM:
             return candidate
     return None
 
 
-def root_radius_refusal(d: float, pitch: float) -> str | None:
-    """None when the root radius d/2 - 5H/8 is above 0; otherwise the refusal text (D-04).
+def _floor_clause() -> str:
+    return (f"must be at least {MIN_ROOT_RADIUS_MM:g} mm, the smallest root radius the kernel "
+            f"built on linux/amd64 (runs 40646134133 and 40678150220)")
 
-    At 0 or below the root flat crosses the axis and the section is not a simple outline the
-    kernel can sweep. No braces in the text: pydantic formats a custom error from its context.
+
+def root_radius_refusal(d: float, pitch: float) -> str | None:
+    """None when the root radius d/2 - 5H/8 is at least `MIN_ROOT_RADIUS_MM`; otherwise the
+    refusal text (D-04, D-18).
+
+    Below the floor the kernel refuses the rod (`StdFail_NotDone`, or a tip cut that leaves no
+    solid), and at or below zero the root flat crosses the axis and the section is not a simple
+    outline at all. No braces in the text: pydantic formats a custom error from its context.
     """
     root = d / 2 - thread_depth(pitch)
-    if root > 0:
+    if root >= MIN_ROOT_RADIUS_MM:
         return None
     text = (f"d and pitch: the root radius d/2 - 5H/8 of the ISO 68-1:2023 basic profile is "
-            f"{root:g} mm at d {d:g} and pitch {pitch:g}, and must be above 0")
+            f"{root:g} mm at d {d:g} and pitch {pitch:g}, and {_floor_clause()}")
     largest = _largest_accepted_pitch(d)
     if largest is None:
         return text
@@ -329,20 +352,22 @@ def turn_cap_refusal(t: float, pitch: float) -> str | None:
 
 
 def void_root_radius_refusal(d: float, pitch: float, clearance: float) -> str | None:
-    """None when the nut void's root radius d/2 - 5H/8 + clearance is above 0; else the text (D-04).
+    """None when the nut void's root radius d/2 - 5H/8 + clearance is at least
+    `MIN_ROOT_RADIUS_MM`; else the text (D-04, D-18).
 
     The nut's void grows by the clearance on both radii (L11 `section_radius`), so the rule the
     rod uses (`root_radius_refusal`, no clearance) is wrong for it: it refuses a nut a positive
     clearance would make and accepts one a negative clearance would push through the axis. The
-    text begins `d, pitch and clearance: `. No braces: pydantic formats a custom error from its
-    context.
+    floor is the rod's, applied here as a guard: it was measured on rods, and the kernel refuses
+    voids well above it. The text begins `d, pitch and clearance: `. No braces: pydantic formats a
+    custom error from its context.
     """
     root = d / 2 - thread_depth(pitch) + clearance
-    if root > 0:
+    if root >= MIN_ROOT_RADIUS_MM:
         return None
     return (f"d, pitch and clearance: the void's root radius d/2 - 5H/8 + clearance of the "
             f"ISO 68-1:2023 basic profile is {root:g} mm at d {d:g}, pitch {pitch:g} and "
-            f"clearance {clearance:g}, and must be above 0")
+            f"clearance {clearance:g}, and {_floor_clause()}")
 
 
 def nut_turn_cap_refusal(m: float, pitch: float) -> str | None:
@@ -981,9 +1006,10 @@ def head_chamfer_kernel_bound(s: float, k: float) -> float:
     Kernel-free, from the head's own fields; an angle at or above it builds on both measured
     platforms. `derive` withholds the chamfer rows and the volume below it (for an angle above 0).
     """
-    # k / s / s, not k / (s * s): the model accepts s = 1e-170, whose square underflows to 0.0
-    # and raised ZeroDivisionError (a 500 on /api/bolt/info); this form overflows to inf instead,
-    # which withholds the rows as any angle below the bound does.
+    # k / s / s, not k / (s * s): the model once accepted s = 1e-170 (the root-radius floor now
+    # refuses it), whose square underflows to 0.0 and raised ZeroDivisionError (a 500 on
+    # /api/bolt/info); this form overflows to inf instead, which withholds the rows as any angle
+    # below the bound does.
     return max(HEAD_CHAMFER_KERNEL_FLOOR_DEG, HEAD_CHAMFER_KERNEL_SLOPE * k / s / s)
 
 
