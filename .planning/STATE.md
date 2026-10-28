@@ -4,10 +4,10 @@ current_phase: 07
 current_phase_name: Operability Re-sweep
 status: executing
 stopped_at: 07-05 halted at R10 owner stop (Task 3 step 3); SUMMARY status checkpoint
-last_updated: "2026-10-28T08:14:31.126Z"
+last_updated: "2026-10-28T09:52:53.355Z"
 last_activity: 2026-10-28
 last_activity_desc: Phase 07 execution started
-state_head: d4233bccca1434704df85adbdd0f1958383c9b06
+state_head: e80cdeb0ececd2359dc0647cf960236e9bf55e34
 progress:
   total_phases: 8
   completed_phases: 7
@@ -333,6 +333,7 @@ None yet.
 | 261020-dpw | Source Phase 5 table values from free GOST equivalents (L14); ISO purchase deferred as debt | 2026-10-20 | e738d17 | [261020-dpw-record-the-free-gost-source-decision-for](./quick/261020-dpw-record-the-free-gost-source-decision-for/) |
 | 261027-va3 | amend 07-SWEEP-PROTOCOL.md with G15-G21 from 07-GAP-RULINGS.md, pin each in tests/test_oper.py (plus G22, G23; on branch gsd/phase-07-preregistration-a3) | 2026-10-27 | 2777bb7 | [261027-va3-amend-07-sweep-protocol-md-with-g15-g21-](./quick/261027-va3-amend-07-sweep-protocol-md-with-g15-g21-/) |
 | 9 | G24: charge R19 gzip and R23 arena readings their deadline in R6 (PR A4 #25), ruling and 07-15 updated | 2026-10-28 | 691078f | — |
+| 261028-l2l | G25: walk nut voids at 3e-2..1 mm (run 40665307964); second R10 stop, owner ruling pending | 2026-10-28 | e80cdeb | [261028-l2l-g25-walk-nut-voids-at-3e-2-1-mm-amend-r1](./quick/261028-l2l-g25-walk-nut-voids-at-3e-2-1-mm-amend-r1/) |
 
 ### Roadmap Evolution
 
