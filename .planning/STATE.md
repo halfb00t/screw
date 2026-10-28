@@ -3,17 +3,17 @@ gsd_state_version: "1.0"
 current_phase: 07
 current_phase_name: Operability Re-sweep
 status: executing
-stopped_at: Completed 07-05-PLAN.md
-last_updated: "2026-10-28T11:55:18.291Z"
+stopped_at: Completed 07-07-PLAN.md
+last_updated: "2026-10-28T13:16:39.657Z"
 last_activity: 2026-10-28
 last_activity_desc: Phase 07 execution started
-state_head: b23bbf6b5a0a0e6fd0aedfa6ef8b22b0e17cce6a
+state_head: d65d3ab4f444eb612f74459e8f6f4fe117a8ffb9
 progress:
   total_phases: 8
   completed_phases: 7
   total_plans: 103
-  completed_plans: 87
-  percent: 84
+  completed_plans: 88
+  percent: 85
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-10-25)
 ## Current Position
 
 Phase: 07 (Operability Re-sweep) — EXECUTING
-Plan: 6 of 21
+Plan: 7 of 21
 Status: Ready to execute
 Last activity: 2026-10-28 — Plan 07-05 complete (Runs I recorded)
 
-Progress: [████████░░] 84%
+Progress: [█████████░] 85%
 
 ## Performance Metrics
 
@@ -149,6 +149,7 @@ Progress: [████████░░] 84%
 | Phase 07 P03 | 39 min | 3 tasks | 12 files |
 | Phase 07 P04 | multi-session | 2 tasks | 8 files |
 | Phase 07 P05 | 1h 40m | 3 tasks | 14 files |
+| Phase 07 P07 | 2 sessions | 3 tasks | 28 files |
 
 ## Accumulated Context
 
@@ -301,6 +302,7 @@ Recent decisions affecting current work:
 - [Phase 07]: 07-03: the fourth recorded corner (d 1e5) is in explore.json dropped, not measured; the protocol defines the cold wall as build_s + export_s — s must exceed d and is bounded by 1e5 so no such bolt exists; R5, R12 and R14 need one wall definition fixed before any reading
 - [Phase 07]: 07-04: PR A landed as squash 9dea01e; rules R1-R30 frozen; owner rulings on R23 drift run, edge ranking by seconds, next-best edge, full-timeout charge for non-ok tier points
 - [Phase 07]: 07-05: R10 takes MIN_ROOT_RADIUS_MM from the rods only (G26); T = 90, MIN_TAIL_MM 1e-4 and MIN_ROOT_RADIUS_MM 1e-2 confirmed at 5 reps; the nut d ceiling at 1e3 mm read capped in 5 of 5 and awaits the owner before 07-07 — R3 confirm run 40678150220; a capped reading is cost and cannot raise a wall (R8)
+- [Phase 07]: L20: MAX_TURNS 90, MAX_FIELD_MM 1000 with per-field exceptions, MIN_TAIL_MM 1e-4, MIN_ROOT_RADIUS_MM 0.01; nut d has no wall constant (G27)
 
 ### Pending Todos
 
@@ -353,6 +355,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-28T11:55:18.046Z
-Stopped at: Completed 07-05-PLAN.md
+Last session: 2026-10-28T13:16:39.407Z
+Stopped at: Completed 07-07-PLAN.md
 Resume file: None

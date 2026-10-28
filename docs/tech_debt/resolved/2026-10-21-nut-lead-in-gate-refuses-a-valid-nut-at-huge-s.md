@@ -3,7 +3,7 @@
 Severity: must
 Status: resolved
 Date: 2026-10-21
-Resolved in: this commit, `feat(calc): re-measured MAX_TURNS, MIN_TAIL_MM and field ceilings as cited kernel walls (07 D-08)` (`git log --grep` finds the sha)
+Resolved in: a804806, `feat(calc): re-measured MAX_TURNS, MIN_TAIL_MM and field ceilings as cited kernel walls (07 D-08)`
 Source: plan 05-19, Task 2, the run `2026-10-20-nut-fine-caps` (46 refused check rows) and ruling R17 in `.planning/phases/05-hex-nut-and-kernel-pair-proof/05-OWNER-READS.md`
 Related files:
 - src/screw/solid/__init__.py (the piece gate that raises `BuildError: Geometry kernel produced the wrong ...`, line 150)

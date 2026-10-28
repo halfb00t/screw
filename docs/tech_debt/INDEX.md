@@ -16,6 +16,7 @@ Severity (grep-able `Severity:` field):
 
 | Severity | Item | Trigger to revisit |
 |---|---|---|
+| nice | [The shank-fold warning prints its numbers with :g, so a value near the 0.0001 mm line can read as the wrong side of it](active/2026-10-28-shank-fold-warning-rounds-the-numbers-it-compares.md) | the next change to the warning texts |
 | must | [The queued-request timeout test flakes under full-suite load](active/2026-10-28-queued-request-timeout-test-flakes-under-full-suite-load.md) | its next failure (capture the assertion), or before phase 7 closes |
 | must | [No test holds that a nut outside the measured range is still a 200 from the API](active/2026-10-24-measured-range-nut-api-200-untested.md) | the next edit to the nut warnings, or before the first release (after Phase 7) |
 | must | [The nut's countersink cutter ends at a negative radius at a coarse pitch and the kernel refuses a valid nut](active/2026-10-21-nut-countersink-cutter-crosses-the-axis-at-a-coarse-pitch.md) | before the nut's pitch or clearance range is relied on, with the root-radius floor item, on a request for a nut whose void root ratio r/d is near or below 0.12, or before a void guard is relied on |
@@ -40,8 +41,8 @@ Severity (grep-able `Severity:` field):
 
 | Item | Resolved in |
 |---|---|
-| [The nut's lead-in countersink piece gate refuses a valid nut at huge s and small clearance](resolved/2026-10-21-nut-lead-in-gate-refuses-a-valid-nut-at-huge-s.md) | this commit — feat(calc): re-measured MAX_TURNS, MIN_TAIL_MM and field ceilings as cited kernel walls (07 D-08) |
-| [Root radii down to about 3e-5 mm pass validation and then fail in the kernel with a generic message](resolved/2026-10-11-root-radius-floor-is-not-the-kernel-boundary.md) | this commit — feat(calc): refuse a root radius below the measured kernel floor (07 D-18) |
+| [The nut's lead-in countersink piece gate refuses a valid nut at huge s and small clearance](resolved/2026-10-21-nut-lead-in-gate-refuses-a-valid-nut-at-huge-s.md) | a804806 — feat(calc): re-measured MAX_TURNS, MIN_TAIL_MM and field ceilings as cited kernel walls (07 D-08) |
+| [Root radii down to about 3e-5 mm pass validation and then fail in the kernel with a generic message](resolved/2026-10-11-root-radius-floor-is-not-the-kernel-boundary.md) | 683a434 — feat(calc): refuse a root radius below the measured kernel floor (07 D-18) |
 | [The info document prints a whole head chamfer for a tiny angle the kernel refuses](resolved/2026-10-24-info-document-cannot-see-a-kernel-refused-head-chamfer.md) | this commit — fix(06.1): warn below the measured limit of the head chamfer instead of printing its rows |
 | [The nut has no fine-STL cap: its caps need their own measurement run](resolved/2026-10-14-nut-fine-stl-caps-unmeasured.md) | this commit — fix(05-19): refuse a nut's fine STL past its measured cap (plan 05-19) |
 | [The web page rounds every displayed number in the browser](resolved/2026-10-06-ui-rounds-displayed-numbers.md) | this commit — fix(ui): show the API's numbers unrounded, with the designation, groups and notes (plan 04-13) |

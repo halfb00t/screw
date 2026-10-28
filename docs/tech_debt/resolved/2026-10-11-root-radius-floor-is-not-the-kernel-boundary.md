@@ -3,7 +3,7 @@
 Severity: must
 Status: resolved
 Date: 2026-10-11
-Resolved in: this commit, `feat(calc): refuse a root radius below the measured kernel floor (07 D-18)` (`git log --grep` finds the sha)
+Resolved in: 683a434, `feat(calc): refuse a root radius below the measured kernel floor (07 D-18)`
 Source: Phase 3 code review (03-REVIEW.md WR-04), deferred by the owner on 2026-10-10; needs a measurement and an INTERIM bound
 Related files:
 - src/screw/calc/thread.py (`root_radius_refusal`)
