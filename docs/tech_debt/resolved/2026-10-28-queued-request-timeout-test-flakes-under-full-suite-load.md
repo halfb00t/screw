@@ -1,8 +1,9 @@
 # The queued-request timeout test flakes under full-suite load
 
 Severity: must
-Status: active
+Status: resolved
 Date: 2026-10-28
+Resolved in: this commit — `test(pool): give the queued-request timeout test twice the slack under load`
 Source: phase 7 execution (plan 07-05 and quick task 261028-mt2). The pre-commit `make verify` failed on this test twice and passed on the retry each time.
 Related files:
 - tests/test_pool.py:591
@@ -42,3 +43,19 @@ Then widen the headroom without losing what the test proves. The test needs
 `timeout / 2 < build < timeout`, so that two queued builds pass the timeout together while each
 fits alone. Slack only grows if both numbers are scaled up: for example, builds of 1.2 s under a
 2.0 s timeout give 0.8 s of slack and cost about 1.2 s more test time. Revisit at the next failure, or before phase 7 closes.
+
+## Resolution
+The owner chose to fix it now (2026-10-28), after the fourth failure that day: on the 07-17 plan
+amendment commit, which passed on the retry. The test now builds for 1.2 s twice under a 2.0 s
+timeout and asserts a wall time above 2.0 s. It still holds `timeout / 2 < build < timeout`
+(1.0 < 1.2 < 2.0). The first build has 0.8 s of slack against its own clock, up from 0.4 s, for
+about 1.2 s more test time.
+
+Checked before the commit:
+- The test passed 3 of 3 runs alone.
+- With the queue-aware sum removed from `_run_with_timeout` in `src/screw/pool.py`
+  (`deadline = timeout`), the test fails on `assert results == [b"", b""]`: the second request
+  ends as `BuildTimeout`. So the test still proves D-14.
+
+Not proven: that 0.8 s of slack holds under every load. If the test fails again, reopen this
+item with the captured assertion.

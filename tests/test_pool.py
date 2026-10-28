@@ -589,10 +589,15 @@ def test_two_same_slot_timeouts_in_one_incident_end_as_build_timeout_not_attribu
 
 
 def test_a_request_queued_behind_a_build_keeps_its_own_full_timeout() -> None:
-    """Two same-slot requests that each build for 0.6 s under a 1.0 s timeout both return,
-    although the second one's wall time (about 1.2 s) passes 1.0 s: it waited 0.6 s behind
+    """Two same-slot requests that each build for 1.2 s under a 2.0 s timeout both return,
+    although the second one's wall time (about 2.4 s) passes 2.0 s: it waited 1.2 s behind
     the first and its clock did not run for that wait (D-14). Before the queue-aware deadline
-    the second was killed at 1.0 s, 0.4 s into its own build.
+    the second was killed at 2.0 s, 0.8 s into its own build.
+
+    The test needs timeout / 2 < build < timeout: each build fits its own timeout, and the
+    two together pass it. At 0.6 s under 1.0 s the first build's 0.4 s of slack ran out
+    under the full suite's load and it timed out on its own build (failed four times on
+    2026-10-28); scaling both doubles the slack to 0.8 s for about 1.2 s more test time.
     """
     with TestClient(app):
         pool = app.state.pool
@@ -603,9 +608,9 @@ def test_a_request_queued_behind_a_build_keeps_its_own_full_timeout() -> None:
         async def _drive() -> tuple[list[object], float]:
             start = time.monotonic()
             first = asyncio.create_task(
-                pool._run_with_timeout(params, 1.0, _sleep_past_timeout, 0.6))
+                pool._run_with_timeout(params, 2.0, _sleep_past_timeout, 1.2))
             second = asyncio.create_task(
-                pool._run_with_timeout(params, 1.0, _sleep_past_timeout, 0.6))
+                pool._run_with_timeout(params, 2.0, _sleep_past_timeout, 1.2))
             results = cast(list[object], await asyncio.gather(
                 first, second, return_exceptions=True))
             return results, time.monotonic() - start
@@ -613,7 +618,7 @@ def test_a_request_queued_behind_a_build_keeps_its_own_full_timeout() -> None:
         results, wall = asyncio.run(_drive())
 
         assert results == [b"", b""]
-        assert wall > 1.0
+        assert wall > 2.0
 
 
 def test_a_request_with_nothing_ahead_times_out_at_its_own_timeout() -> None:
