@@ -538,3 +538,16 @@ def test_the_api_and_the_cli_serve_the_same_capped_part_warning_and_file_name(
     assert [f.name for f in tmp_path.iterdir()] == [api_name.group(1)]
     assert f"warning: {warning}\n" in capsys.readouterr().err
     assert built == [capped, capped]
+
+
+def test_a_preview_can_be_refused_while_the_fine_stl_is_admitted() -> None:
+    # L21, G28 reply 3 ("Accept, note it in L21"): each artifact has its own fit and budget, so
+    # ISO 4017 M20 x 60 at pitch 1 loses its preview and keeps its fine STL and STEP. A preset's
+    # fields are given, so B-03 never caps it.
+    from screw.calc.presets import expand
+
+    row = expand("bolt", "iso4017:M20x60")
+    assert row is not None
+    part = BoltParams.model_validate({**row, "pitch": 1.0})
+    assert [a for a in ARTIFACTS if cost.fits(part, a)] == ["stl-fine", "step"]
+    assert cost.cap_defaults(part, frozenset({*row, "pitch"})) == (part, ())
