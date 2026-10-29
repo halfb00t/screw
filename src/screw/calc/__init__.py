@@ -15,6 +15,8 @@ from typing import Literal, NamedTuple
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from screw.calc import cost
+from screw.calc.cost import artifact_of
 from screw.calc.printability import measured_range_warning, printability_warning
 from screw.calc.thread import (
     MIN_TAIL_MM,
@@ -25,7 +27,6 @@ from screw.calc.thread import (
     built_thread_length,
     end_depths,
     fillet_radius,
-    fine_stl_refusal,
     flank_normal_gap,
     head_chamfer_conflict,
     head_chamfer_depths,
@@ -530,9 +531,9 @@ def download_refusal(p: FastenerParams, fmt: str, quality: str) -> str | None:
     TypeError, whatever `fmt` and `quality` say, so the registry test catches it.
     """
     if isinstance(p, BoltParams):
+        # The bolt's fine STL is judged against its measured budget (D-05, L21).
         if fmt == "stl" and quality == "fine":
-            return fine_stl_refusal(
-                p.d, p.pitch, built_thread_length(p.thread_length, p.length), p.left_hand)
+            return cost.refusal(p, artifact_of(fmt, quality))
         return None
     if isinstance(p, NutParams):
         # The nut's own caps (run 2026-10-21-nut-fine-caps-amended, R16 and R17), never the rods'.

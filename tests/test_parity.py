@@ -27,7 +27,7 @@ from pydantic_core import PydanticUndefined
 
 from screw import cli
 from screw.app import STATIC, app, build_backend
-from screw.calc import STANDING_WARNING, derive, download_name
+from screw.calc import STANDING_WARNING, cost, derive, download_name
 from screw.calc.presets import expand
 from screw.params import DEFAULT_KIND, KINDS, BoltParams, FastenerParams
 from screw.solid import Format, Quality, export
@@ -431,20 +431,23 @@ def test_the_limits_heading_is_the_same_ascii_string_on_the_cli_and_the_api(
         assert heading in {r["group"] for r in api.json()["rows"]}
 
 
-def test_the_downloads_of_iso_4017_m8_x_70_are_one_sentence_on_the_cli_the_api_and_export(
+def test_the_downloads_of_a_refused_preset_part_are_one_sentence_on_the_cli_the_api_and_export(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     # G-04-3, FRNT-05: the document, the model route and `screw export` read one rule, so the
-    # entry the document refuses is the 422 the route answers and the line export prints.
-    row = expand("bolt", "iso4017:M8x70")
+    # entry the document refuses is the 422 the route answers and the line export prints. B-01
+    # refuses no catalogue row, so the part is ISO 4017 M20 x 70 at pitch 1 (70 turns), which
+    # the cost model refuses (L21); an R12 widening only refuses more.
+    row = expand("bolt", "iso4017:M20x70")
     assert row is not None
-    fields: Params = {**row}
-    cli.main(["info", "bolt", "--preset", "iso4017:M8x70"])
+    fields: Params = {**row, "pitch": 1}
+    cli.main(["info", "bolt", "--preset", "iso4017:M20x70", "--pitch", "1"])
     cli_downloads = json.loads(capsys.readouterr().out)["downloads"]
     api_downloads = client.get("/api/bolt/info", params=fields).json()["downloads"]
     assert cli_downloads == api_downloads
-    (refused,) = [e for e in api_downloads if e["refusal"] is not None]
+    refused = api_downloads[0]
     assert (refused["format"], refused["quality"]) == ("stl", "fine")
-    assert refused["refusal"].startswith("thread_length and length: ")
+    assert refused["refusal"] == cost.refusal(BoltParams.model_validate(fields), "stl-fine")
+    assert refused["refusal"].startswith("d, pitch, length, s, k and thread_length: ")
 
     route = client.get("/api/bolt/model.stl", params=fields)   # quality defaults to fine
     assert route.status_code == 422
@@ -453,7 +456,8 @@ def test_the_downloads_of_iso_4017_m8_x_70_are_one_sentence_on_the_cli_the_api_a
 
     out = tmp_path / "x.stl"
     with pytest.raises(SystemExit) as stop:
-        cli.main(["export", "bolt", "--preset", "iso4017:M8x70", "-o", str(out)])
+        cli.main(["export", "bolt", "--preset", "iso4017:M20x70", "--pitch", "1", "-o",
+                  str(out)])
     assert stop.value.code == 2
     assert capsys.readouterr().err == f"error: {refused['refusal']}\n"
     assert not out.exists()
@@ -819,14 +823,14 @@ def test_the_download_labels_are_static_and_the_refused_fine_stl_reads_download_
     assert set(labels) == set(fmt_param["schema"]["enum"])
     assert labels == {"stl": "Download STL", "step": "Download STEP"}
 
-    row = expand("bolt", "iso4017:M8x70")
-    assert row is not None
-    fields: Params = {**row}
-    capped = client.get("/api/bolt/info", params=fields).json()["downloads"]
-    assert _links_by_rule_17(labels, capped) == {
-        "stl": "Download STL (preview)", "step": "Download STEP"}
+    # The all-default part refuses nothing (OPER-03's empty edge); a refused fine STL is
+    # written into its document, so the rule is read without pinning another part's outcome.
     served = client.get("/api/bolt/info").json()["downloads"]
     assert _links_by_rule_17(labels, served) == labels
+    capped = [{**e, "refusal": "x"} if (e["format"], e["quality"]) == ("stl", "fine") else e
+              for e in served]
+    assert _links_by_rule_17(labels, capped) == {
+        "stl": "Download STL (preview)", "step": "Download STEP"}
     # A format whose every entry is refused has no link: the page keeps it disabled.
     assert _links_by_rule_17(labels, [{**e, "refusal": "x"} for e in capped
                                       if e["format"] == "stl"]) == {}

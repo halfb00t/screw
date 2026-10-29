@@ -17,7 +17,7 @@ import pytest
 from pydantic import Field
 
 from screw import __version__, cli
-from screw.calc import derive, download_refusal
+from screw.calc import cost, derive, download_refusal
 from screw.params import KINDS, BoltParams, FastenerParams
 
 WARNING = ("warning: ends modelled per L15 and L19: bolt tip chamfer, hex head chamfer, "
@@ -349,16 +349,23 @@ def test_readme_cli_examples_run(tmp_path: Path, capsys: pytest.CaptureFixture[s
             assert json.loads(capsys.readouterr().out)["kind"] == "bolt"
 
 
-CAPPED = ["--d", "8", "--pitch", "1.25", "--length", "67.6", "--thread-length", "67.6"]
+# The explore point `bolt-d30-p1-n30-right`, which 07-BUDGET-TABLE.md lists as refused at stl-fine
+# under C1 (B-01; run 40646117094). An R12 widening only refuses more, so it stays refused.
+OVER = ["--d", "30", "--pitch", "1", "--length", "30", "--thread-length", "30", "--s", "48",
+        "--k", "18"]
+OVER_PART = BoltParams(d=30.0, pitch=1.0, length=30.0, thread_length=30.0, s=48.0, k=18.0)
 
 
-def test_a_fine_stl_l11_measured_over_budget_exits_2_and_writes_nothing(
+def test_a_fine_stl_over_its_budget_exits_2_and_writes_nothing(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     out = tmp_path / "x.stl"
-    assert _exit_code(["export", "bolt", *CAPPED, "-o", str(out)]) == 2
+    refusal = cost.refusal(OVER_PART, "stl-fine")
+    assert refusal is not None
+    assert _exit_code(["export", "bolt", *OVER, "-o", str(out)]) == 2
     err = capsys.readouterr().err
-    assert "error: thread_length and length:" in err
-    assert "2026-10-08-a-grid" in err
+    assert err == f"error: {refusal}\n"
+    assert err.startswith("error: d, pitch, length, s, k and thread_length: ")
+    assert "L21" in err
     assert not out.exists()
 
 
@@ -374,51 +381,55 @@ def test_a_nut_fine_stl_past_its_measured_cap_exits_2_and_writes_nothing(
     assert not out.exists()
 
 
-def test_the_same_part_is_exported_as_a_step_and_as_a_preview_stl(tmp_path: Path) -> None:
-    step = tmp_path / "x.step"
-    cli.main(["export", "bolt", *CAPPED, "-o", str(step)])
-    assert step.read_bytes().startswith(b"ISO-10303-21;")
-    stl = tmp_path / "x.stl"
-    cli.main(["export", "bolt", *CAPPED, "-o", str(stl), "--quality", "preview"])
-    assert len(stl.read_bytes()) > 84
+@pytest.mark.parametrize(("suffix", "quality"), [
+    ("stl", "fine"), ("stl", "preview"), ("step", "fine"), ("step", "preview")])
+def test_each_download_of_a_refused_part_is_judged_on_its_own(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch,
+        suffix: str, quality: str) -> None:
+    """A refusal is per artifact (D-06): the export exits 2 exactly where the shared rule refuses.
+
+    The kernel is stubbed, so only the rule is under test, not a d 30 build.
+    """
+    monkeypatch.setattr("screw.solid.export", lambda p, fmt, q: b"solid")
+    out = tmp_path / f"x.{suffix}"
+    refusal = download_refusal(OVER_PART, suffix, quality)
+    argv = ["export", "bolt", *OVER, "-o", str(out), "--quality", quality]
+    capsys.readouterr()
+    if refusal is None:
+        cli.main(argv)
+        assert out.read_bytes() == b"solid"
+    else:
+        assert _exit_code(argv) == 2
+        assert capsys.readouterr().err == f"error: {refusal}\n"
+        assert not out.exists()
 
 
 def test_the_over_budget_fine_stl_exits_2_from_the_real_process(tmp_path: Path) -> None:
     """Like a bad parameter, not a build failure (exit 1): the shell sees the same code."""
     out = tmp_path / "x.stl"
     result = subprocess.run(
-        [sys.executable, "-m", "screw.cli", "export", "bolt", *CAPPED, "-o", str(out)],
+        [sys.executable, "-m", "screw.cli", "export", "bolt", *OVER, "-o", str(out)],
         capture_output=True, text=True, check=False)
     assert result.returncode == 2
-    assert "error: thread_length and length:" in result.stderr
+    assert result.stderr == f"error: {cost.refusal(OVER_PART, 'stl-fine')}\n"
     assert not out.exists()
 
 
-def test_the_left_hand_part_l11_measured_inside_the_budget_is_not_refused(
+def test_either_hand_of_m10_x_60_is_judged_by_the_shared_rule(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """D-21: M10 x 60 is over the budget right-hand and inside it left-hand.
+    """D-21: the hand is a feature of the cost model, so each hand reads its own outcome.
 
-    A real fine export of the left-hand part would write a large STL, so its side is asked of the
-    rule `screw export` shares with the API; the right-hand side is the real command.
+    A real fine export would write a large STL, so the outcome is asked of the rule `screw export`
+    shares with the API, and the command is held to it.
     """
     mirror = ["--d", "10", "--pitch", "1.5", "--length", "60", "--thread-length", "60", "--s", "16",
               "--k", "6.4"]
-    left = BoltParams(d=10.0, pitch=1.5, length=60.0, thread_length=60.0, left_hand=True, s=16.0,
-                      k=6.4)
-    assert download_refusal(left, "stl", "fine") is None
-    cli.main(["info", "bolt", *mirror, "--left-hand"])
-    assert json.loads(capsys.readouterr().out)["warnings"] == [derive(left).warnings[0]]
-
-    cli.main(["info", "bolt", *mirror])
-    warnings = json.loads(capsys.readouterr().out)["warnings"]
-    assert len(warnings) == 2
-    assert warnings[1].startswith("thread_length and length: ")
-    assert "right-hand" in warnings[1]
-
-    out = tmp_path / "x.stl"
-    assert _exit_code(["export", "bolt", *mirror, "-o", str(out)]) == 2
-    assert "error: thread_length and length:" in capsys.readouterr().err
-    assert not out.exists()
+    for hand in ([], ["--left-hand"]):
+        p = BoltParams(d=10.0, pitch=1.5, length=60.0, thread_length=60.0, left_hand=bool(hand),
+                       s=16.0, k=6.4)
+        assert download_refusal(p, "stl", "fine") == cost.refusal(p, "stl-fine")
+        cli.main(["info", "bolt", *mirror, *hand])
+        assert json.loads(capsys.readouterr().out)["warnings"] == derive(p).warnings
 
 
 def test_an_explicit_thread_length_above_an_explicit_length_exits_2_naming_both(

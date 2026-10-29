@@ -29,9 +29,9 @@ from fastapi.testclient import TestClient
 from screw import app as app_module
 from screw.app import app, build_backend
 from screw.build_errors import BuildError, BuildTimeout
-from screw.calc import STANDING_WARNING
+from screw.calc import STANDING_WARNING, download_refusal
+from screw.calc import cost as cost_model
 from screw.calc.cost import BUILD_TIMEOUT_S, Artifact
-from screw.calc.presets import expand
 from screw.calc.thread import (
     T_GATE,
     bolt_end_closed_volume,
@@ -1177,10 +1177,18 @@ def test_a_failed_export_is_a_422_and_never_enters_the_bytes_cache(
     assert app_module._EXPORTS.get(key) is not None
 
 
-CAPPED: Params = {"d": 8, "pitch": 1.25, "length": 67.6, "thread_length": 67.6}
+# The explore point `bolt-d30-p1-n30-right`, which 07-BUDGET-TABLE.md lists as refused at stl-fine
+# under C1 (B-01; run 40646117094). An R12 widening only refuses more, so it stays refused.
+OVER: Params = {"d": 30, "pitch": 1, "length": 30, "thread_length": 30, "s": 48, "k": 18}
+OVER_PART = BoltParams.model_validate(OVER)
 
 
-def test_a_fine_stl_l11_measured_over_budget_is_a_422_and_never_reaches_the_backend() -> None:
+def _status(p: FastenerParams, fmt: str, quality: str) -> int:
+    """The status the shared rule gives a download that reaches a stub backend."""
+    return 200 if download_refusal(p, fmt, quality) is None else 422
+
+
+def test_a_fine_stl_over_its_budget_is_a_422_and_never_reaches_the_backend() -> None:
     """D-02: refused before the bytes cache, the admission slot and the pool."""
     calls = 0
 
@@ -1190,14 +1198,14 @@ def test_a_fine_stl_l11_measured_over_budget_is_a_422_and_never_reaches_the_back
         return b"never served"
 
     with _backend(counting_backend):
-        r = client.get("/api/bolt/model.stl", params=CAPPED)    # quality defaults to fine
+        r = client.get("/api/bolt/model.stl", params=OVER)    # quality defaults to fine
     assert r.status_code == 422
     (detail,) = r.json()["detail"]
     assert detail["type"] == "fine_stl_cap"
     assert detail["loc"] == ["query"]
-    for fragment in ("thread_length and length", "right-hand", "67.5", "54",
-                     "fine STL plus its gzip copy", "64 MiB export budget", "2026-10-08-a-grid"):
-        assert fragment in detail["msg"]
+    assert detail["msg"] == cost_model.refusal(OVER_PART, "stl-fine")
+    assert detail["msg"].startswith("d, pitch, length, s, k and thread_length: ")
+    assert "L21" in detail["msg"]
     assert calls == 0
 
 
@@ -1229,45 +1237,56 @@ def test_a_nut_fine_stl_past_its_measured_cap_is_a_422_and_never_reaches_the_bac
         assert calls == 1
 
 
-def test_the_same_part_is_served_on_the_preview_stl_the_step_and_the_info_route() -> None:
-    preview = client.get("/api/bolt/model.stl", params={**CAPPED, "quality": "preview"})
-    assert preview.status_code == 200
-    step = client.get("/api/bolt/model.step", params=CAPPED)
-    assert step.status_code == 200
-    assert step.content.startswith(b"ISO-10303-21;")
-    assert client.get("/api/bolt/info", params=CAPPED).status_code == 200
+def test_each_download_of_a_refused_part_is_judged_on_its_own_and_its_info_is_served() -> None:
+    """A refusal is per artifact (D-06); a stub stands in for the kernel, so only the rule runs.
+
+    The left hand of OVER, `bolt-d30-p1-n30-left`, also refused at stl-fine in the same table:
+    the byte cache is session-wide, and OVER's own stub bytes would answer the document test.
+    """
+    async def stub(p: FastenerParams, fmt: str, quality: str) -> bytes:
+        return b"stub"
+
+    left: Params = {**OVER, "left_hand": "true"}
+    part = OVER_PART.model_copy(update={"left_hand": True})
+    assert cost_model.refusal(part, "stl-fine") is not None
+    with _backend(stub):
+        for fmt, quality in (("stl", "preview"), ("step", "fine"), ("step", "preview")):
+            r = client.get(f"/api/bolt/model.{fmt}", params={**left, "quality": quality})
+            assert r.status_code == _status(part, fmt, quality), (fmt, quality)
+    assert client.get("/api/bolt/info", params=left).status_code == 200
 
 
-def test_the_cap_itself_and_an_off_row_part_reach_the_backend_as_asked() -> None:
+def test_a_part_the_rule_admits_reaches_the_backend_as_asked() -> None:
     seen: list[FastenerParams] = []
 
     async def stub(p: FastenerParams, fmt: str, quality: str) -> bytes:
         seen.append(p)
         return b"stub"
 
+    asked: list[Params] = [
+        {"d": 8, "pitch": 1.25, "length": 67.5, "thread_length": 67.5},
+        {"d": 8, "pitch": 1, "length": 100},
+        # D-22: the rule reads the built thread, 60 mm of this 100 mm bolt.
+        {"d": 8, "pitch": 1.25, "length": 100, "thread_length": 60}]
+    parts = [BoltParams.model_validate(q) for q in asked]
     with _backend(stub):
-        at_cap = client.get("/api/bolt/model.stl", params={
-            **CAPPED, "length": 67.5, "thread_length": 67.5})
-        off_row = client.get("/api/bolt/model.stl", params={"d": 8, "pitch": 1, "length": 100})
-        # D-22: the cap reads the thread; 100 mm of bolt with 60 mm of it is inside 67.5.
-        short_thread = client.get("/api/bolt/model.stl", params={
-            "d": 8, "pitch": 1.25, "length": 100, "thread_length": 60})
-    assert at_cap.status_code == off_row.status_code == short_thread.status_code == 200
+        for query, p in zip(asked, parts, strict=True):
+            r = client.get("/api/bolt/model.stl", params=query)
+            assert r.status_code == _status(p, "stl", "fine"), query
+    admitted = [p for p in parts if download_refusal(p, "stl", "fine") is None]
     bolts = [p for p in seen if isinstance(p, BoltParams)]
     assert [(p.d, p.pitch, p.length, p.thread_length) for p in bolts] == [
-        (8.0, 1.25, 67.5, 67.5), (8.0, 1.0, 100.0, 20.0), (8.0, 1.25, 100.0, 60.0)]
+        (p.d, p.pitch, p.length, p.thread_length) for p in admitted]
     assert len(bolts) == len(seen)
 
 
 def test_every_download_the_document_lists_is_answered_by_the_route_as_it_says() -> None:
     """G-04-3, T-04-29: the document and the model route read one rule, so they cannot disagree.
 
-    ISO 4017 M8 x 70 and a part off every row, 5.55 mm, a diameter no other test downloads (the
-    byte cache is session-wide, and the stub's bytes would answer a later real download).
+    A part the model refuses and a part off every row, 5.55 mm, neither of which another test
+    downloads for real (the byte cache is session-wide, and the stub's bytes would answer a later
+    real download).
     """
-    row = expand("bolt", "iso4017:M8x70")
-    assert row is not None
-    capped: Params = {**row}
     plain: Params = {"d": 5.55}
     seen: list[tuple[str, str]] = []
 
@@ -1275,10 +1294,12 @@ def test_every_download_the_document_lists_is_answered_by_the_route_as_it_says()
         seen.append((fmt, quality))
         return b"stub"
 
-    for fields, refused in ((capped, 1), (plain, 0)):
+    for fields in (OVER, plain):
+        p = BoltParams.model_validate(fields)
         downloads = client.get("/api/bolt/info", params=fields).json()["downloads"]
         assert len(downloads) == 4
-        assert sum(e["refusal"] is not None for e in downloads) == refused
+        assert [e["refusal"] for e in downloads] == [
+            download_refusal(p, e["format"], e["quality"]) for e in downloads]
         with _backend(stub):
             for entry in downloads:
                 before = len(seen)
@@ -1295,8 +1316,8 @@ def test_every_download_the_document_lists_is_answered_by_the_route_as_it_says()
                     assert len(seen) == before
 
 
-def test_the_left_hand_part_l11_measured_inside_the_budget_reaches_the_backend() -> None:
-    """D-21: the right-hand M10 x 60 is a 422, the left-hand one the same size is served."""
+def test_either_hand_of_m10_x_60_reaches_the_backend_as_the_shared_rule_says() -> None:
+    """D-21: the hand is a feature of the cost model, so each hand reads its own outcome."""
     seen: list[FastenerParams] = []
 
     async def stub(p: FastenerParams, fmt: str, quality: str) -> bytes:
@@ -1305,14 +1326,17 @@ def test_the_left_hand_part_l11_measured_inside_the_budget_reaches_the_backend()
 
     mirror: Params = {"d": 10, "pitch": 1.5, "length": 60, "thread_length": 60, "s": 16,
                       "k": 6.4}
+    hands = (False, True)
     with _backend(stub):
-        left = client.get("/api/bolt/model.stl", params={**mirror, "left_hand": "true"})
-        right = client.get("/api/bolt/model.stl", params=mirror)
-    assert left.status_code == 200
-    assert [p.left_hand for p in seen if isinstance(p, BoltParams)] == [True]
-    assert right.status_code == 422
-    assert right.json()["detail"][0]["type"] == "fine_stl_cap"
-    assert "right-hand" in right.json()["detail"][0]["msg"]
+        for left_hand in hands:
+            p = BoltParams.model_validate({**mirror, "left_hand": left_hand})
+            r = client.get("/api/bolt/model.stl", params={**mirror, "left_hand": str(left_hand)})
+            assert r.status_code == _status(p, "stl", "fine"), left_hand
+            if r.status_code == 422:
+                assert r.json()["detail"][0]["msg"] == cost_model.refusal(p, "stl-fine")
+    assert [p.left_hand for p in seen if isinstance(p, BoltParams)] == [
+        h for h in hands if download_refusal(
+            BoltParams.model_validate({**mirror, "left_hand": h}), "stl", "fine") is None]
 
 
 CONFLICT_MSG = ("thread_length and length: thread_length 30 mm is longer than length 10 mm; "

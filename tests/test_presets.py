@@ -13,9 +13,9 @@ from pathlib import Path
 import pytest
 
 from screw import cli
-from screw.calc import derive, download_refusal
+from screw.calc import cost, derive, download_refusal
 from screw.calc.presets import PresetEntry, catalogue_document, expand
-from screw.calc.thread import FINE_STL_ROWS, built_thread_length, thread_length_conflict
+from screw.calc.thread import thread_length_conflict
 from screw.params import KINDS, BoltParams, NutParams
 
 ROWS = catalogue_document("bolt").rows
@@ -160,31 +160,38 @@ def test_export_builds_the_preset_part(tmp_path: Path) -> None:
     assert len(out.read_bytes()) > 84
 
 
-def test_an_export_of_a_preset_refused_as_a_fine_stl_exits_2_and_writes_nothing(
+DOWNLOAD_PAIRS = (("stl", "fine"), ("stl", "preview"), ("step", "fine"), ("step", "preview"))
+
+
+def test_an_export_of_a_preset_the_model_refuses_exits_2_and_writes_nothing(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    # B-01 refuses no catalogue row, so the owner's 2026-10-29 ruling on 07-11 ("A: preset +
+    # overrides") makes the refused part a preset expanded with an override: ISO 4017 M20 x 70
+    # at pitch 1, 70 turns of a 20 mm thread, which the cost model (L21) refuses at stl-fine.
+    # An R12 widening only refuses more, so it stays refused.
+    row = expand("bolt", "iso4017:M20x70")
+    assert row is not None
+    refusal = cost.refusal(BoltParams.model_validate({**row, "pitch": 1.0}), "stl-fine")
+    assert refusal is not None
     out = tmp_path / "x.stl"
     capsys.readouterr()
-    assert _exit(["export", "bolt", "--preset", "iso4017:M8x70", "-o", str(out)]) == 2
-    assert "2026-10-08-a-grid" in capsys.readouterr().err
+    assert _exit(["export", "bolt", "--preset", "iso4017:M20x70", "--pitch", "1", "-o",
+                  str(out)]) == 2
+    err = capsys.readouterr().err
+    assert err == f"error: {refusal}\n"
+    assert "L21" in err
     assert not out.exists()
 
 
-def test_the_fine_stl_refused_presets_are_counted() -> None:
-    # TYPE-02: the ISO 4017 rows are threaded to the head, so a long screw is a long thread and
-    # the right-hand caps of `2026-10-08-a-grid` (FINE_STL_ROWS) refuse its fine STL. 62 is the
-    # count the shipped catalogue yields, which is what RESEARCH Alert 7 estimated; the Phase 7
-    # re-sweep moves the caps and with them this literal. Every ISO 4014 row is threaded only
-    # b of the way, so none is refused.
-    refused: list[str] = []
-    for row in ROWS:
-        p = BoltParams.model_validate(row.fields)
-        if download_refusal(p, "stl", "fine") is None:
-            continue
-        refused.append(row.id)
-        assert row.id.startswith("iso4017:"), row.id
-        assert built_thread_length(p.thread_length, p.length) > FINE_STL_ROWS[
-            p.d, p.pitch, p.left_hand], row.id
-    assert len(refused) == 62
+def test_the_refused_presets_are_counted() -> None:
+    # The shipped rule (L21) over the catalogue under B-01 (07-OWNER-RULINGS.md, 2026-10-29), C1:
+    # each budget component is the largest enveloped prediction over the catalogue rows, so no
+    # row is refused at any download. An R12 widening (07-15) can move this literal, and no other
+    # pin of this file; a widening that refused a row stops the phase for the owner.
+    refused = [row.id for row in ROWS
+               if any(download_refusal(BoltParams.model_validate(row.fields), fmt, quality)
+                      for fmt, quality in DOWNLOAD_PAIRS)]
+    assert len(refused) == 0
     longest = max(row.fields["length"] for row in ROWS if row.id.startswith("iso4017:"))
     assert longest == 200.0
 
@@ -197,30 +204,24 @@ def test_every_catalogue_rows_document_agrees_with_the_shared_download_rule() ->
         downloads = derive(p).downloads
         for entry in downloads:
             assert entry.refusal == download_refusal(p, entry.format, entry.quality), row.id
-            if entry.format == "step":
-                assert entry.refusal is None, row.id
-        # No preset leaves a format without a link.
-        served = {e.format for e in downloads if e.refusal is None}
-        assert served == {e.format for e in downloads}, row.id
 
 
 def test_the_rows_whose_stl_falls_back_to_the_preview_are_the_fine_stl_refused_rows() -> None:
     # Both lists are read from the catalogue, never typed: rule 17 applied in Python to the
-    # document's STL entries against the rule itself. TYPE-02: only the long ISO 4017 screws,
-    # threaded to the head, are past a cap; no ISO 4014 row is threaded past its own.
+    # document's STL entries against the rule itself. Under B-01 both are empty (the count above);
+    # the equality is what survives an R12 widening.
     falls_back: list[str] = []
     refused: list[str] = []
     for row in ROWS:
         p = BoltParams.model_validate(row.fields)
         stl = [e for e in derive(p).downloads if e.format == "stl"]
-        first_served = next(e for e in stl if e.refusal is None)
-        if first_served is not stl[0] and first_served.quality == "preview":
+        first_served = next((e for e in stl if e.refusal is None), None)
+        if first_served is not None and first_served is not stl[0]:
             falls_back.append(row.id)
-        if download_refusal(p, "stl", "fine") is not None:
+        if (download_refusal(p, "stl", "fine") is not None
+                and download_refusal(p, "stl", "preview") is None):
             refused.append(row.id)
-    assert falls_back
     assert falls_back == refused
-    assert all(row_id.startswith("iso4017:") for row_id in falls_back)
 
 
 NUT_ROWS = catalogue_document("nut").rows

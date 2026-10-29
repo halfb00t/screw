@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
 import sys
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
@@ -548,6 +549,82 @@ def table(document: Mapping[str, object], points: Sequence[FitPoint],
     return "\n".join(lines) + "\n"
 
 
+# --- the constants `calc.cost` ships (07-11) ----------------------------------------------------
+
+EMIT_BEGIN = ("# BEGIN emit-constants: `python -m bench.oper_fit emit-constants`; not edited "
+              "by hand.")
+EMIT_END = "# END emit-constants"
+
+# B-01's budget rows in `07-OWNER-RULINGS.md`: `| <artifact> | (<bytes>, <seconds>, <peak>) |`.
+_BUDGET_ROW = re.compile(r"^\| (stl-preview|stl-fine|step) \| \(([^)]*)\) \|$", re.MULTILINE)
+
+
+def ruled_budget(rulings: str) -> tuple[str, dict[str, Triple]]:
+    """B-01's date and its per-artifact (bytes, seconds, peak) triples, read from the rulings file
+    as the owner's table prints them, so the shipped budget is the ruled one and no other (G10).
+    `unbounded` reads as None."""
+    date = re.search(r"^Date: (\d{4}-\d{2}-\d{2})", rulings, re.MULTILINE)
+    section = re.search(r"^## B-01\b(.*?)(?=^## )", rulings, re.MULTILINE | re.DOTALL)
+    if date is None or section is None:
+        raise ValueError("the rulings file has no Date line or no B-01 section")
+    budget: dict[str, Triple] = {}
+    for artifact, cells in _BUDGET_ROW.findall(section.group(1)):
+        values = [None if c.strip() == "unbounded" else float(c) for c in cells.split(",")]
+        if len(values) != len(TARGETS) or artifact in budget:
+            raise ValueError(f"B-01: a malformed or repeated row for {artifact}")
+        budget[artifact] = (values[0], values[1], values[2])
+    if sorted(budget) != sorted(ARTIFACTS):
+        raise ValueError(f"B-01 rules {sorted(budget)}, not every artifact {sorted(ARTIFACTS)}")
+    return date.group(1), budget
+
+
+def _wrapped(head: str, items: Sequence[str], tail: str) -> list[str]:
+    # Greedy, so the block stays under ruff's 100 columns (L05: ruff never reformats it).
+    lines, line = [], head
+    for n, item in enumerate(items):
+        piece = item + ("," if n < len(items) - 1 else tail)
+        if len(line) + len(piece) + 1 > 99:
+            lines.append(line)
+            line = "        " + piece
+        else:
+            line += ("" if line.endswith("(") else " ") + piece
+    return [*lines, line]
+
+
+def emit_constants(document: Mapping[str, object], rulings: str) -> str:
+    """The Python block `calc/cost.py` carries between `EMIT_BEGIN` and `EMIT_END`: the
+    coefficients and envelopes of fit.json and B-01's budget, floats written with `repr`, so the
+    shipped numbers are generated from their evidence, never typed (D-05, D-07)."""
+    models = models_of(document)
+    runs = document["run_ids"]
+    if not isinstance(runs, dict):
+        raise TypeError("fit.json has no run ids")
+    widened = document.get("widened_by", [])
+    if not isinstance(widened, list):
+        raise TypeError("fit.json's widened_by is not a list")
+    date, budget = ruled_budget(rulings)
+    source = (f"# fit.json, runs explore {', '.join(runs['explore'])} and spread "
+              f"{', '.join(runs['spread'])}.")
+    lines = [EMIT_BEGIN,
+             "# R11's least squares: the intercept, then one coefficient per `FEATURES[kind]`.",
+             source,
+             "COEFFICIENTS: Final[Mapping[ModelKey, tuple[float, ...]]] = MappingProxyType({"]
+    for (kind, artifact, target), m in models.items():
+        lines += _wrapped(f'    ("{kind}", "{artifact}", "{target}"): (',
+                          [repr(c) for c in m.coefficients], "),")
+    lines += ["})", "# R12's envelope e per model.", source]
+    lines += [f"# Widened by run {r} (R12)." for r in widened]
+    lines += ["ENVELOPE: Final[Mapping[ModelKey, float]] = MappingProxyType({"]
+    lines += [f'    ("{k}", "{a}", "{t}"): {m.envelope!r},' for (k, a, t), m in models.items()]
+    lines += ["})",
+              f"# B-01 of 07-OWNER-RULINGS.md ({date}): C1 of R13, catalogue-complete.",
+              "# (raw bytes, cold build seconds, cgroup peak bytes); None is unbounded.",
+              "BUDGET: Final[Mapping[Artifact, Budget]] = MappingProxyType({"]
+    for artifact in ARTIFACTS:
+        lines += _wrapped(f'    "{artifact}": (', [repr(v) for v in budget[artifact]], "),")
+    return "\n".join([*lines, "})", EMIT_END]) + "\n"
+
+
 def _dump(document: Mapping[str, object]) -> str:
     # Sorted keys and `repr` floats (json's own), so the same records write the same bytes.
     return json.dumps(document, sort_keys=True, indent=1, allow_nan=False) + "\n"
@@ -563,8 +640,15 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--spread", nargs="+", type=Path, required=True)
         p.add_argument("--out", required=True)
     p_table.add_argument("--fit", required=True)
+    p_emit = sub.add_parser("emit-constants", help="print the constants calc/cost.py ships")
+    p_emit.add_argument("--fit", required=True)
+    p_emit.add_argument("--rulings", required=True)
     args = parser.parse_args(argv)
     try:
+        if args.command == "emit-constants":
+            sys.stdout.write(emit_constants(json.loads(Path(args.fit).read_text()),
+                                            Path(args.rulings).read_text()))
+            return 0
         if args.command == "fit":
             text = _dump(fit_document(args.explore, args.spread))
         else:
