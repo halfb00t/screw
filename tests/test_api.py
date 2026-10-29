@@ -480,7 +480,7 @@ def test_the_nut_d_has_no_wall_of_its_own_and_stays_under_the_shared_one() -> No
     assert refused.json()["detail"][0]["loc"] == ["query", "d"]
 
 
-def test_a_part_at_the_walls_is_served_by_the_model_route_and_one_past_is_not() -> None:
+def test_a_part_at_the_walls_is_taken_and_judged_by_the_cost_model_and_one_past_is_not() -> None:
     seen: list[FastenerParams] = []
 
     async def stub(p: FastenerParams, fmt: str, quality: str) -> bytes:
@@ -490,11 +490,17 @@ def test_a_part_at_the_walls_is_served_by_the_model_route_and_one_past_is_not() 
         return export(BoltParams(), "stl", "preview")
 
     at_wall: Params = {"length": 1e4, "s": 1000.0, "d": 999.999, "k": 1e5}
+    part = BoltParams.model_validate(at_wall)
+    assert (part.length, part.s, part.d, part.k) == (1e4, 1000.0, 999.999, 1e5)
+    assert client.get("/api/bolt/info", params=at_wall).status_code == 200
     with _backend(stub):
         r = client.get("/api/bolt/model.stl", params={**at_wall, "quality": "preview"})
-    assert r.status_code == 200
-    assert isinstance(seen[-1], BoltParams)
-    assert (seen[-1].length, seen[-1].s, seen[-1].d, seen[-1].k) == (1e4, 1000.0, 999.999, 1e5)
+    # The walls take it and the cost model judges it. Until G28 its raw prediction admitted it,
+    # k/d 100 making the head look cheap; now k/d is judged at the band's own heads and s/d 1.0
+    # at its low edge, so the route answers as the rule does, never with a wall's 422.
+    assert r.status_code == _status(part, "stl", "preview")
+    assert r.status_code == 200 or r.json()["detail"][0]["type"] == "over_budget"
+    assert seen == ([part] if r.status_code == 200 else [])
     over: Params = {**at_wall, "length": math.nextafter(1e4, math.inf)}
     for route in ("/api/bolt/info", "/api/bolt/model.stl"):
         refused = client.get(route, params={**over, "quality": "preview"}

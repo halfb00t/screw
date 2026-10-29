@@ -9,6 +9,7 @@ all key on the same three artifact names.
 
 from __future__ import annotations
 
+import itertools
 import math
 import sys
 from collections.abc import Mapping
@@ -147,6 +148,15 @@ ENVELOPE: Final[Mapping[ModelKey, float]] = MappingProxyType({
     ("nut", "step", "seconds"): 0.8785228687431521,
     ("nut", "step", "peak"): 0.48786919655819627,
 })
+# G28's band of each head ratio, field / d: its [min, max] over the fitted
+# points of its kind, an omitted field at its default (R11).
+# The records of runs explore 40646117094 and spread 40646125666.
+BANDS: Final[Mapping[tuple[str, str], tuple[float, float]]] = MappingProxyType({
+    ("bolt", "k"): (0.6, 0.7),
+    ("bolt", "s"): (1.5, 2.0),
+    ("nut", "s"): (1.5, 4.0),
+    ("nut", "m"): (0.7999999999999999, 3.0),
+})
 # B-01 of 07-OWNER-RULINGS.md (2026-10-29): C1 of R13, catalogue-complete.
 # (raw bytes, cold build seconds, cgroup peak bytes); None is unbounded.
 BUDGET: Final[Mapping[Artifact, Budget]] = MappingProxyType({
@@ -186,9 +196,7 @@ def _features(p: FastenerParams) -> tuple[str, list[float]]:
     raise TypeError(f"no cost model for kind {p.kind!r}")
 
 
-def predict(p: FastenerParams, artifact: Artifact) -> Cost:
-    """The fitted cost of `p`'s `artifact`, before the envelope (R11): the same sum, in the same
-    order, as `bench.oper_fit.predict`, so the two agree to the last bit."""
+def _raw(p: FastenerParams, artifact: Artifact) -> list[float]:
     kind, x = _features(p)
     values: list[float] = []
     for target in TARGETS:
@@ -199,6 +207,42 @@ def predict(p: FastenerParams, artifact: Artifact) -> Cost:
         # An unvalidated part (model_construct, d 1e200) can sum past exp's range: infinite is
         # over every finite budget, so it is refused, and no figure is printed either way (L02).
         values.append(math.exp(z) if z < _LN_FLOAT_MAX else math.inf)
+    return values
+
+
+def _edges(p: FastenerParams) -> list[FastenerParams]:
+    """G28: `p` at every combination of band edges of its out-of-band head ratios, each such field
+    set to edge x d and every other field held; empty when every ratio is in its band. A ratio
+    above its band takes both edges, one below it the low edge only (ruling 5): a smaller head is
+    assumed, unmeasured, never to cost more than one at the low edge."""
+    out: list[tuple[str, tuple[float, ...]]] = []
+    for (kind, field), (low, high) in BANDS.items():
+        ratio = float(getattr(p, field)) / p.d if kind == p.kind else low
+        if ratio > high:
+            out.append((field, (low * p.d, high * p.d)))
+        elif ratio < low:
+            out.append((field, (low * p.d,)))
+    names = [field for field, _ in out]
+    # model_copy sets the fields without validating: the edge part is only ever predicted.
+    return [p.model_copy(update=dict(zip(names, combo, strict=True)))
+            for combo in itertools.product(*(values for _, values in out))] if out else []
+
+
+def predict(p: FastenerParams, artifact: Artifact) -> Cost:
+    """The fitted cost of `p`'s `artifact`, before the envelope (R11): the same sum, in the same
+    order, as `bench.oper_fit.predict`, so the two agree to the last bit.
+
+    G28: the fit saw each head ratio only in a narrow band (bolt k/d 0.6 to 0.7), where `ln_k`
+    comes out negative on every bolt model, so k 1000 on an M100 predicted a 0.0063 s fine STL.
+    A part with a ratio outside its band is predicted, target by target, as the largest of the
+    raw prediction and the one at every combination of band edges, both edges for a ratio above
+    its band and the low edge for one below it: above, for this log-linear model, the largest
+    anywhere in the band; below, max(raw, low edge). A d-only M8 (s/d 1.25) is so judged at s
+    1.5 d, not at the wide-head edge 2 d that refused its preview under ruling 4. Inside every
+    band it is the raw prediction, bit for bit."""
+    values = _raw(p, artifact)
+    for edge in _edges(p):
+        values = [max(a, b) for a, b in zip(values, _raw(edge, artifact), strict=True)]
     return Cost(*values)
 
 

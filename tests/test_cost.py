@@ -7,6 +7,8 @@ on the same three strings.
 from __future__ import annotations
 
 import ast
+import functools
+import itertools
 import json
 import math
 import re
@@ -19,6 +21,7 @@ from bench import oper_fit
 from screw.calc import cost, derive, download_refusal
 from screw.calc.cost import ARTIFACTS, BUILD_TIMEOUT_S, artifact_of
 from screw.params import KINDS, BoltParams, FastenerParams, NutParams
+from screw.tables.presets import catalogue, nut_catalogue
 
 
 @pytest.mark.parametrize(("fmt", "quality", "want"), [
@@ -71,9 +74,19 @@ def _document() -> dict[str, object]:
     return raw
 
 
+@functools.cache
+def _bands() -> dict[tuple[str, str], tuple[float, float]]:
+    """G28's bands, recomputed from the committed runner records fit.json was fitted on."""
+    results = FIT.parent
+    points, _ = oper_fit.fit_points(
+        oper_fit.load_set("explore", sorted(results.glob("explore-*")))[1],
+        oper_fit.load_set("spread", sorted(results.glob("spread-*")))[1])
+    return oper_fit.head_bands(points)
+
+
 def test_the_shipped_constants_are_the_block_emit_constants_writes_from_the_evidence() -> None:
-    # T-07-29: generated from fit.json and the owner's B-01 table, never typed.
-    block = oper_fit.emit_constants(_document(), RULINGS.read_text())
+    # T-07-29: generated from fit.json, the committed records and B-01's table, never typed.
+    block = oper_fit.emit_constants(_document(), RULINGS.read_text(), _bands())
     assert block in COST_PY.read_text()
     assert COST_PY.read_text().count(oper_fit.EMIT_BEGIN) == 1
 
@@ -99,19 +112,130 @@ def test_the_budget_is_b01_and_b01_is_c1_recomputed_from_fit_json_and_the_catalo
         assert cost.BUDGET[artifact] == c1, artifact
 
 
+# The orchestrator's two G28 bypass cases at d869b87: admitted on a raw prediction that fell as
+# the head ratio left its band (bolt k/d 10, nut s/d 33.3).
+TALL_HEAD = BoltParams(d=100.0, pitch=1.0, length=30.0, thread_length=30.0, s=200.0, k=1000.0)
+WIDE_NUT = NutParams(d=30.0, pitch=0.35, s=999.0, m=24.0, clearance=0.15)
+
+
 @pytest.mark.parametrize("part", [BoltParams(), NutParams(), OVER,
                                   BoltParams(d=8.0, pitch=1.25, length=70.0, thread_length=80.0,
                                              left_hand=True),
-                                  NutParams(d=30.0, pitch=0.35, s=48.0, m=24.0, clearance=0.15)],
-                         ids=["bolt", "nut", "over", "bolt-left-past", "nut-fine-pitch"])
+                                  NutParams(d=30.0, pitch=0.35, s=48.0, m=24.0, clearance=0.15),
+                                  TALL_HEAD, WIDE_NUT,
+                                  BoltParams(d=10.0, s=99.0, k=1.0),
+                                  NutParams(d=10.0, pitch=1.5, s=11.0, m=40.0)],
+                         ids=["bolt", "nut", "over", "bolt-left-past", "nut-fine-pitch",
+                              "tall-head", "wide-nut", "bolt-two-out", "nut-two-out"])
 def test_the_prediction_is_the_fits_own_for_every_artifact(part: FastenerParams) -> None:
+    # Bit for bit, under G28 too: the same sums, the same edges, the same max.
     models = oper_fit.models_of(_document())
     params = part.model_dump()
     for artifact in ARTIFACTS:
         predicted = cost.predict(part, artifact)
         for target, value in zip(cost.TARGETS, predicted, strict=True):
-            want = oper_fit.predict(models[part.kind, artifact, target], params)
-            assert value == pytest.approx(want, rel=1e-12), (artifact, target)
+            want = oper_fit.predict(models[part.kind, artifact, target], params, cost.BANDS)
+            assert value == want, (artifact, target)
+
+
+# --- G28: a head ratio outside the band the fit saw -------------------------------------------
+
+
+def test_the_shipped_bands_are_the_ones_recomputed_from_the_committed_records() -> None:
+    assert dict(cost.BANDS) == _bands()
+    assert {kind for kind, _ in cost.BANDS} == set(oper_fit.RATIOS)
+    assert [f for _, f in cost.BANDS] == [f for k in oper_fit.RATIOS for f in oper_fit.RATIOS[k]]
+
+
+def test_every_catalogue_row_and_default_part_is_inside_every_band() -> None:
+    # Otherwise G28 would move a catalogue row's prediction and B-01's C1 with it.
+    rows = ([BoltParams.model_validate(dict(r.fields)) for r in catalogue()]
+            + [NutParams.model_validate(dict(r.fields)) for r in nut_catalogue()])
+    for part in [BoltParams(), NutParams(), *rows]:
+        for (kind, field), (low, high) in cost.BANDS.items():
+            if kind == part.kind:
+                assert low <= getattr(part, field) / part.d <= high, (part, field)
+
+
+@pytest.mark.parametrize("part", [BoltParams(), NutParams(), OVER],
+                         ids=["bolt", "nut", "over"])
+def test_an_in_band_prediction_is_the_raw_fit(part: FastenerParams) -> None:
+    models = oper_fit.models_of(_document())
+    for artifact in ARTIFACTS:
+        raw = tuple(oper_fit.predict(models[part.kind, artifact, t], part.model_dump())
+                    for t in cost.TARGETS)
+        assert tuple(cost.predict(part, artifact)) == raw, artifact
+
+
+@pytest.mark.parametrize("part", [TALL_HEAD, WIDE_NUT, BoltParams(d=10.0, s=99.0, k=1.0),
+                                  NutParams(d=10.0, pitch=1.5, s=11.0, m=40.0)],
+                         ids=["tall-head", "wide-nut", "bolt-two-out", "nut-two-out"])
+def test_an_out_of_band_prediction_is_the_largest_over_raw_and_every_band_edge(
+        part: FastenerParams) -> None:
+    # Ruling 5: a ratio above its band takes both edges, one below it the low edge only.
+    models = oper_fit.models_of(_document())
+    out: list[tuple[str, tuple[float, ...]]] = []
+    for (kind, field), (low, high) in cost.BANDS.items():
+        if kind == part.kind and getattr(part, field) / part.d > high:
+            out.append((field, (low * part.d, high * part.d)))
+        elif kind == part.kind and getattr(part, field) / part.d < low:
+            out.append((field, (low * part.d,)))
+    assert out
+    params = part.model_dump()
+    trials = [params] + [params | dict(zip([f for f, _ in out], combo, strict=True))
+                         for combo in itertools.product(*(edges for _, edges in out))]
+    assert len(trials) == 1 + math.prod(len(edges) for _, edges in out)
+    for artifact in ARTIFACTS:
+        want = tuple(max(oper_fit.predict(models[part.kind, artifact, t], q) for q in trials)
+                     for t in cost.TARGETS)
+        assert tuple(cost.predict(part, artifact)) == want, artifact
+
+
+@pytest.mark.parametrize("part", [TALL_HEAD, WIDE_NUT], ids=["tall-head", "wide-nut"])
+def test_the_bypass_cases_are_refused_wherever_their_raw_prediction_admitted_them(
+        part: FastenerParams) -> None:
+    models = oper_fit.models_of(_document())
+    raw_admitted = [a for a in ARTIFACTS if all(
+        cost.admitted(oper_fit.predict(models[part.kind, a, t], part.model_dump()),
+                      cost.ENVELOPE[part.kind, a, t], b)
+        for t, b in zip(cost.TARGETS, cost.BUDGET[a], strict=True))]
+    assert raw_admitted, "not a bypass: the raw prediction admits no artifact"
+    for artifact in raw_admitted:
+        # Against the rule: above the band, the largest prediction anywhere in it refuses it.
+        assert not oper_fit.admitted(models, oper_fit.Part("p", part.kind, artifact,
+                                                           part.model_dump(), False),
+                                     cost.BUDGET[artifact], cost.BANDS), artifact
+        assert not cost.fits(part, artifact), artifact
+        assert cost.refusal(part, artifact) is not None, artifact
+
+
+def _admitted_under_the_rule(part: FastenerParams) -> list[str]:
+    models = oper_fit.models_of(_document())
+    return [a for a in ARTIFACTS
+            if oper_fit.admitted(models, oper_fit.Part("p", part.kind, a, part.model_dump(), False),
+                                 cost.BUDGET[a], cost.BANDS)]
+
+
+def test_a_d_only_m8_bolt_below_both_bands_keeps_all_three_artifacts() -> None:
+    # Ruling 5: s/d 1.25 and k/d 0.5 are judged at the low edges, s 12 and k 4.8, not at the
+    # wide-head edge s 16 whose preview peak is over budget (the 22 gate failures of ruling 4).
+    m8 = BoltParams(d=8.0)
+    assert [e.model_dump() for e in cost._edges(m8)] == [m8.model_copy(
+        update={"k": cost.BANDS["bolt", "k"][0] * 8.0, "s": cost.BANDS["bolt", "s"][0] * 8.0}
+    ).model_dump()]
+    assert _admitted_under_the_rule(m8) == list(ARTIFACTS)
+    assert all(cost.fits(m8, a) for a in ARTIFACTS)
+
+
+def test_a_d_only_m5_bolt_above_the_k_band_loses_its_preview_only() -> None:
+    # The owner OK'd this refusal with ruling 5: k/d 0.8 is above the band, so the shortest head
+    # in the band, k 0.6 d, sets the preview's prediction.
+    m5 = BoltParams(d=5.0)
+    assert {field for e in cost._edges(m5) for field in ("k", "s")
+            if getattr(e, field) != getattr(m5, field)} == {"k"}
+    assert _admitted_under_the_rule(m5) == ["stl-fine", "step"]
+    assert [a for a in ARTIFACTS if not cost.fits(m5, a)] == ["stl-preview"]
+    assert cost.refusal(m5, "stl-preview") is not None
 
 
 def test_admission_at_the_budget_is_admitted_and_one_float_above_is_refused() -> None:

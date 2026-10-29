@@ -22,6 +22,7 @@ uses `math.exp` on a plain sum, the arithmetic `calc.cost` will ship (07-11), no
 from __future__ import annotations
 
 import argparse
+import itertools
 import json
 import math
 import re
@@ -52,6 +53,7 @@ from screw.tables.presets import catalogue, nut_catalogue
 
 type Params = Mapping[str, object]
 type Triple = tuple[float | None, float | None, float | None]
+type Bands = Mapping[tuple[str, str], tuple[float, float]]
 
 # R13's order of a budget triple, and the reading field each target is read from. `seconds` is
 # the cold wall of R11, `build_s + export_s`, summed per reading before the per-point max.
@@ -62,6 +64,11 @@ FEATURES: dict[str, tuple[str, ...]] = {
     "bolt": ("ln_d", "ln_pitch", "ln_turns", "ln_length", "ln_s", "ln_k", "left_hand"),
     "nut": ("ln_d", "ln_pitch", "ln_s", "ln_m", "clearance", "left_hand"),
 }
+
+# G28's head ratios, each a field over d. The fitted points hold each in a narrow band (bolt k/d
+# 0.6 to 0.7), so a coefficient can say a taller head is cheaper (`ln_k` is negative on every bolt
+# model): outside its band a ratio is predicted no lower than anywhere in the band (R11).
+RATIOS: dict[str, tuple[str, ...]] = {"bolt": ("k", "s"), "nut": ("s", "m")}
 
 # The repetitions each fitted set asked for (R3, R4): explore reads once, spread five times.
 SET_REPS: dict[str, tuple[int, ...]] = {"explore": (1,), "spread": (1, 2, 3, 4, 5)}
@@ -162,17 +169,63 @@ def features(kind: str, params: Params) -> list[float]:
     raise ValueError(f"no cost model for kind {kind!r}")
 
 
-def predict(model: Model, params: Params) -> float:
-    """The model's prediction of its target for a part, before the envelope."""
+def head_bands(points: Iterable[FitPoint]) -> dict[tuple[str, str], tuple[float, float]]:
+    """G28: each head ratio's [min, max] over the fitted points of its kind, an omitted field at
+    its frozen default, as `features` reads it. `emit-constants` ships these as `cost.BANDS`."""
+    full = [(p.kind, _full(p.kind, p.params)) for p in points]
+    found: dict[tuple[str, str], tuple[float, float]] = {}
+    for kind, fields in RATIOS.items():
+        for field in fields:
+            ratios = [_num(q[field]) / _num(q["d"]) for k, q in full if k == kind]
+            found[kind, field] = (min(ratios), max(ratios))
+    return found
+
+
+def edges(kind: str, params: Params, bands: Bands) -> list[dict[str, float]]:
+    """G28: every combination of band edges of the part's out-of-band head ratios, as the fields
+    each sets (edge x d, every other field held); empty when every ratio is in its band. A ratio
+    above its band takes both edges, one below it the low edge only (ruling 5): a smaller head is
+    assumed, unmeasured, never to cost more than one at the low edge."""
+    full = _full(kind, params)
+    d = _num(full["d"])
+    out: list[tuple[str, tuple[float, ...]]] = []
+    for (k, field), (low, high) in bands.items():
+        ratio = _num(full[field]) / d if k == kind else low
+        if ratio > high:
+            out.append((field, (low * d, high * d)))
+        elif ratio < low:
+            out.append((field, (low * d,)))
+    if not out:
+        return []
+    names = [field for field, _ in out]
+    return [dict(zip(names, combo, strict=True))
+            for combo in itertools.product(*(values for _, values in out))]
+
+
+def _raw(model: Model, params: Params) -> float:
     z = model.coefficients[0]
     for coefficient, x in zip(model.coefficients[1:], features(model.kind, params), strict=True):
         z += coefficient * x
     return math.exp(z)
 
 
-def enveloped(model: Model, params: Params) -> float:
+def predict(model: Model, params: Params, bands: Bands | None = None) -> float:
+    """The model's prediction of its target for a part, before the envelope.
+
+    With `bands` (G28), a part with a head ratio outside its band is predicted as the largest of
+    the raw prediction and the one at every combination of the `edges`: above the band, for this
+    log-linear model, the largest anywhere in the band; below it, max(raw, low edge). Inside every
+    band, and with no bands (the fit and its envelope, whose points are the bands), it is the raw
+    prediction."""
+    value = _raw(model, params)
+    for moved in edges(model.kind, params, bands or {}):
+        value = max(value, _raw(model, _full(model.kind, params) | moved))
+    return value
+
+
+def enveloped(model: Model, params: Params, bands: Bands | None = None) -> float:
     """`prediction x (1 + e)`, the figure R12 compares with the budget."""
-    return predict(model, params) * (1.0 + model.envelope)
+    return predict(model, params, bands) * (1.0 + model.envelope)
 
 
 def admit(pred: float, e: float, budget: float | None) -> bool:
@@ -325,9 +378,10 @@ def _catalogue_parts(artifact: str) -> list[Part]:
             + [Part(row.id, "nut", artifact, dict(row.fields), True) for row in nut_catalogue()])
 
 
-def admitted(models: Mapping[tuple[str, str, str], Model], part: Part, budget: Triple) -> bool:
-    """R12 over every target of a part's kind at its artifact."""
-    return all(admit(predict(models[part.kind, part.artifact, t], part.params),
+def admitted(models: Mapping[tuple[str, str, str], Model], part: Part, budget: Triple,
+             bands: Bands | None = None) -> bool:
+    """R12 over every target of a part's kind at its artifact (G28 with `bands`)."""
+    return all(admit(predict(models[part.kind, part.artifact, t], part.params, bands),
                      models[part.kind, part.artifact, t].envelope, b)
                for t, b in zip(TARGETS, budget, strict=True))
 
@@ -356,10 +410,11 @@ def candidates(document: Mapping[str, object], points: Sequence[FitPoint]
     """R13's three candidates per artifact as (bytes, seconds, peak), None for an unbounded
     component, and nothing else (G10)."""
     models = models_of(document)
+    ruled = head_bands(points)
     c1: dict[str, Triple] = {}
     for artifact in ARTIFACTS:
         parts = _catalogue_parts(artifact)
-        top = [max(enveloped(models[p.kind, artifact, t], p.params) for p in parts)
+        top = [max(enveloped(models[p.kind, artifact, t], p.params, ruled) for p in parts)
                for t in TARGETS]
         c1[artifact] = (top[0], top[1], top[2])
     basis = c3_basis(points)
@@ -377,7 +432,8 @@ def _stepped(value: float, step: float, n: int) -> float:
     return float(Decimal(repr(value)) + n * Decimal(repr(step)))
 
 
-def d06_trim(models: Mapping[tuple[str, str, str], Model], part: Part, budget: Triple) -> str:
+def d06_trim(models: Mapping[tuple[str, str, str], Model], part: Part, budget: Triple,
+             bands: Bands | None = None) -> str:
     """D-06's evidence for one refused part: for each trimmable field at its frozen default, the
     first value on its form step (a length or height trimmed, the pitch raised) that the walls and
     the budget admit, or that none does; `explicit only` when no such field is at its default."""
@@ -397,7 +453,7 @@ def d06_trim(models: Mapping[tuple[str, str, str], Model], part: Part, budget: T
                          part.catalogue)
             if not within_walls(part.kind, trial.params):
                 break
-            if admitted(models, trial, budget):
+            if admitted(models, trial, budget, bands):
                 result = f"{name}: admits at {value!r}"
                 break
             n += 1
@@ -432,6 +488,7 @@ def table(document: Mapping[str, object], points: Sequence[FitPoint],
     """`07-BUDGET-TABLE.md`: the three candidates of R13, each with what it keeps and refuses, and
     the D-06 evidence. Plain text; the code writes no recommendation."""
     models = models_of(document)
+    ruled = head_bands(points)
     cands = candidates(document, points)
     free = _explore_parts(explore)
     readings: dict[tuple[str, str], Mapping[str, object]] = {
@@ -493,7 +550,7 @@ def table(document: Mapping[str, object], points: Sequence[FitPoint],
                     else:
                         free_counts[2] += 1
                     continue
-                ok = admitted(models, part, budget)
+                ok = admitted(models, part, budget, ruled)
                 if part.catalogue:
                     kept[part.kind][0 if ok else 1] += 1
                     if not ok:
@@ -501,7 +558,7 @@ def table(document: Mapping[str, object], points: Sequence[FitPoint],
                 else:
                     free_counts[0 if ok else 1] += 1
                 if not ok:
-                    trim = d06_trim(models, part, budget)
+                    trim = d06_trim(models, part, budget, ruled)
                     if trim == "explicit only":
                         explicit += 1
                     else:
@@ -509,7 +566,8 @@ def table(document: Mapping[str, object], points: Sequence[FitPoint],
                     continue
                 for i, t in enumerate(TARGETS):
                     worst_pred[i] = max(worst_pred[i],
-                                        enveloped(models[part.kind, artifact, t], part.params))
+                                        enveloped(models[part.kind, artifact, t], part.params,
+                                                  ruled))
                 reading = readings.get((part.label, artifact))
                 if reading is None:
                     continue
@@ -591,10 +649,11 @@ def _wrapped(head: str, items: Sequence[str], tail: str) -> list[str]:
     return [*lines, line]
 
 
-def emit_constants(document: Mapping[str, object], rulings: str) -> str:
+def emit_constants(document: Mapping[str, object], rulings: str, bands: Bands) -> str:
     """The Python block `calc/cost.py` carries between `EMIT_BEGIN` and `EMIT_END`: the
-    coefficients and envelopes of fit.json and B-01's budget, floats written with `repr`, so the
-    shipped numbers are generated from their evidence, never typed (D-05, D-07)."""
+    coefficients and envelopes of fit.json, G28's head-ratio bands of the records fit.json was
+    fitted on, and B-01's budget, floats written with `repr`, so the shipped numbers are generated
+    from their evidence, never typed (D-05, D-07, G28)."""
     models = models_of(document)
     runs = document["run_ids"]
     if not isinstance(runs, dict):
@@ -616,6 +675,14 @@ def emit_constants(document: Mapping[str, object], rulings: str) -> str:
     lines += [f"# Widened by run {r} (R12)." for r in widened]
     lines += ["ENVELOPE: Final[Mapping[ModelKey, float]] = MappingProxyType({"]
     lines += [f'    ("{k}", "{a}", "{t}"): {m.envelope!r},' for (k, a, t), m in models.items()]
+    lines += ["})",
+              "# G28's band of each head ratio, field / d: its [min, max] over the fitted",
+              "# points of its kind, an omitted field at its default (R11).",
+              f"# The records of runs explore {', '.join(runs['explore'])} and spread "
+              f"{', '.join(runs['spread'])}.",
+              "BANDS: Final[Mapping[tuple[str, str], tuple[float, float]]] = MappingProxyType({"]
+    lines += [f'    ("{kind}", "{field}"): ({low!r}, {high!r}),'
+              for (kind, field), (low, high) in bands.items()]
     lines += ["})",
               f"# B-01 of 07-OWNER-RULINGS.md ({date}): C1 of R13, catalogue-complete.",
               "# (raw bytes, cold build seconds, cgroup peak bytes); None is unbounded.",
@@ -643,11 +710,16 @@ def main(argv: list[str] | None = None) -> int:
     p_emit = sub.add_parser("emit-constants", help="print the constants calc/cost.py ships")
     p_emit.add_argument("--fit", required=True)
     p_emit.add_argument("--rulings", required=True)
+    p_emit.add_argument("--explore", nargs="+", type=Path, required=True)
+    p_emit.add_argument("--spread", nargs="+", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
         if args.command == "emit-constants":
+            points, _ = fit_points(load_set("explore", args.explore)[1],
+                                   load_set("spread", args.spread)[1])
             sys.stdout.write(emit_constants(json.loads(Path(args.fit).read_text()),
-                                            Path(args.rulings).read_text()))
+                                            Path(args.rulings).read_text(),
+                                            head_bands(points)))
             return 0
         if args.command == "fit":
             text = _dump(fit_document(args.explore, args.spread))

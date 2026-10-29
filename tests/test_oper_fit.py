@@ -197,6 +197,63 @@ def test_the_bolt_turns_feature_is_the_built_thread_over_the_pitch() -> None:
     assert oper_fit.features("nut", {})[4] == 0.15
 
 
+# --- G28: the head-ratio bands and the prediction outside them -------------------------------
+
+
+def _point(kind: str, label: str, params: Raw) -> oper_fit.FitPoint:
+    return oper_fit.FitPoint("explore", label, kind, "stl-fine", params, 1.0, 1.0, 1.0)
+
+
+def test_each_band_is_its_ratios_extremes_over_the_fitted_points_with_defaults_filled() -> None:
+    points = [_point("bolt", "a", {"d": 10.0, "s": 16.0, "k": 6.0}),
+              _point("bolt", "b", {"d": 20.0, "s": 40.0, "k": 11.0}),
+              _point("bolt", "default", {}),          # d 6, s 10, k 4: the frozen defaults
+              _point("nut", "n", {"d": 8.0, "s": 13.0, "m": 6.5}),
+              _point("nut", "m", {"d": 4.0, "s": 16.0})]  # m takes its default 5.2
+    assert oper_fit.head_bands(points) == {
+        ("bolt", "k"): (0.55, 4.0 / 6.0), ("bolt", "s"): (1.6, 2.0),
+        ("nut", "s"): (13.0 / 8.0, 4.0), ("nut", "m"): (6.5 / 8.0, 1.3)}
+
+
+# ln_k -1 and ln_s +1, nothing else: a taller head predicts cheaper, a wider one dearer.
+HEAD = Model("bolt", "stl-fine", "seconds", (0.0, 0.0, 0.0, 0.0, 0.0, 1.0, -1.0, 0.0), 9, 8, 0.0,
+             "")
+BANDS = {("bolt", "k"): (0.6, 0.7), ("bolt", "s"): (1.5, 2.0)}
+
+
+def _bolt(**fields: float) -> Raw:
+    return {"d": 10.0, "pitch": 1.0, "length": 20.0, "thread_length": 20.0, "s": 16.0, "k": 6.5,
+            **fields}
+
+
+def test_inside_every_band_the_prediction_is_the_raw_one_bit_for_bit() -> None:
+    for part in (_bolt(), _bolt(k=6.0, s=15.0), _bolt(k=7.0, s=20.0)):
+        assert oper_fit.edges("bolt", part, BANDS) == []
+        assert oper_fit.predict(HEAD, part, BANDS) == oper_fit.predict(HEAD, part)
+
+
+def test_outside_a_band_the_prediction_is_the_largest_anywhere_in_the_band() -> None:
+    # k 100 is above the band: raw is s / k = 0.16; the edges k 6 and 7 give 16 / 6, the larger.
+    tall = _bolt(k=100.0)
+    assert oper_fit.edges("bolt", tall, BANDS) == [{"k": 6.0}, {"k": 7.0}]
+    assert oper_fit.predict(HEAD, tall) == pytest.approx(0.16, rel=1e-12)
+    assert oper_fit.predict(HEAD, tall, BANDS) == oper_fit.predict(HEAD, _bolt(k=6.0))
+    # k 1 is below it: only the low edge k 6 is tried (ruling 5), and raw 16 is above it.
+    short = _bolt(k=1.0)
+    assert oper_fit.edges("bolt", short, BANDS) == [{"k": 6.0}]
+    assert oper_fit.predict(HEAD, short, BANDS) == oper_fit.predict(HEAD, short)
+    # s 10 is below its band: the low edge s 15 (15 / 6.5) is taken, not the wide edge s 20.
+    narrow = _bolt(s=10.0)
+    assert oper_fit.edges("bolt", narrow, BANDS) == [{"s": 15.0}]
+    assert oper_fit.predict(HEAD, narrow, BANDS) == oper_fit.predict(HEAD, _bolt(s=15.0))
+    # Both ratios out (s 100, k 100): four edge combinations, the largest is s 20, k 6.
+    both = _bolt(s=100.0, k=100.0)
+    assert len(oper_fit.edges("bolt", both, BANDS)) == 4
+    assert oper_fit.predict(HEAD, both, BANDS) == max(
+        oper_fit.predict(HEAD, both), oper_fit.predict(HEAD, _bolt(s=20.0, k=6.0)))
+    assert oper_fit.predict(HEAD, both, BANDS) == pytest.approx(20.0 / 6.0, rel=1e-12)
+
+
 def _record_dir(root: Path, name: str, head: Raw, readings: list[Raw]) -> Path:
     shard = root / f"{name}-1-1"
     shard.mkdir(parents=True)
