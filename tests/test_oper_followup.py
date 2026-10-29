@@ -13,6 +13,7 @@ import json
 import random
 import re
 from collections.abc import Iterable, Mapping
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -21,7 +22,9 @@ from bench import oper, oper_sets
 from bench.oper_sets import ProtocolStop
 from bench.thread_spike.maths import PITCH
 from screw.calc import cost
+from screw.calc.thread import built_thread_length
 from screw.params import KINDS, BoltParams, FastenerParams
+from screw.tables.presets import expand, expand_nut
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 type Raw = dict[str, object]
@@ -1314,3 +1317,116 @@ def test_a_widening_after_the_draw_redraws_nothing(
     for path, text in files.items():
         name = "tier-order" if path.name == "tier-order.json" else path.stem
         assert oper_sets._regenerate_runs2(name, text) == text
+
+
+# --- the out-of-band points (07-15, R11's G28 and G29) -------------------------------------------
+
+# The nearest-the-budget rows as generated at the committed constants, by (kind, field, side,
+# artifact); the first-in-file rows are the M2 rows everywhere.
+NEAREST = {
+    ("bolt", "k", "below"): ("iso4017:M20x160", "iso4017:M20x100", "iso4017:M20x150"),
+    ("bolt", "k", "above"): ("iso4017:M18x180", "iso4017:M18x150", "iso4017:M16x130"),
+    ("bolt", "s", "below"): ("iso4017:M20x200", "iso4017:M20x200", "iso4017:M16x160"),
+    ("bolt", "s", "above"): ("iso4017:M4x25", "iso4017:M10x50", "iso4017:M18x120"),
+    ("nut", "s", "below"): ("iso4032:M20", "iso4032:M20", "iso4032:M16"),
+    ("nut", "s", "above"): ("iso4032:M20", "iso4032:M20", "iso4032:M16"),
+    ("nut", "m", "below"): ("iso4032:M20", "iso4032:M20", "iso4032:M16"),
+    ("nut", "m", "above"): ("iso4032:M20", "iso4032:M20", "iso4032:M16"),
+}
+TURNS_NEAREST = ("iso4017:M20x40", "iso4014:M20x200", "iso4017:M20x40")
+
+
+def _committed_outband() -> tuple[dict[str, object], dict[tuple[str, str, str], float]]:
+    doc = json.loads((REPO_ROOT / "bench/points/outband.json").read_text())
+    return doc, oper_sets.envelope_of(doc["envelope"])
+
+
+def test_a_value_below_or_above_a_band_is_the_first_on_its_step_past_the_edge() -> None:
+    step = oper_sets._form_step("bolt", "k")
+    assert step == Decimal("0.1")
+    assert oper_sets._form_step("bolt", "thread_length") == Decimal("0.5")
+    assert oper_sets._largest_below(0.6, 2.0, step) == 1.1  # 1.2 / 2 is the edge itself
+    assert oper_sets._largest_below(0.6, 2.1, step) == 1.2  # 1.26: 1.2 / 2.1 is below 0.6
+    assert oper_sets._largest_below(0.6, 0.1, step) is None  # no positive value is below 0.06
+    assert oper_sets._smallest_above(0.7, 2.0, step) == 1.5  # 1.4 / 2 is the edge itself
+    assert oper_sets._smallest_above(2.0, 4.0, step) == 8.1
+
+
+def test_g28_reads_each_ratio_below_and_above_its_band_with_admitted_catalogue_rows() -> None:
+    _, envelope = _committed_outband()
+    points, absent = oper_sets.head_ratio_points(envelope)
+    seen: dict[tuple[str, str, str, str], list[str]] = {}
+    for point in points:
+        label, artifact = str(point["label"]), point["artifact"]
+        assert artifact in ARTIFACTS3
+        where = next(a for a in ARTIFACTS3 if a == artifact)
+        _, kind, field, side, row = label.split("-", 4)
+        part = _part(point)
+        low, high = cost.BANDS[kind, field]
+        ratio = float(getattr(part, field)) / part.d
+        assert oper_sets.admits(part, where, envelope, cost.BUDGET)
+        step = 0.1
+        if side == "below":
+            assert ratio < low
+            assert (float(getattr(part, field)) + step) / part.d >= low - 1e-12
+        elif side == "above":
+            assert ratio > high
+            assert (float(getattr(part, field)) - step) / part.d <= high + 1e-12
+        else:
+            assert ratio >= 10 * high
+        # only the one field leaves the catalogue row
+        fields = (expand(row) if kind == "bolt" else expand_nut(row)) or {}
+        params = point["params"]
+        assert isinstance(params, dict)
+        assert {k: v for k, v in params.items() if fields.get(k) != v} == {
+            field: getattr(part, field)}
+        seen.setdefault((kind, field, side, where), []).append(row)
+    for (kind, field), _band in cost.BANDS.items():
+        first = "iso4017:M2x4" if kind == "bolt" else "iso4032:M2"
+        for side in ("below", "above"):
+            for artifact, nearest in zip(ARTIFACTS3, NEAREST[kind, field, side], strict=True):
+                assert seen[kind, field, side, artifact] == [nearest, first]
+    assert {(kind, field) for kind, field, side, _ in seen if side == "far"} == {
+        ("bolt", "k"), ("nut", "s")}
+    assert all(rows == ["iso4017:M2x4"] or rows == ["iso4032:M2"]
+               for (_, _, side, _), rows in seen.items() if side == "far")
+    assert sorted(absent) == sorted(f"{kind} {field}/d far above its band at {a}"
+                                    for kind, field in (("bolt", "s"), ("nut", "m"))
+                                    for a in ARTIFACTS3)
+
+
+def test_g29_reads_bolts_whose_built_thread_is_below_the_fewest_fitted_turns() -> None:
+    _, envelope = _committed_outband()
+    points = oper_sets.turns_points(envelope)
+    assert [(p["artifact"], p["label"]) for p in points] == [
+        (artifact, f"turns-below-{row}") for artifact, nearest in zip(
+            ARTIFACTS3, TURNS_NEAREST, strict=True) for row in (nearest, "iso4017:M2x4")]
+    for point in points:
+        part = _part(point)
+        assert isinstance(part, BoltParams)
+        turns = built_thread_length(part.thread_length, part.length) / part.pitch
+        assert turns < cost.MIN_FITTED_TURNS
+        more = built_thread_length(part.thread_length + 0.5, part.length) / part.pitch
+        assert more >= cost.MIN_FITTED_TURNS
+        where = next(a for a in ARTIFACTS3 if a == point["artifact"])
+        assert oper_sets.admits(part, where, envelope, cost.BUDGET)
+
+
+def test_a_side_or_an_artifact_no_catalogue_row_supplies_stops_at_r11() -> None:
+    nothing = _flat(1e6)
+    with _stop("R11", "G28"):
+        oper_sets.head_ratio_points(nothing)
+    with _stop("R11", "G29"):
+        oper_sets.turns_points(nothing)
+
+
+def test_the_committed_outband_set_is_charged_as_explore_like_parts() -> None:
+    doc, _ = _committed_outband()
+    points = doc["points"]
+    assert isinstance(points, list)
+    assert doc["reps"] == 5
+    assert doc["sources"] == ["explore=bench/results/phase-07/explore-40646117094"]
+    table = oper_sets.charge_table(oper_sets.read_readings(
+        REPO_ROOT / "bench/results/phase-07/explore-40646117094"))
+    assert doc["shard_sizes"] == oper_sets.shard_sizes(
+        oper_sets.charges(points, table, 600.0), oper_sets.HALF_JOB_S)

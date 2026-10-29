@@ -20,13 +20,14 @@ height, `m` nut height, `c` radial clearance, `r` root radius `d/2 - 5H/8` (plus
 from __future__ import annotations
 
 import argparse
+import functools
 import json
 import random
 import statistics
 import sys
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from decimal import ROUND_CEILING, ROUND_HALF_UP, Context, Decimal
+from decimal import ROUND_CEILING, ROUND_FLOOR, ROUND_HALF_UP, Context, Decimal
 from fractions import Fraction
 from pathlib import Path
 
@@ -36,8 +37,8 @@ from bench import oper_lift
 from bench.oper import CONTENTION_WORKERS, DEADLINE_S, POINTS_DIR, _read_records
 from bench.thread_spike.maths import PITCH, SAMPLE_SIZES, standard_max
 from screw.calc import cost
-from screw.calc.thread import _exact, thread_depth
-from screw.params import KINDS, FastenerParams
+from screw.calc.thread import _exact, built_thread_length, thread_depth
+from screw.params import KINDS, BoltParams, FastenerParams
 from screw.tables.presets import catalogue, expand, expand_nut, nut_catalogue
 
 type Params = Mapping[str, float | bool]
@@ -1334,7 +1335,7 @@ LOAD_SOLID_CACHE = 4  # R15: `SCREW_SOLID_CACHE` unless R22 is measuring a K
 GZIP_ARTIFACTS: tuple[cost.Artifact, ...] = ("stl-preview", "stl-fine")  # R19: the STL bound set
 GZIP_LEVELS = [1, 6, 9]  # R19
 TIER_ORDER = "bench/results/phase-07/tier-order.json"
-RUNS2_SETS = ("bound", "load", "gzip", "arenas")
+RUNS2_SETS = ("bound", "load", "gzip", "arenas", "outband")
 
 type Envelope = Mapping[tuple[str, str, str], float]
 type Budget = Mapping[cost.Artifact, cost.Budget]
@@ -1667,6 +1668,176 @@ def arena_points(bound: Mapping[str, Sequence[Candidate]],
     return out
 
 
+# --- the out-of-band points (R11, G28 and G29) ---------------------------------------------------
+
+FAR_FACTOR = Decimal(10)  # G28's follow-up: one point far above the band, at 10 x its high edge
+
+
+@dataclass(frozen=True)
+class Outband:
+    """One out-of-band part: its label, its fields and the part the parameter model makes."""
+
+    label: str
+    params: dict[str, object]
+    part: FastenerParams
+
+
+def _form_step(kind: str, field: str) -> Decimal:
+    """The form step the schema publishes for `field` (0.1 mm for s, k and m, 0.5 mm for
+    thread_length), read from the model, not typed."""
+    extra = KINDS[kind].model_fields[field].json_schema_extra
+    assert isinstance(extra, dict)
+    step = extra["step"]
+    assert isinstance(step, float)
+    return Decimal(repr(step))
+
+
+def _on_step(n: int, step: Decimal) -> float:
+    return float(n * step)
+
+
+def _largest_below(bound: float, d: float, step: Decimal) -> float | None:
+    """The largest positive value on `step` whose ratio to `d`, as `cost` divides it, is strictly
+    below `bound`, or None when no positive value is."""
+    n = int((Decimal(repr(bound)) * Decimal(repr(d)) / step).to_integral_value(ROUND_CEILING))
+    while n > 0 and _on_step(n, step) / d >= bound:
+        n -= 1
+    while _on_step(n + 1, step) / d < bound:
+        n += 1
+    return _on_step(n, step) if n > 0 else None
+
+
+def _smallest_above(bound: float, d: float, step: Decimal) -> float:
+    """The smallest value on `step` whose ratio to `d` is strictly above `bound`."""
+    n = int((Decimal(repr(bound)) * Decimal(repr(d)) / step).to_integral_value(ROUND_FLOOR))
+    while _on_step(n, step) / d <= bound:
+        n += 1
+    while n > 1 and _on_step(n - 1, step) / d > bound:
+        n -= 1
+    return _on_step(n, step)
+
+
+def _catalogue_rows(kind: str) -> list[tuple[str, dict[str, object]]]:
+    """(row id, expanded fields) of the bolt (294) or nut (14) catalogue, in file order."""
+    if kind == "bolt":
+        return [(row.id, dict(expand(row.id) or {})) for row in catalogue()]
+    return [(row.id, dict(expand_nut(row.id) or {})) for row in nut_catalogue()]
+
+
+def _admitted_rows(kind: str, label: Callable[[str], str],
+                   value: Callable[[FastenerParams], tuple[str, float] | None],
+                   artifact: cost.Artifact, envelope: Envelope, budget: Budget) -> list[Outband]:
+    """The catalogue rows of `kind` with one field set by `value` (None skips the row) that the
+    walls and the rule admit at `artifact`, in file order."""
+    found: list[Outband] = []
+    for row_id, fields in _catalogue_rows(kind):
+        base = _validated(kind, fields)
+        assert base is not None, row_id
+        moved = value(base)
+        if moved is None:
+            continue
+        params = {**fields, moved[0]: moved[1]}
+        part = _validated(kind, params)
+        if part is not None and admits(part, artifact, envelope, budget):
+            found.append(Outband(label(row_id), params, part))
+    return found
+
+
+def _nearest_and_first(found: Sequence[Outband], artifact: cost.Artifact, envelope: Envelope,
+                       budget: Budget) -> list[Outband]:
+    """The row nearest the budget (the largest edge ratio, as R27 ranks, a tie to the label that
+    sorts first) and the first in file order; one point when they coincide."""
+    nearest = min(found, key=lambda o: (-edge_ratio(o.part, artifact, envelope, budget), o.label))
+    return [nearest] if nearest.label == found[0].label else [nearest, found[0]]
+
+
+def _outband_point(o: Outband, artifact: str) -> dict[str, object]:
+    return {"label": o.label, "kind": o.part.kind, "params": o.params, "artifact": artifact}
+
+
+def _outband_label(kind: str, field: str, side: str, row: str) -> str:
+    return f"outband-{kind}-{field}-{side}-{row}"
+
+
+def _side_value(side: str, field: str, band: tuple[float, float], step: Decimal,
+                p: FastenerParams) -> tuple[str, float] | None:
+    """`field` of `p` moved out of its band: to the first value on `step` strictly below the low
+    edge x d, strictly above the high edge x d, or at or above 10 x the high edge x d (far)."""
+    low, high = band
+    if side == "below":
+        value = _largest_below(low, p.d, step)
+        return None if value is None else (field, value)
+    if side == "above":
+        return field, _smallest_above(high, p.d, step)
+    far = FAR_FACTOR * Decimal(repr(high)) * Decimal(repr(p.d)) / step
+    return field, _on_step(int(far.to_integral_value(ROUND_CEILING)), step)
+
+
+def head_ratio_points(envelope: Envelope, budget: Budget = cost.BUDGET
+                      ) -> tuple[list[dict[str, object]], list[str]]:
+    """G28's out-of-band points and the far points that do not exist. Per head ratio of
+    `cost.BANDS`, artifact and side, the catalogue rows whose ratio field, set to the first value
+    on its form step strictly below the band's low edge x d (above: strictly above its high edge
+    x d), the walls and the rule admit: the one nearest the budget and the first in file order.
+    One far point above, the first row admitted with the field at 10 x the high edge x d on its
+    step, where one is. A side no row supplies is a stop (R11)."""
+    points: list[dict[str, object]] = []
+    absent: list[str] = []
+    for (kind, field), (low, high) in cost.BANDS.items():
+        step = _form_step(kind, field)
+        for artifact in cost.ARTIFACTS:
+            for side in ("below", "above", "far"):
+                found = _admitted_rows(
+                    kind, functools.partial(_outband_label, kind, field, side),
+                    functools.partial(_side_value, side, field, (low, high), step), artifact,
+                    envelope, budget)
+                if not found and side == "far":
+                    absent.append(f"{kind} {field}/d far above its band at {artifact}")
+                    continue
+                if not found:
+                    raise ProtocolStop("R11", f"no {kind} catalogue row with {field}/d {side} its "
+                                              f"band is admitted at {artifact} (G28)")
+                chosen = found[:1] if side == "far" else _nearest_and_first(
+                    found, artifact, envelope, budget)
+                points += [_outband_point(o, artifact) for o in chosen]
+    return points, absent
+
+
+def _below_turns(p: FastenerParams, step: Decimal) -> tuple[str, float] | None:
+    """G29: `thread_length` at the largest positive value on its form step whose built thread
+    has fewer turns than `cost.MIN_FITTED_TURNS`, as `cost` computes the turns."""
+    assert isinstance(p, BoltParams)
+
+    def turns(n: int) -> float:
+        return built_thread_length(_on_step(n, step), p.length) / p.pitch
+
+    n = int((Decimal(repr(cost.MIN_FITTED_TURNS)) * Decimal(repr(p.pitch)) / step)
+            .to_integral_value(ROUND_CEILING))
+    while n > 0 and turns(n) >= cost.MIN_FITTED_TURNS:
+        n -= 1
+    while turns(n + 1) < cost.MIN_FITTED_TURNS:
+        n += 1
+    return ("thread_length", _on_step(n, step)) if n > 0 else None
+
+
+def turns_points(envelope: Envelope, budget: Budget = cost.BUDGET) -> list[dict[str, object]]:
+    """G29's points: per artifact the bolt catalogue rows with `thread_length` below the fewest
+    fitted turns (`_below_turns`) that the walls and the rule admit, the one nearest the budget
+    and the first in file order. An artifact with none is a stop (R11)."""
+    step = _form_step("bolt", "thread_length")
+    points: list[dict[str, object]] = []
+    for artifact in cost.ARTIFACTS:
+        found = _admitted_rows("bolt", "turns-below-{}".format,
+                               functools.partial(_below_turns, step=step), artifact, envelope,
+                               budget)
+        if not found:
+            raise ProtocolStop("R11", f"no bolt catalogue row below {cost.MIN_FITTED_TURNS!r} "
+                                      f"built turns is admitted at {artifact} (G29)")
+        points += [_outband_point(o, artifact)
+                   for o in _nearest_and_first(found, artifact, envelope, budget)]
+    return points
+
+
 def _runs2_set(name: str, rule: str, notes: list[str], points: Iterable[Mapping[str, object]],
                envelope: Envelope, sources: list[str]) -> _Set:
     """A Runs II set at 5 repetitions, each reading charged R2's 600 s deadline (R6, G4, G24)."""
@@ -1745,6 +1916,36 @@ def build_arenas(explore_dir: str, envelope: Envelope) -> _Set:
         arena_points(bound, _read(explore_dir)), envelope, [f"explore={explore_dir}"])
 
 
+def build_outband(explore_dir: str, envelope: Envelope) -> _Set:
+    """`outband.json`: G28's and G29's points at 5 repetitions, each charged as R6 charges an
+    explore-like part, the largest explore `wall_s` of its (kind, artifact) group (G4)."""
+    head, absent = head_ratio_points(envelope)
+    out = _Set("outband", reps=RUNS2_REPS, shards=1, rule="07-SWEEP-PROTOCOL.md R11 (G28, G29)",
+               notes=[
+                   "G28: per head ratio of cost.BANDS (bolt k/d and s/d, nut s/d and m/d), "
+                   "artifact and side, catalogue rows with the ratio field at the first value on "
+                   "its 0.1 mm form step strictly below the band's low edge x d (outband-*-below-*)"
+                   " or strictly above its high edge x d (outband-*-above-*) that the walls and "
+                   "the shipped rule admit: the one with the largest enveloped edge ratio (R27's "
+                   "rank, a tie to the label) and the first in file order, one point when they "
+                   "coincide",
+                   "G28: far above (outband-*-far-*), the first row admitted with the field at the "
+                   "first value on its step at or above 10 x the high edge x d; none for "
+                   + ("; ".join(absent) if absent else "no ratio"),
+                   "G29 (turns-below-*): per artifact bolt catalogue rows with thread_length at "
+                   "the largest value on its 0.5 mm form step whose built thread has fewer turns "
+                   "than cost.MIN_FITTED_TURNS, admitted by the walls and the rule: the nearest "
+                   "the budget and the first in file order",
+                   "a reading above its enveloped prediction stops the phase for the owner and "
+                   "widens no e (R11); 5 repetitions; each point charged the largest explore "
+                   "wall_s of its (kind, artifact) group (R6, G4)"])
+    for point in [*head, *turns_points(envelope)]:
+        out.copy(point)
+    out.sharded(charge_table(_read(explore_dir)), [f"explore={explore_dir}"])
+    out.envelope = envelope_document(envelope)
+    return out
+
+
 def _recorded_envelope(text: str) -> dict[tuple[str, str, str], float]:
     """The envelope a Runs II file was drawn under. A recorded e above the shipped one is no
     envelope this code ever shipped (a widening only raises e), so the file cannot stand."""
@@ -1766,7 +1967,7 @@ def _regenerate_runs2(name: str, text: str) -> str:
     raw = json.loads(text)
     sources = dict(str(entry).split("=", 1) for entry in raw.get("sources", []))
     needs = {"bound": ("explore",), "load": ("tier-order", "explore"), "gzip": ("explore",),
-             "arenas": ("explore",)}[name]
+             "arenas": ("explore",), "outband": ("explore",)}[name]
     missing = [source for source in needs if source not in sources]
     if missing:
         raise ValueError(f"it names no {' and '.join(missing)} source")
@@ -1776,6 +1977,8 @@ def _regenerate_runs2(name: str, text: str) -> str:
         return build_load(sources["tier-order"], sources["explore"]).text()
     if name == "arenas":
         return build_arenas(sources["explore"], envelope).text()
+    if name == "outband":
+        return build_outband(sources["explore"], envelope).text()
     return build_gzip(sources["explore"], envelope).text()
 
 
@@ -1911,6 +2114,8 @@ def _runs2(args: argparse.Namespace, explore_dir: str) -> None:
             made = build_load(tier_path, explore_dir)
         elif name == "arenas":
             made = build_arenas(explore_dir, envelope)
+        elif name == "outband":
+            made = build_outband(explore_dir, envelope)
         else:
             made = build_gzip(explore_dir, envelope)
         (out_dir / f"{name}.json").write_text(made.text())
