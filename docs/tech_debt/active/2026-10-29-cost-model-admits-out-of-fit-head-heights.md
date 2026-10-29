@@ -3,8 +3,9 @@
 Severity: must
 Status: active
 Date: 2026-10-29
-Source: plan 07-11 (the cost model wired into `download_refusal`). Found while moving the tests;
-not ruled on yet.
+Source: plan 07-11 (the cost model wired into `download_refusal`). Found while moving the tests.
+Ruled on 2026-10-29 as G28 (`07-GAP-RULINGS.md`); guarded since commit bc7b2ab. Trigger: 07-15's
+out-of-band readings.
 Related files:
 - src/screw/calc/cost.py (`predict`, `fits`, the emitted `COEFFICIENTS`)
 - bench/results/phase-07/fit.json (the `ln_k` coefficients)
@@ -12,9 +13,9 @@ Related files:
 - src/screw/params.py (`MAX_BOLT_K_MM`, L20)
 
 ## Context
-R11 fits the log of each target as a linear function of the log features. In the explore points
-the bolt's `k` is always between 0.5 and about 0.69 of `d` (k 0.6 mm to 600 mm), so `ln_k` is
-almost collinear with `ln_d`. fit.json (runs explore 40646117094, spread 40646125666) gives it
+R11 fits the log of each target as a linear function of the log features. Over the fitted points
+(1247 bolt points, omitted fields at their defaults) the bolt's k/d runs from 0.6 to 0.7, so `ln_k`
+is almost collinear with `ln_d`. (This item first said 0.5 to about 0.69; that was wrong.) fit.json (runs explore 40646117094, spread 40646125666) gives it
 negative coefficients on every bolt artifact. At stl-fine they are bytes -3.675, seconds -3.366 and
 peak -3.007. A taller head therefore predicts a cheaper part. The parameter model allows k up to
 `MAX_BOLT_K_MM` (100000 mm, L20), far outside the fitted band.
@@ -24,6 +25,11 @@ The figures below come from `cost.fits` at commit ed55679. Take the explore poin
 three artifacts. Change only k to 100000 and it is admitted at all three. The same thing happens
 at d 30 and d 300. Real cost does not fall as the head grows, because the thread is unchanged and
 the head adds geometry. So this part is admitted on a prediction the fit does not support.
+
+The nut's `s` does the same. `ln_s` is negative on 6 of the 9 nut models (down to -0.241), and the
+fitted nut s/d runs from 1.5 to 4.0. At d 30, pitch 0.35, m 24, clearance 0.15 (figures from
+`cost.fits` at commit d869b87): s 48 is refused at all three artifacts; at s 120 the preview is
+admitted; at s 300 the preview and the fine STL; at s 999 the preview and the STEP.
 
 This is no regression. The old rule (`FINE_STL_ROWS`) capped only the measured (d, pitch, hand)
 rows and refused no off-row part at any artifact. The per-build timeout (`BUILD_TIMEOUT_S`,
@@ -41,11 +47,21 @@ An unauthenticated request can push an expensive thread past the admission rule 
 head. Only the timeout then stops it from occupying a worker. Any fix changes R11 or the L20 walls,
 and R30 says a rule change needs the owner's ruling.
 
+## What is done
+The owner ruled G28 on 2026-10-29 (rulings 1, 2, 4 and 5 of that section), amending R11. Each head
+ratio (bolt k/d and s/d, nut s/d and m/d) has a band, its [min, max] over the fitted points, which
+`bench.oper_fit emit-constants` ships as `cost.BANDS`. A part with a ratio above its band is
+predicted as the largest prediction anywhere in the band. A part with a ratio below its band is
+predicted as max(raw, low edge). Commit bc7b2ab ships the guard. Bolt k 1000 and nut s 999 are now
+refused at all three artifacts, and the budget table and fit.json are byte-identical.
+
+The below-band side rests on an ASSUMPTION that has not been measured: that a smaller head never
+costs more than one at the low edge. The above-band side assumes that real cost does not fall as a
+head grows past the band.
+
 ## Next step
-Put it to the owner before plan 07-14 draws the bound set. There are three options:
-- (a) Clamp each feature to its fitted range before predicting. Out-of-band values would then be
-  judged as the band's edge, which is conservative for negative coefficients. This is a rule
-  change to R11.
-- (b) Add a ratio wall (k/d, s/d) to L20 at the fitted band, so the model is never asked outside
-  it.
-- (c) Accept it and leave this direction to the timeouts, logged in L21.
+Plan 07-15 reads `outband.json` at 5 repetitions: per kind, artifact and ratio, one part below the
+band and one above it, plus a far point where the rule admits one. This item resolves only if every
+one of those readings stays within its enveloped prediction. A reading above its envelope stops the
+phase for the owner, and `e` is not widened. In that case the item stays active with the readings
+added.
