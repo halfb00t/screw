@@ -11514,3 +11514,23 @@ Status counts: ok: 300
 | turns-below-iso4017:M2x4 | stl-fine | 5 | ok | ok: 5 | 0.868 | 1.024 | 0.252 | 0.311 | 1446684 | 1446684 | 251654144 | 258457600 |
 | turns-below-iso4017:M20x40 | step | 5 | ok | ok: 5 | 1.111 | 1.255 | 0.019 | 0.021 | 371324 | 371324 | 210001920 | 210026496 |
 | turns-below-iso4017:M2x4 | step | 5 | ok | ok: 5 | 0.862 | 1.000 | 0.015 | 0.018 | 257459 | 257459 | 208896000 | 209113088 |
+
+### out-of-band check
+
+G28 and G29 (R11) over outband run 40909768713: every reading of `bench/points/outband.json` judged against its enveloped prediction, `cost.predict` (G28's bands included) x (1 + e), the shipped constants, unchanged through this plan and equal to the envelope the set records. 60 points x 5 repetitions, 300 readings: ok 300, so every point has its 5 repetitions (R3). 180 (point, target) pairs are judged; **7 have a reading above the enveloped prediction**, in 20 readings. Each is listed with its largest reading, its repetitions above, and the actual / enveloped ratio of that reading. The predictions are computed by committed code from the committed constants; the actuals are the records' `bytes`, `build_s + export_s` and `memory_peak_bytes`.
+
+| point | artifact | target | largest actual | enveloped prediction | actual / enveloped | repetitions above |
+| --- | --- | --- | --- | --- | --- | --- |
+| outband-nut-s-below-iso4032:M2 | stl-fine | seconds | 3.1520978460000038 | 2.38788238715507 | 1.3200 | 1, 2, 3 |
+| turns-below-iso4017:M2x4 | stl-fine | bytes | 1446684 | 1103003.1831122846 | 1.3116 | 1, 2, 3, 4, 5 |
+| outband-nut-m-below-iso4032:M2 | stl-fine | seconds | 2.7999014229999375 | 2.2918213947784887 | 1.2217 | 1, 2, 3 |
+| outband-nut-s-far-iso4032:M2 | stl-fine | seconds | 2.676000232000007 | 2.377568587429689 | 1.1255 | 1, 2, 3 |
+| outband-nut-s-above-iso4032:M2 | stl-fine | seconds | 2.5430889840000077 | 2.377568587429689 | 1.0696 | 1, 3 |
+| outband-nut-s-below-iso4032:M2 | stl-fine | peak | 259596288 | 253009550.05034554 | 1.0260 | 1, 2, 3 |
+| outband-nut-m-below-iso4032:M2 | stl-fine | peak | 253583360 | 253476535.21541843 | 1.0004 | 3 |
+
+Every other pair is at or under its envelope; the largest of them is outband-nut-s-far-iso4032:M2 at stl-fine (peak, 0.9989). Every point above is a first-in-file M2 row; no nearest-the-budget point and no point at stl-preview or step exceeds its envelope.
+
+Context, from explore run 40646117094 (one reading per point): the in-band row `iso4032:M2` at stl-fine read a cold wall of 1.5275360059999912 s against an enveloped prediction of 2.291821394778489 s. `outband-nut-m-below-iso4032:M2` carries 2.2918213947784887 s, one float below it: its m of 1.5 is below the band, so it is judged at the low edge, 0.7999999999999999 x d, a float under the row's own m of 1.6. The 25 outband readings of the M2 nut at stl-fine have cold walls from 1.491931997999984 to 5.614241638999999 s. `iso4017:M2x4` at stl-fine read 3196784 bytes against 4232659.607919438 enveloped; with its thread_length at 1.0 (G29, 2.5 built turns) it reads 1446684 bytes in all 5 repetitions against 1103003.1831122846 enveloped.
+
+**Outcome: the G28 and G29 check stops the phase for the owner.** Per R11, no e is widened. The envelope check over the other Runs II readings was not run, and fit.json and `calc/cost.py` are unchanged. `docs/tech_debt/active/2026-10-29-cost-model-admits-out-of-fit-head-heights.md` stays active, with these readings added.

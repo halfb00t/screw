@@ -65,3 +65,22 @@ band and one above it, plus a far point where the rule admits one. This item res
 one of those readings stays within its enveloped prediction. A reading above its envelope stops the
 phase for the owner, and `e` is not widened. In that case the item stays active with the readings
 added.
+
+## The 07-15 readings (outband run 40909768713, 2026-10-29)
+`bench/points/outband.json` (60 points: G28's head-ratio points and G29's bolts below the fitted
+turns) read `ok` in all 300 readings (5 repetitions). 7 (point, target) pairs have readings above
+their enveloped prediction, 20 readings in all, every one a first-in-file M2 row at stl-fine:
+
+| point | target | largest actual / enveloped prediction | repetitions above |
+| --- | --- | --- | --- |
+| outband-nut-s-below-iso4032:M2 | seconds | 1.3200 | 1, 2, 3 |
+| turns-below-iso4017:M2x4 (G29) | bytes | 1.3116 | 1 to 5 |
+| outband-nut-m-below-iso4032:M2 | seconds | 1.2217 | 1, 2, 3 |
+| outband-nut-s-far-iso4032:M2 | seconds | 1.1255 | 1, 2, 3 |
+| outband-nut-s-above-iso4032:M2 | seconds | 1.0696 | 1, 3 |
+| outband-nut-s-below-iso4032:M2 | peak | 1.0260 | 1, 2, 3 |
+| outband-nut-m-below-iso4032:M2 | peak | 1.0004 | 3 |
+
+No nearest-the-budget point, and no point at stl-preview or step, exceeds its envelope. The figures
+and their context are in `bench/RESULTS.md`, `### out-of-band check` under `## Phase 7 Runs II`.
+Under R11 and G28 this stops the phase for the owner and widens no e. The item stays active.

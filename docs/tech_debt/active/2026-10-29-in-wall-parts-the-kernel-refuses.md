@@ -45,3 +45,13 @@ their cost is not predicted from any reading.
 Run `/gsd-debug` on one bolt pair that differs only in hand (`bolt-d300-p1-n3-right` refused, its
 left twin `ok`) and on one nut. Decide whether this needs a measured guard (an R-rule
 ruling and a sweep) or a kernel fix. Revisit before phase 7 closes, or before the first release.
+
+## Seen again in Runs II (07-15, 2026-10-29)
+Two of the twenty, `nut-d30-p0.35-m0.8d-s4d-c0.15-right` and `nut-d30-p0.35-m0.8d-s1.6d-c0.15-left`,
+are admitted at stl-preview and among its five slowest enveloped predictions, so R14 put them in the
+stl-preview bound set; the first is also the slot-0 partner of four other bound points at N = 3. R14
+asks for an ok explore reading only for its two measured choices, not for the five slowest or the
+partners. Every reading that built either nut was `refused` with `BuildError` (the lead-in
+countersink): 50 of 300 in bound run 40907549180 and 10 of 70 in gzip run 40909739628. Under R3
+those points have no max, which 07-16 meets when it takes the bound point, W and the gzip level
+from these records.
