@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 07
 current_phase_name: Operability Re-sweep
 status: executing
-stopped_at: Completed 07-11-PLAN.md
-last_updated: "2026-10-29T03:21:54.692Z"
+stopped_at: Completed 07-12-PLAN.md
+last_updated: "2026-10-29T13:15:26.857Z"
 last_activity: 2026-10-29
 last_activity_desc: Phase 07 execution started
-state_head: 9dab2d17b7c02f18a5648920fffdcafa7c68db15
+state_head: 6cb928bc50b1175953ceb40f33ef1b336742fa18
 progress:
   total_phases: 8
   completed_phases: 7
   total_plans: 103
-  completed_plans: 93
+  completed_plans: 94
   percent: 88
 ---
 
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-10-25)
 ## Current Position
 
 Phase: 07 (Operability Re-sweep) — EXECUTING
-Plan: 12 of 21
+Plan: 13 of 21
 Status: Ready to execute
-Last activity: 2026-10-29 — Plan 07-11 complete (cost model judges every artifact of both kinds; B-02 over_budget 422; owner ruling A for the preset export test; out-of-fit head height debt filed for the owner)
+Last activity: 2026-10-29 — Plan 07-12 complete (B-03 default cap on the API and the CLI with the owner's clarification: per field, length never below a named thread_length; L21 logged; cap-below-fitted-turns debt filed for the owner)
 
 Progress: [█████████░] 88%
 
@@ -155,6 +155,7 @@ Progress: [█████████░] 88%
 | Phase 07 P10 | 30min | 4 tasks | 1 files |
 | Phase 07 P08 | 35min | 3 tasks | 9 files |
 | Phase 07 P11 | 64 min | 3 tasks | 12 files |
+| Phase 07 P12 | 85 min | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -315,6 +316,9 @@ Recent decisions affecting current work:
 - [Phase 07]: 07-08: owner ruling 2026-10-29, "Accept 19, record deviation (Recommended)": the load smoke's 19 health samples (run 40804106015, all 200, p95 null with the count stated) accepted as the path check
 - [Phase 07]: 07-11: preset export test is iso4017:M20x70 --pitch 1 (owner ruling A, 2026-10-29: "A: preset + overrides (Recommended)")
 - [Phase 07]: 07-11: refusal text says predicted over its measured budget (L21) and prints no figure; an overflowing prediction is infinite and refused
+- [Phase 07]: B-03 clarification: each unnamed field capped on its own, thread_length then length (or nut m); length never below a named thread_length
+- [Phase 07]: B-03 clarification: a d-only M5 is served with its defaulted thread_length capped (16.5 mm), not refused at the preview
+- [Phase 07]: cap_defaults treats a field off its frozen default as named, so direct construction never has a chosen value moved
 
 ### Pending Todos
 
@@ -369,6 +373,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-29T03:21:54.434Z
-Stopped at: Completed 07-11-PLAN.md
+Last session: 2026-10-29T13:15:26.530Z
+Stopped at: Completed 07-12-PLAN.md
 Resume file: None
