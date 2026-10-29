@@ -111,6 +111,18 @@ CONTENTION_WORKERS = (1, 2, 3)
 # A bound child also reports a reading it cut itself (a build past the deadline, a build on the
 # wrong worker), which a part child never does.
 _BOUND_CHILD_STATUSES = _CHILD_STATUSES | {"killed", "crashed"}
+# A load reading (07-08, R15): the server in the image under C concurrent clients, run by
+# `bench.oper_load` from this parent. It builds no part of its own, so it has no artifact; its
+# `artifact` is the kind's name, as a probe's is the probe's. `solid_cache` is R22's K, 4 unless
+# a point measures another; `bodies` asks for R20's JSON body lengths after the run.
+LOAD_KIND = "load"
+_LOAD_KEYS = frozenset({"label", "kind", "workers", "queue", "clients", "mix"})
+_LOAD_OPTIONAL_KEYS = frozenset({"solid_cache", "bodies"})
+_MIX_KEYS = frozenset({"label", "kind", "params", "artifact"})
+LOAD_SOLID_CACHE = (1, 2, 3, 4)
+DEFAULT_SOLID_CACHE = 4
+# The figure a load reading's summary takes: the container's peak at the end of the run (R16).
+_LOAD_METRICS = ("memory_peak_bytes",)
 # `preset` is the catalogue row id a point was expanded from; `lift` names the one validator guard
 # a past-the-cap point lifts (`bench.oper_lift`), as `{"max_turns": 260}` or `{"max_mm": 1e6}`.
 _POINT_OPTIONAL_KEYS = frozenset({"preset", "lift"})
@@ -323,6 +335,8 @@ def run_reading(point: Point, rep: int, image: str, cap: int, deadline_s: float,
     because it sizes shards). `versions` is the header's, used when the child could not report
     its own."""
     name = f"screw-oper-{os.getpid()}-{next(_container_numbers)}"
+    if point.kind == LOAD_KIND and point.body is not None:
+        return _run_load_reading(point, point.body, name, rep, image, cap, deadline_s, versions)
     if point.deadline_s is not None:
         deadline_s = point.deadline_s  # a drift reading's own (R23)
     bound = point.kind in BOUND_KINDS
@@ -361,6 +375,22 @@ def run_reading(point: Point, rep: int, image: str, cap: int, deadline_s: float,
     return record
 
 
+def _run_load_reading(point: Point, body: Mapping[str, object], name: str, rep: int, image: str,
+                      cap: int, deadline_s: float,
+                      versions: Mapping[str, str] | None) -> dict[str, object]:
+    """One load reading (`bench.oper_load`), recorded as every reading is. The mix is not
+    repeated in the record: each request carries its own label, kind, params and artifact."""
+    from bench.oper_load import run_load  # it imports this module, so not at the top
+
+    load1 = os.getloadavg()[0]
+    started = time.perf_counter()
+    result = run_load(body, image, cap, deadline_s, name=name)
+    return {"type": "reading", "label": point.label, "kind": point.kind, "params": {},
+            "artifact": point.artifact, "rep": rep, "load1": load1, "container": name,
+            **{key: value for key, value in body.items() if key != "mix"}, **result,
+            "wall_s": time.perf_counter() - started, **dict(versions or {})}
+
+
 def summarize(readings: Iterable[Mapping[str, object]],
               expected_reps: Iterable[int] = BOUND_REPS) -> list[dict[str, object]]:
     """Per (label, artifact, lift), in first-seen order: how many repetitions, which ones, a count
@@ -396,7 +426,8 @@ def summarize(readings: Iterable[Mapping[str, object]],
         median: dict[str, float] | None = None
         maximum: dict[str, float] | None = None
         if status == "ok" and lift is None:
-            metrics = _PROBE_METRICS if group[0].get("kind") == PROBE_KIND else _METRICS
+            metrics = {PROBE_KIND: _PROBE_METRICS, LOAD_KIND: _LOAD_METRICS}.get(
+                str(group[0].get("kind")), _METRICS)
             columns = {m: [_number(r, m) for r in group] for m in metrics}
             median = {m: statistics.median(values) for m, values in columns.items()}
             maximum = {m: max(values) for m, values in columns.items()}
@@ -598,9 +629,65 @@ def _load_bound(name: str, raw: dict[str, object]) -> Point:
                  body={"workers": workers, "points": members})
 
 
+def _whole(value: object) -> int | None:
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+
+def _load_load(name: str, raw: dict[str, object]) -> Point:
+    """A load point (R15): N workers in 1 to 3, a queue of at least N, at least one client,
+    `solid_cache` K in 1 to 4 (4 if absent, R22), `bodies` yes or no (no if absent), and a
+    non-empty mix of parts, each a label, a part kind, its params and an artifact. Every number
+    becomes one `-e` element of the container's argv, so each is checked here (T-07-61)."""
+    label = raw.get("label")
+    if not _LOAD_KEYS <= set(raw) <= _LOAD_KEYS | _LOAD_OPTIONAL_KEYS:
+        _refuse(f"set {name!r}: a load point needs the keys {sorted(_LOAD_KEYS)} and may add "
+                f"{sorted(_LOAD_OPTIONAL_KEYS)}")
+    if not (isinstance(label, str) and label):
+        _refuse(f"set {name!r}: a load point's label is non-empty text")
+    workers, depth, clients = (_whole(raw[key]) for key in ("workers", "queue", "clients"))
+    cache = _whole(raw.get("solid_cache", DEFAULT_SOLID_CACHE))
+    bodies = raw.get("bodies", False)
+    if workers not in CONTENTION_WORKERS:
+        _refuse(f"set {name!r}: load {label!r} workers is {raw['workers']!r}, not one of "
+                f"{list(CONTENTION_WORKERS)}")
+    if depth is None or depth < workers:
+        _refuse(f"set {name!r}: load {label!r} queue is {raw['queue']!r}, not a whole number of "
+                "at least its workers")
+    if clients is None or clients < 1:
+        _refuse(f"set {name!r}: load {label!r} clients is {raw['clients']!r}, not a whole number "
+                "of at least 1")
+    if cache not in LOAD_SOLID_CACHE:
+        _refuse(f"set {name!r}: load {label!r} solid_cache is {raw.get('solid_cache')!r}, not "
+                f"one of {list(LOAD_SOLID_CACHE)} (R22)")
+    if not isinstance(bodies, bool):
+        _refuse(f"set {name!r}: load {label!r} bodies is {bodies!r}, not true or false")
+    mix = raw["mix"]
+    if not (isinstance(mix, list) and mix):
+        _refuse(f"set {name!r}: load {label!r} mix is a non-empty list")
+    entries: list[dict[str, object]] = []
+    for entry in mix:
+        if not (isinstance(entry, dict) and set(entry) == _MIX_KEYS):
+            _refuse(f"set {name!r}: load {label!r} mix entries have exactly the keys "
+                    f"{sorted(_MIX_KEYS)}")
+        part = _load_part(name, str(label), {"kind": entry["kind"], "params": entry["params"]})
+        if not (isinstance(entry["label"], str) and entry["label"]):
+            _refuse(f"set {name!r}: load {label!r} mix entry labels are non-empty text")
+        if part["kind"] == LOAD_KIND:
+            _refuse(f"set {name!r}: load {label!r} mix entry kind is a part kind")
+        if entry["artifact"] not in _ARTIFACTS:
+            _refuse(f"set {name!r}: load {label!r} mix entry artifact {entry['artifact']!r} is "
+                    f"not one of {list(_ARTIFACTS)}")
+        entries.append({"label": entry["label"], **part, "artifact": entry["artifact"]})
+    return Point(label=label, kind=LOAD_KIND, params={}, artifact=LOAD_KIND, body={
+        "workers": workers, "queue": depth, "clients": clients, "solid_cache": cache,
+        "bodies": bodies, "mix": entries})
+
+
 def _load_point(name: str, raw: object) -> Point:
     if isinstance(raw, dict) and raw.get("kind") == PROBE_KIND:
         return _load_probe(f"set {name!r}", raw)
+    if isinstance(raw, dict) and raw.get("kind") == LOAD_KIND:
+        return _load_load(name, raw)
     if isinstance(raw, dict) and raw.get("kind") in BOUND_KINDS:
         return _load_bound(name, raw)
     allowed = _POINT_KEYS | _POINT_OPTIONAL_KEYS
