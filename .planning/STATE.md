@@ -3,17 +3,17 @@ gsd_state_version: "1.0"
 current_phase: 07
 current_phase_name: Operability Re-sweep
 status: executing
-stopped_at: Completed 07-10-PLAN.md
-last_updated: "2026-10-29T01:33:30.000Z"
+stopped_at: Completed 07-08-PLAN.md
+last_updated: "2026-10-29T02:20:00.000Z"
 last_activity: 2026-10-28
 last_activity_desc: Phase 07 execution started
-state_head: 8079a6a
+state_head: c6b09d4
 progress:
   total_phases: 8
   completed_phases: 7
   total_plans: 103
-  completed_plans: 91
-  percent: 88
+  completed_plans: 92
+  percent: 89
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-10-25)
 ## Current Position
 
 Phase: 07 (Operability Re-sweep) — EXECUTING
-Plan: 10 of 21
+Plan: 11 of 21
 Status: Ready to execute
-Last activity: 2026-10-29 — Plan 07-10 complete (owner rulings: B-01 C1, B-02 over_budget, B-03 part-wide)
+Last activity: 2026-10-29 — Plan 07-08 complete (load driver, instrument server, HEALTHCHECK wall, JSON bodies, gzip levels; runner smoke 40804106015 ok)
 
-Progress: [█████████░] 88%
+Progress: [█████████░] 89%
 
 ## Performance Metrics
 
@@ -153,6 +153,7 @@ Progress: [█████████░] 88%
 | Phase 07 P06 | 30 min | 3 tasks | 6 files |
 | Phase 07 P09 | 45min | 2 tasks | 6 files |
 | Phase 07 P10 | 30min | 4 tasks | 1 files |
+| Phase 07 P08 | 35min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -309,6 +310,8 @@ Recent decisions affecting current work:
 - [Phase 07]: 07-06: an arena reading reads memory.current and VmRSS right after export(), before the level-1 gzip and the peak (G17 'read after the export'); owner to confirm before 07-15
 - [Phase 07]: 07-06: a trim-on arena reading where malloc_trim cannot load is not taken (crashed), never a trim-off reading under the trim-on name (L02)
 - [Phase 07]: 07-09: R11/R12 cost models fitted from explore 40646117094 and spread 40646125666 (fit.json); 07-BUDGET-TABLE.md generated with C1, C2, C3 for the owner's B-01 ruling
+- [Phase 07]: 07-08: a load reading's health and HEALTHCHECK pollers cover the load window only; its status takes the container first (capped, killed, crashed, no_cgroup), then the requests; a socket timeout at the reading's deadline is killed
+- [Phase 07]: 07-08: owner ruling 2026-10-29, "Accept 19, record deviation (Recommended)": the load smoke's 19 health samples (run 40804106015, all 200, p95 null with the count stated) accepted as the path check
 
 ### Pending Todos
 
@@ -362,6 +365,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-29T01:33:30.000Z
-Stopped at: Completed 07-10-PLAN.md
+Last session: 2026-10-29T02:20:00.000Z
+Stopped at: Completed 07-08-PLAN.md
 Resume file: None
