@@ -1334,7 +1334,7 @@ LOAD_SOLID_CACHE = 4  # R15: `SCREW_SOLID_CACHE` unless R22 is measuring a K
 GZIP_ARTIFACTS: tuple[cost.Artifact, ...] = ("stl-preview", "stl-fine")  # R19: the STL bound set
 GZIP_LEVELS = [1, 6, 9]  # R19
 TIER_ORDER = "bench/results/phase-07/tier-order.json"
-RUNS2_SETS = ("bound", "load", "gzip")
+RUNS2_SETS = ("bound", "load", "gzip", "arenas")
 
 type Envelope = Mapping[tuple[str, str, str], float]
 type Budget = Mapping[cost.Artifact, cost.Budget]
@@ -1641,6 +1641,32 @@ def gzip_points(bound: Mapping[str, Sequence[Candidate]]) -> list[dict[str, obje
             for artifact in GZIP_ARTIFACTS for c in bound[artifact]]
 
 
+def arena_points(bound: Mapping[str, Sequence[Candidate]],
+                 readings: Iterable[Reading]) -> list[dict[str, object]]:
+    """R23's arena readings (G17): per artifact, Z(A), the point of A's bound set with the largest
+    `memory_peak_bytes` among its ok explore readings (a tie to the label that sorts first, R14's
+    measured memory extremum), with the trim on and with it off."""
+    index = _explore_index(readings)
+    out: list[dict[str, object]] = []
+    for artifact in cost.ARTIFACTS:
+        measured = [c for c in bound[artifact] if _ok(index, c.label, artifact) is not None]
+
+        def peak(c: Candidate, artifact: str = artifact) -> float:
+            reading = _ok(index, c.label, artifact)
+            assert reading is not None
+            return _number(reading, "memory_peak_bytes")
+
+        z = _largest(measured, peak)
+        if z is None:
+            raise ProtocolStop("R23", f"no point of the {artifact} bound set has an ok explore "
+                                      "reading, so Z(A) has no part")
+        for trim in (True, False):
+            out.append({"label": f"arenas-{z.label}-trim-{'on' if trim else 'off'}",
+                        "kind": "arenas", "artifact": artifact,
+                        "part": {"kind": z.part.kind, "params": z.params}, "trim": trim})
+    return out
+
+
 def _runs2_set(name: str, rule: str, notes: list[str], points: Iterable[Mapping[str, object]],
                envelope: Envelope, sources: list[str]) -> _Set:
     """A Runs II set at 5 repetitions, each reading charged R2's 600 s deadline (R6, G4, G24)."""
@@ -1707,6 +1733,18 @@ def build_gzip(explore_dir: str, envelope: Envelope) -> _Set:
         gzip_points(bound), envelope, [f"explore={explore_dir}"])
 
 
+def build_arenas(explore_dir: str, envelope: Envelope) -> _Set:
+    bound = bound_sets(_explore_points(), _read(explore_dir), envelope)
+    return _runs2_set("arenas", "07-SWEEP-PROTOCOL.md R23 (G17, G22, G24)", [
+        "per artifact Z(A), the bound-set point (R14) with the largest memory_peak_bytes among "
+        "its ok explore readings, a tie to the label that sorts first, read with the trim on and "
+        "with it off",
+        "the measure is the cgroup's memory.current, read right after the export returns, before "
+        "the level-1 gzip; the peak is read last (R2)",
+        "5 repetitions; each reading charged R2's 600 s (R6, G24)"],
+        arena_points(bound, _read(explore_dir)), envelope, [f"explore={explore_dir}"])
+
+
 def _recorded_envelope(text: str) -> dict[tuple[str, str, str], float]:
     """The envelope a Runs II file was drawn under. A recorded e above the shipped one is no
     envelope this code ever shipped (a widening only raises e), so the file cannot stand."""
@@ -1727,7 +1765,8 @@ def _regenerate_runs2(name: str, text: str) -> str:
         return tier_order_text(envelope)
     raw = json.loads(text)
     sources = dict(str(entry).split("=", 1) for entry in raw.get("sources", []))
-    needs = {"bound": ("explore",), "load": ("tier-order", "explore"), "gzip": ("explore",)}[name]
+    needs = {"bound": ("explore",), "load": ("tier-order", "explore"), "gzip": ("explore",),
+             "arenas": ("explore",)}[name]
     missing = [source for source in needs if source not in sources]
     if missing:
         raise ValueError(f"it names no {' and '.join(missing)} source")
@@ -1735,6 +1774,8 @@ def _regenerate_runs2(name: str, text: str) -> str:
         return build_bound(sources["explore"], envelope).text()
     if name == "load":
         return build_load(sources["tier-order"], sources["explore"]).text()
+    if name == "arenas":
+        return build_arenas(sources["explore"], envelope).text()
     return build_gzip(sources["explore"], envelope).text()
 
 
@@ -1868,6 +1909,8 @@ def _runs2(args: argparse.Namespace, explore_dir: str) -> None:
             made = build_bound(explore_dir, envelope)
         elif name == "load":
             made = build_load(tier_path, explore_dir)
+        elif name == "arenas":
+            made = build_arenas(explore_dir, envelope)
         else:
             made = build_gzip(explore_dir, envelope)
         (out_dir / f"{name}.json").write_text(made.text())

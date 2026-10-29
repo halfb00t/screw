@@ -1185,6 +1185,19 @@ def test_the_gzip_set_is_every_stl_bound_point_at_levels_1_6_and_9() -> None:
     assert all(p["gzip_levels"] == [1, 6, 9] for p in gzip)
 
 
+def test_the_arena_readings_are_z_of_a_with_the_trim_on_and_off() -> None:
+    points, readings, envelope = _bound_space()
+    bound = oper_sets.bound_sets(points, readings, envelope, UNBOUNDED)
+    arenas = oper_sets.arena_points(bound, readings)
+    # b0 has the largest ok explore peak of every bound set; n1's larger one is capped
+    assert [(p["label"], p["artifact"], p["trim"]) for p in arenas] == [
+        (f"arenas-b0-trim-{trim}", artifact, trim == "on")
+        for artifact in ARTIFACTS3 for trim in ("on", "off")]
+    assert all(p["part"] == {"kind": "bolt", "params": {"length": 10.0}} for p in arenas)
+    tie = _ok_readings(points, b5={"memory_peak_bytes": 10**9}, b0={"memory_peak_bytes": 10**9})
+    assert oper_sets.arena_points(bound, tie)[0]["label"] == "arenas-b0-trim-on"
+
+
 def _tier(rankings: Mapping[str, tuple[list[str], list[str]]]) -> dict[str, object]:
     return {"artifacts": {a: {"edge_ranking": [{"label": label, "edge_ratio": 1.0}
                                                for label in ranking], "draw": draw}
@@ -1254,14 +1267,14 @@ def test_runs2_writes_d_of_a_and_the_sets_with_their_envelope_sources_and_shards
         runs2_repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert _runs2(runs2_repo, "tier-order") == 0
     assert oper_sets.main(["--check"]) == 0
-    assert _runs2(runs2_repo, "bound", "load", "gzip") == 0
+    assert _runs2(runs2_repo, "bound", "load", "gzip", "arenas") == 0
     assert oper_sets.main(["--check"]) == 0, capsys.readouterr().err
     tier = json.loads((runs2_repo / oper_sets.TIER_ORDER).read_text())
     assert tier["sources"] == ["explore-points=bench/points/explore.json"]
     assert oper_sets.envelope_of(tier["envelope"]) == oper_sets.shipped_envelope()
     for name, sources in (("bound", ["explore=ex2"]),
                           ("load", [f"tier-order={oper_sets.TIER_ORDER}", "explore=ex2"]),
-                          ("gzip", ["explore=ex2"])):
+                          ("gzip", ["explore=ex2"]), ("arenas", ["explore=ex2"])):
         doc = json.loads((runs2_repo / "points" / f"{name}.json").read_text())
         assert (doc["reps"], doc["sources"]) == (5, sources)
         assert oper_sets.envelope_of(doc["envelope"]) == oper_sets.shipped_envelope()
@@ -1291,10 +1304,10 @@ def test_check_fails_when_a_recorded_e_exceeds_the_shipped_one(
 
 def test_a_widening_after_the_draw_redraws_nothing(
         runs2_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    assert _runs2(runs2_repo, "tier-order", "bound", "load", "gzip") == 0
+    assert _runs2(runs2_repo, "tier-order", *oper_sets.RUNS2_SETS) == 0
     files = {path: path.read_text() for path in
              [runs2_repo / oper_sets.TIER_ORDER,
-              *(runs2_repo / "points" / f"{n}.json" for n in ("bound", "load", "gzip"))]}
+              *(runs2_repo / "points" / f"{n}.json" for n in oper_sets.RUNS2_SETS)]}
     widened = {key: e + 1.0 for key, e in cost.ENVELOPE.items()}
     monkeypatch.setattr(cost, "ENVELOPE", widened)
     assert oper_sets.main(["--check"]) == 0
