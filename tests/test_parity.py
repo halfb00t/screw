@@ -411,8 +411,9 @@ def test_the_cli_and_the_api_print_the_same_document(
         cli_doc = json.loads(capsys.readouterr().out)
         api_doc = client.get(f"/api/{kind}/info", params=values).json()
         assert cli_doc == api_doc, values
-        # B-03: a part over its budget is served capped, the cap's warning first (M6 with s 15
-        # is one); every other document opens on the standing entry.
+        # B-03: a capped part opens on the cap's warning; every other document on the standing
+        # entry. No case here is capped since B-03's turns floor (M6 with s 15 is refused at the
+        # preview instead); tests/test_cost.py's PARITY_CAPS hold the capped parts.
         capped = list(cost.cap_defaults(model.model_validate(values), frozenset(values))[1])
         assert api_doc["warnings"][:len(capped) + 1] == [*capped, STANDING_WARNING], values
         # The literal too, so rewording the constant fails here and not only in test_calc (D-04).

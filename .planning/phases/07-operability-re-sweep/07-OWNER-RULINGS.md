@@ -101,3 +101,36 @@ Plan 07-12's behaviour 3 holds as written.
 Ruling 2: a bolt with only `d` 5 named, whose preview G28 ruling 5 refuses (k/d 0.8, above the
 band), is served with its defaulted `thread_length` capped (16.5 mm by the same scan) and a warning,
 not refused at the preview. Its prediction is unchanged; the cap is applied to the request's part.
+
+## B-03 second clarification: the cap never goes below the fitted minimum turns (2026-10-29)
+
+Source: the orchestrator, from the debt item
+`docs/tech_debt/resolved/2026-10-29-default-cap-lands-below-the-fitted-turns.md` (filed 6cb928b).
+The question, as put: the B-03 cap can cut a defaulted thread to almost nothing. An M6 with only
+s=15 named gets thread_length 20 -> 0.5 mm, which is 0.5 turns. The fitted bolt points start at 3
+turns.
+
+Evidence: `cost.cap_defaults` at 97600d7.
+
+| request | cap result |
+| --- | --- |
+| `BoltParams(s=15)`, explicit {s} | thread_length 0.5, length 20, 0.5 turns, capped for stl-preview |
+| `BoltParams(d=5)`, explicit {d} | thread_length 16.5, 16.5 turns |
+| `BoltParams(d=30, s=48, k=18)`, explicit {d, s, k} | thread_length 6.5, 6.5 turns |
+
+The owner's reply, verbatim (the label "(Recommended)" is the orchestrator's, not part of the
+ruling): "Floor at fitted min turns (Recommended)"
+
+Ruling: the floor is the smallest built-thread turn count over the fitted bolt points of R11 (runs
+explore 40646117094 and spread 40646125666), `calc.thread.built_thread_length(thread_length,
+length) / pitch` with each point's omitted fields at their defaults. `bench.oper_fit` computes it
+and `emit-constants` emits it into `calc/cost.py` as `MIN_FITTED_TURNS`; it is never typed (L02).
+The bolt cap, `thread_length` first and then `length`, with ruling 1's guard, only takes values
+whose built turns are at or above the floor. When no such value fits every artifact, the answer is
+B-02's `over_budget` 422, as for any part no cap can save. The nut `m` cap is unchanged: the nut
+has no turns feature, and G28 holds m/d at its low edge.
+
+Outcome at the implementing commit: the emitted floor is 2.9999999999999996 (the n3 points at pitch
+0.1). The d 5 and d 30, s 48, k 18 caps stay at 16.5 and 6.5. The M6 with only s=15 named is no
+longer capped: no value of thread_length or length at or above the floor fits, so its preview
+download is the `over_budget` 422 and its fine STL and STEP are served.

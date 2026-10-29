@@ -181,6 +181,19 @@ def head_bands(points: Iterable[FitPoint]) -> dict[tuple[str, str], tuple[float,
     return found
 
 
+def min_turns(points: Iterable[FitPoint]) -> float:
+    """B-03's floor (second clarification, 2026-10-29): the fewest built-thread turns over the
+    fitted bolt points, each read with its omitted fields at their frozen defaults, the turns
+    `features` takes the log of. `emit-constants` ships it as `cost.MIN_FITTED_TURNS`."""
+    turns = []
+    for p in points:
+        if p.kind == "bolt":
+            q = _full("bolt", p.params)
+            turns.append(built_thread_length(_num(q["thread_length"]), _num(q["length"]))
+                         / _num(q["pitch"]))
+    return min(turns)
+
+
 def edges(kind: str, params: Params, bands: Bands) -> list[dict[str, float]]:
     """G28: every combination of band edges of the part's out-of-band head ratios, as the fields
     each sets (edge x d, every other field held); empty when every ratio is in its band. A ratio
@@ -649,11 +662,12 @@ def _wrapped(head: str, items: Sequence[str], tail: str) -> list[str]:
     return [*lines, line]
 
 
-def emit_constants(document: Mapping[str, object], rulings: str, bands: Bands) -> str:
+def emit_constants(document: Mapping[str, object], rulings: str, bands: Bands,
+                   turns: float) -> str:
     """The Python block `calc/cost.py` carries between `EMIT_BEGIN` and `EMIT_END`: the
-    coefficients and envelopes of fit.json, G28's head-ratio bands of the records fit.json was
-    fitted on, and B-01's budget, floats written with `repr`, so the shipped numbers are generated
-    from their evidence, never typed (D-05, D-07, G28)."""
+    coefficients and envelopes of fit.json, G28's head-ratio bands and B-03's turns floor of the
+    records fit.json was fitted on, and B-01's budget, floats written with `repr`, so the shipped
+    numbers are generated from their evidence, never typed (D-05, D-07, G28, B-03)."""
     models = models_of(document)
     runs = document["run_ids"]
     if not isinstance(runs, dict):
@@ -684,6 +698,11 @@ def emit_constants(document: Mapping[str, object], rulings: str, bands: Bands) -
     lines += [f'    ("{kind}", "{field}"): ({low!r}, {high!r}),'
               for (kind, field), (low, high) in bands.items()]
     lines += ["})",
+              "# B-03's second clarification: the fewest built-thread turns, built thread over",
+              "# the pitch, over the fitted bolt points, an omitted field at its default (R11).",
+              f"# The records of runs explore {', '.join(runs['explore'])} and spread "
+              f"{', '.join(runs['spread'])}.",
+              f"MIN_FITTED_TURNS: Final[float] = {turns!r}",
               f"# B-01 of 07-OWNER-RULINGS.md ({date}): C1 of R13, catalogue-complete.",
               "# (raw bytes, cold build seconds, cgroup peak bytes); None is unbounded.",
               "BUDGET: Final[Mapping[Artifact, Budget]] = MappingProxyType({"]
@@ -719,7 +738,7 @@ def main(argv: list[str] | None = None) -> int:
                                    load_set("spread", args.spread)[1])
             sys.stdout.write(emit_constants(json.loads(Path(args.fit).read_text()),
                                             Path(args.rulings).read_text(),
-                                            head_bands(points)))
+                                            head_bands(points), min_turns(points)))
             return 0
         if args.command == "fit":
             text = _dump(fit_document(args.explore, args.spread))

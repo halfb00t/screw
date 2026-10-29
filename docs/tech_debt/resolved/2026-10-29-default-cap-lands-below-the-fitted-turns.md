@@ -1,8 +1,9 @@
 # The default cap can pick a thread shorter than any turn count the cost model was fitted on
 
 Severity: must
-Status: active
+Status: resolved
 Date: 2026-10-29
+Resolved in: this commit — `feat(calc): the default cap stops at the fewest turns the cost model was fitted on (07 B-03)`
 Source: plan 07-12 (B-03's default cap, `cost.cap_defaults`), found while moving the CLI/API parity
 test. Trigger: plan 07-15's runner readings, or before phase 7 closes.
 Related files:
@@ -33,3 +34,12 @@ the capped value, so nothing is silent, but the value rests on an unmeasured ran
 Ask plan 07-15 to read admitted parts below 3 turns (a capped one among them) at 5 repetitions; if one
 reads over its enveloped prediction, the owner rules between a turns floor on the prediction (like
 G28's low edge) and a floor on the cap. Revisit when 07-15 reports.
+
+## Resolution
+The owner ruled a floor on the cap (B-03's second clarification, `07-OWNER-RULINGS.md`,
+2026-10-29: "Floor at fitted min turns (Recommended)"). `bench.oper_fit.min_turns` computes the
+fewest built turns over the fitted bolt points, 2.9999999999999996, and `emit-constants` ships it as
+`cost.MIN_FITTED_TURNS`; `cost.cap_defaults` takes no bolt value below it. The M6 with only `s` 15
+named is no longer capped: its preview is the `over_budget` 422. An explicit thread_length under 3
+turns is still predicted by extrapolation; the user chose that part, and 07-15's readings below 3
+turns remain the check on it.

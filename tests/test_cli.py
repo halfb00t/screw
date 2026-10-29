@@ -448,17 +448,18 @@ def test_export_writes_the_capped_part_under_its_name_and_warns(
 
 def test_a_presets_fields_count_as_given_so_a_preset_is_never_capped(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    # iso4017:M6x20 carries length and thread_length 20, the defaults. With --s 15 its preview is
-    # over the budget; the same values left unnamed would be capped, the preset's are refused.
-    p = BoltParams(s=15.0)
+    # iso4017:M6x20 carries length and thread_length 20, the defaults. With --s 13 its preview is
+    # over the budget; the same values left unnamed would be capped (thread_length 4.5, above B-03's
+    # turns floor, where --s 15 no longer caps), the preset's are refused.
+    p = BoltParams(s=13.0)
     assert cost.cap_defaults(p, frozenset({"s"}))[1] != ()
     named = frozenset({"d", "pitch", "length", "s", "k", "thread_length"})
     assert cost.cap_defaults(p, named) == (p, ())
-    cli.main(["info", "bolt", "--preset", "iso4017:M6x20", "--s", "15"])
+    cli.main(["info", "bolt", "--preset", "iso4017:M6x20", "--s", "13"])
     doc = json.loads(capsys.readouterr().out)
     assert doc == json.loads(derive(p).model_dump_json())
     out = tmp_path / "x.stl"
-    assert _exit_code(["export", "bolt", "--preset", "iso4017:M6x20", "--s", "15", "-o", str(out),
+    assert _exit_code(["export", "bolt", "--preset", "iso4017:M6x20", "--s", "13", "-o", str(out),
                        "--quality", "preview"]) == 2
     assert capsys.readouterr().err == f"error: {cost.refusal(p, 'stl-preview')}\n"
     assert not out.exists()

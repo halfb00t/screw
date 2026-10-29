@@ -159,6 +159,10 @@ BANDS: Final[Mapping[tuple[str, str], tuple[float, float]]] = MappingProxyType({
     ("nut", "s"): (1.5, 4.0),
     ("nut", "m"): (0.7999999999999999, 3.0),
 })
+# B-03's second clarification: the fewest built-thread turns, built thread over
+# the pitch, over the fitted bolt points, an omitted field at its default (R11).
+# The records of runs explore 40646117094 and spread 40646125666.
+MIN_FITTED_TURNS: Final[float] = 2.9999999999999996
 # B-01 of 07-OWNER-RULINGS.md (2026-10-29): C1 of R13, catalogue-complete.
 # (raw bytes, cold build seconds, cgroup peak bytes); None is unbounded.
 BUDGET: Final[Mapping[Artifact, Budget]] = MappingProxyType({
@@ -287,7 +291,7 @@ def refusal(p: FastenerParams, artifact: Artifact) -> str | None:
             f"{served}. To get it, {advice}")
 
 
-# --- the default cap (07 D-06; B-03 and its clarification, 07-OWNER-RULINGS.md, 2026-10-29) ----
+# --- the default cap (07 D-06; B-03 and its clarifications, 07-OWNER-RULINGS.md, 2026-10-29) ---
 
 # B-03 (part-wide): the fields a cap may move, in the order it tries them, each with its form step,
 # the `step` the schema publishes (tests/test_cost.py holds the two equal). d, pitch, s, k,
@@ -314,7 +318,9 @@ def cap_defaults(p: FastenerParams, explicit: frozenset[str] = frozenset()
     `CAP_STEPS` is tried in order, scanning down its form step from the default, and the first value
     at which every artifact fits wins, so it is the largest. B-03's clarification (ruling 1):
     `length` is never capped below a named `thread_length`, so the built thread stays what the user
-    named; a part nothing admits keeps its per-artifact `over_budget` 422 (B-02).
+    named. B-03's second clarification: a bolt is never capped below `MIN_FITTED_TURNS` built
+    turns, the fewest the cost model was fitted on. A part nothing admits keeps its per-artifact
+    `over_budget` 422 (B-02).
 
     At most 39 + 39 candidates for a bolt and 51 for a nut, each three kernel-free predictions
     (T-07-32). The warning prints only the default, the capped value and the step, never a
@@ -341,6 +347,13 @@ def cap_defaults(p: FastenerParams, explicit: frozenset[str] = frozenset()
                 capped = model.model_validate({**p.model_dump(), field: value})
             except ValidationError:
                 continue
+            # B-03's second clarification: below the fewest turns the fit saw, a fit is an
+            # extrapolation (`ln_turns` is positive on every bolt model, so fewer turns always
+            # predict cheaper). The built thread only falls as the scan goes down, so no value
+            # further down is above the floor either.
+            if isinstance(capped, BoltParams) and built_thread_length(
+                    capped.thread_length, capped.length) / capped.pitch < MIN_FITTED_TURNS:
+                break
             if fits_every_artifact(capped):
                 return capped, (_cap_warning(p, field, default, value, step),)
     return p, ()

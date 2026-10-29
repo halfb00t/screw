@@ -1639,7 +1639,7 @@ change with it. A shareable link past a lowered wall stops building, which is wh
 ## L21 — A fitted, enveloped, kernel-free cost model judges each artifact against the owner's budget; a defaulted thread length, length or nut height that pushes a part over is capped and warned; FINE_STL_ROWS and the nut caps are retired
 
 Date: 2026-10-29. Decided by D-05 to D-08 and D-17 of Phase 7, by the owner's rulings B-01, B-02 and
-B-03 of 2026-10-29 and B-03's clarification of the same day (`07-OWNER-RULINGS.md`), by G28
+B-03 of 2026-10-29 and B-03's two clarifications of the same day (`07-OWNER-RULINGS.md`), by G28
 (`07-GAP-RULINGS.md`) and by the pre-registered rules R11 to R13 of `07-SWEEP-PROTOCOL.md`. Every
 constant below is emitted from the committed records by `python -m bench.oper_fit emit-constants`
 into `src/screw/calc/cost.py`, never typed, and
@@ -1737,7 +1737,15 @@ a part is over its budget at any artifact, each field the request did not name i
 the bolt's `thread_length` first, then its `length`, or the nut's `m`, scanning down the field's form
 step (0.5 mm, 0.5 mm, 0.1 mm) from its frozen default; the first value at which every artifact fits
 is taken, so it is the largest. `length` is never capped below a named `thread_length`, so the built
-thread stays what the user named. `d`, `pitch`, `s`, `k`, `clearance`, `head_chamfer` and the hand
+thread stays what the user named. A bolt is never capped below `cost.MIN_FITTED_TURNS` built turns
+(the built thread over the pitch), the fewest over the fitted bolt points of runs explore 40646117094
+and spread 40646125666 with omitted fields at their defaults: 2.9999999999999996, the n3 points at
+pitch 0.1, computed by `bench.oper_fit.min_turns` and emitted, never typed. Below it `ln_turns`,
+positive on every bolt model, is an extrapolation. The owner's reply to the second clarification,
+verbatim: "Floor at fitted min turns (Recommended)". So an M6 with only s 15 named, which the cap
+took from thread_length 20 to 0.5 mm (half a turn) at 97600d7, is no longer capped: its preview is
+the `over_budget` 422 and its fine STL and STEP are served. The nut's `m` cap has no floor: the nut
+has no turns feature, and G28 judges an m/d below its band at the low edge. `d`, `pitch`, `s`, `k`, `clearance`, `head_chamfer` and the hand
 never move. One warning, first in the document's warnings, names the field, its default, the capped
 value and L21. The info document, the preview, every download and the file name all come from the
 one capped part. A part no cap admits keeps its per-artifact `over_budget` 422. A part admitted at

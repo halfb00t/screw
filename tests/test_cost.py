@@ -76,18 +76,24 @@ def _document() -> dict[str, object]:
 
 
 @functools.cache
-def _bands() -> dict[tuple[str, str], tuple[float, float]]:
-    """G28's bands, recomputed from the committed runner records fit.json was fitted on."""
+def _points() -> tuple[oper_fit.FitPoint, ...]:
+    """The fitted points of the committed runner records fit.json was fitted on."""
     results = FIT.parent
     points, _ = oper_fit.fit_points(
         oper_fit.load_set("explore", sorted(results.glob("explore-*")))[1],
         oper_fit.load_set("spread", sorted(results.glob("spread-*")))[1])
-    return oper_fit.head_bands(points)
+    return tuple(points)
+
+
+def _bands() -> dict[tuple[str, str], tuple[float, float]]:
+    """G28's bands, recomputed from the committed runner records fit.json was fitted on."""
+    return oper_fit.head_bands(_points())
 
 
 def test_the_shipped_constants_are_the_block_emit_constants_writes_from_the_evidence() -> None:
     # T-07-29: generated from fit.json, the committed records and B-01's table, never typed.
-    block = oper_fit.emit_constants(_document(), RULINGS.read_text(), _bands())
+    block = oper_fit.emit_constants(_document(), RULINGS.read_text(), _bands(),
+                                    oper_fit.min_turns(_points()))
     assert block in COST_PY.read_text()
     assert COST_PY.read_text().count(oper_fit.EMIT_BEGIN) == 1
 
@@ -379,6 +385,78 @@ def _assert_the_largest_admitted(before: FastenerParams, after: FastenerParams, 
     assert cost.fits_every_artifact(after)
     for value in _grid_between(new, old, step):
         assert not cost.fits_every_artifact(before.model_copy(update={field: value})), value
+
+
+def _turns(p: BoltParams) -> float:
+    return built_thread_length(p.thread_length, p.length) / p.pitch
+
+
+def test_the_turns_floor_is_the_fewest_built_turns_over_the_fitted_bolt_points() -> None:
+    # B-03's second clarification, recomputed here from the committed records with each point's
+    # omitted fields at the parameter model's defaults, not through `oper_fit.min_turns`.
+    defaults = {name: f.default for name, f in BoltParams.model_fields.items()}
+    turns = []
+    for point in _points():
+        if point.kind == "bolt":
+            fields = {**defaults, **point.params}
+            turns.append(built_thread_length(float(str(fields["thread_length"])),
+                                             float(str(fields["length"])))
+                         / float(str(fields["pitch"])))
+    assert len(turns) == 1247
+    assert cost.MIN_FITTED_TURNS == min(turns) == oper_fit.min_turns(_points())
+    assert math.isclose(cost.MIN_FITTED_TURNS, 3.0)
+
+
+@pytest.mark.parametrize(("query", "thread_length"), [
+    ({"d": 5.0}, 16.5),
+    (CAP_QUERY, 6.5),
+])
+def test_the_ruled_caps_stand_above_the_turns_floor(query: dict[str, float],
+                                                    thread_length: float) -> None:
+    # The B-03 clarification's evidence parts (ruling 2 and the table): unchanged by the floor.
+    capped, (_,) = cost.cap_defaults(BoltParams.model_validate(query), frozenset(query))
+    assert isinstance(capped, BoltParams)
+    assert (capped.thread_length, capped.length) == (thread_length, 20.0)
+    assert _turns(capped) >= cost.MIN_FITTED_TURNS
+
+
+@pytest.mark.parametrize("s", [12.0, 12.5, 13.0, 13.5, 14.0, 14.5, 15.0])
+def test_the_cap_never_goes_below_the_turns_floor(s: float,
+                                                 monkeypatch: pytest.MonkeyPatch) -> None:
+    # B-03's second clarification, asserted against the rule: an M6 with only s named is over its
+    # preview budget; it is capped at the largest value at or above the floor that fits, or, when
+    # none fits, it is served uncapped and its preview download is the over_budget 422 (B-02).
+    from fastapi.testclient import TestClient
+
+    from screw.app import app, build_backend
+
+    part = BoltParams(s=s)
+    assert not cost.fits(part, "stl-preview")
+    capped, warnings = cost.cap_defaults(part, frozenset({"s"}))
+    assert isinstance(capped, BoltParams)
+    if warnings:
+        _assert_the_largest_admitted(part, capped, "thread_length", 0.5)
+        assert _turns(capped) >= cost.MIN_FITTED_TURNS
+        return
+    assert capped is part
+    for field in ("thread_length", "length"):
+        for value in _grid_between(0.0, 20.0, 0.5):
+            moved = part.model_copy(update={field: value})
+            assert _turns(moved) < cost.MIN_FITTED_TURNS or not cost.fits_every_artifact(moved)
+    async def never(p: FastenerParams, fmt: str, quality: str) -> bytes:
+        raise AssertionError("a refused download reached the backend")
+
+    monkeypatch.setitem(app.dependency_overrides, build_backend, lambda: never)
+    r = TestClient(app).get("/api/bolt/model.stl", params={"s": s, "quality": "preview"})
+    assert r.status_code == 422
+    assert r.json()["detail"][0]["type"] == "over_budget"
+
+
+def test_an_m6_with_s_15_named_is_no_longer_capped_to_half_a_turn() -> None:
+    # The second clarification's evidence: thread_length 20 to 0.5 at 97600d7, now refused.
+    part = BoltParams(s=15.0)
+    assert cost.cap_defaults(part, frozenset({"s"})) == (part, ())
+    assert [a for a in ARTIFACTS if not cost.fits(part, a)] == ["stl-preview"]
 
 
 def test_the_cap_steps_are_the_form_steps_the_schema_publishes() -> None:
