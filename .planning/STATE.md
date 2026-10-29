@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 07
 current_phase_name: Operability Re-sweep
 status: executing
-stopped_at: Completed 07-12-PLAN.md
-last_updated: "2026-10-29T13:15:26.857Z"
+stopped_at: Completed 07-13-PLAN.md
+last_updated: "2026-10-29T15:08:50.996Z"
 last_activity: 2026-10-29
 last_activity_desc: Phase 07 execution started
-state_head: 6cb928bc50b1175953ceb40f33ef1b336742fa18
+state_head: 6c7f71493ac0a3637f8daefc2698ae890f6ef4f2
 progress:
   total_phases: 8
   completed_phases: 7
   total_plans: 103
-  completed_plans: 94
+  completed_plans: 95
   percent: 88
 ---
 
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-10-25)
 ## Current Position
 
 Phase: 07 (Operability Re-sweep) — EXECUTING
-Plan: 13 of 21
+Plan: 14 of 21
 Status: Ready to execute
-Last activity: 2026-10-29 — Plan 07-12 complete (B-03 default cap on the API and the CLI with the owner's clarification: per field, length never below a named thread_length; L21 logged; cap-below-fitted-turns debt filed for the owner)
+Last activity: 2026-10-29 — Plan 07-13 complete (the per-row fine-STL caps and the nut caps retired from src/; the cost model of L21 is the only download rule; nut interim-bounds debt resolved)
 
 Progress: [█████████░] 88%
 
@@ -156,6 +156,7 @@ Progress: [█████████░] 88%
 | Phase 07 P08 | 35min | 3 tasks | 9 files |
 | Phase 07 P11 | 64 min | 3 tasks | 12 files |
 | Phase 07 P12 | 85 min | 3 tasks | 13 files |
+| Phase 07 P13 | 25min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -319,6 +320,7 @@ Recent decisions affecting current work:
 - [Phase 07]: B-03 clarification: each unnamed field capped on its own, thread_length then length (or nut m); length never below a named thread_length
 - [Phase 07]: B-03 clarification: a d-only M5 is served with its defaulted thread_length capped (16.5 mm), not refused at the preview
 - [Phase 07]: cap_defaults treats a field off its frozen default as named, so direct construction never has a chosen value moved
+- [Phase 07]: 07-13: the six retired cap names are deleted from src/; download_refusal already read the cost model alone, so no outcome moved
 
 ### Pending Todos
 
@@ -374,6 +376,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-29T13:15:26.530Z
-Stopped at: Completed 07-12-PLAN.md
+Last session: 2026-10-29T15:08:50.700Z
+Stopped at: Completed 07-13-PLAN.md
 Resume file: None
