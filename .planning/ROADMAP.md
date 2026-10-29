@@ -399,7 +399,7 @@ Plans:
   3. A CI job builds every allowed configuration inside the timeout; a configuration that cannot is capped and warned or refused with a `422` naming the fields, never silently shortened.
   4. With the measured bounds in place, CAD builds still run in worker processes off the event loop, and `make check` (in-image smoke test, vendored-bundle byte check) passes.
 
-**Plans**: 10/21 plans executed (sequential waves 1-15; the pre-registration lands on main as its own PR, A, before any runner reading; 07-05 to 07-20 revised 2026-10-27 against PR A2's protocol, and 07-21 split out of 07-16)
+**Plans**: 11/21 plans executed (sequential waves 1-15; the pre-registration lands on main as its own PR, A, before any runner reading; 07-05 to 07-20 revised 2026-10-27 against PR A2's protocol, and 07-21 split out of 07-16)
 
 Plans:
 **Wave 1**
@@ -427,7 +427,7 @@ Plans:
 - [x] 07-10-PLAN.md — Owner checkpoints: the budget (B-01, one of C1 to C3), the over-budget 422 shape (B-02), the D-06 cap (B-03)
 
 **Wave 8** *(blocked on Wave 7 completion)*
-- [ ] 07-11-PLAN.md — Ship the cost model in `calc`: every artifact judged by one budget, the ruled 422 (D-05, D-06, D-07)
+- [x] 07-11-PLAN.md — Ship the cost model in `calc`: every artifact judged by one budget, the ruled 422 (D-05, D-06, D-07)
 
 **Wave 9** *(blocked on Wave 8 completion)*
 - [ ] 07-12-PLAN.md — Cap-and-warn of defaulted dimensions as B-03 ruled; L21 (D-06)
@@ -467,4 +467,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 2 
 | 5. Hex Nut and Kernel Pair Proof | 25/25 | Complete    | 2026-10-22 |
 | 6. Printed Pair Acceptance | 10/10 | Complete    | 2026-10-24 |
 | 6.1. Bolt head chamfer (INSERTED) | 5/5 | Complete    | 2026-10-25 |
-| 7. Operability Re-sweep | 10/21 | In Progress | - |
+| 7. Operability Re-sweep | 11/21 | In Progress | - |

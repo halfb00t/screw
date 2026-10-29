@@ -3,17 +3,17 @@ gsd_state_version: "1.0"
 current_phase: 07
 current_phase_name: Operability Re-sweep
 status: executing
-stopped_at: Completed 07-08-PLAN.md
-last_updated: "2026-10-29T02:20:00.000Z"
-last_activity: 2026-10-28
+stopped_at: Completed 07-11-PLAN.md
+last_updated: "2026-10-29T03:21:54.692Z"
+last_activity: 2026-10-29
 last_activity_desc: Phase 07 execution started
-state_head: c6b09d4
+state_head: 9dab2d17b7c02f18a5648920fffdcafa7c68db15
 progress:
   total_phases: 8
   completed_phases: 7
   total_plans: 103
-  completed_plans: 92
-  percent: 89
+  completed_plans: 93
+  percent: 88
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-10-25)
 ## Current Position
 
 Phase: 07 (Operability Re-sweep) — EXECUTING
-Plan: 11 of 21
+Plan: 12 of 21
 Status: Ready to execute
-Last activity: 2026-10-29 — Plan 07-08 complete (load driver, instrument server, HEALTHCHECK wall, JSON bodies, gzip levels; runner smoke 40804106015 ok)
+Last activity: 2026-10-29 — Plan 07-11 complete (cost model judges every artifact of both kinds; B-02 over_budget 422; owner ruling A for the preset export test; out-of-fit head height debt filed for the owner)
 
-Progress: [█████████░] 89%
+Progress: [█████████░] 88%
 
 ## Performance Metrics
 
@@ -154,6 +154,7 @@ Progress: [█████████░] 89%
 | Phase 07 P09 | 45min | 2 tasks | 6 files |
 | Phase 07 P10 | 30min | 4 tasks | 1 files |
 | Phase 07 P08 | 35min | 3 tasks | 9 files |
+| Phase 07 P11 | 64 min | 3 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -312,6 +313,8 @@ Recent decisions affecting current work:
 - [Phase 07]: 07-09: R11/R12 cost models fitted from explore 40646117094 and spread 40646125666 (fit.json); 07-BUDGET-TABLE.md generated with C1, C2, C3 for the owner's B-01 ruling
 - [Phase 07]: 07-08: a load reading's health and HEALTHCHECK pollers cover the load window only; its status takes the container first (capped, killed, crashed, no_cgroup), then the requests; a socket timeout at the reading's deadline is killed
 - [Phase 07]: 07-08: owner ruling 2026-10-29, "Accept 19, record deviation (Recommended)": the load smoke's 19 health samples (run 40804106015, all 200, p95 null with the count stated) accepted as the path check
+- [Phase 07]: 07-11: preset export test is iso4017:M20x70 --pitch 1 (owner ruling A, 2026-10-29: "A: preset + overrides (Recommended)")
+- [Phase 07]: 07-11: refusal text says predicted over its measured budget (L21) and prints no figure; an overflowing prediction is infinite and refused
 
 ### Pending Todos
 
@@ -365,6 +368,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-29T02:20:00.000Z
-Stopped at: Completed 07-08-PLAN.md
+Last session: 2026-10-29T03:21:54.434Z
+Stopped at: Completed 07-11-PLAN.md
 Resume file: None
