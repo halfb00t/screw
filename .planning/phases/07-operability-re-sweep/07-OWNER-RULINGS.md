@@ -67,3 +67,37 @@ in-wall parts the build refuses (below).
 `BuildError` at every artifact. Reply, verbatim: `File must debt, continue (Recommended)`. Filed as
 `docs/tech_debt/active/2026-10-29-in-wall-parts-the-kernel-refuses.md`. This ruling sets no budget
 value.
+
+## B-03 clarification: a named thread_length and the length cap (2026-10-29)
+
+Source: the 07-12 executor's checkpoint. B-03 says the cap moves the bolt's `thread_length` and then
+`length` "when the request does not name them", truth 1 of plan 07-12 caps each unnamed field, and
+the plan's Task 1 behaviour 3 says a part with `thread_length` named returns uncapped. Read field by
+field with no guard, a named `thread_length` could be shortened by a `length` cap.
+
+Evidence: bolt d 30, s 48, k 18, pitch at its default 1, refused at `stl-preview` and `stl-fine`.
+The figures are `cost.fits` at commit bf7b173 (fit.json, runs explore 40646117094 and spread
+40646125666), scanned down each field's 0.5 mm form step; plan 07-12's tests re-derive them through
+`cost.cap_defaults`.
+
+| request | per field, no guard | per field, guard (ruled) | only when neither is named |
+| --- | --- | --- | --- |
+| d, s, k | thread_length 20 to 6.5 | thread_length 20 to 6.5 | thread_length 20 to 6.5 |
+| + thread_length 20 | length 20 to 6, a 6 mm thread built for a named 20 | no cap, 422 per artifact | no cap, 422 |
+| + thread_length 10 | length 20 to 6, a 6 mm thread built for a named 10 | no cap (no length 10 to 19.5 fits), 422 | no cap, 422 |
+| + length 60 | thread_length 20 to 6.5 | thread_length 20 to 6.5 | no cap, 422 |
+
+The owner's replies, verbatim (the label "(Recommended)" is the orchestrator's, not part of the
+ruling):
+
+1. "A: per field, guard (Recommended)"
+2. "OK, serve it capped (Recommended)"
+
+Ruling 1: each field the request does not name is capped on its own, the bolt's `thread_length`
+first, then `length`. `length` is never capped below a named `thread_length`, so the built thread
+stays what the user named. When no admissible value is left, the answer is B-02's `over_budget` 422.
+Plan 07-12's behaviour 3 holds as written.
+
+Ruling 2: a bolt with only `d` 5 named, whose preview G28 ruling 5 refuses (k/d 0.8, above the
+band), is served with its defaulted `thread_length` capped (16.5 mm by the same scan) and a warning,
+not refused at the preview. Its prediction is unchanged; the cap is applied to the request's part.
