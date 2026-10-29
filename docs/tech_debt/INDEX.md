@@ -18,6 +18,7 @@ Severity (grep-able `Severity:` field):
 |---|---|---|
 | must | [The cost model admits a part it refuses once its head height leaves the fitted band](active/2026-10-29-cost-model-admits-out-of-fit-head-heights.md) | 07-15's out-of-band readings (G28 guard since bc7b2ab) |
 | must | [Twenty parts inside the L20 walls pass validation and then fail in the kernel](active/2026-10-29-in-wall-parts-the-kernel-refuses.md) | before phase 7 closes, or the first release |
+| must | [The default cap can pick a thread shorter than any turn count the cost model was fitted on](active/2026-10-29-default-cap-lands-below-the-fitted-turns.md) | 07-15's runner readings, or before phase 7 closes |
 | nice | [The shank-fold warning prints its numbers with :g, so a value near the 0.0001 mm line can read as the wrong side of it](active/2026-10-28-shank-fold-warning-rounds-the-numbers-it-compares.md) | the next change to the warning texts |
 | must | [No test holds that a nut outside the measured range is still a 200 from the API](active/2026-10-24-measured-range-nut-api-200-untested.md) | the next edit to the nut warnings, or before the first release (after Phase 7) |
 | must | [The nut's countersink cutter ends at a negative radius at a coarse pitch and the kernel refuses a valid nut](active/2026-10-21-nut-countersink-cutter-crosses-the-axis-at-a-coarse-pitch.md) | before the nut's pitch or clearance range is relied on, with the root-radius floor item, on a request for a nut whose void root ratio r/d is near or below 0.12, or before a void guard is relied on |
