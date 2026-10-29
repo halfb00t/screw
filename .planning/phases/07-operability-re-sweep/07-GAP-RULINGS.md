@@ -174,3 +174,15 @@ on the phase branch `gsd/phase-07-operability-re-sweep`. Under it the regenerate
 | Gap | Rule(s) | Owner ruling |
 |---|---|---|
 | G28 | R11 | A part whose head ratio (bolt k/d and s/d, nut s/d and m/d) lies outside its band, the [min, max] over the fitted points of its kind with omitted fields at their defaults, is predicted, target by target, as the largest of the raw prediction and the predictions with each out-of-band ratio set to an edge (each such field set to edge x d, every other field held, every combination): a ratio above its band takes both edges, a ratio below it its low edge only. Above the band that is, for this log-linear model, the largest prediction anywhere in the band; below it, max(raw, low edge). ASSUMPTION, unmeasured: a smaller head never costs more than one at the low edge; the 07-15 points below the band test it. R12 applies the envelope to it. Inside every band the prediction is unchanged. The bands are generated from the records by code and emitted into `calc/cost.py`. Plan 07-15 reads, at 5 repetitions, per kind, artifact and ratio, a part above the band and one below it, each admitted under this rule; a reading above its enveloped prediction stops the phase for the owner and does not widen `e`. L21 records that per-artifact budgets can refuse a preview while they admit the fine STL (ISO 4017 M20 x 60 at pitch 1). |
+
+### Follow-up rulings, 2026-10-29 (after the G28 code landed at bc7b2ab)
+
+- **07-15's out-of-band points.** The executor's first pick took the first admitted catalogue row
+  in file order, which is the M2 rows in every case: the cheapest parts, the furthest from any
+  budget. Reply, verbatim: "Nearest the budget (Recommended)". Each (kind, artifact, ratio, side)
+  now also reads the admitted row with the largest enveloped edge ratio, as R27 ranks. R11's "at
+  least one part above the band and one below it" still holds, so the protocol text is unchanged.
+- **The at-the-walls gate test.** A bolt at every wall (d 999.999, s 1000, k 1e5) was served only
+  because k/d 100 made its raw prediction cheap, which is the bypass itself. The executor re-pinned
+  the test: info 200, preview `over_budget` 422. Reply, verbatim: "Accept the re-pin
+  (Recommended)".
