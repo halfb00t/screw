@@ -399,7 +399,7 @@ Plans:
   3. A CI job builds every allowed configuration inside the timeout; a configuration that cannot is capped and warned or refused with a `422` naming the fields, never silently shortened.
   4. With the measured bounds in place, CAD builds still run in worker processes off the event loop, and `make check` (in-image smoke test, vendored-bundle byte check) passes.
 
-**Plans**: 13/21 plans executed (sequential waves 1-15; the pre-registration lands on main as its own PR, A, before any runner reading; 07-05 to 07-20 revised 2026-10-27 against PR A2's protocol, and 07-21 split out of 07-16)
+**Plans**: 14/21 plans executed (sequential waves 1-15; the pre-registration lands on main as its own PR, A, before any runner reading; 07-05 to 07-20 revised 2026-10-27 against PR A2's protocol, and 07-21 split out of 07-16)
 
 Plans:
 **Wave 1**
@@ -434,7 +434,7 @@ Plans:
 
 **Wave 10** *(blocked on Wave 9 completion)*
 - [x] 07-13-PLAN.md — Retire the per-row fine-STL cap tables the cost model replaced (D-08, D-17)
-- [ ] 07-14-PLAN.md — The page offers what fits when the preview STL is refused; 01-UI-SPEC amended in place (D-06)
+- [x] 07-14-PLAN.md — The page offers what fits when the preview STL is refused; 01-UI-SPEC amended in place (D-06)
 - [ ] 07-15-PLAN.md — Runs II on the admitted set: R27's D(A) fixed first, the R14 bound set with per-slot partners, the R15 load mix, gzip, arenas; envelope re-checked on cold isolated readings, any widening shipped into `calc/cost.py` with its evidence (D-07, D-09 to D-11)
 
 **Wave 11** *(blocked on Wave 10 completion)*
@@ -467,4 +467,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 2 
 | 5. Hex Nut and Kernel Pair Proof | 25/25 | Complete    | 2026-10-22 |
 | 6. Printed Pair Acceptance | 10/10 | Complete    | 2026-10-24 |
 | 6.1. Bolt head chamfer (INSERTED) | 5/5 | Complete    | 2026-10-25 |
-| 7. Operability Re-sweep | 13/21 | In Progress | - |
+| 7. Operability Re-sweep | 14/21 | In Progress | - |
