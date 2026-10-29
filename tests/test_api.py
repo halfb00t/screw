@@ -1328,6 +1328,7 @@ CAPPED: Params = {"d": 30, "s": 48, "k": 18}
 def test_a_defaulted_thread_length_over_the_budget_is_served_capped_and_warned() -> None:
     part = BoltParams.model_validate(CAPPED)
     capped, (warning,) = cost_model.cap_defaults(part, frozenset(CAPPED))
+    assert isinstance(capped, BoltParams)
     assert capped.thread_length < part.thread_length
     doc = client.get("/api/bolt/info", params=CAPPED).json()
     assert doc["warnings"][0] == warning

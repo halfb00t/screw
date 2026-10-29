@@ -154,9 +154,11 @@ def cmd_export(ns: argparse.Namespace) -> None:
     fmt = ns.format or out.suffix.lower().lstrip(".").replace("stp", "step")
     if fmt not in ("stl", "step"):
         raise SystemExit("error: output must end in .stl or .step (or pass --format)")
-    from .calc import derive, download_name, download_refusal
+    from .calc import derive_capped, download_name, download_refusal
 
-    p, _ = _params(ns.kind, ns)
+    # B-03: the part as capped and its document, the same call `screw info` and the API make, so
+    # the file written, its name and the warnings are the capped part's (FRNT-05 parity).
+    p, info = derive_capped(*_params(ns.kind, ns))
     # The same kernel-free rule the API's `_serve` applies (D-02, FRNT-05 parity). Exit 2 like
     # `_params`, the CLI analogue of the 422: a parameter choice is refused, nothing failed
     # to build (a BuildError below keeps exit 1; 03-RESEARCH Open Question 5).
@@ -181,7 +183,7 @@ def cmd_export(ns: argparse.Namespace) -> None:
     out.write_bytes(data)
     detail = f", {quality}" if fmt == "stl" else ""
     print(f"wrote {out} ({len(data) / 1024:.0f} KiB{detail})", file=sys.stderr)
-    for warning in derive(p).warnings:
+    for warning in info.warnings:
         print(f"warning: {warning}", file=sys.stderr)
 
 

@@ -403,6 +403,7 @@ def test_a_part_admitted_at_every_artifact_is_never_capped_whatever_was_named() 
 def test_a_defaulted_thread_length_over_the_budget_is_capped_to_the_largest_that_fits() -> None:
     assert [a for a in ARTIFACTS if not cost.fits(CAP_PART, a)] == ["stl-preview", "stl-fine"]
     capped, (warning,) = cost.cap_defaults(CAP_PART, frozenset(CAP_QUERY))
+    assert isinstance(capped, BoltParams)
     _assert_the_largest_admitted(CAP_PART, capped, "thread_length", 0.5)
     value = repr(capped.thread_length).removesuffix(".0")
     assert warning == (
@@ -436,6 +437,7 @@ def test_the_length_cap_never_shortens_a_named_thread_length(thread_length: floa
         except ValidationError:
             continue    # the M3 at pitch 0.2 is past the 90-turn wall at a 20 mm thread (L20)
         capped, _ = cost.cap_defaults(part, frozenset(query) | {"thread_length"})
+        assert isinstance(capped, BoltParams)
         assert capped.thread_length == thread_length
         assert capped.length >= thread_length
         assert built_thread_length(capped.thread_length, capped.length) == built_thread_length(
@@ -449,6 +451,7 @@ def test_a_length_cap_above_a_named_thread_length_is_the_largest_that_fits() -> 
     part = BoltParams.model_validate(query)
     assert [a for a in ARTIFACTS if not cost.fits(part, a)] == ["step"]
     capped, (warning,) = cost.cap_defaults(part, frozenset(query))
+    assert isinstance(capped, BoltParams)
     _assert_the_largest_admitted(part, capped, "length", 0.5)
     assert capped.length >= 8.0
     assert warning.startswith("length: the default 20 mm puts the STEP (step) of this bolt ")
@@ -459,3 +462,79 @@ def test_a_value_off_its_default_counts_as_named_on_direct_construction() -> Non
     part = CAP_PART.model_copy(update={"thread_length": 19.0, "length": 19.0})
     assert not cost.fits_every_artifact(part)
     assert cost.cap_defaults(part) == (part, ())
+
+
+def test_a_defaulted_nut_m_over_the_budget_is_capped_on_its_tenth_millimetre_step() -> None:
+    # Only below about d 6.5 does an m cut help: under the m/d band (0.8 d) G28 judges a nut at the
+    # band's low edge, so a shorter m below 0.8 d predicts no cheaper (ruling 5).
+    nut = NutParams(d=2.0, pitch=0.1)
+    assert [a for a in ARTIFACTS if not cost.fits(nut, a)] == ["step"]
+    capped, (warning,) = cost.cap_defaults(nut, frozenset({"d", "pitch"}))
+    assert isinstance(capped, NutParams)
+    _assert_the_largest_admitted(nut, capped, "m", 0.1)
+    assert warning.startswith("m: the default 5.2 mm puts the STEP (step) of this nut over its "
+                              "measured budget (L21), so m is capped at ")
+    assert cost.cap_defaults(nut, frozenset({"d", "pitch", "m"})) == (nut, ())
+
+
+def test_the_cap_never_moves_the_pitch_or_any_field_b03_does_not_list() -> None:
+    # Under B-03's part-wide ruling a bolt whose only admitting move is a coarser pitch (07-BUDGET-
+    # TABLE.md, C1 D-06: `bolt-d100-p1-*` admits at a raised pitch) keeps its per-artifact 422.
+    bolt = BoltParams(d=100.0, s=160.0, k=60.0)
+    assert not cost.fits_every_artifact(bolt)
+    assert not cost.fits_every_artifact(bolt.model_copy(update={"thread_length": 0.5}))
+    assert cost.cap_defaults(bolt, frozenset({"d", "s", "k"})) == (bolt, ())
+    fixed = {"d", "pitch", "s", "k", "clearance", "head_chamfer", "left_hand"}
+    for part in (CAP_PART, NutParams(d=2.0, pitch=0.1)):
+        capped, _ = cost.cap_defaults(part, frozenset({"d", "s", "k", "pitch"}))
+        for field in fixed & set(type(part).model_fields):
+            assert getattr(capped, field) == getattr(part, field), field
+
+
+# The three capped parts of the API/CLI parity test: a bolt's thread_length, a bolt's length above
+# a named thread_length, and a nut's m.
+PARITY_CAPS: list[tuple[str, dict[str, float]]] = [
+    ("bolt", CAP_QUERY),
+    ("bolt", {"d": 3.0, "pitch": 0.2, "s": 4.5, "k": 1.8, "thread_length": 8.0}),
+    ("nut", {"d": 2.0, "pitch": 0.1}),
+]
+
+
+@pytest.mark.parametrize(("kind", "query"), PARITY_CAPS)
+def test_the_api_and_the_cli_serve_the_same_capped_part_warning_and_file_name(
+        kind: str, query: dict[str, float], tmp_path: Path,
+        capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch) -> None:
+    from fastapi.testclient import TestClient
+
+    from screw import cli
+    from screw.app import app, build_backend
+
+    capped, (warning,) = cost.cap_defaults(KINDS[kind].model_validate(query), frozenset(query))
+    client = TestClient(app)
+    api_doc = client.get(f"/api/{kind}/info", params=query).json()
+    argv = [a for k, v in query.items() for a in ("--" + k.replace("_", "-"), repr(v))]
+    cli.main(["info", kind, *argv])
+    assert json.loads(capsys.readouterr().out) == api_doc
+    assert api_doc["warnings"][0] == warning
+
+    built: list[FastenerParams] = []
+
+    async def stub(p: FastenerParams, fmt: str, quality: str) -> bytes:
+        built.append(p)
+        return b"stub"
+
+    def fake_export(p: FastenerParams, fmt: str, quality: str) -> bytes:
+        built.append(p)
+        return b"stub"
+
+    monkeypatch.setitem(app.dependency_overrides, build_backend, lambda: stub)
+    monkeypatch.setattr("screw.solid.export", fake_export)
+    r = client.get(f"/api/{kind}/model.stl", params={**query, "quality": "preview"})
+    assert r.status_code == 200
+    api_name = re.fullmatch(r'attachment; filename="(.+)"', r.headers["content-disposition"])
+    assert api_name is not None
+    cli.main(["export", kind, "-o", str(tmp_path), "--format", "stl", "--quality", "preview",
+              *argv])
+    assert [f.name for f in tmp_path.iterdir()] == [api_name.group(1)]
+    assert f"warning: {warning}\n" in capsys.readouterr().err
+    assert built == [capped, capped]

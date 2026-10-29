@@ -17,7 +17,7 @@ import pytest
 from pydantic import Field
 
 from screw import __version__, cli
-from screw.calc import cost, derive, download_refusal
+from screw.calc import cost, derive, download_name, download_refusal
 from screw.params import KINDS, BoltParams, FastenerParams, NutParams
 
 WARNING = ("warning: ends modelled per L15 and L19: bolt tip chamfer, hex head chamfer, "
@@ -408,6 +408,85 @@ def test_each_download_of_a_refused_part_is_judged_on_its_own(
         assert _exit_code(argv) == 2
         assert capsys.readouterr().err == f"error: {refusal}\n"
         assert not out.exists()
+
+
+# B-03 (07-OWNER-RULINGS.md, 2026-10-29): OVER with its length and thread_length left at their
+# defaults is over its budget at stl-preview and stl-fine; its defaulted thread_length is capped.
+CAPPED = ["--d", "30", "--s", "48", "--k", "18"]
+CAPPED_PART = BoltParams(d=30.0, s=48.0, k=18.0)
+
+
+def test_info_prints_the_capped_part_with_its_warning_first(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    capped, (warning,) = cost.cap_defaults(CAPPED_PART, frozenset({"d", "s", "k"}))
+    assert isinstance(capped, BoltParams)
+    cli.main(["info", "bolt", *CAPPED])
+    doc = json.loads(capsys.readouterr().out)
+    assert doc["warnings"][0] == warning
+    assert warning.startswith("thread_length: the default 20 mm ")
+    rows = {r["key"]: r["value"] for r in doc["rows"]}
+    assert rows["thread_length"] == capped.thread_length < 20.0
+
+
+def test_export_writes_the_capped_part_under_its_name_and_warns(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str],
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    built: list[FastenerParams] = []
+
+    def fake_export(p: FastenerParams, fmt: str, quality: str) -> bytes:
+        built.append(p)
+        return b"solid"
+
+    monkeypatch.setattr("screw.solid.export", fake_export)
+    capped, (warning,) = cost.cap_defaults(CAPPED_PART, frozenset({"d", "s", "k"}))
+    assert isinstance(capped, BoltParams)
+    cli.main(["export", "bolt", *CAPPED, "-o", str(tmp_path), "--format", "stl"])
+    assert [f.name for f in tmp_path.iterdir()] == [download_name(capped, "stl", "fine")]
+    assert built == [capped]
+    assert f"warning: {warning}\n" in capsys.readouterr().err
+
+
+def test_a_presets_fields_count_as_given_so_a_preset_is_never_capped(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    # iso4017:M6x20 carries length and thread_length 20, the defaults. With --s 15 its preview is
+    # over the budget; the same values left unnamed would be capped, the preset's are refused.
+    p = BoltParams(s=15.0)
+    assert cost.cap_defaults(p, frozenset({"s"}))[1] != ()
+    named = frozenset({"d", "pitch", "length", "s", "k", "thread_length"})
+    assert cost.cap_defaults(p, named) == (p, ())
+    cli.main(["info", "bolt", "--preset", "iso4017:M6x20", "--s", "15"])
+    doc = json.loads(capsys.readouterr().out)
+    assert doc == json.loads(derive(p).model_dump_json())
+    out = tmp_path / "x.stl"
+    assert _exit_code(["export", "bolt", "--preset", "iso4017:M6x20", "--s", "15", "-o", str(out),
+                       "--quality", "preview"]) == 2
+    assert capsys.readouterr().err == f"error: {cost.refusal(p, 'stl-preview')}\n"
+    assert not out.exists()
+
+
+def test_a_nut_with_a_defaulted_m_over_the_budget_is_capped_on_m(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    nut = NutParams(d=2.0, pitch=0.1)
+    capped, (warning,) = cost.cap_defaults(nut, frozenset({"d", "pitch"}))
+    assert isinstance(capped, NutParams)
+    cli.main(["info", "nut", "--d", "2", "--pitch", "0.1"])
+    doc = json.loads(capsys.readouterr().out)
+    assert doc["warnings"][0] == warning
+    assert warning.startswith("m: ")
+    assert {r["key"]: r["value"] for r in doc["rows"]}["m"] == capped.m < 5.2
+
+
+def test_a_bolt_only_a_coarser_pitch_would_admit_keeps_its_refusal(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    # B-03 is part-wide, not part-wide-pitch: the pitch never moves, so the 422 analogue stands.
+    p = BoltParams(d=100.0, s=160.0, k=60.0)
+    argv = ["--d", "100", "--s", "160", "--k", "60"]
+    cli.main(["info", "bolt", *argv])
+    assert json.loads(capsys.readouterr().out) == json.loads(derive(p).model_dump_json())
+    out = tmp_path / "x.stl"
+    assert _exit_code(["export", "bolt", *argv, "-o", str(out), "--quality", "preview"]) == 2
+    assert capsys.readouterr().err == f"error: {cost.refusal(p, 'stl-preview')}\n"
+    assert not out.exists()
 
 
 def test_the_over_budget_fine_stl_exits_2_from_the_real_process(tmp_path: Path) -> None:

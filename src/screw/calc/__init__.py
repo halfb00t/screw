@@ -520,7 +520,7 @@ def derive(p: FastenerParams) -> PartInfo:
     raise TypeError(f"no info document for kind {p.kind!r}")
 
 
-def derive_capped[T: FastenerParams](p: T, explicit: frozenset[str]) -> tuple[T, PartInfo]:
+def derive_capped(p: FastenerParams, explicit: frozenset[str]) -> tuple[FastenerParams, PartInfo]:
     """The part a request is served as and its info document: `p` with a defaulted field capped
     when the part is over its budget, the cap's warning first (D-06, B-03, L02).
 

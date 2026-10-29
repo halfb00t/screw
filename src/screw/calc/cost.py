@@ -303,8 +303,8 @@ def fits_every_artifact(p: FastenerParams) -> bool:
     return all(fits(p, artifact) for artifact in ARTIFACTS)
 
 
-def cap_defaults[T: FastenerParams](p: T, explicit: frozenset[str] = frozenset()
-                                    ) -> tuple[T, tuple[str, ...]]:
+def cap_defaults(p: FastenerParams, explicit: frozenset[str] = frozenset()
+                 ) -> tuple[FastenerParams, tuple[str, ...]]:
     """`p` with one defaulted field capped so every artifact fits, and the one warning that says so;
     `(p, ())` when `p` fits already or no allowed cap admits it (D-06, B-03, L02).
 
