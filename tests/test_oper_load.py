@@ -61,6 +61,19 @@ def _catalogue(path: str, query: dict[str, str]) -> tuple[int, bytes]:
     return (404, b"{}") if query.get("d") == "404.0" else (200, INFO_BODY)
 
 
+class _QuietServer(ThreadingHTTPServer):
+    """The fake server, keeping a handler's error instead of printing it. A request the driver
+    gave up on (the deadline cases) leaves its handler thread writing to a closed socket after
+    its test has ended; the default `handle_error` prints a 40-dash banner to `sys.stderr`, and a
+    later test in the same process captured it (`tests/test_records.py` read it as a log line
+    and failed, 2026-10-29, with `tests/test_oper_load.py` run before it)."""
+
+    errors: list[BaseException | None]
+
+    def handle_error(self, *_: object) -> None:
+        self.errors.append(sys.exc_info()[1])
+
+
 class _Server:
     """A local server that answers `/api/health` at once and a model request after a sleep set by
     its `d` param (in hundredths of a second), with the status set by its `status` param. It
@@ -114,7 +127,8 @@ class _Server:
                 self.end_headers()
                 self.wfile.write(body)
 
-        self.httpd = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        self.httpd = _QuietServer(("127.0.0.1", 0), Handler)
+        self.httpd.errors = []
         self.httpd.daemon_threads = True
         self.port = self.httpd.server_address[1]
         threading.Thread(target=self.httpd.serve_forever, args=(0.01,), daemon=True).start()
