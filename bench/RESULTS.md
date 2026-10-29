@@ -11192,3 +11192,325 @@ Per candidate of `### candidate walls (before the confirm)`, the confirm points 
 The same point in the first walls run (40646134133) was `ok` with `memory_peak_bytes` 12663300096, against the capped threshold of 12884901888 x 0.99 = 12756052869 bytes (`bench.oper.is_capped`): the reading sat 92752773 bytes under it, and the 5 confirm repetitions were all classified `capped` (an OOM kill or a peak at or above the threshold; a capped record keeps no figure, R2). A `capped` reading is cost and not a kernel wall (R8): it does not move a wall and cannot raise one, so the tested value 999.699 is not confirmed by this run. No rule of the protocol awards a nut `d` value from a capped confirm; the question goes to the owner before plan 07-07 writes `MAX_NUT_D_MM`.
 
 Owner ruling G27 (`07-GAP-RULINGS.md`): R8 writes no `MAX_NUT_D_MM`. The nut `d` limit is cost, bounded by the cost model's admission (R12) and the timeouts, and the nut `d` stays under the shared `MAX_FIELD_MM` only while that lies below its first refused decade (1e4).
+
+## Phase 7 Runs II
+
+Runner readings of plan 07-15, taken under `07-SWEEP-PROTOCOL.md` as amended through G29, on `ubuntu-latest` (07 D-01). The sets are `python -m bench.oper_sets runs2` output from explore run 40646117094 under the shipped envelope, which each point file records (G6). D(A) of R27 steps 1 to 4 is `bench/results/phase-07/tier-order.json`, committed in c28c768, before `bench/points/load.json` (98c62ad). Every figure below is `bench.oper summarize` or `bench.oper_sets load-table` output over the records committed under `bench/results/phase-07/`, downloaded with `gh run download <id> -p 'oper-*'`. Every set ran at 5 repetitions, each repetition a matrix job on its own runner instance.
+
+### bound, run 40907549180
+
+- Dispatched sha: `98c62ad8df0df08ea55b363e8da399e90d08c563`
+- Records: `bench/results/phase-07/bound-40907549180/` (20 artifacts, 300 readings), run https://github.com/halfb00t/screw/actions/runs/40907549180
+- CPU models seen (jobs): AMD EPYC 7763 64-Core Processor (9); AMD EPYC 9V45 96-Core Processor (1); AMD EPYC 9V74 80-Core Processor (6); INTEL(R) XEON(R) PLATINUM 8573C (4)
+- Counts by status: ok: 250, refused: 50
+- 50 readings are `refused` (`BuildError`, the nut's lead-in countersink): every contention reading with `nut-d30-p0.35-m0.8d-s4d-c0.15-right` or `nut-d30-p0.35-m0.8d-s1.6d-c0.15-left` as P (N 1 to 3) or as a partner (N = 3 of four other P at stl-preview). Both nuts are admitted explore points whose explore readings were refused the same way (run 40646117094; `docs/tech_debt/active/2026-10-29-in-wall-parts-the-kernel-refuses.md`): R14 draws the 5 slowest points and the partners from the admitted points without asking for an ok explore reading. 4 shards x 5 repetitions = 20 jobs.
+- Summary: `python -m bench.oper summarize --markdown --reps 1,2,3,4,5` over the directory, as printed.
+
+### Host
+
+| fact | value |
+| --- | --- |
+| image | screw:ci |
+| image_id | sha256:f970b9b56e687667c5c5e4952dc0d12c87660d7a837a031add800f66ce1a9cc4, sha256:a658f3ac9f88d9d2985cf417e26eaef77885844cffdcf970bd5ce60402e9ea7a, sha256:05b1e2649b2a3a7911a82033368ea139d5455cbd6f687e9597efc1a388990905, sha256:eb2e492704be4dfd7b325a48e2d08cf32499814ddb909b58400bcbd324124cce, sha256:eb45ad3581dc4a373094c85aa38831cfec705bac3585d19a2acaacd6d1650b4d, sha256:9f97752f8ae0db9d3349ca086c7e672eae731175f2b0e5458f684861263b512a, sha256:57d5748ccf7557bbe46eae4d75d8ed11dcd75c9f1dbf1cd99259b58dc2e1bc83, sha256:aa1cf36470a3c238ef83eb58bc06fb9a35b707c8bdf32b702770298ade641be3, sha256:182a6811cfa7728f10d8cbe44b06bc8b8dfa282b846357153633b1e3bf41f603, sha256:318714e5041a5d4c7ce21bafcfdf0d6af2cb3e6b86e1629aa221e22a38ee275d, sha256:999f08d016bfb37611088f070e0c54cd4bc9ddc20b9df570a2c3c87a859bfff0, sha256:5fd03991784e01870f9b93d81230969bc9c80691eec9c5d542eeea853a558bca, sha256:99410e8e0010496f8e6ff156aa1cfb055f24d22f50642d48f20f5c2cc9b0c796, sha256:b30e50e207128f5fd865e8778a56676a9b563aca17b61811b15b8efe011acc02, sha256:bd0a8d03348f0bbd0dd0bbe54fe85943b771261370b498fde68c0de4d82b6f89, sha256:2a10aa174d689d0881d83c602e5cb66d36941db402e1eb8a7d4689a3c2915c65, sha256:b60d7d387d5601d878ba72f600c7db48ebb002749c744a9bea4b34c99c896367, sha256:6f707febf19e449364eaf95e613d37b72a59f004df9f7c576a32cef67827b046, sha256:9db82c843857afa666ce218cd58e020025bfe0946c0a96ed3aef2c3a79dad357, sha256:1d2a80b19903f21883d65a7b742cc217e9a8991edf7860779824d3953ea195ea |
+| versions | {"cadquery": "2.8.0", "cadquery_ocp": "7.9.3.1.1"} |
+| nproc | 4 |
+| mem_total_bytes | 16759443456, 16758394880, 16758407168, 16758403072, 16759439360, 16763777024 |
+| cpu_model | AMD EPYC 9V74 80-Core Processor, INTEL(R) XEON(R) PLATINUM 8573C, AMD EPYC 7763 64-Core Processor, AMD EPYC 9V45 96-Core Processor |
+| kernel | 7.0.0-1017-azure |
+| machine | x86_64 |
+| GITHUB_RUN_ID | 40907549180 |
+| GITHUB_JOB | measure |
+| GITHUB_SHA | 98c62ad8df0df08ea55b363e8da399e90d08c563 |
+
+### Readings
+
+Status counts: ok: 250, refused: 50
+
+| point | artifact | n | status | counts | median build s | max build s | median export s | max export s | median bytes | max bytes | median peak bytes | max peak bytes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| iso4017:M20x200-n1 | stl-preview | 5 | ok | ok: 5 | 4.792 | 5.324 | 2.291 | 2.579 | 22807184 | 22807184 | 357126144 | 376524800 |
+| iso4017:M20x200-n2 | stl-preview | 5 | ok | ok: 5 | 6.159 | 6.869 | 3.861 | 4.669 | 22807184 | 22807184 | 630906880 | 638881792 |
+| iso4017:M20x200-n3 | stl-preview | 5 | refused | refused: 5 | - | - | - | - | - | - | - | - |
+| nut-d30-p0.35-m0.8d-s4d-c0.15-right-n1 | stl-preview | 5 | refused | refused: 5 | - | - | - | - | - | - | - | - |
+| nut-d30-p0.35-m0.8d-s4d-c0.15-right-n2 | stl-preview | 5 | refused | refused: 5 | - | - | - | - | - | - | - | - |
+| nut-d30-p0.35-m0.8d-s4d-c0.15-right-n3 | stl-preview | 5 | refused | refused: 5 | - | - | - | - | - | - | - | - |
+| iso4017:M20x180-n1 | stl-preview | 5 | ok | ok: 5 | 4.361 | 4.949 | 2.053 | 2.316 | 20646884 | 20646884 | 348168192 | 356511744 |
+| iso4017:M20x180-n2 | stl-preview | 5 | ok | ok: 5 | 5.202 | 5.861 | 3.711 | 4.253 | 20646884 | 20646884 | 626294784 | 635248640 |
+| iso4017:M20x180-n3 | stl-preview | 5 | refused | refused: 5 | - | - | - | - | - | - | - | - |
+| nut-d30-p0.35-m0.8d-s1.6d-c0.15-left-n1 | stl-preview | 5 | refused | refused: 5 | - | - | - | - | - | - | - | - |
+| nut-d30-p0.35-m0.8d-s1.6d-c0.15-left-n2 | stl-preview | 5 | refused | refused: 5 | - | - | - | - | - | - | - | - |
+| nut-d30-p0.35-m0.8d-s1.6d-c0.15-left-n3 | stl-preview | 5 | refused | refused: 5 | - | - | - | - | - | - | - | - |
+| iso4017:M16x160-n1 | stl-preview | 5 | ok | ok: 5 | 4.781 | 5.644 | 1.705 | 1.916 | 13148084 | 13148084 | 345628672 | 346017792 |
+| iso4017:M16x160-n2 | stl-preview | 5 | ok | ok: 5 | 6.034 | 6.502 | 3.540 | 3.995 | 13148084 | 13148084 | 625721344 | 635449344 |
+| iso4017:M16x160-n3 | stl-preview | 5 | refused | refused: 5 | - | - | - | - | - | - | - | - |
+| nut-d10-p0.35-m3d-s4d-c0.15-right-n1 | stl-preview | 5 | ok | ok: 5 | 10.802 | 11.653 | 0.874 | 1.071 | 7503484 | 7503484 | 301858816 | 302964736 |
+| nut-d10-p0.35-m3d-s4d-c0.15-right-n2 | stl-preview | 5 | ok | ok: 5 | 13.474 | 14.396 | 0.881 | 0.951 | 7503484 | 7503484 | 603860992 | 606339072 |
+| nut-d10-p0.35-m3d-s4d-c0.15-right-n3 | stl-preview | 5 | ok | ok: 5 | 18.883 | 19.986 | 0.960 | 1.104 | 7503484 | 7503484 | 874594304 | 898760704 |
+| nut-d100-p3.5-m0.8d-s4d-c5-right-n1 | stl-preview | 5 | ok | ok: 5 | 5.943 | 6.329 | 4.116 | 4.162 | 27853884 | 27853884 | 477196288 | 478519296 |
+| nut-d100-p3.5-m0.8d-s4d-c5-right-n2 | stl-preview | 5 | ok | ok: 5 | 8.607 | 8.730 | 4.530 | 5.291 | 27853884 | 27853884 | 717389824 | 722747392 |
+| nut-d100-p3.5-m0.8d-s4d-c5-right-n3 | stl-preview | 5 | refused | refused: 5 | - | - | - | - | - | - | - | - |
+| iso4017:M20x200-n1 | stl-fine | 5 | ok | ok: 5 | 5.277 | 5.443 | 23.625 | 24.060 | 144651784 | 144651784 | 909508608 | 922583040 |
+| iso4017:M20x200-n2 | stl-fine | 5 | ok | ok: 5 | 6.855 | 7.143 | 45.969 | 46.249 | 144651784 | 144651784 | 1529200640 | 1554444288 |
+| iso4017:M20x200-n3 | stl-fine | 5 | ok | ok: 5 | 9.157 | 11.449 | 63.218 | 64.260 | 144651784 | 144651784 | 2073030656 | 2124124160 |
+| iso4017:M20x180-n1 | stl-fine | 5 | ok | ok: 5 | 4.805 | 4.992 | 21.152 | 22.204 | 128770484 | 128770484 | 886800384 | 957333504 |
+| iso4017:M20x180-n2 | stl-fine | 5 | ok | ok: 5 | 5.833 | 6.018 | 41.927 | 45.239 | 128770484 | 128770484 | 1520549888 | 1563000832 |
+| iso4017:M20x180-n3 | stl-fine | 5 | ok | ok: 5 | 8.916 | 10.182 | 56.987 | 61.729 | 128770484 | 128770484 | 2072440832 | 2122932224 |
+| iso4017:M16x160-n1 | stl-fine | 5 | ok | ok: 5 | 5.311 | 5.451 | 23.476 | 24.029 | 138570484 | 138570484 | 937013248 | 988364800 |
+| iso4017:M16x160-n2 | stl-fine | 5 | ok | ok: 5 | 6.446 | 6.946 | 47.634 | 49.259 | 138570484 | 138570484 | 1691369472 | 1734176768 |
+| iso4017:M16x160-n3 | stl-fine | 5 | ok | ok: 5 | 9.511 | 11.186 | 66.443 | 66.742 | 138570484 | 138570484 | 2173526016 | 2286989312 |
+| iso4017:M20x160-n1 | stl-fine | 5 | ok | ok: 5 | 4.343 | 4.467 | 18.893 | 19.440 | 114581284 | 114581284 | 823660544 | 845639680 |
+| iso4017:M20x160-n2 | stl-fine | 5 | ok | ok: 5 | 5.385 | 5.513 | 38.449 | 45.641 | 114581284 | 114581284 | 1453068288 | 1492934656 |
+| iso4017:M20x160-n3 | stl-fine | 5 | ok | ok: 5 | 8.703 | 9.039 | 46.855 | 57.629 | 114581284 | 114581284 | 1986699264 | 1999790080 |
+| iso4017:M16x150-n1 | stl-fine | 5 | ok | ok: 5 | 5.054 | 5.216 | 22.656 | 22.844 | 130491884 | 130491884 | 893075456 | 937234432 |
+| iso4017:M16x150-n2 | stl-fine | 5 | ok | ok: 5 | 6.057 | 6.564 | 45.347 | 50.344 | 130491884 | 130491884 | 1522114560 | 1529876480 |
+| iso4017:M16x150-n3 | stl-fine | 5 | ok | ok: 5 | 9.103 | 11.111 | 61.495 | 70.068 | 130491884 | 130491884 | 2047029248 | 2133241856 |
+| nut-d30-p1-m0.8d-s1.6d-c5-right-n1 | stl-fine | 5 | ok | ok: 5 | 4.668 | 4.812 | 28.293 | 30.449 | 132130084 | 132130084 | 1449668608 | 1533550592 |
+| nut-d30-p1-m0.8d-s1.6d-c5-right-n2 | stl-fine | 5 | ok | ok: 5 | 5.998 | 6.077 | 50.718 | 57.386 | 132130084 | 132130084 | 2170236928 | 2264760320 |
+| nut-d30-p1-m0.8d-s1.6d-c5-right-n3 | stl-fine | 5 | ok | ok: 5 | 8.168 | 9.107 | 69.054 | 77.913 | 132130084 | 132130084 | 2681192448 | 2776911872 |
+| nut-d30-p1-m0.8d-s4d-c5-right-n1 | stl-fine | 5 | ok | ok: 5 | 3.094 | 3.213 | 25.747 | 30.409 | 132196084 | 132196084 | 1438789632 | 1461788672 |
+| nut-d30-p1-m0.8d-s4d-c5-right-n2 | stl-fine | 5 | ok | ok: 5 | 3.814 | 4.056 | 49.004 | 55.003 | 132196084 | 132196084 | 2224332800 | 2264154112 |
+| nut-d30-p1-m0.8d-s4d-c5-right-n3 | stl-fine | 5 | ok | ok: 5 | 6.250 | 6.920 | 65.960 | 78.709 | 132196084 | 132196084 | 2636087296 | 2725875712 |
+| iso4017:M16x160-n1 | step | 5 | ok | ok: 5 | 5.287 | 5.549 | 0.208 | 0.210 | 5064590 | 5064590 | 329039872 | 333426688 |
+| iso4017:M16x160-n2 | step | 5 | ok | ok: 5 | 6.488 | 6.631 | 0.208 | 0.215 | 5064590 | 5064590 | 606318592 | 615825408 |
+| iso4017:M16x160-n3 | step | 5 | ok | ok: 5 | 8.361 | 8.829 | 0.213 | 0.218 | 5064590 | 5064590 | 842166272 | 854507520 |
+| iso4017:M20x200-n1 | step | 5 | ok | ok: 5 | 5.267 | 5.504 | 0.205 | 0.218 | 5080293 | 5080293 | 328601600 | 332341248 |
+| iso4017:M20x200-n2 | step | 5 | ok | ok: 5 | 6.376 | 6.778 | 0.210 | 0.220 | 5080293 | 5080293 | 610336768 | 616865792 |
+| iso4017:M20x200-n3 | step | 5 | ok | ok: 5 | 7.870 | 8.632 | 0.212 | 0.225 | 5080293 | 5080293 | 846651392 | 847994880 |
+| nut-d30-p0.35-m0.8d-s4d-c5-right-n1 | step | 5 | ok | ok: 5 | 7.245 | 7.736 | 0.201 | 0.236 | 4649100 | 4649100 | 289173504 | 299048960 |
+| nut-d30-p0.35-m0.8d-s4d-c5-right-n2 | step | 5 | ok | ok: 5 | 8.279 | 8.867 | 0.199 | 0.204 | 4649100 | 4649100 | 562155520 | 570609664 |
+| nut-d30-p0.35-m0.8d-s4d-c5-right-n3 | step | 5 | ok | ok: 5 | 10.196 | 10.308 | 0.200 | 0.205 | 4649100 | 4649100 | 797151232 | 802230272 |
+| bolt-d30-p0.35-n30-left-n1 | step | 5 | ok | ok: 5 | 3.561 | 3.797 | 0.089 | 0.099 | 2077851 | 2077851 | 289439744 | 294785024 |
+| bolt-d30-p0.35-n30-left-n2 | step | 5 | ok | ok: 5 | 4.459 | 4.627 | 0.103 | 0.144 | 2077851 | 2077851 | 560824320 | 567480320 |
+| bolt-d30-p0.35-n30-left-n3 | step | 5 | ok | ok: 5 | 7.136 | 7.200 | 0.157 | 0.164 | 2077851 | 2077851 | 838201344 | 840851456 |
+| iso4017:M16x150-n1 | step | 5 | ok | ok: 5 | 5.068 | 5.221 | 0.189 | 0.203 | 4756895 | 4756895 | 318640128 | 323981312 |
+| iso4017:M16x150-n2 | step | 5 | ok | ok: 5 | 6.219 | 6.304 | 0.197 | 0.199 | 4756895 | 4756895 | 605310976 | 606957568 |
+| iso4017:M16x150-n3 | step | 5 | ok | ok: 5 | 7.792 | 8.493 | 0.200 | 0.298 | 4756895 | 4756895 | 833208320 | 855191552 |
+| nut-d100-p3.5-m3d-s4d-c5-right-n1 | step | 5 | ok | ok: 5 | 11.906 | 12.524 | 0.284 | 0.307 | 6379570 | 6379570 | 301105152 | 313438208 |
+| nut-d100-p3.5-m3d-s4d-c5-right-n2 | step | 5 | ok | ok: 5 | 13.123 | 13.369 | 0.281 | 0.295 | 6379570 | 6379570 | 574324736 | 576753664 |
+| nut-d100-p3.5-m3d-s4d-c5-right-n3 | step | 5 | ok | ok: 5 | 15.057 | 15.558 | 0.279 | 0.293 | 6379570 | 6379570 | 797339648 | 813600768 |
+
+
+### load, run 40909724292
+
+- Dispatched sha: `f730ecb33d2ef7b085cfa46e2dc02a1d951dcc02`
+- Records: `bench/results/phase-07/load-40909724292/` (5 artifacts, 15 readings), run https://github.com/halfb00t/screw/actions/runs/40909724292
+- CPU models seen (jobs): AMD EPYC 9V45 96-Core Processor (2); AMD EPYC 9V74 80-Core Processor (2); Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz (1)
+- Counts by status: ok: 15
+- 1 shard x 5 repetitions = 5 jobs; the three load points run in each job one after another, each in its own container.
+- Host: `python -m bench.oper summarize --markdown --reps 1,2,3,4,5` over the directory, as printed; readings: `python -m bench.oper_sets load-table --from bench/results/phase-07/load-40909724292`, as printed (a p95 is `statistics.quantiles(n=20)[18]` over the run's requests, R15).
+
+### Host
+
+| fact | value |
+| --- | --- |
+| image | screw:ci |
+| image_id | sha256:90ec64dca5dbb1ac7848fa3a68678282500e3e10cf54524b917dd4c45d513cd5, sha256:e03d3ef70f12bc0ceda81f205d31766b91d99e41be0e75c497c62568dba24655, sha256:0726b65c3eafd667d69bd1fc0f4be5db2527a8f2222bc0bff070c5a60d795201, sha256:6a305d32ac94d89dfa572ff64fa5901ba316a67a10472c794b36f5fb20e67875, sha256:b5bec37f306905c5918d988ecc84b22ff1972ebb175c7e7fe6a46d95683a49ba |
+| versions | {"cadquery": "2.8.0", "cadquery_ocp": "7.9.3.1.1"} |
+| nproc | 4 |
+| mem_total_bytes | 16759443456, 16758403072 |
+| cpu_model | AMD EPYC 9V45 96-Core Processor, Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz, AMD EPYC 9V74 80-Core Processor |
+| kernel | 7.0.0-1017-azure |
+| machine | x86_64 |
+| GITHUB_RUN_ID | 40909724292 |
+| GITHUB_JOB | measure |
+| GITHUB_SHA | f730ecb33d2ef7b085cfa46e2dc02a1d951dcc02 |
+
+### Readings
+
+Status counts: ok: 15
+
+| point | N | rep | status | p95 all s | p95 stl-fine s | p95 step s | p95 stl-preview s | idle peak bytes | end peak bytes | time to healthy s | health p95 s |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| load-n1 | 1 | 1 | ok | 24.799 | 29.277 | 24.496 | 19.262 | 65208320 | 1604452352 | 0.701 | 0.009 |
+| load-n1 | 1 | 2 | ok | 35.091 | 41.921 | 34.182 | 30.632 | 64684032 | 1654321152 | 0.958 | 0.009 |
+| load-n1 | 1 | 3 | ok | 28.214 | 33.494 | 27.561 | 23.370 | 64622592 | 1657307136 | 0.709 | 0.009 |
+| load-n1 | 1 | 4 | ok | 27.327 | 32.453 | 26.653 | 23.309 | 64978944 | 1650589696 | 0.722 | 0.009 |
+| load-n1 | 1 | 5 | ok | 23.838 | 28.081 | 23.259 | 17.984 | 64921600 | 1509654528 | 0.583 | 0.009 |
+| load-n2 | 2 | 1 | ok | 34.061 | 38.653 | 36.000 | 33.424 | 64835584 | 1915580416 | 0.721 | 0.010 |
+| load-n2 | 2 | 2 | ok | 51.879 | 56.796 | 53.237 | 51.027 | 64860160 | 1759465472 | 0.944 | 0.009 |
+| load-n2 | 2 | 3 | ok | 38.375 | 43.042 | 40.157 | 37.679 | 64913408 | 1907396608 | 0.708 | 0.009 |
+| load-n2 | 2 | 4 | ok | 38.489 | 42.445 | 39.629 | 37.795 | 64811008 | 2047315968 | 0.706 | 0.009 |
+| load-n2 | 2 | 5 | ok | 31.263 | 34.922 | 32.710 | 30.735 | 64643072 | 1752739840 | 0.698 | 0.010 |
+| load-n3 | 3 | 1 | ok | 45.384 | 45.709 | 51.053 | 43.798 | 64860160 | 2302496768 | 0.705 | 0.010 |
+| load-n3 | 3 | 2 | ok | 69.784 | 71.896 | 74.978 | 64.220 | 65040384 | 2333671424 | 0.951 | 0.010 |
+| load-n3 | 3 | 3 | ok | 50.958 | 52.168 | 54.254 | 45.917 | 64983040 | 2312544256 | 0.704 | 0.008 |
+| load-n3 | 3 | 4 | ok | 52.979 | 54.363 | 54.003 | 45.853 | 65011712 | 2290733056 | 0.707 | 0.010 |
+| load-n3 | 3 | 5 | ok | 41.435 | 42.645 | 43.725 | 35.963 | 64892928 | 2273177600 | 0.703 | 0.011 |
+
+### gzip, run 40909739628
+
+- Dispatched sha: `f730ecb33d2ef7b085cfa46e2dc02a1d951dcc02`
+- Records: `bench/results/phase-07/gzip-40909739628/` (5 artifacts, 70 readings), run https://github.com/halfb00t/screw/actions/runs/40909739628
+- CPU models seen (jobs): AMD EPYC 7763 64-Core Processor (4); AMD EPYC 9V45 96-Core Processor (1)
+- Counts by status: ok: 60, refused: 10
+- 10 readings are `refused` (`BuildError`), the two kernel-refused nuts of the stl-preview bound set above. 1 shard x 5 repetitions = 5 jobs; the level 1, 6 and 9 bytes and seconds are in each reading's `gzip` entries.
+- Summary: `python -m bench.oper summarize --markdown --reps 1,2,3,4,5` over the directory, as printed.
+
+### Host
+
+| fact | value |
+| --- | --- |
+| image | screw:ci |
+| image_id | sha256:30dab84410f4514346101082e67f4672b72c3dd9bcd95862f37f338ae392454b, sha256:93b185d2c60b90826ac29cdf41288d3faded715cbcee892732d6fbf5ad25b0e1, sha256:71af3494c4819bec4a21491bcf0c4eea0f15ccfbe7520ead597cc6db83a1bdee, sha256:2597ac75a78f1d0002b9897fe2a5c57088c5e45344a055cc3d24e1e1921a74e9, sha256:3614dd61074bc9448d63799713459184658f9b5c20044d96f2677ea879e61be6 |
+| versions | {"cadquery": "2.8.0", "cadquery_ocp": "7.9.3.1.1"} |
+| nproc | 4 |
+| mem_total_bytes | 16759439360, 16759443456, 16759435264 |
+| cpu_model | AMD EPYC 7763 64-Core Processor, AMD EPYC 9V45 96-Core Processor |
+| kernel | 7.0.0-1017-azure |
+| machine | x86_64 |
+| GITHUB_RUN_ID | 40909739628 |
+| GITHUB_JOB | measure |
+| GITHUB_SHA | f730ecb33d2ef7b085cfa46e2dc02a1d951dcc02 |
+
+### Readings
+
+Status counts: ok: 60, refused: 10
+
+| point | artifact | n | status | counts | median build s | max build s | median export s | max export s | median bytes | max bytes | median peak bytes | max peak bytes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| iso4017:M20x200 | stl-preview | 5 | ok | ok: 5 | 5.216 | 5.224 | 2.527 | 2.553 | 22807184 | 22807184 | 323919872 | 324956160 |
+| nut-d30-p0.35-m0.8d-s4d-c0.15-right | stl-preview | 5 | refused | refused: 5 | - | - | - | - | - | - | - | - |
+| iso4017:M20x180 | stl-preview | 5 | ok | ok: 5 | 4.793 | 4.817 | 2.276 | 2.313 | 20646884 | 20646884 | 307466240 | 309391360 |
+| nut-d30-p0.35-m0.8d-s1.6d-c0.15-left | stl-preview | 5 | refused | refused: 5 | - | - | - | - | - | - | - | - |
+| iso4017:M16x160 | stl-preview | 5 | ok | ok: 5 | 5.240 | 5.446 | 1.882 | 1.912 | 13148084 | 13148084 | 297431040 | 306057216 |
+| nut-d10-p0.35-m3d-s4d-c0.15-right | stl-preview | 5 | ok | ok: 5 | 11.604 | 11.817 | 0.960 | 0.962 | 7503484 | 7503484 | 261029888 | 262168576 |
+| nut-d100-p3.5-m0.8d-s4d-c5-right | stl-preview | 5 | ok | ok: 5 | 5.995 | 6.020 | 4.152 | 4.197 | 27853884 | 27853884 | 439996416 | 458473472 |
+| iso4017:M20x200 | stl-fine | 5 | ok | ok: 5 | 5.213 | 5.225 | 23.735 | 24.134 | 144651784 | 144651784 | 861663232 | 885239808 |
+| iso4017:M20x180 | stl-fine | 5 | ok | ok: 5 | 4.771 | 4.840 | 21.540 | 22.026 | 128770484 | 128770484 | 839532544 | 866271232 |
+| iso4017:M16x160 | stl-fine | 5 | ok | ok: 5 | 5.233 | 5.257 | 24.092 | 24.706 | 138570484 | 138570484 | 893390848 | 945061888 |
+| iso4017:M20x160 | stl-fine | 5 | ok | ok: 5 | 4.356 | 4.509 | 18.817 | 19.374 | 114581284 | 114581284 | 783605760 | 821444608 |
+| iso4017:M16x150 | stl-fine | 5 | ok | ok: 5 | 4.969 | 5.042 | 22.912 | 23.189 | 130491884 | 130491884 | 860700672 | 891658240 |
+| nut-d30-p1-m0.8d-s1.6d-c5-right | stl-fine | 5 | ok | ok: 5 | 4.704 | 4.738 | 26.886 | 28.054 | 132130084 | 132130084 | 1426149376 | 1487572992 |
+| nut-d30-p1-m0.8d-s4d-c5-right | stl-fine | 5 | ok | ok: 5 | 3.057 | 3.121 | 27.434 | 28.685 | 132196084 | 132196084 | 1492664320 | 1544589312 |
+
+
+### arenas, run 40909754190
+
+- Dispatched sha: `f730ecb33d2ef7b085cfa46e2dc02a1d951dcc02`
+- Records: `bench/results/phase-07/arenas-40909754190/` (5 artifacts, 30 readings), run https://github.com/halfb00t/screw/actions/runs/40909754190
+- CPU models seen (jobs): AMD EPYC 7763 64-Core Processor (4); INTEL(R) XEON(R) PLATINUM 8573C (1)
+- Counts by status: ok: 30
+- 1 shard x 5 repetitions = 5 jobs; `memory_current_bytes` and `vm_rss_bytes` (read right after the export, before the level-1 gzip, G17) are in each reading.
+- Summary: `python -m bench.oper summarize --markdown --reps 1,2,3,4,5` over the directory, as printed.
+
+### Host
+
+| fact | value |
+| --- | --- |
+| image | screw:ci |
+| image_id | sha256:c012387b8049026c3e48296ce7bccd47e10159f925e58a3d9aa8f0397531edb1, sha256:fb23abf507f51cdfd5b3472374c9fd86608d4db9e9e708db8e9c08046919d588, sha256:afb02132507763164fdfe909d4a7baf44a914deec94469efd39ca29f97b6626d, sha256:2957886566476bcfb3a1bde452452ad387a40f374e86ea5fe9d40718fc7595c4, sha256:e6468c3a80031a1014508347a7c3b8fcfbc538f5f54f21794264f4ba130e922e |
+| versions | {"cadquery": "2.8.0", "cadquery_ocp": "7.9.3.1.1"} |
+| nproc | 4 |
+| mem_total_bytes | 16759443456, 16758403072 |
+| cpu_model | AMD EPYC 7763 64-Core Processor, INTEL(R) XEON(R) PLATINUM 8573C |
+| kernel | 7.0.0-1017-azure |
+| machine | x86_64 |
+| GITHUB_RUN_ID | 40909754190 |
+| GITHUB_JOB | measure |
+| GITHUB_SHA | f730ecb33d2ef7b085cfa46e2dc02a1d951dcc02 |
+
+### Readings
+
+Status counts: ok: 30
+
+| point | artifact | n | status | counts | median build s | max build s | median export s | max export s | median bytes | max bytes | median peak bytes | max peak bytes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| arenas-nut-d100-p3.5-m0.8d-s4d-c5-right-trim-on | stl-preview | 5 | ok | ok: 5 | 5.950 | 6.011 | 4.119 | 4.288 | 27853884 | 27853884 | 459943936 | 462815232 |
+| arenas-nut-d100-p3.5-m0.8d-s4d-c5-right-trim-off | stl-preview | 5 | ok | ok: 5 | 5.982 | 6.020 | 4.179 | 4.333 | 27853884 | 27853884 | 450928640 | 459907072 |
+| arenas-nut-d30-p1-m0.8d-s4d-c5-right-trim-on | stl-fine | 5 | ok | ok: 5 | 3.059 | 3.080 | 27.221 | 29.668 | 132196084 | 132196084 | 1378775040 | 1445138432 |
+| arenas-nut-d30-p1-m0.8d-s4d-c5-right-trim-off | stl-fine | 5 | ok | ok: 5 | 3.056 | 3.099 | 26.936 | 29.800 | 132196084 | 132196084 | 1422966784 | 1474904064 |
+| arenas-iso4017:M16x160-trim-on | step | 5 | ok | ok: 5 | 5.279 | 5.306 | 0.217 | 0.223 | 5064590 | 5064590 | 295538688 | 298622976 |
+| arenas-iso4017:M16x160-trim-off | step | 5 | ok | ok: 5 | 5.252 | 5.319 | 0.207 | 0.223 | 5064590 | 5064590 | 296046592 | 296841216 |
+
+
+### outband, run 40909768713
+
+- Dispatched sha: `f730ecb33d2ef7b085cfa46e2dc02a1d951dcc02`
+- Records: `bench/results/phase-07/outband-40909768713/` (10 artifacts, 300 readings), run https://github.com/halfb00t/screw/actions/runs/40909768713
+- CPU models seen (jobs): AMD EPYC 7763 64-Core Processor (4); AMD EPYC 9V45 96-Core Processor (3); AMD EPYC 9V74 80-Core Processor (1); INTEL(R) XEON(R) PLATINUM 8573C (2)
+- Counts by status: ok: 300
+- 2 shards x 5 repetitions = 10 jobs; the out-of-band check below judges these readings (G28, G29).
+- Summary: `python -m bench.oper summarize --markdown --reps 1,2,3,4,5` over the directory, as printed.
+
+### Host
+
+| fact | value |
+| --- | --- |
+| image | screw:ci |
+| image_id | sha256:081997201990f6420966c000bdd5dd7967eb0e705e45acaa6ab227bfdda4e070, sha256:e46db0bdde14318c70585741b95526714a9d3029fcf38b17c322d152963e81d4, sha256:07cfab135d8e3b24b6e3508d8965b4e69b2d6146c9cd010ec951f243a327b9e9, sha256:9e4e5322aaef4fbb4a0f9f7acbe88051d31090b1c703061eecb30a42c9695e82, sha256:95f91a65f6c5200f3fe6c4df31a87b8036f491d0e44c135769776d09f95dab23, sha256:fdb6528afccb28b7ad0e7fecc90935d006e4a20ca3c45fd4f312914f7c79048a, sha256:ad4899e951f46e799f3f827e349bc36d3449a2837c33a83d80ec618b589f5d24, sha256:703d4de756cbc688dc9d201dddc62860b43c291eb9ff7ea291b0282d555f2947, sha256:72fa4b94cc9a89bbe7befec6e02c0ac690d2ce5635fade62598c664a17a2d93d, sha256:d3f59c22204c0f9d6e8935cc3799fccbd0c7abf68c9e41a6d80fe70a6bae7ed3 |
+| versions | {"cadquery": "2.8.0", "cadquery_ocp": "7.9.3.1.1"} |
+| nproc | 4 |
+| mem_total_bytes | 16763777024, 16759443456, 16759431168, 16758407168, 16758398976 |
+| cpu_model | AMD EPYC 7763 64-Core Processor, AMD EPYC 9V45 96-Core Processor, AMD EPYC 9V74 80-Core Processor, INTEL(R) XEON(R) PLATINUM 8573C |
+| kernel | 7.0.0-1017-azure |
+| machine | x86_64 |
+| GITHUB_RUN_ID | 40909768713 |
+| GITHUB_JOB | measure |
+| GITHUB_SHA | f730ecb33d2ef7b085cfa46e2dc02a1d951dcc02 |
+
+### Readings
+
+Status counts: ok: 300
+
+| point | artifact | n | status | counts | median build s | max build s | median export s | max export s | median bytes | max bytes | median peak bytes | max peak bytes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| outband-bolt-k-below-iso4017:M20x160 | stl-preview | 5 | ok | ok: 5 | 4.364 | 4.486 | 1.940 | 2.131 | 18350484 | 18350484 | 301326336 | 304054272 |
+| outband-bolt-k-below-iso4017:M2x4 | stl-preview | 5 | ok | ok: 5 | 1.337 | 1.375 | 0.058 | 0.063 | 383584 | 383584 | 215318528 | 215416832 |
+| outband-bolt-k-above-iso4017:M18x180 | stl-preview | 5 | ok | ok: 5 | 4.831 | 4.999 | 2.227 | 2.535 | 18388484 | 18388484 | 307929088 | 308518912 |
+| outband-bolt-k-above-iso4017:M2x4 | stl-preview | 5 | ok | ok: 5 | 1.344 | 1.378 | 0.056 | 0.062 | 383584 | 383584 | 214855680 | 215175168 |
+| outband-bolt-k-far-iso4017:M2x4 | stl-preview | 5 | ok | ok: 5 | 1.349 | 1.382 | 0.057 | 0.061 | 383584 | 383584 | 214990848 | 215457792 |
+| outband-bolt-k-below-iso4017:M20x100 | stl-fine | 5 | ok | ok: 5 | 3.076 | 3.173 | 11.914 | 12.741 | 71563784 | 71563784 | 658014208 | 678469632 |
+| outband-bolt-k-below-iso4017:M2x4 | stl-fine | 5 | ok | ok: 5 | 1.339 | 1.381 | 0.592 | 0.621 | 3196784 | 3196784 | 267063296 | 269643776 |
+| outband-bolt-k-above-iso4017:M18x150 | stl-fine | 5 | ok | ok: 5 | 4.250 | 4.409 | 17.110 | 18.990 | 105681184 | 105681184 | 760086528 | 841355264 |
+| outband-bolt-k-above-iso4017:M2x4 | stl-fine | 5 | ok | ok: 5 | 1.345 | 1.373 | 0.583 | 0.629 | 3196784 | 3196784 | 265285632 | 268365824 |
+| outband-bolt-k-far-iso4017:M2x4 | stl-fine | 5 | ok | ok: 5 | 1.355 | 1.383 | 0.589 | 0.617 | 3196784 | 3196784 | 267255808 | 267390976 |
+| outband-bolt-k-below-iso4017:M20x150 | step | 5 | ok | ok: 5 | 4.205 | 4.324 | 0.153 | 0.171 | 3851932 | 3851932 | 267730944 | 272433152 |
+| outband-bolt-k-below-iso4017:M2x4 | step | 5 | ok | ok: 5 | 1.335 | 1.372 | 0.030 | 0.034 | 648065 | 648065 | 214589440 | 215232512 |
+| outband-bolt-k-above-iso4017:M16x130 | step | 5 | ok | ok: 5 | 4.493 | 4.577 | 0.164 | 0.177 | 4151737 | 4151737 | 278167552 | 280854528 |
+| outband-bolt-k-above-iso4017:M2x4 | step | 5 | ok | ok: 5 | 1.335 | 1.374 | 0.030 | 0.033 | 648065 | 648065 | 214360064 | 215375872 |
+| outband-bolt-k-far-iso4017:M2x4 | step | 5 | ok | ok: 5 | 1.356 | 1.385 | 0.031 | 0.033 | 648110 | 648110 | 214593536 | 214933504 |
+| outband-bolt-s-below-iso4017:M20x200 | stl-preview | 5 | ok | ok: 5 | 5.213 | 5.378 | 2.402 | 2.605 | 22807184 | 22807184 | 322772992 | 326070272 |
+| outband-bolt-s-below-iso4017:M2x4 | stl-preview | 5 | ok | ok: 5 | 1.369 | 1.398 | 0.056 | 0.062 | 383584 | 383584 | 215347200 | 215592960 |
+| outband-bolt-s-above-iso4017:M4x25 | stl-preview | 5 | ok | ok: 5 | 2.596 | 2.664 | 0.257 | 0.303 | 1851984 | 1851984 | 227676160 | 237232128 |
+| outband-bolt-s-above-iso4017:M2x4 | stl-preview | 5 | ok | ok: 5 | 1.339 | 1.359 | 0.057 | 0.060 | 383584 | 383584 | 215105536 | 215621632 |
+| outband-bolt-s-below-iso4017:M20x200 | stl-fine | 5 | ok | ok: 5 | 5.214 | 5.347 | 23.600 | 25.794 | 144651784 | 144651784 | 869232640 | 874905600 |
+| outband-bolt-s-below-iso4017:M2x4 | stl-fine | 5 | ok | ok: 5 | 1.357 | 1.403 | 0.586 | 0.625 | 3196784 | 3196784 | 267071488 | 270151680 |
+| outband-bolt-s-above-iso4017:M10x50 | stl-fine | 5 | ok | ok: 5 | 2.557 | 2.629 | 6.860 | 8.119 | 41319484 | 41319484 | 525893632 | 531562496 |
+| outband-bolt-s-above-iso4017:M2x4 | stl-fine | 5 | ok | ok: 5 | 1.225 | 1.423 | 0.557 | 0.702 | 3196784 | 3196784 | 267923456 | 272678912 |
+| outband-bolt-s-below-iso4017:M16x160 | step | 5 | ok | ok: 5 | 4.864 | 5.380 | 0.211 | 0.229 | 5064612 | 5064612 | 292925440 | 295538688 |
+| outband-bolt-s-below-iso4017:M2x4 | step | 5 | ok | ok: 5 | 1.265 | 1.406 | 0.032 | 0.035 | 648565 | 648565 | 214163456 | 214810624 |
+| outband-bolt-s-above-iso4017:M18x120 | step | 5 | ok | ok: 5 | 3.275 | 3.694 | 0.129 | 0.145 | 3119221 | 3119221 | 252321792 | 257769472 |
+| outband-bolt-s-above-iso4017:M2x4 | step | 5 | ok | ok: 5 | 1.235 | 1.381 | 0.031 | 0.034 | 648342 | 648342 | 214106112 | 215334912 |
+| outband-nut-s-below-iso4032:M20 | stl-preview | 5 | ok | ok: 5 | 2.589 | 2.859 | 0.189 | 0.276 | 1613384 | 1613384 | 229679104 | 242896896 |
+| outband-nut-s-below-iso4032:M2 | stl-preview | 5 | ok | ok: 5 | 2.477 | 2.795 | 0.028 | 0.041 | 176384 | 176384 | 217055232 | 230154240 |
+| outband-nut-s-above-iso4032:M20 | stl-preview | 5 | ok | ok: 5 | 2.578 | 2.806 | 0.195 | 0.261 | 1630184 | 1630184 | 227991552 | 237420544 |
+| outband-nut-s-above-iso4032:M2 | stl-preview | 5 | ok | ok: 5 | 2.033 | 2.202 | 0.029 | 0.032 | 176384 | 176384 | 209522688 | 210006016 |
+| outband-nut-s-far-iso4032:M2 | stl-preview | 5 | ok | ok: 5 | 2.104 | 2.344 | 0.029 | 0.032 | 188384 | 188384 | 212455424 | 212611072 |
+| outband-nut-s-below-iso4032:M20 | stl-fine | 5 | ok | ok: 5 | 2.622 | 2.982 | 1.964 | 2.313 | 10583284 | 10583284 | 468393984 | 477335552 |
+| outband-nut-s-below-iso4032:M2 | stl-fine | 5 | ok | ok: 5 | 2.494 | 2.776 | 0.303 | 0.376 | 1739484 | 1739484 | 254472192 | 259596288 |
+| outband-nut-s-above-iso4032:M20 | stl-fine | 5 | ok | ok: 5 | 2.534 | 2.799 | 2.058 | 2.365 | 10632484 | 10632484 | 463343616 | 464330752 |
+| outband-nut-s-above-iso4032:M2 | stl-fine | 5 | ok | ok: 5 | 1.973 | 2.195 | 0.304 | 0.348 | 1743084 | 1743084 | 249044992 | 251588608 |
+| outband-nut-s-far-iso4032:M2 | stl-fine | 5 | ok | ok: 5 | 2.073 | 2.327 | 0.306 | 0.349 | 1776684 | 1776684 | 248479744 | 258097152 |
+| outband-nut-s-below-iso4032:M16 | step | 5 | ok | ok: 5 | 2.641 | 2.878 | 0.042 | 0.045 | 879166 | 879166 | 214200320 | 227639296 |
+| outband-nut-s-below-iso4032:M2 | step | 5 | ok | ok: 5 | 2.458 | 2.774 | 0.029 | 0.032 | 560541 | 560541 | 216719360 | 228728832 |
+| outband-nut-s-above-iso4032:M16 | step | 5 | ok | ok: 5 | 2.539 | 2.719 | 0.041 | 0.045 | 879004 | 879004 | 211607552 | 222662656 |
+| outband-nut-s-above-iso4032:M2 | step | 5 | ok | ok: 5 | 1.971 | 2.201 | 0.029 | 0.031 | 560458 | 560458 | 208244736 | 208629760 |
+| outband-nut-s-far-iso4032:M2 | step | 5 | ok | ok: 5 | 2.077 | 2.309 | 0.029 | 0.031 | 553012 | 553012 | 212287488 | 212373504 |
+| outband-nut-m-below-iso4032:M20 | stl-preview | 5 | ok | ok: 5 | 2.316 | 2.519 | 0.171 | 0.225 | 1333184 | 1333184 | 227745792 | 239378432 |
+| outband-nut-m-below-iso4032:M2 | stl-preview | 5 | ok | ok: 5 | 2.192 | 2.481 | 0.026 | 0.030 | 173384 | 173384 | 213995520 | 216281088 |
+| outband-nut-m-above-iso4032:M20 | stl-preview | 5 | ok | ok: 5 | 4.441 | 4.921 | 0.676 | 0.790 | 6489684 | 6489684 | 238014464 | 245354496 |
+| outband-nut-m-above-iso4032:M2 | stl-preview | 5 | ok | ok: 5 | 3.978 | 4.389 | 0.082 | 0.096 | 640984 | 640984 | 231776256 | 232370176 |
+| outband-nut-m-below-iso4032:M20 | stl-fine | 5 | ok | ok: 5 | 2.265 | 2.520 | 1.677 | 1.910 | 9244784 | 9244784 | 443424768 | 450420736 |
+| outband-nut-m-below-iso4032:M2 | stl-fine | 5 | ok | ok: 5 | 2.169 | 2.464 | 0.255 | 0.336 | 1540984 | 1540984 | 252710912 | 253583360 |
+| outband-nut-m-above-iso4032:M20 | stl-fine | 5 | ok | ok: 5 | 4.400 | 5.001 | 6.790 | 7.823 | 41103384 | 41103384 | 588079104 | 620744704 |
+| outband-nut-m-above-iso4032:M2 | stl-fine | 5 | ok | ok: 5 | 3.845 | 4.529 | 0.936 | 1.085 | 5840784 | 5840784 | 283086848 | 293015552 |
+| outband-nut-m-below-iso4032:M16 | step | 5 | ok | ok: 5 | 2.274 | 2.611 | 0.039 | 0.048 | 853243 | 853243 | 213676032 | 216342528 |
+| outband-nut-m-below-iso4032:M2 | step | 5 | ok | ok: 5 | 2.132 | 2.532 | 0.026 | 0.030 | 516576 | 516576 | 213823488 | 214884352 |
+| outband-nut-m-above-iso4032:M16 | step | 5 | ok | ok: 5 | 4.338 | 4.929 | 0.079 | 0.089 | 1896943 | 1896943 | 235741184 | 236437504 |
+| outband-nut-m-above-iso4032:M2 | step | 5 | ok | ok: 5 | 3.823 | 4.447 | 0.050 | 0.054 | 1118781 | 1118781 | 232566784 | 233005056 |
+| turns-below-iso4017:M20x40 | stl-preview | 5 | ok | ok: 5 | 1.101 | 1.259 | 0.098 | 0.103 | 829884 | 829884 | 222851072 | 222928896 |
+| turns-below-iso4017:M2x4 | stl-preview | 5 | ok | ok: 5 | 0.855 | 1.014 | 0.022 | 0.029 | 138684 | 138684 | 209637376 | 209887232 |
+| turns-below-iso4014:M20x200 | stl-fine | 5 | ok | ok: 5 | 1.110 | 1.274 | 0.872 | 1.134 | 5388184 | 5388184 | 400580608 | 404582400 |
+| turns-below-iso4017:M2x4 | stl-fine | 5 | ok | ok: 5 | 0.868 | 1.024 | 0.252 | 0.311 | 1446684 | 1446684 | 251654144 | 258457600 |
+| turns-below-iso4017:M20x40 | step | 5 | ok | ok: 5 | 1.111 | 1.255 | 0.019 | 0.021 | 371324 | 371324 | 210001920 | 210026496 |
+| turns-below-iso4017:M2x4 | step | 5 | ok | ok: 5 | 0.862 | 1.000 | 0.015 | 0.018 | 257459 | 257459 | 208896000 | 209113088 |
