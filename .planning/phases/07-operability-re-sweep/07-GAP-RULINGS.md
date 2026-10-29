@@ -115,3 +115,47 @@ This is a ruled change after R30's freeze, not a harness fix. The owner took the
 | Gap | Rule(s) | Owner ruling |
 |---|---|---|
 | G27 | R8 | R8 writes no `MAX_NUT_D_MM`. The nut `d` limit is cost, not a wall: the cost model's admission (R12) and the timeouts bound a large nut. The nut `d` stays under the shared `MAX_FIELD_MM` (1000 on the candidate decision), which holds only while that value lies below the nut `d`'s first refused decade (1e4); otherwise the phase stops for the owner. Plan 07-07 writes no `MAX_NUT_D_MM`. |
+
+## Gap G28 (owner ruling on the head ratios the cost model was not fitted on, 2026-10-29)
+
+Source: `docs/tech_debt/active/2026-10-29-cost-model-admits-out-of-fit-head-heights.md`, filed by
+plan 07-11, and the orchestrator's read-only check at commit d869b87 (figures from `cost.fits` and
+`cost.predict`, on the models of fit.json, runs explore 40646117094 and spread 40646125666). R11
+fits the log of each target on the log of each field, and the fitted points hold every head ratio
+in a narrow band, so a coefficient can say a larger head is cheaper.
+
+- Bolt `k`. At d 100, pitch 1, length 30, thread_length 30, s 200, k 60 is refused at all three
+  artifacts; its fine STL is predicted at 82 s and 4.2e9 B peak before the envelope. k 1000, inside
+  `MAX_BOLT_K_MM` (1e5), is admitted at all three; its fine STL is predicted at 0.0063 s and 8.9e3 B.
+  `ln_k` is negative on 9 of 9 bolt models (stl-fine bytes -3.675).
+- Bolt `s`. `ln_s` is positive: the fine STL's predicted seconds rise with s (82 s at s 200, 390 s at
+  s 400, 3060 s at s 999). So moving a ratio only to its nearest band edge can under-predict.
+- Nut `s`. At d 30, pitch 0.35, m 24, clearance 0.15: s 48 is refused at all three artifacts; at
+  s 120 the preview is admitted; at s 300 the preview and the fine STL; at s 999 the preview and the
+  STEP. `ln_s` is negative on 6 of 9 nut models (down to -0.241).
+- The bands, over the fitted points (R11) with omitted fields at their defaults: bolt k/d 0.6 to 0.7
+  (1247 points, 4 with no `k`, which take the default 4) and s/d 1.5 to 2.0; nut s/d 1.5 to 4.0 and
+  m/d 0.8 to 3.0 (282 points). The bolt catalogue's k/d is 0.625 to 0.7; every catalogue row and both
+  default parts lie inside every band.
+- Under the first rule (each out-of-band ratio moved to its nearest edge) the executor found bolt
+  k 1000 still admitted at STEP (the edge k 70 is predicted under the STEP budget, k 60 is not) and
+  nut s 999 still admitted at the preview (the edge s 120 admits it, s 45 does not). Ruling 4 answers
+  that.
+
+The owner's replies, verbatim (the label "(Recommended)" is the orchestrator's, not part of the
+ruling):
+
+1. Asked how to fix the head-height bypass: "Clamp k/d, verify on runner (Recommended)".
+2. Asked whether to widen the rule past k/d: "All head ratios, max-of (Recommended)".
+3. Asked about the preview refused while the fine STL is admitted:
+   "Accept, note it in L21 (Recommended)".
+4. Asked again after the executor's stop under the nearest-edge rule:
+   "B: max over the band (Recommended)". This supersedes the nearest-edge rule.
+
+This is a ruled change after R30's freeze, not a harness fix. It amends `07-SWEEP-PROTOCOL.md` R11
+on the phase branch `gsd/phase-07-operability-re-sweep`. Under it the regenerated
+`07-BUDGET-TABLE.md` and fit.json are byte-identical, so B-01's evidence does not move.
+
+| Gap | Rule(s) | Owner ruling |
+|---|---|---|
+| G28 | R11 | A part whose head ratio (bolt k/d and s/d, nut s/d and m/d) lies outside its band, the [min, max] over the fitted points of its kind with omitted fields at their defaults, is predicted, target by target, as the largest of the raw prediction and the predictions at every combination of band edges of its out-of-band ratios, each such field set to edge x d and every other field held. For this log-linear model that is the largest prediction anywhere in the band. R12 applies the envelope to it. Inside every band the prediction is unchanged. The bands are generated from the records by code and emitted into `calc/cost.py`. Plan 07-15 reads, at 5 repetitions, per kind, artifact and ratio, a part above the band and one below it, each admitted under this rule; a reading above its enveloped prediction stops the phase for the owner and does not widen `e`. L21 records that per-artifact budgets can refuse a preview while they admit the fine STL (ISO 4017 M20 x 60 at pitch 1). |

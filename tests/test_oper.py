@@ -2717,3 +2717,37 @@ def test_the_nut_diameter_gets_no_wall_and_stays_under_the_shared_ceiling_below_
     rulings = (PROTOCOL.parent / "07-GAP-RULINGS.md").read_text()
     assert "\n## Gap G27 (owner ruling after the walls confirm, 2026-10-28)\n" in rulings
     assert re.search(r"^\| G27 \| R8 \| R8 writes no `MAX_NUT_D_MM`", rulings, re.MULTILINE)
+
+
+# --- the owner's ruling on the head ratios the fit never saw (G28): pinned by its key phrases ----
+
+
+def test_a_head_ratio_outside_its_band_is_predicted_no_lower_than_anywhere_in_the_band() -> None:
+    rule = " ".join(_rule(11).split())
+    assert ("A part whose head ratio lies outside the band the fit saw is predicted no lower than "
+            "anywhere in that band") in rule
+    assert "the bolt's k / d and s / d and the nut's s / d and m / d" in rule
+    assert "its smallest and largest value over the fitted points of its kind" in rule
+    assert ("computed from the records by code and shipped with the coefficients, never "
+            "typed") in rule
+    assert ("at every combination of band edges (the smallest and the largest) of its out-of-band "
+            "ratios") in rule
+    assert "the prediction is the largest of these, target by target" in rule
+    assert "Inside every band the prediction is the fit's own, unchanged" in rule
+    assert ("a reading above its enveloped prediction stops the phase for the owner and does not "
+            "widen `e`") in rule
+    assert "added after the first runner reading by the owner's ruling that R30 asks for" in rule
+    assert "nearest" not in rule
+    rulings = (PROTOCOL.parent / "07-GAP-RULINGS.md").read_text()
+    assert ("\n## Gap G28 (owner ruling on the head ratios the cost model was not fitted on, "
+            "2026-10-29)\n") in rulings
+    for reply in ('"Clamp k/d, verify on runner (Recommended)"',
+                  '"All head ratios, max-of (Recommended)"',
+                  '"B: max over the band (Recommended)"', "d869b87", "40646117094",
+                  "40646125666", "not a harness fix"):
+        assert reply in rulings, reply
+    assert re.search(r"^\| G28 \| R11 \|", rulings, re.MULTILINE)
+    protocol = _protocol()
+    assert protocol[protocol.index("## Harness fixes"):].startswith("## Harness fixes\n\nNone yet.")
+    assert not re.search(r"\bG\d+\b", protocol)
+    assert not re.search(r"\b\d{11}\b", protocol)

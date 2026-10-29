@@ -301,6 +301,20 @@ d, ln pitch, ln s, ln m, `clearance` and `left_hand`. It is fitted on the per-po
 tessellation presets are kept (R23). The model is kernel-free (`calc` import boundary) and adds no
 dependency.
 
+A part whose head ratio lies outside the band the fit saw is predicted no lower than anywhere in that
+band. The head ratios are the bolt's k / d and s / d and the nut's s / d and m / d. Each ratio's band is
+its smallest and largest value over the fitted points of its kind, each point's fields read through
+the parameter model so that an omitted field takes its default; the bands are computed from the
+records by code and shipped with the coefficients, never typed. For a part with any ratio outside its
+band, each target is predicted raw and at every combination of band edges (the smallest and the
+largest) of its out-of-band ratios, each such field (k, s or m) set to the edge times d and every
+other field held; the prediction is the largest of these, target by target, and R12 applies the
+envelope to it. Inside every band the prediction is the fit's own, unchanged. The second campaign
+reads, at 5 repetitions, per kind, artifact and ratio, at least one part above the band and one below
+it, each a part this rule admits; a reading above its enveloped prediction stops the phase for the
+owner and does not widen `e`. This sentence was added after the first runner reading by the owner's
+ruling that R30 asks for.
+
 ## R12 - The envelope (D-07)
 
 For each (kind, artifact, target) the envelope `e` is `max(0, largest actual / predicted - 1)` over
