@@ -42,6 +42,7 @@ from . import __version__, int_env
 from .build_errors import BuildError, BuildTimeout
 from .calc import PartInfo, derive, download_name, download_refusal, explicit_conflict
 from .calc.cost import BUILD_TIMEOUT_S, artifact_of
+from .calc.cost import FIELDS as COST_FIELDS
 from .calc.presets import PresetCatalogue, catalogue_document
 from .params import DEFAULT_KIND, KINDS, BoltParams, FastenerParams, NutParams
 from .pool import BuildPool
@@ -102,9 +103,9 @@ class _BlobCache:
 # sizing, but L11 measured the fine STL plus its gzip-1 copy over it from M8 L=68
 # right-hand up (`2026-10-08-a-grid`). At that row the raw fine STL alone is 45,659,684
 # bytes, under the budget, so `put` keeps both blobs and they evict each other: such a part
-# is served but rebuilt on every repeat request. That is why D-02 and D-21 refuse the fine
-# STL on the measured rows, with the caps keyed by hand because the left-hand rods fit
-# longer (`download_refusal`, called first in `_serve`). Phase 7 re-sweeps (OPER-02).
+# is served but rebuilt on every repeat request. That was why D-02 and D-21 refused the fine
+# STL on the measured rows; L21's cost model now judges every artifact against its measured
+# budget (`download_refusal`, called first in `_serve`). Phase 7 re-sweeps (OPER-02).
 _EXPORTS = _BlobCache(int_env("SCREW_EXPORT_CACHE_MB", 64) * 1024 * 1024)
 
 
@@ -483,14 +484,18 @@ async def _serve(params: FastenerParams, fmt: Literal["stl", "step"], quality: s
     """The one model-serving path every kind's route delegates to: cache, admission
     control, build, compress, log, respond.
     """
-    # First, before the cache, the admission slot and the pool: a fine STL whose fine STL plus
-    # gzip copy L11 measured over the export budget is refused on the parameters alone, so it
-    # never occupies a worker (D-02). Reads no field by name, so every kind gets its own rule
-    # through the one call.
+    # First, before the cache, the admission slot and the pool: an artifact the cost model
+    # predicts over its measured budget is refused on the parameters alone, so it never occupies
+    # a worker (D-05, D-06, L21). Reads no field by name, so every kind gets its own rule
+    # through the one call. B-02 (07-OWNER-RULINGS.md, 2026-10-29): one type, `over_budget`, for
+    # every artifact, naming the fields the cost reads in model order and the artifact; it
+    # retires `fine_stl_cap`.
     refusal = download_refusal(params, fmt, quality)
     if refusal is not None:
-        raise HTTPException(422, detail=[{"loc": ["query"], "type": "fine_stl_cap",
-                                          "msg": refusal}])
+        raise HTTPException(422, detail=[{
+            "loc": ["query"], "type": "over_budget", "msg": refusal,
+            "ctx": {"fields": list(COST_FIELDS[params.kind]),
+                    "artifact": artifact_of(fmt, quality)}}])
     # A plain local, not middleware or contextvars -- minted once here and passed to every
     # record this request emits, so two concurrent requests for the same part (the one
     # case params + time cannot disambiguate: same-slot affinity) are still

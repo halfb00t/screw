@@ -27,7 +27,8 @@ from pydantic_core import PydanticUndefined
 
 from screw import cli
 from screw.app import STATIC, app, build_backend
-from screw.calc import STANDING_WARNING, cost, derive, download_name
+from screw.calc import STANDING_WARNING, cost, derive, download_name, download_refusal
+from screw.calc.cost import artifact_of
 from screw.calc.presets import expand
 from screw.params import DEFAULT_KIND, KINDS, BoltParams, FastenerParams
 from screw.solid import Format, Quality, export
@@ -452,7 +453,7 @@ def test_the_downloads_of_a_refused_preset_part_are_one_sentence_on_the_cli_the_
     route = client.get("/api/bolt/model.stl", params=fields)   # quality defaults to fine
     assert route.status_code == 422
     (detail,) = route.json()["detail"]
-    assert (detail["type"], detail["msg"]) == ("fine_stl_cap", refused["refusal"])
+    assert (detail["type"], detail["msg"]) == ("over_budget", refused["refusal"])
 
     out = tmp_path / "x.stl"
     with pytest.raises(SystemExit) as stop:
@@ -461,6 +462,74 @@ def test_the_downloads_of_a_refused_preset_part_are_one_sentence_on_the_cli_the_
     assert stop.value.code == 2
     assert capsys.readouterr().err == f"error: {refused['refusal']}\n"
     assert not out.exists()
+
+
+# Parts for the three-front-end parity below. The first two are explore points 07-BUDGET-TABLE.md
+# lists as refused under C1 (B-01; run 40646117094), which an R12 widening keeps refused; the
+# other two are off-row sizes no other test downloads for real (the byte cache is session-wide),
+# whatever the model says of them.
+PARITY_PARTS: list[tuple[str, Params]] = [
+    ("bolt", {"d": 30, "pitch": 1, "length": 30, "thread_length": 30, "s": 48, "k": 18}),
+    ("nut", {"d": 100, "pitch": 1, "s": 160, "m": 80, "clearance": 5}),
+    ("bolt", {"d": 5.61}),
+    ("nut", {"d": 6.61}),
+]
+DOWNLOAD_PAIRS = [("stl", "fine"), ("stl", "preview"), ("step", "fine"), ("step", "preview")]
+
+
+def test_every_front_end_refuses_the_same_downloads_with_the_same_words(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str],
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    """FRNT-05, B-02, T-07-28: the info document, the model route and `screw export` agree on
+    every download of every part, and a refused request never reaches the backend. Both
+    builders are stubbed: the rule is under test, not the kernel."""
+    calls: list[tuple[str, str]] = []
+
+    async def stub(p: FastenerParams, fmt: str, quality: str) -> bytes:
+        calls.append((fmt, quality))
+        return b"stub"
+
+    monkeypatch.setattr("screw.solid.export", lambda p, fmt, quality: b"solid")
+    app.dependency_overrides[build_backend] = lambda: stub
+    refused = 0
+    try:
+        for kind, fields in PARITY_PARTS:
+            p = KINDS[kind].model_validate(fields)
+            flags = [w for name, value in fields.items() for w in (_flag(name), str(value))]
+            cli.main(["info", kind, *flags])
+            cli_downloads = json.loads(capsys.readouterr().out)["downloads"]
+            downloads = client.get(f"/api/{kind}/info", params=fields).json()["downloads"]
+            assert cli_downloads == downloads
+            assert [(e["format"], e["quality"]) for e in downloads] == DOWNLOAD_PAIRS
+            for entry in downloads:
+                fmt, quality = entry["format"], entry["quality"]
+                refusal = download_refusal(p, fmt, quality)
+                assert entry["refusal"] == refusal
+                before = len(calls)
+                r = client.get(f"/api/{kind}/model.{fmt}", params={**fields, "quality": quality})
+                out = tmp_path / f"{kind}-{p.d:g}-{quality}.{fmt}"
+                argv = ["export", kind, *flags, "-o", str(out), "--quality", quality]
+                if refusal is None:
+                    assert r.status_code == 200, (kind, fields, fmt, quality)
+                    cli.main(argv)
+                    assert out.exists()
+                    continue
+                refused += 1
+                assert r.status_code == 422
+                assert r.json()["detail"] == [{
+                    "loc": ["query"], "type": "over_budget", "msg": refusal,
+                    "ctx": {"fields": list(cost.FIELDS[kind]),
+                            "artifact": artifact_of(fmt, quality)}}]
+                assert len(calls) == before
+                capsys.readouterr()
+                with pytest.raises(SystemExit) as stop:
+                    cli.main(argv)
+                assert stop.value.code == 2
+                assert capsys.readouterr().err == f"error: {refusal}\n"
+                assert not out.exists()
+    finally:
+        app.dependency_overrides[build_backend] = lambda: _inline_backend
+    assert refused
 
 
 @pytest.mark.parametrize("kind", list(KINDS))
@@ -783,6 +852,7 @@ def test_the_ui_builds_both_download_links_from_the_info_document_and_names_no_q
         assert re.findall(rf"""(['"`]){word}\1""", APP_JS) == [], word
     assert APP_JS.count("info.warnings") == 1   # the pendingWarnings line, nothing matches a text
     assert "fine_stl_cap" not in APP_JS
+    assert "over_budget" not in APP_JS
     assert "fine STL" not in APP_JS
     for name in ("partQuery", "writeHash"):
         assert "quality" not in _function_body(name), name

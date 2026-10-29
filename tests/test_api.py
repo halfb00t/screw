@@ -1204,8 +1204,12 @@ def test_a_fine_stl_over_its_budget_is_a_422_and_never_reaches_the_backend() -> 
         r = client.get("/api/bolt/model.stl", params=OVER)    # quality defaults to fine
     assert r.status_code == 422
     (detail,) = r.json()["detail"]
-    assert detail["type"] == "fine_stl_cap"
+    # B-02 (07-OWNER-RULINGS.md, 2026-10-29): one type for every artifact, its fields and artifact.
+    assert detail["type"] == "over_budget"
     assert detail["loc"] == ["query"]
+    assert detail["ctx"] == {"fields": ["d", "pitch", "length", "s", "k", "thread_length"],
+                             "artifact": "stl-fine"}
+    assert detail["msg"] == download_refusal(OVER_PART, "stl", "fine")
     assert detail["msg"] == cost_model.refusal(OVER_PART, "stl-fine")
     assert detail["msg"].startswith("d, pitch, length, s, k and thread_length: ")
     assert "L21" in detail["msg"]
@@ -1231,8 +1235,10 @@ def test_a_nut_fine_stl_over_its_budget_is_a_422_and_never_reaches_the_backend()
         r = client.get("/api/nut/model.stl", params=NUT_OVER)    # quality defaults to fine
         assert r.status_code == 422
         (detail,) = r.json()["detail"]
-        assert detail["type"] == "fine_stl_cap"
+        assert detail["type"] == "over_budget"
         assert detail["loc"] == ["query"]
+        assert detail["ctx"] == {"fields": ["d", "pitch", "s", "m", "clearance"],
+                                 "artifact": "stl-fine"}
         assert detail["msg"] == cost_model.refusal(part, "stl-fine")
         assert detail["msg"].startswith("d, pitch, s, m and clearance: ")
         assert "L21" in detail["msg"]
@@ -1240,6 +1246,28 @@ def test_a_nut_fine_stl_over_its_budget_is_a_422_and_never_reaches_the_backend()
         preview = client.get("/api/nut/model.stl", params={**NUT_OVER, "quality": "preview"})
         assert preview.status_code == _status(part, "stl", "preview")
         assert calls == (1 if preview.status_code == 200 else 0)
+
+
+def test_a_nut_step_over_its_budget_is_the_same_422_naming_the_step() -> None:
+    """B-02: the STEP is judged as its own artifact and refused with the same type."""
+    calls = 0
+
+    async def counting_backend(p: FastenerParams, fmt: str, quality: str) -> bytes:
+        nonlocal calls
+        calls += 1
+        return b"served"
+
+    part = NutParams.model_validate(NUT_OVER)
+    refusal = cost_model.refusal(part, "step")
+    assert refusal is not None
+    with _backend(counting_backend):
+        for quality in ("fine", "preview"):
+            r = client.get("/api/nut/model.step", params={**NUT_OVER, "quality": quality})
+            assert r.status_code == 422
+            assert r.json()["detail"] == [{
+                "loc": ["query"], "type": "over_budget", "msg": refusal,
+                "ctx": {"fields": ["d", "pitch", "s", "m", "clearance"], "artifact": "step"}}]
+    assert calls == 0
 
 
 def test_each_download_of_a_refused_part_is_judged_on_its_own_and_its_info_is_served() -> None:
@@ -1316,7 +1344,7 @@ def test_every_download_the_document_lists_is_answered_by_the_route_as_it_says()
                 else:
                     assert r.status_code == 422, entry
                     (detail,) = r.json()["detail"]
-                    assert detail["type"] == "fine_stl_cap"
+                    assert detail["type"] == "over_budget"
                     assert detail["msg"] == entry["refusal"]
                     assert len(seen) == before
 
