@@ -90,7 +90,11 @@ _SET_KEYS = frozenset({"set", "rule", "reps", "shards", "deadline_s", "points"})
 # why the set holds what it holds. The runner never reads either; it only checks their shape.
 # `shard_sizes` and `sources` are written only by the sets generated from runner records (R6, R7,
 # R3): the size of each consecutive shard, and the record directories the set was derived from.
-_SET_OPTIONAL_KEYS = frozenset({"dropped", "notes", "shard_sizes", "sources"})
+# `envelope` is the R12 envelope a Runs II set was drawn under, kind -> artifact -> target -> e,
+# as fit.json keys its models: R12 never redraws a set after a widening, so `bench.oper_sets
+# --check` regenerates the file under the envelope it names (G6).
+_SET_OPTIONAL_KEYS = frozenset({"dropped", "notes", "shard_sizes", "sources", "envelope"})
+_ENVELOPE_TARGETS = frozenset({"bytes", "seconds", "peak"})
 _POINT_KEYS = frozenset({"label", "kind", "params", "artifact"})
 # The Runs II kinds (07-06), read by `bench.oper_bound` in the container: a contention reading of
 # N points on N workers (R14), a drift reading of one part built K times and an arena reading of
@@ -516,6 +520,18 @@ def _is_count(value: object) -> bool:
     return not isinstance(value, bool) and isinstance(value, int) and value >= 1
 
 
+def _is_envelope(value: object) -> bool:
+    """R12's envelope as a Runs II set records it: kind -> artifact -> {bytes, seconds, peak} ->
+    e, every e a finite number at or above 0 (R12's `max(0, ...)`)."""
+    return isinstance(value, dict) and bool(value) and all(
+        isinstance(kind, str) and kind and isinstance(artifacts, dict) and bool(artifacts)
+        and all(artifact in _ARTIFACTS and isinstance(targets, dict)
+                and set(targets) == _ENVELOPE_TARGETS
+                and all(_is_number(e) and e >= 0 for e in targets.values())
+                for artifact, targets in artifacts.items())
+        for kind, artifacts in value.items())
+
+
 def _load_probe(where: str, raw: dict[str, object]) -> Point:
     """A probe point: its name and exactly the arguments that probe takes, each a number above 0
     (`left_hand` a yes/no). `where` names the set, or the command line, in every refusal."""
@@ -777,6 +793,9 @@ def load_set(name: str, directory: Path | None = None) -> PointSet:
     sources = raw.get("sources", [])
     if not (isinstance(sources, list) and all(isinstance(source, str) for source in sources)):
         _refuse(f"set {name!r}: sources is a list of text")
+    if "envelope" in raw and not _is_envelope(raw["envelope"]):
+        _refuse(f"set {name!r}: envelope is kind -> artifact -> bytes, seconds and peak -> an e "
+                "of at least 0 (R12)")
     return PointSet(name=name, rule=raw["rule"], reps=raw["reps"], shards=raw["shards"],
                     deadline_s=float(raw["deadline_s"]), points=points,
                     shard_sizes=None if sizes is None else tuple(sizes), sources=tuple(sources))

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import functools
 import json
+import random
 import re
 from collections.abc import Iterable, Mapping
 from pathlib import Path
@@ -19,6 +20,8 @@ import pytest
 from bench import oper, oper_sets
 from bench.oper_sets import ProtocolStop
 from bench.thread_spike.maths import PITCH
+from screw.calc import cost
+from screw.params import KINDS, BoltParams, FastenerParams
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 type Raw = dict[str, object]
@@ -983,3 +986,318 @@ def test_the_source_constants_equal_what_derive_walls_gives_for_the_records() ->
         assert le == ceiling.value
     [nut_d] = [m.le for m in params.NutParams.model_fields["d"].metadata if hasattr(m, "le")]
     assert nut_d == params.MAX_FIELD_MM
+
+
+# --- Runs II (07-15): D(A), the bound set, the load mix and the gzip set -------------------------
+
+ARTIFACTS3: tuple[cost.Artifact, ...] = cost.ARTIFACTS
+UNBOUNDED: oper_sets.Budget = dict.fromkeys(ARTIFACTS3, (None, None, None))
+
+
+def _flat(e: float = 0.5, **over: float) -> dict[tuple[str, str, str], float]:
+    """An envelope of `e` everywhere, with `over` keyed `kind_target` (every artifact)."""
+    envelope = dict.fromkeys(oper_sets.shipped_envelope(), e)
+    for name, value in over.items():
+        kind, target = name.split("_")
+        for artifact in ARTIFACTS3:
+            envelope[kind, artifact, target] = value
+    return envelope
+
+
+def _pt(label: str, kind: str, params: Mapping[str, object], artifact: str) -> Raw:
+    return {"label": label, "kind": kind, "params": dict(params), "artifact": artifact}
+
+
+def _bolts(lengths: Iterable[float], prefix: str = "b") -> list[Raw]:
+    """A bolt per length at every artifact, labelled `<prefix><i>`, in file order."""
+    return [_pt(f"{prefix}{i}", "bolt", {"length": length}, artifact)
+            for i, length in enumerate(lengths) for artifact in ARTIFACTS3]
+
+
+def _ok_readings(points: Iterable[Mapping[str, object]], **over: Mapping[str, object]) -> list[Raw]:
+    """An ok explore reading of every point; `over[label]` replaces fields of its readings."""
+    out: list[Raw] = []
+    for p in points:
+        reading = _reading(p, build=1.0, export=0.5)
+        reading.update(over.get(str(p["label"]), {}))
+        out.append(reading)
+    return out
+
+
+def _part(point: Mapping[str, object]) -> FastenerParams:
+    params = point["params"]
+    assert isinstance(params, dict)
+    return KINDS[str(point["kind"])].model_validate(params)
+
+
+def _env_seconds(point: Mapping[str, object], artifact: cost.Artifact,
+                 envelope: Mapping[tuple[str, str, str], float]) -> float:
+    part = _part(point)
+    return cost.predict(part, artifact).seconds * (1.0 + envelope[part.kind, artifact, "seconds"])
+
+
+def test_d_of_a_keeps_the_first_of_two_points_that_are_one_part() -> None:
+    points = [_pt("z-first", "bolt", {"length": 30.0}, "step"),
+              _pt("a-second", "bolt", {"length": 30.0}, "step"),
+              _pt("c", "nut", {}, "step")]
+    found = oper_sets.candidates(points, "step", _flat(), UNBOUNDED)
+    assert [c.label for c in found] == ["z-first", "c"]
+
+
+def test_the_edge_ratio_under_a_finite_budget_is_the_largest_enveloped_prediction() -> None:
+    envelope = _flat(0.25, bolt_peak=2.0)
+    budget: oper_sets.Budget = dict.fromkeys(ARTIFACTS3, (50000000.0, 30.0, 1000000000.0))
+    points = _bolts([10.0, 20.0, 40.0])
+    order = oper_sets.tier_order(points, envelope, budget)
+    for artifact in ARTIFACTS3:
+        ranking = order[artifact]["edge_ranking"]
+        assert isinstance(ranking, list)
+        for item in ranking:
+            point = next(p for p in points
+                         if p["label"] == item["label"] and p["artifact"] == artifact)
+            pred = cost.predict(_part(point), artifact)
+            want = max(pred.bytes * 1.25 / 5e7, pred.seconds * 1.25 / 30.0, pred.peak * 3.0 / 1e9)
+            assert item["edge_ratio"] == want
+        ratios = [item["edge_ratio"] for item in ranking]
+        assert ratios == sorted(ratios, reverse=True)
+
+
+def test_an_artifact_the_budget_leaves_unbounded_ranks_by_enveloped_build_seconds() -> None:
+    envelope = _flat(0.5)
+    budget: oper_sets.Budget = {"stl-preview": (None, None, None),
+                                "stl-fine": (2.4e8, None, None), "step": (None, None, None)}
+    points = [*_bolts([10.0, 40.0, 20.0]), *(_pt("n", "nut", {}, a) for a in ARTIFACTS3)]
+    order = oper_sets.tier_order(points, envelope, budget)
+    for artifact in ("stl-preview", "step"):
+        ranking = order[artifact]["edge_ranking"]
+        assert isinstance(ranking, list)
+        by_label = {str(p["label"]): p for p in points if p["artifact"] == artifact}
+        assert [item["edge_ratio"] for item in ranking] == [
+            _env_seconds(by_label[str(item["label"])], artifact, envelope) for item in ranking]
+        assert [item["label"] for item in ranking] == sorted(
+            by_label, key=lambda label: -_env_seconds(by_label[label], artifact, envelope))
+
+
+def test_a_tie_in_edge_ratio_goes_to_the_label_that_sorts_first() -> None:
+    # head_chamfer is no feature of the model, so the two bolts predict alike
+    points = [_pt("zz", "bolt", {"head_chamfer": 15.0}, a) for a in ARTIFACTS3] + [
+        _pt("aa", "bolt", {"head_chamfer": 20.0}, a) for a in ARTIFACTS3]
+    order = oper_sets.tier_order(points, _flat())
+    for artifact in ARTIFACTS3:
+        ranking = order[artifact]["edge_ranking"]
+        assert isinstance(ranking, list)
+        assert [item["label"] for item in ranking] == ["aa", "zz"]
+        assert ranking[0]["edge_ratio"] == ranking[1]["edge_ratio"]
+
+
+def test_the_draw_is_the_other_candidates_shuffled_by_a_new_generator_per_artifact() -> None:
+    points = _bolts([4.0 + i for i in range(12)])
+    order = oper_sets.tier_order(points, _flat())
+    for artifact in ARTIFACTS3:
+        entry = order[artifact]
+        ranking = entry["edge_ranking"]
+        assert isinstance(ranking, list)
+        edge = {item["label"] for item in ranking[:3]}
+        want = [f"b{i}" for i in range(12) if f"b{i}" not in edge]
+        random.Random(20261026).shuffle(want)
+        assert entry["draw"] == want
+        assert entry["candidates"] == [f"b{i}" for i in range(12)]
+    assert oper_sets.tier_order(points, _flat()) == order
+
+
+def _bound_space() -> tuple[list[Raw], list[Raw], dict[tuple[str, str, str], float]]:
+    """Six bolts, two nuts and twelve shorter filler bolts (so every slot holds a partner) at every
+    artifact, no budget. The bolt seconds and the nut peak are enveloped 100 times, so the 5
+    slowest are bolts and the largest peak prediction a nut."""
+    points = [*_bolts([10.0, 20.0, 30.0, 40.0, 50.0, 60.0]),
+              *(_pt(f"n{i}", "nut", {"m": m}, a) for i, m in enumerate((5.2, 8.0))
+                for a in ARTIFACTS3),
+              *_bolts([4.0 + i / 2 for i in range(12)], prefix="f")]
+    envelope = _flat(0.0, bolt_seconds=100.0, nut_peak=100.0)
+    return points, envelope_points_ok(points), envelope
+
+
+def envelope_points_ok(points: list[Raw]) -> list[Raw]:
+    """Readings: the slowest bolt has the largest cold wall, the shortest bolt the largest ok
+    peak, and the second nut a larger peak that is not ok."""
+    return _ok_readings(points, b5={"build_s": 50.0}, b0={"memory_peak_bytes": 10**9},
+                        n1={"status": "capped", "memory_peak_bytes": 10**10})
+
+
+def test_the_bound_set_is_the_top_five_the_measured_extrema_and_the_peak_prediction() -> None:
+    points, readings, envelope = _bound_space()
+    bound = oper_sets.bound_sets(points, readings, envelope, UNBOUNDED)
+    for artifact in ARTIFACTS3:
+        here = [p for p in points if p["artifact"] == artifact]
+        slowest = sorted(here, key=lambda p: (-_env_seconds(p, artifact, envelope),
+                                              str(p["label"])))[:5]
+        peaks = {str(p["label"]): cost.predict(_part(p), artifact).peak * (
+            1.0 + envelope[str(p["kind"]), artifact, "peak"]) for p in here}
+        top_peak = min(peaks, key=lambda label: (-peaks[label], label))
+        assert [str(p["label"]) for p in slowest] == ["b5", "b4", "b3", "b2", "b1"]
+        assert top_peak.startswith("n")
+        # b5 (worst measured wall) is in the top 5 already; b0 is the largest ok peak; n1's
+        # larger peak is not ok, so it is skipped
+        assert [c.label for c in bound[artifact]] == ["b5", "b4", "b3", "b2", "b1", top_peak,
+                                                      "b0"]
+
+
+def test_every_contention_partner_is_the_slowest_admitted_point_on_its_slot() -> None:
+    points, readings, envelope = _bound_space()
+    contention = oper_sets.bound_points(points, readings, envelope, UNBOUNDED)
+    bound = oper_sets.bound_sets(points, readings, envelope, UNBOUNDED)
+    assert len(contention) == 3 * sum(len(v) for v in bound.values())
+    for reading in contention:
+        artifact, workers = reading["artifact"], reading["workers"]
+        assert artifact in ARTIFACTS3
+        assert isinstance(workers, int)
+        members = reading["points"]
+        assert isinstance(members, list)
+        here = {str(p["label"]): p for p in points if p["artifact"] == artifact}
+        where = next(a for a in ARTIFACTS3 if a == artifact)
+        assert sorted(m["slot"] for m in members) == list(range(workers))
+        p_label = members[0]["label"]
+        assert reading["label"] == f"{p_label}-n{workers}"
+        for member in members:
+            assert member["slot"] == hash(_part(here[member["label"]])) % workers
+            assert set(member) == {"label", "kind", "params", "slot"}
+        for member in members[1:]:
+            rivals = [label for label, p in here.items() if label != p_label
+                      and hash(_part(p)) % workers == member["slot"]]
+            assert member["label"] == min(rivals, key=lambda label: (
+                -_env_seconds(here[label], where, envelope), label))
+
+
+def test_a_slot_no_admitted_point_holds_stops_the_phase() -> None:
+    lengths = [x / 2 for x in range(8, 200)]
+    even = [length for length in lengths if hash(BoltParams(length=length)) % 2 == 0][:6]
+    points = _bolts(even)
+    with _stop("R14", "slot 1"):
+        oper_sets.bound_points(points, _ok_readings(points), _flat(), UNBOUNDED)
+
+
+def test_the_gzip_set_is_every_stl_bound_point_at_levels_1_6_and_9() -> None:
+    points, readings, envelope = _bound_space()
+    bound = oper_sets.bound_sets(points, readings, envelope, UNBOUNDED)
+    gzip = oper_sets.gzip_points(bound)
+    assert [(p["label"], p["artifact"]) for p in gzip] == [
+        (c.label, artifact) for artifact in ("stl-preview", "stl-fine") for c in bound[artifact]]
+    assert all(p["gzip_levels"] == [1, 6, 9] for p in gzip)
+
+
+def _tier(rankings: Mapping[str, tuple[list[str], list[str]]]) -> dict[str, object]:
+    return {"artifacts": {a: {"edge_ranking": [{"label": label, "edge_ratio": 1.0}
+                                               for label in ranking], "draw": draw}
+                          for a, (ranking, draw) in rankings.items()}}
+
+
+def test_the_load_mix_takes_edge_then_draw_parts_per_artifact_never_one_part_twice() -> None:
+    points = _bolts([4.0 + i / 2 for i in range(80)], prefix="q")
+    readings = _ok_readings(points)
+    readings = [r if (r["label"], r["artifact"]) != ("q5", "stl-fine")
+                else {**r, "status": "killed"} for r in readings]
+    q = [f"q{i}" for i in range(80)]
+    tier = _tier({"stl-fine": (q[0:4], q[3:30]),
+                  "step": ([q[0], q[40], q[41], q[42], q[43]], q[0:70]),
+                  "stl-preview": (q[50:55], q[0:80])})
+    mix = oper_sets.load_mix(tier, points, readings)
+    fine = [*q[0:3], *[label for label in q[3:30] if label != "q5"][:17]]  # q5 not ok there
+    step = [*q[40:43], *[label for label in q[0:70] if label not in fine
+                         and label not in q[40:43]][:17]]
+    preview = [*q[50:53], *[label for label in q if label not in fine + step
+                            and label not in q[50:53]][:17]]
+    want = [{"label": label, "kind": "bolt", "params": {"length": 4.0 + int(label[1:]) / 2},
+             "artifact": artifact}
+            for artifact, labels in (("stl-fine", fine), ("step", step),
+                                     ("stl-preview", preview)) for label in labels]
+    random.Random(20261026).shuffle(want)
+    assert mix == want
+    assert len({json.dumps([m["kind"], m["params"]], sort_keys=True) for m in mix}) == 60
+
+    load = oper_sets.load_points(tier, points, readings)
+    assert [(p["label"], p["workers"], p["queue"], p["clients"], p["solid_cache"], p["bodies"])
+            for p in load] == [("load-n1", 1, 2, 2, 4, True), ("load-n2", 2, 4, 4, 4, False),
+                               ("load-n3", 3, 6, 6, 4, False)]
+    assert all(p["mix"] == mix for p in load)
+
+
+def test_a_list_that_cannot_supply_its_parts_stops_the_phase() -> None:
+    points = _bolts([4.0 + i / 2 for i in range(30)], prefix="q")
+    q = [f"q{i}" for i in range(30)]
+    tier = _tier({"stl-fine": (q[0:3], q[3:19]), "step": (q[19:22], q[0:30]),
+                  "stl-preview": (q[22:25], q)})
+    with _stop("R15", "draw of stl-fine supplies 16"):
+        oper_sets.load_mix(tier, points, _ok_readings(points))
+
+
+@pytest.fixture
+def runs2_repo(repo: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """The repo fixture with a synthetic explore file of 80 bolts at every artifact and their ok
+    records, and the code-written point files in place, so `--check` has something to pass."""
+    points = _bolts([4.0 + i / 2 for i in range(80)], prefix="q")
+    monkeypatch.setattr(oper_sets, "_explore_points", lambda: [dict(p) for p in points])
+    readings = [{**r, "memory_peak_bytes": 10**8 + i, "build_s": 1.0 + i / 100}
+                for i, r in enumerate(_ok_readings(points))]
+    _write_records(repo / "ex2", readings)
+    for name, text in oper_sets.generate().items():
+        (repo / "points" / f"{name}.json").write_text(text)
+    return repo
+
+
+def _runs2(repo: Path, *sets: str) -> int:
+    return oper_sets.main(["runs2", "--explore", str(repo / "ex2"), "--out-dir",
+                           str(repo / "points"), "--tier-order",
+                           str(repo / oper_sets.TIER_ORDER), "--sets", *sets])
+
+
+def test_runs2_writes_d_of_a_and_the_sets_with_their_envelope_sources_and_shards(
+        runs2_repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    assert _runs2(runs2_repo, "tier-order") == 0
+    assert oper_sets.main(["--check"]) == 0
+    assert _runs2(runs2_repo, "bound", "load", "gzip") == 0
+    assert oper_sets.main(["--check"]) == 0, capsys.readouterr().err
+    tier = json.loads((runs2_repo / oper_sets.TIER_ORDER).read_text())
+    assert tier["sources"] == ["explore-points=bench/points/explore.json"]
+    assert oper_sets.envelope_of(tier["envelope"]) == oper_sets.shipped_envelope()
+    for name, sources in (("bound", ["explore=ex2"]),
+                          ("load", [f"tier-order={oper_sets.TIER_ORDER}", "explore=ex2"]),
+                          ("gzip", ["explore=ex2"])):
+        doc = json.loads((runs2_repo / "points" / f"{name}.json").read_text())
+        assert (doc["reps"], doc["sources"]) == (5, sources)
+        assert oper_sets.envelope_of(doc["envelope"]) == oper_sets.shipped_envelope()
+        # every reading is charged R2's 600 s: 17 fit under half the 350-minute job
+        assert doc["shard_sizes"] == oper_sets.shard_sizes([600.0] * len(doc["points"]), 10500.0)
+        assert max(doc["shard_sizes"]) <= 17
+        spec = oper.load_set(name, runs2_repo / "points")
+        assert spec.reps == 5
+    text = (runs2_repo / "points" / "bound.json").read_text()
+    assert oper_sets._regenerate_runs2("bound", text) == text
+
+
+def test_check_fails_when_a_recorded_e_exceeds_the_shipped_one(
+        runs2_repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    assert _runs2(runs2_repo, "tier-order", "bound") == 0
+    path = runs2_repo / "points" / "bound.json"
+    doc = json.loads(path.read_text())
+    doc["envelope"]["bolt"]["step"]["seconds"] += 1.0
+    path.write_text(json.dumps(doc, indent=1) + "\n")
+    capsys.readouterr()
+    assert oper_sets.main(["--check"]) == 1
+    assert "bound.json cannot be written again" in capsys.readouterr().err
+    failure = oper_sets._check_runs2()
+    assert failure is not None
+    assert "exceeds the shipped one" in failure
+
+
+def test_a_widening_after_the_draw_redraws_nothing(
+        runs2_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    assert _runs2(runs2_repo, "tier-order", "bound", "load", "gzip") == 0
+    files = {path: path.read_text() for path in
+             [runs2_repo / oper_sets.TIER_ORDER,
+              *(runs2_repo / "points" / f"{n}.json" for n in ("bound", "load", "gzip"))]}
+    widened = {key: e + 1.0 for key, e in cost.ENVELOPE.items()}
+    monkeypatch.setattr(cost, "ENVELOPE", widened)
+    assert oper_sets.main(["--check"]) == 0
+    for path, text in files.items():
+        name = "tier-order" if path.name == "tier-order.json" else path.stem
+        assert oper_sets._regenerate_runs2(name, text) == text

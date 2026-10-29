@@ -624,6 +624,33 @@ def test_sources_are_a_list_of_text(tmp_path: Path) -> None:
         oper.load_set("mini", tmp_path)
 
 
+_ENVELOPE = {"bolt": {"stl-preview": {"bytes": 2.0, "seconds": 0.0, "peak": 1.5}}}
+
+
+def test_an_envelope_header_is_kind_artifact_target_to_an_e(tmp_path: Path) -> None:
+    _write_set(tmp_path, envelope=_ENVELOPE)
+    assert len(oper.load_set("mini", tmp_path).points) == 5
+
+
+@pytest.mark.parametrize(
+    "envelope",
+    [{}, [], {"bolt": {}}, {"bolt": {"stl-coarse": {"bytes": 1, "seconds": 1, "peak": 1}}},
+     {"bolt": {"step": {"bytes": 1, "seconds": 1}}},
+     {"bolt": {"step": {"bytes": 1, "seconds": 1, "peak": 1, "wall": 1}}},
+     {"bolt": {"step": {"bytes": -0.5, "seconds": 1, "peak": 1}}},
+     {"bolt": {"step": {"bytes": True, "seconds": 1, "peak": 1}}},
+     {"bolt": {"step": {"bytes": "1", "seconds": 1, "peak": 1}}},
+     {"": {"step": {"bytes": 1, "seconds": 1, "peak": 1}}}, 2.0],
+    ids=["empty", "list", "no-artifact", "bad-artifact", "missing-target", "extra-target",
+         "negative", "bool", "text", "empty-kind", "number"],
+)
+def test_an_envelope_header_of_any_other_shape_is_refused(envelope: object,
+                                                          tmp_path: Path) -> None:
+    _write_set(tmp_path, envelope=envelope)
+    with pytest.raises(ValueError, match=r"mini.*envelope"):
+        oper.load_set("mini", tmp_path)
+
+
 # --- the matrix ----------------------------------------------------------------------------------
 
 

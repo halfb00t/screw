@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import random
 import statistics
 import sys
 from collections.abc import Callable, Iterable, Mapping, Sequence
@@ -32,10 +33,11 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from bench import oper_lift
-from bench.oper import DEADLINE_S, POINTS_DIR, _read_records
+from bench.oper import CONTENTION_WORKERS, DEADLINE_S, POINTS_DIR, _read_records
 from bench.thread_spike.maths import PITCH, SAMPLE_SIZES, standard_max
+from screw.calc import cost
 from screw.calc.thread import _exact, thread_depth
-from screw.params import KINDS
+from screw.params import KINDS, FastenerParams
 from screw.tables.presets import catalogue, expand, expand_nut, nut_catalogue
 
 type Params = Mapping[str, float | bool]
@@ -107,6 +109,7 @@ class _Set:
         self.name, self.reps, self.shards, self.notes, self.rule = name, reps, shards, notes, rule
         self.shard_sizes: list[int] | None = None  # only the sets generated from records (R6)
         self.sources: list[str] | None = None
+        self.envelope: dict[str, dict[str, dict[str, float]]] | None = None  # Runs II (G6)
         self.points: list[dict[str, object]] = []
         self.dropped: list[dict[str, object]] = []
         self._seen: set[tuple[str, str]] = set()
@@ -162,6 +165,8 @@ class _Set:
             document["shard_sizes"] = self.shard_sizes
         if self.sources is not None:
             document["sources"] = self.sources
+        if self.envelope is not None:
+            document["envelope"] = self.envelope
         return json.dumps(document, indent=1) + "\n"
 
 
@@ -1312,6 +1317,445 @@ def load_smoke() -> _Set:
     return out
 
 
+# --- Runs II (07-15): D(A), the bound set, the load mix and the gzip set -------------------------
+#
+# R27 steps 1 to 4, R14, R15 and R19 over the admitted space: the explore points the parameter model
+# takes and the shipped cost rule (`calc.cost.predict` against B-01's `BUDGET`) admits under a given
+# envelope. Each file records the envelope it was drawn under and its `sources`, and `--check`
+# writes it again under that recorded envelope: a widening never redraws a set (R12, G6).
+
+RUNS2_REPS = 5  # R3: a set that sets a bound reads every point 5 times
+SEED = 20261026  # R27 step 4: the date of the owner's rulings, as an integer
+EDGE_POINTS = 3  # R27 step 3
+TOP_SECONDS = 5  # R14: the 5 slowest admitted points
+LOAD_ORDER: tuple[cost.Artifact, ...] = ("stl-fine", "step", "stl-preview")  # R15
+LOAD_EDGE, LOAD_DRAW = 3, 17  # R15: 3 edge and 17 draw parts per artifact, 20 samples per p95
+LOAD_SOLID_CACHE = 4  # R15: `SCREW_SOLID_CACHE` unless R22 is measuring a K
+GZIP_ARTIFACTS: tuple[cost.Artifact, ...] = ("stl-preview", "stl-fine")  # R19: the STL bound set
+GZIP_LEVELS = [1, 6, 9]  # R19
+TIER_ORDER = "bench/results/phase-07/tier-order.json"
+RUNS2_SETS = ("bound", "load", "gzip")
+
+type Envelope = Mapping[tuple[str, str, str], float]
+type Budget = Mapping[cost.Artifact, cost.Budget]
+
+
+def shipped_envelope() -> dict[tuple[str, str, str], float]:
+    """`cost.ENVELOPE`, keyed by plain text as a recorded envelope is."""
+    return {(kind, artifact, target): e for (kind, artifact, target), e in cost.ENVELOPE.items()}
+
+
+def envelope_document(envelope: Envelope) -> dict[str, dict[str, dict[str, float]]]:
+    """An envelope as a Runs II file records it: kind -> artifact -> target -> e."""
+    out: dict[str, dict[str, dict[str, float]]] = {}
+    for (kind, artifact, target), e in envelope.items():
+        out.setdefault(kind, {}).setdefault(artifact, {})[target] = e
+    return out
+
+
+def envelope_of(raw: object) -> dict[tuple[str, str, str], float]:
+    """The envelope a Runs II file recorded, keyed as `cost.ENVELOPE` is."""
+    if not isinstance(raw, dict):
+        raise TypeError("it records no envelope")
+    found: dict[tuple[str, str, str], float] = {}
+    for kind, artifacts in raw.items():
+        if not isinstance(artifacts, dict):
+            raise TypeError(f"its envelope of {kind} is not by artifact")
+        for artifact, targets in artifacts.items():
+            if not isinstance(targets, dict):
+                raise TypeError(f"its envelope of {kind} {artifact} is not by target")
+            for target, e in targets.items():
+                if isinstance(e, bool) or not isinstance(e, int | float):
+                    raise TypeError(f"its envelope of {kind} {artifact} {target} is not a number")
+                found[str(kind), str(artifact), str(target)] = float(e)
+    return found
+
+
+@dataclass(frozen=True)
+class Candidate:
+    """An admitted explore point at one artifact: the point as the explore file lists it, and the
+    part the parameter model makes of it."""
+
+    point: Mapping[str, object]
+    part: FastenerParams
+
+    @property
+    def label(self) -> str:
+        return str(self.point["label"])
+
+    @property
+    def params(self) -> dict[str, object]:
+        params = self.point["params"]
+        assert isinstance(params, dict)
+        return dict(params)
+
+
+def _validated(kind: str, params: Mapping[str, object]) -> FastenerParams | None:
+    """The production model's part, or None where a wall (L20) or a validator refuses it."""
+    try:
+        return KINDS[kind].model_validate(dict(params))
+    except ValidationError:
+        return None
+
+
+def admits(part: FastenerParams, artifact: cost.Artifact, envelope: Envelope,
+           budget: Budget) -> bool:
+    """R12 with the shipped prediction (G28's bands included) under `envelope`: `cost.fits` with
+    the envelope and the budget given rather than shipped."""
+    return all(cost.admitted(pred, envelope[part.kind, artifact, target], component)
+               for pred, target, component in zip(cost.predict(part, artifact), cost.TARGETS,
+                                                  budget[artifact], strict=True))
+
+
+def enveloped(part: FastenerParams, artifact: cost.Artifact,
+              envelope: Envelope) -> tuple[float, float, float]:
+    """`prediction x (1 + e)` per target (R12), in `cost.TARGETS` order."""
+    pred = cost.predict(part, artifact)
+    return (pred.bytes * (1.0 + envelope[part.kind, artifact, "bytes"]),
+            pred.seconds * (1.0 + envelope[part.kind, artifact, "seconds"]),
+            pred.peak * (1.0 + envelope[part.kind, artifact, "peak"]))
+
+
+def edge_ratio(part: FastenerParams, artifact: cost.Artifact, envelope: Envelope,
+               budget: Budget) -> float:
+    """R27 step 2: the largest enveloped prediction over its budget component, over the targets
+    whose component is finite for `artifact`; where none is, the enveloped build seconds, the
+    slowest part the model admits."""
+    values = enveloped(part, artifact, envelope)
+    ratios = [value / component for value, component in zip(values, budget[artifact],
+                                                              strict=True)
+              if component is not None]
+    return max(ratios) if ratios else values[1]
+
+
+def _part_key(kind: str, params: Mapping[str, object]) -> str:
+    """Two points are one part when their kind and params are equal as JSON objects (R27)."""
+    return json.dumps([kind, params], sort_keys=True)
+
+
+def candidates(points: Iterable[Mapping[str, object]], artifact: cost.Artifact,
+               envelope: Envelope, budget: Budget) -> list[Candidate]:
+    """R27 step 1: the admitted explore points at `artifact`, in file order, the first of two
+    points that are one part kept."""
+    out: list[Candidate] = []
+    seen: set[str] = set()
+    for point in points:
+        if point.get("artifact") != artifact:
+            continue
+        kind, params = str(point["kind"]), point["params"]
+        assert isinstance(params, dict)
+        part = _validated(kind, params)
+        key = _part_key(kind, params)
+        if part is None or key in seen or not admits(part, artifact, envelope, budget):
+            continue
+        seen.add(key)
+        out.append(Candidate(point, part))
+    return out
+
+
+def tier_order(points: Sequence[Mapping[str, object]], envelope: Envelope,
+               budget: Budget = cost.BUDGET) -> dict[str, dict[str, object]]:
+    """R27 steps 1 to 4 per artifact: the candidates in file order, the edge ranking (largest edge
+    ratio first, a tie to the label that sorts first) and the draw, the other candidates in file
+    order shuffled by a new `random.Random(SEED)`."""
+    out: dict[str, dict[str, object]] = {}
+    for artifact in cost.ARTIFACTS:
+        found = candidates(points, artifact, envelope, budget)
+        ratios = {c.label: edge_ratio(c.part, artifact, envelope, budget) for c in found}
+        ranking = sorted(found, key=lambda c: (-ratios[c.label], c.label))
+        edge = {c.label for c in ranking[:EDGE_POINTS]}
+        draw = [c.label for c in found if c.label not in edge]
+        random.Random(SEED).shuffle(draw)
+        out[artifact] = {
+            "candidates": [c.label for c in found],
+            "edge_ranking": [{"label": c.label, "edge_ratio": ratios[c.label]} for c in ranking],
+            "draw": draw}
+    return out
+
+
+def _explore_index(readings: Iterable[Reading]) -> dict[tuple[str, str], Reading]:
+    found: dict[tuple[str, str], Reading] = {}
+    for reading in readings:
+        key = (str(reading["label"]), str(reading["artifact"]))
+        if key in found:
+            raise ProtocolStop("R3", f"{key[0]} at {key[1]} was read twice in explore")
+        found[key] = reading
+    return found
+
+
+def _ok(index: Mapping[tuple[str, str], Reading], label: str, artifact: str) -> Reading | None:
+    reading = index.get((label, artifact))
+    return reading if reading is not None and reading.get("status") == "ok" else None
+
+
+def _largest(found: Iterable[Candidate], key: Callable[[Candidate], float]) -> Candidate | None:
+    """The candidate with the largest `key`, a tie to the label that sorts first."""
+    return min(found, key=lambda c: (-key(c), c.label), default=None)
+
+
+def bound_sets(points: Sequence[Mapping[str, object]], readings: Iterable[Reading],
+               envelope: Envelope, budget: Budget = cost.BUDGET) -> dict[str, list[Candidate]]:
+    """R14's bound set per artifact: the 5 admitted points with the largest enveloped build-seconds
+    prediction, the largest measured cold wall among ok explore readings, the largest enveloped
+    peak prediction and the largest measured `memory_peak_bytes` among ok readings, a point in
+    two groups once, so 5 to 8 points, in that order."""
+    index = _explore_index(readings)
+    out: dict[str, list[Candidate]] = {}
+    for artifact in cost.ARTIFACTS:
+        found = candidates(points, artifact, envelope, budget)
+        measured = [c for c in found if _ok(index, c.label, artifact) is not None]
+        if not measured:
+            raise ProtocolStop("R14", f"no admitted point at {artifact} has an ok explore reading, "
+                                      "so the measured extrema have no point")
+
+        def reading(c: Candidate, artifact: str = artifact) -> Reading:
+            found_reading = _ok(index, c.label, artifact)
+            assert found_reading is not None
+            return found_reading
+
+        def seconds(c: Candidate, artifact: cost.Artifact = artifact) -> float:
+            return enveloped(c.part, artifact, envelope)[1]
+
+        def peak(c: Candidate, artifact: cost.Artifact = artifact) -> float:
+            return enveloped(c.part, artifact, envelope)[2]
+
+        top = sorted(found, key=lambda c: (-seconds(c), c.label))[:TOP_SECONDS]
+        picks = [*top,
+                 _largest(measured, lambda c: _number(reading(c), "build_s")
+                          + _number(reading(c), "export_s")),
+                 _largest(found, peak),
+                 _largest(measured, lambda c: _number(reading(c), "memory_peak_bytes"))]
+        chosen: list[Candidate] = []
+        for pick in picks:
+            if pick is not None and pick.label not in {c.label for c in chosen}:
+                chosen.append(pick)
+        out[artifact] = chosen
+    return out
+
+
+def _member(c: Candidate, slot: int) -> dict[str, object]:
+    return {"label": c.label, "kind": c.part.kind, "params": c.params, "slot": slot}
+
+
+def bound_points(points: Sequence[Mapping[str, object]], readings: Iterable[Reading],
+                 envelope: Envelope, budget: Budget = cost.BUDGET) -> list[dict[str, object]]:
+    """R14's contention readings: every point P of every bound set at N 1, 2 and 3, P on its own
+    slot (`hash(p) % N`, `pool_slot`) and, on every slot P does not hold, the admitted point
+    other than P on that slot with the largest enveloped build-seconds prediction, a tie to the
+    label. A slot no admitted point holds is a stop: no rule puts two points on one worker."""
+    bound = bound_sets(points, readings, envelope, budget)
+    out: list[dict[str, object]] = []
+    for artifact in cost.ARTIFACTS:
+        found = candidates(points, artifact, envelope, budget)
+        # Slowest first, a tie to the label: the first on a slot is that slot's partner.
+        slowest = sorted(found, key=lambda c: (-enveloped(c.part, artifact, envelope)[1],
+                                               c.label))
+        for p in bound[artifact]:
+            for workers in CONTENTION_WORKERS:
+                own = hash(p.part) % workers
+                members = [_member(p, own)]
+                for slot in range(workers):
+                    if slot == own:
+                        continue
+                    partner = next((c for c in slowest if c.label != p.label
+                                    and hash(c.part) % workers == slot), None)
+                    if partner is None:
+                        raise ProtocolStop("R14", f"{p.label} at {artifact}, N = {workers}: no "
+                                                  f"admitted point is on slot {slot}, so the "
+                                                  "reading cannot run N-way")
+                    members.append(_member(partner, slot))
+                out.append({"label": f"{p.label}-n{workers}", "kind": "contention",
+                            "artifact": artifact, "workers": workers, "points": members})
+    return out
+
+
+def _tier_lists(document: Mapping[str, object], artifact: str) -> tuple[list[str], list[str]]:
+    """The edge ranking and the draw of `artifact` from a parsed `tier-order.json`."""
+    artifacts = document.get("artifacts")
+    entry = artifacts.get(artifact) if isinstance(artifacts, dict) else None
+    if not isinstance(entry, dict):
+        raise TypeError(f"tier-order.json has no {artifact}")
+    ranking, draw = entry.get("edge_ranking"), entry.get("draw")
+    if not (isinstance(ranking, list) and isinstance(draw, list)):
+        raise TypeError(f"tier-order.json's {artifact} has no edge_ranking and draw lists")
+    return ([str(item["label"]) for item in ranking if isinstance(item, dict)],
+            [str(label) for label in draw])
+
+
+def load_mix(tier: Mapping[str, object], points: Sequence[Mapping[str, object]],
+             readings: Iterable[Reading]) -> list[dict[str, object]]:
+    """R15's mix: the artifacts in `LOAD_ORDER`, each its first 3 unused parts of its edge ranking
+    and then its first 17 unused parts of its draw whose explore reading at that artifact is ok, a
+    part used once any artifact has taken it; the 60 requests in that order, shuffled once by a new
+    `random.Random(SEED)`. A list that cannot supply its parts is a stop: no part is repeated."""
+    index = _explore_index(readings)
+    by_label = {(str(p["label"]), str(p["artifact"])): p for p in points if "artifact" in p}
+    used: set[str] = set()
+    mix: list[dict[str, object]] = []
+    for artifact in LOAD_ORDER:
+        ranking, draw = _tier_lists(tier, artifact)
+        for labels, want, name in ((ranking, LOAD_EDGE, "edge ranking"),
+                                   (draw, LOAD_DRAW, "draw")):
+            taken = 0
+            for label in labels:
+                if taken == want:
+                    break
+                if (label, artifact) not in by_label:
+                    raise ValueError(f"tier-order.json names {label} at {artifact}, which the "
+                                     "explore file does not hold")
+                point = by_label[label, artifact]
+                kind, params = str(point["kind"]), point["params"]
+                assert isinstance(params, dict)
+                key = _part_key(kind, params)
+                if key in used:
+                    continue
+                if (label, artifact) not in index:
+                    raise ProtocolStop("R15", f"{label} at {artifact} has no explore reading")
+                if _ok(index, label, artifact) is None:
+                    continue
+                used.add(key)
+                mix.append({"label": label, "kind": kind, "params": dict(params),
+                            "artifact": artifact})
+                taken += 1
+            if taken < want:
+                raise ProtocolStop("R15", f"the {name} of {artifact} supplies {taken} unused parts "
+                                          f"with an ok explore reading, not {want}")
+    random.Random(SEED).shuffle(mix)
+    return mix
+
+
+def load_points(tier: Mapping[str, object], points: Sequence[Mapping[str, object]],
+                readings: Iterable[Reading]) -> list[dict[str, object]]:
+    """R15's load readings: N 1, 2 and 3, a queue and clients of 2N, `solid_cache` 4, the JSON
+    bodies at N = 1 only, every N the one mix."""
+    mix = load_mix(tier, points, readings)
+    return [{"label": f"load-n{workers}", "kind": "load", "workers": workers,
+             "queue": 2 * workers, "clients": 2 * workers, "solid_cache": LOAD_SOLID_CACHE,
+             "bodies": workers == 1, "mix": mix} for workers in CONTENTION_WORKERS]
+
+
+def gzip_points(bound: Mapping[str, Sequence[Candidate]]) -> list[dict[str, object]]:
+    """R19's gzip set: every point of the `stl-preview` and `stl-fine` bound sets, as its explore
+    point, read at gzip levels 1, 6 and 9."""
+    return [{**c.point, "gzip_levels": list(GZIP_LEVELS)}
+            for artifact in GZIP_ARTIFACTS for c in bound[artifact]]
+
+
+def _runs2_set(name: str, rule: str, notes: list[str], points: Iterable[Mapping[str, object]],
+               envelope: Envelope, sources: list[str]) -> _Set:
+    """A Runs II set at 5 repetitions, each reading charged R2's 600 s deadline (R6, G4, G24)."""
+    out = _Set(name, reps=RUNS2_REPS, shards=1, rule=rule, notes=notes)
+    for point in points:
+        out.copy(point)
+    out.shard_sizes = shard_sizes([float(DEADLINE_S)] * len(out.points), HALF_JOB_S)
+    out.shards, out.sources, out.envelope = len(out.shard_sizes), sources, envelope_document(
+        envelope)
+    return out
+
+
+def _explore_points() -> list[dict[str, object]]:
+    return explore().points
+
+
+EXPLORE_POINTS = "bench/points/explore.json"
+
+
+def tier_order_text(envelope: Envelope) -> str:
+    """`tier-order.json`: D(A) steps 1 to 4 per artifact under `envelope`. Steps 1 to 4 read the
+    explore file and the prediction only, no reading and no timeout (R27), so the file's one
+    source is the explore point file."""
+    document = {
+        "rule": "07-SWEEP-PROTOCOL.md R27 steps 1 to 4 (G6)", "seed": SEED,
+        "budget": "B-01 (C1), calc.cost.BUDGET", "sources": [f"explore-points={EXPLORE_POINTS}"],
+        "envelope": envelope_document(envelope),
+        "artifacts": tier_order(_explore_points(), envelope)}
+    return json.dumps(document, indent=1) + "\n"
+
+
+def build_bound(explore_dir: str, envelope: Envelope) -> _Set:
+    return _runs2_set("bound", "07-SWEEP-PROTOCOL.md R14 (G4, G6, G24)", [
+        "per artifact the bound set: the 5 admitted explore points with the largest enveloped "
+        "build-seconds prediction, the largest measured cold wall and the largest measured "
+        "memory_peak_bytes among ok explore readings, and the largest enveloped peak prediction, "
+        "a tie to the label that sorts first, a point in two groups once",
+        "each bound point P at N 1, 2 and 3: P on slot hash(p) % N and, on every other slot, the "
+        "admitted point other than P on that slot with the largest enveloped build-seconds "
+        "prediction, a tie to the label",
+        "5 repetitions; each reading charged R2's 600 s (R6, G4)"],
+        bound_points(_explore_points(), _read(explore_dir), envelope), envelope,
+        [f"explore={explore_dir}"])
+
+
+def build_load(tier_path: str, explore_dir: str) -> _Set:
+    tier = json.loads((REPO_ROOT / tier_path).read_text())
+    return _runs2_set("load", "07-SWEEP-PROTOCOL.md R15 (G4, G6, G7)", [
+        "N 1, 2 and 3, queue and clients 2N, solid_cache 4, the JSON bodies at N = 1 only",
+        "one mix of 60 cold requests: stl-fine, step, then stl-preview, each its first 3 unused "
+        "parts of its edge ranking and its first 17 unused parts of its draw (tier-order.json) "
+        "with an ok explore reading, no part twice, shuffled once by random.Random(20261026)",
+        "5 repetitions; each reading charged R2's 600 s (R6, G4)"],
+        load_points(tier, _explore_points(), _read(explore_dir)), envelope_of(tier["envelope"]),
+        [f"tier-order={tier_path}", f"explore={explore_dir}"])
+
+
+def build_gzip(explore_dir: str, envelope: Envelope) -> _Set:
+    bound = bound_sets(_explore_points(), _read(explore_dir), envelope)
+    return _runs2_set("gzip", "07-SWEEP-PROTOCOL.md R19 (G11, G15, G24)", [
+        "every point of the stl-preview and stl-fine bound sets (R14), read as a part with "
+        "gzip levels 1, 6 and 9",
+        "5 repetitions; each reading charged R2's 600 s (R6, G24)"],
+        gzip_points(bound), envelope, [f"explore={explore_dir}"])
+
+
+def _recorded_envelope(text: str) -> dict[tuple[str, str, str], float]:
+    """The envelope a Runs II file was drawn under. A recorded e above the shipped one is no
+    envelope this code ever shipped (a widening only raises e), so the file cannot stand."""
+    recorded, shipped = envelope_of(json.loads(text).get("envelope")), shipped_envelope()
+    if set(recorded) != set(shipped):
+        raise ValueError("its envelope does not name every model the cost rule ships")
+    above = [key for key, e in recorded.items() if e > shipped[key]]
+    if above:
+        raise ValueError(f"its recorded e of {' '.join(above[0])} exceeds the shipped one")
+    return recorded
+
+
+def _regenerate_runs2(name: str, text: str) -> str:
+    """The text a Runs II file would have if drawn again from its sources under its own recorded
+    envelope (G6)."""
+    envelope = _recorded_envelope(text)
+    if name == "tier-order":
+        return tier_order_text(envelope)
+    raw = json.loads(text)
+    sources = dict(str(entry).split("=", 1) for entry in raw.get("sources", []))
+    needs = {"bound": ("explore",), "load": ("tier-order", "explore"), "gzip": ("explore",)}[name]
+    missing = [source for source in needs if source not in sources]
+    if missing:
+        raise ValueError(f"it names no {' and '.join(missing)} source")
+    if name == "bound":
+        return build_bound(sources["explore"], envelope).text()
+    if name == "load":
+        return build_load(sources["tier-order"], sources["explore"]).text()
+    return build_gzip(sources["explore"], envelope).text()
+
+
+def _check_runs2() -> str | None:
+    """The first Runs II file that is not what its generator writes under its recorded envelope,
+    with the reason, or None. Absent files are not checked: each is written by its own step."""
+    paths = [("tier-order", REPO_ROOT / TIER_ORDER),
+             *((name, POINTS_DIR / f"{name}.json") for name in RUNS2_SETS)]
+    for name, path in paths:
+        if not path.is_file():
+            continue
+        text = path.read_text()
+        try:
+            same = text == _regenerate_runs2(name, text)
+        except (TypeError, ValueError) as exc:  # a stop is a ValueError, too
+            return f"{path} cannot be written again from its sources: {exc}"
+        if not same:
+            return f"{path} is not what the generator writes from its sources"
+    return None
+
+
 def _regenerate(path: Path) -> str:
     """The text a derived point file would have if written again from its own `sources`."""
     raw = json.loads(path.read_text())
@@ -1409,6 +1853,27 @@ def _print_derived(result: Derived) -> None:
         print("differs from the candidate: nowhere")
 
 
+def _runs2(args: argparse.Namespace, explore_dir: str) -> None:
+    """Write the Runs II files `--sets` names under the shipped envelope, `tier-order` first: the
+    load mix reads the committed D(A), so D(A) is fixed before any load set exists (R27, G6)."""
+    envelope, tier_path = shipped_envelope(), _relative(args.tier_order)
+    out_dir = Path(args.out_dir)
+    for name in args.sets:
+        if name == "tier-order":
+            (REPO_ROOT / tier_path).parent.mkdir(parents=True, exist_ok=True)
+            (REPO_ROOT / tier_path).write_text(tier_order_text(envelope))
+            print(f"tier-order: {tier_path}")
+            continue
+        if name == "bound":
+            made = build_bound(explore_dir, envelope)
+        elif name == "load":
+            made = build_load(tier_path, explore_dir)
+        else:
+            made = build_gzip(explore_dir, envelope)
+        (out_dir / f"{name}.json").write_text(made.text())
+        print(f"{name}: {len(made.points)} points in shards of {made.shard_sizes}")
+
+
 def _run(args: argparse.Namespace) -> int:
     walls_dir = _relative(args.walls) if hasattr(args, "walls") else ""
     explore_dir = _relative(args.explore) if hasattr(args, "explore") else ""
@@ -1442,6 +1907,8 @@ def _run(args: argparse.Namespace) -> int:
             raise ProtocolStop("R9", "the tail floor is 'above 0', and MIN_TAIL_MM is also the "
                                      "builder's guard against a kernel crash on a float leftover: "
                                      "no rule says what it becomes, so the owner rules")
+    elif args.command == "runs2":
+        _runs2(args, explore_dir)
     else:
         confirm = build_confirm(walls_dir, down_dir, explore_dir)
         Path(args.out).write_text(confirm.text())
@@ -1473,6 +1940,12 @@ def main(argv: list[str] | None = None) -> int:
         elif name != "decide-walls":
             command.add_argument("--explore", required=True)
             command.add_argument("--out", required=True)
+    runs2 = sub.add_parser("runs2", help="write the Runs II files from an explore run (07-15)")
+    runs2.add_argument("--explore", required=True)
+    runs2.add_argument("--out-dir", required=True)
+    runs2.add_argument("--tier-order", default=str(REPO_ROOT / TIER_ORDER))
+    runs2.add_argument("--sets", nargs="+", choices=("tier-order", *RUNS2_SETS),
+                       default=["tier-order", *RUNS2_SETS])
     args = parser.parse_args(argv)
     if args.command is not None:
         try:
@@ -1506,6 +1979,10 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"oper_sets: {path} is not what the generator writes from its sources",
                       file=sys.stderr)
                 return 1
+        failure = _check_runs2()
+        if failure is not None:
+            print(f"oper_sets: {failure}", file=sys.stderr)
+            return 1
         return 0
     for name, text in texts.items():
         (POINTS_DIR / f"{name}.json").write_text(text)
