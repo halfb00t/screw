@@ -1289,6 +1289,29 @@ def bound_smoke() -> _Set:
     return out
 
 
+# --- the load smoke (07-08): a path check of `bench.oper_load`, not a figure ---------------------
+
+LOAD_SMOKE_RULE = "smoke, not a figure: 07-08 path check"
+
+
+def load_smoke() -> _Set:
+    """The runner smoke of the load instruments: one load reading at N = 1, a queue of 2 and 2
+    clients, `solid_cache` 4 and the JSON bodies, over the default bolt and nut at all three
+    artifacts; and the default bolt's fine STL with the R19 gzip levels. It proves the path on
+    the runner and sets nothing; its readings are not recorded as data."""
+    out = _Set("load-smoke", reps=1, shards=1, rule=LOAD_SMOKE_RULE, notes=[
+        "A path check of bench.oper_load, bench.oper_serve and the gzip levels on the runner "
+        "(07-08 Task 3); no figure from it is a bound or is recorded under bench/results."])
+    mix: list[dict[str, object]] = [
+        {"label": f"default-{kind}", "kind": kind, "params": {}, "artifact": artifact}
+        for kind in ("bolt", "nut") for artifact in ARTIFACTS]
+    out.copy({"label": "load-n1", "kind": "load", "workers": 1, "queue": 2, "clients": 2,
+              "solid_cache": 4, "bodies": True, "mix": mix})
+    out.copy({"label": "default-bolt", "kind": "bolt", "params": {}, "artifact": "stl-fine",
+              "gzip_levels": [1, 6, 9]})
+    return out
+
+
 def _regenerate(path: Path) -> str:
     """The text a derived point file would have if written again from its own `sources`."""
     raw = json.loads(path.read_text())
@@ -1314,8 +1337,9 @@ def _regenerate(path: Path) -> str:
 
 def generate() -> dict[str, str]:
     """The text of every point file written from code alone, by set name, in the order the files
-    are checked: the four pre-registered sets and the Runs II smoke."""
-    return {s.name: s.text() for s in (explore(), spread(), walls(), controls(), bound_smoke())}
+    are checked: the four pre-registered sets and the Runs II smokes."""
+    return {s.name: s.text() for s in (explore(), spread(), walls(), controls(), bound_smoke(),
+                                       load_smoke())}
 
 
 def _print_margin(result: Margin) -> None:

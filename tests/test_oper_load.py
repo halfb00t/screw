@@ -535,3 +535,20 @@ def test_the_parent_records_a_load_reading_without_repeating_the_mix(
         "reading", "load", "ok", 4)
     rows = oper.summarize([record], [1])
     assert rows[0]["max"] == {"memory_peak_bytes": PEAK}
+
+
+def test_the_load_smoke_is_one_load_at_n1_with_bodies_and_one_gzip_levels_point() -> None:
+    spec = oper.load_set("load-smoke")
+    assert (spec.reps, spec.shards, spec.deadline_s) == (1, 1, 600)
+    assert spec.rule == "smoke, not a figure: 07-08 path check"
+    load, fine = spec.points
+    assert load.kind == "load"
+    assert load.body is not None
+    assert {k: load.body[k] for k in ("workers", "queue", "clients", "solid_cache", "bodies")} == {
+        "workers": 1, "queue": 2, "clients": 2, "solid_cache": 4, "bodies": True}
+    mix = load.body["mix"]
+    assert isinstance(mix, list)
+    assert [(e["kind"], e["artifact"]) for e in mix] == [
+        (kind, artifact) for kind in ("bolt", "nut") for artifact in ("stl-preview", "stl-fine",
+                                                                      "step")]
+    assert (fine.kind, fine.artifact, fine.gzip_levels) == ("bolt", "stl-fine", (1, 6, 9))

@@ -1430,7 +1430,7 @@ def test_the_generator_lists_the_four_sets_and_the_smoke_and_gives_the_same_text
     from bench import oper_sets
 
     first = oper_sets.generate()
-    assert tuple(first) == (*SET_NAMES, "bound-smoke")
+    assert tuple(first) == (*SET_NAMES, "bound-smoke", "load-smoke")
     assert oper_sets.generate() == first
 
 
@@ -1494,7 +1494,8 @@ def test_writing_twice_gives_byte_identical_files(
     monkeypatch.setattr(oper_sets, "POINTS_DIR", tmp_path)
     assert oper_sets.main([]) == 0
     first = {p.name: p.read_bytes() for p in tmp_path.glob("*.json")}
-    assert sorted(first) == sorted(f"{name}.json" for name in (*SET_NAMES, "bound-smoke"))
+    assert sorted(first) == sorted(
+        f"{name}.json" for name in (*SET_NAMES, "bound-smoke", "load-smoke"))
     assert oper_sets.main([]) == 0
     assert {p.name: p.read_bytes() for p in tmp_path.glob("*.json")} == first
     assert all(data.endswith(b"\n") and not data.endswith(b"\n\n") for data in first.values())
