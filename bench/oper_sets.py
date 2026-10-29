@@ -1946,6 +1946,55 @@ def build_outband(explore_dir: str, envelope: Envelope) -> _Set:
     return out
 
 
+# --- the load table (07-15 Task 2) ----------------------------------------------------------------
+
+LOAD_COLUMNS = ("point", "N", "rep", "status", "p95 all s", *(f"p95 {a} s" for a in LOAD_ORDER),
+                "idle peak bytes", "end peak bytes", "time to healthy s", "health p95 s")
+
+
+def _p95_cell(spread: object) -> str:
+    """A p95 as the record holds it, or the sample count when there were fewer than 20 (the
+    record's p95 is then null, R15)."""
+    if not isinstance(spread, dict):
+        return "no samples"
+    value = spread.get("p95_s")
+    if isinstance(value, int | float) and not isinstance(value, bool):
+        return f"{value:.3f}"
+    return f"fewer than 20 samples ({spread.get('samples')})"
+
+
+def load_table(readings: Iterable[Reading]) -> str:
+    """Per load point (N) and repetition: the status, the p95 over all 60 requests and per
+    artifact over its 20, the idle and end peaks, the time to healthy and the health p95. A
+    reading that is not ok prints its status and no figure (L02); a point whose repetitions are
+    not 1 to 5 each once is `incomplete` and prints no figure either (R3)."""
+    groups: dict[str, list[Reading]] = {}
+    for reading in readings:
+        if reading.get("kind") == "load":
+            groups.setdefault(str(reading["label"]), []).append(reading)
+    lines = ["| " + " | ".join(LOAD_COLUMNS) + " |", "|" + " --- |" * len(LOAD_COLUMNS)]
+    for label, group in groups.items():
+        reps = [r.get("rep") for r in group]
+        complete = sorted(map(str, reps)) == [str(n) for n in range(1, RUNS2_REPS + 1)]
+        for reading in sorted(group, key=lambda r: str(r.get("rep"))):
+            head = [label, str(reading.get("workers")), str(reading.get("rep"))]
+            status = str(reading["status"])
+            if not complete or status != "ok":
+                shown = status if complete else f"incomplete (reps {sorted(map(str, reps))})"
+                lines.append("| " + " | ".join([*head, shown, *[""] * (len(LOAD_COLUMNS) - 4)])
+                             + " |")
+                continue
+            latency = reading.get("latency")
+            assert isinstance(latency, dict)
+            cells = [*head, status, _p95_cell(latency.get("all")),
+                     *(_p95_cell(latency.get(a)) for a in LOAD_ORDER),
+                     str(reading.get("idle_peak_bytes")), str(reading.get("memory_peak_bytes")),
+                     f"{_number(reading, 'time_to_healthy_s'):.3f}",
+                     _p95_cell(reading.get("health_latency"))]
+            lines.append("| " + " | ".join(cells) + " |")
+    return "\n".join(lines) + "\n"
+
+
 def _recorded_envelope(text: str) -> dict[tuple[str, str, str], float]:
     """The envelope a Runs II file was drawn under. A recorded e above the shipped one is no
     envelope this code ever shipped (a widening only raises e), so the file cannot stand."""
@@ -2157,6 +2206,8 @@ def _run(args: argparse.Namespace) -> int:
                                      "no rule says what it becomes, so the owner rules")
     elif args.command == "runs2":
         _runs2(args, explore_dir)
+    elif args.command == "load-table":
+        sys.stdout.write(load_table(read_readings(Path(args.source))))
     else:
         confirm = build_confirm(walls_dir, down_dir, explore_dir)
         Path(args.out).write_text(confirm.text())
@@ -2194,6 +2245,8 @@ def main(argv: list[str] | None = None) -> int:
     runs2.add_argument("--tier-order", default=str(REPO_ROOT / TIER_ORDER))
     runs2.add_argument("--sets", nargs="+", choices=("tier-order", *RUNS2_SETS),
                        default=["tier-order", *RUNS2_SETS])
+    sub.add_parser("load-table", help="the per-N table of a load run's readings").add_argument(
+        "--from", dest="source", required=True)
     args = parser.parse_args(argv)
     if args.command is not None:
         try:

@@ -1430,3 +1430,48 @@ def test_the_committed_outband_set_is_charged_as_explore_like_parts() -> None:
         REPO_ROOT / "bench/results/phase-07/explore-40646117094"))
     assert doc["shard_sizes"] == oper_sets.shard_sizes(
         oper_sets.charges(points, table, 600.0), oper_sets.HALF_JOB_S)
+
+
+# --- the load table (07-15 Task 2) ----------------------------------------------------------------
+
+
+def _load_reading(rep: int, status: str = "ok", workers: int = 1, few: bool = False) -> Raw:
+    reading: Raw = {"type": "reading", "label": f"load-n{workers}", "kind": "load", "params": {},
+                    "artifact": "load", "rep": rep, "workers": workers, "status": status}
+    if status != "ok":
+        return {**reading, "requests": []}
+    per = {"samples": 20, "p95_s": 2.0 + rep}
+    return {**reading, "time_to_healthy_s": 1.25, "idle_peak_bytes": 6 * 10**7,
+            "memory_peak_bytes": 9 * 10**8 + rep,
+            "latency": {"all": {"samples": 60, "p95_s": 10.0 + rep}, "stl-fine": per,
+                        "step": {"samples": 19, "p95_s": None} if few else per,
+                        "stl-preview": per},
+            "health_latency": {"samples": 300, "p95_s": 0.0125}}
+
+
+def test_the_load_table_prints_each_repetitions_figures_and_none_for_a_failed_one() -> None:
+    readings = [*(_load_reading(rep) for rep in (1, 2, 3, 4)), _load_reading(5, "killed"),
+                *(_load_reading(rep, workers=2, few=rep == 3) for rep in (1, 2, 3, 4, 5))]
+    rows = oper_sets.load_table(readings).splitlines()
+    assert rows[0].startswith("| point | N | rep | status | p95 all s | p95 stl-fine s | "
+                              "p95 step s | p95 stl-preview s | idle peak bytes |")
+    assert rows[2] == ("| load-n1 | 1 | 1 | ok | 11.000 | 3.000 | 3.000 | 3.000 | 60000000 | "
+                       "900000001 | 1.250 | 0.013 |")
+    assert rows[6] == "| load-n1 | 1 | 5 | killed |" + "  |" * 8
+    assert "fewer than 20 samples (19)" in rows[9]
+    assert len(rows) == 12
+
+
+def test_a_load_point_without_repetitions_one_to_five_is_incomplete_and_has_no_figure() -> None:
+    readings = [_load_reading(rep) for rep in (1, 2, 2, 4, 5)]
+    rows = oper_sets.load_table(readings).splitlines()[2:]
+    assert len(rows) == 5
+    assert all("incomplete (reps ['1', '2', '2', '4', '5'])" in row for row in rows)
+    assert not any("11.000" in row or "900000001" in row for row in rows)
+
+
+def test_the_load_table_command_reads_a_downloaded_run(
+        repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _write_records(repo / "load", [_load_reading(rep) for rep in (1, 2, 3, 4, 5)])
+    assert oper_sets.main(["load-table", "--from", str(repo / "load")]) == 0
+    assert "| load-n1 | 1 | 5 | ok | 15.000 |" in capsys.readouterr().out
