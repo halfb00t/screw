@@ -1475,3 +1475,122 @@ def test_the_load_table_command_reads_a_downloaded_run(
     _write_records(repo / "load", [_load_reading(rep) for rep in (1, 2, 3, 4, 5)])
     assert oper_sets.main(["load-table", "--from", str(repo / "load")]) == 0
     assert "| load-n1 | 1 | 5 | ok | 15.000 |" in capsys.readouterr().out
+
+
+# --- the envelope check (07-15 Task 3; R12, G5, G21, G28) -----------------------------------------
+
+FIT = REPO_ROOT / "bench/results/phase-07/fit.json"
+M20 = {"d": 20.0, "pitch": 2.5, "length": 60.0, "thread_length": 60.0, "s": 30.0, "k": 12.5}
+
+
+def _actuals(kind: str, params: Mapping[str, object], artifact: cost.Artifact,
+             times: float = 1.0) -> dict[str, float]:
+    pred = cost.predict(KINDS[kind].model_validate(dict(params)), artifact)
+    return {"bytes": pred.bytes, "build_s": pred.seconds * times, "export_s": 0.0,
+            "memory_peak_bytes": pred.peak}
+
+
+def _contention(workers: int, times: float) -> Raw:
+    members = [{"label": "m20", "kind": "bolt", "params": dict(M20), "slot": 0}] + [
+        {"label": f"p{i}", "kind": "nut", "params": {}, "slot": i} for i in range(1, workers)]
+    return {"type": "reading", "label": f"m20-n{workers}", "kind": "contention",
+            "artifact": "stl-fine", "rep": 1, "status": "ok", "workers": workers,
+            "points": members, **_actuals("bolt", M20, "stl-fine", times)}
+
+
+def _e(rows: list[oper_sets.Widening], kind: str, artifact: str, target: str
+       ) -> oper_sets.Widening:
+    return next(r for r in rows if (r.kind, r.artifact, r.target) == (kind, artifact, target))
+
+
+def test_a_contended_or_load_wall_widens_nothing_and_the_same_part_alone_does() -> None:
+    fit = json.loads(FIT.read_text())
+    e = cost.ENVELOPE["bolt", "stl-fine", "seconds"]
+    times = 3.0 * (1.0 + e)  # three times the enveloped prediction
+    load: Raw = {"type": "reading", "label": "load-n1", "kind": "load", "artifact": "load",
+                 "rep": 1, "status": "ok", "workers": 1}
+    rows = oper_sets.envelope_check(fit, [("9", _contention(2, times)), ("9", load)])
+    assert all(r.widened is None for r in rows)
+    rows = oper_sets.envelope_check(fit, [("9", _contention(1, times))])
+    row = _e(rows, "bolt", "stl-fine", "seconds")
+    assert row.ratio == pytest.approx(3.0)
+    assert row.widened is not None
+    assert row.widened >= 3.0 * (1.0 + e) - 1.0
+    assert row.worst == "9:m20-n1 rep 1"
+    # the factor covers the reading in the arithmetic admission uses
+    pred = cost.predict(BoltParams.model_validate(M20), "stl-fine").seconds
+    assert pred * (1.0 + row.widened) >= pred * times
+    others = [r for r in rows if (r.kind, r.artifact, r.target) != ("bolt", "stl-fine", "seconds")]
+    assert all(r.widened is None for r in others)
+
+
+def test_a_widening_never_lowers_an_e_and_a_model_without_readings_keeps_its_e() -> None:
+    fit = json.loads(FIT.read_text())
+    part: Raw = {"type": "reading", "label": "m20", "kind": "bolt", "params": dict(M20),
+                 "artifact": "step", "rep": 1, "status": "ok",
+                 **_actuals("bolt", M20, "step", 0.5)}
+    arena: Raw = {"type": "reading", "label": "a", "kind": "arenas", "artifact": "step",
+                  "rep": 1, "status": "ok", "part": {"kind": "bolt", "params": dict(M20)},
+                  **_actuals("bolt", M20, "step", 0.5)}
+    rows = oper_sets.envelope_check(fit, [("9", part), ("9", arena)])
+    assert all(r.widened is None for r in rows)
+    assert _e(rows, "bolt", "step", "seconds").ratio < 1.0
+    assert _e(rows, "nut", "step", "seconds").worst == ""
+    assert [r.e for r in rows] == [m["envelope"] for m in fit["models"]]
+
+
+def _fit_repo(tmp_path: Path, sets: Mapping[str, list[Raw]]) -> Path:
+    fit = tmp_path / "fit.json"
+    fit.write_text(FIT.read_text())
+    for name, readings in sets.items():
+        folder = tmp_path / name / f"oper-{name}-1-1"
+        folder.mkdir(parents=True)
+        lines = [json.dumps({"type": "header", "GITHUB_RUN_ID": f"77{len(name)}"}),
+                 *(json.dumps(r) for r in readings)]
+        (folder / f"oper-{name}-1-1.jsonl").write_text("\n".join(lines) + "\n")
+    return fit
+
+
+def test_the_command_writes_only_the_widened_envelopes_and_the_widening_runs(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    # the default nut binds no C1 component (the bolt rows set every one), so widening its
+    # stl-fine seconds by half refuses nothing B-01 keeps
+    e = cost.ENVELOPE["nut", "stl-fine", "seconds"]
+    alone = {**_contention(1, 1.0), "label": "nut-n1",
+             "points": [{"label": "nut", "kind": "nut", "params": {}, "slot": 0}],
+             **_actuals("nut", {}, "stl-fine", 1.5 * (1.0 + e))}
+    outband: Raw = {"type": "reading", "label": "outband-x", "kind": "nut", "params": {},
+                    "artifact": "stl-fine", "rep": 1, "status": "ok",
+                    **_actuals("nut", {}, "stl-fine", 9.0 * (1.0 + e))}
+    fit = _fit_repo(tmp_path, {"bound": [alone], "outband": [outband]})
+    old = json.loads(fit.read_text())
+    assert oper_sets.main(["envelope-check", "--fit", str(fit), "--from",
+                           str(tmp_path / "bound"), str(tmp_path / "outband")]) == 0
+    assert "widened 1 envelopes by runs 775" in capsys.readouterr().out
+    after = json.loads(fit.read_text())
+    assert after["widened_by"] == ["775"]
+    assert sorted(after.keys() ^ old.keys()) == ["widened_by"]
+    key = ("nut", "stl-fine", "seconds")
+    changed = [(a["kind"], a["artifact"], a["target"]) for a, b in
+               zip(after["models"], old["models"], strict=True) if a != b]
+    assert changed == [key]
+    model = next(m for m in after["models"] if (m["kind"], m["artifact"], m["target"]) == key)
+    was = next(m for m in old["models"] if (m["kind"], m["artifact"], m["target"]) == key)
+    # the outband reading's 9x is not what set it (G28): the N = 1 reading's 1.5x did
+    assert model["envelope"] == pytest.approx(1.5 * (1.0 + e) - 1.0)
+    assert {k: v for k, v in model.items() if k != "envelope"} == {
+        k: v for k, v in was.items() if k != "envelope"}
+    assert all(a == b for a, b in zip(after["excluded"], old["excluded"], strict=True))
+
+
+def test_a_widening_that_would_refuse_a_part_b01_keeps_stops_and_writes_nothing(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    default: Raw = {"type": "reading", "label": "default-bolt", "kind": "bolt", "params": {},
+                    "artifact": "stl-preview", "rep": 1, "status": "ok",
+                    **_actuals("bolt", {}, "stl-preview", 10**4)}
+    fit = _fit_repo(tmp_path, {"gzip": [default]})
+    before = fit.read_text()
+    assert oper_sets.main(["envelope-check", "--fit", str(fit), "--from",
+                           str(tmp_path / "gzip")]) == 3
+    assert "oper_sets: stop (R12): the widened envelope refuses" in capsys.readouterr().err
+    assert fit.read_text() == before

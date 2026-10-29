@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import functools
 import json
+import math
 import random
 import statistics
 import sys
@@ -1995,6 +1996,171 @@ def load_table(readings: Iterable[Reading]) -> str:
     return "\n".join(lines) + "\n"
 
 
+# --- the envelope check (07-15 Task 3; R12, G5, G21, G28) -----------------------------------------
+
+# R12, G5, G21: the cold isolated readings, which alone widen e. G28 and G29: an `outband` reading
+# never does, it stops the phase instead; a load request wall and a contended wall never do.
+NEVER_WIDENS = frozenset({"outband", "load"})
+
+
+@dataclass(frozen=True)
+class Widening:
+    """One (kind, artifact, target): its e, the largest actual / (prediction x (1 + e)) over the
+    readings that may widen it, the reading that set it, and the widened e when that exceeds 1."""
+
+    kind: str
+    artifact: str
+    target: str
+    e: float
+    ratio: float
+    worst: str
+    widened: float | None
+
+
+def _cold_isolated(reading: Reading) -> tuple[Mapping[str, object], float, float, float] | None:
+    """The part and the (bytes, seconds, peak) actuals of a reading R12 lets widen e, or None:
+    a part reading (a gzip reading included), an arena reading, a contention reading at N = 1
+    (P alone, its own build and export) and build 1 of a drift reading. A contention reading at
+    N = 2 or 3 and drift builds 2 to K never widen e (G5)."""
+    if reading.get("status") != "ok" or reading.get("lift") is not None:
+        return None
+    kind = reading.get("kind")
+    if kind in ("bolt", "nut"):
+        part: object = {"kind": kind, "params": reading.get("params")}
+        peak = _number(reading, "memory_peak_bytes")
+    elif kind == "contention" and reading.get("workers") == 1:
+        members = reading.get("points")
+        assert isinstance(members, list)
+        part, peak = members[0], _number(reading, "memory_peak_bytes")
+    elif kind == "arenas":
+        part, peak = reading.get("part"), _number(reading, "memory_peak_bytes")
+    elif kind == "drift":
+        peaks = reading.get("peaks")
+        assert isinstance(peaks, list)
+        part, peak = reading.get("part"), float(peaks[0])
+    else:
+        return None
+    assert isinstance(part, dict)
+    seconds = _number(reading, "build_s") + _number(reading, "export_s")
+    return part, _number(reading, "bytes"), seconds, peak
+
+
+def envelope_check(fit_document: Mapping[str, object],
+                   readings: Iterable[tuple[str, Reading]]) -> list[Widening]:
+    """R12 against later readings: per (kind, artifact, target) of fit.json, the largest actual /
+    (prediction x (1 + e)) over the given readings R12 lets widen e, `cost.predict` (G28's bands
+    included) as the prediction, and the widened e where that exceeds 1: the factor 1 + e raised
+    to cover every such actual, by whole ulps as the fit's envelope is (07-09), so admission in
+    floats covers it too. A widening never lowers an e; a model with no new reading keeps its e.
+    `readings` are (run id, reading)."""
+    models = fit_document["models"]
+    assert isinstance(models, list)
+    samples: dict[tuple[str, str, str], list[tuple[float, float, str]]] = {}
+    for run, reading in readings:
+        found = _cold_isolated(reading)
+        if found is None:
+            continue
+        part_raw, *actuals = found
+        params = part_raw.get("params")
+        assert isinstance(params, dict)
+        part = KINDS[str(part_raw["kind"])].model_validate(params)
+        artifact = next(a for a in cost.ARTIFACTS if a == reading.get("artifact"))
+        where = f"{run}:{reading.get('label')} rep {reading.get('rep')}"
+        for target, pred, actual in zip(cost.TARGETS, cost.predict(part, artifact), actuals,
+                                        strict=True):
+            samples.setdefault((part.kind, artifact, target), []).append((pred, actual, where))
+    out: list[Widening] = []
+    for model in models:
+        assert isinstance(model, dict)
+        key = (str(model["kind"]), str(model["artifact"]), str(model["target"]))
+        e = float(model["envelope"])
+        found_samples = samples.get(key, [])
+        if not found_samples:
+            out.append(Widening(*key, e, 0.0, "", None))
+            continue
+        pred, actual, worst = max(found_samples, key=lambda x: x[1] / (x[0] * (1.0 + e)))
+        ratio = actual / (pred * (1.0 + e))
+        widened = None
+        if ratio > 1.0:
+            factor = max(1.0 + e, max(a / q for q, a, _ in found_samples))
+            while any(q * (1.0 + (factor - 1.0)) < a for q, a, _ in found_samples):
+                factor = math.nextafter(factor, math.inf)
+            widened = factor - 1.0
+        out.append(Widening(*key, e, ratio, worst, widened))
+    return out
+
+
+def _set_of(path: Path) -> str:
+    """The set a measure job's record file holds: `oper-<set>-<shard>-<rep>.jsonl`."""
+    stem = path.name.removeprefix("oper-").removesuffix(".jsonl")
+    return stem.rsplit("-", 2)[0]
+
+
+def runs_readings(directories: Iterable[Path]) -> list[tuple[str, str, Reading]]:
+    """(set, run id, reading) of every downloaded record under `directories`; a file whose header
+    does not name exactly one run is refused."""
+    out: list[tuple[str, str, Reading]] = []
+    for directory in directories:
+        files = sorted(directory.glob("*/*.jsonl"))
+        if not files:
+            raise ValueError(f"no *.jsonl records under {directory}")
+        for path in files:
+            headers, found = _read_records([str(path)])
+            runs = {str(h.get("GITHUB_RUN_ID")) for h in headers}
+            if len(runs) != 1:
+                raise ValueError(f"{path}: headers name {sorted(runs)}, not one run")
+            run = runs.pop()
+            out += [(_set_of(path), run, reading) for reading in found]
+    return out
+
+
+def _admits_all(envelope: Envelope) -> list[str]:
+    """What a widened envelope would refuse that B-01 was ruled to keep: a catalogue row (C1 keeps
+    all 294 and 14 at every artifact) or the all-default bolt or nut (OPER-03's empty edge)."""
+    parts = [*((row_id, KINDS["bolt"].model_validate(fields))
+               for row_id, fields in _catalogue_rows("bolt")),
+             *((row_id, KINDS["nut"].model_validate(fields))
+               for row_id, fields in _catalogue_rows("nut")),
+             ("default-bolt", KINDS["bolt"]()), ("default-nut", KINDS["nut"]())]
+    return [f"{label} at {artifact}" for label, part in parts for artifact in cost.ARTIFACTS
+            if not admits(part, artifact, envelope, cost.BUDGET)]
+
+
+def _envelope_check_command(args: argparse.Namespace) -> None:
+    """Print the check over the readings R12 lets widen e and, where an e widens, write fit.json
+    with only the `envelope` of each widened model and a `widened_by` list changed (R12: the form
+    is not re-fitted). A widening that would refuse a part B-01 keeps is a stop, written nowhere."""
+    fit_path = Path(args.fit)
+    document = json.loads(fit_path.read_text())
+    tagged = runs_readings([Path(d) for d in args.source])
+    kept = [(run, reading) for name, run, reading in tagged if name not in NEVER_WIDENS]
+    rows = envelope_check(document, kept)
+    print("kind | artifact | target | e | largest actual / enveloped prediction | reading | "
+          "widened e")
+    for row in rows:
+        print(f"{row.kind} | {row.artifact} | {row.target} | {row.e!r} | {row.ratio!r} | "
+              f"{row.worst or 'none'} | {'' if row.widened is None else repr(row.widened)}")
+    widened = [row for row in rows if row.widened is not None]
+    if not widened:
+        print("no reading exceeds its envelope")
+        return
+    envelope = shipped_envelope() | {(r.kind, r.artifact, r.target): r.widened
+                                     for r in widened if r.widened is not None}
+    refused = _admits_all(envelope)
+    if refused:
+        raise ProtocolStop("R12", f"the widened envelope refuses {len(refused)} parts B-01 keeps, "
+                                  f"the first {refused[0]}: a widening may not change B-01's set")
+    runs = sorted({row.worst.split(":", 1)[0] for row in widened})
+    for model in document["models"]:
+        key = (model["kind"], model["artifact"], model["target"])
+        for row in widened:
+            if (row.kind, row.artifact, row.target) == key:
+                model["envelope"] = row.widened
+    document["widened_by"] = sorted({*document.get("widened_by", []), *runs})
+    fit_path.write_text(json.dumps(document, sort_keys=True, indent=1, allow_nan=False) + "\n")
+    print(f"widened {len(widened)} envelopes by runs {', '.join(runs)}; wrote {fit_path}")
+
+
 def _recorded_envelope(text: str) -> dict[tuple[str, str, str], float]:
     """The envelope a Runs II file was drawn under. A recorded e above the shipped one is no
     envelope this code ever shipped (a widening only raises e), so the file cannot stand."""
@@ -2206,6 +2372,8 @@ def _run(args: argparse.Namespace) -> int:
                                      "no rule says what it becomes, so the owner rules")
     elif args.command == "runs2":
         _runs2(args, explore_dir)
+    elif args.command == "envelope-check":
+        _envelope_check_command(args)
     elif args.command == "load-table":
         sys.stdout.write(load_table(read_readings(Path(args.source))))
     else:
@@ -2247,6 +2415,10 @@ def main(argv: list[str] | None = None) -> int:
                        default=["tier-order", *RUNS2_SETS])
     sub.add_parser("load-table", help="the per-N table of a load run's readings").add_argument(
         "--from", dest="source", required=True)
+    check = sub.add_parser("envelope-check",
+                           help="R12 over the Runs II readings that may widen e (07-15)")
+    check.add_argument("--fit", required=True)
+    check.add_argument("--from", dest="source", nargs="+", required=True)
     args = parser.parse_args(argv)
     if args.command is not None:
         try:
