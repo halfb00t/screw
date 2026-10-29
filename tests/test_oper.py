@@ -2754,3 +2754,21 @@ def test_a_head_ratio_outside_its_band_is_predicted_no_lower_than_anywhere_in_th
     assert protocol[protocol.index("## Harness fixes"):].startswith("## Harness fixes\n\nNone yet.")
     assert not re.search(r"\bG\d+\b", protocol)
     assert not re.search(r"\b\d{11}\b", protocol)
+
+
+def test_a_bolt_below_the_fitted_turns_is_read_on_the_runner_and_stops_the_phase_if_over() -> None:
+    rule = " ".join(_rule(11).split())
+    assert ("A bolt whose built thread has fewer turns than the fewest among the fitted bolt "
+            "points (computed from the records by code, never typed) is predicted by the fit as "
+            "it stands, which is an extrapolation") in rule
+    assert ("per artifact, two bolts below that count that the walls and the rule admit: the one "
+            "closest to the budget and the first in catalogue order") in rule
+    assert rule.count("stops the phase for the owner and does not widen `e`") == 2
+    assert rule.count("added after the first runner reading by the owner's ruling that R30 asks "
+                      "for") == 2
+    rulings = (PROTOCOL.parent / "07-GAP-RULINGS.md").read_text()
+    assert ("\n## Gap G29 (owner ruling on named threads below the fitted turns, 2026-10-29)\n"
+            in rulings)
+    for evidence in ('"Add to 07-15 (Recommended)"', "52dcf95", "40646117094", "40646125666"):
+        assert evidence in rulings, evidence
+    assert re.search(r"^\| G29 \| R11 \|", rulings, re.MULTILINE)

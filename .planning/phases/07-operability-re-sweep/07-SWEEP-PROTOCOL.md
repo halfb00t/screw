@@ -318,6 +318,13 @@ it, each a part this rule admits; a reading above its enveloped prediction stops
 owner and does not widen `e`. This sentence was added after the first runner reading by the owner's
 ruling that R30 asks for.
 
+A bolt whose built thread has fewer turns than the fewest among the fitted bolt points (computed from
+the records by code, never typed) is predicted by the fit as it stands, which is an extrapolation.
+The second campaign reads, at 5 repetitions, per artifact, two bolts below that count that the walls
+and the rule admit: the one closest to the budget and the first in catalogue order; a reading above its
+enveloped prediction stops the phase for the owner and does not widen `e`. This sentence was added
+after the first runner reading by the owner's ruling that R30 asks for.
+
 ## R12 - The envelope (D-07)
 
 For each (kind, artifact, target) the envelope `e` is `max(0, largest actual / predicted - 1)` over

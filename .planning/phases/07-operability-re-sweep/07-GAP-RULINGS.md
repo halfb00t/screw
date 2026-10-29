@@ -186,3 +186,19 @@ on the phase branch `gsd/phase-07-operability-re-sweep`. Under it the regenerate
   because k/d 100 made its raw prediction cheap, which is the bypass itself. The executor re-pinned
   the test: info 200, preview `over_budget` 422. Reply, verbatim: "Accept the re-pin
   (Recommended)".
+
+## Gap G29 (owner ruling on named threads below the fitted turns, 2026-10-29)
+
+Quick task 261029-rxk (52dcf95) stopped the B-03 cap at `cost.MIN_FITTED_TURNS`, the fewest built
+turns among the 1247 fitted bolt points (3 turns, set by the n3 points at pitch 0.1; explore
+40646117094, spread 40646125666). A `thread_length` the user names below that count is still
+predicted outside the fit. `ln_turns` is positive, so fewer turns predict a cheaper part: plausible,
+but unmeasured. The only request for a runner check sat in the resolved item
+`docs/tech_debt/resolved/2026-10-29-default-cap-lands-below-the-fitted-turns.md`, and plan 07-15
+did not include it.
+
+Reply, verbatim: "Add to 07-15 (Recommended)".
+
+| Gap | Rule(s) | Owner ruling |
+|---|---|---|
+| G29 | R11 | A bolt whose built thread has fewer turns than the fewest among the fitted bolt points is predicted by the fit as it stands. Plan 07-15 reads, at 5 repetitions, per artifact, two admitted bolts below that count: the one nearest the budget (largest enveloped edge ratio, as R27 ranks) and the first in catalogue order. A reading above its enveloped prediction stops the phase for the owner and does not widen `e`. |
