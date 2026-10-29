@@ -2724,14 +2724,16 @@ def test_the_nut_diameter_gets_no_wall_and_stays_under_the_shared_ceiling_below_
 
 def test_a_head_ratio_outside_its_band_is_predicted_no_lower_than_anywhere_in_the_band() -> None:
     rule = " ".join(_rule(11).split())
-    assert ("A part whose head ratio lies outside the band the fit saw is predicted no lower than "
-            "anywhere in that band") in rule
+    assert ("A part whose head ratio lies above the band the fit saw is predicted no lower than "
+            "anywhere in that band, and one whose ratio lies below it no lower than at the band's "
+            "low edge") in rule
     assert "the bolt's k / d and s / d and the nut's s / d and m / d" in rule
     assert "its smallest and largest value over the fitted points of its kind" in rule
     assert ("computed from the records by code and shipped with the coefficients, never "
             "typed") in rule
-    assert ("at every combination of band edges (the smallest and the largest) of its out-of-band "
-            "ratios") in rule
+    assert ("a ratio above its band taking both edges (the smallest and the largest) and a ratio "
+            "below it the smallest only") in rule
+    assert "a smaller head never costs more than one at the low edge" in rule
     assert "the prediction is the largest of these, target by target" in rule
     assert "Inside every band the prediction is the fit's own, unchanged" in rule
     assert ("a reading above its enveloped prediction stops the phase for the owner and does not "
@@ -2743,7 +2745,8 @@ def test_a_head_ratio_outside_its_band_is_predicted_no_lower_than_anywhere_in_th
             "2026-10-29)\n") in rulings
     for reply in ('"Clamp k/d, verify on runner (Recommended)"',
                   '"All head ratios, max-of (Recommended)"',
-                  '"B: max over the band (Recommended)"', "d869b87", "40646117094",
+                  '"B: max over the band (Recommended)"', '"2: one-sided B (Recommended)"',
+                  "22 failed, 4409 passed", "d869b87", "40646117094",
                   "40646125666", "not a harness fix"):
         assert reply in rulings, reply
     assert re.search(r"^\| G28 \| R11 \|", rulings, re.MULTILINE)

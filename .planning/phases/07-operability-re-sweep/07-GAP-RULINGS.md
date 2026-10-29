@@ -141,6 +141,15 @@ in a narrow band, so a coefficient can say a larger head is cheaper.
   k 1000 still admitted at STEP (the edge k 70 is predicted under the STEP budget, k 60 is not) and
   nut s 999 still admitted at the preview (the edge s 120 admits it, s 45 does not). Ruling 4 answers
   that.
+- Under ruling 4 (the largest prediction anywhere in the band, on both sides) the pre-commit
+  `make verify` gave `22 failed, 4409 passed`, 21 in `tests/test_api.py` and 1 in
+  `tests/test_records.py`, each `assert 422 == 200`: a bolt preview with only `d` set (7.2, 7.3,
+  7.4, 8 or 8.6), s 10 and k 4 at their defaults. A d-only M8 has s/d 1.25, below the band, and the
+  wide-head edge s 16 (s/d 2.0) predicts a preview peak of 1.32e9 to 1.46e9 B, over the 1.05e9 B
+  budget. Over d-only bolts, ruling 4 refused the preview at d 5 and 7 to 9.5 and the fine STL at
+  d 9 and 9.5, all admitted at d869b87. With the low edge only below the band, d 5.5 to 9.5 keep
+  every artifact, both bypass cases stay refused at all three, and the table is byte-identical.
+  d 5 (k/d 0.8, above the band) still loses its preview. Ruling 5 answers that.
 
 The owner's replies, verbatim (the label "(Recommended)" is the orchestrator's, not part of the
 ruling):
@@ -151,6 +160,10 @@ ruling):
    "Accept, note it in L21 (Recommended)".
 4. Asked again after the executor's stop under the nearest-edge rule:
    "B: max over the band (Recommended)". This supersedes the nearest-edge rule.
+5. Asked after the second stop, where ruling 4 refused d-only bolt links:
+   "2: one-sided B (Recommended)". The option picked stated, in its own text, that a d-only M5
+   loses its preview (k/d 0.8, above the band); that answer is the owner's OK for that refusal. It
+   supersedes ruling 4 below the band.
 
 This is a ruled change after R30's freeze, not a harness fix. It amends `07-SWEEP-PROTOCOL.md` R11
 on the phase branch `gsd/phase-07-operability-re-sweep`. Under it the regenerated
@@ -158,4 +171,4 @@ on the phase branch `gsd/phase-07-operability-re-sweep`. Under it the regenerate
 
 | Gap | Rule(s) | Owner ruling |
 |---|---|---|
-| G28 | R11 | A part whose head ratio (bolt k/d and s/d, nut s/d and m/d) lies outside its band, the [min, max] over the fitted points of its kind with omitted fields at their defaults, is predicted, target by target, as the largest of the raw prediction and the predictions at every combination of band edges of its out-of-band ratios, each such field set to edge x d and every other field held. For this log-linear model that is the largest prediction anywhere in the band. R12 applies the envelope to it. Inside every band the prediction is unchanged. The bands are generated from the records by code and emitted into `calc/cost.py`. Plan 07-15 reads, at 5 repetitions, per kind, artifact and ratio, a part above the band and one below it, each admitted under this rule; a reading above its enveloped prediction stops the phase for the owner and does not widen `e`. L21 records that per-artifact budgets can refuse a preview while they admit the fine STL (ISO 4017 M20 x 60 at pitch 1). |
+| G28 | R11 | A part whose head ratio (bolt k/d and s/d, nut s/d and m/d) lies outside its band, the [min, max] over the fitted points of its kind with omitted fields at their defaults, is predicted, target by target, as the largest of the raw prediction and the predictions with each out-of-band ratio set to an edge (each such field set to edge x d, every other field held, every combination): a ratio above its band takes both edges, a ratio below it its low edge only. Above the band that is, for this log-linear model, the largest prediction anywhere in the band; below it, max(raw, low edge). ASSUMPTION, unmeasured: a smaller head never costs more than one at the low edge; the 07-15 points below the band test it. R12 applies the envelope to it. Inside every band the prediction is unchanged. The bands are generated from the records by code and emitted into `calc/cost.py`. Plan 07-15 reads, at 5 repetitions, per kind, artifact and ratio, a part above the band and one below it, each admitted under this rule; a reading above its enveloped prediction stops the phase for the owner and does not widen `e`. L21 records that per-artifact budgets can refuse a preview while they admit the fine STL (ISO 4017 M20 x 60 at pitch 1). |
