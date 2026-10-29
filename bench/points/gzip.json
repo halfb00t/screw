@@ -1,0 +1,316 @@
+{
+ "set": "gzip",
+ "rule": "07-SWEEP-PROTOCOL.md R19 (G11, G15, G24)",
+ "reps": 5,
+ "shards": 1,
+ "deadline_s": 600,
+ "points": [
+  {
+   "label": "iso4017:M20x200",
+   "kind": "bolt",
+   "params": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "length": 200.0,
+    "s": 30.0,
+    "k": 12.5,
+    "thread_length": 200.0
+   },
+   "artifact": "stl-preview",
+   "preset": "iso4017:M20x200",
+   "gzip_levels": [
+    1,
+    6,
+    9
+   ]
+  },
+  {
+   "label": "nut-d30-p0.35-m0.8d-s4d-c0.15-right",
+   "kind": "nut",
+   "params": {
+    "d": 30.0,
+    "pitch": 0.35,
+    "m": 24.0,
+    "s": 120.0,
+    "clearance": 0.15,
+    "left_hand": false
+   },
+   "artifact": "stl-preview",
+   "gzip_levels": [
+    1,
+    6,
+    9
+   ]
+  },
+  {
+   "label": "iso4017:M20x180",
+   "kind": "bolt",
+   "params": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "length": 180.0,
+    "s": 30.0,
+    "k": 12.5,
+    "thread_length": 180.0
+   },
+   "artifact": "stl-preview",
+   "preset": "iso4017:M20x180",
+   "gzip_levels": [
+    1,
+    6,
+    9
+   ]
+  },
+  {
+   "label": "nut-d30-p0.35-m0.8d-s1.6d-c0.15-left",
+   "kind": "nut",
+   "params": {
+    "d": 30.0,
+    "pitch": 0.35,
+    "m": 24.0,
+    "s": 48.0,
+    "clearance": 0.15,
+    "left_hand": true
+   },
+   "artifact": "stl-preview",
+   "gzip_levels": [
+    1,
+    6,
+    9
+   ]
+  },
+  {
+   "label": "iso4017:M16x160",
+   "kind": "bolt",
+   "params": {
+    "d": 16.0,
+    "pitch": 2.0,
+    "length": 160.0,
+    "s": 24.0,
+    "k": 10.0,
+    "thread_length": 160.0
+   },
+   "artifact": "stl-preview",
+   "preset": "iso4017:M16x160",
+   "gzip_levels": [
+    1,
+    6,
+    9
+   ]
+  },
+  {
+   "label": "nut-d10-p0.35-m3d-s4d-c0.15-right",
+   "kind": "nut",
+   "params": {
+    "d": 10.0,
+    "pitch": 0.35,
+    "m": 30.0,
+    "s": 40.0,
+    "clearance": 0.15,
+    "left_hand": false
+   },
+   "artifact": "stl-preview",
+   "gzip_levels": [
+    1,
+    6,
+    9
+   ]
+  },
+  {
+   "label": "nut-d100-p3.5-m0.8d-s4d-c5-right",
+   "kind": "nut",
+   "params": {
+    "d": 100.0,
+    "pitch": 3.5,
+    "m": 80.0,
+    "s": 400.0,
+    "clearance": 5.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview",
+   "gzip_levels": [
+    1,
+    6,
+    9
+   ]
+  },
+  {
+   "label": "iso4017:M20x200",
+   "kind": "bolt",
+   "params": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "length": 200.0,
+    "s": 30.0,
+    "k": 12.5,
+    "thread_length": 200.0
+   },
+   "artifact": "stl-fine",
+   "preset": "iso4017:M20x200",
+   "gzip_levels": [
+    1,
+    6,
+    9
+   ]
+  },
+  {
+   "label": "iso4017:M20x180",
+   "kind": "bolt",
+   "params": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "length": 180.0,
+    "s": 30.0,
+    "k": 12.5,
+    "thread_length": 180.0
+   },
+   "artifact": "stl-fine",
+   "preset": "iso4017:M20x180",
+   "gzip_levels": [
+    1,
+    6,
+    9
+   ]
+  },
+  {
+   "label": "iso4017:M16x160",
+   "kind": "bolt",
+   "params": {
+    "d": 16.0,
+    "pitch": 2.0,
+    "length": 160.0,
+    "s": 24.0,
+    "k": 10.0,
+    "thread_length": 160.0
+   },
+   "artifact": "stl-fine",
+   "preset": "iso4017:M16x160",
+   "gzip_levels": [
+    1,
+    6,
+    9
+   ]
+  },
+  {
+   "label": "iso4017:M20x160",
+   "kind": "bolt",
+   "params": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "length": 160.0,
+    "s": 30.0,
+    "k": 12.5,
+    "thread_length": 160.0
+   },
+   "artifact": "stl-fine",
+   "preset": "iso4017:M20x160",
+   "gzip_levels": [
+    1,
+    6,
+    9
+   ]
+  },
+  {
+   "label": "iso4017:M16x150",
+   "kind": "bolt",
+   "params": {
+    "d": 16.0,
+    "pitch": 2.0,
+    "length": 150.0,
+    "s": 24.0,
+    "k": 10.0,
+    "thread_length": 150.0
+   },
+   "artifact": "stl-fine",
+   "preset": "iso4017:M16x150",
+   "gzip_levels": [
+    1,
+    6,
+    9
+   ]
+  },
+  {
+   "label": "nut-d30-p1-m0.8d-s1.6d-c5-right",
+   "kind": "nut",
+   "params": {
+    "d": 30.0,
+    "pitch": 1.0,
+    "m": 24.0,
+    "s": 48.0,
+    "clearance": 5.0,
+    "left_hand": false
+   },
+   "artifact": "stl-fine",
+   "gzip_levels": [
+    1,
+    6,
+    9
+   ]
+  },
+  {
+   "label": "nut-d30-p1-m0.8d-s4d-c5-right",
+   "kind": "nut",
+   "params": {
+    "d": 30.0,
+    "pitch": 1.0,
+    "m": 24.0,
+    "s": 120.0,
+    "clearance": 5.0,
+    "left_hand": false
+   },
+   "artifact": "stl-fine",
+   "gzip_levels": [
+    1,
+    6,
+    9
+   ]
+  }
+ ],
+ "dropped": [],
+ "notes": [
+  "every point of the stl-preview and stl-fine bound sets (R14), read as a part with gzip levels 1, 6 and 9",
+  "5 repetitions; each reading charged R2's 600 s (R6, G24)"
+ ],
+ "shard_sizes": [
+  14
+ ],
+ "sources": [
+  "explore=bench/results/phase-07/explore-40646117094"
+ ],
+ "envelope": {
+  "bolt": {
+   "stl-preview": {
+    "bytes": 2.264581945786201,
+    "seconds": 4.286137349093968,
+    "peak": 2.040087854388461
+   },
+   "stl-fine": {
+    "bytes": 0.5633622849303941,
+    "seconds": 2.690232029900006,
+    "peak": 2.170967259675211
+   },
+   "step": {
+    "bytes": 0.9874058238127998,
+    "seconds": 2.616422482555953,
+    "peak": 0.45747877720379804
+   }
+  },
+  "nut": {
+   "stl-preview": {
+    "bytes": 0.7070121785110755,
+    "seconds": 1.061383246630594,
+    "peak": 0.556086702674923
+   },
+   "stl-fine": {
+    "bytes": 0.4996608149413484,
+    "seconds": 1.1069417227945801,
+    "peak": 0.5571452809681212
+   },
+   "step": {
+    "bytes": 0.3802587303182223,
+    "seconds": 0.8785228687431521,
+    "peak": 0.48786919655819627
+   }
+  }
+ }
+}
