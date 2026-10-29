@@ -20,10 +20,12 @@ def test_the_fine_mesh_keeps_the_kernels_control_surface_deflection_on_and_absol
     """RESEARCH F1: `exportStl` never sets `ControlSurfaceDeflection`; it holds because the OCP
     struct defaults it on. A cadquery or OCP bump that flips the default would change every
     deviation in the D-21 run without a line of screw changing, so the flag is read here from the
-    same five-argument constructor `exportStl` calls."""
+    same five-argument constructor `exportStl` calls. It meshes a copy, as `_write_export` does:
+    meshing the cached solid in place left its triangulation on it, and the next test to read the
+    default bolt's box (tests/test_solid.py) read the mesh's box, not the solid's."""
     linear, angular = TESSELLATION["fine"]
-    parameters = BRepMesh_IncrementalMesh(build(BoltParams()).wrapped, linear, False, angular,
-                                          True).Parameters()
+    parameters = BRepMesh_IncrementalMesh(build(BoltParams()).copy().wrapped, linear, False,
+                                          angular, True).Parameters()
     assert parameters.ControlSurfaceDeflection is True
     assert parameters.Relative is False
     assert parameters.Deflection == pytest.approx(linear)
