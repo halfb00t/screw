@@ -143,8 +143,10 @@ in a narrow band, so a coefficient can say a larger head is cheaper.
   that.
 - Under ruling 4 (the largest prediction anywhere in the band, on both sides) the pre-commit
   `make verify` gave `22 failed, 4409 passed`, 21 in `tests/test_api.py` and 1 in
-  `tests/test_records.py`, each `assert 422 == 200`: a bolt preview with only `d` set (7.2, 7.3,
-  7.4, 8 or 8.6), s 10 and k 4 at their defaults. A d-only M8 has s/d 1.25, below the band, and the
+  `tests/test_records.py`, each `assert 422 == 200`. 21 are a bolt preview with only `d` set (7.2,
+  7.3, 7.4, 8 or 8.6), s 10 and k 4 at their defaults; the 22nd is the API's at-the-walls part
+  (d 999.999, s 1000, k 1e5), admitted at d869b87 only because k/d 100 made its raw prediction
+  cheap, which is the bypass itself, so its test is re-pinned to the rule. A d-only M8 has s/d 1.25, below the band, and the
   wide-head edge s 16 (s/d 2.0) predicts a preview peak of 1.32e9 to 1.46e9 B, over the 1.05e9 B
   budget. Over d-only bolts, ruling 4 refused the preview at d 5 and 7 to 9.5 and the fine STL at
   d 9 and 9.5, all admitted at d869b87. With the low edge only below the band, d 5.5 to 9.5 keep
