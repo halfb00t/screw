@@ -357,6 +357,7 @@ None yet.
 | 261028-mt2 | G26: R10 root floor from rods only (V = 1e-2); void wall evidence to the countersink debt item | 2026-10-28 | 1af9160 | [261028-mt2-g26-r10-root-floor-from-rods-only-void-w](./quick/261028-mt2-g26-r10-root-floor-from-rods-only-void-w/) |
 | 261028-tru | Queued-request timeout test: 1.2 s builds under 2.0 s (0.8 s slack); flake debt item resolved | 2026-10-28 | 61e06d4 | [261028-tru-fix-test-pool-queued-timeout-flake-by-sc](./quick/261028-tru-fix-test-pool-queued-timeout-flake-by-sc/) |
 | 261029-mik | G28: head ratios outside their fitted band (bolt k/d, s/d; nut s/d, m/d) predicted no lower than anywhere in the band above it and than its low edge below it (owner rulings 4, 5); bands emitted as cost.BANDS; bolt k1000 and nut s999 refused at all three; budget table and fit.json byte-identical; 07-12, 07-15 and the head-ratio debt item carry it | 2026-10-29 | bc7b2ab | [261029-mik-g28-head-ratio-bands-max-of-prediction-o](./quick/261029-mik-g28-head-ratio-bands-max-of-prediction-o/) |
+| 261029-rxk | B-03 second clarification: the default cap never goes below the fitted minimum turns; cost.MIN_FITTED_TURNS (2.9999999999999996) emitted from the records; M6 with only s 15 named no longer capped to 0.5 mm, its preview is the over_budget 422; d 5 and d 30 s 48 k 18 caps unchanged at 16.5 and 6.5; budget table and fit.json byte-identical; debt item resolved | 2026-10-29 | 52dcf95 | [261029-rxk-b-03-cap-floor-at-the-fitted-minimum-tur](./quick/261029-rxk-b-03-cap-floor-at-the-fitted-minimum-tur/) |
 
 ### Roadmap Evolution
 
