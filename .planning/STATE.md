@@ -352,6 +352,7 @@ None yet.
 | 261028-l2l | G25: walk nut voids at 3e-2..1 mm (run 40665307964); second R10 stop, owner ruling pending | 2026-10-28 | e80cdeb | [261028-l2l-g25-walk-nut-voids-at-3e-2-1-mm-amend-r1](./quick/261028-l2l-g25-walk-nut-voids-at-3e-2-1-mm-amend-r1/) |
 | 261028-mt2 | G26: R10 root floor from rods only (V = 1e-2); void wall evidence to the countersink debt item | 2026-10-28 | 1af9160 | [261028-mt2-g26-r10-root-floor-from-rods-only-void-w](./quick/261028-mt2-g26-r10-root-floor-from-rods-only-void-w/) |
 | 261028-tru | Queued-request timeout test: 1.2 s builds under 2.0 s (0.8 s slack); flake debt item resolved | 2026-10-28 | 61e06d4 | [261028-tru-fix-test-pool-queued-timeout-flake-by-sc](./quick/261028-tru-fix-test-pool-queued-timeout-flake-by-sc/) |
+| 261029-mik | G28: head ratios outside their fitted band (bolt k/d, s/d; nut s/d, m/d) predicted no lower than anywhere in the band above it and than its low edge below it (owner rulings 4, 5); bands emitted as cost.BANDS; bolt k1000 and nut s999 refused at all three; budget table and fit.json byte-identical; 07-12, 07-15 and the head-ratio debt item carry it | 2026-10-29 | bc7b2ab | [261029-mik-g28-head-ratio-bands-max-of-prediction-o](./quick/261029-mik-g28-head-ratio-bands-max-of-prediction-o/) |
 
 ### Roadmap Evolution
 
