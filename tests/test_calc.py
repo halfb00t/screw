@@ -29,6 +29,7 @@ from screw.calc import (
     printability,
 )
 from screw.calc import cost as cost_model
+from screw.calc.cost import artifact_of
 from screw.calc.presets import WITHDRAWN_DIN_WRENCH_MM, designation_for, match
 from screw.calc.thread import (
     HEAD_CHAMFER_KERNEL_FLOOR_DEG,
@@ -43,7 +44,6 @@ from screw.calc.thread import (
     head_chamfer_warnings,
     nut_closed_volume,
     nut_end_closed_volume,
-    nut_fine_stl_refusal,
     pitch_diameter,
     section_radius,
     thread_depth,
@@ -520,39 +520,38 @@ def test_a_nut_with_a_positive_clearance_has_no_clearance_warning(clearance: flo
     assert info.warnings == [STANDING_WARNING]
 
 
-def test_a_tall_nut_fine_stl_is_refused_by_the_nuts_cap_and_nothing_else_is() -> None:
-    # R16, R17: the M10 x 1.5 nut's cap is 36 mm (not the rod's 56): a nut one mm above it is
-    # refused on its fine STL, with the sentence the info document and the warnings carry.
-    tall = NutParams(d=10.0, pitch=1.5, s=16.0, m=37.0, clearance=0.1)
-    sentence = nut_fine_stl_refusal(10.0, 1.5, 37.0, 0.1, False)
+# The explore point `nut-d100-p1-m0.8d-s1.6d-c5-right`, which 07-BUDGET-TABLE.md lists as refused
+# at every artifact under C1 (B-01; run 40646117094). An R12 widening only refuses more.
+NUT_OVER = NutParams(d=100.0, pitch=1.0, s=160.0, m=80.0, clearance=5.0)
+
+
+def test_a_nut_over_its_budget_is_refused_per_artifact_by_the_cost_model() -> None:
+    # D-06, L21: the nut is judged by its own fitted model, never the rod's, at each artifact.
+    info = derive(NUT_OVER)
+    refusals: dict[tuple[str, str], str | None] = {
+        (e.format, e.quality): e.refusal for e in info.downloads}
+    for fmt, quality in DOWNLOAD_PAIRS:
+        sentence = cost_model.refusal(NUT_OVER, artifact_of(fmt, quality))
+        assert download_refusal(NUT_OVER, fmt, quality) == sentence
+        assert refusals[fmt, quality] == sentence
+    sentence = cost_model.refusal(NUT_OVER, "stl-fine")
     assert sentence is not None
-    assert sentence.startswith("m: ")
-    assert download_refusal(tall, "stl", "fine") == sentence
-    for fmt, quality in (("stl", "preview"), ("step", "fine"), ("step", "preview")):
-        assert download_refusal(tall, fmt, quality) is None
-    info = derive(tall)
-    refusals = {(e.format, e.quality): e.refusal for e in info.downloads}
-    assert refusals == {("stl", "fine"): sentence, ("stl", "preview"): None,
-                        ("step", "fine"): None, ("step", "preview"): None}
-    assert info.warnings.count(sentence) == 1
-    at_cap = NutParams(d=10.0, pitch=1.5, s=16.0, m=36.0, clearance=0.1)
-    assert download_refusal(at_cap, "stl", "fine") is None
-    assert sentence not in derive(at_cap).warnings
-    # a clearance above the ceiling is refused on the fine STL too, naming the clearance
-    loose = NutParams(d=10.0, pitch=1.5, s=26.0, m=5.0, clearance=5.5)
-    loose_refusal = download_refusal(loose, "stl", "fine")
-    assert loose_refusal is not None
-    assert loose_refusal.startswith("clearance: ")
+    assert sentence.startswith("d, pitch, s, m and clearance: ")
+    for reason in _refused(NUT_OVER):
+        assert info.warnings.count(reason) == 1
 
 
 @pytest.mark.parametrize("left_hand", [False, True])
-def test_nut_fine_stl_serves_every_catalogue_row_at_its_own_s_and_m_max(left_hand: bool) -> None:
-    """No cap lands below a GOST ISO 4032-2014 catalogue height (plan 05-19, stop condition)."""
+def test_every_catalogue_nut_at_its_s_and_m_max_is_judged_by_the_shared_rule(
+        left_hand: bool) -> None:
+    """Plan 05-19's catalogue heights, now held to the cost model at every download (L21)."""
     diameters = {size.label: size.d for size in iso262.SIZES}
     for row in NUTS:
         nut = NutParams(d=diameters[row.size], pitch=row.pitch, s=row.s, m=row.m_max,
                         clearance=0.1, left_hand=left_hand)
-        assert download_refusal(nut, "stl", "fine") is None, row.size
+        for fmt, quality in DOWNLOAD_PAIRS:
+            assert download_refusal(nut, fmt, quality) == cost_model.refusal(
+                nut, artifact_of(fmt, quality)), row.size
 
 
 def test_the_nut_closed_form_is_the_prism_less_the_section_times_the_height() -> None:
@@ -661,9 +660,9 @@ def test_a_refused_part_lists_its_downloads_by_the_shared_rule() -> None:
     assert [(e.format, e.quality) for e in downloads] == DOWNLOAD_PAIRS
     for entry in downloads:
         assert entry.refusal == download_refusal(OVER, entry.format, entry.quality)
-    sentence = cost_model.refusal(OVER, "stl-fine")
-    assert sentence is not None
-    assert downloads[0].refusal == sentence
+    for entry in downloads:
+        assert entry.refusal == cost_model.refusal(OVER, artifact_of(entry.format, entry.quality))
+    assert downloads[0].refusal is not None
 
 
 def test_the_download_warnings_are_the_refused_downloads_reasons_once_in_entry_order() -> None:
@@ -680,8 +679,7 @@ def test_either_hand_lists_its_downloads_by_the_shared_rule() -> None:
                        s=16.0, k=6.4)
         downloads = derive(p).downloads
         assert [e.refusal for e in downloads] == [
-            download_refusal(p, fmt, quality) for fmt, quality in DOWNLOAD_PAIRS]
-        assert downloads[0].refusal == cost_model.refusal(p, "stl-fine")
+            cost_model.refusal(p, artifact_of(fmt, quality)) for fmt, quality in DOWNLOAD_PAIRS]
 
 
 def test_every_registered_kinds_document_agrees_with_its_download_rule(
@@ -1591,11 +1589,11 @@ def test_a_bolt_never_carries_the_measured_range_warning(d: float) -> None:
 
 def test_the_measured_range_warning_changes_no_row_and_keeps_the_warning_order(
         monkeypatch: pytest.MonkeyPatch) -> None:
-    # The sentence sits after the download refusal and before the counterpart's off-row sentence,
-    # which stays last (D-09, D-15): M5 x 0.8 and a tall m draws the refusal, d 5.5 the off-row.
-    outside = NutParams(d=5.0, pitch=0.8, s=9.0, m=40.0, clearance=0.1)
+    # The sentence sits after the download refusals and before the counterpart's off-row sentence,
+    # which stays last (D-09, D-15): NUT_OVER, d 100, draws the refusals, d 5.5 the off-row.
+    outside = NUT_OVER
     info = derive(outside)
-    new = MEASURED_RANGE.format(d="5")
+    new = MEASURED_RANGE.format(d="100")
     refusal = download_refusal(outside, "stl", "fine")
     assert refusal is not None
     assert info.warnings[0] == STANDING_WARNING

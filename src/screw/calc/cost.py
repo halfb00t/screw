@@ -236,6 +236,6 @@ def refusal(p: FastenerParams, artifact: Artifact) -> str | None:
               else "no artifact of this part fits")
     advice = "change one of these fields, or download an artifact that fits" if others else (
         "change one of these fields")
-    return (f"{_listed(list(FIELDS[p.kind]))}: the {_NAMES[artifact]} of this {p.kind} is over "
-            f"its measured budget (L21), so it is refused before any build; {served}. To get it, "
-            f"{advice}")
+    return (f"{_listed(list(FIELDS[p.kind]))}: the {_NAMES[artifact]} of this {p.kind} is "
+            f"predicted over its measured budget (L21), so it is refused before any build; "
+            f"{served}. To get it, {advice}")

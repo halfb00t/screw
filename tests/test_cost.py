@@ -13,11 +13,12 @@ import re
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from bench import oper_fit
-from screw.calc import cost
+from screw.calc import cost, derive, download_refusal
 from screw.calc.cost import ARTIFACTS, BUILD_TIMEOUT_S, artifact_of
-from screw.params import BoltParams, FastenerParams, NutParams
+from screw.params import KINDS, BoltParams, FastenerParams, NutParams
 
 
 @pytest.mark.parametrize(("fmt", "quality", "want"), [
@@ -167,3 +168,62 @@ def test_the_cost_module_imports_no_kernel_no_numpy_and_no_logger() -> None:
         root = name.split(".")[0]
         assert root not in {"cadquery", "OCP", "numpy", "logging"}, name
         assert not name.startswith("screw.records"), name
+
+
+# --- every artifact of both kinds through the one rule (07 D-06, D-08, D-17) -------------------
+
+DOWNLOAD_PAIRS = (("stl", "fine"), ("stl", "preview"), ("step", "fine"), ("step", "preview"))
+
+
+def _explore_parts() -> list[FastenerParams]:
+    """Every explore point the parameter model takes: a grid over both kinds and the walls."""
+    raw = json.loads((REPO / "bench" / "points" / "explore.json").read_text())
+    parts: dict[str, FastenerParams] = {}
+    for point in raw["points"]:
+        try:
+            parts[point["label"]] = KINDS[point["kind"]].model_validate(point["params"])
+        except ValidationError:
+            continue
+    return list(parts.values())
+
+
+EXPLORE = _explore_parts()
+
+
+def test_the_explore_grid_holds_refused_and_admitted_parts_of_both_kinds() -> None:
+    # The grid below is only a test if it reaches both outcomes on both kinds.
+    for kind in ("bolt", "nut"):
+        outcomes = {download_refusal(p, fmt, q) is None for p in EXPLORE if p.kind == kind
+                    for fmt, q in DOWNLOAD_PAIRS}
+        assert outcomes == {True, False}, kind
+
+
+def test_the_download_rule_is_the_cost_models_for_both_kinds_and_every_pair() -> None:
+    for p in EXPLORE:
+        for fmt, quality in DOWNLOAD_PAIRS:
+            assert download_refusal(p, fmt, quality) == cost.refusal(
+                p, artifact_of(fmt, quality)), (p, fmt, quality)
+        # STEP ignores the quality: one artifact, one answer.
+        assert download_refusal(p, "step", "fine") == download_refusal(p, "step", "preview")
+
+
+def test_the_all_default_parts_refuse_no_download() -> None:
+    for part in (BoltParams(), NutParams()):
+        for fmt, quality in DOWNLOAD_PAIRS:
+            assert download_refusal(part, fmt, quality) is None, (part.kind, fmt, quality)
+
+
+def test_each_refusal_is_one_warning_in_download_order_with_the_step_pair_once() -> None:
+    # OPER-03's ordering edge: the refusals follow `_DOWNLOADS`, and the STEP pair, one artifact,
+    # adds one sentence.
+    seen = 0
+    for p in EXPLORE:
+        reasons = [download_refusal(p, fmt, q) for fmt, q in DOWNLOAD_PAIRS]
+        refused = [r for r in dict.fromkeys(reasons) if r is not None]
+        if not refused:
+            continue
+        seen += 1
+        warnings = derive(p).warnings
+        assert [w for w in warnings if w in refused] == refused, p
+        assert all(warnings.count(r) == 1 for r in refused), p
+    assert seen

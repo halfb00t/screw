@@ -34,7 +34,6 @@ from screw.calc.thread import (
     head_chamfer_volume,
     head_chamfer_warnings,
     nut_end_closed_volume,
-    nut_fine_stl_refusal,
     pitch_diameter,
     thread_depth,
     thread_length_conflict,
@@ -525,22 +524,14 @@ def download_refusal(p: FastenerParams, fmt: str, quality: str) -> str | None:
     """The reason a download of `p` is refused before any build, or None.
 
     The one rule `app._serve` and `screw export` share (FRNT-05 parity). Kernel-free, so a
-    refused request never reaches the cache, the admission slot or the pool. Only the fine
-    STL is ever refused (D-02): the preview STL and the STEP of the same part are served.
-    Dispatches with `isinstance` like `derive`: a registered kind without an entry raises
-    TypeError, whatever `fmt` and `quality` say, so the registry test catches it.
+    refused request never reaches the cache, the admission slot or the pool. Every artifact is
+    judged against its own measured budget (D-06, L21): STEP ignores the quality, so both its
+    qualities are one artifact and one answer. A kind with no cost model raises TypeError,
+    whatever `fmt` and `quality` say, so the registry test catches it.
     """
-    if isinstance(p, BoltParams):
-        # The bolt's fine STL is judged against its measured budget (D-05, L21).
-        if fmt == "stl" and quality == "fine":
-            return cost.refusal(p, artifact_of(fmt, quality))
-        return None
-    if isinstance(p, NutParams):
-        # The nut's own caps (run 2026-10-21-nut-fine-caps-amended, R16 and R17), never the rods'.
-        if fmt == "stl" and quality == "fine":
-            return nut_fine_stl_refusal(p.d, p.pitch, p.m, p.clearance, p.left_hand)
-        return None
-    raise TypeError(f"no download rule for kind {p.kind!r}")
+    if not isinstance(p, BoltParams | NutParams):
+        raise TypeError(f"no download rule for kind {p.kind!r}")
+    return cost.refusal(p, artifact_of(fmt, quality))
 
 
 def download_name(p: FastenerParams, fmt: str, quality: str) -> str:

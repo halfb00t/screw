@@ -18,7 +18,7 @@ from pydantic import Field
 
 from screw import __version__, cli
 from screw.calc import cost, derive, download_refusal
-from screw.params import KINDS, BoltParams, FastenerParams
+from screw.params import KINDS, BoltParams, FastenerParams, NutParams
 
 WARNING = ("warning: ends modelled per L15 and L19: bolt tip chamfer, hex head chamfer, "
            "under-head fillet on an ISO 4014 plain shank, nut lead-in countersinks and face "
@@ -369,15 +369,21 @@ def test_a_fine_stl_over_its_budget_exits_2_and_writes_nothing(
     assert not out.exists()
 
 
-def test_a_nut_fine_stl_past_its_measured_cap_exits_2_and_writes_nothing(
+def test_a_nut_fine_stl_over_its_budget_exits_2_and_writes_nothing(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    # The explore point `nut-d100-p1-m0.8d-s1.6d-c5-right`, which 07-BUDGET-TABLE.md lists as
+    # refused at stl-fine under C1 (B-01; run 40646117094); a widening only refuses more.
     out = tmp_path / "x.stl"
-    argv = ["export", "nut", "--d", "10", "--pitch", "1.5", "--s", "16", "--m", "37",
-            "--clearance", "0.1", "-o", str(out)]
+    argv = ["export", "nut", "--d", "100", "--pitch", "1", "--s", "160", "--m", "80",
+            "--clearance", "5", "-o", str(out)]
+    refusal = cost.refusal(NutParams(d=100.0, pitch=1.0, s=160.0, m=80.0, clearance=5.0),
+                           "stl-fine")
+    assert refusal is not None
     assert _exit_code(argv) == 2
     err = capsys.readouterr().err
-    assert "error: m: " in err
-    assert "2026-10-21-nut-fine-caps-amended" in err
+    assert err == f"error: {refusal}\n"
+    assert err.startswith("error: d, pitch, s, m and clearance: ")
+    assert "L21" in err
     assert not out.exists()
 
 

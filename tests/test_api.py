@@ -38,7 +38,7 @@ from screw.calc.thread import (
     head_chamfer_depths,
     head_chamfer_warnings,
 )
-from screw.params import DEFAULT_KIND, KINDS, BoltParams, FastenerParams
+from screw.params import DEFAULT_KIND, KINDS, BoltParams, FastenerParams, NutParams
 from screw.solid import Format, Quality, export, precise_volume
 from screw.tables.presets import catalogue
 
@@ -586,10 +586,13 @@ def test_a_head_one_ulp_wider_than_the_shank_is_served() -> None:
     assert client.get("/api/bolt/info", params={"s": s}).status_code == 200
 
 
-def test_a_solid_the_kernel_gets_wrong_is_a_422_build_error() -> None:
+def test_a_solid_the_kernel_gets_wrong_is_a_422_build_error(
+        monkeypatch: pytest.MonkeyPatch) -> None:
     """These parameters pass validation (a root radius of 0.0123 mm, above the 0.01 mm floor) and
     build one valid solid whose volume is off the closed form (-1.829e-04); the gate turns that
-    into a BuildError, not a served file."""
+    into a BuildError, not a served file. The download rule is switched off, so the kernel's gate
+    is what answers whatever the cost model says of this part (L21)."""
+    monkeypatch.setattr(app_module, "download_refusal", lambda p, fmt, quality: None)
     r = client.get("/api/bolt/model.stl", params={
         "d": 0.03, "pitch": 0.005, "length": 0.05, "quality": "preview"})
     assert r.status_code == 422
@@ -1209,11 +1212,13 @@ def test_a_fine_stl_over_its_budget_is_a_422_and_never_reaches_the_backend() -> 
     assert calls == 0
 
 
-NUT_CAPPED: Params = {"d": 10, "pitch": 1.5, "s": 16, "m": 37, "clearance": 0.1}
+# The explore point `nut-d100-p1-m0.8d-s1.6d-c5-right`, which 07-BUDGET-TABLE.md lists as refused
+# at every artifact under C1 (B-01; run 40646117094). An R12 widening only refuses more.
+NUT_OVER: Params = {"d": 100, "pitch": 1, "s": 160, "m": 80, "clearance": 5}
 
 
-def test_a_nut_fine_stl_past_its_measured_cap_is_a_422_and_never_reaches_the_backend() -> None:
-    """R16, R17: refused before the cache, the admission slot and the pool, like the rod's."""
+def test_a_nut_fine_stl_over_its_budget_is_a_422_and_never_reaches_the_backend() -> None:
+    """D-06, L21: refused before the cache, the admission slot and the pool, like the bolt's."""
     calls = 0
 
     async def counting_backend(p: FastenerParams, fmt: str, quality: str) -> bytes:
@@ -1221,20 +1226,20 @@ def test_a_nut_fine_stl_past_its_measured_cap_is_a_422_and_never_reaches_the_bac
         calls += 1
         return b"served"
 
+    part = NutParams.model_validate(NUT_OVER)
     with _backend(counting_backend):
-        r = client.get("/api/nut/model.stl", params=NUT_CAPPED)    # quality defaults to fine
+        r = client.get("/api/nut/model.stl", params=NUT_OVER)    # quality defaults to fine
         assert r.status_code == 422
         (detail,) = r.json()["detail"]
         assert detail["type"] == "fine_stl_cap"
         assert detail["loc"] == ["query"]
-        assert detail["msg"].startswith("m: ")
-        for fragment in ("right-hand", "above m 36 mm", "fine STL plus its gzip copy",
-                         "64 MiB export budget", "2026-10-21-nut-fine-caps-amended"):
-            assert fragment in detail["msg"]
+        assert detail["msg"] == cost_model.refusal(part, "stl-fine")
+        assert detail["msg"].startswith("d, pitch, s, m and clearance: ")
+        assert "L21" in detail["msg"]
         assert calls == 0
-        preview = client.get("/api/nut/model.stl", params={**NUT_CAPPED, "quality": "preview"})
-        assert preview.status_code == 200
-        assert calls == 1
+        preview = client.get("/api/nut/model.stl", params={**NUT_OVER, "quality": "preview"})
+        assert preview.status_code == _status(part, "stl", "preview")
+        assert calls == (1 if preview.status_code == 200 else 0)
 
 
 def test_each_download_of_a_refused_part_is_judged_on_its_own_and_its_info_is_served() -> None:
