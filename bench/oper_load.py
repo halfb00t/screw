@@ -9,7 +9,9 @@ A load reading is one fresh container of the image under the R2 cap (`--memory` 
 the first C start together, and a client takes the next request as soon as its previous response
 is complete, so C requests are in flight until the queue empties (R15). Every request asks for
 `Accept-Encoding: identity`, so the reading measures builds and serving and not gzip (R19 owns the
-level). Meanwhile a host thread GETs `/api/health` every 0.5 s (R24).
+level). Meanwhile a host thread GETs `/api/health` every 0.5 s (R24) and another runs the
+Dockerfile's own HEALTHCHECK command through `docker exec` every 5 s (R25). With `bodies`, the
+reading then measures the JSON bodies gzip's `minimum_size` is chosen from (R20).
 
 Standard library and `bench` only, like `bench.oper`, because the runner's bare setup-python
 interpreter runs it; the container is driven through the `docker` CLI. Only an `ok` reading
@@ -19,6 +21,7 @@ measured.
 
 from __future__ import annotations
 
+import gzip
 import http.client
 import json
 import queue
@@ -46,6 +49,10 @@ POOL_LOG = "/tmp/oper-pool.jsonl"  # in the container; uid 10001 can write /tmp
 # warming the kernel at startup, and B is the server at rest, not its start.
 IDLE_S = 2.0
 HEALTH_EVERY_S = 0.5  # R24's poller cadence (the plan's)
+HEALTHCHECK_EVERY_S = 5.0  # R25's: the shipped probe, run by `docker exec` (the plan's)
+# R20 compares the body lengths at the levels R19 chooses between.
+BODY_GZIP_LEVELS = (1, 6, 9)
+_DOCKERFILE = _REPO_ROOT / "Dockerfile"
 HEALTHY_EVERY_S = 0.1  # how often the startup wait asks; sets the resolution of R25's figure
 _EXEC_TIMEOUT_S = 30.0  # one `docker exec` or `docker inspect` after the deadline has passed
 _TAIL = 2000
@@ -226,6 +233,89 @@ def _health_probe(host: str, port: int, t0: float,
     return probe
 
 
+def healthcheck_argv(dockerfile: Path = _DOCKERFILE) -> list[str]:
+    """The exec-form `CMD` of the Dockerfile's `HEALTHCHECK`, so the probe whose wall R25 takes is
+    the shipped one and cannot drift from it."""
+    text = dockerfile.read_text().replace("\\\n", " ")
+    for line in text.splitlines():
+        instruction, _, rest = line.strip().partition(" ")
+        if instruction == "HEALTHCHECK":
+            _, cmd, form = rest.partition(" CMD ")
+            argv = json.loads(form) if cmd else None
+            if isinstance(argv, list) and argv and all(isinstance(a, str) for a in argv):
+                return argv
+            raise ValueError(f"{dockerfile}: the HEALTHCHECK has no exec-form CMD")
+    raise ValueError(f"{dockerfile} has no HEALTHCHECK")
+
+
+def _healthcheck_probe(docker: Docker, name: str, argv: Sequence[str], t0: float,
+                       deadline_at: float) -> Callable[[], dict[str, object]]:
+    def probe() -> dict[str, object]:
+        started = time.monotonic()
+        try:
+            done = docker(["exec", name, *argv],
+                          max(min(_EXEC_TIMEOUT_S, deadline_at - started), 0.001))
+        except subprocess.TimeoutExpired:
+            return {"offset_s": started - t0, "wall_s": time.monotonic() - started,
+                    "exit_code": None, "error": "timeout"}
+        return {"offset_s": started - t0, "wall_s": time.monotonic() - started,
+                "exit_code": done.returncode}
+    return probe
+
+
+def _base(base_url: str) -> tuple[str, int]:
+    url = urllib.parse.urlsplit(base_url)
+    if url.hostname is None or url.port is None:
+        raise ValueError(f"{base_url!r} names no host and port")
+    return url.hostname, url.port
+
+
+def _query(values: Mapping[str, object]) -> str:
+    return urllib.parse.urlencode([(str(key), json.dumps(value)) for key, value in values.items()])
+
+
+def catalogue_rows(base_url: str, deadline_at: float) -> list[tuple[str, dict[str, object]]]:
+    """Every catalogue row as `(kind, fields)`, read from the server (`/api/kinds`, then
+    `/api/presets?kind=` per kind): this parent does not import `screw`. A kind with no
+    catalogue (a 404) has no rows; any other non-200 is `_Ended("crashed")`."""
+    host, port = _base(base_url)
+    status, body, _ = _get(host, port, "/api/kinds", deadline_at - time.monotonic())
+    if status != 200:
+        raise _Ended("crashed", f"/api/kinds answered {status}")
+    rows: list[tuple[str, dict[str, object]]] = []
+    for kind in json.loads(body)["kinds"]:
+        path = "/api/presets?" + urllib.parse.urlencode({"kind": kind})
+        status, body, _ = _get(host, port, path, deadline_at - time.monotonic())
+        if status == 404:
+            continue
+        if status != 200:
+            raise _Ended("crashed", f"{path} answered {status}")
+        rows += [(str(kind), dict(row["fields"])) for row in json.loads(body)["rows"]]
+    return rows
+
+
+def measure_bodies(base_url: str, rows: Sequence[tuple[str, Mapping[str, object]]],
+                   deadline_at: float | None = None) -> list[dict[str, object]]:
+    """R20's bodies: `/api/health`, `/api/presets` of each kind in `rows` and the info document
+    of every row, each fetched uncompressed. Per URL the raw length and its `gzip.compress`
+    length at levels 1, 6 and 9; a body that is not a 200 has its status and no length."""
+    host, port = _base(base_url)
+    kinds = list(dict.fromkeys(kind for kind, _ in rows))
+    paths = ["/api/health", *("/api/presets?" + urllib.parse.urlencode({"kind": kind})
+                              for kind in kinds),
+             *(f"/api/{kind}/info?{_query(fields)}" for kind, fields in rows)]
+    until = time.monotonic() + _EXEC_TIMEOUT_S if deadline_at is None else deadline_at
+    bodies: list[dict[str, object]] = []
+    for path in paths:
+        status, body, _ = _get(host, port, path, until - time.monotonic())
+        if status != 200:
+            bodies.append({"path": path, "status_code": status})
+            continue
+        bodies.append({"path": path, "status_code": status, "bytes": len(body), "gzip": {
+            str(level): len(gzip.compress(body, level)) for level in BODY_GZIP_LEVELS}})
+    return bodies
+
+
 def _host_port(text: str) -> tuple[str, int] | None:
     """The first `host:port` line `docker port` prints, or `None`."""
     for line in text.splitlines():
@@ -363,7 +453,10 @@ class _Reading:
         self.idle_peak = 0
         self.load_s = 0.0
         self.results: list[dict[str, object] | None] = [None] * size
+        self.base_url = ""
         self.health: list[dict[str, object]] = []
+        self.healthcheck: list[dict[str, object]] = []
+        self.bodies: list[dict[str, object]] | None = None
         self.peak: int | None = None
         self.kills: int | None = None
         self.calls: list[dict[str, object]] = []
@@ -382,28 +475,38 @@ def _measure(reading: _Reading, docker: Docker, name: str, argv: list[str],
     if address is None:
         raise _Ended("crashed", f"docker port printed {port_text[:120]!r}, no address")
     host, port = address
+    reading.base_url = f"http://{host}:{port}"
     reading.healthy_s = _wait_healthy(docker, name, host, port, deadline_at)
     time.sleep(min(IDLE_S, max(deadline_at - time.monotonic(), 0.0)))
     reading.idle_peak, _ = _read_peak(docker, name)
     t0 = time.monotonic()
     stop = threading.Event()
-    poller = threading.Thread(target=_poll, daemon=True, args=(
-        stop, HEALTH_EVERY_S, _health_probe(host, port, t0, deadline_at), reading.health))
-    poller.start()
+    pollers = [
+        threading.Thread(target=_poll, daemon=True, args=(
+            stop, HEALTH_EVERY_S, _health_probe(host, port, t0, deadline_at), reading.health)),
+        threading.Thread(target=_poll, daemon=True, args=(
+            stop, HEALTHCHECK_EVERY_S,
+            _healthcheck_probe(docker, name, healthcheck_argv(), t0, deadline_at),
+            reading.healthcheck))]
+    for poller in pollers:
+        poller.start()
     try:
         reading.results, finished = drive(host, port, mix, clients, t0, deadline_at)
         reading.load_s = time.monotonic() - t0
     finally:
         stop.set()
-        poller.join(_EXEC_TIMEOUT_S)
+        for poller in pollers:
+            poller.join(_EXEC_TIMEOUT_S)
     if not finished:
         raise _Ended("killed", "requests were still running at the deadline")
 
 
 def run_load(point: Mapping[str, object], image: str, cap: int, deadline_s: float, *,
              name: str, docker: Docker = _docker) -> dict[str, object]:
-    """One load reading of `point` (`workers`, `queue`, `clients`, `mix`, `solid_cache`), the
-    whole of it inside `deadline_s` from `docker run` (R6 charges a load reading R2's 600 s).
+    """One load reading of `point` (`workers`, `queue`, `clients`, `mix`, `solid_cache`,
+    `bodies`), the whole of it inside `deadline_s` from `docker run` (R6 charges a load reading
+    R2's 600 s). With `bodies`, R20's JSON bodies are measured after the end peak is read, so
+    that peak is the load's alone.
 
     The status, in order: the container's first (`capped` for an OOM kill or an end peak at
     99 % of the cap, `killed` past the deadline, `crashed` when the server did not come up or a
@@ -433,8 +536,16 @@ def run_load(point: Mapping[str, object], image: str, cap: int, deadline_s: floa
             try:
                 reading.peak, reading.kills = _read_peak(docker, name)
                 reading.calls = _pool_calls(docker, name)
+                if point.get("bodies") is True and ended is None:
+                    reading.bodies = measure_bodies(
+                        reading.base_url, catalogue_rows(reading.base_url, deadline_at),
+                        deadline_at)
             except _Ended as exc:
                 ended = ended or exc
+            except (OSError, http.client.HTTPException, ValueError, KeyError, TypeError) as exc:
+                past = time.monotonic() >= deadline_at
+                ended = ended or _Ended("killed" if past else "crashed",
+                                        f"measuring the bodies: {type(exc).__name__}: {exc}")
             oom = _inspect(docker, name, "OOMKilled") == "true"
             if ended is not None and ended.status == "crashed":
                 tail = _logs_tail(docker, name)
@@ -458,10 +569,13 @@ def run_load(point: Mapping[str, object], image: str, cap: int, deadline_s: floa
     for request in done:
         walls.setdefault(str(request["artifact"]), []).append(_wall(request))
     health_walls = [float(str(h["wall_s"])) for h in reading.health if h.get("status_code") == 200]
-    return {"status": "ok", "time_to_healthy_s": reading.healthy_s,
+    line = {"status": "ok", "time_to_healthy_s": reading.healthy_s,
             "idle_peak_bytes": reading.idle_peak, "memory_peak_bytes": reading.peak,
             "oom_kills": reading.kills, "load_s": reading.load_s, "requests": done,
             "latency": {"all": _spread([_wall(r) for r in done]),
                         **{artifact: _spread(w) for artifact, w in walls.items()}},
             "health": reading.health, "health_latency": _spread(health_walls),
-            "pool_calls": reading.calls}
+            "healthcheck": reading.healthcheck, "pool_calls": reading.calls}
+    if reading.bodies is not None:
+        line["bodies"] = reading.bodies
+    return line

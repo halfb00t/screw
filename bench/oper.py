@@ -125,7 +125,9 @@ DEFAULT_SOLID_CACHE = 4
 _LOAD_METRICS = ("memory_peak_bytes",)
 # `preset` is the catalogue row id a point was expanded from; `lift` names the one validator guard
 # a past-the-cap point lifts (`bench.oper_lift`), as `{"max_turns": 260}` or `{"max_mm": 1e6}`.
-_POINT_OPTIONAL_KEYS = frozenset({"preset", "lift"})
+# `gzip_levels` asks the child for R19's per-level bytes and seconds of the export, after its peak.
+_POINT_OPTIONAL_KEYS = frozenset({"preset", "lift", "gzip_levels"})
+GZIP_LEVELS = (1, 6, 9)  # R19's; `bench.oper_child.GZIP_LEVELS` is the same three
 LIFT_ARGS = ("max_turns", "max_mm")
 
 
@@ -146,6 +148,8 @@ class Point:
     body: Mapping[str, object] | None = None
     # A drift reading's own deadline (K x the artifact's timeout, R23), in place of the set's.
     deadline_s: float | None = None
+    # R19's levels for a part point, computed by the child after its peak read.
+    gzip_levels: tuple[int, ...] | None = None
 
     def as_json(self) -> str:
         if self.body is not None:
@@ -158,6 +162,8 @@ class Point:
                                    "artifact": self.artifact}
         if self.lift:
             part["lift"] = dict(self.lift)
+        if self.gzip_levels:
+            part["gzip_levels"] = list(self.gzip_levels)
         return json.dumps(part, sort_keys=True, allow_nan=False)
 
 
@@ -228,6 +234,16 @@ def parse_child_line(line: str, *, probe: bool = False, bound: bool = False) -> 
     for build in builds:
         for key, value in build.items():
             _check_number(str(key), value)
+    levels = record.get("gzip", [])
+    if not (isinstance(levels, list) and all(
+            isinstance(entry, dict) and set(entry) == {"level", "bytes", "seconds"}
+            and all(isinstance(entry[key], int) and not isinstance(entry[key], bool)
+                    for key in ("level", "bytes"))
+            and _is_number(entry["seconds"]) for entry in levels)):
+        _refuse("child line: gzip is a list of {level, bytes, seconds}")
+    for entry in levels:
+        for key, value in entry.items():
+            _check_number(f"gzip {key}", value)
     peaks = record.get("peaks", [])
     if not (isinstance(peaks, list) and all(
             isinstance(peak, int) and not isinstance(peak, bool) and peak >= 0
@@ -369,6 +385,8 @@ def run_reading(point: Point, rep: int, image: str, cap: int, deadline_s: float,
         **(point.body or {}), **result, "wall_s": wall_s}
     if point.lift:
         record["lift"] = dict(point.lift)  # a reading past a guard says which guard it lifted
+    if point.gzip_levels:
+        record["gzip_levels"] = list(point.gzip_levels)
     for key in ("cadquery", "cadquery_ocp"):
         if key not in record and versions is not None:
             record[key] = versions.get(key)
@@ -697,6 +715,12 @@ def _load_point(name: str, raw: object) -> Point:
     if "preset" in raw and not isinstance(raw["preset"], str):
         _refuse(f"set {name!r}: a point's preset is the text of a catalogue row id")
     lift = _load_lift(name, raw)
+    levels = raw.get("gzip_levels")
+    if levels is not None and not (
+            isinstance(levels, list) and levels and len(set(levels)) == len(levels)
+            and all(_whole(level) in GZIP_LEVELS for level in levels)):
+        _refuse(f"set {name!r}: point {raw.get('label')!r} gzip_levels is {levels!r}, not "
+                f"distinct levels of {list(GZIP_LEVELS)} (R19)")
     label, kind, params, artifact = raw["label"], raw["kind"], raw["params"], raw["artifact"]
     if not (isinstance(label, str) and label and isinstance(kind, str) and kind):
         _refuse(f"set {name!r}: a point's label and kind are non-empty text")
@@ -706,7 +730,8 @@ def _load_point(name: str, raw: object) -> Point:
             isinstance(key, str) and (isinstance(value, bool) or _is_number(value))
             for key, value in params.items()):
         _refuse(f"set {name!r}: point {label!r} params are names with a number or true/false")
-    return Point(label=label, kind=kind, params=dict(params), artifact=str(artifact), lift=lift)
+    return Point(label=label, kind=kind, params=dict(params), artifact=str(artifact), lift=lift,
+                 gzip_levels=None if levels is None else tuple(levels))
 
 
 def load_set(name: str, directory: Path | None = None) -> PointSet:

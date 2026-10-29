@@ -38,6 +38,11 @@ _ARTIFACTS: dict[str, tuple[Literal["stl", "step"], Literal["preview", "fine"]]]
 }
 
 
+# R19's levels: a part point may ask for its export's compressed bytes and single-thread seconds at
+# each (`gzip_levels`), taken after the R2 peak read so that peak keeps R2's meaning.
+GZIP_LEVELS = (1, 6, 9)
+
+
 class CgroupUnavailable(RuntimeError):  # noqa: N818 -- a condition, named for what is missing
     """The container's memory peak could not be read, so the reading has no peak."""
 
@@ -265,6 +270,12 @@ def main(argv: list[str]) -> int:
     except (KeyError, TypeError) as exc:
         print(f"bad point {argv[0]!r}: {type(exc).__name__}: {exc}", file=sys.stderr)
         return 2
+    levels = point.get("gzip_levels", [])
+    if not (isinstance(levels, list) and all(
+            isinstance(level, int) and level in GZIP_LEVELS for level in levels)):
+        print(f"bad point {argv[0]!r}: gzip_levels is {levels!r}, not levels of {GZIP_LEVELS}",
+              file=sys.stderr)
+        return 2
     # screw is imported here and not at the top so `import bench.oper_child` stays cheap and the
     # tests of the cgroup reader never pay for the kernel.
     from bench import oper_lift
@@ -308,11 +319,26 @@ def main(argv: list[str]) -> int:
     except CgroupUnavailable:
         _emit({"status": "no_cgroup", **versions})
         return 0
-    _emit({"status": "ok", "build_s": build_s, "export_s": export_s, "bytes": len(data),
-           "triangles": triangles, "gzip1_bytes": gzip1_bytes,
-           "maxrss_bytes": maxrss, "memory_peak_bytes": peak, "oom_kills": oom_kills(),
-           **versions})
+    kills = oom_kills()
+    record: dict[str, object] = {
+        "status": "ok", "build_s": build_s, "export_s": export_s, "bytes": len(data),
+        "triangles": triangles, "gzip1_bytes": gzip1_bytes, "maxrss_bytes": maxrss,
+        "memory_peak_bytes": peak, "oom_kills": kills, **versions}
+    if levels:
+        record["gzip"] = gzip_levels(data, levels)
+    _emit(record)
     return 0
+
+
+def gzip_levels(data: bytes, levels: list[int]) -> list[dict[str, object]]:
+    """R19's per-level figures of `data`: the compressed bytes and the seconds of one
+    single-threaded `gzip.compress` at each level. Called after the peak read only."""
+    out: list[dict[str, object]] = []
+    for level in levels:
+        started = time.perf_counter()
+        size = len(gzip.compress(data, level))
+        out.append({"level": level, "bytes": size, "seconds": time.perf_counter() - started})
+    return out
 
 
 if __name__ == "__main__":

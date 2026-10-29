@@ -8,7 +8,9 @@ without an image. The instrument server's pool recorder is tested on a fake pool
 from __future__ import annotations
 
 import asyncio
+import gzip
 import json
+import re
 import statistics
 import subprocess
 import sys
@@ -44,6 +46,21 @@ def test_p95_from_fewer_than_20_samples_is_none() -> None:
 # --- a fake server and a fake docker -------------------------------------------------------------
 
 
+HEALTH_BODY = b'{"status": "ok"}'
+INFO_BODY = json.dumps({"rows": [{"label": "pitch", "value": 1.0}] * 40}).encode()
+PRESETS = {"bolt": {"rows": [{"fields": {"d": 6.0}}, {"fields": {"d": 404.0}}]},
+           "nut": {"rows": [{"fields": {"d": 6.0}}]}}
+
+
+def _catalogue(path: str, query: dict[str, str]) -> tuple[int, bytes]:
+    """The fake's kinds, presets and info documents; an info document of `d` 404 is a 404."""
+    if path == "/api/kinds":
+        return 200, json.dumps({"default": "bolt", "kinds": ["bolt", "nut"]}).encode()
+    if path == "/api/presets":
+        return 200, json.dumps(PRESETS[query["kind"]]).encode()
+    return (404, b"{}") if query.get("d") == "404.0" else (200, INFO_BODY)
+
+
 class _Server:
     """A local server that answers `/api/health` at once and a model request after a sleep set by
     its `d` param (in hundredths of a second), with the status set by its `status` param. It
@@ -55,6 +72,7 @@ class _Server:
         self.in_flight = 0
         self.most_in_flight = 0
         self.health = 0
+        self.order: list[str] = []  # shared with a _Docker: what happened, in order
         outer = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -67,7 +85,11 @@ class _Server:
                 if url.path == "/api/health":
                     with outer.lock:
                         outer.health += 1
-                    self._send(200, b'{"status": "ok"}')
+                    self._send(200, HEALTH_BODY)
+                    return
+                if url.path in ("/api/kinds", "/api/presets") or url.path.endswith("/info"):
+                    outer.order.append("body")
+                    self._send(*_catalogue(url.path, query))
                     return
                 with outer.lock:
                     outer.seen.append((self.path, self.headers.get("Accept-Encoding")))
@@ -110,10 +132,11 @@ class _Docker:
     """Answers `docker run`, `port`, `inspect`, `exec` (the peak reader, the pool log, the
     HEALTHCHECK) and `rm` as the driver sends them, and keeps every argv."""
 
-    def __init__(self, port: int, peak: int = PEAK, pool: str = "") -> None:
+    def __init__(self, port: int, peak: int = PEAK, pool: str = "",
+                 order: list[str] | None = None) -> None:
         self.port, self.peak, self.pool = port, peak, pool
         self.calls: list[list[str]] = []
-        self.order: list[str] = []
+        self.order: list[str] = [] if order is None else order
 
     def __call__(self, args: Sequence[str], _timeout: float) -> subprocess.CompletedProcess[str]:
         argv = list(args)
@@ -135,6 +158,7 @@ class _Docker:
 def _fast(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(oper_load, "IDLE_S", 0.0)
     monkeypatch.setattr(oper_load, "HEALTH_EVERY_S", 0.02)
+    monkeypatch.setattr(oper_load, "HEALTHCHECK_EVERY_S", 0.02)
 
 
 def _entry(i: int, **params: float) -> dict[str, object]:
@@ -251,6 +275,141 @@ def test_a_peak_at_the_cap_is_capped(server: _Server) -> None:
     record, _ = _run(server, _point([_entry(0)]), docker=_Docker(server.port, peak=CAP))
     assert record["status"] == "capped"
     assert "memory_peak_bytes" not in record
+
+
+# --- the HEALTHCHECK, the bodies and the gzip levels --------------------------------------------
+
+
+def _dockerfile_healthcheck() -> list[str]:
+    """The HEALTHCHECK's exec form, read here without the driver's code."""
+    text = (REPO_ROOT / "Dockerfile").read_text()
+    match = re.search(r"^HEALTHCHECK [^\n]*\\\n\s*CMD (\[.*\])$", text, re.MULTILINE)
+    assert match is not None
+    argv = json.loads(match.group(1))
+    assert isinstance(argv, list)
+    return [str(arg) for arg in argv]
+
+
+def test_the_probe_is_the_dockerfiles_healthcheck_command() -> None:
+    argv = oper_load.healthcheck_argv()
+    assert argv == _dockerfile_healthcheck()
+    assert argv[:2] == ["python", "-c"]
+    assert "timeout=1" in argv[2]
+
+
+def test_a_dockerfile_without_a_healthcheck_is_refused(tmp_path: Path) -> None:
+    (tmp_path / "Dockerfile").write_text("FROM python:3.12-slim\nCMD [\"screw\"]\n")
+    with pytest.raises(ValueError, match="no HEALTHCHECK"):
+        oper_load.healthcheck_argv(tmp_path / "Dockerfile")
+
+
+def test_the_load_runs_the_healthcheck_through_docker_exec_and_records_each_wall(
+        server: _Server) -> None:
+    record, fake = _run(server, _point([_entry(i, d=10) for i in range(4)], clients=1))
+    assert record["status"] == "ok"
+    probe = ["exec", "t", *_dockerfile_healthcheck()]
+    assert probe in fake.calls
+    checks = record["healthcheck"]
+    assert isinstance(checks, list)
+    assert len(checks) == fake.calls.count(probe)
+    assert all(c["exit_code"] == 0 and float(c["wall_s"]) >= 0 for c in checks)
+
+
+def test_the_bodies_have_their_identity_and_gzip_lengths_and_a_404_has_none(
+        server: _Server) -> None:
+    base = f"http://127.0.0.1:{server.port}"
+    rows = oper_load.catalogue_rows(base, time.monotonic() + 30)
+    assert rows == [("bolt", {"d": 6.0}), ("bolt", {"d": 404.0}), ("nut", {"d": 6.0})]
+    bodies = oper_load.measure_bodies(base, rows)
+    assert [b["path"] for b in bodies] == [
+        "/api/health", "/api/presets?kind=bolt", "/api/presets?kind=nut",
+        "/api/bolt/info?d=6.0", "/api/bolt/info?d=404.0", "/api/nut/info?d=6.0"]
+    expected = {"/api/health": HEALTH_BODY, "/api/bolt/info?d=6.0": INFO_BODY,
+                "/api/nut/info?d=6.0": INFO_BODY,
+                "/api/presets?kind=bolt": json.dumps(PRESETS["bolt"]).encode(),
+                "/api/presets?kind=nut": json.dumps(PRESETS["nut"]).encode()}
+    for body in bodies:
+        if body["path"] == "/api/bolt/info?d=404.0":
+            assert body == {"path": body["path"], "status_code": 404}
+            continue
+        raw = expected[str(body["path"])]
+        assert body["bytes"] == len(raw)
+        assert body["gzip"] == {str(level): len(gzip.compress(raw, level))
+                                for level in (1, 6, 9)}
+
+
+def test_the_bodies_are_read_after_the_end_peak(server: _Server) -> None:
+    fake = _Docker(server.port, order=server.order)
+    record, _ = _run(server, _point([_entry(0)], bodies=True), docker=fake)
+    assert record["status"] == "ok"
+    assert server.order.count("peak") == 2  # the idle peak and the end peak
+    assert server.order.index("body") > len(server.order) - 1 - server.order[::-1].index("peak")
+    bodies = record["bodies"]
+    assert isinstance(bodies, list)
+    assert len(bodies) == 6
+
+
+def test_no_bodies_are_read_unless_the_point_asks(server: _Server) -> None:
+    record, _ = _run(server, _point([_entry(0)]))
+    assert "bodies" not in record
+    assert "body" not in server.order
+
+
+def test_a_part_point_with_gzip_levels_reads_its_peak_before_the_first_level(
+        monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    from bench import oper_child
+
+    order: list[object] = []
+    compress = gzip.compress
+
+    def counting(data: bytes, compresslevel: int = 9, *, mtime: float | None = None) -> bytes:
+        order.append(compresslevel)
+        return compress(data, compresslevel, mtime=mtime)
+
+    def peak() -> int:
+        order.append("peak")
+        return PEAK
+
+    monkeypatch.setattr(oper_child, "read_peak", peak)
+    monkeypatch.setattr(gzip, "compress", counting)  # the module the child calls through
+    point = {"kind": "bolt", "params": {"d": 4.0, "length": 8.0, "thread_length": 8.0},
+             "artifact": "stl-preview", "gzip_levels": [1, 6, 9]}
+    assert oper_child.main([json.dumps(point)]) == 0
+    assert order == [1, "peak", 1, 6, 9]  # R2's level-1 gzip, the peak, then R19's levels
+    record = oper.parse_child_line(capsys.readouterr().out.strip())
+    levels = record["gzip"]
+    assert isinstance(levels, list)
+    assert [entry["level"] for entry in levels] == [1, 6, 9]
+    assert levels[0]["bytes"] == record["gzip1_bytes"]
+    assert all(isinstance(entry["bytes"], int) and entry["seconds"] >= 0 for entry in levels)
+
+
+def test_the_parent_passes_gzip_levels_to_the_child_and_records_them(tmp_path: Path) -> None:
+    _write(tmp_path, [{"label": "b", "kind": "bolt", "params": {}, "artifact": "stl-fine",
+                       "gzip_levels": [1, 6, 9]}])
+    (point,) = oper.load_set("mini", tmp_path).points
+    assert json.loads(point.as_json())["gzip_levels"] == [1, 6, 9]
+
+
+@pytest.mark.parametrize("levels", [[5], [0], [1, 1], [], ["1"], [True], 6])
+def test_the_matrix_refuses_an_unknown_gzip_level_with_exit_2(
+        levels: object, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    _write(tmp_path, [{"label": "b", "kind": "bolt", "params": {}, "artifact": "stl-fine",
+                       "gzip_levels": levels}])
+    monkeypatch.setattr(oper, "POINTS_DIR", tmp_path)
+    assert oper.main(["matrix", "--set", "mini"]) == 2
+    assert "gzip_levels" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("entry", [
+    {"level": 1, "bytes": 10}, {"level": 1, "bytes": -1, "seconds": 0.1},
+    {"level": 1, "bytes": 10, "seconds": "fast"}, {"level": True, "bytes": 10, "seconds": 0.1}])
+def test_a_child_line_with_a_bad_gzip_entry_is_refused(entry: dict[str, object]) -> None:
+    line = json.dumps({"status": "ok", "build_s": 1.0, "export_s": 1.0, "bytes": 10,
+                       "memory_peak_bytes": PEAK, "gzip": [entry]})
+    with pytest.raises(ValueError, match="gzip"):
+        oper.parse_child_line(line)
 
 
 # --- the instrument server -----------------------------------------------------------------------
