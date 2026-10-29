@@ -29,7 +29,7 @@ from fastapi.testclient import TestClient
 from screw import app as app_module
 from screw.app import app, build_backend
 from screw.build_errors import BuildError, BuildTimeout
-from screw.calc import STANDING_WARNING, download_refusal
+from screw.calc import STANDING_WARNING, download_name, download_refusal
 from screw.calc import cost as cost_model
 from screw.calc.cost import BUILD_TIMEOUT_S, Artifact
 from screw.calc.thread import (
@@ -1317,6 +1317,64 @@ def test_a_part_the_rule_admits_reaches_the_backend_as_asked() -> None:
     assert [(p.d, p.pitch, p.length, p.thread_length) for p in bolts] == [
         (p.d, p.pitch, p.length, p.thread_length) for p in admitted]
     assert len(bolts) == len(seen)
+
+
+# B-03 (07-OWNER-RULINGS.md, 2026-10-29): bolt d 30, s 48, k 18 at the default pitch, length and
+# thread_length is over its budget at stl-preview and stl-fine, and its defaulted thread_length is
+# capped (the clarification's evidence part).
+CAPPED: Params = {"d": 30, "s": 48, "k": 18}
+
+
+def test_a_defaulted_thread_length_over_the_budget_is_served_capped_and_warned() -> None:
+    part = BoltParams.model_validate(CAPPED)
+    capped, (warning,) = cost_model.cap_defaults(part, frozenset(CAPPED))
+    assert capped.thread_length < part.thread_length
+    doc = client.get("/api/bolt/info", params=CAPPED).json()
+    assert doc["warnings"][0] == warning
+    assert doc["warnings"][1] == STANDING_WARNING
+    rows = {r["key"]: r["value"] for r in doc["rows"]}
+    assert rows["thread_length"] == capped.thread_length
+    assert rows["length"] == part.length
+    assert [e["refusal"] for e in doc["downloads"]] == [None] * 4
+    seen: list[FastenerParams] = []
+
+    async def stub(p: FastenerParams, fmt: str, quality: str) -> bytes:
+        seen.append(p)
+        return b"stub"
+
+    with _backend(stub):
+        for fmt, quality in (("stl", "fine"), ("stl", "preview")):
+            r = client.get(f"/api/bolt/model.{fmt}", params={**CAPPED, "quality": quality})
+            assert r.status_code == 200, quality
+            name = download_name(capped, fmt, quality)
+            assert r.headers["content-disposition"] == f'attachment; filename="{name}"'
+            assert "thread_length" + repr(capped.thread_length).removesuffix(".0") in name
+    assert seen == [capped, capped]
+
+
+@pytest.mark.parametrize("named", [{"thread_length": 20}, {"thread_length": 20, "length": 20}])
+def test_a_named_thread_length_is_never_capped_and_the_422_stands(named: Params) -> None:
+    # The raw query keys decide, so a typed default counts as named on the API (truth 3); the
+    # length cap never goes below a named thread_length (B-03 clarification, ruling 1).
+    calls = 0
+
+    async def counting_backend(p: FastenerParams, fmt: str, quality: str) -> bytes:
+        nonlocal calls
+        calls += 1
+        return b"never served"
+
+    query = {**CAPPED, **named}
+    part = BoltParams.model_validate(query)
+    doc = client.get("/api/bolt/info", params=query).json()
+    assert doc["warnings"][0] == STANDING_WARNING
+    assert not any(w.startswith(("thread_length: ", "length: ")) for w in doc["warnings"])
+    with _backend(counting_backend):
+        r = client.get("/api/bolt/model.stl", params=query)
+    assert r.status_code == 422
+    (detail,) = r.json()["detail"]
+    assert detail["type"] == "over_budget"
+    assert detail["msg"] == cost_model.refusal(part, "stl-fine")
+    assert calls == 0
 
 
 def test_every_download_the_document_lists_is_answered_by_the_route_as_it_says() -> None:

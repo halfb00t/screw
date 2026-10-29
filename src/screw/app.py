@@ -40,8 +40,8 @@ from starlette.concurrency import run_in_threadpool
 
 from . import __version__, int_env
 from .build_errors import BuildError, BuildTimeout
-from .calc import PartInfo, derive, download_name, download_refusal, explicit_conflict
-from .calc.cost import BUILD_TIMEOUT_S, artifact_of
+from .calc import PartInfo, derive_capped, download_name, download_refusal, explicit_conflict
+from .calc.cost import BUILD_TIMEOUT_S, artifact_of, cap_defaults
 from .calc.cost import FIELDS as COST_FIELDS
 from .calc.presets import PresetCatalogue, catalogue_document
 from .params import DEFAULT_KIND, KINDS, BoltParams, FastenerParams, NutParams
@@ -449,10 +449,19 @@ def presets(kind: str) -> PresetCatalogue:
     return catalogue_document(kind)
 
 
+def explicit_fields(request: Request, kind: str) -> frozenset[str]:
+    """The kind's fields the request named: its raw query keys, the set `refuse_explicit_conflict`
+    reads, because the query model holds every default and cannot tell one from a typed value
+    (D-25). B-03's cap moves only a field outside this set.
+    """
+    return frozenset(key for key in request.query_params if key in KINDS[kind].model_fields)
+
+
 @app.get("/api/bolt/info", dependencies=[Depends(refuse_explicit_conflict(BoltParams.kind))])
-def bolt_info(q: Annotated[BoltParams, Query()]) -> PartInfo:
-    """The bolt's info document. `quality` is not a bolt field, so it is a 422 here."""
-    return derive(q)
+def bolt_info(q: Annotated[BoltParams, Query()], request: Request) -> PartInfo:
+    """The bolt's info document, of the part as capped (B-03). `quality` is not a bolt field, so
+    it is a 422 here."""
+    return derive_capped(q, explicit_fields(request, BoltParams.kind))[1]
 
 
 @app.get("/api/bolt/model.{fmt}", response_class=Response,
@@ -461,13 +470,16 @@ def bolt_info(q: Annotated[BoltParams, Query()]) -> PartInfo:
 async def bolt_model(fmt: Literal["stl", "step"], q: Annotated[BoltModelQuery, Query()],
                      request: Request,
                      backend: Annotated[BuildBackend, Depends(build_backend)]) -> Response:
-    return await _serve(strip(q, BoltParams), fmt, q.quality, request, backend)
+    # B-03: the same capped part as the info document, so the preview, the download and its file
+    # name are the part the warning describes (L02).
+    p, _ = cap_defaults(strip(q, BoltParams), explicit_fields(request, BoltParams.kind))
+    return await _serve(p, fmt, q.quality, request, backend)
 
 
 @app.get("/api/nut/info", dependencies=[Depends(refuse_explicit_conflict(NutParams.kind))])
-def nut_info(q: Annotated[NutParams, Query()]) -> PartInfo:
-    """The nut's info document. `quality` is a 422 here."""
-    return derive(q)
+def nut_info(q: Annotated[NutParams, Query()], request: Request) -> PartInfo:
+    """The nut's info document, of the part as capped (B-03). `quality` is a 422 here."""
+    return derive_capped(q, explicit_fields(request, NutParams.kind))[1]
 
 
 @app.get("/api/nut/model.{fmt}", response_class=Response,
@@ -476,7 +488,8 @@ def nut_info(q: Annotated[NutParams, Query()]) -> PartInfo:
 async def nut_model(fmt: Literal["stl", "step"], q: Annotated[NutModelQuery, Query()],
                     request: Request,
                     backend: Annotated[BuildBackend, Depends(build_backend)]) -> Response:
-    return await _serve(strip(q, NutParams), fmt, q.quality, request, backend)
+    p, _ = cap_defaults(strip(q, NutParams), explicit_fields(request, NutParams.kind))
+    return await _serve(p, fmt, q.quality, request, backend)
 
 
 async def _serve(params: FastenerParams, fmt: Literal["stl", "step"], quality: str,

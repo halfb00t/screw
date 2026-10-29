@@ -520,6 +520,21 @@ def derive(p: FastenerParams) -> PartInfo:
     raise TypeError(f"no info document for kind {p.kind!r}")
 
 
+def derive_capped[T: FastenerParams](p: T, explicit: frozenset[str]) -> tuple[T, PartInfo]:
+    """The part a request is served as and its info document: `p` with a defaulted field capped
+    when the part is over its budget, the cap's warning first (D-06, B-03, L02).
+
+    The one call the API's info route and `screw info` / `screw export` share, so the capped part,
+    the warning and the file name cannot differ between them. `explicit` is the request's named
+    fields, as `cost.cap_defaults` reads them.
+    """
+    capped, cap_warnings = cost.cap_defaults(p, explicit)
+    info = derive(capped)
+    if cap_warnings:
+        info = info.model_copy(update={"warnings": [*cap_warnings, *info.warnings]})
+    return capped, info
+
+
 def download_refusal(p: FastenerParams, fmt: str, quality: str) -> str | None:
     """The reason a download of `p` is refused before any build, or None.
 

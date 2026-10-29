@@ -81,7 +81,9 @@ def _add_preset(ap: argparse.ArgumentParser) -> None:
                          "flags given as well override it")
 
 
-def _params(kind: str, ns: argparse.Namespace) -> FastenerParams:
+def _params(kind: str, ns: argparse.Namespace) -> tuple[FastenerParams, frozenset[str]]:
+    """The part the flags describe and the fields they named: the given flags plus a preset's
+    fields, the set the conflict rule and B-03's cap read (a preset is never capped)."""
     model = KINDS[kind]
     values = {k: v for k in model.model_fields if (v := getattr(ns, k)) is not None}
     if ns.preset is not None:
@@ -104,7 +106,7 @@ def _params(kind: str, ns: argparse.Namespace) -> FastenerParams:
         print(f"error: {conflict.msg}", file=sys.stderr)
         raise SystemExit(2)
     try:
-        return model(**values)
+        return model(**values), frozenset(values)
     except ValidationError as exc:
         for err in exc.errors():
             where = ".".join(str(x) for x in err["loc"])
@@ -138,9 +140,10 @@ def cmd_presets(ns: argparse.Namespace) -> None:
 
 
 def cmd_info(ns: argparse.Namespace) -> None:
-    from .calc import derive
+    from .calc import derive_capped
 
-    print(derive(_params(ns.kind, ns)).model_dump_json(indent=2))
+    # B-03: the part as capped, the same call the API's info route makes (FRNT-05 parity).
+    print(derive_capped(*_params(ns.kind, ns))[1].model_dump_json(indent=2))
 
 
 def cmd_export(ns: argparse.Namespace) -> None:
@@ -153,7 +156,7 @@ def cmd_export(ns: argparse.Namespace) -> None:
         raise SystemExit("error: output must end in .stl or .step (or pass --format)")
     from .calc import derive, download_name, download_refusal
 
-    p = _params(ns.kind, ns)
+    p, _ = _params(ns.kind, ns)
     # The same kernel-free rule the API's `_serve` applies (D-02, FRNT-05 parity). Exit 2 like
     # `_params`, the CLI analogue of the 422: a parameter choice is refused, nothing failed
     # to build (a BuildError below keeps exit 1; 03-RESEARCH Open Question 5).
@@ -187,7 +190,8 @@ PAIR_EXIT = {"proven": 0, "violated": 1, "inconclusive": 2}
 
 
 def cmd_pair(ns: argparse.Namespace) -> None:
-    p = _params(ns.kind, ns)
+    # Never capped: the proof has no artifact budget to fit (B-03 caps downloads and documents).
+    p, _ = _params(ns.kind, ns)
     # The proof mates the nut with the nominal rod of its own d and pitch, a rod the nut's own
     # validator does not judge (it judges the void, which a positive clearance widens): refuse
     # here, before the kernel loads, as exit 2 like every other refused parameter.

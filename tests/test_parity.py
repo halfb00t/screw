@@ -411,10 +411,12 @@ def test_the_cli_and_the_api_print_the_same_document(
         cli_doc = json.loads(capsys.readouterr().out)
         api_doc = client.get(f"/api/{kind}/info", params=values).json()
         assert cli_doc == api_doc, values
-        assert cli_doc["warnings"][0] == STANDING_WARNING
-        assert api_doc["warnings"][0] == STANDING_WARNING
+        # B-03: a part over its budget is served capped, the cap's warning first (M6 with s 15
+        # is one); every other document opens on the standing entry.
+        capped = list(cost.cap_defaults(model.model_validate(values), frozenset(values))[1])
+        assert api_doc["warnings"][:len(capped) + 1] == [*capped, STANDING_WARNING], values
         # The literal too, so rewording the constant fails here and not only in test_calc (D-04).
-        assert api_doc["warnings"][0] == (
+        assert api_doc["warnings"][len(capped)] == (
             "ends modelled per L15 and L19: bolt tip chamfer, hex head chamfer, under-head "
             "fillet on an ISO 4014 plain shank, nut lead-in countersinks and face chamfers; "
             "nominal, not toleranced; not a product build")

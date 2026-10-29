@@ -20,6 +20,7 @@ from pydantic import ValidationError
 from bench import oper_fit
 from screw.calc import cost, derive, download_refusal
 from screw.calc.cost import ARTIFACTS, BUILD_TIMEOUT_S, artifact_of
+from screw.calc.thread import built_thread_length
 from screw.params import KINDS, BoltParams, FastenerParams, NutParams
 from screw.tables.presets import catalogue, nut_catalogue
 
@@ -351,3 +352,110 @@ def test_each_refusal_is_one_warning_in_download_order_with_the_step_pair_once()
         assert [w for w in warnings if w in refused] == refused, p
         assert all(warnings.count(r) == 1 for r in refused), p
     assert seen
+
+
+# --- B-03: a defaulted value that pushes a part over is capped and warned (D-06) ---------------
+
+# Bolt d 30, s 48, k 18 at the default pitch, length and thread_length: no row of the table's D-06
+# section trims a thread_length, so the part is built from the model as plan 07-12 says. Refused at
+# stl-preview and stl-fine (B-03 clarification, 07-OWNER-RULINGS.md, 2026-10-29).
+CAP_QUERY = {"d": 30.0, "s": 48.0, "k": 18.0}
+CAP_PART = BoltParams.model_validate(CAP_QUERY)
+
+
+def _grid_between(low: float, high: float, step: float) -> list[float]:
+    """The form-step values strictly between `low` and `high`."""
+    return [round(i * step, 10) for i in range(round(low / step) + 1, round(high / step))]
+
+
+def _assert_the_largest_admitted(before: FastenerParams, after: FastenerParams, field: str,
+                                 step: float) -> None:
+    """`after` is `before` with `field` at the largest form-step value below it that fits every
+    artifact, and only that field moved (B-03)."""
+    old, new = getattr(before, field), getattr(after, field)
+    assert new < old
+    assert round(new / step) * step == pytest.approx(new)
+    assert after == before.model_copy(update={field: new})
+    assert cost.fits_every_artifact(after)
+    for value in _grid_between(new, old, step):
+        assert not cost.fits_every_artifact(before.model_copy(update={field: value})), value
+
+
+def test_the_cap_steps_are_the_form_steps_the_schema_publishes() -> None:
+    for kind, fields in cost.CAP_STEPS.items():
+        properties = KINDS[kind].model_json_schema()["properties"]
+        assert [(field, properties[field]["step"]) for field, _ in fields] == list(fields)
+    assert {kind: [f for f, _ in fields] for kind, fields in cost.CAP_STEPS.items()} == {
+        "bolt": ["thread_length", "length"], "nut": ["m"]}
+
+
+def test_a_part_admitted_at_every_artifact_is_never_capped_whatever_was_named() -> None:
+    # OPER-03's empty edge for the cap path: the defaults and every catalogue row fit (C1).
+    rows = ([BoltParams.model_validate(dict(r.fields)) for r in catalogue()]
+            + [NutParams.model_validate(dict(r.fields)) for r in nut_catalogue()])
+    for part in [BoltParams(), NutParams(), *rows]:
+        for explicit in (frozenset(), frozenset(type(part).model_fields)):
+            capped, warnings = cost.cap_defaults(part, explicit)
+            assert capped is part
+            assert warnings == ()
+
+
+def test_a_defaulted_thread_length_over_the_budget_is_capped_to_the_largest_that_fits() -> None:
+    assert [a for a in ARTIFACTS if not cost.fits(CAP_PART, a)] == ["stl-preview", "stl-fine"]
+    capped, (warning,) = cost.cap_defaults(CAP_PART, frozenset(CAP_QUERY))
+    _assert_the_largest_admitted(CAP_PART, capped, "thread_length", 0.5)
+    value = repr(capped.thread_length).removesuffix(".0")
+    assert warning == (
+        f"thread_length: the default 20 mm puts the preview STL (stl-preview) and fine STL "
+        f"(stl-fine) of this bolt over its measured budget (L21), so thread_length is capped at "
+        f"{value} mm, the largest value on its 0.5 mm form step at which every artifact fits; give "
+        f"thread_length to choose it, and an artifact over the budget is then refused")
+    assert "{" not in warning
+    # The model's frozen default never moves (L02).
+    assert BoltParams.model_fields["thread_length"].default == 20.0
+
+
+@pytest.mark.parametrize("named", [{"thread_length"}, {"thread_length", "length"}])
+def test_a_named_thread_length_keeps_the_part_and_its_refusals(named: set[str]) -> None:
+    # Task 1 behaviour 3 and the B-03 clarification: the length cap never goes below a named
+    # thread_length, and here no length from 20 down to 20 is left, so the 422s stand (B-02).
+    assert cost.cap_defaults(CAP_PART, frozenset(CAP_QUERY) | named) == (CAP_PART, ())
+    refusals = {e.quality: e.refusal for e in derive(CAP_PART).downloads if e.format == "stl"}
+    assert refusals["fine"] is not None
+    assert refusals["preview"] is not None
+
+
+@pytest.mark.parametrize("thread_length", [20.0, 10.0, 8.0, 0.5])
+def test_the_length_cap_never_shortens_a_named_thread_length(thread_length: float) -> None:
+    # B-03 clarification, ruling 1, asserted against the rule: whatever a named thread_length is,
+    # the capped part builds at least that thread and keeps the field as named.
+    for query in ({"d": 30.0, "s": 48.0, "k": 18.0},
+                  {"d": 3.0, "pitch": 0.2, "s": 4.5, "k": 1.8}):
+        try:
+            part = BoltParams.model_validate({**query, "thread_length": thread_length})
+        except ValidationError:
+            continue    # the M3 at pitch 0.2 is past the 90-turn wall at a 20 mm thread (L20)
+        capped, _ = cost.cap_defaults(part, frozenset(query) | {"thread_length"})
+        assert capped.thread_length == thread_length
+        assert capped.length >= thread_length
+        assert built_thread_length(capped.thread_length, capped.length) == built_thread_length(
+            part.thread_length, part.length)
+
+
+def test_a_length_cap_above_a_named_thread_length_is_the_largest_that_fits() -> None:
+    # Only the STEP of this M3 is over; with thread_length named, length takes the cap and stops at
+    # the largest value that fits, at or above the named 8 mm.
+    query = {"d": 3.0, "pitch": 0.2, "s": 4.5, "k": 1.8, "thread_length": 8.0}
+    part = BoltParams.model_validate(query)
+    assert [a for a in ARTIFACTS if not cost.fits(part, a)] == ["step"]
+    capped, (warning,) = cost.cap_defaults(part, frozenset(query))
+    _assert_the_largest_admitted(part, capped, "length", 0.5)
+    assert capped.length >= 8.0
+    assert warning.startswith("length: the default 20 mm puts the STEP (step) of this bolt ")
+
+
+def test_a_value_off_its_default_counts_as_named_on_direct_construction() -> None:
+    # A Python caller that passes no explicit set still never has a chosen value moved.
+    part = CAP_PART.model_copy(update={"thread_length": 19.0, "length": 19.0})
+    assert not cost.fits_every_artifact(part)
+    assert cost.cap_defaults(part) == (part, ())

@@ -16,7 +16,9 @@ from collections.abc import Mapping
 from types import MappingProxyType
 from typing import Final, Literal, NamedTuple, get_args
 
-from screw.calc.thread import built_thread_length
+from pydantic import ValidationError
+
+from screw.calc.thread import _plain, built_thread_length
 from screw.params import BoltParams, FastenerParams, NutParams
 
 Artifact = Literal["stl-preview", "stl-fine", "step"]
@@ -283,3 +285,70 @@ def refusal(p: FastenerParams, artifact: Artifact) -> str | None:
     return (f"{_listed(list(FIELDS[p.kind]))}: the {_NAMES[artifact]} of this {p.kind} is "
             f"predicted over its measured budget (L21), so it is refused before any build; "
             f"{served}. To get it, {advice}")
+
+
+# --- the default cap (07 D-06; B-03 and its clarification, 07-OWNER-RULINGS.md, 2026-10-29) ----
+
+# B-03 (part-wide): the fields a cap may move, in the order it tries them, each with its form step,
+# the `step` the schema publishes (tests/test_cost.py holds the two equal). d, pitch, s, k,
+# clearance, head_chamfer and the hand never move.
+CAP_STEPS: Final[Mapping[str, tuple[tuple[str, float], ...]]] = MappingProxyType({
+    "bolt": (("thread_length", 0.5), ("length", 0.5)),
+    "nut": (("m", 0.1),),
+})
+
+
+def fits_every_artifact(p: FastenerParams) -> bool:
+    """Whether every artifact of `p` fits its budget: the test B-03's part-wide cap reads."""
+    return all(fits(p, artifact) for artifact in ARTIFACTS)
+
+
+def cap_defaults[T: FastenerParams](p: T, explicit: frozenset[str] = frozenset()
+                                    ) -> tuple[T, tuple[str, ...]]:
+    """`p` with one defaulted field capped so every artifact fits, and the one warning that says so;
+    `(p, ())` when `p` fits already or no allowed cap admits it (D-06, B-03, L02).
+
+    `explicit` is what the request named: the raw query keys on the API, the given flags and a
+    preset's fields on the CLI, the same set the conflict rules read. A named field, or one that is
+    not at its frozen default (direct construction), is never moved. Each other field of
+    `CAP_STEPS` is tried in order, scanning down its form step from the default, and the first value
+    at which every artifact fits wins, so it is the largest. B-03's clarification (ruling 1):
+    `length` is never capped below a named `thread_length`, so the built thread stays what the user
+    named; a part nothing admits keeps its per-artifact `over_budget` 422 (B-02).
+
+    At most 39 + 39 candidates for a bolt and 51 for a nut, each three kernel-free predictions
+    (T-07-32). The warning prints only the default, the capped value and the step, never a
+    prediction (L02).
+    """
+    if fits_every_artifact(p):
+        return p, ()
+    model = type(p)
+
+    def named(field: str) -> bool:
+        return field in explicit or getattr(p, field) != model.model_fields[field].default
+
+    for field, step in CAP_STEPS[p.kind]:
+        if named(field):
+            continue
+        default = float(getattr(p, field))
+        floor = p.thread_length if (
+            isinstance(p, BoltParams) and field == "length" and named("thread_length")) else 0.0
+        for i in range(round(default / step) - 1, 0, -1):
+            value = round(i * step, 10)
+            if value < floor:
+                break
+            try:
+                capped = model.model_validate({**p.model_dump(), field: value})
+            except ValidationError:
+                continue
+            if fits_every_artifact(capped):
+                return capped, (_cap_warning(p, field, default, value, step),)
+    return p, ()
+
+
+def _cap_warning(p: FastenerParams, field: str, default: float, value: float, step: float) -> str:
+    over = [_NAMES[a] for a in ARTIFACTS if not fits(p, a)]
+    return (f"{field}: the default {_plain(default)} mm puts the {_listed(over)} of this {p.kind} "
+            f"over its measured budget (L21), so {field} is capped at {_plain(value)} mm, the "
+            f"largest value on its {_plain(step)} mm form step at which every artifact fits; give "
+            f"{field} to choose it, and an artifact over the budget is then refused")
