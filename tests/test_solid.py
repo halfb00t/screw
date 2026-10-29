@@ -17,7 +17,7 @@ from bench.thread_spike.helical import naive_sweep_fuse, one_pipe
 from bench.thread_spike.maths import VOID_CLEARANCE
 from bench.thread_spike.measure import stl_check
 from screw.build_errors import BuildError
-from screw.calc import derive
+from screw.calc import derive, download_refusal
 from screw.calc.thread import (
     T_GATE,
     TIP_ANGLE_DEG,
@@ -27,7 +27,6 @@ from screw.calc.thread import (
     closed_volume,
     fillet_radius,
     fillet_ring_volume,
-    fine_stl_refusal,
     head_chamfer_depths,
     head_chamfer_kernel_bound,
     piece_refusal,
@@ -780,18 +779,17 @@ def test_a_thread_no_longer_than_the_tip_cone_builds_without_the_cone() -> None:
 
 
 def _sweep_row(size: str, standard: str, left_hand: bool) -> BoltParams:
-    """The shortest ISO 4017 row of `size`, or the longest ISO 4014 row of it whose fine STL is
-    not refused for the hand (so the part stays inside what a user can download at fine)."""
-    rows = [r for r in catalogue() if r.size == size and r.standard == standard]
+    """The shortest ISO 4017 row of `size`, or the longest ISO 4014 row of it whose fine STL the
+    shipped rule admits for the hand (so the part stays inside what a user can download at fine).
+    The row is chosen here, not typed, so a wider envelope only changes which row is read; a size
+    with no admitted ISO 4014 row fails, it is never skipped."""
+    rows = [BoltParams.model_validate({**dict(r.fields), "left_hand": left_hand})
+            for r in catalogue() if r.size == size and r.standard == standard]
     if standard == "ISO 4017":
-        row = min(rows, key=lambda r: r.length)
-    else:
-        row = max(
-            (r for r in rows if fine_stl_refusal(
-                dict(r.fields)["d"], dict(r.fields)["pitch"],
-                min(dict(r.fields)["thread_length"], r.length), left_hand) is None),
-            key=lambda r: r.length)
-    return BoltParams.model_validate({**dict(row.fields), "left_hand": left_hand})
+        return min(rows, key=lambda p: p.length)
+    admitted = [p for p in rows if download_refusal(p, "stl", "fine") is None]
+    assert admitted, (size, left_hand, "no ISO 4014 row admitted at fine STL")
+    return max(admitted, key=lambda p: p.length)
 
 
 @pytest.mark.parametrize("left_hand", [False, True], ids=["right", "left"])

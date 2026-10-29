@@ -44,7 +44,6 @@ from bench.quiet import Reading, read_now
 from bench.thread_spike.maths import NUT_HEIGHT
 from bench.thread_spike.measure import gzip1, mesh_stl, stl_check
 from screw.calc.thread import (
-    FINE_STL_ROWS,
     T_GATE,
     bolt_closed_volume,
     closed_volume,
@@ -434,6 +433,12 @@ CAP_NUTS: tuple[tuple[str, float, float, float, bool], ...] = (
     ("M10 right", 10.0, 1.5, 16.0, False), ("M20 right", 20.0, 2.5, 30.0, False),
     ("M20 left", 20.0, 2.5, 30.0, True),
 )
+# (d, pitch, left_hand) -> the rod fine-STL cap in mm this probe read for each of CAP_NUTS, copied
+# from the shipped table as it stood (run `2026-10-08-a-grid`, L11). L21 retired that table for the
+# cost model; a bench script reproduces its run, so it keeps the values it ran with.
+RECORDED_FINE_STL_CAPS: dict[tuple[float, float, bool], float] = {
+    (10.0, 1.5, False): 56.0, (20.0, 2.5, False): 64.0, (20.0, 2.5, True): 91.0,
+}
 
 
 def _nut_cases(size: str, d: float, pitch: float, s: float, left_hand: bool) -> list[NutCase]:
@@ -484,7 +489,7 @@ def run_rows(emit: Callable[[Row], None]) -> list[Row]:
         add(guarded(f"control ring dropped {bolt_case.label}", "control",
                     partial(control_ring_dropped, bolt_case, r)))
     for label, d, pitch, s, left_hand in CAP_NUTS:
-        cap = FINE_STL_ROWS[(d, pitch, left_hand)]
+        cap = RECORDED_FINE_STL_CAPS[(d, pitch, left_hand)]
         for m in (cap, cap + 1.0):
             nut = NutCase(f"nut {label} m {m:g}", d, pitch, s, m, left_hand, True, True)
             add(guarded(nut.label, "nut-cap", partial(probe_nut_cap, nut)))

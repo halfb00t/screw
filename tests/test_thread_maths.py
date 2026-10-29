@@ -3,29 +3,24 @@ tested without the kernel."""
 
 from __future__ import annotations
 
-import json
 import math
 from pathlib import Path
 
 import pytest
 
 from bench.thread_spike.maths import PITCH
+from screw.calc import cost, download_refusal
 from screw.calc.thread import (
-    FINE_STL_ROWS,
     HEAD_CHAMFER_BAND_DEG,
     MAX_TURNS,
     MIN_ROOT_RADIUS_MM,
     MIN_TAIL_MM,
-    NUT_FINE_STL_CLEARANCE,
-    NUT_FINE_STL_ROWS,
-    NUT_FINE_STL_RUN,
     T_GATE,
     axial_play,
     basic_minor_diameter,
     bolt_closed_volume,
     built_thread_length,
     closed_volume,
-    fine_stl_refusal,
     flank_normal_gap,
     fundamental_height,
     head_chamfer_conflict,
@@ -33,7 +28,6 @@ from screw.calc.thread import (
     head_chamfer_warnings,
     head_too_small_refusal,
     hex_prism_volume,
-    nut_fine_stl_refusal,
     pitch_diameter,
     root_radius_refusal,
     section_area,
@@ -45,7 +39,7 @@ from screw.calc.thread import (
     void_root_radius_refusal,
     volume_check,
 )
-from screw.solid import TESSELLATION
+from screw.params import NutParams
 
 
 def test_the_basic_profile_has_the_coefficients_the_owner_confirmed() -> None:
@@ -283,100 +277,6 @@ def test_the_exact_decimal_reading_accepts_what_float_division_would_refuse() ->
     assert turns_of(5.4, 0.6) == 9.0
 
 
-# Typed, not read back from the code under test: the seven right-hand rows from L11's "Turn cap
-# per size" table and the six left-hand rows from the D-21 clarification (the cap is the longest
-# measured length below the first over-budget one), with the printed turns column. M8 left-hand
-# has no row: `2026-10-08-a-grid` measured no length over budget up to 80 mm.
-L11_ROWS = {
-    (8.0, 1.25, False): (67.5, "54"), (10.0, 1.5, False): (56.0, "37.3333"),
-    (12.0, 1.75, False): (60.0, "34.2857"), (14.0, 2.0, False): (58.0, "29"),
-    (16.0, 2.0, False): (52.0, "26"), (18.0, 2.5, False): (65.0, "26"),
-    (20.0, 2.5, False): (64.0, "25.6"),
-    (10.0, 1.5, True): (72.0, "48"), (12.0, 1.75, True): (77.0, "44"),
-    (14.0, 2.0, True): (78.0, "39"), (16.0, 2.0, True): (75.0, "37.5"),
-    (18.0, 2.5, True): (91.0, "36.4"), (20.0, 2.5, True): (91.0, "36.4"),
-}
-
-GRID = Path(__file__).parents[1] / "bench" / "results" / "thread-spike" / "2026-10-08-a-grid.jsonl"
-EXPORT_BUDGET = 64 * 1024 * 1024
-
-
-def test_the_fine_stl_table_is_exactly_the_thirteen_rows_l11_measured() -> None:
-    assert {key: cap for key, (cap, _) in L11_ROWS.items()} == FINE_STL_ROWS
-    assert len(FINE_STL_ROWS) == 13
-
-
-def test_every_cap_is_the_longest_measured_length_that_fits_in_the_grid_records() -> None:
-    """Recompute each cap from the committed records, so a typed cap they do not hold fails.
-
-    A key exists only for a (d, pitch, left_hand) with at least one built rod row whose fine raw
-    STL plus its gzip level-1 copy is over 64 MiB; its cap is the longest measured length below
-    the first such row. The grid's sizes and hands with none (M2 to M7 on both hands and M8
-    left-hand, planner check 2026-10-11) produce no key, so they are uncapped.
-    """
-    built: dict[tuple[float, float, bool], list[tuple[float, int]]] = {}
-    for line in GRID.read_text().splitlines():
-        record = json.loads(line)
-        if record.get("kind") != "rod" or record["outcome"] != "built":
-            continue
-        (fine,) = [m for m in record["meshes"] if m["preset"] == "fine"]
-        key = (record["d"], record["pitch"], record["left_hand"])
-        built.setdefault(key, []).append(
-            (record["length"], fine["bytes"] + fine["gzip1_bytes"]))
-    recomputed: dict[tuple[float, float, bool], float] = {}
-    for key, measured in built.items():
-        over = [length for length, size in measured if size > EXPORT_BUDGET]
-        if over:
-            recomputed[key] = max(length for length, _ in measured if length < min(over))
-    assert recomputed == FINE_STL_ROWS
-
-
-@pytest.mark.parametrize(("key", "row"), list(L11_ROWS.items()))
-def test_each_cap_is_accepted_and_the_next_float_above_is_refused(
-        key: tuple[float, float, bool], row: tuple[float, str]) -> None:
-    (d, pitch, left_hand), (cap, turns) = key, row
-    assert fine_stl_refusal(d, pitch, cap, left_hand) is None
-    refusal = fine_stl_refusal(d, pitch, math.nextafter(cap, math.inf), left_hand)
-    assert refusal is not None
-    assert refusal.startswith("thread_length and length: ")
-    assert ("left-hand" if left_hand else "right-hand") in refusal
-    assert f"{cap:g} mm of thread ({turns} turns)" in refusal
-    assert "fine STL plus its gzip copy" in refusal
-    assert "64 MiB export budget" in refusal
-    assert "2026-10-08-a-grid" in refusal
-    assert "preview STL" in refusal
-    assert "{" not in refusal
-    assert "}" not in refusal
-
-
-def test_the_refusal_names_the_cap_the_run_and_the_length_asked() -> None:
-    refusal = fine_stl_refusal(8.0, 1.25, 67.6, False)
-    assert refusal is not None
-    assert refusal.startswith("thread_length and length: ")
-    assert "the thread built here is 67.6 mm" in refusal
-    assert "67.5" in refusal
-    assert "54" in refusal
-    assert "2026-10-08-a-grid" in refusal
-    assert "67.6" in refusal
-
-
-def test_a_left_hand_part_is_refused_by_the_left_hand_cap_not_the_right_hand_one() -> None:
-    # L11 measured the left-hand M10 x 60 inside the budget and the right-hand one over it.
-    assert fine_stl_refusal(10.0, 1.5, 60.0, True) is None
-    assert fine_stl_refusal(10.0, 1.5, 60.0, False) is not None
-    # M8 left-hand fits to 80 mm in the records: no measured stop, so no cap (L02).
-    assert fine_stl_refusal(8.0, 1.25, 80.0, True) is None
-    assert fine_stl_refusal(8.0, 1.25, 67.6, False) is not None
-
-
-def test_an_off_row_part_has_no_bytes_cap_not_the_nearest_rows() -> None:
-    # An unmeasured mapping to the nearest row is the plausible number L02 forbids (D-03).
-    assert fine_stl_refusal(8.0, 1.0, 250.0, False) is None
-    assert fine_stl_refusal(8.1, 1.25, 100.0, False) is None
-    assert fine_stl_refusal(6.0, 1.0, 250.0, False) is None
-    assert fine_stl_refusal(8.0, 1.0, 250.0, True) is None
-
-
 @pytest.mark.parametrize(("thread_length", "length", "built"), [
     (20.0, 10.0, 10.0),            # the default 20 below an explicit length: built to the length
     (18.0, 30.0, 18.0),            # a shank of 12 mm
@@ -598,128 +498,23 @@ def test_the_gaps_are_zero_at_zero_clearance_and_negative_for_an_interference() 
     assert axial_play(-0.05) < 0
 
 
-# --- the nut's fine-STL caps (R16, R17; plan 05-19) ----------------------------------------------
+# --- the retired caps (07 D-08, D-17; L21) -------------------------------------------------------
 
-# Typed from bench/RESULTS.md "Nut fine-STL caps, amended re-run (Phase 5, R17)", the first column
-# pair of its caps table (right hand then left hand), not read back from the code under test.
-# (d, pitch) -> (right-hand cap, left-hand cap) in mm.
-NUT_CAPS_TYPED = {
-    (2.0, 0.4): (12.0, 15.0), (2.5, 0.45): (13.0, 17.0), (3.0, 0.5): (15.0, 19.0),
-    (3.5, 0.6): (18.0, 22.0), (4.0, 0.7): (21.0, 25.0), (5.0, 0.8): (24.0, 30.0),
-    (6.0, 1.0): (30.0, 38.0), (7.0, 1.0): (30.0, 38.0), (8.0, 1.25): (38.0, 47.0),
-    (10.0, 1.5): (36.0, 50.0), (12.0, 1.75): (41.0, 56.0), (14.0, 2.0): (46.0, 61.0),
-    (16.0, 2.0): (45.0, 59.0), (18.0, 2.5): (54.0, 73.0), (20.0, 2.5): (36.0, 47.0),
-}
-NUT_CAPS = {(d, pitch, hand): caps[hand] for (d, pitch), caps in NUT_CAPS_TYPED.items()
-            for hand in (False, True)}
-NUT_RECORDS = {
-    "2026-10-20-nut-fine-caps": GRID.parent.parent / "phase-05" / "nut-fine-caps.jsonl",
-    "2026-10-21-nut-fine-caps-amended":
-        GRID.parent.parent / "phase-05" / "nut-fine-caps-amended.jsonl",
-}
-_LEAD_IN = "BuildError: Geometry kernel produced the wrong lead-in countersink"
+_RETIRED = ("FINE_STL_ROWS", "fine_stl_refusal", "NUT_FINE_STL_RUN", "NUT_FINE_STL_CLEARANCE",
+            "NUT_FINE_STL_ROWS", "nut_fine_stl_refusal")
 
 
-def test_nut_fine_stl_table_is_exactly_the_thirty_measured_caps() -> None:
-    assert NUT_FINE_STL_ROWS == NUT_CAPS
-    assert len(NUT_FINE_STL_ROWS) == 30
-    assert NUT_FINE_STL_CLEARANCE == 5.0     # R16 option-a
-    assert NUT_FINE_STL_RUN in NUT_RECORDS    # the run the sentence cites has records
+def test_no_retired_cap_name_is_left_in_the_source() -> None:
+    # The cost model of L21 is the only download rule (T-07-34): a retired table left in `src/`
+    # could be called again by a front end and refuse or admit by a stale rule.
+    src = Path(__file__).parents[1] / "src"
+    hits = [f"{path.relative_to(src)}: {name}" for path in sorted(src.rglob("*.py"))
+            for name in _RETIRED if name in path.read_text()]
+    assert hits == []
 
 
-@pytest.mark.parametrize("run_id", list(NUT_RECORDS))
-def test_nut_fine_stl_every_cap_is_recomputed_from_the_committed_records(run_id: str) -> None:
-    """Both runs' ladder rows give the typed table; the header ties the records to the code.
-
-    Over budget is raw + gzip-1 bytes above 64 MiB; the cap is the largest built m below the
-    smallest over-budget m. Every check row either fits or is the shipped build's lead-in gate
-    refusing the part (no file), and the clearance 2.5 and slimmest-s checks always built.
-    """
-    records = [json.loads(line) for line in NUT_RECORDS[run_id].read_text().splitlines()]
-    header, end = records[0], records[-1]
-    assert (header["kind"], end["kind"]) == ("header", "end")
-    assert header["run_id"] == run_id
-    assert header["clearance_mm"] == NUT_FINE_STL_CLEARANCE
-    assert header["s_mm"] == 1e5    # the s the run was made at, above the 1e3 wall of L20
-    assert header["budget_bytes"] == EXPORT_BUDGET
-    # a preset change fails here until the caps are re-measured (T-05-50)
-    assert header["preset"] == list(TESSELLATION["fine"])
-    rows = [r for r in records if r["kind"] == "row"]
-    ladder: dict[tuple[float, float, bool], list[tuple[float, int]]] = {}
-    for r in rows:
-        key = (r["d"], r["pitch"], r["left_hand"])
-        if r["role"] == "ladder":
-            assert r["outcome"] == "built"
-            ladder.setdefault(key, []).append((r["m"], r["raw_bytes"] + r["gzip1_bytes"]))
-        elif r["outcome"] == "built":
-            assert r["raw_bytes"] + r["gzip1_bytes"] <= EXPORT_BUDGET
-        else:
-            assert r["raw_bytes"] is None
-            assert r["error"].startswith(_LEAD_IN)
-            assert r["s"] == 1e5
-            assert r["clearance"] in (-0.05, 0.0, 0.1)
-    recomputed = {}
-    for key, measured in ladder.items():
-        over = [m for m, size in measured if size > EXPORT_BUDGET]
-        assert over, f"{key} never crossed the budget"
-        recomputed[key] = max(m for m, size in measured if m < min(over))
-    assert recomputed == NUT_FINE_STL_ROWS
-    built = {(r["d"], r["pitch"], r["left_hand"], r["clearance"], r["s"]) for r in rows
-             if r["role"] == "check" and r["outcome"] == "built"}
-    for d, pitch, hand in NUT_FINE_STL_ROWS:
-        assert (d, pitch, hand, 2.5, 1e5) in built
-        assert (d, pitch, hand, 5.0, d + 11) in built
-
-
-@pytest.mark.parametrize(("key", "cap"), list(NUT_CAPS.items()))
-def test_nut_fine_stl_cap_is_accepted_and_the_next_float_and_first_over_m_are_refused(
-        key: tuple[float, float, bool], cap: float) -> None:
-    d, pitch, left_hand = key
-    assert nut_fine_stl_refusal(d, pitch, cap, NUT_FINE_STL_CLEARANCE, left_hand) is None
-    for m in (math.nextafter(cap, math.inf), cap + 1):    # the second is the record's first over m
-        refusal = nut_fine_stl_refusal(d, pitch, m, 0.1, left_hand)
-        assert refusal is not None
-        assert refusal.startswith("m: ")
-        assert ("left-hand" if left_hand else "right-hand") in refusal
-        assert f"above m {cap:g} mm" in refusal
-        assert "fine STL plus its gzip copy" in refusal
-        assert "64 MiB export budget" in refusal
-        assert NUT_FINE_STL_RUN in refusal
-        assert "preview STL" in refusal
-        assert "{" not in refusal
-        assert "}" not in refusal
-
-
-def test_nut_fine_stl_clearance_above_the_ceiling_is_refused_naming_clearance() -> None:
-    d, pitch = 20.0, 2.5
-    cap = NUT_CAPS[(d, pitch, False)]
-    for clearance in (-0.05, 0.0, NUT_FINE_STL_CLEARANCE):
-        assert nut_fine_stl_refusal(d, pitch, cap, clearance, False) is None
-    above = math.nextafter(NUT_FINE_STL_CLEARANCE, math.inf)
-    refusal = nut_fine_stl_refusal(d, pitch, 20.0, above, False)
-    assert refusal is not None
-    assert refusal.startswith("clearance: ")
-    assert "5 mm or less" in refusal
-    assert NUT_FINE_STL_RUN in refusal
-    assert "preview STL" in refusal
-    assert "{" not in refusal
-    # judged first: a nut over the cap and over the ceiling is told about the clearance
-    both = nut_fine_stl_refusal(d, pitch, cap + 1, 6.0, False)
-    assert both is not None
-    assert both.startswith("clearance: ")
-    # a nut off the keys has no measured ceiling either
-    assert nut_fine_stl_refusal(8.1, 1.25, 20.0, 50.0, False) is None
-
-
-def test_nut_fine_stl_off_the_thirty_keys_has_no_cap_and_the_rods_table_is_not_used() -> None:
-    # m at 248 pitches (the turn cap's largest) for each, so the answer is not the turn cap's.
-    assert nut_fine_stl_refusal(8.0, 1.25, 310.0, 0.1, False) is not None    # M8 x 1.25 is a key
-    assert nut_fine_stl_refusal(8.0, 1.0, 248.0, 0.1, False) is None         # M8 x 1 is not
-    assert nut_fine_stl_refusal(8.1, 1.25, 310.0, 0.1, False) is None
-    assert nut_fine_stl_refusal(6.0, 0.75, 186.0, 0.1, False) is None
-    # Control both ways: M8 left has no rod cap and a nut cap; M10 right has a rod cap of 56 and a
-    # smaller nut cap. A nut that reused FINE_STL_ROWS would get the opposite answers.
-    assert (8.0, 1.25, True) not in FINE_STL_ROWS
-    assert nut_fine_stl_refusal(8.0, 1.25, 60.0, 0.1, True) is not None
-    assert fine_stl_refusal(10.0, 1.5, 50.0, False) is None
-    assert nut_fine_stl_refusal(10.0, 1.5, 50.0, 0.1, False) is not None
+def test_a_nut_above_the_retired_clearance_ceiling_is_judged_by_the_cost_model_alone() -> None:
+    # M6 x 1 right was one of the 30 retired keys, and clearance 6 is above its 5.0 mm ceiling,
+    # which refused it (D-17 retires that refusal). s 20 makes the nut valid (s > d + 2 c).
+    p = NutParams(clearance=6.0, s=20.0)
+    assert download_refusal(p, "stl", "fine") == cost.refusal(p, "stl-fine")

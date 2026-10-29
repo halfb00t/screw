@@ -7,7 +7,7 @@ Source: the plan 05-20 planner's scratch probe at ad09d46 (not in 05-REVIEW.md),
 Related files:
 - src/screw/solid/nut.py (`countersink_inner_radius`, `CROSS_FRACTION`)
 - docs/tech_debt/active/2026-10-11-root-radius-floor-is-not-the-kernel-boundary.md
-- docs/tech_debt/active/2026-10-14-nut-interim-bounds.md
+- docs/tech_debt/resolved/2026-10-14-nut-interim-bounds.md
 - bench/results/phase-07/walls-voids-40665307964/
 - bench/RESULTS.md (`### R10 void readings, an observation (no number is taken from it)`)
 - .planning/phases/07-operability-re-sweep/07-GAP-RULINGS.md (G26)

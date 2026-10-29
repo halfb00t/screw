@@ -68,8 +68,8 @@ Quality = Literal["preview", "fine"]
 # 0.5 x the 0.05 mm proof clearance (the owner's R6 fraction), 0.025 mm. The rule and the ladder
 # were committed in bench/mesh_deviation.py before the run; bench/RESULTS.md "Mesh deviation
 # (Phase 5, D-21)" selects 0.01 mm, worst row 0.0161 mm (M20), 64 % of the bound, and the
-# triangles and bytes at every step. It is the value `2026-10-08-a-ladder` and every fine-STL cap
-# in calc/thread.py (FINE_STL_ROWS) were measured at, so the rule kept the caps. The preview is
+# triangles and bytes at every step. It is the value `2026-10-08-a-ladder` was measured at and
+# the one the cost model was fitted at (L21, R23), so changing it needs a re-fit. The preview is
 # coarser on purpose: 0.0587 to 0.1299 mm measured, up to 2.6 x the whole clearance, which is why
 # no number on the panel comes from a mesh (FRNT-06). tests/test_mesh.py pins the fine bound and
 # that the preview breaks it.

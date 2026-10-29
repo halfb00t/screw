@@ -32,10 +32,10 @@ def test_the_fine_mesh_keeps_the_kernels_control_surface_deflection_on_and_absol
     assert parameters.Angle == pytest.approx(angular)
 
 
-def test_the_fine_preset_is_the_one_the_fine_stl_caps_were_measured_at() -> None:
-    """D-21 kept 0.01 mm / 0.1 rad, so `FINE_STL_ROWS` (measured at it, `2026-10-08-a-grid`) was
-    not re-derived. A different fine value would need a recorded run of the caps at it first
-    (T-05-39), not only a deviation that fits the bound."""
+def test_the_fine_preset_is_the_one_the_cost_model_was_fitted_at() -> None:
+    """R23 kept 0.01 mm / 0.1 rad, and the fine-STL cost model of L21 was fitted on runs that
+    exported at it (explore 40646117094, spread 40646125666). A different fine value would need a
+    re-fit of that model at it first, not only a deviation that fits the bound."""
     assert TESSELLATION["fine"] == (0.01, 0.1)
 
 
