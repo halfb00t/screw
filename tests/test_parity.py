@@ -796,7 +796,7 @@ def test_the_badge_composes_from_the_status_and_the_display_and_the_basis_stays_
         "api/schema?kind=${encodeURIComponent(kind)}",
         "api/presets?kind=${encodeURIComponent(kind)}",
         "api/${currentKind}/info?${q}",
-        "api/${currentKind}/model.stl?${stlQ}",
+        "api/${currentKind}/model.${PREVIEW.format}?${stlQ}",
     ]
     assert "location.hash" not in _function_body("pick")
 
@@ -848,11 +848,13 @@ def test_the_ui_builds_both_download_links_from_the_info_document_and_names_no_q
     assert "qs.set('quality', download.quality)" in body
     assert "title" in body
     assert "`${label} (${download.quality})`" in APP_JS
-    # The only quality the page names is the preview mesh it fetches; no format, no other
-    # quality, no spelling of the cap or of the warning.
+    # The only format and quality the page names are the preview mesh it fetches; no other
+    # format or quality, no spelling of the cap or of the warning.
     assert len(re.findall(r"""(['"`])preview\1""", APP_JS)) == 1
-    for word in ("fine", "stl", "step"):
+    for word in ("fine", "step"):
         assert re.findall(rf"""(['"`]){word}\1""", APP_JS) == [], word
+    # 07-14: the preview STL the page fetches is named once, in PREVIEW, to find its own entry.
+    assert len(re.findall(r"""(['"`])stl\1""", APP_JS)) == 1
     assert APP_JS.count("info.warnings") == 1   # the pendingWarnings line, nothing matches a text
     assert "fine_stl_cap" not in APP_JS
     assert "over_budget" not in APP_JS
@@ -1127,7 +1129,54 @@ def test_a_kind_change_drops_the_old_mesh_and_what_described_it() -> None:
                       "meshWarnings = [];", "meshNotes = [];", "pendingWarnings = [];",
                       "pendingNotes = [];", "fitted = false;"):
         assert statement in drop, statement
-    assert APP_JS.count("dropMesh()") == 2  # the definition and the one call on a kind change
+    # The definition, the call on a kind change and the call on a refused preview (07-14).
+    assert APP_JS.count("dropMesh()") == 3
+
+
+def test_the_ui_offers_the_downloads_that_fit_when_the_preview_is_refused() -> None:
+    # 07 D-06, L21, Pitfall 5: the budget can refuse the preview STL while it admits the fine STL
+    # (ISO 4017 M20 x 60 at pitch 1). update() reads the preview's entry in the info document
+    # before it asks for the mesh. Refused: no model.stl request; the last mesh goes, so it cannot
+    # pass for this part (L02, T-07-36); the panel is drawn after the drop, which clears messages;
+    # every served download is linked; the status is the server's sentence (rule 17, D-10).
+    body = _squash(_function_body("update"))
+    find = _squash("const preview = info.downloads.find((download) => "
+                   "download.format === PREVIEW.format && download.quality === PREVIEW.quality);")
+    refused = _squash("""if (preview.refusal !== null) {
+      dropMesh();
+      renderInfo(info);
+      setDownloads(q, info.downloads);
+      setStatus(preview.refusal);
+      return;
+    }""")
+    assert find in body
+    assert refused in body
+    mesh_fetch = body.index("await fetch(`api/${currentKind}/model.")
+    assert body.index(find) < body.index(refused) < mesh_fetch
+    # Served: rule 13's order, unchanged; a failed mesh request still goes through fail (rule 15).
+    served = body[body.index(refused) + len(refused):]
+    assert _squash("""renderInfo(info);
+    const stlQ = new URLSearchParams(q);
+    stlQ.set('quality', PREVIEW.quality);""") in served
+    assert "if (!res.ok) return fail(await problems(res));" in served
+    assert served.index("showModel(buf);") < served.index("setDownloads(q, info.downloads);") \
+        < served.index("setStatus('');")
+    # The preview STL is the one format and quality the page names, in one place.
+    assert "const PREVIEW = { format: 'stl', quality: 'preview' };" in APP_JS
+    assert APP_JS.count("PREVIEW = ") == 1
+
+
+def test_the_debounce_is_a_ui_choice_and_not_a_runtime_bound() -> None:
+    # 07 discretion: 350 ms is how long typing pauses before a request, carried from spur; it
+    # bounds no build and is not measured, so it carries no INTERIM label and no promise to a
+    # later phase.
+    body = re.search(r"const scheduleUpdate = \(\) => \{(.*?)\n\};", APP_JS, re.DOTALL)
+    assert body is not None
+    assert "debounce = setTimeout(update, 350);" in body.group(1)
+    assert "UI choice" in body.group(1)
+    for word in ("INTERIM", "Phase 7"):
+        assert word not in body.group(1), word
+    assert "INTERIM" not in APP_JS
 
 
 def _rebuild_block() -> str:
