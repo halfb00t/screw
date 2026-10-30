@@ -18,6 +18,7 @@
   "bench/results/phase-07/walls-40646134133",
   "bench/results/phase-07/walls-confirm-40678150220",
   "bench/results/phase-07/walls-down-40652801529",
+  "bench/results/phase-07/walls-pitch-41074314305",
   "bench/results/phase-07/walls-voids-40665307964"
  ],
  "sets": {
@@ -32,7 +33,7 @@
  "runner": {
   "nproc": 4,
   "smallest_mem_total_bytes": 16758394880,
-  "headers": 254
+  "headers": 273
  },
  "gzip": {
   "level": 1,
