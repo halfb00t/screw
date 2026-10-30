@@ -16,6 +16,7 @@ Severity (grep-able `Severity:` field):
 
 | Severity | Item | Trigger to revisit |
 |---|---|---|
+| must | [The pool's two dying-worker tests time out at 5 s under host load](active/2026-10-30-pool-dying-worker-tests-time-out-under-host-load.md) | a second occurrence, or the next edit to tests/test_pool.py or screw.pool |
 | must | [The cost model admits a part it refuses once its head height leaves the fitted band](active/2026-10-29-cost-model-admits-out-of-fit-head-heights.md) | 07-15's out-of-band readings (G28 guard since bc7b2ab) |
 | must | [Twenty parts inside the L20 walls pass validation and then fail in the kernel](active/2026-10-29-in-wall-parts-the-kernel-refuses.md) | before phase 7 closes, or the first release |
 | nice | [The refused preview's status sentence runs under the Fit button](active/2026-10-29-status-sentence-runs-under-fit.md) | the phase 7 UAT, or the next change to the viewport overlay |
