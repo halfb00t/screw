@@ -2582,13 +2582,13 @@ def test_a_tier_point_with_no_explore_reading_stops_the_phase() -> None:
 def test_the_committed_boundary_file_is_what_the_shipped_constants_write() -> None:
     """T-07-46: a change to the model, the envelope, a budget or a timeout cannot ship with a stale
     required tier; T-07-69: it is cut from the committed D(A) and the explore run Runs II drew
-    from, never from a list drawn again."""
+    from, never from a list drawn again. A limit may differ by the libm's last bit (R27, G33)."""
     text = (REPO_ROOT / oper_sets.BOUNDARY).read_text()
     sources = dict(str(entry).split("=", 1) for entry in json.loads(text)["sources"])
     bound = json.loads((REPO_ROOT / "bench" / "points" / "bound.json").read_text())
     assert sources["tier-order"] == oper_sets.TIER_ORDER
     assert f"explore={sources['explore']}" in bound["sources"]
-    assert text == oper_sets.boundary_text(sources["explore"])
+    assert oper_sets.same_but_predicted(text, oper_sets.boundary_text(sources["explore"]))
 
 
 def test_the_boundary_command_writes_the_file_from_the_committed_d_of_a(
@@ -2666,3 +2666,39 @@ def test_the_drift_command_lists_every_regenerable_file(
     for name in (oper_sets.TIER_ORDER, oper_sets.BOUNDARY, "bench/points/bound.json",
                  "bench/points/explore.json", "bench/points/drift-60.json"):
         assert name in files
+
+
+def _limit_doc(value: float, label: str = "a") -> str:
+    return json.dumps({"points": [{"label": label, "limit": {"bytes": value}}]}, indent=1) + "\n"
+
+
+def test_a_predicted_float_two_ulps_off_at_one_still_regenerates_and_three_do_not() -> None:
+    """R27 (G33): 2^-51 relative, the measured cross-platform drift rounded up to a whole multiple
+    of 2^-52; at 1.0 one ulp is 2^-52."""
+    two, three = 1.0 + 2 * 2.0**-52, 1.0 + 3 * 2.0**-52  # 2 and 3 ulps above 1.0
+    assert oper_sets.PREDICTED_REL_TOL == 2 * 2.0**-52
+    assert oper_sets.same_but_predicted(_limit_doc(1.0), _limit_doc(two))
+    assert not oper_sets.same_but_predicted(_limit_doc(1.0), _limit_doc(three))
+
+
+@pytest.mark.parametrize("again", [
+    _limit_doc(1.0, label="b"),
+    _limit_doc(1.0).replace("\n", "\n "),
+    json.dumps({"points": [{"label": "a", "limit": {"bytes": 1.0}}]}),
+])
+def test_anything_but_a_predicted_float_must_regenerate_exactly(again: str) -> None:
+    assert not oper_sets.same_but_predicted(_limit_doc(1.0), again)
+
+
+def test_a_predicted_float_moved_by_one_ulp_passes_the_runs_ii_check(
+        runs2_repo: Path) -> None:
+    assert _runs2(runs2_repo, "tier-order") == 0
+    path = runs2_repo / oper_sets.TIER_ORDER
+    document = json.loads(path.read_text())
+    entry = document["artifacts"]["step"]["edge_ranking"][0]
+    entry["edge_ratio"] = math.nextafter(entry["edge_ratio"], math.inf)
+    path.write_text(json.dumps(document, indent=1) + "\n")
+    assert oper_sets._check_runs2() is None
+    entry["edge_ratio"] = entry["edge_ratio"] * (1 + 2.0**-40)
+    path.write_text(json.dumps(document, indent=1) + "\n")
+    assert oper_sets._check_runs2() == f"{path} is not what the generator writes from its sources"

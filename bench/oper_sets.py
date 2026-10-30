@@ -3123,7 +3123,7 @@ def _check_runs2() -> str | None:
             continue
         text = path.read_text()
         try:
-            same = text == _regenerate_runs2(name, text)
+            same = same_but_predicted(text, _regenerate_runs2(name, text))
         except (TypeError, ValueError) as exc:  # a stop is a ValueError, too
             return f"{path} cannot be written again from its sources: {exc}"
         if not same:
@@ -3239,6 +3239,11 @@ def boundary_text(explore_dir: str) -> str:
 # or read from a record and must regenerate exactly.
 
 PREDICTED = frozenset({"edge_ratio", "limit"})
+# R27 (G33): how far a predicted float may move when a file is written again on another platform.
+# The Linux runner moved 2 of the 2559 predicted floats of tier-order.json and the tier file by
+# one ulp from the macOS files, the larger by a relative 1.459 x 2^-52; this is that rounded up to
+# a whole multiple of 2^-52. Every other value regenerates exactly.
+PREDICTED_REL_TOL = 2 * 2.0**-52
 
 
 @dataclass(frozen=True)
@@ -3278,6 +3283,15 @@ def drifts(committed: object, fresh: object, path: str = "$",
         return []
     return [Drift(path, committed, fresh,
                   predicted and isinstance(committed, float) and isinstance(fresh, float))]
+
+
+def same_but_predicted(text: str, again: str) -> bool:
+    """Whether a file written again is the committed one: the same text, or the same document with
+    only predicted floats moved, each by a relative difference of at most `PREDICTED_REL_TOL`."""
+    if text == again:
+        return True
+    found = drifts(json.loads(text), json.loads(again))
+    return bool(found) and all(d.predicted and d.relative <= PREDICTED_REL_TOL for d in found)
 
 
 def _predicted_count(document: object, predicted: bool = False) -> int:
