@@ -391,9 +391,11 @@ def test_the_cli_and_the_api_print_the_same_document(
         if isinstance(field.default, bool):
             cases.append({**required, name: not field.default})
         elif isinstance(field.default, float):
-            cases.append({**required, name: field.default * 1.5})
+            # 1.25 and not 1.5: the default nut's d at 1.5 x is d / pitch 9, past the nut's
+            # fine-pitch wall (07 R31), and the case would be a 422, not a document.
+            cases.append({**required, name: field.default * 1.25})
     for name, value in REQUIRED_VALUES.get(kind, {}).items():
-        cases.append({**required, name: value * 1.5})
+        cases.append({**required, name: value * 1.25})
     assert len(cases) > 1, "no float field to move off its default"
 
     def argv(values: Params) -> list[str]:
@@ -467,13 +469,15 @@ def test_the_downloads_of_a_refused_preset_part_are_one_sentence_on_the_cli_the_
     assert not out.exists()
 
 
-# Parts for the three-front-end parity below. The first two are explore points 07-BUDGET-TABLE.md
-# lists as refused under C1 (B-01; run 40646117094), which an R12 widening keeps refused; the
-# other two are off-row sizes no other test downloads for real (the byte cache is session-wide),
-# whatever the model says of them.
+# Parts for the three-front-end parity below. The first is an explore point (run 40646117094) the
+# shipped cost model refuses under C1 (B-01), which an R12 widening keeps refused; the second a nut
+# it refuses at stl-fine, at the nut's fine-pitch wall (d / pitch 8, 07 R31): no explore nut inside
+# that wall is refused, and the first pick, `nut-d100-p1-...`, is past it. The other two are
+# off-row sizes no other test downloads for real (the byte cache is session-wide), whatever the
+# model says of them.
 PARITY_PARTS: list[tuple[str, Params]] = [
-    ("bolt", {"d": 30, "pitch": 1, "length": 30, "thread_length": 30, "s": 48, "k": 18}),
-    ("nut", {"d": 100, "pitch": 1, "s": 160, "m": 80, "clearance": 5}),
+    ("bolt", {"d": 30, "pitch": 3, "length": 90, "thread_length": 90, "s": 48, "k": 18}),
+    ("nut", {"d": 300, "pitch": 37.5, "s": 480, "m": 240}),
     ("bolt", {"d": 5.61}),
     ("nut", {"d": 6.61}),
 ]

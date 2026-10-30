@@ -106,6 +106,8 @@ jobs:
   # summed estimate stays under 600 s, D-12's 10 minutes. In one job the 435 points took 35.5 min.
   # timeout-minutes is at least twice the largest shard's estimate (R6's half), and
   # tests/test_oper.py holds the shard list, the estimates and required-jobs.txt to the file.
+  # R31 (ruling G36): the points the fine-pitch wall refuses are dropped, nothing drawn in their
+  # place, so the set is 355 points in 4 shards.
   #
   # T-07-44: no secret, no pull_request_target, and a token that only reads the repository; it
   # runs the PR's own code exactly as `test` does. A same-run artifact download needs no
@@ -119,7 +121,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5]
+        shard: [1, 2, 3, 4]
     env:
       SHARD: ${{ matrix.shard }}
     steps:

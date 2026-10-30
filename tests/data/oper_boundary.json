@@ -1,5 +1,5 @@
 {
- "rule": "07-SWEEP-PROTOCOL.md R27 step 5, judged by R29 (D-07, D-12, G6, G34)",
+ "rule": "07-SWEEP-PROTOCOL.md R27 step 5, judged by R29 (D-07, D-12, G6, G34), less the points R31's fine-pitch wall refuses (G36)",
  "tier_s": 600,
  "sources": [
   "tier-order=bench/results/phase-07/tier-order.json",
@@ -48,11 +48,332 @@
  },
  "shard_s": 600,
  "shard_sizes": [
-  105,
-  86,
-  49,
-  96,
-  99
+  117,
+  72,
+  115,
+  51
+ ],
+ "dropped_by_the_pitch_wall": [
+  {
+   "label": "bolt-d30-p0.35-n3-left",
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "nut-d100-p3.5-m0.8d-s1.6d-c0.15-left",
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "nut-d3-p0.35-m0.8d-s1.6d-c0.15-right",
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "nut-d30-p3.5-m0.8d-s4d-c5-right",
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "nut-d10-p0.35-m0.8d-s1.6d-c0.15-right",
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "bolt-d3-p0.1-n3-right",
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "nut-d30-p0.35-m0.8d-s1.6d-c5-right",
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "nut-d10-p0.35-m3d-s4d-c0.15-right",
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "nut-d10-p0.35-m3d-s1.6d-c0.15-right",
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "nut-d30-p1-m0.8d-s4d-c5-right",
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "bolt-d10-p0.35-n30-right",
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "nut-d10-p0.35-m3d-s4d-c5-right",
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "bolt-d10-p0.1-n3-left",
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "nut-d10-p1-m0.8d-s1.6d-c0.15-right",
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "nut-d30-p1-m0.8d-s1.6d-c0.15-right",
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "nut-d100-p3.5-m0.8d-s1.6d-c0.15-right",
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "nut-d3-p0.35-m0.8d-s4d-c0.15-right",
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "nut-d3-p0.35-m3d-s4d-c0.15-right",
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "nut-d30-p1-m0.8d-s1.6d-c5-right",
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "nut-d30-p3.5-m3d-s4d-c5-right",
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "nut-d30-p0.35-m0.8d-s4d-c0.15-right",
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "nut-d10-p0.35-m0.8d-s1.6d-c0.15-left",
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "bolt-d10-p0.35-n3-right",
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "nut-d10-p1-m0.8d-s4d-c5-right",
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "bolt-d10-p0.1-n30-right",
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "bolt-d30-p1-n3-right",
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "bolt-d30-p0.35-n3-right",
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "nut-d30-p0.35-m0.8d-s1.6d-c0.15-left",
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "nut-d10-p1-m0.8d-s1.6d-c0.15-left",
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "nut-d10-p0.35-m3d-s1.6d-c0.15-left",
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "nut-d10-p1-m3d-s1.6d-c0.15-left",
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "bolt-d30-p0.1-n3-left",
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "nut-d10-p1-m0.8d-s4d-c5-right",
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "nut-d30-p3.5-m3d-s1.6d-c5-right",
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "nut-d3-p0.35-m3d-s1.6d-c0.15-right",
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "bolt-d30-p0.1-n3-right",
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "bolt-d3-p0.1-n3-right",
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "nut-d10-p1-m3d-s1.6d-c0.15-left",
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "nut-d30-p3.5-m3d-s1.6d-c0.15-left",
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "nut-d30-p1-m0.8d-s4d-c5-right",
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "nut-d30-p3.5-m0.8d-s1.6d-c5-right",
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "bolt-d10-p0.1-n30-left",
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "bolt-d30-p1-n3-left",
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "bolt-d10-p0.1-n30-right",
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "bolt-d100-p3-n30-left",
+   "artifact": "step"
+  },
+  {
+   "label": "bolt-d30-p0.1-n3-left",
+   "artifact": "step"
+  },
+  {
+   "label": "bolt-d100-p0.35-n3-right",
+   "artifact": "step"
+  },
+  {
+   "label": "nut-d3-p0.35-m0.8d-s1.6d-c0.15-left",
+   "artifact": "step"
+  },
+  {
+   "label": "nut-d30-p3.5-m3d-s1.6d-c0.15-right",
+   "artifact": "step"
+  },
+  {
+   "label": "nut-d3-p0.35-m0.8d-s1.6d-c0.15-right",
+   "artifact": "step"
+  },
+  {
+   "label": "bolt-d10-p0.35-n3-left",
+   "artifact": "step"
+  },
+  {
+   "label": "nut-d3-p0.35-m3d-s1.6d-c0.15-right",
+   "artifact": "step"
+  },
+  {
+   "label": "nut-d10-p1-m0.8d-s4d-c5-right",
+   "artifact": "step"
+  },
+  {
+   "label": "nut-d100-p3.5-m0.8d-s1.6d-c0.15-left",
+   "artifact": "step"
+  },
+  {
+   "label": "bolt-d100-p0.1-n3-right",
+   "artifact": "step"
+  },
+  {
+   "label": "bolt-d100-p0.35-n3-left",
+   "artifact": "step"
+  },
+  {
+   "label": "bolt-d10-p0.1-n3-right",
+   "artifact": "step"
+  },
+  {
+   "label": "nut-d10-p1-m0.8d-s1.6d-c0.15-left",
+   "artifact": "step"
+  },
+  {
+   "label": "nut-d30-p3.5-m0.8d-s1.6d-c0.15-left",
+   "artifact": "step"
+  },
+  {
+   "label": "bolt-d3-p0.1-n3-right",
+   "artifact": "step"
+  },
+  {
+   "label": "nut-d10-p0.35-m0.8d-s1.6d-c0.15-left",
+   "artifact": "step"
+  },
+  {
+   "label": "nut-d30-p3.5-m0.8d-s1.6d-c0.15-right",
+   "artifact": "step"
+  },
+  {
+   "label": "bolt-d300-p10-n3-right",
+   "artifact": "step"
+  },
+  {
+   "label": "bolt-d30-p0.1-n3-right",
+   "artifact": "step"
+  },
+  {
+   "label": "bolt-d300-p0.35-n3-left",
+   "artifact": "step"
+  },
+  {
+   "label": "bolt-d300-p1-n3-right",
+   "artifact": "step"
+  },
+  {
+   "label": "bolt-d300-p3-n3-right",
+   "artifact": "step"
+  },
+  {
+   "label": "bolt-d300-p0.1-n3-right",
+   "artifact": "step"
+  },
+  {
+   "label": "nut-d3-p0.35-m3d-s1.6d-c0.15-left",
+   "artifact": "step"
+  },
+  {
+   "label": "bolt-d100-p3-n30-right",
+   "artifact": "step"
+  },
+  {
+   "label": "nut-d3-p0.35-m0.8d-s4d-c0.15-right",
+   "artifact": "step"
+  },
+  {
+   "label": "nut-d30-p3.5-m0.8d-s4d-c5-right",
+   "artifact": "step"
+  },
+  {
+   "label": "nut-d10-p1-m3d-s4d-c0.15-right",
+   "artifact": "step"
+  },
+  {
+   "label": "bolt-d30-p1-n30-right",
+   "artifact": "step"
+  },
+  {
+   "label": "bolt-d300-p0.1-n3-left",
+   "artifact": "step"
+  },
+  {
+   "label": "bolt-d300-p10-n3-left",
+   "artifact": "step"
+  },
+  {
+   "label": "bolt-d30-p1-n3-right",
+   "artifact": "step"
+  },
+  {
+   "label": "bolt-d100-p3-n3-right",
+   "artifact": "step"
+  },
+  {
+   "label": "nut-d10-p0.35-m0.8d-s4d-c5-right",
+   "artifact": "step"
+  },
+  {
+   "label": "bolt-d100-p1-n3-right",
+   "artifact": "step"
+  }
  ],
  "points": [
   {
@@ -95,28 +416,6 @@
     "bytes": 50169461.16026938,
     "seconds": 31.857548613674403,
     "peak": 1031714778.4896959
-   }
-  },
-  {
-   "label": "bolt-d30-p0.35-n3-left",
-   "kind": "bolt",
-   "params": {
-    "d": 30.0,
-    "pitch": 0.35,
-    "length": 1.05,
-    "s": 48.0,
-    "k": 18.0,
-    "thread_length": 1.05,
-    "left_hand": true
-   },
-   "artifact": "stl-preview",
-   "charge_s": 1.325065550999966,
-   "estimate_s": 4.1441182070000195,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 3436603.56086982,
-    "seconds": 8.973818876189863,
-    "peak": 1026183528.0048587
    }
   },
   {
@@ -183,27 +482,6 @@
    }
   },
   {
-   "label": "nut-d100-p3.5-m0.8d-s1.6d-c0.15-left",
-   "kind": "nut",
-   "params": {
-    "d": 100.0,
-    "pitch": 3.5,
-    "m": 80.0,
-    "s": 160.0,
-    "clearance": 0.15,
-    "left_hand": true
-   },
-   "artifact": "stl-preview",
-   "charge_s": 5.751648418999821,
-   "estimate_s": 7.88790098000004,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 24822603.84591738,
-    "seconds": 15.901920391930362,
-    "peak": 609425841.0279948
-   }
-  },
-  {
    "label": "iso4017:M3x25",
    "kind": "bolt",
    "params": {
@@ -222,27 +500,6 @@
     "bytes": 7660122.695240983,
     "seconds": 20.397530869794377,
     "peak": 790256456.9032722
-   }
-  },
-  {
-   "label": "nut-d3-p0.35-m0.8d-s1.6d-c0.15-right",
-   "kind": "nut",
-   "params": {
-    "d": 3.0,
-    "pitch": 0.35,
-    "m": 2.4,
-    "s": 4.8,
-    "clearance": 0.15,
-    "left_hand": false
-   },
-   "artifact": "stl-preview",
-   "charge_s": 2.40631281900005,
-   "estimate_s": 4.961623717999942,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 447326.7411014132,
-    "seconds": 4.745845416528194,
-    "peak": 319451045.04859656
    }
   },
   {
@@ -288,27 +545,6 @@
    }
   },
   {
-   "label": "nut-d30-p3.5-m0.8d-s4d-c5-right",
-   "kind": "nut",
-   "params": {
-    "d": 30.0,
-    "pitch": 3.5,
-    "m": 24.0,
-    "s": 120.0,
-    "clearance": 5.0,
-    "left_hand": false
-   },
-   "artifact": "stl-preview",
-   "charge_s": 1.8079805300001226,
-   "estimate_s": 4.677801010999929,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 5482964.357128218,
-    "seconds": 4.374853310384211,
-    "peak": 420382726.36283
-   }
-  },
-  {
    "label": "iso4014:M20x110",
    "kind": "bolt",
    "params": {
@@ -348,27 +584,6 @@
     "bytes": 10014500.956308363,
     "seconds": 11.609341840988755,
     "peak": 759578857.910277
-   }
-  },
-  {
-   "label": "nut-d10-p0.35-m0.8d-s1.6d-c0.15-right",
-   "kind": "nut",
-   "params": {
-    "d": 10.0,
-    "pitch": 0.35,
-    "m": 8.0,
-    "s": 16.0,
-    "clearance": 0.15,
-    "left_hand": false
-   },
-   "artifact": "stl-preview",
-   "charge_s": 4.910352545999899,
-   "estimate_s": 7.696317495000017,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 4236172.031721449,
-    "seconds": 13.6419214328383,
-    "peak": 480763470.4357275
    }
   },
   {
@@ -561,28 +776,6 @@
    }
   },
   {
-   "label": "bolt-d3-p0.1-n3-right",
-   "kind": "bolt",
-   "params": {
-    "d": 3.0,
-    "pitch": 0.1,
-    "length": 0.3,
-    "s": 4.8,
-    "k": 1.8,
-    "thread_length": 0.3,
-    "left_hand": false
-   },
-   "artifact": "stl-preview",
-   "charge_s": 26.0,
-   "estimate_s": 26.0,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 432134.0832146384,
-    "seconds": 3.361609886434829,
-    "peak": 407343976.566673
-   }
-  },
-  {
    "label": "iso4017:M16x30",
    "kind": "bolt",
    "params": {
@@ -601,27 +794,6 @@
     "bytes": 8592678.991429547,
     "seconds": 10.4969797723941,
     "peak": 741145164.6816494
-   }
-  },
-  {
-   "label": "nut-d30-p0.35-m0.8d-s1.6d-c5-right",
-   "kind": "nut",
-   "params": {
-    "d": 30.0,
-    "pitch": 0.35,
-    "m": 24.0,
-    "s": 48.0,
-    "clearance": 5.0,
-    "left_hand": false
-   },
-   "artifact": "stl-preview",
-   "charge_s": 9.280655663000061,
-   "estimate_s": 11.524620563000099,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 52520667.28869165,
-    "seconds": 27.42493540474897,
-    "peak": 716342677.0614437
    }
   },
   {
@@ -664,27 +836,6 @@
     "bytes": 7493392.5258261375,
     "seconds": 10.023460478000066,
     "peak": 676563624.8139353
-   }
-  },
-  {
-   "label": "nut-d10-p0.35-m3d-s4d-c0.15-right",
-   "kind": "nut",
-   "params": {
-    "d": 10.0,
-    "pitch": 0.35,
-    "m": 30.0,
-    "s": 40.0,
-    "clearance": 0.15,
-    "left_hand": false
-   },
-   "artifact": "stl-preview",
-   "charge_s": 12.123098835000064,
-   "estimate_s": 14.679091778999918,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 18616946.69809878,
-    "seconds": 26.30282700663417,
-    "peak": 513222446.5150019
    }
   },
   {
@@ -1045,27 +1196,6 @@
    }
   },
   {
-   "label": "nut-d10-p0.35-m3d-s1.6d-c0.15-right",
-   "kind": "nut",
-   "params": {
-    "d": 10.0,
-    "pitch": 0.35,
-    "m": 30.0,
-    "s": 16.0,
-    "clearance": 0.15,
-    "left_hand": false
-   },
-   "artifact": "stl-preview",
-   "charge_s": 8.804594971000029,
-   "estimate_s": 10.806282652999982,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 16657450.501130167,
-    "seconds": 28.689398898666774,
-    "peak": 537028051.2415786
-   }
-  },
-  {
    "label": "iso4017:M3.5x12",
    "kind": "bolt",
    "params": {
@@ -1192,27 +1322,6 @@
    }
   },
   {
-   "label": "nut-d30-p1-m0.8d-s4d-c5-right",
-   "kind": "nut",
-   "params": {
-    "d": 30.0,
-    "pitch": 1.0,
-    "m": 24.0,
-    "s": 120.0,
-    "clearance": 5.0,
-    "left_hand": false
-   },
-   "artifact": "stl-preview",
-   "charge_s": 3.4878175500000452,
-   "estimate_s": 6.12054488800004,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 19915714.819305193,
-    "seconds": 11.32825712043045,
-    "peak": 548113014.7016883
-   }
-  },
-  {
    "label": "bolt-d10-p3-n30-left",
    "kind": "bolt",
    "params": {
@@ -1274,28 +1383,6 @@
     "bytes": 27400572.295901176,
     "seconds": 22.486013163441076,
     "peak": 859705248.6956753
-   }
-  },
-  {
-   "label": "bolt-d10-p0.35-n30-right",
-   "kind": "bolt",
-   "params": {
-    "d": 10.0,
-    "pitch": 0.35,
-    "length": 10.5,
-    "s": 16.0,
-    "k": 6.0,
-    "thread_length": 10.5,
-    "left_hand": false
-   },
-   "artifact": "stl-preview",
-   "charge_s": 3.6836949300000015,
-   "estimate_s": 6.596763870000018,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 12940640.94756338,
-    "seconds": 23.794502845153684,
-    "peak": 906756870.4414433
    }
   },
   {
@@ -1462,49 +1549,6 @@
     "bytes": 5192607.639367252,
     "seconds": 9.054680257326918,
     "peak": 603329012.5715503
-   }
-  },
-  {
-   "label": "nut-d10-p0.35-m3d-s4d-c5-right",
-   "kind": "nut",
-   "params": {
-    "d": 10.0,
-    "pitch": 0.35,
-    "m": 30.0,
-    "s": 40.0,
-    "clearance": 5.0,
-    "left_hand": false
-   },
-   "artifact": "stl-preview",
-   "charge_s": 10.268647185999953,
-   "estimate_s": 13.030487628000003,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 29672719.106236495,
-    "seconds": 20.176211633902742,
-    "peak": 526627319.9069675
-   }
-  },
-  {
-   "label": "bolt-d10-p0.1-n3-left",
-   "kind": "bolt",
-   "params": {
-    "d": 10.0,
-    "pitch": 0.1,
-    "length": 0.3,
-    "s": 16.0,
-    "k": 6.0,
-    "thread_length": 0.3,
-    "left_hand": true
-   },
-   "artifact": "stl-preview",
-   "charge_s": 1.5614747060000127,
-   "estimate_s": 4.3890412989999845,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 1248777.2066896183,
-    "seconds": 6.038221481060068,
-    "peak": 695183777.7209044
    }
   },
   {
@@ -1969,27 +2013,6 @@
    }
   },
   {
-   "label": "nut-d10-p1-m0.8d-s1.6d-c0.15-right",
-   "kind": "nut",
-   "params": {
-    "d": 10.0,
-    "pitch": 1.0,
-    "m": 8.0,
-    "s": 16.0,
-    "clearance": 0.15,
-    "left_hand": false
-   },
-   "artifact": "stl-preview",
-   "charge_s": 2.9468823989999464,
-   "estimate_s": 5.803909469000018,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 1437273.2018978386,
-    "seconds": 6.146275863096392,
-    "peak": 384921419.7270095
-   }
-  },
-  {
    "label": "iso4017:M3.5x30",
    "kind": "bolt",
    "params": {
@@ -2114,27 +2137,6 @@
     "bytes": 13901403.490409752,
     "seconds": 19.90887559502477,
     "peak": 801939610.6435732
-   }
-  },
-  {
-   "label": "nut-d30-p1-m0.8d-s1.6d-c0.15-right",
-   "kind": "nut",
-   "params": {
-    "d": 30.0,
-    "pitch": 1.0,
-    "m": 24.0,
-    "s": 48.0,
-    "clearance": 0.15,
-    "left_hand": false
-   },
-   "artifact": "stl-preview",
-   "charge_s": 6.519279452000092,
-   "estimate_s": 9.206830494999963,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 11180135.956177872,
-    "seconds": 16.108122439030232,
-    "peak": 558938082.0527765
    }
   },
   {
@@ -2413,27 +2415,6 @@
    }
   },
   {
-   "label": "nut-d100-p3.5-m0.8d-s1.6d-c0.15-right",
-   "kind": "nut",
-   "params": {
-    "d": 100.0,
-    "pitch": 3.5,
-    "m": 80.0,
-    "s": 160.0,
-    "clearance": 0.15,
-    "left_hand": false
-   },
-   "artifact": "stl-preview",
-   "charge_s": 10.141278349999993,
-   "estimate_s": 13.452839065000035,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 29148441.318507493,
-    "seconds": 17.88163705877714,
-    "peak": 645157271.8588358
-   }
-  },
-  {
    "label": "iso4017:M2x20",
    "kind": "bolt",
    "params": {
@@ -2452,27 +2433,6 @@
     "bytes": 5733467.686464996,
     "seconds": 20.45796667998421,
     "peak": 827473545.8185647
-   }
-  },
-  {
-   "label": "nut-d3-p0.35-m0.8d-s4d-c0.15-right",
-   "kind": "nut",
-   "params": {
-    "d": 3.0,
-    "pitch": 0.35,
-    "m": 2.4,
-    "s": 12.0,
-    "clearance": 0.15,
-    "left_hand": false
-   },
-   "artifact": "stl-preview",
-   "charge_s": 2.6399081800000204,
-   "estimate_s": 5.501114426999948,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 499947.9419226971,
-    "seconds": 4.35105494653531,
-    "peak": 305290285.121183
    }
   },
   {
@@ -2562,27 +2522,6 @@
    }
   },
   {
-   "label": "nut-d3-p0.35-m3d-s4d-c0.15-right",
-   "kind": "nut",
-   "params": {
-    "d": 3.0,
-    "pitch": 0.35,
-    "m": 9.0,
-    "s": 12.0,
-    "clearance": 0.15,
-    "left_hand": false
-   },
-   "artifact": "stl-preview",
-   "charge_s": 3.811402752999925,
-   "estimate_s": 5.760597933999975,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 1965892.327638791,
-    "seconds": 9.150408291509793,
-    "peak": 341018935.429982
-   }
-  },
-  {
    "label": "bolt-d10-p1-n3-left",
    "kind": "bolt",
    "params": {
@@ -2623,27 +2562,6 @@
     "bytes": 12446552.049754662,
     "seconds": 13.995046318591609,
     "peak": 733948526.7803111
-   }
-  },
-  {
-   "label": "nut-d30-p1-m0.8d-s1.6d-c5-right",
-   "kind": "nut",
-   "params": {
-    "d": 30.0,
-    "pitch": 1.0,
-    "m": 24.0,
-    "s": 48.0,
-    "clearance": 5.0,
-    "left_hand": false
-   },
-   "artifact": "stl-preview",
-   "charge_s": 5.99080532500011,
-   "estimate_s": 9.145998041000098,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 17819518.913435988,
-    "seconds": 12.356120019825962,
-    "peak": 573537003.5823057
    }
   },
   {
@@ -2962,27 +2880,6 @@
    }
   },
   {
-   "label": "nut-d30-p3.5-m3d-s4d-c5-right",
-   "kind": "nut",
-   "params": {
-    "d": 30.0,
-    "pitch": 3.5,
-    "m": 90.0,
-    "s": 120.0,
-    "clearance": 5.0,
-    "left_hand": false
-   },
-   "artifact": "stl-preview",
-   "charge_s": 3.2659988550000207,
-   "estimate_s": 5.574629899000001,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 21560079.877400465,
-    "seconds": 9.20045701499483,
-    "peak": 469580844.21356547
-   }
-  },
-  {
    "label": "iso4017:M14x90",
    "kind": "bolt",
    "params": {
@@ -3064,27 +2961,6 @@
     "bytes": 18459912.05452081,
     "seconds": 21.275768858010473,
     "peak": 868083450.4764123
-   }
-  },
-  {
-   "label": "nut-d30-p0.35-m0.8d-s4d-c0.15-right",
-   "kind": "nut",
-   "params": {
-    "d": 30.0,
-    "pitch": 0.35,
-    "m": 24.0,
-    "s": 120.0,
-    "clearance": 0.15,
-    "left_hand": false
-   },
-   "artifact": "stl-preview",
-   "charge_s": 26.0,
-   "estimate_s": 26.0,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 36828265.81847341,
-    "seconds": 32.778524247322686,
-    "peak": 667162694.7547578
    }
   },
   {
@@ -3214,27 +3090,6 @@
    }
   },
   {
-   "label": "nut-d10-p0.35-m0.8d-s1.6d-c0.15-left",
-   "kind": "nut",
-   "params": {
-    "d": 10.0,
-    "pitch": 0.35,
-    "m": 8.0,
-    "s": 16.0,
-    "clearance": 0.15,
-    "left_hand": true
-   },
-   "artifact": "stl-preview",
-   "charge_s": 3.875647292000167,
-   "estimate_s": 5.806092023000019,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 3607493.7598742493,
-    "seconds": 12.131593315807882,
-    "peak": 454136836.2192754
-   }
-  },
-  {
    "label": "iso4014:M20x160",
    "kind": "bolt",
    "params": {
@@ -3253,28 +3108,6 @@
     "bytes": 14199298.67798625,
     "seconds": 16.26023963379831,
     "peak": 823898340.6343668
-   }
-  },
-  {
-   "label": "bolt-d10-p0.35-n3-right",
-   "kind": "bolt",
-   "params": {
-    "d": 10.0,
-    "pitch": 0.35,
-    "length": 1.05,
-    "s": 16.0,
-    "k": 6.0,
-    "thread_length": 1.05,
-    "left_hand": false
-   },
-   "artifact": "stl-preview",
-   "charge_s": 0.853459579999992,
-   "estimate_s": 3.0673101100000224,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 1314070.7942316222,
-    "seconds": 5.285347520843533,
-    "peak": 628227137.0675488
    }
   },
   {
@@ -3383,27 +3216,6 @@
    }
   },
   {
-   "label": "nut-d10-p1-m0.8d-s4d-c5-right",
-   "kind": "nut",
-   "params": {
-    "d": 10.0,
-    "pitch": 1.0,
-    "m": 8.0,
-    "s": 40.0,
-    "clearance": 5.0,
-    "left_hand": false
-   },
-   "artifact": "stl-preview",
-   "charge_s": 1.8896177350001153,
-   "estimate_s": 4.5734350550000045,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 2560284.0,
-    "seconds": 4.322452450544154,
-    "peak": 377466568.41661346
-   }
-  },
-  {
    "label": "iso4014:M18x110",
    "kind": "bolt",
    "params": {
@@ -3444,28 +3256,6 @@
     "bytes": 1251110.4284738544,
     "seconds": 3.808921170030464,
     "peak": 559580316.101718
-   }
-  },
-  {
-   "label": "bolt-d10-p0.1-n30-right",
-   "kind": "bolt",
-   "params": {
-    "d": 10.0,
-    "pitch": 0.1,
-    "length": 3.0,
-    "s": 16.0,
-    "k": 6.0,
-    "thread_length": 3.0,
-    "left_hand": false
-   },
-   "artifact": "stl-preview",
-   "charge_s": 3.8182275479999817,
-   "estimate_s": 6.498476187000051,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 13316478.917059429,
-    "seconds": 28.802879221525735,
-    "peak": 970050557.9088554
    }
   },
   {
@@ -3617,50 +3407,6 @@
    }
   },
   {
-   "label": "bolt-d30-p1-n3-right",
-   "kind": "bolt",
-   "params": {
-    "d": 30.0,
-    "pitch": 1.0,
-    "length": 3.0,
-    "s": 48.0,
-    "k": 18.0,
-    "thread_length": 3.0,
-    "left_hand": false
-   },
-   "artifact": "stl-preview",
-   "charge_s": 1.4289686140000413,
-   "estimate_s": 3.8783414629999697,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 3633100.526137488,
-    "seconds": 8.101785914934213,
-    "peak": 937538505.7943851
-   }
-  },
-  {
-   "label": "bolt-d30-p0.35-n3-right",
-   "kind": "bolt",
-   "params": {
-    "d": 30.0,
-    "pitch": 0.35,
-    "length": 1.05,
-    "s": 48.0,
-    "k": 18.0,
-    "thread_length": 1.05,
-    "left_hand": false
-   },
-   "artifact": "stl-preview",
-   "charge_s": 1.7117666779999468,
-   "estimate_s": 4.356730655000035,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 3721318.603535118,
-    "seconds": 9.50826061890598,
-    "peak": 992077539.2689517
-   }
-  },
-  {
    "label": "iso4017:M14x45",
    "kind": "bolt",
    "params": {
@@ -3679,27 +3425,6 @@
     "bytes": 11276281.197021775,
     "seconds": 12.539330182604724,
     "peak": 745561869.2156156
-   }
-  },
-  {
-   "label": "nut-d30-p0.35-m0.8d-s1.6d-c0.15-left",
-   "kind": "nut",
-   "params": {
-    "d": 30.0,
-    "pitch": 0.35,
-    "m": 24.0,
-    "s": 48.0,
-    "clearance": 0.15,
-    "left_hand": true
-   },
-   "artifact": "stl-preview",
-   "charge_s": 26.0,
-   "estimate_s": 26.0,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 28061659.14956245,
-    "seconds": 31.7944060540599,
-    "peak": 659444653.4202744
    }
   },
   {
@@ -3743,48 +3468,6 @@
    }
   },
   {
-   "label": "nut-d10-p1-m0.8d-s1.6d-c0.15-left",
-   "kind": "nut",
-   "params": {
-    "d": 10.0,
-    "pitch": 1.0,
-    "m": 8.0,
-    "s": 16.0,
-    "clearance": 0.15,
-    "left_hand": true
-   },
-   "artifact": "stl-preview",
-   "charge_s": 2.9139861709999195,
-   "estimate_s": 5.714443557000095,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 1223971.5640098613,
-    "seconds": 5.46580769761389,
-    "peak": 363602907.6614829
-   }
-  },
-  {
-   "label": "nut-d10-p0.35-m3d-s1.6d-c0.15-left",
-   "kind": "nut",
-   "params": {
-    "d": 10.0,
-    "pitch": 0.35,
-    "m": 30.0,
-    "s": 16.0,
-    "clearance": 0.15,
-    "left_hand": true
-   },
-   "artifact": "stl-preview",
-   "charge_s": 8.90313854299984,
-   "estimate_s": 10.907556329000045,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 14185365.534794362,
-    "seconds": 25.513130362692454,
-    "peak": 507285255.9509468
-   }
-  },
-  {
    "label": "iso4014:M16x120",
    "kind": "bolt",
    "params": {
@@ -3824,27 +3507,6 @@
     "bytes": 336969.7005853531,
     "seconds": 2.11083723167832,
     "peak": 278870191.9792523
-   }
-  },
-  {
-   "label": "nut-d10-p1-m3d-s1.6d-c0.15-left",
-   "kind": "nut",
-   "params": {
-    "d": 10.0,
-    "pitch": 1.0,
-    "m": 30.0,
-    "s": 16.0,
-    "clearance": 0.15,
-    "left_hand": true
-   },
-   "artifact": "stl-preview",
-   "charge_s": 6.048225896999838,
-   "estimate_s": 8.782257334000064,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 4812893.713856088,
-    "seconds": 11.494769128546631,
-    "peak": 406155985.0839843
    }
   },
   {
@@ -3932,28 +3594,6 @@
    }
   },
   {
-   "label": "bolt-d30-p0.1-n3-left",
-   "kind": "bolt",
-   "params": {
-    "d": 30.0,
-    "pitch": 0.1,
-    "length": 0.3,
-    "s": 48.0,
-    "k": 18.0,
-    "thread_length": 0.3,
-    "left_hand": true
-   },
-   "artifact": "stl-fine",
-   "charge_s": 4.4162707539999815,
-   "estimate_s": 7.3084424749999926,
-   "timeout_s": 71.0,
-   "limit": {
-    "bytes": 12343440.686479222,
-    "seconds": 17.379180383741122,
-    "peak": 2850170523.8607454
-   }
-  },
-  {
    "label": "iso4017:M10x65",
    "kind": "bolt",
    "params": {
@@ -3972,27 +3612,6 @@
     "bytes": 73801678.76646446,
     "seconds": 39.94835210674433,
     "peak": 1876895752.191901
-   }
-  },
-  {
-   "label": "nut-d10-p1-m0.8d-s4d-c5-right",
-   "kind": "nut",
-   "params": {
-    "d": 10.0,
-    "pitch": 1.0,
-    "m": 8.0,
-    "s": 40.0,
-    "clearance": 5.0,
-    "left_hand": false
-   },
-   "artifact": "stl-fine",
-   "charge_s": 2.5568746549998878,
-   "estimate_s": 4.619019028000025,
-   "timeout_s": 71.0,
-   "limit": {
-    "bytes": 20546341.161043733,
-    "seconds": 15.343430760891993,
-    "peak": 945595884.328806
    }
   },
   {
@@ -4080,27 +3699,6 @@
    }
   },
   {
-   "label": "nut-d30-p3.5-m3d-s1.6d-c5-right",
-   "kind": "nut",
-   "params": {
-    "d": 30.0,
-    "pitch": 3.5,
-    "m": 90.0,
-    "s": 48.0,
-    "clearance": 5.0,
-    "left_hand": false
-   },
-   "artifact": "stl-fine",
-   "charge_s": 30.749232843000073,
-   "estimate_s": 35.15319055300006,
-   "timeout_s": 71.0,
-   "limit": {
-    "bytes": 165882835.21144947,
-    "seconds": 77.4144678505389,
-    "peak": 2081101075.9747796
-   }
-  },
-  {
    "label": "iso4017:M14x55",
    "kind": "bolt",
    "params": {
@@ -4119,49 +3717,6 @@
     "bytes": 61834727.80367873,
     "seconds": 31.135925770432852,
     "peak": 1870024069.568801
-   }
-  },
-  {
-   "label": "nut-d3-p0.35-m3d-s1.6d-c0.15-right",
-   "kind": "nut",
-   "params": {
-    "d": 3.0,
-    "pitch": 0.35,
-    "m": 9.0,
-    "s": 4.8,
-    "clearance": 0.15,
-    "left_hand": false
-   },
-   "artifact": "stl-fine",
-   "charge_s": 8.336726453999972,
-   "estimate_s": 11.22109165500001,
-   "timeout_s": 71.0,
-   "limit": {
-    "bytes": 17404729.14929662,
-    "seconds": 19.205584671844935,
-    "peak": 512150812.3988275
-   }
-  },
-  {
-   "label": "bolt-d30-p0.1-n3-right",
-   "kind": "bolt",
-   "params": {
-    "d": 30.0,
-    "pitch": 0.1,
-    "length": 0.3,
-    "s": 48.0,
-    "k": 18.0,
-    "thread_length": 0.3,
-    "left_hand": false
-   },
-   "artifact": "stl-fine",
-   "charge_s": 3.1794379920000324,
-   "estimate_s": 5.435718870999949,
-   "timeout_s": 71.0,
-   "limit": {
-    "bytes": 16251160.337289365,
-    "seconds": 15.18869048205763,
-    "peak": 2753687733.4364653
    }
   },
   {
@@ -4208,28 +3763,6 @@
    }
   },
   {
-   "label": "bolt-d3-p0.1-n3-right",
-   "kind": "bolt",
-   "params": {
-    "d": 3.0,
-    "pitch": 0.1,
-    "length": 0.3,
-    "s": 4.8,
-    "k": 1.8,
-    "thread_length": 0.3,
-    "left_hand": false
-   },
-   "artifact": "stl-fine",
-   "charge_s": 71.0,
-   "estimate_s": 71.0,
-   "timeout_s": 71.0,
-   "limit": {
-    "bytes": 2812333.867486451,
-    "seconds": 3.163091715233127,
-    "peak": 716499972.4381618
-   }
-  },
-  {
    "label": "bolt-d10-p3-n30-right",
    "kind": "bolt",
    "params": {
@@ -4270,27 +3803,6 @@
     "bytes": 16451847.981787944,
     "seconds": 12.434694583316082,
     "peak": 1103233716.737395
-   }
-  },
-  {
-   "label": "nut-d10-p1-m3d-s1.6d-c0.15-left",
-   "kind": "nut",
-   "params": {
-    "d": 10.0,
-    "pitch": 1.0,
-    "m": 30.0,
-    "s": 16.0,
-    "clearance": 0.15,
-    "left_hand": true
-   },
-   "artifact": "stl-fine",
-   "charge_s": 11.122337711,
-   "estimate_s": 14.189562594999984,
-   "timeout_s": 71.0,
-   "limit": {
-    "bytes": 42971912.24995107,
-    "seconds": 36.33752142304884,
-    "peak": 929806014.5902104
    }
   },
   {
@@ -4440,48 +3952,6 @@
    }
   },
   {
-   "label": "nut-d30-p3.5-m3d-s1.6d-c0.15-left",
-   "kind": "nut",
-   "params": {
-    "d": 30.0,
-    "pitch": 3.5,
-    "m": 90.0,
-    "s": 48.0,
-    "clearance": 0.15,
-    "left_hand": true
-   },
-   "artifact": "stl-fine",
-   "charge_s": 16.169695435999984,
-   "estimate_s": 20.03080650600009,
-   "timeout_s": 71.0,
-   "limit": {
-    "bytes": 83442466.63287185,
-    "seconds": 52.73879123155863,
-    "peak": 1520614736.9565027
-   }
-  },
-  {
-   "label": "nut-d30-p1-m0.8d-s4d-c5-right",
-   "kind": "nut",
-   "params": {
-    "d": 30.0,
-    "pitch": 1.0,
-    "m": 24.0,
-    "s": 120.0,
-    "clearance": 5.0,
-    "left_hand": false
-   },
-   "artifact": "stl-fine",
-   "charge_s": 23.413116697999953,
-   "estimate_s": 27.156008302999908,
-   "timeout_s": 71.0,
-   "limit": {
-    "bytes": 138354099.30005714,
-    "seconds": 71.25513587408665,
-    "peak": 2328717640.102865
-   }
-  },
-  {
    "label": "iso4014:M4x25",
    "kind": "bolt",
    "params": {
@@ -4567,27 +4037,6 @@
    }
   },
   {
-   "label": "nut-d30-p3.5-m0.8d-s1.6d-c5-right",
-   "kind": "nut",
-   "params": {
-    "d": 30.0,
-    "pitch": 3.5,
-    "m": 24.0,
-    "s": 48.0,
-    "clearance": 5.0,
-    "left_hand": false
-   },
-   "artifact": "stl-fine",
-   "charge_s": 7.574983910999663,
-   "estimate_s": 9.900775994000014,
-   "timeout_s": 71.0,
-   "limit": {
-    "bytes": 38438313.591101386,
-    "seconds": 25.032640911540035,
-    "peak": 1537381504.5951593
-   }
-  },
-  {
    "label": "nut-d3-p1-m0.8d-s1.6d-c0.15-left",
    "kind": "nut",
    "params": {
@@ -4606,28 +4055,6 @@
     "bytes": 1231565.204323059,
     "seconds": 2.183679283356927,
     "peak": 255818500.11831605
-   }
-  },
-  {
-   "label": "bolt-d10-p0.1-n30-left",
-   "kind": "bolt",
-   "params": {
-    "d": 10.0,
-    "pitch": 0.1,
-    "length": 3.0,
-    "s": 16.0,
-    "k": 6.0,
-    "thread_length": 3.0,
-    "left_hand": true
-   },
-   "artifact": "stl-fine",
-   "charge_s": 9.464728033000029,
-   "estimate_s": 12.560759046999976,
-   "timeout_s": 71.0,
-   "limit": {
-    "bytes": 53517463.7682244,
-    "seconds": 53.26261828711333,
-    "peak": 2486064223.04745
    }
   },
   {
@@ -4970,28 +4397,6 @@
    }
   },
   {
-   "label": "bolt-d30-p1-n3-left",
-   "kind": "bolt",
-   "params": {
-    "d": 30.0,
-    "pitch": 1.0,
-    "length": 3.0,
-    "s": 48.0,
-    "k": 18.0,
-    "thread_length": 3.0,
-    "left_hand": true
-   },
-   "artifact": "stl-fine",
-   "charge_s": 2.9145632589999764,
-   "estimate_s": 5.505910150000034,
-   "timeout_s": 71.0,
-   "limit": {
-    "bytes": 11488582.20261187,
-    "seconds": 14.242569829799713,
-    "peak": 2544694545.7197995
-   }
-  },
-  {
    "label": "iso4017:M3x8",
    "kind": "bolt",
    "params": {
@@ -5052,28 +4457,6 @@
     "bytes": 51443586.729900286,
     "seconds": 31.3479926683007,
     "peak": 1416913422.6077752
-   }
-  },
-  {
-   "label": "bolt-d10-p0.1-n30-right",
-   "kind": "bolt",
-   "params": {
-    "d": 10.0,
-    "pitch": 0.1,
-    "length": 3.0,
-    "s": 16.0,
-    "k": 6.0,
-    "thread_length": 3.0,
-    "left_hand": false
-   },
-   "artifact": "stl-fine",
-   "charge_s": 7.715210630000058,
-   "estimate_s": 10.152721257999985,
-   "timeout_s": 71.0,
-   "limit": {
-    "bytes": 70460166.38579269,
-    "seconds": 46.54934269419212,
-    "peak": 2401907008.0999465
    }
   },
   {
@@ -5289,28 +4672,6 @@
    }
   },
   {
-   "label": "bolt-d100-p3-n30-left",
-   "kind": "bolt",
-   "params": {
-    "d": 100.0,
-    "pitch": 3.0,
-    "length": 90.0,
-    "s": 160.0,
-    "k": 60.0,
-    "thread_length": 90.0,
-    "left_hand": true
-   },
-   "artifact": "step",
-   "charge_s": 2.508232914999951,
-   "estimate_s": 4.893336993999981,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 5879025.658933579,
-    "seconds": 11.931921838664381,
-    "peak": 421064429.30613405
-   }
-  },
-  {
    "label": "iso4017:M10x45",
    "kind": "bolt",
    "params": {
@@ -5372,28 +4733,6 @@
     "bytes": 671668.4844013129,
     "seconds": 2.985384126316433,
     "peak": 269882879.9051864
-   }
-  },
-  {
-   "label": "bolt-d30-p0.1-n3-left",
-   "kind": "bolt",
-   "params": {
-    "d": 30.0,
-    "pitch": 0.1,
-    "length": 0.3,
-    "s": 48.0,
-    "k": 18.0,
-    "thread_length": 0.3,
-    "left_hand": true
-   },
-   "artifact": "step",
-   "charge_s": 1.5346845249999888,
-   "estimate_s": 3.6192630780000172,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 854905.2158847875,
-    "seconds": 5.26592034265099,
-    "peak": 296928109.3282221
    }
   },
   {
@@ -5547,28 +4886,6 @@
    }
   },
   {
-   "label": "bolt-d100-p0.35-n3-right",
-   "kind": "bolt",
-   "params": {
-    "d": 100.0,
-    "pitch": 0.35,
-    "length": 1.05,
-    "s": 160.0,
-    "k": 60.0,
-    "thread_length": 1.05,
-    "left_hand": false
-   },
-   "artifact": "step",
-   "charge_s": 26.0,
-   "estimate_s": 26.0,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 923768.5338737409,
-    "seconds": 5.215807162954495,
-    "peak": 293352803.4728807
-   }
-  },
-  {
    "label": "iso4017:M7x55",
    "kind": "bolt",
    "params": {
@@ -5653,27 +4970,6 @@
    }
   },
   {
-   "label": "nut-d3-p0.35-m0.8d-s1.6d-c0.15-left",
-   "kind": "nut",
-   "params": {
-    "d": 3.0,
-    "pitch": 0.35,
-    "m": 2.4,
-    "s": 4.8,
-    "clearance": 0.15,
-    "left_hand": true
-   },
-   "artifact": "step",
-   "charge_s": 2.9580505569999787,
-   "estimate_s": 5.68893710999987,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 1035758.6793730397,
-    "seconds": 4.069664084163089,
-    "peak": 333235838.91589963
-   }
-  },
-  {
    "label": "iso4017:M5x50",
    "kind": "bolt",
    "params": {
@@ -5714,27 +5010,6 @@
     "bytes": 702462.6068521047,
     "seconds": 2.8559843875577133,
     "peak": 279569217.589617
-   }
-  },
-  {
-   "label": "nut-d30-p3.5-m3d-s1.6d-c0.15-right",
-   "kind": "nut",
-   "params": {
-    "d": 30.0,
-    "pitch": 3.5,
-    "m": 90.0,
-    "s": 48.0,
-    "clearance": 0.15,
-    "left_hand": false
-   },
-   "artifact": "step",
-   "charge_s": 4.672968317000027,
-   "estimate_s": 7.330717104000087,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 3031258.016640441,
-    "seconds": 9.723366307732848,
-    "peak": 354967042.3767585
    }
   },
   {
@@ -5801,27 +5076,6 @@
    }
   },
   {
-   "label": "nut-d3-p0.35-m0.8d-s1.6d-c0.15-right",
-   "kind": "nut",
-   "params": {
-    "d": 3.0,
-    "pitch": 0.35,
-    "m": 2.4,
-    "s": 4.8,
-    "clearance": 0.15,
-    "left_hand": false
-   },
-   "artifact": "step",
-   "charge_s": 3.0176219879999735,
-   "estimate_s": 5.881894695999904,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 1048639.0713116915,
-    "seconds": 4.735205778489407,
-    "peak": 338063674.2041728
-   }
-  },
-  {
    "label": "iso4017:M10x35",
    "kind": "bolt",
    "params": {
@@ -5843,28 +5097,6 @@
    }
   },
   {
-   "label": "bolt-d10-p0.35-n3-left",
-   "kind": "bolt",
-   "params": {
-    "d": 10.0,
-    "pitch": 0.35,
-    "length": 1.05,
-    "s": 16.0,
-    "k": 6.0,
-    "thread_length": 1.05,
-    "left_hand": true
-   },
-   "artifact": "step",
-   "charge_s": 0.7596983939999973,
-   "estimate_s": 2.84341353100001,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 665838.0077857703,
-    "seconds": 3.5945509174845576,
-    "peak": 278643497.04204834
-   }
-  },
-  {
    "label": "iso4017:M14x40",
    "kind": "bolt",
    "params": {
@@ -5883,27 +5115,6 @@
     "bytes": 2913202.5383071057,
     "seconds": 6.808617099050064,
     "peak": 334189943.26671886
-   }
-  },
-  {
-   "label": "nut-d3-p0.35-m3d-s1.6d-c0.15-right",
-   "kind": "nut",
-   "params": {
-    "d": 3.0,
-    "pitch": 0.35,
-    "m": 9.0,
-    "s": 4.8,
-    "clearance": 0.15,
-    "left_hand": false
-   },
-   "artifact": "step",
-   "charge_s": 6.460909734999973,
-   "estimate_s": 9.269018262999907,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 2645240.03175153,
-    "seconds": 9.53959828886515,
-    "peak": 370745645.8071506
    }
   },
   {
@@ -5946,27 +5157,6 @@
     "bytes": 2341748.1512603746,
     "seconds": 6.009357654583054,
     "peak": 322579321.22672147
-   }
-  },
-  {
-   "label": "nut-d10-p1-m0.8d-s4d-c5-right",
-   "kind": "nut",
-   "params": {
-    "d": 10.0,
-    "pitch": 1.0,
-    "m": 8.0,
-    "s": 40.0,
-    "clearance": 5.0,
-    "left_hand": false
-   },
-   "artifact": "step",
-   "charge_s": 1.6103118039999345,
-   "estimate_s": 4.248460512000065,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 1243358.2359008617,
-    "seconds": 3.2765202479278637,
-    "peak": 334070533.40857184
    }
   },
   {
@@ -6094,27 +5284,6 @@
     "bytes": 2274274.10991614,
     "seconds": 7.356371869122516,
     "peak": 326003630.1015667
-   }
-  },
-  {
-   "label": "nut-d100-p3.5-m0.8d-s1.6d-c0.15-left",
-   "kind": "nut",
-   "params": {
-    "d": 100.0,
-    "pitch": 3.5,
-    "m": 80.0,
-    "s": 160.0,
-    "clearance": 0.15,
-    "left_hand": true
-   },
-   "artifact": "step",
-   "charge_s": 5.118598334000012,
-   "estimate_s": 7.573840057999973,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 3050557.7834451213,
-    "seconds": 9.730143922689663,
-    "peak": 355258742.7069169
    }
   },
   {
@@ -6435,28 +5604,6 @@
    }
   },
   {
-   "label": "bolt-d100-p0.1-n3-right",
-   "kind": "bolt",
-   "params": {
-    "d": 100.0,
-    "pitch": 0.1,
-    "length": 0.3,
-    "s": 160.0,
-    "k": 60.0,
-    "thread_length": 0.3,
-    "left_hand": false
-   },
-   "artifact": "step",
-   "charge_s": 26.0,
-   "estimate_s": 26.0,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 993069.8132907966,
-    "seconds": 6.534217711475381,
-    "peak": 299934537.6539073
-   }
-  },
-  {
    "label": "iso4017:M12x30",
    "kind": "bolt",
    "params": {
@@ -6541,28 +5688,6 @@
    }
   },
   {
-   "label": "bolt-d100-p0.35-n3-left",
-   "kind": "bolt",
-   "params": {
-    "d": 100.0,
-    "pitch": 0.35,
-    "length": 1.05,
-    "s": 160.0,
-    "k": 60.0,
-    "thread_length": 1.05,
-    "left_hand": true
-   },
-   "artifact": "step",
-   "charge_s": 1.427094306000015,
-   "estimate_s": 3.368812509999998,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 966120.7388810252,
-    "seconds": 4.989731034809827,
-    "peak": 303881497.6831655
-   }
-  },
-  {
    "label": "iso4014:M12x120",
    "kind": "bolt",
    "params": {
@@ -6581,28 +5706,6 @@
     "bytes": 2330262.032408589,
     "seconds": 7.913248124787915,
     "peak": 326333261.53078437
-   }
-  },
-  {
-   "label": "bolt-d10-p0.1-n3-right",
-   "kind": "bolt",
-   "params": {
-    "d": 10.0,
-    "pitch": 0.1,
-    "length": 0.3,
-    "s": 16.0,
-    "k": 6.0,
-    "thread_length": 0.3,
-    "left_hand": false
-   },
-   "artifact": "step",
-   "charge_s": 1.5328515079999647,
-   "estimate_s": 4.158073045000037,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 684410.9638300161,
-    "seconds": 4.7071832341205155,
-    "peak": 275024340.3851849
    }
   },
   {
@@ -6708,27 +5811,6 @@
     "bytes": 2328860.3870313596,
     "seconds": 8.025190211302615,
     "peak": 326148551.5915074
-   }
-  },
-  {
-   "label": "nut-d10-p1-m0.8d-s1.6d-c0.15-left",
-   "kind": "nut",
-   "params": {
-    "d": 10.0,
-    "pitch": 1.0,
-    "m": 8.0,
-    "s": 16.0,
-    "clearance": 0.15,
-    "left_hand": true
-   },
-   "artifact": "step",
-   "charge_s": 1.7424325910001244,
-   "estimate_s": 3.6965400660000114,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 1243712.853481756,
-    "seconds": 4.578726759594671,
-    "peak": 331220236.54571974
    }
   },
   {
@@ -6856,91 +5938,6 @@
    }
   },
   {
-   "label": "nut-d30-p3.5-m0.8d-s1.6d-c0.15-left",
-   "kind": "nut",
-   "params": {
-    "d": 30.0,
-    "pitch": 3.5,
-    "m": 24.0,
-    "s": 48.0,
-    "clearance": 0.15,
-    "left_hand": true
-   },
-   "artifact": "step",
-   "charge_s": 2.241327401000035,
-   "estimate_s": 4.957633782000016,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 1186906.2022608006,
-    "seconds": 4.14806089748348,
-    "peak": 319053619.3524014
-   }
-  },
-  {
-   "label": "bolt-d3-p0.1-n3-right",
-   "kind": "bolt",
-   "params": {
-    "d": 3.0,
-    "pitch": 0.1,
-    "length": 0.3,
-    "s": 4.8,
-    "k": 1.8,
-    "thread_length": 0.3,
-    "left_hand": false
-   },
-   "artifact": "step",
-   "charge_s": 26.0,
-   "estimate_s": 26.0,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 563361.1628795313,
-    "seconds": 3.965392485354771,
-    "peak": 262834246.3572314
-   }
-  },
-  {
-   "label": "nut-d10-p0.35-m0.8d-s1.6d-c0.15-left",
-   "kind": "nut",
-   "params": {
-    "d": 10.0,
-    "pitch": 0.35,
-    "m": 8.0,
-    "s": 16.0,
-    "clearance": 0.15,
-    "left_hand": true
-   },
-   "artifact": "step",
-   "charge_s": 4.405792324999993,
-   "estimate_s": 6.770311009999887,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 2662082.054263294,
-    "seconds": 9.546247809411664,
-    "peak": 371050312.47863394
-   }
-  },
-  {
-   "label": "nut-d30-p3.5-m0.8d-s1.6d-c0.15-right",
-   "kind": "nut",
-   "params": {
-    "d": 30.0,
-    "pitch": 3.5,
-    "m": 24.0,
-    "s": 48.0,
-    "clearance": 0.15,
-    "left_hand": false
-   },
-   "artifact": "step",
-   "charge_s": 2.671505014000104,
-   "estimate_s": 5.182548834000045,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 1201666.220577799,
-    "seconds": 4.82642339148466,
-    "peak": 323675986.2843973
-   }
-  },
-  {
    "label": "bolt-d1-p0.1-n30-right",
    "kind": "bolt",
    "params": {
@@ -6960,50 +5957,6 @@
     "bytes": 3249422.82059307,
     "seconds": 11.934610606443268,
     "peak": 362982601.5799225
-   }
-  },
-  {
-   "label": "bolt-d300-p10-n3-right",
-   "kind": "bolt",
-   "params": {
-    "d": 300.0,
-    "pitch": 10.0,
-    "length": 30.0,
-    "s": 480.0,
-    "k": 180.0,
-    "thread_length": 30.0,
-    "left_hand": false
-   },
-   "artifact": "step",
-   "charge_s": 1.425733623000042,
-   "estimate_s": 4.081873747999964,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 909127.3661232191,
-    "seconds": 3.3371242110246793,
-    "peak": 288117568.05177385
-   }
-  },
-  {
-   "label": "bolt-d30-p0.1-n3-right",
-   "kind": "bolt",
-   "params": {
-    "d": 30.0,
-    "pitch": 0.1,
-    "length": 0.3,
-    "s": 48.0,
-    "k": 18.0,
-    "thread_length": 0.3,
-    "left_hand": false
-   },
-   "artifact": "step",
-   "charge_s": 2.314968214999908,
-   "estimate_s": 5.144417669000063,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 817428.4083722144,
-    "seconds": 5.504510133138594,
-    "peak": 286640331.72613066
    }
   },
   {
@@ -7068,50 +6021,6 @@
     "bytes": 2297586.0945072672,
     "seconds": 7.527794549077806,
     "peak": 317085273.2755395
-   }
-  },
-  {
-   "label": "bolt-d300-p0.35-n3-left",
-   "kind": "bolt",
-   "params": {
-    "d": 300.0,
-    "pitch": 0.35,
-    "length": 1.05,
-    "s": 480.0,
-    "k": 180.0,
-    "thread_length": 1.05,
-    "left_hand": true
-   },
-   "artifact": "step",
-   "charge_s": 26.0,
-   "estimate_s": 26.0,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 1153889.3729280566,
-    "seconds": 5.834917333078598,
-    "peak": 316716306.5615998
-   }
-  },
-  {
-   "label": "bolt-d300-p1-n3-right",
-   "kind": "bolt",
-   "params": {
-    "d": 300.0,
-    "pitch": 1.0,
-    "length": 3.0,
-    "s": 480.0,
-    "k": 180.0,
-    "thread_length": 3.0,
-    "left_hand": false
-   },
-   "artifact": "step",
-   "charge_s": 26.0,
-   "estimate_s": 26.0,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 1038409.4701366841,
-    "seconds": 5.04965574822536,
-    "peak": 300110501.19542205
    }
   },
   {
@@ -7327,50 +6236,6 @@
    }
   },
   {
-   "label": "bolt-d300-p3-n3-right",
-   "kind": "bolt",
-   "params": {
-    "d": 300.0,
-    "pitch": 3.0,
-    "length": 9.0,
-    "s": 480.0,
-    "k": 180.0,
-    "thread_length": 9.0,
-    "left_hand": false
-   },
-   "artifact": "step",
-   "charge_s": 1.7253096089999644,
-   "estimate_s": 4.1691576660000464,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 974580.6710416568,
-    "seconds": 4.144123749493034,
-    "peak": 294327391.8653769
-   }
-  },
-  {
-   "label": "bolt-d300-p0.1-n3-right",
-   "kind": "bolt",
-   "params": {
-    "d": 300.0,
-    "pitch": 0.1,
-    "length": 0.3,
-    "s": 480.0,
-    "k": 180.0,
-    "thread_length": 0.3,
-    "left_hand": false
-   },
-   "artifact": "step",
-   "charge_s": 26.0,
-   "estimate_s": 26.0,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 1186076.0855409116,
-    "seconds": 7.64101710429167,
-    "peak": 312602641.82010156
-   }
-  },
-  {
    "label": "iso4017:M12x50",
    "kind": "bolt",
    "params": {
@@ -7581,49 +6446,6 @@
    }
   },
   {
-   "label": "nut-d3-p0.35-m3d-s1.6d-c0.15-left",
-   "kind": "nut",
-   "params": {
-    "d": 3.0,
-    "pitch": 0.35,
-    "m": 9.0,
-    "s": 4.8,
-    "clearance": 0.15,
-    "left_hand": true
-   },
-   "artifact": "step",
-   "charge_s": 4.255000133999943,
-   "estimate_s": 6.179118972999959,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 2612748.653819032,
-    "seconds": 8.198790580527465,
-    "peak": 365451084.31362444
-   }
-  },
-  {
-   "label": "bolt-d100-p3-n30-right",
-   "kind": "bolt",
-   "params": {
-    "d": 100.0,
-    "pitch": 3.0,
-    "length": 90.0,
-    "s": 160.0,
-    "k": 60.0,
-    "thread_length": 90.0,
-    "left_hand": false
-   },
-   "artifact": "step",
-   "charge_s": 3.1593315329999996,
-   "estimate_s": 6.068940644999998,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 5621304.558526788,
-    "seconds": 12.472536687799803,
-    "peak": 406475654.8898167
-   }
-  },
-  {
    "label": "iso4014:M2.5x16",
    "kind": "bolt",
    "params": {
@@ -7814,27 +6636,6 @@
    }
   },
   {
-   "label": "nut-d3-p0.35-m0.8d-s4d-c0.15-right",
-   "kind": "nut",
-   "params": {
-    "d": 3.0,
-    "pitch": 0.35,
-    "m": 2.4,
-    "s": 12.0,
-    "clearance": 0.15,
-    "left_hand": false
-   },
-   "artifact": "step",
-   "charge_s": 1.7443338580000045,
-   "estimate_s": 3.7561805089999893,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 1035230.3555172466,
-    "seconds": 3.7985236035950343,
-    "peak": 316300284.0222653
-   }
-  },
-  {
    "label": "iso4017:M2.5x16",
    "kind": "bolt",
    "params": {
@@ -7895,27 +6696,6 @@
     "bytes": 1264582.4546082197,
     "seconds": 3.582790651063443,
     "peak": 301087762.2728793
-   }
-  },
-  {
-   "label": "nut-d30-p3.5-m0.8d-s4d-c5-right",
-   "kind": "nut",
-   "params": {
-    "d": 30.0,
-    "pitch": 3.5,
-    "m": 24.0,
-    "s": 120.0,
-    "clearance": 5.0,
-    "left_hand": false
-   },
-   "artifact": "step",
-   "charge_s": 0.94038828500004,
-   "estimate_s": 2.9824396960000286,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 1186567.7818569164,
-    "seconds": 2.968337320361437,
-    "peak": 321799217.08461183
    }
   },
   {
@@ -8085,27 +6865,6 @@
     "bytes": 2229674.812903899,
     "seconds": 5.300054144341567,
     "peak": 299205536.92226386
-   }
-  },
-  {
-   "label": "nut-d10-p1-m3d-s4d-c0.15-right",
-   "kind": "nut",
-   "params": {
-    "d": 10.0,
-    "pitch": 1.0,
-    "m": 30.0,
-    "s": 40.0,
-    "clearance": 0.15,
-    "left_hand": false
-   },
-   "artifact": "step",
-   "charge_s": 5.05076547900012,
-   "estimate_s": 7.764256454999895,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 3135722.273917985,
-    "seconds": 8.609783350495848,
-    "peak": 344780181.54343647
    }
   },
   {
@@ -8798,28 +7557,6 @@
    }
   },
   {
-   "label": "bolt-d30-p1-n30-right",
-   "kind": "bolt",
-   "params": {
-    "d": 30.0,
-    "pitch": 1.0,
-    "length": 30.0,
-    "s": 48.0,
-    "k": 18.0,
-    "thread_length": 30.0,
-    "left_hand": false
-   },
-   "artifact": "step",
-   "charge_s": 3.0752357690000167,
-   "estimate_s": 5.857271873999991,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 4930124.746248427,
-    "seconds": 12.802916745372393,
-    "peak": 396091816.2108844
-   }
-  },
-  {
    "label": "iso4017:M3x6",
    "kind": "bolt",
    "params": {
@@ -8923,28 +7660,6 @@
    }
   },
   {
-   "label": "bolt-d300-p0.1-n3-left",
-   "kind": "bolt",
-   "params": {
-    "d": 300.0,
-    "pitch": 0.1,
-    "length": 0.3,
-    "s": 480.0,
-    "k": 180.0,
-    "thread_length": 0.3,
-    "left_hand": true
-   },
-   "artifact": "step",
-   "charge_s": 26.0,
-   "estimate_s": 26.0,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 1240454.3585466165,
-    "seconds": 7.309821661658219,
-    "peak": 323822229.9272774
-   }
-  },
-  {
    "label": "iso4014:M7x35",
    "kind": "bolt",
    "params": {
@@ -8985,50 +7700,6 @@
     "bytes": 3022662.168098902,
     "seconds": 9.52656159265074,
     "peak": 355017346.845927
-   }
-  },
-  {
-   "label": "bolt-d300-p10-n3-left",
-   "kind": "bolt",
-   "params": {
-    "d": 300.0,
-    "pitch": 10.0,
-    "length": 30.0,
-    "s": 480.0,
-    "k": 180.0,
-    "thread_length": 30.0,
-    "left_hand": true
-   },
-   "artifact": "step",
-   "charge_s": 1.0965151790001073,
-   "estimate_s": 3.498717205000048,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 950808.3145165592,
-    "seconds": 3.1924785028541853,
-    "peak": 298458364.9854172
-   }
-  },
-  {
-   "label": "bolt-d30-p1-n3-right",
-   "kind": "bolt",
-   "params": {
-    "d": 30.0,
-    "pitch": 1.0,
-    "length": 3.0,
-    "s": 48.0,
-    "k": 18.0,
-    "thread_length": 3.0,
-    "left_hand": false
-   },
-   "artifact": "step",
-   "charge_s": 1.0053518609999514,
-   "estimate_s": 3.173534453000002,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 715658.4731453852,
-    "seconds": 3.6377200646961216,
-    "peak": 275185689.7826749
    }
   },
   {
@@ -9074,28 +7745,6 @@
    }
   },
   {
-   "label": "bolt-d100-p3-n3-right",
-   "kind": "bolt",
-   "params": {
-    "d": 100.0,
-    "pitch": 3.0,
-    "length": 9.0,
-    "s": 160.0,
-    "k": 60.0,
-    "thread_length": 9.0,
-    "left_hand": false
-   },
-   "artifact": "step",
-   "charge_s": 0.9012451969999802,
-   "estimate_s": 3.061972727000011,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 815990.3540983871,
-    "seconds": 3.5438484736899905,
-    "peak": 282399885.3113516
-   }
-  },
-  {
    "label": "iso4017:M7x70",
    "kind": "bolt",
    "params": {
@@ -9114,27 +7763,6 @@
     "bytes": 7682076.485925707,
     "seconds": 11.873035547586753,
     "peak": 377879333.2747418
-   }
-  },
-  {
-   "label": "nut-d10-p0.35-m0.8d-s4d-c5-right",
-   "kind": "nut",
-   "params": {
-    "d": 10.0,
-    "pitch": 0.35,
-    "m": 8.0,
-    "s": 40.0,
-    "clearance": 5.0,
-    "left_hand": false
-   },
-   "artifact": "step",
-   "charge_s": 3.3305995990000383,
-   "estimate_s": 6.173595992999935,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 2661323.01965528,
-    "seconds": 6.831260278576493,
-    "peak": 374243364.789229
    }
   },
   {
@@ -9219,28 +7847,6 @@
     "bytes": 2335097.7620270574,
     "seconds": 7.19303678843445,
     "peak": 317156534.6873848
-   }
-  },
-  {
-   "label": "bolt-d100-p1-n3-right",
-   "kind": "bolt",
-   "params": {
-    "d": 100.0,
-    "pitch": 1.0,
-    "length": 3.0,
-    "s": 160.0,
-    "k": 60.0,
-    "thread_length": 3.0,
-    "left_hand": false
-   },
-   "artifact": "step",
-   "charge_s": 1.7376705739999352,
-   "estimate_s": 4.3690515400001,
-   "timeout_s": 26.0,
-   "limit": {
-    "bytes": 869432.5020116611,
-    "seconds": 4.318214391690768,
-    "peak": 287948636.31681377
    }
   }
  ]

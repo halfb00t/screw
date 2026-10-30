@@ -3189,9 +3189,9 @@ def test_each_shard_is_about_ten_minutes_and_under_half_the_job_timeout() -> Non
         start += size
 
 
-@pytest.mark.parametrize("shard", [0, 6])
+@pytest.mark.parametrize("shard", [0, 5])
 def test_a_shard_outside_the_file_is_refused(shard: int) -> None:
-    with pytest.raises(ValueError, match=f"shard {shard} is outside 1..5"):
+    with pytest.raises(ValueError, match=f"shard {shard} is outside 1..4"):
         oper.load_boundary(BOUNDARY_FILE, shard)
 
 

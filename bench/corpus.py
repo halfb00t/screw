@@ -7,8 +7,10 @@ artifact (L24). It holds no entry the parameter model refuses: its last length h
 since L20 (a804806), so a heaviest-part run from before that commit is not comparable with a
 later one (owner ruling 2026-10-28, replacing WR-05's ask that the corpus keep a refused entry).
 The cost model (L21) refuses some entries at some artifacts; `bench.build_time` marks those and
-does not judge them. The grid stays fixed from now on, so a later run is comparable with an
-earlier one (OPER-02).
+does not judge them. The three d=100 entries are past the bolt's fine-pitch wall (L25: d / pitch
+100 at the default pitch of 1 mm), which came after the grid: the corpus is checked under the model
+it was drawn under (ruling G36), and `bench.build_time` marks them refused at every artifact.
+The grid stays fixed from now on, so a later run is comparable with an earlier one (OPER-02).
 
 Deterministic: the grid is written out, never generated from a seed or the host.
 """

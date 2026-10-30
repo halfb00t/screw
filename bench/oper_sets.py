@@ -39,7 +39,13 @@ from bench import oper_lift
 from bench.oper import CONTENTION_WORKERS, DEADLINE_S, POINTS_DIR, _read_records
 from bench.thread_spike.maths import PITCH, SAMPLE_SIZES, standard_max
 from screw.calc import cost
-from screw.calc.thread import _exact, built_thread_length, thread_depth
+from screw.calc.thread import (
+    MAX_NUT_D_PER_PITCH,
+    _exact,
+    built_thread_length,
+    pitch_too_fine_refusal,
+    thread_depth,
+)
 from screw.params import KINDS, BoltParams, FastenerParams
 from screw.tables.presets import catalogue, expand, expand_nut, nut_catalogue
 
@@ -1261,7 +1267,7 @@ SMOKE_PARTNERS: tuple[tuple[str, Params], ...] = (
 def pool_slot(kind: str, params: Params, workers: int) -> int:
     """The worker `BuildPool.executor_for` routes a part to: the hash of its validated field values
     modulo N, the same in every process (R14), so a set can name the slot before any pool runs."""
-    return hash(KINDS[kind].model_validate(dict(params))) % workers
+    return hash(oper_lift.drawn(kind, params)) % workers
 
 
 def bound_smoke() -> _Set:
@@ -1394,9 +1400,11 @@ class Candidate:
 
 
 def _validated(kind: str, params: Mapping[str, object]) -> FastenerParams | None:
-    """The production model's part, or None where a wall (L20) or a validator refuses it."""
+    """The part as the sets drawn from runner records saw it, or None where a wall (L20) or a
+    validator refuses it: the production model less the fine-pitch wall of R31, so the guard
+    draws none of them again (G36). The required tier drops the parts the wall refuses itself."""
     try:
-        return KINDS[kind].model_validate(dict(params))
+        return oper_lift.drawn(kind, params)
     except ValidationError:
         return None
 
@@ -2131,7 +2139,7 @@ def envelope_check(fit_document: Mapping[str, object],
         part_raw, *actuals = found
         params = part_raw.get("params")
         assert isinstance(params, dict)
-        part = KINDS[str(part_raw["kind"])].model_validate(params)
+        part = oper_lift.drawn(str(part_raw["kind"]), params)
         artifact = next(a for a in cost.ARTIFACTS if a == reading.get("artifact"))
         where = f"{run}:{reading.get('label')} rep {reading.get('rep')}"
         for target, pred, actual in zip(cost.TARGETS, cost.predict(part, artifact), actuals,
@@ -3169,9 +3177,15 @@ SHARD_S = 600
 BOUNDARY = "tests/data/oper_boundary.json"
 
 
+def wall_refuses(part: FastenerParams) -> bool:
+    """Whether R31's fine-pitch wall refuses `part` (G36: the tier drops it)."""
+    return pitch_too_fine_refusal(part.kind, part.d, part.pitch) is not None
+
+
 def boundary_points(tier: Mapping[str, object], points: Sequence[Mapping[str, object]],
                     readings: Iterable[Reading], envelope: Envelope,
-                    timeouts: Mapping[cost.Artifact, float]) -> list[dict[str, object]]:
+                    timeouts: Mapping[cost.Artifact, float],
+                    keep_refused: bool = False) -> list[dict[str, object]]:
     """R27 step 5 per artifact, in `cost.ARTIFACTS` order, over the committed D(A): the 3 edge
     points always, then draw points in order, each only while the summed charges of the points
     taken, itself included, stay under `TIER_S`, stopping at the first that does not fit. A point's
@@ -3179,7 +3193,9 @@ def boundary_points(tier: Mapping[str, object], points: Sequence[Mapping[str, ob
     full timeout (R14), never `wall_s`. `points` gives each label its params; the order and the
     membership come from `tier` alone. A point's `estimate_s`, which sizes the shards (G34), is
     its explore container wall, or the larger of that and its timeout where that reading is not
-    ok: a container wall counts the start and the stop a cold wall leaves out."""
+    ok: a container wall counts the start and the stop a cold wall leaves out. A point R31's
+    fine-pitch wall refuses is cut as before and then left out, nothing drawn in its place
+    (G36), so the rest of the tier is the one its charges cut."""
     index = _explore_index(readings)
     by_label = {(str(p["label"]), str(p["artifact"])): p for p in points if "artifact" in p}
     out: list[dict[str, object]] = []
@@ -3205,6 +3221,8 @@ def boundary_points(tier: Mapping[str, object], points: Sequence[Mapping[str, ob
             if part is None:
                 raise ValueError(f"tier-order.json names {label}, which the parameter model "
                                  "refuses")
+            if not keep_refused and wall_refuses(part):
+                continue
             limit = enveloped(part, artifact, envelope)
             wall = _number(reading, "wall_s")
             out.append({"label": label, "kind": kind, "params": dict(params),
@@ -3221,15 +3239,22 @@ def boundary_text(explore_dir: str) -> str:
     explore readings under `explore_dir`, with the shipped envelope and timeouts."""
     tier = json.loads((REPO_ROOT / TIER_ORDER).read_text())
     envelope = shipped_envelope()
-    points = boundary_points(tier, _explore_points(), _read(explore_dir), envelope,
+    explore_points = _explore_points()
+    points = boundary_points(tier, explore_points, _read(explore_dir), envelope,
                              cost.BUILD_TIMEOUT_S)
+    kept = {(str(p["label"]), str(p["artifact"])) for p in points}
+    with_wall = boundary_points(tier, explore_points, _read(explore_dir), envelope,
+                                cost.BUILD_TIMEOUT_S, keep_refused=True)
+    dropped = [{"label": p["label"], "artifact": p["artifact"]} for p in with_wall
+               if (str(p["label"]), str(p["artifact"])) not in kept]
     document = {
-        "rule": "07-SWEEP-PROTOCOL.md R27 step 5, judged by R29 (D-07, D-12, G6, G34)",
+        "rule": "07-SWEEP-PROTOCOL.md R27 step 5, judged by R29 (D-07, D-12, G6, G34), less the "
+                "points R31's fine-pitch wall refuses (G36)",
         "tier_s": TIER_S, "sources": [f"tier-order={TIER_ORDER}", f"explore={explore_dir}"],
         "timeouts": dict(cost.BUILD_TIMEOUT_S), "envelope": envelope_document(envelope),
         "shard_s": SHARD_S,
         "shard_sizes": shard_sizes([_number(p, "estimate_s") for p in points], SHARD_S),
-        "points": points}
+        "dropped_by_the_pitch_wall": dropped, "points": points}
     return json.dumps(document, indent=1) + "\n"
 
 
@@ -3263,7 +3288,10 @@ PITCH_ARTIFACT = ("step",)
 R10_SERIES = tuple(Fraction(v) for v in ("1", "1.25", "1.6", "2", "2.5", "3.15", "4", "5", "6.3",
                                           "8"))
 PITCH_MARGIN = Fraction(5, 4)
-RULED_PITCH_WALLS = {"bolt": Fraction(20), "nut": Fraction(8)}  # G35 rulings 1 and 2
+# R31: the bolt's W is the margin rule's, read from the walk, and a bolt W other than 20 stops (the
+# W the owner ruled on in G35). The nut's W is not the margin rule's: it is 8 by the owner's ruling
+# G36, `calc.thread.MAX_NUT_D_PER_PITCH`, and the refused nut cells at or below it stay debt.
+EXPECTED_BOLT_PITCH_W = Fraction(20)
 
 
 def _ceil_figures(x: Fraction) -> float:
@@ -3296,10 +3324,10 @@ def _pitch_params(kind: str, form: str, d: str, q: int,
 
 
 def _model_refusal(kind: str, params: Params) -> str | None:
-    """The pydantic error type with which the production parameter model refuses `params`, or
-    `None`."""
+    """The pydantic error type with which the production parameter model, the fine-pitch wall
+    aside, refuses `params`, or `None` (R31: the walk reads past the wall it decides)."""
     try:
-        KINDS[kind].model_validate(dict(params))
+        oper_lift.drawn(kind, params)
     except ValidationError as exc:
         return str(exc.errors()[0]["type"])
     return None
@@ -3331,7 +3359,7 @@ def pitch_walk_set(envelope: Envelope, budget: Budget = cost.BUDGET) -> _Set:
         label = f"pitch-{kind}-{form}-d{d}-q{q}-{_hand(left)}"
         error = _model_refusal(kind, params)
         if error is None:
-            part = KINDS[kind].model_validate(params)
+            part = oper_lift.drawn(kind, params)
             if not any(admits(part, artifact, envelope, budget) for artifact in cost.ARTIFACTS):
                 error = "over_budget"
         if error is not None:
@@ -3424,6 +3452,35 @@ def pitch_walls_text(walls: Mapping[str, PitchWall]) -> str:
     return "".join(f"{wall.kind}: F = {wall.f} ({float(wall.f)!r}) at {wall.label}; "
                    f"F / 1.25 = {float(wall.f / PITCH_MARGIN)!r}; W = {wall.w}\n"
                    for wall in walls.values())
+
+
+def shipped_pitch_walls(walls: Mapping[str, PitchWall]) -> dict[str, Fraction]:
+    """The wall each kind ships (R31, G36): the bolt's W from the walk, the nut's ruled 8."""
+    return {"bolt": walls["bolt"].w, "nut": MAX_NUT_D_PER_PITCH}
+
+
+def pitch_residual(readings: Iterable[Reading],
+                   shipped: Mapping[str, Fraction]) -> list[tuple[str, Fraction, str]]:
+    """Every refused or crashed walk reading the shipped wall still admits, as (kind, d / pitch,
+    label) in that order: the debt R31 leaves open (G36)."""
+    return sorted((kind, ratio, str(reading.get("label"))) for reading in readings
+                  if str(reading.get("status")) in FAILED
+                  if (ratio := _d_per_pitch(reading.get("params")))
+                  <= shipped[kind := str(reading.get("kind"))])
+
+
+def pitch_residual_text(residual: Sequence[tuple[str, Fraction, str]]) -> str:
+    return "".join(f"inside the wall, refused: {kind} {label} at d / pitch {ratio}\n"
+                   for kind, ratio, label in residual)
+
+
+def pitch_walls_block(walls: Mapping[str, PitchWall], source: str) -> str:
+    """The `calc.thread` lines between its pitch-walls markers: the bolt's W from the walk read
+    from `source` (R31). The nut's ruled W is not written here: no reading sets it (G36)."""
+    return ("# BEGIN pitch-walls: written by `python -m bench.oper_sets pitch-walls --from\n"
+            f"# {source}`; not edited by hand.\n"
+            f'MAX_BOLT_D_PER_PITCH = Fraction("{walls["bolt"].w}")\n'
+            "# END pitch-walls\n")
 
 
 # --- how far a regeneration on this host drifts from the committed files (07-18) ----------------
@@ -3700,13 +3757,16 @@ def _run(args: argparse.Namespace) -> int:
         print(f"{made.name}: {len(made.points)} points in shards of {made.shard_sizes}, "
               f"{len(made.dropped)} dropped")
     elif args.command == "pitch-walls":
-        walls = pitch_walls(_points_of(PITCH_WALK), read_readings(Path(args.source)))
+        readings = read_readings(Path(args.source))
+        walls = pitch_walls(_points_of(PITCH_WALK), readings)
+        shipped = shipped_pitch_walls(walls)
         sys.stdout.write(pitch_walls_text(walls))
-        other = [w for w in walls.values() if w.w != RULED_PITCH_WALLS[w.kind]]
-        if other:
-            raise ProtocolStop("R31", "; ".join(
-                f"the {w.kind} W is {w.w}, not the ruled {RULED_PITCH_WALLS[w.kind]}"
-                for w in other))
+        sys.stdout.write(f"nut: shipped W = {shipped['nut']}, the owner's ruling (G36)\n")
+        sys.stdout.write(pitch_residual_text(pitch_residual(readings, shipped)))
+        sys.stdout.write(pitch_walls_block(walls, args.source))
+        if walls["bolt"].w != EXPECTED_BOLT_PITCH_W:
+            raise ProtocolStop("R31", f"the bolt W is {walls['bolt'].w}, not "
+                                      f"{EXPECTED_BOLT_PITCH_W}")
     elif args.command == "load-table":
         sys.stdout.write(load_table(read_readings(Path(args.source))))
     elif args.command in ("drift", "solid-cache"):
@@ -3773,7 +3833,7 @@ def main(argv: list[str] | None = None) -> int:
     pitch_walk.add_argument("--explore", required=True)
     pitch_walk.add_argument("--out", required=True)
     sub.add_parser("pitch-walls", help="R31's F and W per kind from the walk's records, exit 3 "
-                                       "if a W is not the ruled one (G35)").add_argument(
+                                       "if the bolt W is not 20 (G35, G36)").add_argument(
         "--from", dest="source", required=True)
     sub.add_parser("load-table", help="the per-N table of a load run's readings").add_argument(
         "--from", dest="source", required=True)

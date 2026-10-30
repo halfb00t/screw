@@ -135,8 +135,10 @@ def test_a_foreign_field_is_refused_as_extra_forbidden_naming_it() -> None:
 # The walls of L20, typed here and not read back: the values the committed records give through
 # `bench.oper_sets.derive_walls` (tests/test_oper_followup.py recomputes every one of them).
 # (kind, field) -> (the value at the wall, the other fields that make the corner a valid part).
+# The bolt at its d wall takes pitch 50, the smallest the bolt's fine-pitch wall admits there, and
+# the nut at its d 124.963 (07 R31).
 CEILINGS = {
-    ("bolt", "d"): (999.999, {"s": 1000.0}),
+    ("bolt", "d"): (999.999, {"s": 1000.0, "pitch": 50.0}),
     ("bolt", "length"): (1e4, {}),
     ("bolt", "s"): (1000.0, {}),
     ("bolt", "k"): (1e5, {}),
@@ -169,7 +171,7 @@ def test_a_field_is_accepted_at_its_wall_and_the_next_float_names_the_field(
     if (kind, field) == ("nut", "d"):
         # s must exceed d + 2 c, so the d that can be a nut is 999.699 at s 1e3 (the tested
         # value); the wall is the field's `le`, checked on the next float.
-        assert model.model_validate({"d": 999.699, "s": 1000.0}).d == 999.699
+        assert model.model_validate({"d": 999.699, "s": 1000.0, "pitch": 124.963}).d == 999.699
     else:
         assert getattr(model.model_validate({**extra, field: bound}), field) == bound
     with pytest.raises(ValidationError) as caught:
@@ -205,7 +207,8 @@ def test_a_bolt_d_at_its_wall_needs_a_head_wider_than_it() -> None:
     [err] = caught.value.errors()
     assert err["type"] == "head_too_small"
     assert err["ctx"]["fields"] == ["s", "d"]
-    assert BoltParams.model_validate({"d": MAX_BOLT_D_MM, "s": MAX_FIELD_MM}).d == MAX_BOLT_D_MM
+    assert BoltParams.model_validate({"d": MAX_BOLT_D_MM, "s": MAX_FIELD_MM, "pitch": 50.0}
+                                     ).d == MAX_BOLT_D_MM
 
 
 def test_a_nut_at_the_clearance_wall_is_a_422_on_the_clearance_not_on_the_thin_nut_rule() -> None:
@@ -288,10 +291,11 @@ def test_a_pitch_past_the_float_range_of_turns_is_a_turn_cap_error_not_an_overfl
 
 
 def test_the_exact_90_turn_row_is_accepted_though_float_division_reads_above_90() -> None:
-    # 2.7 / 0.03 is a float above 90; the user typed exactly 90 turns (Pitfall 2).
+    # 2.7 / 0.03 is a float above 90; the user typed exactly 90 turns (Pitfall 2). d 0.6 keeps
+    # the pitch inside the bolt's fine-pitch wall (07 R31, d / pitch 20).
     assert 2.7 / 0.03 > 90
-    p = BoltParams.model_validate({"d": 4.0, "pitch": 0.03, "length": 2.7, "thread_length": 2.7})
-    assert (p.d, p.pitch, p.length, p.thread_length) == (4.0, 0.03, 2.7, 2.7)
+    p = BoltParams.model_validate({"d": 0.6, "pitch": 0.03, "length": 2.7, "thread_length": 2.7})
+    assert (p.d, p.pitch, p.length, p.thread_length) == (0.6, 0.03, 2.7, 2.7)
 
 
 def test_a_field_error_hides_the_model_rules_that_need_every_field() -> None:
@@ -395,7 +399,7 @@ def test_the_slug_tells_the_hands_apart() -> None:
 
 
 @pytest.mark.parametrize("values", [
-    {"d": 999.0, "s": 1000.0, "k": 1e5},
+    {"d": 999.0, "s": 1000.0, "k": 1e5, "pitch": 50.0},
     {"d": 0.03, "pitch": 0.005, "length": 0.05, "s": 0.04, "k": 0.01},
     {"length": 1e4, "pitch": 112.0, "d": 200.0, "s": 300.0, "k": 120.0, "thread_length": 1e4},
     {"head_chamfer": 89.99999999999999},

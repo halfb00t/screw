@@ -187,8 +187,9 @@ SQUASH_COMMIT_READ = (
 )
 
 REQUIRED = frozenset({"test (3.12)", "vendor-bundle", "image"})
-# The required tier's shard jobs (07-18, G34), as GitHub reports a matrix job.
-BOUNDS_SHARDS = ("bounds (1)", "bounds (2)", "bounds (3)", "bounds (4)", "bounds (5)")
+# The required tier's shard jobs (07-18, G34), as GitHub reports a matrix job: 4 since the
+# fine-pitch wall dropped the points it refuses (G36).
+BOUNDS_SHARDS = ("bounds (1)", "bounds (2)", "bounds (3)", "bounds (4)")
 
 
 @pytest.fixture(autouse=True)

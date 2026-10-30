@@ -351,11 +351,12 @@ def test_readme_cli_examples_run(tmp_path: Path, capsys: pytest.CaptureFixture[s
             assert json.loads(capsys.readouterr().out)["kind"] == "bolt"
 
 
-# The explore point `bolt-d30-p1-n30-right`, which 07-BUDGET-TABLE.md lists as refused at stl-fine
-# under C1 (B-01; run 40646117094). An R12 widening only refuses more, so it stays refused.
-OVER = ["--d", "30", "--pitch", "1", "--length", "30", "--thread-length", "30", "--s", "48",
+# The explore point `bolt-d30-p3-n30-right` (run 40646117094), refused at stl-preview and stl-fine
+# by the shipped cost model under C1 (B-01); an R12 widening only refuses more. Its d / pitch is 10,
+# inside the bolt's fine-pitch wall (07 R31); the first pick, `bolt-d30-p1-n30-right`, is past it.
+OVER = ["--d", "30", "--pitch", "3", "--length", "90", "--thread-length", "90", "--s", "48",
         "--k", "18"]
-OVER_PART = BoltParams(d=30.0, pitch=1.0, length=30.0, thread_length=30.0, s=48.0, k=18.0)
+OVER_PART = BoltParams(d=30.0, pitch=3.0, length=90.0, thread_length=90.0, s=48.0, k=18.0)
 
 
 def test_a_fine_stl_over_its_budget_exits_2_and_writes_nothing(
@@ -373,13 +374,12 @@ def test_a_fine_stl_over_its_budget_exits_2_and_writes_nothing(
 
 def test_a_nut_fine_stl_over_its_budget_exits_2_and_writes_nothing(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    # The explore point `nut-d100-p1-m0.8d-s1.6d-c5-right`, which 07-BUDGET-TABLE.md lists as
-    # refused at stl-fine under C1 (B-01; run 40646117094); a widening only refuses more.
+    # A nut the shipped cost model refuses at every artifact under C1 (B-01), inside the nut's
+    # fine-pitch wall (07 R31, d / pitch 8); a widening only refuses more.
     out = tmp_path / "x.stl"
-    argv = ["export", "nut", "--d", "100", "--pitch", "1", "--s", "160", "--m", "80",
-            "--clearance", "5", "-o", str(out)]
-    refusal = cost.refusal(NutParams(d=100.0, pitch=1.0, s=160.0, m=80.0, clearance=5.0),
-                           "stl-fine")
+    argv = ["export", "nut", "--d", "50", "--pitch", "6.25", "--s", "80", "--m", "500",
+            "-o", str(out)]
+    refusal = cost.refusal(NutParams(d=50.0, pitch=6.25, s=80.0, m=500.0), "stl-fine")
     assert refusal is not None
     assert _exit_code(argv) == 2
     err = capsys.readouterr().err
@@ -412,10 +412,12 @@ def test_each_download_of_a_refused_part_is_judged_on_its_own(
         assert not out.exists()
 
 
-# B-03 (07-OWNER-RULINGS.md, 2026-10-29): OVER with its length and thread_length left at their
-# defaults is over its budget at stl-preview and stl-fine; its defaulted thread_length is capped.
-CAPPED = ["--d", "30", "--s", "48", "--k", "18"]
-CAPPED_PART = BoltParams(d=30.0, s=48.0, k=18.0)
+# B-03 (07-OWNER-RULINGS.md, 2026-10-29): bolt d 20, s 32, k 12 with pitch, length and
+# thread_length at their defaults is over its budget at stl-preview and stl-fine; its defaulted
+# thread_length is capped. The clarification's evidence part, d 30 at the default pitch 1, is
+# past the bolt's fine-pitch wall (07 R31) and never reaches the cost model now.
+CAPPED = ["--d", "20", "--s", "32", "--k", "12"]
+CAPPED_PART = BoltParams(d=20.0, s=32.0, k=12.0)
 
 
 def test_info_prints_the_capped_part_with_its_warning_first(
@@ -480,10 +482,12 @@ def test_an_export_of_a_bolt_below_the_fitted_turns_is_refused_with_the_apis_tex
 
 def test_a_nut_with_a_defaulted_m_over_the_budget_is_capped_on_m(
         capsys: pytest.CaptureFixture[str]) -> None:
-    nut = NutParams(d=2.0, pitch=0.1)
-    capped, (warning,) = cost.cap_defaults(nut, frozenset({"d", "pitch"}))
+    # Inside the nut's fine-pitch wall (07 R31) the m cap is reached by d 0.5 at d / pitch 8 with
+    # s named; the first pick, d 2 at pitch 0.1, is past the wall.
+    nut = NutParams(d=0.5, pitch=0.0625, s=1.0)
+    capped, (warning,) = cost.cap_defaults(nut, frozenset({"d", "pitch", "s"}))
     assert isinstance(capped, NutParams)
-    cli.main(["info", "nut", "--d", "2", "--pitch", "0.1"])
+    cli.main(["info", "nut", "--d", "0.5", "--pitch", "0.0625", "--s", "1"])
     doc = json.loads(capsys.readouterr().out)
     assert doc["warnings"][0] == warning
     assert warning.startswith("m: ")
@@ -493,8 +497,10 @@ def test_a_nut_with_a_defaulted_m_over_the_budget_is_capped_on_m(
 def test_a_bolt_only_a_coarser_pitch_would_admit_keeps_its_refusal(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     # B-03 is part-wide, not part-wide-pitch: the pitch never moves, so the 422 analogue stands.
-    p = BoltParams(d=100.0, s=160.0, k=60.0)
-    argv = ["--d", "100", "--s", "160", "--k", "60"]
+    # d 12 at the default pitch 1, inside the bolt's fine-pitch wall (07 R31), over at both STLs
+    # with no thread_length or length cap that admits it.
+    p = BoltParams(d=12.0, s=24.0, k=8.4)
+    argv = ["--d", "12", "--s", "24", "--k", "8.4"]
     cli.main(["info", "bolt", *argv])
     assert json.loads(capsys.readouterr().out) == json.loads(derive(p).model_dump_json())
     out = tmp_path / "x.stl"

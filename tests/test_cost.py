@@ -17,7 +17,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from bench import oper_fit
+from bench import oper_fit, oper_lift
 from screw.calc import cost, derive, download_refusal
 from screw.calc.cost import ARTIFACTS, BUILD_TIMEOUT_S, artifact_of
 from screw.calc.thread import built_thread_length
@@ -64,9 +64,13 @@ FIT = REPO / "bench" / "results" / "phase-07" / "fit.json"
 RULINGS = REPO / ".planning" / "phases" / "07-operability-re-sweep" / "07-OWNER-RULINGS.md"
 COST_PY = REPO / "src" / "screw" / "calc" / "cost.py"
 
-# The explore point `bolt-d30-p1-n30-right`, which 07-BUDGET-TABLE.md lists as refused at stl-fine
-# under C1 (B-01; run 40646117094). An R12 widening only refuses more, so it stays refused.
-OVER = BoltParams(d=30.0, pitch=1.0, length=30.0, thread_length=30.0, s=48.0, k=18.0)
+# The explore point `bolt-d30-p3-n30-right` (run 40646117094), refused at stl-fine by the shipped
+# cost model under C1 (B-01); an R12 widening only refuses more, so it stays refused. Its d / pitch
+# is 10, inside the bolt's fine-pitch wall (07 R31; the first pick, `bolt-d30-p1-n30-right`, is
+# past it and never reaches the cost model now).
+OVER = BoltParams(d=30.0, pitch=3.0, length=90.0, thread_length=90.0, s=48.0, k=18.0)
+# A nut whose defaulted m puts its STEP over the budget and that the m cap admits (B-03).
+NUT_CAP = NutParams(d=0.5, pitch=0.0625, s=1.0)
 
 
 def _document() -> dict[str, object]:
@@ -120,15 +124,19 @@ def test_the_budget_is_b01_and_b01_is_c1_recomputed_from_fit_json_and_the_catalo
 
 
 # The orchestrator's two G28 bypass cases at d869b87: admitted on a raw prediction that fell as
-# the head ratio left its band (bolt k/d 10, nut s/d 33.3).
-TALL_HEAD = BoltParams(d=100.0, pitch=1.0, length=30.0, thread_length=30.0, s=200.0, k=1000.0)
-WIDE_NUT = NutParams(d=30.0, pitch=0.35, s=999.0, m=24.0, clearance=0.15)
+# the head ratio left its band (bolt k/d 10, nut s/d 33.3). Both are past the fine-pitch wall of
+# 07 R31 (d / pitch 100 and 85.7), so a request never brings them to the cost model now; built
+# unvalidated, they keep the exact cases G28 was ruled on for the cost model's own arithmetic.
+TALL_HEAD = BoltParams.model_construct(d=100.0, pitch=1.0, length=30.0, thread_length=30.0,
+                                       s=200.0, k=1000.0)
+WIDE_NUT = NutParams.model_construct(d=30.0, pitch=0.35, s=999.0, m=24.0, clearance=0.15)
 
 
 @pytest.mark.parametrize("part", [BoltParams(), NutParams(), OVER,
                                   BoltParams(d=8.0, pitch=1.25, length=70.0, thread_length=80.0,
                                              left_hand=True),
-                                  NutParams(d=30.0, pitch=0.35, s=48.0, m=24.0, clearance=0.15),
+                                  NutParams.model_construct(d=30.0, pitch=0.35, s=48.0, m=24.0,
+                                                            clearance=0.15),
                                   TALL_HEAD, WIDE_NUT,
                                   BoltParams(d=10.0, s=99.0, k=1.0),
                                   NutParams(d=10.0, pitch=1.5, s=11.0, m=40.0)],
@@ -307,12 +315,14 @@ DOWNLOAD_PAIRS = (("stl", "fine"), ("stl", "preview"), ("step", "fine"), ("step"
 
 
 def _explore_parts() -> list[FastenerParams]:
-    """Every explore point the parameter model takes: a grid over both kinds and the walls."""
+    """Every explore point the parameter model takes, the fine-pitch wall aside: a grid over both
+    kinds and the walls. Without the wall's lift (07 R31, G36) no explore nut the grid keeps is
+    refused by the cost model, and the grid would test one outcome only."""
     raw = json.loads((REPO / "bench" / "points" / "explore.json").read_text())
     parts: dict[str, FastenerParams] = {}
     for point in raw["points"]:
         try:
-            parts[point["label"]] = KINDS[point["kind"]].model_validate(point["params"])
+            parts[point["label"]] = oper_lift.drawn(point["kind"], point["params"])
         except ValidationError:
             continue
     return list(parts.values())
@@ -362,10 +372,10 @@ def test_each_refusal_is_one_warning_in_download_order_with_the_step_pair_once()
 
 # --- B-03: a defaulted value that pushes a part over is capped and warned (D-06) ---------------
 
-# Bolt d 30, s 48, k 18 at the default pitch, length and thread_length: no row of the table's D-06
-# section trims a thread_length, so the part is built from the model as plan 07-12 says. Refused at
-# stl-preview and stl-fine (B-03 clarification, 07-OWNER-RULINGS.md, 2026-10-29).
-CAP_QUERY = {"d": 30.0, "s": 48.0, "k": 18.0}
+# Bolt d 20, s 32, k 12 at the default pitch, length and thread_length, refused at stl-preview and
+# stl-fine like the B-03 clarification's evidence part (07-OWNER-RULINGS.md, 2026-10-29), bolt d 30,
+# s 48, k 18, which at the default pitch 1 is past the bolt's fine-pitch wall (07 R31) now.
+CAP_QUERY = {"d": 20.0, "s": 32.0, "k": 12.0}
 CAP_PART = BoltParams.model_validate(CAP_QUERY)
 
 
@@ -409,7 +419,7 @@ def test_the_turns_floor_is_the_fewest_built_turns_over_the_fitted_bolt_points()
 
 @pytest.mark.parametrize(("query", "thread_length"), [
     ({"d": 5.0}, 16.5),
-    (CAP_QUERY, 6.5),
+    (CAP_QUERY, 17.5),
 ])
 def test_the_ruled_caps_stand_above_the_turns_floor(query: dict[str, float],
                                                     thread_length: float) -> None:
@@ -551,7 +561,7 @@ def test_a_named_thread_length_keeps_the_part_and_its_refusals(named: set[str]) 
 def test_the_length_cap_never_shortens_a_named_thread_length(thread_length: float) -> None:
     # B-03 clarification, ruling 1, asserted against the rule: whatever a named thread_length is,
     # the capped part builds at least that thread and keeps the field as named.
-    for query in ({"d": 30.0, "s": 48.0, "k": 18.0},
+    for query in (CAP_QUERY,
                   {"d": 3.0, "pitch": 0.2, "s": 4.5, "k": 1.8}):
         try:
             part = BoltParams.model_validate({**query, "thread_length": thread_length})
@@ -587,26 +597,29 @@ def test_a_value_off_its_default_counts_as_named_on_direct_construction() -> Non
 
 def test_a_defaulted_nut_m_over_the_budget_is_capped_on_its_tenth_millimetre_step() -> None:
     # Only below about d 6.5 does an m cut help: under the m/d band (0.8 d) G28 judges a nut at the
-    # band's low edge, so a shorter m below 0.8 d predicts no cheaper (ruling 5).
-    nut = NutParams(d=2.0, pitch=0.1)
+    # band's low edge, so a shorter m below 0.8 d predicts no cheaper (ruling 5). Inside the nut's
+    # fine-pitch wall (07 R31, d / pitch at most 8) this is the one such nut of a survey of d 0.5 to
+    # 100 at d / pitch 3 to 8, s default or 1.2 to 4 d: d 0.5 at d / pitch 8 with s 1 mm.
+    nut = NUT_CAP
     assert [a for a in ARTIFACTS if not cost.fits(nut, a)] == ["step"]
-    capped, (warning,) = cost.cap_defaults(nut, frozenset({"d", "pitch"}))
+    capped, (warning,) = cost.cap_defaults(nut, frozenset({"d", "pitch", "s"}))
     assert isinstance(capped, NutParams)
     _assert_the_largest_admitted(nut, capped, "m", 0.1)
     assert warning.startswith("m: the default 5.2 mm puts the STEP (step) of this nut over its "
                               "measured budget (L21), so m is capped at ")
-    assert cost.cap_defaults(nut, frozenset({"d", "pitch", "m"})) == (nut, ())
+    assert cost.cap_defaults(nut, frozenset({"d", "pitch", "s", "m"})) == (nut, ())
 
 
 def test_the_cap_never_moves_the_pitch_or_any_field_b03_does_not_list() -> None:
-    # Under B-03's part-wide ruling a bolt whose only admitting move is a coarser pitch (07-BUDGET-
-    # TABLE.md, C1 D-06: `bolt-d100-p1-*` admits at a raised pitch) keeps its per-artifact 422.
-    bolt = BoltParams(d=100.0, s=160.0, k=60.0)
+    # Under B-03's part-wide ruling a bolt that no thread_length or length cap admits keeps its
+    # per-artifact 422, its defaulted pitch unmoved: d 12 with s 2 d and k 0.7 d, at the default
+    # pitch 1 (d / pitch 12, inside the fine-pitch wall of 07 R31), is over at both STLs.
+    bolt = BoltParams(d=12.0, s=24.0, k=8.4)
     assert not cost.fits_every_artifact(bolt)
     assert not cost.fits_every_artifact(bolt.model_copy(update={"thread_length": 0.5}))
     assert cost.cap_defaults(bolt, frozenset({"d", "s", "k"})) == (bolt, ())
     fixed = {"d", "pitch", "s", "k", "clearance", "head_chamfer", "left_hand"}
-    for part in (CAP_PART, NutParams(d=2.0, pitch=0.1)):
+    for part in (CAP_PART, NUT_CAP):
         capped, _ = cost.cap_defaults(part, frozenset({"d", "s", "k", "pitch"}))
         for field in fixed & set(type(part).model_fields):
             assert getattr(capped, field) == getattr(part, field), field
@@ -617,7 +630,7 @@ def test_the_cap_never_moves_the_pitch_or_any_field_b03_does_not_list() -> None:
 PARITY_CAPS: list[tuple[str, dict[str, float]]] = [
     ("bolt", CAP_QUERY),
     ("bolt", {"d": 3.0, "pitch": 0.2, "s": 4.5, "k": 1.8, "thread_length": 8.0}),
-    ("nut", {"d": 2.0, "pitch": 0.1}),
+    ("nut", {"d": 0.5, "pitch": 0.0625, "s": 1.0}),
 ]
 
 

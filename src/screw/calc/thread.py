@@ -61,6 +61,28 @@ MIN_TAIL_MM = 1e-4
 # docs/tech_debt/active/2026-10-21-nut-countersink-cutter-crosses-the-axis-at-a-coarse-pitch.md.
 MIN_ROOT_RADIUS_MM = 1e-2
 
+# The finest pitch for its diameter, as the largest exact d / pitch a part may ask for (07 R31,
+# rulings G35 and G36): above it the kernel's end-cut booleans act on a swept thread whose error
+# does not shrink with the thread depth and return a wrong solid the gates refuse
+# (.planning/debug/in-wall-kernel-builderror.md). A part above its kind's wall is a 422 naming d
+# and pitch; a part at it is admitted. Bolt: walk run 41074314305 read 2904 bolts with 3 turns of
+# thread on linux/amd64 on the GitHub runner, the smallest refused d / pitch F was
+# 26.999784001727985 (d 3, pitch 0.111112, right hand), and the wall is the largest ISO 3 R10
+# number at or below F / 1.25, written by the walk's judge below. Longer threads in the bands d 0.5
+# to 0.85 and 1.6 to 3.3 mm are refused below it and stay debt
+# (docs/tech_debt/active/2026-10-29-in-wall-parts-the-kernel-refuses.md).
+# BEGIN pitch-walls: written by `python -m bench.oper_sets pitch-walls --from
+# bench/results/phase-07/walls-pitch-41074314305`; not edited by hand.
+MAX_BOLT_D_PER_PITCH = Fraction("20")
+# END pitch-walls
+# Nut: 8 by the owner's ruling G36, not by the margin rule. The same walk read 2752 nuts in four
+# forms and refused an island of six at d 2.2 mm, d / pitch 7 (base, s4 and m1 forms, both hands;
+# every neighbouring cell ok), which the margin rule would turn into a wall of 5 that refuses 13 of
+# the 14 nut catalogue rows and the default nut (d / pitch 6). The island stays debt with the bolt's
+# residual; 8 is the catalogue's largest d / pitch, and every other refused nut sat at 11.
+MAX_NUT_D_PER_PITCH = Fraction(8)
+
+
 def fundamental_height(pitch: float) -> float:
     """H = (sqrt(3) / 2) * P, the height of the sharp 60 degree triangle."""
     return math.sqrt(3) / 2 * pitch
@@ -345,6 +367,49 @@ def root_radius_refusal(d: float, pitch: float) -> str | None:
     if largest is None:
         return text
     return f"{text}; the largest pitch for this d, to 6 significant figures, is {largest:g}"
+
+
+def _smallest_admitted_pitch(d: float, wall: Fraction) -> float | None:
+    """The smallest pitch of at most 6 significant figures whose exact d / pitch is at most
+    `wall`, or None. `d / wall` rounded up, exactly, then re-checked with the refusal's own test
+    so the printed number is one the user can type (L02)."""
+    x = _exact(d) / wall
+    scale = Fraction(1)
+    while scale > x:
+        scale /= 10
+    while scale * 10 <= x:
+        scale *= 10
+    step = scale / 10**5
+    exact = math.ceil(x / step) * step
+    candidate = float(Decimal(exact.numerator) / Decimal(exact.denominator))
+    if math.isfinite(candidate) and candidate > 0 and _exact(d) <= wall * _exact(candidate):
+        return candidate
+    return None
+
+
+def pitch_too_fine_refusal(kind: str, d: float, pitch: float) -> str | None:
+    """None when the exact d / pitch is at most the kind's fine-pitch wall (`MAX_BOLT_D_PER_PITCH`
+    or `MAX_NUT_D_PER_PITCH`, read at call time); otherwise the text (07 R31).
+
+    Exact decimals, as the walls of the turn cap: a d / pitch typed as exactly the wall is
+    admitted. The ratio prints from the fraction itself, so a subnormal pitch reads as a huge
+    number and not as an overflow. The text begins `d and pitch: `. No braces: pydantic formats a
+    custom error from its context.
+    """
+    wall = MAX_BOLT_D_PER_PITCH if kind == "bolt" else MAX_NUT_D_PER_PITCH
+    ratio = _exact(d) / _exact(pitch)
+    if ratio <= wall:
+        return None
+    why = ("the bolt's wall, one R10 step below the smallest d / pitch at which the kernel "
+           "refused a 3-turn bolt on linux/amd64 (run 41074314305)" if kind == "bolt" else
+           "the nut's wall as the owner ruled it (07 G36), below d / pitch 11, where the kernel "
+           "refused nuts on linux/amd64 (run 41074314305)")
+    text = (f"d and pitch: d / pitch is {ratio:.6g} at d {_plain(d)} and pitch {_plain(pitch)}, "
+            f"above {wall}, {why}")
+    smallest = _smallest_admitted_pitch(d, wall)
+    if smallest is None:
+        return text
+    return f"{text}; the smallest pitch for this d, to 6 significant figures, is {_plain(smallest)}"
 
 
 def turn_cap_refusal(t: float, pitch: float) -> str | None:

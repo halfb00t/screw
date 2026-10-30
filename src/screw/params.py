@@ -155,6 +155,17 @@ class FastenerParams(BaseModel):
         return f"{self.kind}_{fields}"
 
 
+def _pitch_too_fine(p: FastenerParams) -> None:
+    # 07 R31 (G35, G36): a pitch too fine for its d is refused before the kernel, which would accept
+    # the request and then fail the build. A direct conflict between two fields, so a 422 naming
+    # both (L02). Each kind calls it from its last validator, so a part another rule also refuses
+    # keeps the error it gave before the wall existed.
+    from screw.calc.thread import pitch_too_fine_refusal
+
+    if (msg := pitch_too_fine_refusal(p.kind, p.d, p.pitch)) is not None:
+        raise PydanticCustomError("pitch_too_fine", msg, {"fields": ["d", "pitch"]})
+
+
 class BoltParams(FastenerParams):
     """The bolt: a hex head bolt or screw of diameter d, pitch, nominal length, across flats s
     and head height k."""
@@ -217,6 +228,11 @@ class BoltParams(FastenerParams):
 
         if (msg := head_too_small_refusal(self.s, self.d)) is not None:
             raise PydanticCustomError("head_too_small", msg, {"fields": ["s", "d"]})
+        return self
+
+    @model_validator(mode="after")
+    def _fine_pitch(self) -> Self:
+        _pitch_too_fine(self)
         return self
 
 
@@ -282,6 +298,11 @@ class NutParams(FastenerParams):
 
         if (msg := nut_turn_cap_refusal(self.m, self.pitch)) is not None:
             raise PydanticCustomError("turn_cap", msg, {"fields": ["m", "pitch"]})
+        return self
+
+    @model_validator(mode="after")
+    def _fine_pitch(self) -> Self:
+        _pitch_too_fine(self)
         return self
 
 

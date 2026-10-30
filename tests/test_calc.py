@@ -520,9 +520,11 @@ def test_a_nut_with_a_positive_clearance_has_no_clearance_warning(clearance: flo
     assert info.warnings == [STANDING_WARNING]
 
 
-# The explore point `nut-d100-p1-m0.8d-s1.6d-c5-right`, which 07-BUDGET-TABLE.md lists as refused
-# at every artifact under C1 (B-01; run 40646117094). An R12 widening only refuses more.
-NUT_OVER = NutParams(d=100.0, pitch=1.0, s=160.0, m=80.0, clearance=5.0)
+# A nut the shipped cost model refuses at every artifact under C1 (B-01): d 50, d / pitch 8 at the
+# nut's fine-pitch wall (07 R31), m 10 d. An R12 widening only refuses more. The first pick, the
+# explore point `nut-d100-p1-m0.8d-s1.6d-c5-right`, is past that wall and no explore nut inside it
+# is refused by the cost model.
+NUT_OVER = NutParams(d=50.0, pitch=6.25, s=80.0, m=500.0)
 
 
 def test_a_nut_over_its_budget_is_refused_per_artifact_by_the_cost_model() -> None:
@@ -566,9 +568,10 @@ def test_the_nut_closed_form_is_the_prism_less_the_section_times_the_height() ->
     assert nut_closed_volume(6.0, 1.0, 10.0, 5.2, 0.2) < nut_closed_volume(6.0, 1.0, 10.0, 5.2, 0.1)
 
 
-# The explore point `bolt-d30-p1-n30-right`, which 07-BUDGET-TABLE.md lists as refused at stl-fine
-# under C1 (B-01; run 40646117094). An R12 widening only refuses more, so it stays refused.
-OVER = BoltParams(d=30.0, pitch=1.0, length=30.0, thread_length=30.0, s=48.0, k=18.0)
+# The explore point `bolt-d30-p3-n30-right` (run 40646117094), refused at stl-preview and stl-fine
+# by the shipped cost model under C1 (B-01); an R12 widening only refuses more. Its d / pitch is 10,
+# inside the bolt's fine-pitch wall (07 R31); the first pick, `bolt-d30-p1-n30-right`, is past it.
+OVER = BoltParams(d=30.0, pitch=3.0, length=90.0, thread_length=90.0, s=48.0, k=18.0)
 
 DOWNLOAD_PAIRS: list[tuple[str, str]] = [
     ("stl", "fine"), ("stl", "preview"), ("step", "fine"), ("step", "preview")]
@@ -608,7 +611,7 @@ def test_a_refused_part_warns_about_its_fine_stl_after_the_no_row_warning() -> N
     assert refusal is not None
     assert derive(OVER).warnings == [
         STANDING_WARNING, NO_ROW, *_refused(OVER),
-        "no GOST ISO 4032-2014 (ISO 4032:2012) row for d 30 pitch 1; set s and m on the nut"]
+        "no GOST ISO 4032-2014 (ISO 4032:2012) row for d 30 pitch 3; set s and m on the nut"]
     assert refusal in _refused(OVER)
 
 
@@ -1341,7 +1344,7 @@ def test_a_nut_that_is_no_row_still_carries_the_m18_note() -> None:
 def test_only_the_exact_m18_key_carries_the_note() -> None:
     above = math.nextafter(18.0, math.inf)
     for nut in (NutParams(d=above, pitch=2.5, s=27.0, m=14.8, clearance=0.1),
-                NutParams(d=18.0, pitch=2.0, s=27.0, m=14.8, clearance=0.1),
+                NutParams(d=18.0, pitch=3.0, s=27.0, m=14.8, clearance=0.1),
                 NutParams(d=18.0, pitch=math.nextafter(2.5, math.inf), s=27.0, m=14.8,
                           clearance=0.1),
                 NutParams(clearance=0.1)):
@@ -1590,10 +1593,10 @@ def test_a_bolt_never_carries_the_measured_range_warning(d: float) -> None:
 def test_the_measured_range_warning_changes_no_row_and_keeps_the_warning_order(
         monkeypatch: pytest.MonkeyPatch) -> None:
     # The sentence sits after the download refusals and before the counterpart's off-row sentence,
-    # which stays last (D-09, D-15): NUT_OVER, d 100, draws the refusals, d 5.5 the off-row.
+    # which stays last (D-09, D-15): NUT_OVER, d 50, draws the refusals, d 5.5 the off-row.
     outside = NUT_OVER
     info = derive(outside)
-    new = MEASURED_RANGE.format(d="100")
+    new = MEASURED_RANGE.format(d="50")
     refusal = download_refusal(outside, "stl", "fine")
     assert refusal is not None
     assert info.warnings[0] == STANDING_WARNING
@@ -1725,15 +1728,18 @@ def test_the_printability_warning_keeps_the_warning_order(
         monkeypatch: pytest.MonkeyPatch) -> None:
     # A nut crossing both D-09 and D-13 carries two separate sentences, D-09 first; the standing
     # warning leads and the counterpart's off-row sentence stays last (D-09, D-13, D-15).
-    nut = NutParams(d=5.0, pitch=0.4, s=9.0, m=4.0, clearance=0.1)
+    # d 4.8 at pitch 0.6: d / pitch 8, at the nut's fine-pitch wall (07 R31); the first picks, d 5
+    # at pitch 0.4 and d 12 at pitch 0.5, are past it, and no nut inside it from M6 to M12 has a
+    # pitch below P_min, so the off-row nut is this one too.
+    nut = NutParams(d=4.8, pitch=0.6, s=9.0, m=4.0, clearance=0.1)
     info = derive(nut)
-    outside = MEASURED_RANGE.format(d="5")
+    outside = MEASURED_RANGE.format(d="4.8")
     (below,) = _printability_warnings(nut)
     assert outside != below
     assert info.warnings[0] == STANDING_WARNING
     assert info.warnings.index(outside) + 1 == info.warnings.index(below)
-    off_row = derive(NutParams(d=12.0, pitch=0.5, s=19.0, m=8.0, clearance=0.1)).warnings
-    assert off_row[-2].startswith("pitch 0.5 mm is below P_min 0.7 mm")
+    off_row = derive(NutParams(d=4.8, pitch=0.6, s=8.0, m=4.0, clearance=0.1)).warnings
+    assert off_row[-2].startswith("pitch 0.6 mm is below P_min 0.7 mm")
     assert off_row[-1].startswith("no ISO 4017:2022 row for")
     bolt = derive(BoltParams(d=3.0, pitch=0.5, s=5.5, k=2.0, length=10.0, thread_length=10.0))
     assert bolt.warnings[0] == STANDING_WARNING

@@ -404,8 +404,9 @@ def test_a_nut_whose_flats_are_no_wider_than_its_void_is_refused_naming_three_fi
 
 
 def test_the_turn_cap_judges_the_void_the_builder_makes() -> None:
-    # m + 2 pitch is what `solid/nut.py` sweeps: 88 pitches of m make exactly 90 turns.
-    for pitch, m in ((1.0, 88.0), (0.5, 44.0), (0.7, 61.6)):
+    # m + 2 pitch is what `solid/nut.py` sweeps: 88 pitches of m make exactly 90 turns. The
+    # pitches stay inside the default nut's fine-pitch wall (07 R31, d 6 at d / pitch 8).
+    for pitch, m in ((1.0, 88.0), (0.75, 66.0), (0.8, 70.4)):
         assert NutParams(pitch=pitch, m=m, clearance=0.1).m == m, (pitch, m)
         err = _refusal(pitch=pitch, m=math.nextafter(m, math.inf), clearance=0.1)
         assert err["type"] == "turn_cap"

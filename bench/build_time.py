@@ -26,10 +26,11 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from bench import machine_facts
+from bench import machine_facts, oper_lift
 from bench.corpus import corpus, label
 from screw import solid
 from screw.calc.cost import ARTIFACTS, BUILD_TIMEOUT_S, Artifact, fits
+from screw.calc.thread import pitch_too_fine_refusal
 from screw.params import BoltParams
 
 
@@ -45,6 +46,9 @@ class Timing:
     refused: frozenset[Artifact]
     # The artifacts the cost model refuses for this part as given. The service answers each
     # with a 422 before any build (L21), so none is ever held to a timeout.
+    past_wall: bool = False
+    # The part is past the bolt's fine-pitch wall (L25), so the service refuses every artifact
+    # with a 422 naming d and pitch, and `refused` holds all three.
 
     def cold_wall(self, artifact: Artifact) -> float:
         """What a cold request for `artifact` pays: one build and that artifact's one export,
@@ -62,17 +66,20 @@ def load_sweep(path: Path | None = None) -> list[tuple[str, BoltParams]]:
 
     With no `path` that is `bench.corpus`; with one, a JSON list of the same query
     dictionaries. A set that fails validation cannot be timed and must not be silently
-    skipped: raise, naming the file, the position and the set.
+    skipped: raise, naming the file, the position and the set. Validated as the corpus was drawn,
+    without the fine-pitch wall (L25, ruling G36), so its fixed grid still times; `main` marks
+    the sets past that wall refused at every artifact.
     """
     source = "the skeleton corpus" if path is None else str(path)
     raw: list[dict[str, object]] = corpus() if path is None else json.loads(path.read_text())
     sets: list[tuple[str, BoltParams]] = []
     for i, entry in enumerate(raw):
         try:
-            p = BoltParams.model_validate(entry)
+            p = oper_lift.drawn("bolt", entry)
         except ValidationError as exc:
             raise ValueError(
                 f"{source} set {i} ({label(entry)}) is not a buildable bolt: {exc}") from exc
+        assert isinstance(p, BoltParams)
         sets.append((label(entry), p))
     return sets
 
@@ -120,9 +127,21 @@ def time_set(p: BoltParams) -> tuple[float, dict[Artifact, float], int, int]:
     return build_s, exports, stl_bytes, stl_triangles
 
 
+def _past_wall(p: BoltParams) -> bool:
+    return pitch_too_fine_refusal(p.kind, p.d, p.pitch) is not None
+
+
+def _refused(p: BoltParams) -> frozenset[Artifact]:
+    """The artifacts the service answers with a 422 before any build: every one past the
+    fine-pitch wall (L25), else those the cost model refuses (L21)."""
+    if _past_wall(p):
+        return frozenset(ARTIFACTS)
+    return frozenset(a for a in ARTIFACTS if not fits(p, a))
+
+
 def _verdict(t: Timing, artifact: Artifact) -> str:
     if artifact in t.refused:
-        return f"{t.cold_wall(artifact):.2f} refused (L21)"
+        return f"{t.cold_wall(artifact):.2f} refused ({'L25' if t.past_wall else 'L21'})"
     inside = t.cold_wall(artifact) <= BUILD_TIMEOUT_S[artifact]
     return f"{t.cold_wall(artifact):.2f} {'yes' if inside else '**NO**'}"
 
@@ -192,7 +211,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # Time every set before deciding the exit code -- a short-circuiting generator would
     # silently skip the rest.
-    timings = [Timing(name, *time_set(p), frozenset(a for a in ARTIFACTS if not fits(p, a)))
+    timings = [Timing(name, *time_set(p), _refused(p), past_wall=_past_wall(p))
                for name, p in sets]
 
     print(report(args.sweep, timings, load))

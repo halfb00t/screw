@@ -44,7 +44,7 @@ from pydantic import ValidationError
 from bench import build_time, end_cuts, mesh_deviation, nut_fine_caps, oper_lift
 from bench import quiet as quiet_module
 from bench.build_time import Timing, load_sweep, report, stl_size
-from bench.corpus import corpus
+from bench.corpus import corpus, label
 from bench.export_cost import GzipRow, find_set, maxrss_bytes, select_gzip_level
 from bench.head_fuse import CASES as HEAD_FUSE_CASES
 from bench.head_fuse import probe as head_fuse_probe
@@ -132,7 +132,7 @@ from bench.thread_spike.verdict import (
 )
 from screw import solid as screw_solid
 from screw.calc import thread as screw_thread
-from screw.calc.cost import BUILD_TIMEOUT_S, Artifact
+from screw.calc.cost import ARTIFACTS, BUILD_TIMEOUT_S, Artifact
 from screw.params import BoltParams, NutParams
 from screw.solid import helical as screw_helical
 
@@ -153,19 +153,33 @@ def test_the_skeleton_corpus_is_the_d_by_length_grid() -> None:
     ]
 
 
-def test_every_corpus_entry_is_a_valid_bolt() -> None:
+def test_every_corpus_entry_is_a_valid_bolt_and_the_d_100_rows_are_past_the_fine_pitch_wall(
+) -> None:
+    # The corpus was fixed before L25's fine-pitch wall and is checked under the model it was drawn
+    # under (ruling G36); at the default pitch 1 its three d 100 rows are past the bolt's wall, so
+    # the service refuses them at every artifact and `bench.build_time` does not judge them.
     entries = corpus()
     assert len(entries) == 12  # an empty corpus would pass the loop below vacuously
+    past = []
     for entry in entries:
-        BoltParams.model_validate(entry)
+        p = oper_lift.drawn("bolt", entry)
+        assert isinstance(p, BoltParams)
+        if build_time._past_wall(p):
+            past.append(label(entry))
+            assert build_time._refused(p) == frozenset(ARTIFACTS)
+        else:
+            BoltParams.model_validate(entry)
+    assert past == ["d=100 length=5 s=200 k=50 thread_length=5",
+                    "d=100 length=20 s=200 k=50 thread_length=20",
+                    "d=100 length=90 s=200 k=50 thread_length=90"]
 
 
 def test_the_default_sweep_is_the_corpus_labelled_by_every_key_it_pins() -> None:
     sets = load_sweep()
     assert [label for label, _ in sets][:2] == [
         "d=2 length=5 s=4 k=1 thread_length=5", "d=2 length=20 s=4 k=1 thread_length=20"]
-    assert sets[-1] == ("d=100 length=90 s=200 k=50 thread_length=90",
-                        BoltParams(d=100.0, length=90.0, s=200.0, k=50.0, thread_length=90.0))
+    assert sets[-1] == ("d=100 length=90 s=200 k=50 thread_length=90", oper_lift.drawn(
+        "bolt", {"d": 100.0, "length": 90.0, "s": 200.0, "k": 50.0, "thread_length": 90.0}))
     assert len(sets) == 12
 
 
@@ -181,8 +195,8 @@ def test_a_sweep_file_set_that_is_not_a_bolt_is_refused_naming_it(tmp_path: Path
 
 
 def test_a_set_is_found_by_the_label_the_sweep_prints() -> None:
-    assert find_set(None, "d=100 length=90 s=200 k=50 thread_length=90") == BoltParams(
-        d=100.0, length=90.0, s=200.0, k=50.0, thread_length=90.0)
+    assert find_set(None, "d=100 length=90 s=200 k=50 thread_length=90") == oper_lift.drawn(
+        "bolt", {"d": 100.0, "length": 90.0, "s": 200.0, "k": 50.0, "thread_length": 90.0})
 
 
 def test_an_unknown_set_label_exits_2_and_lists_the_labels(

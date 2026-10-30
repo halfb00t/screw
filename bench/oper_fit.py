@@ -35,6 +35,7 @@ from pathlib import Path
 import numpy as np
 from pydantic import ValidationError
 
+from bench import oper_lift
 from bench.oper import _read_records, summarize
 from bench.oper_sets import ProtocolStop
 from screw.calc.cost import ARTIFACTS
@@ -400,9 +401,10 @@ def admitted(models: Mapping[tuple[str, str, str], Model], part: Part, budget: T
 
 
 def within_walls(kind: str, params: Params) -> bool:
-    """Whether the parameter model (the walls of L20 and every validator) takes the part."""
+    """Whether the parameter model (the walls of L20 and every validator) takes the part, as the
+    budget table B-01 ruled on saw it: without R31's fine-pitch wall, which came after (G36)."""
     try:
-        KINDS[kind].model_validate(dict(params))
+        oper_lift.drawn(kind, params)
     except ValidationError:
         return False
     return True

@@ -16,10 +16,9 @@ from pathlib import Path
 
 import pytest
 
-from bench import oper, oper_sets
+from bench import oper, oper_lift, oper_sets
 from bench.oper_sets import ProtocolStop
-from screw.calc import cost
-from screw.params import KINDS
+from screw.calc import cost, thread
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 WALK = REPO_ROOT / "bench" / "points" / f"{oper_sets.PITCH_WALK}.json"
@@ -107,9 +106,12 @@ def test_the_bolt_forms_have_3_turns_and_the_nut_forms_their_fields() -> None:
 
 
 def test_every_point_is_one_the_model_and_the_cost_model_admit() -> None:
+    """The model less the fine-pitch wall (R31 reads past the wall it decides, G36)."""
     envelope = oper_sets.envelope_of(_walk()["envelope"])
     for point in _points():
-        part = KINDS[str(point["kind"])].model_validate(point["params"])
+        params = point["params"]
+        assert isinstance(params, dict)
+        part = oper_lift.drawn(str(point["kind"]), params)
         assert any(oper_sets.admits(part, a, envelope, cost.BUDGET) for a in cost.ARTIFACTS)
 
 
@@ -198,4 +200,67 @@ def test_pitch_walls_exits_0_on_the_ruled_walls_and_3_on_any_other(
     assert oper_sets.main(["pitch-walls", "--from", str(tmp_path / "other")]) == 3
     captured = capsys.readouterr()
     assert "W = 16\n" in captured.out
-    assert "the bolt W is 16, not the ruled 20" in captured.err
+    assert "the bolt W is 16, not 20" in captured.err
+
+
+def test_a_nut_w_off_the_margin_rule_does_not_stop_the_walk_since_the_nut_is_ruled(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    # G36: the nut's W is 8 by ruling; a nut refused at d / pitch 7 is reported, not a stop.
+    _write(tmp_path / "island", _readings({BOLT_27: "refused", NUT_7: "refused"}))
+    assert oper_sets.main(["pitch-walls", "--from", str(tmp_path / "island")]) == 0
+    out = capsys.readouterr().out
+    assert "W = 5\n" in out
+    assert "nut: shipped W = 8, the owner's ruling (G36)\n" in out
+    assert f"inside the wall, refused: nut {NUT_7} at d / pitch " in out
+
+
+NUT_7 = "pitch-nut-base-d2.2-q7-left"
+
+
+def test_the_residual_is_every_refusal_at_or_below_the_shipped_wall() -> None:
+    readings = _readings({BOLT_27: "refused", NUT_11: "refused", NUT_7: "crashed"})
+    walls = oper_sets.pitch_walls(_points(), readings)
+    shipped = oper_sets.shipped_pitch_walls(walls)
+    assert shipped == {"bolt": 20, "nut": 8}
+    assert [(kind, label) for kind, _, label in oper_sets.pitch_residual(readings, shipped)] == [
+        ("nut", NUT_7)]
+
+
+# --- the committed walk's records --------------------------------------------------------------
+
+RECORDS = REPO_ROOT / "bench" / "results" / "phase-07" / "walls-pitch-41074314305"
+
+
+@functools.cache
+def _recorded() -> tuple[dict[str, oper_sets.PitchWall], list[oper_sets.Reading]]:
+    readings = oper_sets.read_readings(RECORDS)
+    return oper_sets.pitch_walls(_points(), readings), readings
+
+
+def test_the_shipped_bolt_wall_is_the_block_the_records_write() -> None:
+    """R31: the bolt's W is written by code from the records, never typed: `calc.thread` holds
+    exactly the block `pitch-walls --from` prints for the committed run."""
+    walls, _ = _recorded()
+    assert walls["bolt"].w == oper_sets.EXPECTED_BOLT_PITCH_W == thread.MAX_BOLT_D_PER_PITCH
+    block = oper_sets.pitch_walls_block(walls, str(RECORDS.relative_to(REPO_ROOT)))
+    assert block in (REPO_ROOT / "src" / "screw" / "calc" / "thread.py").read_text()
+
+
+def test_the_nut_wall_is_the_ruled_8_and_not_the_margin_rules_5() -> None:
+    walls, _ = _recorded()
+    assert walls["nut"].w == 5
+    assert thread.MAX_NUT_D_PER_PITCH == 8
+    source = (REPO_ROOT / "src" / "screw" / "calc" / "thread.py").read_text()
+    comment = source[source.index("# END pitch-walls"):source.index("MAX_NUT_D_PER_PITCH =")]
+    assert "G36" in comment
+    assert "d 2.2 mm, d / pitch 7" in comment
+
+
+def test_the_residual_of_the_committed_walk_is_the_nut_island_of_six() -> None:
+    walls, readings = _recorded()
+    residual = oper_sets.pitch_residual(readings, oper_sets.shipped_pitch_walls(walls))
+    assert {kind for kind, _, _ in residual} == {"nut"}
+    assert {ratio for _, ratio, _ in residual} == {Fraction(1100000, 157143)}
+    assert sorted(label for _, _, label in residual) == [
+        f"pitch-nut-{form}-d2.2-q7-{hand}" for form in ("base", "m1", "s4")
+        for hand in ("left", "right")]

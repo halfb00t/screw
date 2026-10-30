@@ -447,9 +447,10 @@ def test_quality_is_a_foreign_field_on_the_info_route() -> None:
 
 
 # The walls of L20 (typed from the records: tests/test_oper_followup.py recomputes them): the field,
-# the value at the wall, and the other fields that make that corner a valid part.
+# the value at the wall, and the other fields that make that corner a valid part. The bolt at its d
+# wall takes pitch 50, the smallest the bolt's fine-pitch wall admits there (07 R31).
 WALLS: list[tuple[str, str, float, Params]] = [
-    ("bolt", "d", 999.999, {"s": 1000.0}),
+    ("bolt", "d", 999.999, {"s": 1000.0, "pitch": 50.0}),
     ("bolt", "length", 1e4, {}),
     ("bolt", "s", 1000.0, {}),
     ("bolt", "k", 1e5, {}),
@@ -474,7 +475,9 @@ def test_each_field_wall_is_inclusive_and_the_next_float_is_a_422_naming_the_fie
 
 def test_the_nut_d_has_no_wall_of_its_own_and_stays_under_the_shared_one() -> None:
     # G27: nut d is bounded by MAX_FIELD_MM (1e3) and by the cost model, not by a measured wall.
-    assert client.get("/api/nut/info", params={"d": 999.699, "s": 1000.0}).status_code == 200
+    # Pitch 124.963 is the smallest the nut's fine-pitch wall admits at that d (07 R31).
+    assert client.get("/api/nut/info", params={"d": 999.699, "s": 1000.0, "pitch": 124.963}
+                      ).status_code == 200
     refused = client.get("/api/nut/info", params={"d": math.nextafter(1000.0, math.inf)})
     assert refused.status_code == 422
     assert refused.json()["detail"][0]["loc"] == ["query", "d"]
@@ -489,7 +492,8 @@ def test_a_part_at_the_walls_is_taken_and_judged_by_the_cost_model_and_one_past_
         seen.append(p)
         return export(BoltParams(), "stl", "preview")
 
-    at_wall: Params = {"length": 1e4, "s": 1000.0, "d": 999.999, "k": 1e5}
+    # Pitch 50 is the smallest the bolt's fine-pitch wall admits at d 999.999 (07 R31).
+    at_wall: Params = {"length": 1e4, "s": 1000.0, "d": 999.999, "k": 1e5, "pitch": 50.0}
     part = BoltParams.model_validate(at_wall)
     assert (part.length, part.s, part.d, part.k) == (1e4, 1000.0, 999.999, 1e5)
     assert client.get("/api/bolt/info", params=at_wall).status_code == 200
@@ -1194,9 +1198,10 @@ def test_a_failed_export_is_a_422_and_never_enters_the_bytes_cache(
     assert app_module._EXPORTS.get(key) is not None
 
 
-# The explore point `bolt-d30-p1-n30-right`, which 07-BUDGET-TABLE.md lists as refused at stl-fine
-# under C1 (B-01; run 40646117094). An R12 widening only refuses more, so it stays refused.
-OVER: Params = {"d": 30, "pitch": 1, "length": 30, "thread_length": 30, "s": 48, "k": 18}
+# The explore point `bolt-d30-p3-n30-right` (run 40646117094), refused at stl-preview and stl-fine
+# by the shipped cost model under C1 (B-01); an R12 widening only refuses more. Its d / pitch is 10,
+# inside the bolt's fine-pitch wall (07 R31); the first pick, `bolt-d30-p1-n30-right`, is past it.
+OVER: Params = {"d": 30, "pitch": 3, "length": 90, "thread_length": 90, "s": 48, "k": 18}
 OVER_PART = BoltParams.model_validate(OVER)
 
 
@@ -1230,9 +1235,11 @@ def test_a_fine_stl_over_its_budget_is_a_422_and_never_reaches_the_backend() -> 
     assert calls == 0
 
 
-# The explore point `nut-d100-p1-m0.8d-s1.6d-c5-right`, which 07-BUDGET-TABLE.md lists as refused
-# at every artifact under C1 (B-01; run 40646117094). An R12 widening only refuses more.
-NUT_OVER: Params = {"d": 100, "pitch": 1, "s": 160, "m": 80, "clearance": 5}
+# A nut the shipped cost model refuses at every artifact under C1 (B-01): d 50, d / pitch 8 at the
+# nut's fine-pitch wall (07 R31), m 10 d. An R12 widening only refuses more. The first pick, the
+# explore point `nut-d100-p1-m0.8d-s1.6d-c5-right`, is past that wall and no explore nut inside it
+# is refused by the cost model.
+NUT_OVER: Params = {"d": 50, "pitch": 6.25, "s": 80, "m": 500}
 
 
 def test_a_nut_fine_stl_over_its_budget_is_a_422_and_never_reaches_the_backend() -> None:
@@ -1355,10 +1362,11 @@ def test_a_part_the_rule_admits_reaches_the_backend_as_asked() -> None:
     assert len(bolts) == len(seen)
 
 
-# B-03 (07-OWNER-RULINGS.md, 2026-10-29): bolt d 30, s 48, k 18 at the default pitch, length and
+# B-03 (07-OWNER-RULINGS.md, 2026-10-29): bolt d 20, s 32, k 12 at the default pitch, length and
 # thread_length is over its budget at stl-preview and stl-fine, and its defaulted thread_length is
-# capped (the clarification's evidence part).
-CAPPED: Params = {"d": 30, "s": 48, "k": 18}
+# capped. The clarification's evidence part, d 30 at the default pitch 1, is past the bolt's
+# fine-pitch wall (07 R31) and never reaches the cost model now.
+CAPPED: Params = {"d": 20, "s": 32, "k": 12}
 
 
 def test_a_defaulted_thread_length_over_the_budget_is_served_capped_and_warned() -> None:
@@ -1683,7 +1691,8 @@ def test_the_m18_nut_info_carries_the_pair_proof_label_on_the_route() -> None:
     label = "kernel pair proof inconclusive at K = 3 (2026-10-08-a-pair)"
     m18 = {"d": 18.0, "pitch": 2.5, "s": 27.0, "m": 14.8, "clearance": 0.1}
     assert label in client.get("/api/nut/info", params=m18).json()["notes"]
-    assert label not in client.get("/api/nut/info", params={**m18, "pitch": 2.0}).json()["notes"]
+    # Another pitch inside the nut's fine-pitch wall (07 R31): M18 x 2, the fine pitch, is past it.
+    assert label not in client.get("/api/nut/info", params={**m18, "pitch": 3.0}).json()["notes"]
 
 
 def test_the_counterpart_travels_on_the_wire_for_both_kinds_and_keeps_a_boolean() -> None:
