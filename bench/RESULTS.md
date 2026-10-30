@@ -11639,3 +11639,156 @@ R12 over every Runs II directory (07-15 Task 3): `python -m bench.oper_sets enve
 | nut | step | peak | 0.48786919655819627 | 0.7976425289210423 | 40907549180:nut-d100-p3.5-m3d-s4d-c5-right-n1 rep 1 | |
 
 **Outcome: two e widen, both from outband run 40909768713, as G30 rules.** The nut stl-fine seconds e goes from 1.1069417227945801 to 1.7812452161769916 and the peak e from 0.5571452809681212 to 0.5976833077470993, each raised by whole ulps until the factor covers every kept reading. No other kept reading is above its enveloped prediction. The widened envelope refuses none of the 294 bolt and 14 nut catalogue rows and neither default part at any artifact, so B-01's budget and the refused-preset count do not move. fit.json changes only those two `envelope` values and gains `widened_by: ["40909768713"]`; `calc/cost.py`'s block is re-emitted; L22 of `docs/architecture/decision_log.md` records both. No Runs II file and not `tier-order.json` is regenerated: each still regenerates under the envelope it records (G6), and `python -m bench.oper_sets --check` exits 0.
+
+Plan 07-16 adds two sets, dispatched at d48130a after R14's timeouts were derived (runtime.json, c2fd5fa) and generated from them: `bench/points/drift.json` (R23: per artifact Z(A), the committed bound set's point with the largest ok explore peak, K = 20 builds, `deadline_s` 20 x the artifact's timeout) and `bench/points/solid-cache-4.json` (R22, G9: the committed R15 mix at N = 1 with SCREW_SOLID_CACHE = 4). Their records were committed in 2dac3a8 before any figure below was taken from them. Every figure is `bench.oper summarize`, `bench.oper_sets load-table`, `envelope-check` or `check-r22-r23` output over the committed records.
+
+### drift, run 41016507364
+
+- Dispatched sha: `d48130a1289c7e81517efda1edaec037710b405f`
+- Records: `bench/results/phase-07/drift-41016507364/` (5 artifacts, 15 readings), run https://github.com/halfb00t/screw/actions/runs/41016507364
+- CPU models seen (jobs): AMD EPYC 7763 64-Core Processor (2); INTEL(R) XEON(R) PLATINUM 8573C (2); Intel(R) Xeon(R) 6973P-C (1)
+- Counts by status: ok: 15
+- 1 shard x 5 repetitions = 5 jobs; each reading builds its part 20 times in one process and records the peak after each build (`peaks`, R23, G14), charged its own deadline_s, 20 x the artifact's timeout (R6, G4).
+- Summary: `python -m bench.oper summarize --markdown --reps 1,2,3,4,5` over the directory, as printed.
+
+### Host
+
+| fact | value |
+| --- | --- |
+| image | screw:ci |
+| image_id | sha256:68fc3390500947ea9129afbccfcc3af0ed14508eccaf6d3cc09f167c3d4875e2, sha256:096ea48a344446782a7292fcc9ac2f0a3e5c154517c21c49d4149e7112f735a4, sha256:a4583a340534d332b3799358a359e00c513b79cd0cf860a4a31ac9ef69249fa9, sha256:82f7e557b5776faa404ae375a7f457eafb38e43f2d759244ea4c70d3c44269d5, sha256:470dcfee4813c56c3fa65aceb20794476f406d923ef2c206cd0135f418c58fb4 |
+| versions | {"cadquery": "2.8.0", "cadquery_ocp": "7.9.3.1.1"} |
+| nproc | 4 |
+| mem_total_bytes | 16758407168, 16758398976, 16759443456, 16758403072 |
+| cpu_model | INTEL(R) XEON(R) PLATINUM 8573C, Intel(R) Xeon(R) 6973P-C, AMD EPYC 7763 64-Core Processor |
+| kernel | 7.0.0-1017-azure |
+| machine | x86_64 |
+| GITHUB_RUN_ID | 41016507364 |
+| GITHUB_JOB | measure |
+| GITHUB_SHA | d48130a1289c7e81517efda1edaec037710b405f |
+
+### Readings
+
+Status counts: ok: 15
+
+| point | artifact | n | status | counts | median build s | max build s | median export s | max export s | median bytes | max bytes | median peak bytes | max peak bytes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| drift-nut-d100-p3.5-m0.8d-s4d-c5-right | stl-preview | 5 | ok | ok: 5 | 5.703 | 5.989 | 4.029 | 4.239 | 27853884 | 27853884 | 495808512 | 496631808 |
+| drift-nut-d30-p1-m0.8d-s4d-c5-right | stl-fine | 5 | ok | ok: 5 | 2.891 | 3.068 | 26.320 | 29.178 | 132196084 | 132196084 | 1676599296 | 1716760576 |
+| drift-iso4017:M16x160 | step | 5 | ok | ok: 5 | 4.909 | 5.250 | 0.210 | 0.213 | 5064590 | 5064590 | 316166144 | 318087168 |
+
+### solid-cache-4, run 41016510597
+
+- Dispatched sha: `d48130a1289c7e81517efda1edaec037710b405f`
+- Records: `bench/results/phase-07/solid-cache-4-41016510597/` (5 artifacts, 5 readings), run https://github.com/halfb00t/screw/actions/runs/41016510597
+- CPU models seen (jobs): AMD EPYC 9V74 80-Core Processor (3); INTEL(R) XEON(R) PLATINUM 8573C (2)
+- Counts by status: ok: 5
+- 1 shard x 5 repetitions = 5 jobs; the committed R15 mix at N = 1 with SCREW_SOLID_CACHE = 4 (R22, G9).
+- Summary: `python -m bench.oper summarize --markdown --reps 1,2,3,4,5` over the directory, as printed.
+
+### Host
+
+| fact | value |
+| --- | --- |
+| image | screw:ci |
+| image_id | sha256:8f64fa008e51b1807b2e862ac537c2822a5a33036da3078702ea7204a2276ac6, sha256:f8bb1873c67e73bb4337ca6d258945c5a03a60dbf90c020c98078ebfb17cc869, sha256:2a301b14cd68983022882eb5f0becff01ad9cea7833621acb8b79b0e8a1eece9, sha256:39f89f903d7450818bfdbd0e44234ec2df09e424876f05c7867eac2ac54a159f, sha256:915a7fcfb80936250d3ed55dc1937ec4c408e4e4b60f493b8da21a7460635550 |
+| versions | {"cadquery": "2.8.0", "cadquery_ocp": "7.9.3.1.1"} |
+| nproc | 4 |
+| mem_total_bytes | 16759443456, 16758403072, 16758407168 |
+| cpu_model | AMD EPYC 9V74 80-Core Processor, INTEL(R) XEON(R) PLATINUM 8573C |
+| kernel | 7.0.0-1017-azure |
+| machine | x86_64 |
+| GITHUB_RUN_ID | 41016510597 |
+| GITHUB_JOB | measure |
+| GITHUB_SHA | d48130a1289c7e81517efda1edaec037710b405f |
+
+### Readings
+
+Status counts: ok: 5
+
+| point | artifact | n | status | counts | median build s | max build s | median export s | max export s | median bytes | max bytes | median peak bytes | max peak bytes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| solid-cache-4 | load | 5 | ok | ok: 5 | - | - | - | - | - | - | 1581088768 | 1652121600 |
+
+`python -m bench.oper_sets load-table --from bench/results/phase-07/solid-cache-4-41016510597`, as printed:
+
+| point | N | rep | status | p95 all s | p95 stl-fine s | p95 step s | p95 stl-preview s | idle peak bytes | end peak bytes | time to healthy s | health p95 s |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| solid-cache-4 | 1 | 1 | ok | 29.372 | 35.078 | 28.895 | 24.013 | 64872448 | 1652121600 | 0.711 | 0.009 |
+| solid-cache-4 | 1 | 2 | ok | 34.425 | 41.119 | 33.544 | 29.963 | 64884736 | 1581088768 | 0.983 | 0.010 |
+| solid-cache-4 | 1 | 3 | ok | 33.920 | 40.755 | 33.048 | 29.232 | 65130496 | 1530691584 | 0.958 | 0.010 |
+| solid-cache-4 | 1 | 4 | ok | 34.328 | 40.927 | 33.482 | 29.620 | 65224704 | 1449263104 | 0.965 | 0.009 |
+| solid-cache-4 | 1 | 5 | ok | 29.538 | 34.883 | 28.857 | 23.781 | 65077248 | 1652121600 | 0.759 | 0.009 |
+
+### envelope check (drift build 1)
+
+R12 and G5: build 1 of a drift reading is a cold isolated reading and may widen e; builds 2 to 20 never do. `python -m bench.oper_sets envelope-check --fit <a scratch copy of bench/results/phase-07/fit.json> --from` drift-41016507364 and solid-cache-4-41016510597 (a W(K) reading is a load reading and widens nothing), as printed:
+
+| kind | artifact | target | e | largest actual / enveloped prediction | reading | widened e |
+| --- | --- | --- | --- | --- | --- | --- |
+| bolt | stl-preview | bytes | 2.264581945786201 | 0.0 | none |  |
+| bolt | stl-preview | seconds | 4.286137349093968 | 0.0 | none |  |
+| bolt | stl-preview | peak | 2.040087854388461 | 0.0 | none |  |
+| bolt | stl-fine | bytes | 0.5633622849303941 | 0.0 | none |  |
+| bolt | stl-fine | seconds | 2.690232029900006 | 0.0 | none |  |
+| bolt | stl-fine | peak | 2.170967259675211 | 0.0 | none |  |
+| bolt | step | bytes | 0.9874058238127998 | 0.5317023787688461 | 41016507364:drift-iso4017:M16x160 rep 1 |  |
+| bolt | step | seconds | 2.616422482555953 | 0.3639693807079479 | 41016507364:drift-iso4017:M16x160 rep 3 |  |
+| bolt | step | peak | 0.45747877720379804 | 0.7073701192232454 | 41016507364:drift-iso4017:M16x160 rep 4 |  |
+| nut | stl-preview | bytes | 0.7070121785110755 | 0.5364405663180444 | 41016507364:drift-nut-d100-p3.5-m0.8d-s4d-c5-right rep 1 |  |
+| nut | stl-preview | seconds | 1.061383246630594 | 0.8133273706196571 | 41016507364:drift-nut-d100-p3.5-m0.8d-s4d-c5-right rep 4 |  |
+| nut | stl-preview | peak | 0.556086702674923 | 0.7322933663889409 | 41016507364:drift-nut-d100-p3.5-m0.8d-s4d-c5-right rep 3 |  |
+| nut | stl-fine | bytes | 0.4996608149413484 | 0.9554909082476706 | 41016507364:drift-nut-d30-p1-m0.8d-s4d-c5-right rep 1 |  |
+| nut | stl-fine | seconds | 1.7812452161769916 | 0.45254072128893136 | 41016507364:drift-nut-d30-p1-m0.8d-s4d-c5-right rep 4 |  |
+| nut | stl-fine | peak | 0.5976833077470993 | 0.6346280641970483 | 41016507364:drift-nut-d30-p1-m0.8d-s4d-c5-right rep 1 |  |
+| nut | step | bytes | 0.3802587303182223 | 0.0 | none |  |
+| nut | step | seconds | 0.8785228687431521 | 0.0 | none |  |
+| nut | step | peak | 0.48786919655819627 | 0.0 | none |  |
+
+**Outcome: no drift build 1 exceeds its envelope**, so no e widens, fit.json and `calc/cost.py` are unchanged, and runtime.json's admission-dependent values stand.
+
+### R22 and R23 (07-16): K = 4, the trim kept, and the stop at the drift
+
+`python -m bench.oper_sets check-r22-r23 --from` every committed directory under `bench/results/phase-07/` (378d58c) derives R22 and R23 after the stage-one values of runtime.json, printing each as it is derived. It exits 3 at R23's drift.
+
+**R22 (G9, G20).** W(4), the max container peak over the 5 repetitions of run 41016510597, is 1652121600 bytes (solid-cache-4 rep 1). mem_limit built from it at the picked N = 1, as R16 builds mem_limit(N), is 2415919104 bytes, which qualifies, so K = 4 is kept and no lower K is measured (G9). G20 ships the larger of that and the 2147483648 bytes built from W: 2415919104 bytes.
+
+**R23, the arena release (G17).** The max over 5 repetitions of `memory.current` read after the export, arenas run 40909754190:
+
+| artifact | max memory.current, trim on | max memory.current, trim off | lower with the trim |
+| --- | --- | --- | --- |
+| stl-preview | 243089408 (40909754190:arenas-nut-d100-p3.5-m0.8d-s4d-c5-right-trim-on rep 2) | 308285440 (40909754190:arenas-nut-d100-p3.5-m0.8d-s4d-c5-right-trim-off rep 1) | yes |
+| stl-fine | 377843712 (40909754190:arenas-nut-d30-p1-m0.8d-s4d-c5-right-trim-on rep 5) | 1093894144 (40909754190:arenas-nut-d30-p1-m0.8d-s4d-c5-right-trim-off rep 4) | yes |
+| step | 217174016 (40909754190:arenas-iso4017:M16x160-trim-on rep 4) | 283619328 (40909754190:arenas-iso4017:M16x160-trim-off rep 1) | yes |
+
+The trim is lower at every artifact, so `_release_arenas` is kept.
+
+**R23, the drift.** Drift run 41016507364, per artifact the max over its 5 repetitions of the peak after build 20 minus the peak after build 1, against the allowance, 0.10 x the smallest build-1 peak:
+
+| artifact | drift bytes | reading | allowance bytes | above |
+| --- | --- | --- | --- | --- |
+| stl-preview | 53616640 | 41016507364:drift-nut-d100-p3.5-m0.8d-s4d-c5-right rep 2 | 44301516.8 | yes |
+| stl-fine | 323194880 | 41016507364:drift-nut-d30-p1-m0.8d-s4d-c5-right rep 2 | 137344204.8 | yes |
+| step | 31100928 | 41016507364:drift-iso4017:M16x160 rep 3 | 28473344.0 | yes |
+
+Each repetition, from the `peaks` the command prints:
+
+| reading | peak after build 1 | peak after build 2 | peak after build 20 | drift bytes |
+| --- | --- | --- | --- | --- |
+| 41016507364:drift-nut-d100-p3.5-m0.8d-s4d-c5-right rep 1 | 445640704 | 488284160 | 495808512 | 50167808 |
+| 41016507364:drift-nut-d100-p3.5-m0.8d-s4d-c5-right rep 2 | 443015168 | 488493056 | 496631808 | 53616640 |
+| 41016507364:drift-nut-d100-p3.5-m0.8d-s4d-c5-right rep 3 | 463294464 | 490094592 | 495661056 | 32366592 |
+| 41016507364:drift-nut-d100-p3.5-m0.8d-s4d-c5-right rep 4 | 459853824 | 490729472 | 495747072 | 35893248 |
+| 41016507364:drift-nut-d100-p3.5-m0.8d-s4d-c5-right rep 5 | 453242880 | 490229760 | 495972352 | 42729472 |
+| 41016507364:drift-nut-d30-p1-m0.8d-s4d-c5-right rep 1 | 1477869568 | 1651019776 | 1716760576 | 238891008 |
+| 41016507364:drift-nut-d30-p1-m0.8d-s4d-c5-right rep 2 | 1373442048 | 1589825536 | 1696636928 | 323194880 |
+| 41016507364:drift-nut-d30-p1-m0.8d-s4d-c5-right rep 3 | 1402470400 | 1506275328 | 1641189376 | 238718976 |
+| 41016507364:drift-nut-d30-p1-m0.8d-s4d-c5-right rep 4 | 1390673920 | 1564729344 | 1676599296 | 285925376 |
+| 41016507364:drift-nut-d30-p1-m0.8d-s4d-c5-right rep 5 | 1402695680 | 1613074432 | 1618804736 | 216109056 |
+| 41016507364:drift-iso4017:M16x160 rep 1 | 296177664 | 303263744 | 318087168 | 21909504 |
+| 41016507364:drift-iso4017:M16x160 rep 2 | 294191104 | 303624192 | 317333504 | 23142400 |
+| 41016507364:drift-iso4017:M16x160 rep 3 | 284733440 | 303443968 | 315834368 | 31100928 |
+| 41016507364:drift-iso4017:M16x160 rep 4 | 297353216 | 306794496 | 316166144 | 18812928 |
+| 41016507364:drift-iso4017:M16x160 rep 5 | 293498880 | 298164224 | 314232832 | 20733952 |
+
+**Outcome: R23 stops the phase for the owner.** Every repetition is `ok` and holds all 20 peaks, so each artifact has a drift, and all three are above their allowance. R23: "if it does, the phase stops and asks the owner, because no rule here sets a recycling value." No recycling value, no R22 or R23 value and no constant is written; runtime.json keeps its stage-one values, and `derive-runtime` reads no R22 or R23 set until the owner rules. As the table shows, most of each repetition's growth is between build 1 and build 2; the peak after build 20 of the stl-fine nut (1716760576 bytes, rep 1) is above both W (1533550592 bytes) and W(4) (1652121600 bytes).
