@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import re
 from pathlib import Path
 from typing import cast
 
@@ -174,3 +175,69 @@ def test_no_runtime_knob_is_left_interim(module: str) -> None:
     text = (Path(app_module.__file__).parent / module).read_text()
     assert "INTERIM" not in text
     assert "Phase 7" not in text
+
+
+# --- the container (07-17 Task 1; D-02, D-03, R16, R24 to R26) ---------------------------------
+# Read as text with a regex: no YAML parser is added for one file (T-07-SC).
+
+_UNIT = {"b": 1, "k": 1024, "m": 1024**2, "g": 1024**3}
+
+
+def _compose() -> str:
+    return (REPO_ROOT / "compose.yaml").read_text()
+
+
+def _dockerfile() -> str:
+    return (REPO_ROOT / "Dockerfile").read_text()
+
+
+def _docker_bytes(value: str, unit: str) -> int:
+    return int(value) * _UNIT[unit.lower() or "b"]
+
+
+def _one(pattern: str, text: str) -> re.Match[str]:
+    found = list(re.finditer(pattern, text, re.MULTILINE))
+    assert len(found) == 1, f"{pattern!r} matched {len(found)} times"
+    return found[0]
+
+
+def test_compose_mem_limit_is_the_shipped_one_and_under_16e9_and_every_mem_total() -> None:
+    """OPER-02's edge: strictly under 16 x 10^9 bytes (D-02) and under the smallest MemTotal any
+    runner header recorded (R16), and equal to what G20 ships at the picked N."""
+    found = _one(r"^\s*mem_limit:\s*(\d+)([bkmg]?)\s*$", _compose())
+    limit = _docker_bytes(found[1], found[2])
+    runtime = _runtime()
+    assert limit == runtime["mem_limit_bytes"] == _row("shipped_mem_limit")["bytes"]
+    smallest = _row("runner")["smallest_mem_total_bytes"]
+    assert isinstance(smallest, int)
+    assert limit < 16 * 10**9
+    assert limit < smallest
+
+
+def test_compose_tmpfs_is_r26s() -> None:
+    found = _one(r"^\s*-\s*/tmp:size=(\d+)([bkmg]?)\s*$", _compose())
+    assert _docker_bytes(found[1], found[2]) == _runtime()["tmpfs_bytes"]
+
+
+def test_compose_runs_r16s_build_workers_and_r24s_server_processes() -> None:
+    compose = _compose()
+    builders = _one(r'^\s*SCREW_BUILD_WORKERS:\s*"(\d+)"\s*$', compose)
+    servers = _one(r'^\s*SCREW_WORKERS:\s*"(\d+)"\s*$', compose)
+    assert int(builders[1]) == _runtime()["picked_workers"]
+    assert int(servers[1]) == _row("screw_workers")["workers"]
+
+
+def test_the_image_runs_r24s_server_processes() -> None:
+    found = _one(r"^\s*SCREW_WORKERS=(\d+)\s*$", _dockerfile())
+    assert int(found[1]) == _row("screw_workers")["workers"]
+
+
+def test_the_healthcheck_timings_are_r25s_and_dockers_defaults() -> None:
+    found = _one(r"^HEALTHCHECK --interval=(\d+)s --timeout=(\d+)s --start-period=(\d+)s "
+                 r"--retries=(\d+) ", _dockerfile())
+    interval, timeout, start_period, retries = (int(group) for group in found.groups())
+    row = _row("healthcheck")
+    assert timeout == row["timeout_s"]
+    assert start_period == row["start_period_s"]
+    # Docker's documented defaults, cited as such (R25), not measured.
+    assert (interval, retries) == (30, 3) == (row["interval_s"], row["retries"])
