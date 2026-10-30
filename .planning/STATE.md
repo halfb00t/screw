@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 07
 current_phase_name: Operability Re-sweep
 status: executing
-stopped_at: Completed 07-17-PLAN.md
-last_updated: "2026-10-30T10:07:21.578Z"
+stopped_at: Completed 07-18-PLAN.md
+last_updated: "2026-10-30T16:50:09.759Z"
 last_activity: 2026-10-30
 last_activity_desc: Phase 07 execution started
-state_head: 530adbef3f989af31d16e23a0f7083334de42a5f
+state_head: ffa53f13670cc096f90487167be7acafb1593218
 progress:
   total_phases: 8
   completed_phases: 7
   total_plans: 103
-  completed_plans: 100
+  completed_plans: 101
   percent: 88
 ---
 
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-10-25)
 ## Current Position
 
 Phase: 07 (Operability Re-sweep) — EXECUTING
-Plan: 19 of 21
+Plan: 20 of 21
 Status: Ready to execute
-Last activity: 2026-10-30 — Plan 07-17 complete (compose and the Dockerfile ship runtime.json's values: 1 build worker, mem_limit 2304m = 2415919104 B, tmpfs 256m, SCREW_WORKERS 1, healthcheck 2 s / 10 s; L23 the measured runtime, L24 the timeouts and the deadline; SCREW_BUILD_TIMEOUT gone from the bench; the interim-runtime-bounds, WR-05 and bench.memory sampling debt resolved; next 07-18)
+Last activity: 2026-10-30 — Plan 07-18 complete (the required bounds tier, 355 points in 4 shards, green on draft PR #26 in CI run 41089145344; L25 the fine-pitch walls, bolt d / pitch 20 from walk run 41074314305 and nut 8 by ruling G36; the in-wall debt re-scoped to its residual and the debug session resolved; next 07-19)
 
 Progress: [█████████░] 88%
 
@@ -162,6 +162,7 @@ Progress: [█████████░] 88%
 | Phase 07 P16 | 154 min | 3 tasks | 17 files |
 | Phase 07 P21 | 20 min | 2 tasks | 8 files |
 | Phase 07 P17 | 32 min | 3 tasks | 15 files |
+| Phase 07 P18 | 6h03m | 3 tasks | 55 files |
 
 ## Accumulated Context
 
@@ -335,6 +336,8 @@ Recent decisions affecting current work:
 - [Phase 07]: 07-21: the serving and worker knobs equal runtime.json: 1 build worker, queue 2, Retry-After ceil(R18 median x live depth), export cache 240 MiB, gzip 1 / 4012 B, solid cache 4, trim kept, no recycling, SCREW_WORKERS 1
 - [Phase 07]: 07-17: compose and the Dockerfile ship runtime.json's values (1 build worker, mem_limit 2304m = 2415919104 B, tmpfs 256m, SCREW_WORKERS 1, healthcheck --timeout 2s --start-period 10s, interval 30s and retries 3 as Docker's defaults); L23 logs the measured runtime and L24 the per-artifact timeouts, the queue-aware deadline, the miss record and Retry-After (the plan's L22/L23 renumbered, L22 being taken)
 - [Phase 07]: 07-17: SCREW_BUILD_TIMEOUT gone from the bench; bench.build_time judges each artifact against BUILD_TIMEOUT_S and marks cost-model-refused artifacts instead of judging them; the interim-runtime-bounds, WR-05 and bench.memory sampling debt items resolved
+- [Phase 07]: L25: a bolt above exact d / pitch 20 and a nut above 8 is a 422 pitch_too_fine naming d and pitch (bolt W from walk run 41074314305, nut W ruled by G36)
+- [Phase 07]: G36: sets drawn before R31 are checked without the fine-pitch wall; the required tier drops the 80 points it refuses, 355 points in 4 CI shards
 
 ### Pending Todos
 
@@ -391,6 +394,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-30T10:07:21.249Z
-Stopped at: Completed 07-17-PLAN.md
+Last session: 2026-10-30T16:50:09.350Z
+Stopped at: Completed 07-18-PLAN.md
 Resume file: None
