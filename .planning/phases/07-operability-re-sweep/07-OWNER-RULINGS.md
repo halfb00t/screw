@@ -153,3 +153,16 @@ the 294 bolt catalogue rows is below the floor, and a test pins it. B-03's secon
 unchanged: the cap never takes a value below the floor, so it cannot cap a part into this refusal.
 The bolt stl-fine bytes e is not widened. The nut stl-fine seconds and peak e widen from the nut
 out-of-band readings, re-derived by committed code (G30).
+
+### G30 clarification: the turns refusal answers before the builder's own check (2026-10-30)
+
+Source: the 07-15 executor's report. Since bccb6f3, a bolt too short to build at all (a length of
+1e-8 mm, and parts like it) also has fewer than `MIN_FITTED_TURNS` turns. It now gets the
+`over_budget` 422 (CLI exit 2) instead of `build_error` (CLI exit 1). The 422 still names the length,
+and no file is written either way. Six tests were re-pinned to this.
+
+The owner's reply, verbatim (the label "(Recommended)" is the orchestrator's, not part of the
+ruling): "Keep over_budget (Recommended)".
+
+Ruling: the turns refusal keeps its place, ahead of the builder's check. There is one rule with no
+exception, and G30's "at every artifact" covers these parts.
