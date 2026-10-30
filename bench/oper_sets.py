@@ -27,7 +27,7 @@ import math
 import random
 import statistics
 import sys
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from decimal import ROUND_CEILING, ROUND_FLOOR, ROUND_HALF_UP, Context, Decimal
 from fractions import Fraction
@@ -2668,11 +2668,13 @@ def healthcheck(reads: Sequence[Read]) -> dict[str, object]:
             "interval_and_retries": "Docker's documented defaults (R25)"}
 
 
-def runtime(headers: Sequence[Reading], tagged: Sequence[Tagged],
-            sets: Mapping[str, Sequence[Mapping[str, object]]],
-            sources: Sequence[str]) -> dict[str, object]:
-    """R14 to R21 and R24 to R26 over the records, in the order their inputs exist (07-16), from
-    the committed `bound`, `load` and `gzip` points in `sets`."""
+def derivation(headers: Sequence[Reading], tagged: Sequence[Tagged],
+               sets: Mapping[str, Sequence[Mapping[str, object]]], sources: Sequence[str], *,
+               stage_two: bool = False) -> Iterator[tuple[str, object]]:
+    """runtime.json's values in order, each as it is derived. First R14 to R21 and R24 to R26
+    over the records, in the order their inputs exist (07-16), from the committed `bound`, `load`
+    and `gzip` points in `sets`; then, with `stage_two`, R22 and R23 from the `solid-cache-<k>`,
+    `arenas` and `drift` points, which need the pick and the timeouts. A stop ends it there."""
     bound = matched(sets["bound"], tagged, BOUND_SETS, _IDENTITY, "R14")
     gzip_reads = matched(sets["gzip"], tagged, GZIP_SETS, _IDENTITY, "R19")
     loads = matched(sets["load"], tagged, LOAD_SETS, _LOAD_IDENTITY, "R15")
@@ -2708,7 +2710,7 @@ def runtime(headers: Sequence[Reading], tagged: Sequence[Tagged],
     seconds = {artifact: int(str(row["seconds"])) for artifact, row in limits.items()}
     level = gzip["level"]
     assert isinstance(level, int)
-    return {
+    yield from {
         "rule": "07-SWEEP-PROTOCOL.md R14 to R21, R24 to R26 (G6, G7, G8, G11, G15, G16, G18, "
                 "G22, G31)",
         "sources": list(sources),
@@ -2728,7 +2730,37 @@ def runtime(headers: Sequence[Reading], tagged: Sequence[Tagged],
         "retry_after": retry_after(picked_reads),
         "minimum_size": minimum_size(loads, level),
         "screw_workers": screw_workers(picked_reads),
-        "healthcheck": healthcheck(picked_reads)}
+        "healthcheck": healthcheck(picked_reads)}.items()
+    if not stage_two:
+        return
+    picked_load = picked_reads[0]
+    cache_row = solid_cache(
+        {k: matched(sets[f"solid-cache-{k}"], tagged, (f"solid-cache-{k}",), _LOAD_IDENTITY,
+                    "R22")[0] for k in SOLID_CACHE_KS if f"solid-cache-{k}" in sets},
+        lambda w_k: per_workers(picked_load, w_k, b[0], cache_bytes, rows[picked].tmpfs_bytes,
+                                nproc, mem_total))
+    yield "solid_cache_k", cache_row["k"]
+    yield "solid_cache", cache_row
+    w_k_rows = cache_row["w_k"]
+    assert isinstance(w_k_rows, dict)
+    w_k_limit = w_k_rows[str(cache_row["k"])]["mem_limit_bytes"]
+    assert isinstance(w_k_limit, int)
+    yield "shipped_mem_limit", {  # G20: the larger of the two, both at the picked N (R16, R22)
+        "bytes": max(limit, w_k_limit), "from_w_bytes": limit, "from_w_k_bytes": w_k_limit}
+    release = arenas(matched(sets["arenas"], tagged, ("arenas",), _ARENAS_IDENTITY, "R23"))
+    yield "arenas_kept", release["kept"]
+    yield "arenas", release
+    drifts = drift(matched(sets["drift"], tagged, DRIFT_SETS, _DRIFT_IDENTITY, "R23"))
+    yield "drift", drifts
+    yield "recycling", recycling(drifts)
+    yield "tessellation_kept", {"kept": True, "rule": "R23: the tessellation presets are kept"}
+
+
+def runtime(headers: Sequence[Reading], tagged: Sequence[Tagged],
+            sets: Mapping[str, Sequence[Mapping[str, object]]],
+            sources: Sequence[str]) -> dict[str, object]:
+    """runtime.json's values: the whole `derivation`, or a stop."""
+    return dict(derivation(headers, tagged, sets, sources))
 
 
 def _points_of(name: str) -> list[Mapping[str, object]]:
@@ -2855,6 +2887,89 @@ def build_solid_cache(load_path: str, k: int) -> _Set:
     out.shard_sizes = shard_sizes([float(DEADLINE_S)] * len(out.points), HALF_JOB_S)
     out.shards, out.sources = len(out.shard_sizes), [f"load={load_path}"]
     return out
+
+
+_DRIFT_IDENTITY = ("label", "kind", "artifact", "part", "k", "deadline_s")
+_ARENAS_IDENTITY = ("label", "kind", "artifact", "part", "trim")
+DRIFT_ALLOWANCE = Fraction(1, 10)  # R23: of the smallest build-1 peak, fixed before any reading
+
+
+def solid_cache(w_reads: Mapping[int, Read],
+                qualify: Callable[[int], Workers]) -> dict[str, object]:
+    """R22 (G9, G20): K = 4 if mem_limit built from W(4) at the picked N still qualifies (R16),
+    else the largest K in 3, 2, 1 that does; W(K) the max container peak over its 5 repetitions
+    at N = 1. A lower K is read only once the one above failed, so a K that is needed and not
+    measured is a stop, as is a W(K) repetition that is not ok and no K that qualifies."""
+    rows: list[tuple[int, int, str, Workers]] = []
+    for k in SOLID_CACHE_KS:
+        if k not in w_reads:
+            raise ProtocolStop("R22", f"W({k + 1}) does not qualify and W({k}) is not measured")
+        read = w_reads[k]
+        peak = max(_five_ok(read, "R22"), key=lambda r: _number(r, "memory_peak_bytes"))
+        w_k = int(_number(peak, "memory_peak_bytes"))
+        rows.append((k, w_k, _where(read.run, peak), qualify(w_k)))
+        if rows[-1][3].qualifies:
+            return {"k": k, "runs": [w_reads[j].run for j, *_ in rows], "w_k": {
+                str(j): {"w_bytes": w, "reading": where, "mem_limit_bytes": row.mem_limit_bytes,
+                         "qualifies": row.qualifies, "why_not": list(row.why_not)}
+                for j, w, where, row in rows}}
+    raise ProtocolStop("R22", "no K in 4, 3, 2, 1 qualifies: " + "; ".join(
+        f"W({k}): {', '.join(row.why_not)}" for k, _, _, row in rows))
+
+
+def drift(reads: Sequence[Read]) -> dict[str, dict[str, object]]:
+    """R23's drift per artifact: the max over its 5 repetitions of the peak after build K minus the
+    peak after build 1, with each repetition's, and the allowance, 0.10 x the smallest build-1
+    peak. A repetition that is not ok or misses build 1 or build K leaves no drift: a stop."""
+    out: dict[str, dict[str, object]] = {}
+    for read in reads:
+        k = read.point["k"]
+        assert isinstance(k, int)
+        rows: list[tuple[int, int, str, list[object]]] = []
+        for reading in _five_ok(read, "R23"):
+            peaks = reading.get("peaks")
+            if not isinstance(peaks, list) or len(peaks) < k:
+                raise ProtocolStop("R23", f"{_where(read.run, reading)} has no peak after build "
+                                          f"1 and build {k}")
+            rows.append((int(peaks[0]), int(peaks[k - 1]), _where(read.run, reading), peaks))
+        worst = max(rows, key=lambda row: row[1] - row[0])
+        allowance = DRIFT_ALLOWANCE * min(row[0] for row in rows)
+        out[str(read.point["artifact"])] = {
+            "drift_bytes": worst[1] - worst[0], "reading": worst[2],
+            "allowance_bytes": float(allowance), "above_allowance": worst[1] - worst[0] > allowance,
+            "repetitions": [{"reading": where, "drift_bytes": last - first, "peaks": peaks}
+                            for first, last, where, peaks in rows]}
+    return out
+
+
+def recycling(drifts: Mapping[str, Mapping[str, object]]) -> dict[str, object]:
+    """R23: `max_tasks_per_child` stays unset while every artifact's drift is within its
+    allowance; above it the phase stops, because no rule sets a recycling value."""
+    above = [f"{artifact} drifts {row['drift_bytes']} bytes at {row['reading']}, above its "
+             f"allowance of {row['allowance_bytes']!r} bytes" for artifact, row in drifts.items()
+             if row["above_allowance"]]
+    if above:
+        raise ProtocolStop("R23", "; ".join(above) + " (0.10 x the smallest build-1 peak): no "
+                                  "rule sets a recycling value")
+    return {"max_tasks_per_child": None,
+            "rule": "R23: every artifact's drift is within its allowance"}
+
+
+def arenas(reads: Sequence[Read]) -> dict[str, object]:
+    """R23 (G17, G22): the trim is kept only if, at every artifact, the max over 5 repetitions of
+    the cgroup's `memory.current` read after the export is lower with it than without."""
+    maxima: dict[str, dict[bool, tuple[int, str]]] = {}
+    for read in reads:
+        reading = max(_five_ok(read, "R23"), key=lambda r: _number(r, "memory_current_bytes"))
+        maxima.setdefault(str(read.point["artifact"]), {})[read.point["trim"] is True] = (
+            int(_number(reading, "memory_current_bytes")), _where(read.run, reading))
+    lower = {artifact: sides[True][0] < sides[False][0] for artifact, sides in maxima.items()}
+    return {"kept": all(lower.values()), "lower_with_trim": lower,
+            "runs": sorted({read.run for read in reads}),
+            "maxima": {artifact: {f"trim_{'on' if trim else 'off'}": {
+                "memory_current_bytes": value, "reading": where}
+                for trim, (value, where) in sorted(sides.items(), reverse=True)}
+                for artifact, sides in maxima.items()}}
 
 
 def _check_runtime_sets() -> str | None:
@@ -3107,6 +3222,17 @@ def _run(args: argparse.Namespace) -> int:
                 else build_solid_cache(LOAD_POINTS, args.k))
         Path(args.out).write_text(made.text())
         print(f"{made.name}: {len(made.points)} points in shards of {made.shard_sizes}")
+    elif args.command == "check-r22-r23":
+        folders = sorted(Path(d) for d in args.source)
+        headers, tagged = read_runs(folders)
+        names = ["bound", "gzip", "load", "arenas", "drift",
+                 *(f"solid-cache-{k}" for k in SOLID_CACHE_KS
+                   if (POINTS_DIR / f"solid-cache-{k}.json").is_file())]
+        sets = {name: _points_of(name) for name in names}
+        stage_one = set(runtime(headers, tagged, sets, []))
+        for key, value in derivation(headers, tagged, sets, [], stage_two=True):
+            if key not in stage_one:
+                print(json.dumps({key: value}, indent=1))
     elif args.command == "derive-runtime":
         text = runtime_text(Path(d) for d in args.source)
         Path(args.out).write_text(text)
@@ -3165,6 +3291,9 @@ def main(argv: list[str] | None = None) -> int:
     solid = sub.add_parser("solid-cache", help="write R22's W(K) set (07-16)")
     solid.add_argument("--k", type=int, required=True, choices=SOLID_CACHE_KS)
     solid.add_argument("--out", required=True)
+    sub.add_parser("check-r22-r23", help="R22's K, R23's arena release and drift, printed as "
+                                         "they are derived (07-16)").add_argument(
+        "--from", dest="source", nargs="+", required=True)
     derive = sub.add_parser("derive-runtime", help="R14 to R26: the runtime values from the "
                                                    "records (07-16)")
     derive.add_argument("--from", dest="source", nargs="+", required=True)

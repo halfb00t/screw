@@ -2247,3 +2247,146 @@ def test_check_fails_on_a_drift_or_w_k_file_its_generator_does_not_write(
     drift.write_text(drift.read_text().replace('"deadline_s": 1420', '"deadline_s": 1400'))
     assert oper_sets._check_runtime_sets() == (f"{drift} is not what the generator writes from "
                                                "its sources")
+
+
+def _w_k(k: int, peaks: Iterable[int] = (GIB,) * 5,
+         statuses: Iterable[str] = ("ok",) * 5) -> oper_sets.Read:
+    point: Raw = {"label": f"solid-cache-{k}", "kind": "load", "workers": 1, "queue": 2,
+                  "clients": 2, "solid_cache": k, "bodies": False, "mix": []}
+    return _read(point, [{**point, "type": "reading", "rep": rep, "status": status,
+                          "memory_peak_bytes": peak}
+                         for rep, peak, status in zip(REPS, peaks, statuses, strict=True)])
+
+
+def _qualify(w_k: int) -> oper_sets.Workers:
+    return _workers(_load(1, peak=1), w=w_k)
+
+
+def test_r22_keeps_4_solids_when_w4_qualifies_and_names_its_run() -> None:
+    found = oper_sets.solid_cache({4: _w_k(4, peaks=(1, 2, GIB, 3, 4))}, _qualify)
+    assert found["k"] == 4
+    assert found["runs"] == ["7"]
+    assert found["w_k"] == {"4": {"w_bytes": GIB, "reading": "7:solid-cache-4 rep 3",
+                                  "mem_limit_bytes": 5 * QUARTER, "qualifies": True,
+                                  "why_not": []}}
+
+
+def test_r22_takes_3_when_w4_does_not_qualify_and_w3_does() -> None:
+    found = oper_sets.solid_cache({4: _w_k(4, peaks=(16 * GIB,) * 5), 3: _w_k(3)}, _qualify)
+    assert found["k"] == 3
+    assert found["runs"] == ["7", "7"]
+    w_k = found["w_k"]
+    assert isinstance(w_k, dict)
+    assert not w_k["4"]["qualifies"]
+
+
+def test_r22_stops_on_a_w_k_repetition_that_is_not_ok_on_a_k_not_measured_and_on_no_k() -> None:
+    with _stop("R22", "solid-cache-4 at load has no max"):
+        oper_sets.solid_cache({4: _w_k(4, statuses=("ok", "capped", "ok", "ok", "ok"))},
+                              _qualify)
+    with _stop("R22", r"W\(4\) does not qualify and W\(3\) is not measured"):
+        oper_sets.solid_cache({4: _w_k(4, peaks=(16 * GIB,) * 5)}, _qualify)
+    too_big = {k: _w_k(k, peaks=(16 * GIB,) * 5) for k in (4, 3, 2, 1)}
+    with _stop("R22", "no K in 4, 3, 2, 1 qualifies"):
+        oper_sets.solid_cache(too_big, _qualify)
+
+
+def _drift(artifact: str, first: int = 100 * 10**6, last: int = 105 * 10**6, builds: int = 20,
+           statuses: Iterable[str] = ("ok",) * 5) -> oper_sets.Read:
+    point: Raw = {"label": f"drift-{artifact}", "kind": "drift", "artifact": artifact,
+                  "part": {"kind": "bolt", "params": {}}, "k": 20, "deadline_s": 520}
+    peaks = [first, *([last] * (builds - 1))]
+    return _read(point, [{**point, "type": "reading", "rep": rep, "status": status,
+                          "peaks": peaks} for rep, status in zip(REPS, statuses, strict=True)])
+
+
+def test_a_drift_within_a_tenth_of_the_smallest_build_1_peak_leaves_recycling_unset() -> None:
+    found = oper_sets.drift([_drift(a) for a in ARTIFACTS3])
+    row = found["step"]
+    assert (row["drift_bytes"], row["allowance_bytes"]) == (5 * 10**6, 10**7)
+    assert not row["above_allowance"]
+    assert oper_sets.recycling(found)["max_tasks_per_child"] is None
+
+
+def test_a_drift_above_its_allowance_stops_at_r23_naming_every_artifact_over_it() -> None:
+    found = oper_sets.drift([_drift("stl-preview", last=112 * 10**6), _drift("step"),
+                             _drift("stl-fine", last=110 * 10**6 + 1)])
+    with _stop("R23", "stl-preview drifts 12000000 bytes .* stl-fine drifts 10000001 bytes"
+                      ".*no rule sets a recycling value"):
+        oper_sets.recycling(found)
+    oper_sets.recycling(oper_sets.drift([_drift("stl-fine", last=110 * 10**6)]))  # at it: within
+
+
+def test_a_drift_repetition_not_ok_or_missing_build_20_stops_at_r23() -> None:
+    with _stop("R23", "drift-step at step has no max"):
+        oper_sets.drift([_drift("step", statuses=("ok", "killed", "ok", "ok", "ok"))])
+    with _stop("R23", "has no peak after build 1 and build 20"):
+        oper_sets.drift([_drift("step", builds=19)])
+
+
+def _arenas(current: Mapping[tuple[str, bool], int]) -> list[oper_sets.Read]:
+    reads = []
+    for (artifact, trim), value in current.items():
+        point: Raw = {"label": f"arenas-{artifact}-{trim}", "kind": "arenas",
+                      "artifact": artifact, "part": {"kind": "bolt", "params": {}}, "trim": trim}
+        reads.append(_read(point, [{**point, "type": "reading", "rep": rep, "status": "ok",
+                                    "memory_current_bytes": value - rep} for rep in REPS]))
+    return reads
+
+
+def test_the_trim_is_kept_only_if_its_max_current_is_lower_at_every_artifact() -> None:
+    lower = {(str(a), trim): 100 if trim else 200 for a in ARTIFACTS3 for trim in (True, False)}
+    found = oper_sets.arenas(_arenas(lower))
+    assert found["kept"] is True
+    maxima = found["maxima"]
+    assert isinstance(maxima, dict)
+    assert maxima["step"] == {"trim_on": {"memory_current_bytes": 99,
+                                          "reading": "7:arenas-step-True rep 1"},
+                              "trim_off": {"memory_current_bytes": 199,
+                                           "reading": "7:arenas-step-False rep 1"}}
+    assert oper_sets.arenas(_arenas({**lower, ("stl-fine", True): 200}))["kept"] is False
+    reads = _arenas(lower)
+    reads[0] = _read(reads[0].point, reads[0].readings[:4])
+    with _stop("R23", "has no max"):
+        oper_sets.arenas(reads)
+
+
+def test_stage_two_ships_the_larger_mem_limit_and_keeps_the_tessellation() -> None:
+    headers, tagged, sets = _scenario()
+    w_k = _w_k(4, peaks=(3 * GIB,) * 5)
+    drifts = [_drift(a) for a in ARTIFACTS3]
+    release = _arenas({(str(a), trim): 100 if trim else 200 for a in ARTIFACTS3
+                       for trim in (True, False)})
+    tagged = [*tagged, *(("solid-cache-4", "4", r) for r in w_k.readings),
+              *(("drift", "5", r) for read in drifts for r in read.readings),
+              *(("arenas", "6", r) for read in release for r in read.readings)]
+    sets = {**sets, "solid-cache-4": [w_k.point], "drift": [read.point for read in drifts],
+            "arenas": [read.point for read in release]}
+    found = dict(oper_sets.derivation(headers, tagged, sets, [], stage_two=True))
+    assert found["solid_cache_k"] == 4
+    # W(4) 3 GiB + B 50 MiB + the 43 MiB cache + the 256 MiB tmpfs is 3421 MiB: 3.5 GiB
+    assert found["shipped_mem_limit"] == {"bytes": 14 * QUARTER, "from_w_bytes": 4 * QUARTER,
+                                          "from_w_k_bytes": 14 * QUARTER}
+    assert found["arenas_kept"] is True
+    assert found["recycling"] == {"max_tasks_per_child": None,
+                                  "rule": "R23: every artifact's drift is within its allowance"}
+    assert found["tessellation_kept"] == {"kept": True,
+                                          "rule": "R23: the tessellation presets are kept"}
+    assert set(oper_sets.runtime(headers, tagged, sets, [])) < set(found)
+
+
+def test_the_committed_records_keep_4_solids_and_the_trim_and_stop_at_r23s_drift(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    """07-16 on the record: W(4) qualifies (run 41016510597), the trim lowers memory.current at
+    every artifact (run 40909754190), and drift run 41016507364 is above its allowance at all
+    three artifacts, which stops the phase for the owner (R23)."""
+    directories = sorted(str(p) for p in (REPO_ROOT / "bench/results/phase-07").iterdir()
+                         if p.is_dir())
+    assert oper_sets.main(["check-r22-r23", "--from", *directories]) == 3
+    out, err = capsys.readouterr()
+    assert '"solid_cache_k": 4' in out
+    assert '"arenas_kept": true' in out
+    assert '"bytes": 2415919104' in out  # G20: the larger mem_limit, from W(4)
+    assert err.startswith("oper_sets: stop (R23): stl-preview drifts 53616640 bytes")
+    assert "stl-fine drifts 323194880 bytes" in err
+    assert "step drifts 31100928 bytes" in err
