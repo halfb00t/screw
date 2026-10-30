@@ -15,6 +15,7 @@ laptop prints with it is a bound; D-01 allows only the GitHub runner to set one.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import itertools
 import json
 import math
@@ -979,6 +980,139 @@ def markdown_report(headers: list[dict[str, object]], readings: list[dict[str, o
     return "\n".join(lines)
 
 
+# --- the required tier (R27, R29; 07-18) ---------------------------------------------------------
+#
+# `check` reads the boundary set `bench.oper_sets boundary` writes (tests/data/oper_boundary.json)
+# once each, cold, through `run_reading`, and fails on what R29 fails a tier on: a reading that is
+# not ok, a cold wall past its artifact's timeout, or an actual past prediction x (1 + e) for any
+# target. The limits come with the file, so this module stays standard-library only (the `bounds`
+# job runs it on the runner's bare Python).
+
+_BOUNDARY_KEYS = frozenset({"label", "kind", "params", "artifact", "timeout_s", "limit"})
+_BOUNDARY_OPTIONAL_KEYS = frozenset({"charge_s"})
+_TIER_TARGETS = ("bytes", "seconds", "peak")
+
+
+@dataclass(frozen=True)
+class BoundaryPoint:
+    """A point of the required tier and what R29 holds its reading to: the artifact's timeout and
+    the enveloped prediction of each target (bytes, seconds, peak)."""
+
+    point: Point
+    timeout_s: float
+    limit: Mapping[str, float]
+
+
+def load_boundary(path: Path) -> list[BoundaryPoint]:
+    """The points of a boundary file, or `ValueError` naming what is wrong. A blank file holds no
+    point; the caller decides that no reading is not a pass."""
+    text = path.read_text()
+    if not text.strip():
+        return []
+    try:
+        raw = json.loads(text)
+    except json.JSONDecodeError as exc:
+        _refuse(f"{path} is not JSON ({exc})")
+    entries = raw.get("points") if isinstance(raw, dict) else None
+    if not isinstance(entries, list):
+        _refuse(f"{path}: a boundary file is an object with a list of points")
+    out: list[BoundaryPoint] = []
+    for entry in entries:
+        if not (isinstance(entry, dict)
+                and _BOUNDARY_KEYS <= set(entry) <= _BOUNDARY_KEYS | _BOUNDARY_OPTIONAL_KEYS):
+            _refuse(f"{path}: a boundary point needs the keys {sorted(_BOUNDARY_KEYS)}")
+        point = _load_point(str(path), {key: entry[key] for key in _POINT_KEYS})
+        if point.kind == PROBE_KIND:
+            _refuse(f"{path}: boundary point {point.label!r} is a probe, not a part")
+        timeout, limit = entry["timeout_s"], entry["limit"]
+        if not (_is_number(timeout) and timeout > 0):
+            _refuse(f"{path}: boundary point {point.label!r} timeout_s is {timeout!r}, not "
+                    "seconds above 0")
+        if not (isinstance(limit, dict) and set(limit) == set(_TIER_TARGETS)
+                and all(_is_number(value) and value > 0 for value in limit.values())):
+            _refuse(f"{path}: boundary point {point.label!r} limit is {limit!r}, not a number "
+                    f"above 0 for each of {list(_TIER_TARGETS)}")
+        out.append(BoundaryPoint(point, float(timeout),
+                                 {key: float(value) for key, value in limit.items()}))
+    return out
+
+
+def judge(point: BoundaryPoint, reading: Mapping[str, object]) -> list[str]:
+    """What R29 fails the tier on in one reading of `point`, each naming the point; empty when the
+    reading is ok and within its timeout and every limit. A figure exactly at its limit passes:
+    the limit is the enveloped prediction R12 admits at, and R29 fails only above it."""
+    where = f"{point.point.label} at {point.point.artifact}"
+    status = reading.get("status")
+    if status != "ok":
+        return [f"{where}: {status}, not ok"]
+    wall = _number(reading, "build_s") + _number(reading, "export_s")
+    failures = []
+    if wall > point.timeout_s:
+        failures.append(f"{where}: cold wall {wall!r} s over its timeout {point.timeout_s!r} s")
+    for target, actual in (("bytes", _number(reading, "bytes")), ("seconds", wall),
+                           ("peak", _number(reading, "memory_peak_bytes"))):
+        if actual > point.limit[target]:
+            failures.append(f"{where}: {target} {actual!r} over its limit "
+                            f"{point.limit[target]!r}")
+    return failures
+
+
+def check_report(points: list[BoundaryPoint], readings: list[Mapping[str, object]],
+                 failures: list[str]) -> str:
+    """The tier as markdown for `$GITHUB_STEP_SUMMARY`: one row per point with its reading and its
+    limits, then every failure. A reading that is not ok shows a dash for each figure (L02)."""
+    lines = ["### Required tier (R27, R29)", "",
+             f"{len(points)} points, {len(failures)} failures.", "",
+             "| point | artifact | status | cold wall s | timeout s | seconds limit | bytes "
+             "| bytes limit | peak bytes | peak limit |",
+             "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
+    for point, reading in zip(points, readings, strict=True):
+        wall = bytes_ = peak = "-"
+        if reading.get("status") == "ok":
+            wall = f"{_number(reading, 'build_s') + _number(reading, 'export_s'):.3f}"
+            bytes_ = f"{_number(reading, 'bytes'):.0f}"
+            peak = f"{_number(reading, 'memory_peak_bytes'):.0f}"
+        lines.append(f"| {point.point.label} | {point.point.artifact} | {reading.get('status')} "
+                     f"| {wall} | {point.timeout_s:g} | {point.limit['seconds']:.3f} | {bytes_} "
+                     f"| {point.limit['bytes']:.0f} | {peak} | {point.limit['peak']:.0f} |")
+    if failures:
+        lines += ["", "### Failures", "", *(f"- {failure}" for failure in failures)]
+    return "\n".join(lines)
+
+
+def _cmd_check(args: argparse.Namespace) -> int:
+    try:
+        points = load_boundary(Path(args.file))
+    except (OSError, ValueError) as exc:
+        print(f"oper: {exc}", file=sys.stderr)
+        return 2
+    if not points:
+        print(f"oper: {args.file} holds no point, and no reading is not a pass", file=sys.stderr)
+        return 1
+    try:
+        versions = _image_versions(args.image)
+        head = header(args.image, versions)
+    except (OSError, subprocess.CalledProcessError) as exc:
+        print(f"oper: cannot read image {args.image}: {exc}", file=sys.stderr)
+        return 2
+    readings: list[Mapping[str, object]] = []
+    with contextlib.ExitStack() as stack:
+        sink = None if args.out is None else stack.enter_context(Path(args.out).open("w"))
+        if sink is not None:
+            _emit(sink, head)
+        for n, boundary in enumerate(points, 1):
+            reading = run_reading(boundary.point, 1, args.image, CAP_BYTES, DEADLINE_S, versions)
+            if sink is not None:
+                _emit(sink, reading)
+            readings.append(reading)
+            print(f"[{n}/{len(points)}] {boundary.point.label} at {boundary.point.artifact}: "
+                  f"{reading.get('status')}", file=sys.stderr, flush=True)
+    failures = [failure for boundary, reading in zip(points, readings, strict=True)
+                for failure in judge(boundary, reading)]
+    print(check_report(points, readings, failures))
+    return 1 if failures else 0
+
+
 def _rep_ids(text: str) -> list[int]:
     """`"1,2,3"` as `[1, 2, 3]`: the repetitions a summary expects, each a whole number from 1."""
     try:
@@ -1043,6 +1177,14 @@ def main(argv: list[str] | None = None) -> int:
     summary.add_argument("--markdown", action="store_true",
                          help="a per-run table for $GITHUB_STEP_SUMMARY")
     summary.set_defaults(handler=_cmd_summarize)
+
+    check = commands.add_parser("check", help="read the required tier once each and fail on "
+                                              "R29's failures (07-18)")
+    check.add_argument("file", help="a boundary file, tests/data/oper_boundary.json")
+    check.add_argument("--image", required=True)
+    check.add_argument("--out", help="a JSONL path for the header and every reading, in `run`'s "
+                                     "format")
+    check.set_defaults(handler=_cmd_check)
 
     args = parser.parse_args(argv)
     code: int = args.handler(args)

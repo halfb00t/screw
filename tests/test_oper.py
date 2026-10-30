@@ -11,12 +11,13 @@ from __future__ import annotations
 
 import functools
 import json
+import math
 import os
 import re
 import statistics
 import subprocess
 import sys
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import NotRequired, TypedDict
 
@@ -2893,3 +2894,159 @@ def test_the_drift_is_counted_in_w_under_a_plateau_read_over_60_builds() -> None
     assert protocol[protocol.index("## Harness fixes"):].startswith("## Harness fixes\n\nNone yet.")
     assert not re.search(r"\bG\d+\b", protocol)
     assert not re.search(r"\b\d{11}\b", protocol)
+
+
+# --- the required tier (07-18): judge and check ---------------------------------------------------
+
+LIMIT = {"bytes": 1000.0, "seconds": 10.0, "peak": 5000.0}
+
+
+def _boundary_point(label: str = "b0", artifact: str = "stl-preview", timeout: float = 20.0,
+                    limit: Mapping[str, float] = LIMIT) -> dict[str, object]:
+    return {"label": label, "kind": "bolt", "params": {"d": 6.0}, "artifact": artifact,
+            "charge_s": 1.0, "timeout_s": timeout, "limit": dict(limit)}
+
+
+def _tier_reading(label: str = "b0", status: str = "ok", build: float = 4.0,
+                  export: float = 1.0, size: float = 900, peak: float = 4000) -> dict[str, object]:
+    reading: dict[str, object] = {"type": "reading", "label": label, "kind": "bolt",
+                                  "params": {"d": 6.0}, "artifact": "stl-preview", "rep": 1,
+                                  "status": status, "wall_s": 99.0}
+    if status == "ok":
+        reading.update(build_s=build, export_s=export, bytes=size, memory_peak_bytes=peak)
+    return reading
+
+
+def _loaded(tmp_path: Path, **over: object) -> oper.BoundaryPoint:
+    path = tmp_path / "boundary.json"
+    path.write_text(json.dumps({"points": [{**_boundary_point(), **over}]}))
+    return oper.load_boundary(path)[0]
+
+
+def test_an_ok_reading_under_every_limit_and_its_timeout_passes(tmp_path: Path) -> None:
+    assert oper.judge(_loaded(tmp_path), _tier_reading()) == []
+
+
+@pytest.mark.parametrize(("reading", "naming"), [
+    (_tier_reading(status="refused"), "refused, not ok"),
+    (_tier_reading(status="killed"), "killed, not ok"),
+    (_tier_reading(status="capped"), "capped, not ok"),
+    (_tier_reading(build=9.0, export=2.0), "seconds 11.0 over its limit 10.0"),
+    (_tier_reading(size=1001), "bytes 1001 over its limit 1000.0"),
+    (_tier_reading(peak=5001), "peak 5001 over its limit 5000.0"),
+])
+def test_each_failure_r29_names_fails_the_point_and_names_it(
+        reading: dict[str, object], naming: str, tmp_path: Path) -> None:
+    failures = oper.judge(_loaded(tmp_path), reading)
+    assert len(failures) == 1
+    assert failures[0].startswith("b0 at stl-preview: ")
+    assert naming in failures[0]
+
+
+def test_a_cold_wall_over_its_timeout_fails_even_under_its_seconds_limit(tmp_path: Path) -> None:
+    point = _loaded(tmp_path, timeout_s=4.5)
+    assert oper.judge(point, _tier_reading(build=4.0, export=1.0)) == [
+        "b0 at stl-preview: cold wall 5.0 s over its timeout 4.5 s"]
+
+
+def test_the_cold_wall_is_build_plus_export_and_never_the_container_wall(tmp_path: Path) -> None:
+    assert oper.judge(_loaded(tmp_path, timeout_s=5.0), {**_tier_reading(), "wall_s": 1e6}) == []
+
+
+def test_a_figure_at_its_limit_passes_and_the_next_float_above_fails(tmp_path: Path) -> None:
+    point = _loaded(tmp_path, timeout_s=10.0)
+    at = _tier_reading(build=9.0, export=1.0, size=1000.0, peak=5000.0)
+    assert oper.judge(point, at) == []
+    above = {"bytes": _tier_reading(size=math.nextafter(1000.0, math.inf)),
+             "peak": _tier_reading(peak=math.nextafter(5000.0, math.inf)),
+             "seconds": _tier_reading(build=math.nextafter(9.0, math.inf), export=1.0)}
+    for target, reading in above.items():
+        assert [f for f in oper.judge(point, reading) if f"{target} " in f], target
+
+
+@pytest.mark.parametrize("over", [
+    {"timeout_s": 0}, {"timeout_s": "26"}, {"limit": {"bytes": 1.0, "seconds": 1.0}},
+    {"limit": {"bytes": 1.0, "seconds": 1.0, "peak": float("nan")}}, {"artifact": "png"},
+])
+def test_a_boundary_point_that_breaks_the_schema_is_refused(over: dict[str, object],
+                                                            tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match=r"boundary|artifact"):
+        _loaded(tmp_path, **over)
+
+
+def _stub_tier(monkeypatch: pytest.MonkeyPatch,
+               readings: Mapping[str, dict[str, object]]) -> list[tuple[str, int, float]]:
+    """`run_reading` answers each label from `readings` and records the label, the rep and the
+    deadline it was asked for; no Docker."""
+    taken: list[tuple[str, int, float]] = []
+
+    def fake_reading(point: oper.Point, rep: int, image: str, cap: int, deadline_s: float,
+                     versions: Mapping[str, str] | None = None) -> dict[str, object]:
+        taken.append((point.label, rep, deadline_s))
+        assert cap == oper.CAP_BYTES
+        return dict(readings[point.label])
+
+    monkeypatch.setattr(oper, "run_reading", fake_reading)
+    monkeypatch.setattr(oper, "_image_versions", lambda image: {"cadquery": "2.8.0"})
+    monkeypatch.setattr(oper, "header", lambda image, versions: {
+        "type": "header", "image": image, "GITHUB_RUN_ID": "7"})
+    return taken
+
+
+def _tier_file(tmp_path: Path, labels: Iterable[str]) -> Path:
+    path = tmp_path / "boundary.json"
+    path.write_text(json.dumps({"points": [_boundary_point(label) for label in labels]}))
+    return path
+
+
+def test_check_reads_every_point_once_cold_and_exits_0_with_a_table(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    taken = _stub_tier(monkeypatch, {"b0": _tier_reading("b0"), "b1": _tier_reading("b1")})
+    assert oper.main(["check", str(_tier_file(tmp_path, ["b0", "b1"])), "--image", "i"]) == 0
+    assert taken == [("b0", 1, oper.DEADLINE_S), ("b1", 1, oper.DEADLINE_S)]
+    out = capsys.readouterr().out
+    assert "2 points, 0 failures." in out
+    assert "| b0 | stl-preview | ok | 5.000 | 20 | 10.000 | 900 | 1000 | 4000 | 5000 |" in out
+    assert "### Failures" not in out
+    assert not list(tmp_path.glob("*.jsonl"))
+
+
+def test_check_exits_1_naming_every_failing_point(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    _stub_tier(monkeypatch, {"b0": _tier_reading("b0", size=2000),
+                             "b1": _tier_reading("b1"), "b2": _tier_reading("b2", "crashed")})
+    assert oper.main(["check", str(_tier_file(tmp_path, ["b0", "b1", "b2"])),
+                      "--image", "i"]) == 1
+    out = capsys.readouterr().out
+    assert "3 points, 2 failures." in out
+    assert "- b0 at stl-preview: bytes 2000 over its limit 1000.0" in out
+    assert "- b2 at stl-preview: crashed, not ok" in out
+    assert "| b2 | stl-preview | crashed | - | 20 | 10.000 | - | 1000 | - | 5000 |" in out
+
+
+@pytest.mark.parametrize("text", ["", "\n", '{"points": []}'])
+def test_check_of_a_file_with_no_point_is_not_a_pass(
+        text: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    taken = _stub_tier(monkeypatch, {})
+    path = tmp_path / "boundary.json"
+    path.write_text(text)
+    assert oper.main(["check", str(path), "--image", "i"]) == 1
+    assert taken == []
+    assert "no reading is not a pass" in capsys.readouterr().err
+
+
+def test_check_out_writes_the_header_and_every_reading_in_the_run_format(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    readings = {"b0": _tier_reading("b0"), "b1": _tier_reading("b1", "refused")}
+    _stub_tier(monkeypatch, readings)
+    out = tmp_path / "bounds-records.jsonl"
+    assert oper.main(["check", str(_tier_file(tmp_path, ["b0", "b1"])), "--image", "i",
+                      "--out", str(out)]) == 1
+    headers, found = oper._read_records([str(out)])
+    assert headers == [{"type": "header", "image": "i", "GITHUB_RUN_ID": "7"}]
+    assert found == [readings["b0"], readings["b1"]]
+    rows = oper.summarize(found, [1])
+    assert [(row["label"], row["status"]) for row in rows] == [("b0", "ok"), ("b1", "refused")]

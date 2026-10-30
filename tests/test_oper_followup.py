@@ -2480,3 +2480,135 @@ def test_the_committed_records_keep_4_solids_and_the_trim_and_count_the_drift_in
     assert '"bytes": 2415919104' in out  # G20: the shipped mem_limit
     assert '"above_allowance": true' in out
     assert '"holds": false' not in out
+
+
+# --- R27 step 5: the required tier (07-18) -------------------------------------------------------
+
+PREVIEW_ONLY: dict[str, tuple[list[str], list[str]]] = {"stl-fine": ([], []), "step": ([], [])}
+
+
+def _step5(edge: list[float], draw: list[float | str], timeout: float = 250.0,
+           envelope: Mapping[tuple[str, str, str], float] | None = None) -> list[Raw]:
+    """R27 step 5 over a synthetic stl-preview D(A): the edge points' charges, then the draw's; a
+    text in the draw is a reading with that status (its wall is far above any charge)."""
+    labels = [f"q{i}" for i in range(len(edge) + len(draw))]
+    points = [_pt(label, "bolt", {"length": 4.0 + i / 2}, "stl-preview")
+              for i, label in enumerate(labels)]
+    readings = [_reading(p, charge, wall=9e9) if isinstance(charge, str)
+                else _reading(p, wall=9e9, build=charge, export=0.0)
+                for p, charge in zip(points, [*edge, *draw], strict=True)]
+    tier = _tier({"stl-preview": (labels[:len(edge)], labels[len(edge):]), **PREVIEW_ONLY})
+    return oper_sets.boundary_points(tier, points, readings, envelope or _flat(),
+                                     dict.fromkeys(ARTIFACTS3, timeout))
+
+
+def test_the_edge_points_are_taken_even_when_their_charges_alone_reach_the_tier() -> None:
+    assert [(p["label"], p["charge_s"]) for p in _step5([300.0, 300.0, 300.0], [1.0])] == [
+        ("q0", 300.0), ("q1", 300.0), ("q2", 300.0)]
+
+
+def test_draw_points_are_taken_in_order_until_the_first_that_does_not_fit_and_none_after() -> None:
+    taken = _step5([50.0, 50.0, 100.0], [100.0, 150.0, 400.0, 50.0])
+    assert [p["label"] for p in taken] == ["q0", "q1", "q2", "q3", "q4"]  # 450 s; 850 s does not
+
+
+def test_a_sum_of_exactly_the_tier_does_not_fit() -> None:
+    assert [p["label"] for p in _step5([100.0, 50.0, 50.0], [100.0, 300.0])] == [
+        "q0", "q1", "q2", "q3"]
+
+
+def test_a_point_not_ok_at_explore_is_charged_its_full_timeout_and_an_ok_one_its_cold_wall(
+) -> None:
+    taken = _step5([100.0, 50.0, 50.0], ["killed", 100.0, "refused"])
+    assert [(p["label"], p["charge_s"]) for p in taken] == [
+        ("q0", 100.0), ("q1", 50.0), ("q2", 50.0), ("q3", 250.0), ("q4", 100.0)]
+
+
+def test_every_tier_point_carries_its_timeout_and_its_enveloped_limit_per_target() -> None:
+    envelope = _flat(0.25)
+    for point in _step5([1.0, 1.0, 1.0], [1.0, 1.0], timeout=26.0, envelope=envelope):
+        part = _part(point)
+        assert point["timeout_s"] == 26.0
+        assert point["limit"] == dict(zip(cost.TARGETS, oper_sets.enveloped(
+            part, "stl-preview", envelope), strict=True))
+        assert set(point) == {"label", "kind", "params", "artifact", "charge_s", "timeout_s",
+                              "limit"}
+
+
+def test_a_widened_envelope_moves_each_points_limit_and_nothing_else() -> None:
+    narrow = _step5([100.0, 50.0, 50.0], [100.0, 150.0, 400.0], envelope=_flat(0.25))
+    wide = _step5([100.0, 50.0, 50.0], [100.0, 150.0, 400.0], envelope=_flat(0.75))
+    assert [{k: v for k, v in p.items() if k != "limit"} for p in narrow] == [
+        {k: v for k, v in p.items() if k != "limit"} for p in wide]
+    for a, b in zip(narrow, wide, strict=True):
+        assert isinstance(a["limit"], dict)
+        assert isinstance(b["limit"], dict)
+        assert all(b["limit"][target] > a["limit"][target] for target in cost.TARGETS)
+
+
+def test_the_tier_takes_its_order_and_members_from_tier_order_alone() -> None:
+    points = _bolts([4.0 + i / 2 for i in range(6)], prefix="q")
+    readings = _ok_readings(points)
+    tier = _tier({"stl-preview": (["q5", "q0", "q3"], ["q1"]), "stl-fine": (["q2"], []),
+                  "step": ([], ["q4"])})
+    taken = oper_sets.boundary_points(tier, points, readings, _flat(),
+                                      dict.fromkeys(ARTIFACTS3, 26.0))
+    assert [(p["label"], p["artifact"]) for p in taken] == [
+        ("q5", "stl-preview"), ("q0", "stl-preview"), ("q3", "stl-preview"),
+        ("q1", "stl-preview"), ("q2", "stl-fine"), ("q4", "step")]
+
+
+def test_a_tier_point_with_no_explore_reading_stops_the_phase() -> None:
+    points = _bolts([4.0, 5.0], prefix="q")
+    tier = _tier({"stl-preview": (["q0"], ["q1"]), **PREVIEW_ONLY})
+    with _stop("R27", "q1 at stl-preview has no explore reading"):
+        oper_sets.boundary_points(tier, points, _ok_readings(points[:1]), _flat(),
+                                  dict.fromkeys(ARTIFACTS3, 26.0))
+
+
+def test_the_committed_boundary_file_is_what_the_shipped_constants_write() -> None:
+    """T-07-46: a change to the model, the envelope, a budget or a timeout cannot ship with a stale
+    required tier; T-07-69: it is cut from the committed D(A) and the explore run Runs II drew
+    from, never from a list drawn again."""
+    text = (REPO_ROOT / oper_sets.BOUNDARY).read_text()
+    sources = dict(str(entry).split("=", 1) for entry in json.loads(text)["sources"])
+    bound = json.loads((REPO_ROOT / "bench" / "points" / "bound.json").read_text())
+    assert sources["tier-order"] == oper_sets.TIER_ORDER
+    assert f"explore={sources['explore']}" in bound["sources"]
+    assert text == oper_sets.boundary_text(sources["explore"])
+
+
+def test_the_boundary_command_writes_the_file_from_the_committed_d_of_a(
+        runs2_repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    assert _runs2(runs2_repo, "tier-order") == 0
+    out = runs2_repo / "boundary.json"
+    assert oper_sets.main(["boundary", "--explore", str(runs2_repo / "ex2"),
+                           "--out", str(out)]) == 0
+    document = json.loads(out.read_text())
+    assert out.read_text() == oper_sets.boundary_text("ex2")
+    assert document["sources"] == [f"tier-order={oper_sets.TIER_ORDER}", "explore=ex2"]
+    assert document["timeouts"] == dict(cost.BUILD_TIMEOUT_S)
+    assert {p["artifact"] for p in document["points"]} == set(ARTIFACTS3)
+    assert f"wrote {out}" in capsys.readouterr().out
+
+
+def test_the_records_check_writes_are_read_by_the_envelope_check(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """R12 widens from recorded readings: the `bounds-records` artifact, downloaded into a folder
+    of its own as `gh run download -p` lays it out, is a source `envelope-check --from` reads."""
+    point = _pt("q0", "bolt", {"length": 20.0}, "stl-preview")
+    part = _part(point)
+    limit = dict(zip(cost.TARGETS, oper_sets.enveloped(part, "stl-preview", _flat()), strict=True))
+    boundary = tmp_path / "boundary.json"
+    boundary.write_text(json.dumps({"points": [{**point, "timeout_s": 26.0, "limit": limit}]}))
+    reading = {**_reading(point, build=1.0, export=0.5), "bytes": 10**12}
+    monkeypatch.setattr(oper, "run_reading", lambda *args, **kwargs: dict(reading))
+    monkeypatch.setattr(oper, "_image_versions", lambda image: {})
+    monkeypatch.setattr(oper, "header", lambda image, versions: {
+        "type": "header", "GITHUB_RUN_ID": "41"})
+    out = tmp_path / "bounds-41" / "bounds-records" / "bounds-records.jsonl"
+    out.parent.mkdir(parents=True)
+    assert oper.main(["check", str(boundary), "--image", "i", "--out", str(out)]) == 1
+    tagged = oper_sets.runs_readings([tmp_path / "bounds-41"])
+    assert tagged == [("bounds", "41", reading)]
+    assert all(oper_sets.widens(name, found) for name, _, found in tagged)

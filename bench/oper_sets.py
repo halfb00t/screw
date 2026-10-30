@@ -3144,6 +3144,73 @@ def _regenerate(path: Path) -> str:
     return out.text()
 
 
+# --- R27 step 5: the required tier (07-18) -------------------------------------------------------
+#
+# The tier is cut from the committed D(A) (`tier-order.json`, steps 1 to 4, never drawn again: G6)
+# with the timeouts R14 fixed, so it could not exist before 07-16. Each point carries what R29
+# judges it by: its artifact's timeout and, per target, the shipped prediction x (1 + e). A widening
+# therefore moves a point's limits and nothing else, and the regeneration test in
+# tests/test_oper_followup.py fails `make verify` when this file and the shipped constants disagree.
+
+TIER_S = 600  # R27 step 5: D-12's 10 minutes; an artifact's summed charges stay under it
+BOUNDARY = "tests/data/oper_boundary.json"
+
+
+def boundary_points(tier: Mapping[str, object], points: Sequence[Mapping[str, object]],
+                    readings: Iterable[Reading], envelope: Envelope,
+                    timeouts: Mapping[cost.Artifact, float]) -> list[dict[str, object]]:
+    """R27 step 5 per artifact, in `cost.ARTIFACTS` order, over the committed D(A): the 3 edge
+    points always, then draw points in order, each only while the summed charges of the points
+    taken, itself included, stay under `TIER_S`, stopping at the first that does not fit. A point's
+    charge is the cold wall of its explore reading when that is ok, and otherwise its artifact's
+    full timeout (R14), never `wall_s`. `points` gives each label its params; the order and the
+    membership come from `tier` alone."""
+    index = _explore_index(readings)
+    by_label = {(str(p["label"]), str(p["artifact"])): p for p in points if "artifact" in p}
+    out: list[dict[str, object]] = []
+    for artifact in cost.ARTIFACTS:
+        ranking, draw = _tier_lists(tier, artifact)
+        timeout = float(timeouts[artifact])
+        total = 0.0
+        for position, label in enumerate([*ranking[:EDGE_POINTS], *draw]):
+            if (label, artifact) not in by_label:
+                raise ValueError(f"tier-order.json names {label} at {artifact}, which the explore "
+                                 "file does not hold")
+            if (label, artifact) not in index:
+                raise ProtocolStop("R27", f"{label} at {artifact} has no explore reading")
+            reading = index[label, artifact]
+            charge = _cold_wall(reading) if reading.get("status") == "ok" else timeout
+            if position >= EDGE_POINTS and not total + charge < TIER_S:
+                break
+            total += charge
+            point = by_label[label, artifact]
+            kind, params = str(point["kind"]), point["params"]
+            assert isinstance(params, dict)
+            part = _validated(kind, params)
+            if part is None:
+                raise ValueError(f"tier-order.json names {label}, which the parameter model "
+                                 "refuses")
+            limit = enveloped(part, artifact, envelope)
+            out.append({"label": label, "kind": kind, "params": dict(params),
+                        "artifact": artifact, "charge_s": charge, "timeout_s": timeout,
+                        "limit": dict(zip(cost.TARGETS, limit, strict=True))})
+    return out
+
+
+def boundary_text(explore_dir: str) -> str:
+    """`tests/data/oper_boundary.json`: R27 step 5 over the committed `tier-order.json` and the
+    explore readings under `explore_dir`, with the shipped envelope and timeouts."""
+    tier = json.loads((REPO_ROOT / TIER_ORDER).read_text())
+    envelope = shipped_envelope()
+    document = {
+        "rule": "07-SWEEP-PROTOCOL.md R27 step 5, judged by R29 (D-07, D-12, G6)",
+        "tier_s": TIER_S, "sources": [f"tier-order={TIER_ORDER}", f"explore={explore_dir}"],
+        "timeouts": dict(cost.BUILD_TIMEOUT_S), "envelope": envelope_document(envelope),
+        "points": boundary_points(tier, _explore_points(), _read(explore_dir), envelope,
+                                  cost.BUILD_TIMEOUT_S)}
+    return json.dumps(document, indent=1) + "\n"
+
+
 # --- the command ---------------------------------------------------------------------------------
 
 
@@ -3289,6 +3356,9 @@ def _run(args: argparse.Namespace) -> int:
         print(f"{name}: {len(made.points)} points in shards of {made.shard_sizes}")
     elif args.command == "envelope-check":
         _envelope_check_command(args)
+    elif args.command == "boundary":
+        Path(args.out).write_text(boundary_text(explore_dir))
+        print(f"wrote {args.out}")
     elif args.command == "load-table":
         sys.stdout.write(load_table(read_readings(Path(args.source))))
     elif args.command in ("drift", "solid-cache"):
@@ -3357,7 +3427,11 @@ def main(argv: list[str] | None = None) -> int:
                            help="R12 over the Runs II readings that may widen e (07-15)")
     check.add_argument("--fit", required=True)
     check.add_argument("--from", dest="source", nargs="+", required=True)
-    drift_set = sub.add_parser("drift", help="write R23's drift set from runtime.json's timeouts "
+    boundary = sub.add_parser("boundary", help="write R27 step 5's required tier over the "
+                                               "committed tier-order.json (07-18)")
+    boundary.add_argument("--explore", required=True)
+    boundary.add_argument("--out", required=True)
+    drift_set =sub.add_parser("drift", help="write R23's drift set from runtime.json's timeouts "
                                              "(07-16)")
     drift_set.add_argument("--k", type=int, default=DRIFT_BUILDS,
                            choices=(DRIFT_BUILDS, PLATEAU_BUILDS))
