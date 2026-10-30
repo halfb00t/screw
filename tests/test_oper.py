@@ -3050,3 +3050,104 @@ def test_check_out_writes_the_header_and_every_reading_in_the_run_format(
     assert found == [readings["b0"], readings["b1"]]
     rows = oper.summarize(found, [1])
     assert [(row["label"], row["status"]) for row in rows] == [("b0", "ok"), ("b1", "refused")]
+
+
+# --- the bounds job in ci.yml (07-18; D-12, D-15, L08, T-07-44, T-07-45) ------------------------
+
+CI_YML = REPO_ROOT / ".github" / "workflows" / "ci.yml"
+REQUIRED_JOBS = REPO_ROOT / ".github" / "workflows" / "required-jobs.txt"
+
+
+def _ci_job(job_id: str) -> str:
+    """The text of one ci.yml job: from its two-space id line to the next one."""
+    text = CI_YML.read_text()
+    match = re.search(rf"^  {job_id}:\n((?:(?!  \S).*\n?)*)", text, re.MULTILINE)
+    assert match is not None, f"no {job_id} job in ci.yml"
+    return match.group(1)
+
+
+def _steps(job: str) -> list[str]:
+    """A job's steps, each the text from its `- ` line to the next."""
+    return re.split(r"^      - ", job, flags=re.MULTILINE)[1:]
+
+
+def _step_with(job: str, *needles: str) -> str:
+    found = [step for step in _steps(job) if all(needle in step for needle in needles)]
+    assert len(found) == 1, f"{len(found)} steps hold {needles}"
+    return found[0]
+
+
+def test_the_bounds_job_checks_the_boundary_set_in_the_image_the_image_job_built() -> None:
+    job = _ci_job("bounds")
+    assert re.search(r"^    needs: image$", job, re.MULTILINE)
+    assert re.search(r"^    runs-on: ubuntu-latest$", job, re.MULTILINE)
+    download = _step_with(job, "actions/download-artifact@v4")
+    assert re.search(r"^\s+name: screw-ci-image$", download, re.MULTILINE)
+    assert "gunzip -c screw-ci.tar.gz | docker load" in _step_with(job, "docker load")
+    python = _step_with(job, "actions/setup-python@v5")
+    assert 'python-version: "3.12"' in python
+    assert "cache" not in python
+    check = _step_with(job, "bench.oper check")
+    assert ("python3 -m bench.oper check tests/data/oper_boundary.json --image screw:ci "
+            "--out bounds-records.jsonl") in check
+    assert '"$GITHUB_STEP_SUMMARY"' in check
+    # The table is piped into the summary, so the step must fail with the check, not with tee.
+    assert re.search(r"^\s+shell: bash$", check, re.MULTILINE)
+    assert ".venv" not in job
+    assert "make " not in job
+
+
+def test_the_bounds_job_reads_the_repository_and_holds_no_secret() -> None:
+    job = _ci_job("bounds")
+    permissions = re.search(r"^    permissions:\n((?:      .*\n)+)", job, re.MULTILINE)
+    assert permissions is not None
+    assert permissions.group(1).splitlines() == ["      contents: read"]
+    text = CI_YML.read_text()
+    assert "secrets." not in text
+    assert not re.search(r"^\s+github-token:", text, re.MULTILINE)
+    assert not re.search(r"^\s*pull_request_target\s*:", text, re.MULTILINE)
+    assert "\non:\n  push:\n    branches: [main]\n  pull_request:\n\n" in text
+
+
+def test_the_bounds_job_keeps_the_readings_of_a_red_run_for_seven_days() -> None:
+    upload = _step_with(_ci_job("bounds"), "actions/upload-artifact@v4")
+    assert re.search(r"^\s+if: always\(\)$", upload, re.MULTILINE)
+    assert re.search(r"^\s+name: bounds-records$", upload, re.MULTILINE)
+    assert re.search(r"^\s+path: bounds-records\.jsonl$", upload, re.MULTILINE)
+    assert re.search(r"^\s+retention-days: 7$", upload, re.MULTILINE)
+
+
+def test_the_image_job_hands_its_image_on_for_one_day() -> None:
+    job = _ci_job("image")
+    save = _step_with(job, "docker save")
+    assert "docker save screw:ci | gzip -1 > screw-ci.tar.gz" in save
+    assert re.search(r"^\s+shell: bash$", save, re.MULTILINE)
+    upload = _step_with(job, "actions/upload-artifact@v4")
+    assert re.search(r"^\s+name: screw-ci-image$", upload, re.MULTILINE)
+    assert re.search(r"^\s+path: screw-ci\.tar\.gz$", upload, re.MULTILINE)
+    assert re.search(r"^\s+retention-days: 1$", upload, re.MULTILINE)
+
+
+def test_bounds_is_a_job_make_pr_land_requires() -> None:
+    lines = REQUIRED_JOBS.read_text().splitlines()
+    assert lines.count("bounds") == 1
+
+
+def test_the_bounds_job_timeout_leaves_half_for_a_slower_runner() -> None:
+    """R6's precedent: the readings take at most half the job's `timeout-minutes`, the other half
+    left for a slower runner instance, the image load and the upload. A reading is estimated by
+    its explore container wall, or by its timeout where explore did not read it ok (R27's
+    charge)."""
+    match = re.search(r"^    timeout-minutes: (\d+)$", _ci_job("bounds"), re.MULTILINE)
+    assert match is not None
+    document = json.loads((REPO_ROOT / "tests" / "data" / "oper_boundary.json").read_text())
+    explore = dict(str(entry).split("=", 1) for entry in document["sources"])["explore"]
+    files = sorted(str(path) for path in (REPO_ROOT / explore).glob("*/*.jsonl"))
+    walls = {(r["label"], r["artifact"]): r for r in oper._read_records(files)[1]}
+    estimate = 0.0
+    for point in document["points"]:
+        reading = walls[point["label"], point["artifact"]]
+        wall = reading["wall_s"]
+        assert isinstance(wall, int | float)
+        estimate += wall if reading["status"] == "ok" else max(wall, point["timeout_s"])
+    assert estimate < int(match.group(1)) * 60 / 2

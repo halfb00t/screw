@@ -74,3 +74,59 @@ jobs:
           curl -sfo /dev/null 'localhost:8000/api/bolt/model.stl?quality=preview'
           curl -sfo /dev/null 'localhost:8000/api/bolt/model.step'
           docker rm -f screw
+      # The bounds job reads the boundary set in this very image (07 D-15), so it is handed on
+      # inside the run and kept one day. `shell: bash` adds pipefail: a failed save must not
+      # upload an empty archive.
+      - name: save the image for the bounds job
+        shell: bash
+        run: docker save screw:ci | gzip -1 > screw-ci.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screw-ci-image
+          path: screw-ci.tar.gz
+          retention-days: 1
+
+  # 07 D-12's required tier: R27 step 5's boundary set (tests/data/oper_boundary.json, written by
+  # `python -m bench.oper_sets boundary` from the committed D(A) and the shipped constants), each
+  # point read once, cold, in its own container of the image the `image` job built (D-15). R29
+  # fails it on a reading that is not ok, a cold wall past its artifact's timeout, or bytes,
+  # seconds or peak above prediction x (1 + e). The records are uploaded on a red run too, because
+  # R12 widens e only from recorded readings (`python -m bench.oper_sets envelope-check --from`
+  # over `gh run download <run> -p bounds-records -D <dir>`), never from a table. The recording
+  # tier, which sets the bounds, is operability.yml.
+  #
+  # T-07-44: no secret, no pull_request_target, and a token that only reads the repository; it
+  # runs the PR's own code exactly as `test` does. A same-run artifact download needs no
+  # github-token (actions/download-artifact README, read 2026-10-26).
+  #
+  # timeout-minutes: the readings' estimate, each point's explore container wall (or its timeout
+  # where explore read it not ok), was 2880.8 s at 9694cb6, and R6's precedent keeps it under half
+  # the job; tests/test_oper.py holds the two together.
+  bounds:
+    needs: image
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: screw-ci-image
+      - name: load the image the image job built
+        shell: bash
+        run: gunzip -c screw-ci.tar.gz | docker load
+      # bench.oper is standard-library only, so the runner's own interpreter runs it; no venv.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # `shell: bash` adds pipefail, so the step fails with the check and not with tee.
+      - name: the boundary set builds inside its timeouts and its envelope
+        shell: bash
+        run: python3 -m bench.oper check tests/data/oper_boundary.json --image screw:ci --out bounds-records.jsonl | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bounds-records
+          path: bounds-records.jsonl
+          retention-days: 7

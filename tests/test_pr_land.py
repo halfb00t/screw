@@ -12,9 +12,8 @@ directly during this plan's own execution) -- a comment above each names the cal
 Per-case variants change **values** (state, a PR number, conclusions, ids), never
 **shape**. Every test except the drift test (`test_required_jobs_file_matches_ci_yml_job_names`)
 is independent of `.github/workflows/required-jobs.txt`'s current contents: pure tests
-pass `required`/`REQUIRED` explicitly, and `land()` tests use only `test (3.12)`,
-`vendor-bundle` and `image` -- the jobs required both now and after Plan 05-04 drops the
-`test (3.10)` line.
+pass `required`/`REQUIRED` explicitly, and `land()` tests see `required_jobs()` return
+`REQUIRED` (`test (3.12)`, `vendor-bundle` and `image`), the jobs the recorded runs carry.
 """
 
 from __future__ import annotations
@@ -189,6 +188,14 @@ SQUASH_COMMIT_READ = (
 
 REQUIRED = frozenset({"test (3.12)", "vendor-bundle", "image"})
 
+
+@pytest.fixture(autouse=True)
+def _land_requires_the_recorded_jobs(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`land()` reads `required_jobs()` itself, so it is held to REQUIRED, the jobs the recorded
+    runs carry: the required list has grown since (07-18's `bounds`), and a recorded run cannot.
+    The tests that read the file import `required_jobs` by name and are not affected."""
+    monkeypatch.setattr("scripts.pr_land.required_jobs", lambda: REQUIRED)
+
 # A compare result that is neither behind nor identical -- the neutral value the Task 1
 # tests use for `head_refusals`, which now requires a `compare` argument as of Task 2.
 NOT_BEHIND = (1, 0)
@@ -284,13 +291,14 @@ def test_a_job_name_override_moves_the_derived_required_set() -> None:
     renamed = ci_yml.replace("  image:\n", "  image:\n    name: renamed-image\n", 1)
     assert renamed != ci_yml
     names = _effective_job_names(renamed)
-    assert names == {"test (3.12)", "vendor-bundle", "renamed-image"}
+    assert names == {"test (3.12)", "vendor-bundle", "renamed-image", "bounds"}
     assert "bundle matches web/" not in names
     assert "the packaged entrypoint serves a gear" not in names
 
     quoted = ci_yml.replace("  image:\n", '  image:\n    name: "renamed image"\n', 1)
     assert quoted != ci_yml
-    assert _effective_job_names(quoted) == {"test (3.12)", "vendor-bundle", "renamed image"}
+    assert _effective_job_names(quoted) == {"test (3.12)", "vendor-bundle", "renamed image",
+                                            "bounds"}
 
 
 # --- pure decisions ----------------------------------------------------------------
