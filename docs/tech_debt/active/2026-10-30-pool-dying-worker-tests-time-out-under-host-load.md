@@ -32,13 +32,29 @@ ASSUMPTION, not measured: a worker spawned for the test runs `_warm` first, whic
 `screw.solid` and so cadquery and OCP. On a loaded host, that import plus the spawn takes
 longer than the 5 s the tests allow, and `_die` never runs before the timeout fires.
 
+## Second occurrence (2026-10-30) -- the trigger has fired
+About 20 minutes later, the pre-commit `make verify` of the commit that became `3bcbdb3` ended
+`2 failed, 4460 passed in 238.03s`, with a 1-minute load average of 22.63 read a minute after it.
+Two other sessions' Python processes each held a core at 100 %. Failed:
+
+- `test_two_same_slot_deaths_from_one_incident_replace_the_worker_once`, the same `BuildTimeout`
+  at 5 s as above.
+- `test_a_request_queued_behind_a_build_keeps_its_own_full_timeout`, new here:
+  `BuildTimeout('Build exceeded its 2s per-build timeout. Try a coarser quality.') != b''`.
+  The same test is the subject of the resolved item
+  `docs/tech_debt/resolved/2026-10-28-queued-request-timeout-test-flakes-under-full-suite-load.md`.
+
+The retried commit passed, at a load average of 18.18. So the next step below is due. Plan 07-15
+did not take it, because it is outside that plan's scope; it is due before phase 7 lands.
+
 ## Why it matters
 `make verify` is the gate, the pre-commit hook and CI. A test that fails under load and
 passes on retry teaches everyone to retry a red gate. That is how a real failure gets
 waved through. Each occurrence also costs a full hook cycle, about 4 minutes.
 
 ## Next step
-Trigger: a second occurrence, or the next edit to `tests/test_pool.py` or `screw.pool`.
+Trigger: a second occurrence (fired 2026-10-30, above), or the next edit to
+`tests/test_pool.py` or `screw.pool`. Due before phase 7 lands.
 Measure the time from a test's worker spawn to its first task under `make verify` load.
 Then choose between two fixes:
 - Give the two tests a timeout above the measured worst spawn.
