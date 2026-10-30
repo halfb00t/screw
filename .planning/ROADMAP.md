@@ -399,7 +399,7 @@ Plans:
   3. A CI job builds every allowed configuration inside the timeout; a configuration that cannot is capped and warned or refused with a `422` naming the fields, never silently shortened.
   4. With the measured bounds in place, CAD builds still run in worker processes off the event loop, and `make check` (in-image smoke test, vendored-bundle byte check) passes.
 
-**Plans**: 17/21 plans executed (sequential waves 1-15; the pre-registration lands on main as its own PR, A, before any runner reading; 07-05 to 07-20 revised 2026-10-27 against PR A2's protocol, and 07-21 split out of 07-16)
+**Plans**: 18/21 plans executed (sequential waves 1-15; the pre-registration lands on main as its own PR, A, before any runner reading; 07-05 to 07-20 revised 2026-10-27 against PR A2's protocol, and 07-21 split out of 07-16)
 
 Plans:
 **Wave 1**
@@ -444,7 +444,7 @@ Plans:
 - [x] 07-21-PLAN.md — Write the derived serving and worker knobs into the code: Retry-After, workers, queue, gzip, caches, arena release, CLI server count (D-02, D-03, D-11); split out of 07-16
 
 **Wave 13** *(blocked on Wave 12 completion)*
-- [ ] 07-17-PLAN.md — Container values in Dockerfile and compose; L22 and L23; no interim value or spur figure left (D-10, D-15, D-16)
+- [x] 07-17-PLAN.md — Container values in Dockerfile and compose; L23 and L24 (the plan's L22 and L23, renumbered as 07-15 took L22); no interim value or spur figure left (D-10, D-15, D-16)
 - [ ] 07-18-PLAN.md — The required `bounds` CI job on R27 step 5 over the committed D(A) in the production image; draft PR opened (D-12, D-15)
 
 **Wave 14** *(blocked on Wave 13 completion)*
@@ -467,4 +467,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 2 
 | 5. Hex Nut and Kernel Pair Proof | 25/25 | Complete    | 2026-10-22 |
 | 6. Printed Pair Acceptance | 10/10 | Complete    | 2026-10-24 |
 | 6.1. Bolt head chamfer (INSERTED) | 5/5 | Complete    | 2026-10-25 |
-| 7. Operability Re-sweep | 17/21 | In Progress | - |
+| 7. Operability Re-sweep | 18/21 | In Progress | - |

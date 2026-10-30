@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 07
 current_phase_name: Operability Re-sweep
 status: executing
-stopped_at: Completed 07-21-PLAN.md
-last_updated: "2026-10-30T09:28:45.644Z"
+stopped_at: Completed 07-17-PLAN.md
+last_updated: "2026-10-30T10:07:21.578Z"
 last_activity: 2026-10-30
 last_activity_desc: Phase 07 execution started
-state_head: 744d6e40966c568e636ba0324ff6aff1848e0d0f
+state_head: 530adbef3f989af31d16e23a0f7083334de42a5f
 progress:
   total_phases: 8
   completed_phases: 7
   total_plans: 103
-  completed_plans: 99
+  completed_plans: 100
   percent: 88
 ---
 
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-10-25)
 ## Current Position
 
 Phase: 07 (Operability Re-sweep) — EXECUTING
-Plan: 18 of 21
+Plan: 19 of 21
 Status: Ready to execute
-Last activity: 2026-10-30 — Plan 07-21 complete (the serving and worker knobs equal runtime.json: 1 build worker, queue 2, Retry-After ceil(R18 median x live depth) per artifact, export cache 240 MiB, gzip level 1 at 4012 B, solid cache 4, the trim kept, no recycling, SCREW_WORKERS 1; tests/test_runtime_bounds.py ties each; next 07-17)
+Last activity: 2026-10-30 — Plan 07-17 complete (compose and the Dockerfile ship runtime.json's values: 1 build worker, mem_limit 2304m = 2415919104 B, tmpfs 256m, SCREW_WORKERS 1, healthcheck 2 s / 10 s; L23 the measured runtime, L24 the timeouts and the deadline; SCREW_BUILD_TIMEOUT gone from the bench; the interim-runtime-bounds, WR-05 and bench.memory sampling debt resolved; next 07-18)
 
 Progress: [█████████░] 88%
 
@@ -161,6 +161,7 @@ Progress: [█████████░] 88%
 | Phase 07 P15 | 135 min | 3 tasks | 31 files |
 | Phase 07 P16 | 154 min | 3 tasks | 17 files |
 | Phase 07 P21 | 20 min | 2 tasks | 8 files |
+| Phase 07 P17 | 32 min | 3 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -332,6 +333,8 @@ Recent decisions affecting current work:
 - [Phase 07]: 07-16: runtime.json derived by rule from committed runner records: N = 1, timeouts 26/71/26 s (shipped in BUILD_TIMEOUT_S), K = 4, the arena trim kept, gzip level 1, export cache 240 MiB, tmpfs 256 MiB, queue depth 2, shipped mem_limit 2415919104 B
 - [Phase 07]: 07-16 (G32): R23's 20-build drift no longer stops alone; the 60-build plateau holds at every artifact (run 41022812680), W takes the drift readings' largest peak 1758363648 B, and max_tasks_per_child stays unset
 - [Phase 07]: 07-21: the serving and worker knobs equal runtime.json: 1 build worker, queue 2, Retry-After ceil(R18 median x live depth), export cache 240 MiB, gzip 1 / 4012 B, solid cache 4, trim kept, no recycling, SCREW_WORKERS 1
+- [Phase 07]: 07-17: compose and the Dockerfile ship runtime.json's values (1 build worker, mem_limit 2304m = 2415919104 B, tmpfs 256m, SCREW_WORKERS 1, healthcheck --timeout 2s --start-period 10s, interval 30s and retries 3 as Docker's defaults); L23 logs the measured runtime and L24 the per-artifact timeouts, the queue-aware deadline, the miss record and Retry-After (the plan's L22/L23 renumbered, L22 being taken)
+- [Phase 07]: 07-17: SCREW_BUILD_TIMEOUT gone from the bench; bench.build_time judges each artifact against BUILD_TIMEOUT_S and marks cost-model-refused artifacts instead of judging them; the interim-runtime-bounds, WR-05 and bench.memory sampling debt items resolved
 
 ### Pending Todos
 
@@ -388,6 +391,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-30T09:28:45.331Z
-Stopped at: Completed 07-21-PLAN.md
+Last session: 2026-10-30T10:07:21.249Z
+Stopped at: Completed 07-17-PLAN.md
 Resume file: None
