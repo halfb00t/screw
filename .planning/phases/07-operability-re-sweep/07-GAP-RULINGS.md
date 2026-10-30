@@ -391,3 +391,39 @@ edited.
 | Gap | Rule(s) | Owner ruling |
 |---|---|---|
 | G35 | R31 (new), D-08 | A fine-pitch wall per kind: a part whose exact `d / pitch` is above W is a `422` `pitch_too_fine` naming `d` and `pitch`, at the parameter-model boundary; W is admitted. W is the largest ISO 3 R10 number at or below F / 1.25, F the smallest exact `d / pitch` of a `refused` or `crashed` reading of the kind in the walk: bolts with 3 turns of thread (with and without a shank), nuts in four forms, a grid of `d` and `d / pitch` around the wall, both hands, one reading each at `step`, written by `bench/oper_sets.py` as `walls-pitch`. A `killed`, `capped`, `no_cgroup` or missing reading, or a kind with no refusal, leaves W with no number and stops the phase; so does a W other than the ruled 20 (bolt) and 8 (nut). W ships written from the records by code. The longer-thread bolts and the isolated nut cells below W stay as must debt. |
+
+## Gap G36 (owner ruling after the fine-pitch walk, 2026-10-30)
+
+Source: plan 07-18 stopped at R31's check. Walk run 41074314305 (`walls-pitch` at 7ecaebb, records
+committed at cfdf5f2) read all 5656 points once: 5579 `ok` and 77 `refused`.
+`python -m bench.oper_sets pitch-walls` over the records gives:
+
+- bolt: F = 26.999784001727985 at `pitch-bolt-n3-d3-q27-right` (d 3, pitch 0.111112), F / 1.25 =
+  21.59982720138239, W = 20, as G35 ruled. All 60 bolt refusals are right-hand.
+- nut: F = 6.999993636369421 at `pitch-nut-base-d2.2-q7-left`, F / 1.25 = 5.599994909095537, W = 5,
+  not the 8 G35 ruled. Six cells are refused at `d` 2.2, `d / pitch` 7 (forms base, s4 and m1, both
+  hands); the c0 form there, `d` 2.0, 2.4 and 2.5 at `d / pitch` 7, and `d` 2.2 at 6 and 8 are all
+  `ok`. No nut is refused at `d / pitch` 5 or below (0 of 344); the other 11 nut refusals are at
+  `d / pitch` 11. A nut W of 5 refuses 13 of the 14 nut catalogue rows, the default M6 nut
+  (`d / pitch` 6) among them, so no nut W keeps B-01 and holds the island.
+
+The executor also found that the guard, applied by the production model, would draw `bound.json`,
+`gzip.json`, `arenas.json` and `bound-rerun.json` again (they hold parts it refuses) and, with D(A)
+drawn again, `load.json`, so the committed runtime records would no longer match their sets. With
+the committed D(A) kept, R27 step 5 less the 80 points the guard refuses leaves 355 points
+(stl-preview 151, stl-fine 51, step 153), each in the committed tier and `ok` at `explore`; every
+artifact's third edge point is refused by the guard, so each keeps 2.
+
+The owner's replies, verbatim (the label "(Recommended)" is the orchestrator's, not part of the
+ruling):
+
+1. "Rule nut W = 8, island to debt (Recommended)"
+2. "(i)(b) old sets, drop refused (Recommended)"
+
+This is a ruled change after R30's freeze, not a harness fix. It amends R31 of
+`07-SWEEP-PROTOCOL.md` on the phase branch `gsd/phase-07-operability-re-sweep`. It supersedes
+G35's ruling 2 for the nut (its W is not taken from the margin rule); G35 stands otherwise.
+
+| Gap | Rule(s) | Owner ruling |
+|---|---|---|
+| G36 | R31, R27 | The nut's W is 8 by ruling, not by the margin rule; the bolt's W stays the margin rule's, written by code from the walk's records (20). The 6 island cells (`d` 2.2, `d / pitch` 7) and any nut cell the walk refused at or below 8 join the residual must debt; the nut's constant is a ruled value whose comment cites this ruling and the island. The committed point files and the sets drawn from runner records are checked under the model they were drawn under, without the fine-pitch wall (as `bench.oper_lift.registered` does for the walls), so `runtime.json` and L22 to L24 do not move. The required tier is R27 step 5 over the committed D(A) with the points the fine-pitch wall refuses dropped and nothing drawn in their place: 355 points, each artifact keeping 2 edge points. |

@@ -691,22 +691,35 @@ charges least for both kinds. The walk has R2's deadline and is charged and cut 
 charges a set of explore-like parts.
 
 *F and W.* Per kind, F is the smallest exact `d / pitch` over the walk's readings of that kind
-whose status is `refused` or `crashed`. W is the largest number of the ISO 3 R10 series (1, 1.25,
-1.6, 2, 2.5, 3.15, 4, 5, 6.3 and 8, times a power of ten) at or below F / 1.25, so F lies at least
-one R10 step above W. Every point of the walk must have exactly one reading. A reading that is
-`killed`, `capped` or `no_cgroup` is cost or a gap and not a wall, and it cannot support a bound
-either (R8); with such a reading, a missing reading, or no `refused` or `crashed` reading of a
-kind, W has no number and the phase stops and asks the owner. The owner ruled W = 20 for the bolt
-and W = 8 for the nut, on readings taken off the runner; the walk on the runner decides, and a W
-other than those stops the phase and asks the owner. The W that ships is written from the walk's
-records by code, never typed.
+whose status is `refused` or `crashed`. Every point of the walk must have exactly one reading. A
+reading that is `killed`, `capped` or `no_cgroup` is cost or a gap and not a wall, and it cannot
+support a bound either (R8); with such a reading, a missing reading, or no `refused` or `crashed`
+reading of a kind, F has no number and the phase stops and asks the owner. For the bolt, W is the
+largest number of the ISO 3 R10 series (1, 1.25, 1.6, 2, 2.5, 3.15, 4, 5, 6.3 and 8, times a power
+of ten) at or below F / 1.25, so F lies at least one R10 step above W; the owner ruled W = 20 on
+readings taken off the runner, the walk on the runner decides, and a bolt W other than 20 stops the
+phase and asks the owner. The bolt's W that ships is written from the walk's records by code, never
+typed. For the nut, W is 8, set by the owner's ruling and not by the margin rule: the walk on the
+runner refused nuts at `d / pitch` 7 (`d` 2.2 mm, in three of the four forms and both hands, with
+every neighbouring cell `ok`), and a nut W at or below that would refuse nut catalogue rows, the
+default nut among them. Every nut cell the walk refused at or below the nut's W is recorded and
+kept open as debt.
 
 *What it leaves open.* The walk reads bolts with 3 turns of thread only. A bolt with a longer
 thread can be refused by the kernel below the bolt's W, in two bands of `d`, because its tip-cone
 error grows with the number of turns at a fixed `d / pitch`. A nut can be refused at an isolated
-cell that the grid does not hold. W bounds neither of these. They are recorded and kept open as
-debt, and they are not a wall. This rule was added after the first runner reading by the owner's
-ruling that R30 asks for.
+cell below its W, as the walk found at `d / pitch` 7, or at a cell the grid does not hold. W bounds
+neither of these. They are recorded and kept open as debt, and they are not a wall.
+
+*The sets already drawn.* The point files and the sets drawn from runner records before this rule
+are checked under the parameter model they were drawn under, without the fine-pitch wall, and are
+not drawn again, so D(A) (R27 steps 1 to 4), the bound set, the load mix and every value derived
+from their readings stand. The required tier is cut from D(A) by R27 step 5 as before, and a point
+the fine-pitch wall refuses is then left out of it, with nothing drawn in its place: an artifact can
+keep fewer than 3 edge points, and the tier holds fewer than 10 minutes of charges.
+
+This rule was added after the first runner reading by the owner's ruling that R30 asks for, and
+amended after the walk's runner reading by a second ruling of the owner's that R30 asks for.
 
 ## Debt this campaign leaves open
 

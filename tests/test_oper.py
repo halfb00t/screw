@@ -3274,22 +3274,34 @@ def test_r31_refuses_a_fine_pitch_past_a_wall_per_kind_and_admits_the_wall() -> 
     assert "charged and cut into shards as R6 charges a set of explore-like parts" in rule
 
 
-def test_r31_takes_f_from_the_runner_walk_and_w_one_r10_step_below_it() -> None:
+def test_r31_takes_the_bolt_w_from_the_runner_walk_and_rules_the_nut_w() -> None:
     rule = _rule_31()
     assert ("F is the smallest exact `d / pitch` over the walk's readings of that kind whose "
             "status is `refused` or `crashed`") in rule
-    assert ("W is the largest number of the ISO 3 R10 series (1, 1.25, 1.6, 2, 2.5, 3.15, 4, 5, "
-            "6.3 and 8, times a power of ten) at or below F / 1.25") in rule
+    assert ("For the bolt, W is the largest number of the ISO 3 R10 series (1, 1.25, 1.6, 2, 2.5, "
+            "3.15, 4, 5, 6.3 and 8, times a power of ten) at or below F / 1.25") in rule
     assert "Every point of the walk must have exactly one reading" in rule
-    assert "W has no number and the phase stops and asks the owner" in rule
-    assert ("The owner ruled W = 20 for the bolt and W = 8 for the nut, on readings taken off the "
-            "runner; the walk on the runner decides, and a W other than those stops the phase and "
-            "asks the owner") in rule
-    assert "written from the walk's records by code, never typed" in rule
+    assert "F has no number and the phase stops and asks the owner" in rule
+    assert "a bolt W other than 20 stops the phase and asks the owner" in rule
+    assert ("The bolt's W that ships is written from the walk's records by code, never "
+            "typed") in rule
+    assert ("For the nut, W is 8, set by the owner's ruling and not by the margin rule") in rule
+    assert ("Every nut cell the walk refused at or below the nut's W is recorded and kept open "
+            "as debt") in rule
+    assert "a W other than those stops" not in rule
     assert "The walk reads bolts with 3 turns of thread only" in rule
     assert "They are recorded and kept open as debt, and they are not a wall" in rule
     assert rule.count("added after the first runner reading by the owner's ruling that R30 asks "
                       "for") == 1
+    assert "amended after the walk's runner reading by a second ruling of the owner's" in rule
+
+
+def test_r31_keeps_the_drawn_sets_and_drops_refused_points_from_the_tier() -> None:
+    rule = _rule_31()
+    assert ("are checked under the parameter model they were drawn under, without the "
+            "fine-pitch wall, and are not drawn again") in rule
+    assert ("a point the fine-pitch wall refuses is then left out of it, with nothing drawn in "
+            "its place: an artifact can keep fewer than 3 edge points") in rule
 
 
 def test_the_fine_pitch_ruling_is_an_owner_ruling_after_the_freeze_and_not_a_harness_fix() -> None:
@@ -3302,9 +3314,20 @@ def test_the_fine_pitch_ruling_is_an_owner_ruling_after_the_freeze_and_not_a_har
                      "not a harness fix"):
         assert evidence in rulings, evidence
     assert re.search(r"^\| G35 \| R31 \(new\), D-08 \|", rulings, re.MULTILINE)
+    assert "\n## Gap G36 (owner ruling after the fine-pitch walk, 2026-10-30)\n" in rulings
+    for evidence in ('"Rule nut W = 8, island to debt (Recommended)"',
+                     '"(i)(b) old sets, drop refused (Recommended)"', "41074314305",
+                     "6.999993636369421", "13 of the 14 nut catalogue rows"):
+        assert evidence in rulings, evidence
+    assert re.search(r"^\| G36 \| R31, R27 \|", rulings, re.MULTILINE)
     owner = (PROTOCOL.parent / "07-OWNER-RULINGS.md").read_text()
     assert ("\n## R31: the fine-pitch walls, after the in-wall debug session (2026-10-30, G35)\n"
             in owner)
+    assert ("\n## R31: the nut's wall is ruled, and the old sets stand (2026-10-30, G36)\n"
+            in owner)
+    for reply in ('"Rule nut W = 8, island to debt (Recommended)"',
+                  '"(i)(b) old sets, drop refused (Recommended)"'):
+        assert reply in owner, reply
     for reply in ('"Guard d/p wall + debt (Recommended)"', '"Nut d/p ≤ 8 (Recommended)"',
                   '"Walk W on runner (Recommended)"', '"Must debt, don\'t block (Recommended)"'):
         assert reply in owner, reply

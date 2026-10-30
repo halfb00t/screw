@@ -226,3 +226,19 @@ the kernel refuses (`07-GAP-RULINGS.md`, G35, holds its figures). The owner's re
    confirms it (R31).
 4. On the residual: "Must debt, don't block (Recommended)". Long-thread bolts in the two bands of
    `d`, and isolated nut cells, that the wall admits and the kernel refuses, stay as debt.
+
+## R31: the nut's wall is ruled, and the old sets stand (2026-10-30, G36)
+
+Source: plan 07-18's stop after walk run 41074314305 (`07-GAP-RULINGS.md`, G36, holds its
+figures): the walk confirmed the bolt's W of 20 and gave a nut W of 5, from six nut cells refused at
+`d` 2.2, `d / pitch` 7. A nut W of 5 refuses 13 of the 14 nut catalogue rows. The owner's replies,
+verbatim (the label "(Recommended)" is the orchestrator's, not part of the ruling):
+
+1. "Rule nut W = 8, island to debt (Recommended)". The nut's W is 8, set by ruling and not by the
+   margin rule. The bolt's W stays as the margin rule computes it from the committed walk records,
+   20. The 6 island cells, and any other refused nut cell at or below 8, go into the residual must
+   debt.
+2. "(i)(b) old sets, drop refused (Recommended)". The committed sets are checked under the model
+   they were drawn under, without the `d / pitch` wall, as `bench.oper_lift.registered` does, so
+   `runtime.json` and L22 to L24 do not move. The required tier drops the points the guard refuses
+   and does not refill: 355 points, each artifact keeping 2 edge points.
