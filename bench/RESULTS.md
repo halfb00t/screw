@@ -11792,3 +11792,123 @@ Each repetition, from the `peaks` the command prints:
 | 41016507364:drift-iso4017:M16x160 rep 5 | 293498880 | 298164224 | 314232832 | 20733952 |
 
 **Outcome: R23 stops the phase for the owner.** Every repetition is `ok` and holds all 20 peaks, so each artifact has a drift, and all three are above their allowance. R23: "if it does, the phase stops and asks the owner, because no rule here sets a recycling value." No recycling value, no R22 or R23 value and no constant is written; runtime.json keeps its stage-one values, and `derive-runtime` reads no R22 or R23 set until the owner rules. As the table shows, most of each repetition's growth is between build 1 and build 2; the peak after build 20 of the stl-fine nut (1716760576 bytes, rep 1) is above both W (1533550592 bytes) and W(4) (1652121600 bytes).
+
+### drift-60, run 41022812680
+
+- Dispatched sha: `b47e52ce0018214f1ec9fbd76ee671f9129a4131`
+- Records: `bench/results/phase-07/drift-60-41022812680/` (5 artifacts, 15 readings), run https://github.com/halfb00t/screw/actions/runs/41022812680
+- CPU models seen (jobs): AMD EPYC 7763 64-Core Processor (1); AMD EPYC 9V45 96-Core Processor (3); Intel(R) Xeon(R) 6973P-C (1)
+- Counts by status: ok: 15
+- 1 shard x 5 repetitions = 5 jobs; each reading builds its part 60 times in one process and records the peak after each build (`peaks`, R23, G14, G32), charged its own deadline_s, 60 x the artifact's timeout (R6, G4).
+- Summary: `python -m bench.oper summarize --markdown --reps 1,2,3,4,5` over the directory, as printed.
+
+### Host
+
+| fact | value |
+| --- | --- |
+| image | screw:ci |
+| image_id | sha256:cc2d121657be060166e179df46b713838b292a769528df764da79304ce5f59b5, sha256:fa405214f07beffe484658c797a91b076e1bc241aab8d2e09e9524b1ceb44381, sha256:fc4fa644c4981a7eda63f8ac8de347768d6fe7e483c3d33bf8f294d2fa19bf8e, sha256:0d1e757dc6730414d18725429df86b7c66e804eed3503dd970d9d3bedd00f49c, sha256:ab0173f1c34889278499a9c75d53c895ccab5d8aa69999428d0411361e699d00 |
+| versions | {"cadquery": "2.8.0", "cadquery_ocp": "7.9.3.1.1"} |
+| nproc | 4 |
+| mem_total_bytes | 16759439360, 16758407168, 16759435264 |
+| cpu_model | AMD EPYC 9V45 96-Core Processor, Intel(R) Xeon(R) 6973P-C, AMD EPYC 7763 64-Core Processor |
+| kernel | 7.0.0-1017-azure |
+| machine | x86_64 |
+| GITHUB_RUN_ID | 41022812680 |
+| GITHUB_JOB | measure |
+| GITHUB_SHA | b47e52ce0018214f1ec9fbd76ee671f9129a4131 |
+
+### Readings
+
+Status counts: ok: 15
+
+| point | artifact | n | status | counts | median build s | max build s | median export s | max export s | median bytes | max bytes | median peak bytes | max peak bytes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| drift-nut-d100-p3.5-m0.8d-s4d-c5-right | stl-preview | 5 | ok | ok: 5 | 4.030 | 5.983 | 2.744 | 4.136 | 27853884 | 27853884 | 496148480 | 503881728 |
+| drift-nut-d30-p1-m0.8d-s4d-c5-right | stl-fine | 5 | ok | ok: 5 | 2.025 | 3.056 | 19.498 | 26.675 | 132196084 | 132196084 | 1684537344 | 1758363648 |
+| drift-iso4017:M16x160 | step | 5 | ok | ok: 5 | 3.503 | 5.220 | 0.147 | 0.208 | 5064590 | 5064590 | 317521920 | 319242240 |
+
+### envelope check (60-build drift build 1)
+
+R12 and G5: build 1 of a drift reading is a cold isolated reading and may widen e; builds 2 to 60 never do. `python -m bench.oper_sets envelope-check --fit <a scratch copy of bench/results/phase-07/fit.json> --from bench/results/phase-07/drift-60-41022812680`, as printed:
+
+| kind | artifact | target | e | largest actual / enveloped prediction | reading | widened e |
+| --- | --- | --- | --- | --- | --- | --- |
+| bolt | stl-preview | bytes | 2.264581945786201 | 0.0 | none | |
+| bolt | stl-preview | seconds | 4.286137349093968 | 0.0 | none | |
+| bolt | stl-preview | peak | 2.040087854388461 | 0.0 | none | |
+| bolt | stl-fine | bytes | 0.5633622849303941 | 0.0 | none | |
+| bolt | stl-fine | seconds | 2.690232029900006 | 0.0 | none | |
+| bolt | stl-fine | peak | 2.170967259675211 | 0.0 | none | |
+| bolt | step | bytes | 0.9874058238127998 | 0.5317023787688461 | 41022812680:drift-iso4017:M16x160 rep 1 | |
+| bolt | step | seconds | 2.616422482555953 | 0.3618330197486867 | 41022812680:drift-iso4017:M16x160 rep 3 | |
+| bolt | step | peak | 0.45747877720379804 | 0.7155452739153538 | 41022812680:drift-iso4017:M16x160 rep 2 | |
+| nut | stl-preview | bytes | 0.7070121785110755 | 0.5364405663180444 | 41022812680:drift-nut-d100-p3.5-m0.8d-s4d-c5-right rep 1 | |
+| nut | stl-preview | seconds | 1.061383246630594 | 0.80471012258975 | 41022812680:drift-nut-d100-p3.5-m0.8d-s4d-c5-right rep 3 | |
+| nut | stl-preview | peak | 0.556086702674923 | 0.7283764589221142 | 41022812680:drift-nut-d100-p3.5-m0.8d-s4d-c5-right rep 3 | |
+| nut | stl-fine | bytes | 0.4996608149413484 | 0.9554909082476706 | 41022812680:drift-nut-d30-p1-m0.8d-s4d-c5-right rep 1 | |
+| nut | stl-fine | seconds | 1.7812452161769916 | 0.41725024439694286 | 41022812680:drift-nut-d30-p1-m0.8d-s4d-c5-right rep 3 | |
+| nut | stl-fine | peak | 0.5976833077470993 | 0.6475964926058553 | 41022812680:drift-nut-d30-p1-m0.8d-s4d-c5-right rep 2 | |
+| nut | step | bytes | 0.3802587303182223 | 0.0 | none | |
+| nut | step | seconds | 0.8785228687431521 | 0.0 | none | |
+| nut | step | peak | 0.48786919655819627 | 0.0 | none | |
+
+**Outcome: no 60-build drift build 1 exceeds its envelope.** No e widens, the scratch fit.json is byte-identical to the committed one, and fit.json and `calc/cost.py` are unchanged.
+
+### R23's plateau and R16's W (07-16, G32): the drift levels off and W takes its peak
+
+The owner's ruling G32 (`07-GAP-RULINGS.md`) answered the stop above. The ruling and the plateau criterion were committed to `07-SWEEP-PROTOCOL.md` R16 and R23 at dec5f7d, and the code at b47e52c, both before drift-60 was dispatched. `python -m bench.oper_sets derive-runtime --from` every committed directory under `bench/results/phase-07/` (84dfbec) now derives stage two, and runtime.json holds its values.
+
+**The plateau.** Per artifact and repetition of run 41022812680, the plateau difference is the max peak over builds 41 to 60 minus the max peak over builds 21 to 40. The allowance is 0.10 x the smallest build-1 peak among the repetitions of both drift readings, 41016507364 and 41022812680. The figures are from runtime.json's `plateau`:
+
+| artifact | worst plateau difference bytes | reading | allowance bytes | holds |
+| --- | --- | --- | --- | --- |
+| stl-preview | 6467584 | 41022812680:drift-nut-d100-p3.5-m0.8d-s4d-c5-right rep 4 | 44044697.6 | yes |
+| stl-fine | 11583488 | 41022812680:drift-nut-d30-p1-m0.8d-s4d-c5-right rep 1 | 134713753.6 | yes |
+| step | 5222400 | 41022812680:drift-iso4017:M16x160 rep 4 | 28473344.0 | yes |
+
+The stl-preview allowance comes from the 60-build reading's own smallest build-1 peak, 440446976 bytes (rep 4). It is below the 20-build allowance, 44301516.8 bytes.
+
+Each repetition, computed from the committed `peaks` of run 41022812680:
+
+| reading | peak after build 1 | peak after build 20 | max peak, builds 21 to 40 | max peak, builds 41 to 60 | plateau difference bytes | max peak, any build (build) |
+| --- | --- | --- | --- | --- | --- | --- |
+| 41022812680:drift-nut-d100-p3.5-m0.8d-s4d-c5-right rep 1 | 458625024 | 495030272 | 495583232 | 495943680 | 360448 | 495943680 (55) |
+| 41022812680:drift-nut-d100-p3.5-m0.8d-s4d-c5-right rep 2 | 460513280 | 497139712 | 503881728 | 503881728 | 0 | 503881728 (25) |
+| 41022812680:drift-nut-d100-p3.5-m0.8d-s4d-c5-right rep 3 | 460816384 | 495656960 | 496103424 | 496103424 | 0 | 496103424 (38) |
+| 41022812680:drift-nut-d100-p3.5-m0.8d-s4d-c5-right rep 4 | 440446976 | 494891008 | 495210496 | 501678080 | 6467584 | 501678080 (48) |
+| 41022812680:drift-nut-d100-p3.5-m0.8d-s4d-c5-right rep 5 | 459272192 | 495955968 | 496148480 | 496148480 | 0 | 496148480 (27) |
+| 41022812680:drift-nut-d30-p1-m0.8d-s4d-c5-right rep 1 | 1404841984 | 1665957888 | 1672953856 | 1684537344 | 11583488 | 1684537344 (53) |
+| 41022812680:drift-nut-d30-p1-m0.8d-s4d-c5-right rep 2 | 1508069376 | 1758363648 | 1758363648 | 1758363648 | 0 | 1758363648 (15) |
+| 41022812680:drift-nut-d30-p1-m0.8d-s4d-c5-right rep 3 | 1421590528 | 1634476032 | 1680093184 | 1680093184 | 0 | 1680093184 (23) |
+| 41022812680:drift-nut-d30-p1-m0.8d-s4d-c5-right rep 4 | 1482104832 | 1655533568 | 1656274944 | 1656274944 | 0 | 1656274944 (37) |
+| 41022812680:drift-nut-d30-p1-m0.8d-s4d-c5-right rep 5 | 1347137536 | 1696415744 | 1696415744 | 1703260160 | 6844416 | 1703260160 (57) |
+| 41022812680:drift-iso4017:M16x160 rep 1 | 300421120 | 317341696 | 317341696 | 317521920 | 180224 | 317521920 (51) |
+| 41022812680:drift-iso4017:M16x160 rep 2 | 300789760 | 313417728 | 316538880 | 319242240 | 2703360 | 319242240 (51) |
+| 41022812680:drift-iso4017:M16x160 rep 3 | 297074688 | 316813312 | 316813312 | 317247488 | 434176 | 317247488 (50) |
+| 41022812680:drift-iso4017:M16x160 rep 4 | 289222656 | 312889344 | 312893440 | 318115840 | 5222400 | 318115840 (53) |
+| 41022812680:drift-iso4017:M16x160 rep 5 | 292126720 | 313085952 | 314937344 | 314937344 | 0 | 314937344 (25) |
+
+**W (R16).** The plateau holds, so W also takes the largest peak after any build of both drift readings. That peak is 1758363648 bytes, at 41022812680:drift-nut-d30-p1-m0.8d-s4d-c5-right rep 2 build 15. It is above the contention W, 1533550592 bytes (40907549180:nut-d30-p1-m0.8d-s1.6d-c5-right-n1 rep 1), and above the 20-build peak, 1716760576 bytes. W is now 1758363648 bytes.
+
+**What moves and what does not.**
+
+- mem_limit(N), all three N:
+  - N = 1: 2147483648 to 2415919104 bytes.
+  - N = 2: 4026531840 to 4563402752 bytes.
+  - N = 3: 5905580032 to 6442450944 bytes.
+  - All three still qualify.
+- Unchanged:
+  - the pick, N = 1 (p95 35.09 s);
+  - the timeouts, 26, 71 and 26 s;
+  - R17's queue depth, 2;
+  - `python -m bench.oper_sets --check`, which exits 0.
+- The shipped mem_limit (G20) stays 2415919104 bytes. It is the larger of the limits built from W and from W(4), and both are 2415919104 bytes now.
+
+**Outcome.**
+
+- K = 4 (run 41016510597).
+- `_release_arenas` is kept (run 40909754190).
+- The tessellation presets are kept.
+- `max_tasks_per_child` stays unset: the plateau holds at every artifact, and the drift is counted in W.
+- The 20-build drift above its allowance no longer stops the phase. It stays as evidence in runtime.json's `drift`.
