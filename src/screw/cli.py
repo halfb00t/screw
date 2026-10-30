@@ -230,8 +230,9 @@ def main(argv: list[str] | None = None) -> None:
     s = sub.add_parser("serve", help="run the web UI and API", allow_abbrev=False)
     s.add_argument("--host", default=env("SCREW_HOST", "127.0.0.1"))
     s.add_argument("--port", type=int, default=int_env("SCREW_PORT", 8000))
-    # INTERIM (spur L17): one server process, because the build pool and the caches are
-    # per process. Not measured for screw; Phase 7 re-sweeps it (OPER-02).
+    # One server process (spur L17: the build pool and the caches are per process), kept by
+    # 07-SWEEP-PROTOCOL R24: the /api/health p95 under load at the picked N = 1 was 0.0094 s
+    # (load run 40909724292, rep 2), inside the HEALTHCHECK probe's 1 s inner timeout.
     s.add_argument("--workers", type=int, default=int_env("SCREW_WORKERS", 1))
     s.add_argument("--root-path", default=env("SCREW_ROOT_PATH", ""),
                    help="URL prefix when served behind a reverse proxy, e.g. /screw")

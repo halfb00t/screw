@@ -69,9 +69,11 @@ Quality = Literal["preview", "fine"]
 # were committed in bench/mesh_deviation.py before the run; bench/RESULTS.md "Mesh deviation
 # (Phase 5, D-21)" selects 0.01 mm, worst row 0.0161 mm (M20), 64 % of the bound, and the
 # triangles and bytes at every step. It is the value `2026-10-08-a-ladder` was measured at and
-# the one the cost model was fitted at (L21, R23), so changing it needs a re-fit. The preview is
-# coarser on purpose: 0.0587 to 0.1299 mm measured, up to 2.6 x the whole clearance, which is why
-# no number on the panel comes from a mesh (FRNT-06). tests/test_mesh.py pins the fine bound and
+# the one the cost model was fitted at (L21), so changing it needs a re-fit. 07-SWEEP-PROTOCOL
+# R23 keeps both presets (runtime.json `tessellation_kept`), and R23's arena and drift runs
+# (40909754190, 41016507364, 41022812680) exported at them. The preview is coarser on purpose:
+# 0.0587 to 0.1299 mm measured, up to 2.6 x the whole clearance, which is why no number on the
+# panel comes from a mesh (FRNT-06). tests/test_mesh.py pins the fine bound and
 # that the preview breaks it.
 TESSELLATION: dict[str, tuple[float, float]] = {"preview": (0.08, 0.5), "fine": (0.01, 0.1)}
 
@@ -96,10 +98,11 @@ def _release_arenas() -> None:
     OpenCascade churns through enormous numbers of short-lived allocations, and glibc
     keeps the freed arenas to reuse and never returns them, so a worker that has built a
     few large parts looks like it is leaking and eventually meets the container memory
-    limit. INTERIM (D-01): spur measured 1578 MiB resident without this and 360 MiB with
-    it over 40 distinct 160-199 tooth gears (spur model.py `_release_arenas`); that is
-    spur's gear corpus, not screw's, and has not been measured here. Phase 7 re-sweeps
-    (OPER-02). Called after every export().
+    limit. Kept by 07-SWEEP-PROTOCOL R23 (the G17 rule): the cgroup's `memory.current` after
+    an export of R23's drift part, max over 5 repetitions with the trim on and off (arenas run
+    40909754190), is lower with it at every artifact: 243089408 against 308285440 B (preview
+    STL), 377843712 against 1093894144 B (fine STL) and 217174016 against 283619328 B (STEP).
+    Called after every export().
     """
     if _MALLOC_TRIM is not None:
         _MALLOC_TRIM(0)
@@ -223,9 +226,11 @@ def _build_bolt(p: BoltParams) -> cq.Solid:
         # is 6.7e-5 at 0.01 degrees and at most 1.4e-6 from 0.5 degrees up; after the fuse a
         # constant +5.5e-5 mm3 bias of the thread-bearing solid false-refused M6 at 0.01 degrees
         # (+1.7e-1) and M2 at 0.1 degrees (+1.4e-1) against T_PIECE 0.03. About 0.03 s per build
-        # (06.1-RESEARCH "Where to cut", scratch kernel_piece.py, macOS arm64, single runs; Phase 7
-        # re-measures). An angle whose tangent underflows has no honest oracle (D-18): refused here
-        # by name, before the kernel runs, so the message does not blame a kernel that never ran.
+        # (06.1-RESEARCH "Where to cut", scratch kernel_piece.py, macOS arm64, single runs). The
+        # linux/amd64 walls the cost model and the timeouts rest on (explore run 40646117094, bound
+        # run 40907549180) build every bolt at the default 30 degrees, this cut included. An angle
+        # whose tangent underflows has no honest oracle (D-18): refused here by name, before the
+        # kernel runs, so the message does not blame a kernel that never ran.
         _, cut = head_chamfer_depths(p.s, p.k, p.head_chamfer)
         try:
             oracle = head_chamfer_volume(p.s, p.head_chamfer, cut)
@@ -272,9 +277,11 @@ def _build_checked(p: FastenerParams) -> cq.Solid:
                          f"check {', '.join(names[:-1])} and {names[-1]}.") from exc
 
 
-# INTERIM (D-01): 4 solids per worker, carried from spur model.py:561 where it sized a
-# worker's repeat requests for one gear (preview, then STL, then STEP). Not measured for
-# screw. Phase 7 re-sweeps (OPER-02).
+# 4 solids per worker by 07-SWEEP-PROTOCOL R22: K stays 4 when mem_limit built from W(4), the
+# peak with 4 solids cached per worker, still qualifies at the picked N. W(4) is 1652121600 B, the
+# max over 5 repetitions of the load mix at N = 1 (run 41016510597); it gives a mem_limit of
+# 2415919104 B, the same as the one built from R16's W, so K = 4 qualifies and is not lowered. The
+# env override stays for a deployer who re-sweeps (D-16); `int_env` floors it at 1.
 _build_cached = lru_cache(maxsize=int_env("SCREW_SOLID_CACHE", 4))(_build_checked)
 
 

@@ -63,7 +63,8 @@ SHARP_HEAD_NOTE = "sharp hex head corners: head_chamfer 0 cuts no top chamfer (L
 # The standing entry on every info document (D-04, D-18, 06.1 D-12): it names the ends the builder
 # models (L15 and L19: the bolt tip cone, the hex head chamfer, the under-head fillet and the nut's
 # countersinks and chamfers) and says they are nominal, so nobody should cut metal to it as a
-# product. The first release, after Phase 7, removes the last clause (06 D-15).
+# product. The first release, once the runtime bounds are measured, removes the last clause
+# (06 D-15).
 STANDING_WARNING = (
     "ends modelled per L15 and L19: bolt tip chamfer, hex head chamfer, under-head fillet on an "
     "ISO 4014 plain shank, nut lead-in countersinks and face chamfers; nominal, not toleranced; "
@@ -554,19 +555,21 @@ def download_name(p: FastenerParams, fmt: str, quality: str) -> str:
     `screw export` share (D-22, R9).
 
     A preview STL carries `_preview` before its extension, because the mesh it holds is the
-    coarse one (INTERIM 0.08 mm deflection against the fine 0.01 mm, `solid.TESSELLATION`) and a
-    file opened a month later has only its name to say so (L02). The fine STL and the STEP keep
-    `<slug>.<ext>`: the STEP has no tessellation, and `quality` does not change it. `slug()` holds
-    only letters, digits and `_.+-` (T-01-06), so the name is filename-safe by construction.
+    coarse one (0.08 mm deflection against the fine 0.01 mm, `solid.TESSELLATION`, kept by
+    R23) and a file opened a month later has only its name to say so (L02). The fine STL and
+    the STEP keep `<slug>.<ext>`: the STEP has no tessellation, and `quality` does not change
+    it. `slug()` holds only letters, digits and `_.+-` (T-01-06), so the name is filename-safe
+    by construction.
     """
     suffix = "_preview" if fmt == "stl" and quality == "preview" else ""
     return f"{p.slug()}{suffix}.{fmt}"
 
 
 # The page's preference: per format the route's default quality first, then the coarser preview it
-# falls back to (`solid.TESSELLATION`, INTERIM: preview 0.08 mm and 0.5 rad, fine 0.01 mm and
-# 0.1 rad). STEP ignores quality in `solid._write_export`, but the route accepts both, so both are
-# listed and both are true. tests/test_api.py pins the set and the first quality to the route.
+# falls back to (`solid.TESSELLATION`, kept by 07-SWEEP-PROTOCOL R23: preview 0.08 mm and 0.5 rad,
+# fine 0.01 mm and 0.1 rad). STEP ignores quality in `solid._write_export`, but the route accepts
+# both, so both are listed and both are true. tests/test_api.py pins the set and the first quality
+# to the route.
 _DOWNLOADS: tuple[tuple[DownloadFormat, DownloadQuality], ...] = (
     ("stl", "fine"), ("stl", "preview"), ("step", "fine"), ("step", "preview"))
 

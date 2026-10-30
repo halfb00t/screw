@@ -18,7 +18,9 @@ from fastapi.testclient import TestClient
 
 from bench import oper_sets
 from screw import app as app_module
+from screw import cli, solid
 from screw.calc import cost
+from screw.params import BoltParams
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RECORDS = REPO_ROOT / "bench/results/phase-07"
@@ -136,8 +138,39 @@ def test_no_build_worker_is_recycled_while_r23s_plateau_holds() -> None:
     assert "max_tasks_per_child=" not in pool
 
 
-@pytest.mark.parametrize("module", ["app.py", "pool.py"])
-def test_no_serving_knob_is_left_interim(module: str) -> None:
-    text = Path(app_module.__file__).with_name(module).read_text()
+def test_the_solid_cache_is_r22s() -> None:
+    assert "SCREW_SOLID_CACHE" not in os.environ
+    assert solid._build_cached.cache_parameters()["maxsize"] == _runtime()["solid_cache_k"]
+
+
+def test_an_export_hands_freed_heap_back_while_r23_keeps_the_trim(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    """runtime.json keeps the trim (lower retained memory with it at every artifact), so every
+    export still ends in malloc_trim(0)."""
+    assert _runtime()["arenas_kept"] is True
+    trims: list[int] = []
+
+    def _trim(pad: int) -> int:
+        trims.append(pad)
+        return 1
+
+    monkeypatch.setattr(solid, "_MALLOC_TRIM", _trim)
+    solid.export(BoltParams(), "stl", "preview")
+    assert trims == [0]
+
+
+def test_the_cli_serves_r24s_number_of_server_processes(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("SCREW_WORKERS", raising=False)
+    calls: list[dict[str, object]] = []
+    monkeypatch.setattr("uvicorn.run", lambda *a, **kw: calls.append(kw))
+    cli.main(["serve"])
+    assert [kw["workers"] for kw in calls] == [_row("screw_workers")["workers"]]
+
+
+@pytest.mark.parametrize("module", ["app.py", "pool.py", "cli.py", "solid/__init__.py",
+                                    "calc/__init__.py", "calc/cost.py"])
+def test_no_runtime_knob_is_left_interim(module: str) -> None:
+    text = (Path(app_module.__file__).parent / module).read_text()
     assert "INTERIM" not in text
     assert "Phase 7" not in text
