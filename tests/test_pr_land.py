@@ -187,6 +187,8 @@ SQUASH_COMMIT_READ = (
 )
 
 REQUIRED = frozenset({"test (3.12)", "vendor-bundle", "image"})
+# The required tier's shard jobs (07-18, G34), as GitHub reports a matrix job.
+BOUNDS_SHARDS = ("bounds (1)", "bounds (2)", "bounds (3)", "bounds (4)", "bounds (5)")
 
 
 @pytest.fixture(autouse=True)
@@ -236,18 +238,15 @@ def _effective_job_names(ci_yml: str) -> set[str]:
     Only a `^    name:` line -- exactly four spaces, one level under the id -- inside
     that block gives the effective name; step `name:` keys sit at six-or-more spaces
     under `steps:` and are never read (`ci.yml`'s own two, `bundle matches web/` and
-    `the packaged entrypoint serves a gear`, confirm the depth). The `test` id still
-    expands to `f"{name} ({v})"` for each version in its `python: [...]` matrix list,
-    using its own effective name -- identical to today's `test (3.12)` while `test`
-    carries no `name:`."""
+    `the packaged entrypoint serves a gear`, confirm the depth). A job with a one-key
+    matrix list -- `test`'s `python: [...]`, `bounds`' `shard: [...]` -- expands to
+    `f"{name} ({v})"` for each value, using its own effective name: `test (3.12)` while
+    `test` carries no `name:`."""
     jobs_section = ci_yml.split("\njobs:\n", 1)[1]
     id_matches = list(re.finditer(r"^  ([a-zA-Z][\w-]*):\s*$", jobs_section, re.MULTILINE))
     job_ids = [m.group(1) for m in id_matches]
     assert "test" in job_ids
 
-    matrix_match = re.search(r"python:\s*\[([^\]]*)\]", jobs_section)
-    assert matrix_match is not None, "no python matrix found in ci.yml"
-    versions = [v.strip().strip('"') for v in matrix_match.group(1).split(",")]
 
     effective: dict[str, str] = {}
     for i, match in enumerate(id_matches):
@@ -265,11 +264,17 @@ def _effective_job_names(ci_yml: str) -> set[str]:
         effective[job_id] = value
 
     names: set[str] = set()
-    for job_id, name in effective.items():
-        if job_id == "test":
-            names.update(f"{name} ({v})" for v in versions)
-        else:
+    for i, name in enumerate(effective.values()):
+        block_end = id_matches[i + 1].start() if i + 1 < len(id_matches) else len(jobs_section)
+        block = jobs_section[id_matches[i].end():block_end]
+        # GitHub reports a one-key matrix job as `<name> (<value>)` per value: `test`'s python
+        # list and `bounds`' shard list (07-18, G34).
+        matrix = re.search(r"^      matrix:\n        \w+:\s*\[([^\]]*)\]", block, re.MULTILINE)
+        if matrix is None:
             names.add(name)
+            continue
+        values = [v.strip().strip('"') for v in matrix.group(1).split(",")]
+        names.update(f"{name} ({v})" for v in values)
     return names
 
 
@@ -291,14 +296,14 @@ def test_a_job_name_override_moves_the_derived_required_set() -> None:
     renamed = ci_yml.replace("  image:\n", "  image:\n    name: renamed-image\n", 1)
     assert renamed != ci_yml
     names = _effective_job_names(renamed)
-    assert names == {"test (3.12)", "vendor-bundle", "renamed-image", "bounds"}
+    assert names == {"test (3.12)", "vendor-bundle", "renamed-image", *BOUNDS_SHARDS}
     assert "bundle matches web/" not in names
     assert "the packaged entrypoint serves a gear" not in names
 
     quoted = ci_yml.replace("  image:\n", '  image:\n    name: "renamed image"\n', 1)
     assert quoted != ci_yml
     assert _effective_job_names(quoted) == {"test (3.12)", "vendor-bundle", "renamed image",
-                                            "bounds"}
+                                            *BOUNDS_SHARDS}
 
 
 # --- pure decisions ----------------------------------------------------------------

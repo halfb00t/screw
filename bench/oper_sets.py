@@ -3160,6 +3160,9 @@ def _regenerate(path: Path) -> str:
 # tests/test_oper_followup.py fails `make verify` when this file and the shipped constants disagree.
 
 TIER_S = 600  # R27 step 5: D-12's 10 minutes; an artifact's summed charges stay under it
+# R27 (G34): the tier is read in parallel shards, each about D-12's 10 minutes of readings; read
+# in one job, the 435 points took 35.5 min on the runner (07-18).
+SHARD_S = 600
 BOUNDARY = "tests/data/oper_boundary.json"
 
 
@@ -3171,7 +3174,9 @@ def boundary_points(tier: Mapping[str, object], points: Sequence[Mapping[str, ob
     taken, itself included, stay under `TIER_S`, stopping at the first that does not fit. A point's
     charge is the cold wall of its explore reading when that is ok, and otherwise its artifact's
     full timeout (R14), never `wall_s`. `points` gives each label its params; the order and the
-    membership come from `tier` alone."""
+    membership come from `tier` alone. A point's `estimate_s`, which sizes the shards (G34), is
+    its explore container wall, or the larger of that and its timeout where that reading is not
+    ok: a container wall counts the start and the stop a cold wall leaves out."""
     index = _explore_index(readings)
     by_label = {(str(p["label"]), str(p["artifact"])): p for p in points if "artifact" in p}
     out: list[dict[str, object]] = []
@@ -3198,8 +3203,12 @@ def boundary_points(tier: Mapping[str, object], points: Sequence[Mapping[str, ob
                 raise ValueError(f"tier-order.json names {label}, which the parameter model "
                                  "refuses")
             limit = enveloped(part, artifact, envelope)
+            wall = _number(reading, "wall_s")
             out.append({"label": label, "kind": kind, "params": dict(params),
-                        "artifact": artifact, "charge_s": charge, "timeout_s": timeout,
+                        "artifact": artifact, "charge_s": charge,
+                        "estimate_s": wall if reading.get("status") == "ok" else max(wall,
+                                                                                    timeout),
+                        "timeout_s": timeout,
                         "limit": dict(zip(cost.TARGETS, limit, strict=True))})
     return out
 
@@ -3209,12 +3218,15 @@ def boundary_text(explore_dir: str) -> str:
     explore readings under `explore_dir`, with the shipped envelope and timeouts."""
     tier = json.loads((REPO_ROOT / TIER_ORDER).read_text())
     envelope = shipped_envelope()
+    points = boundary_points(tier, _explore_points(), _read(explore_dir), envelope,
+                             cost.BUILD_TIMEOUT_S)
     document = {
-        "rule": "07-SWEEP-PROTOCOL.md R27 step 5, judged by R29 (D-07, D-12, G6)",
+        "rule": "07-SWEEP-PROTOCOL.md R27 step 5, judged by R29 (D-07, D-12, G6, G34)",
         "tier_s": TIER_S, "sources": [f"tier-order={TIER_ORDER}", f"explore={explore_dir}"],
         "timeouts": dict(cost.BUILD_TIMEOUT_S), "envelope": envelope_document(envelope),
-        "points": boundary_points(tier, _explore_points(), _read(explore_dir), envelope,
-                                  cost.BUILD_TIMEOUT_S)}
+        "shard_s": SHARD_S,
+        "shard_sizes": shard_sizes([_number(p, "estimate_s") for p in points], SHARD_S),
+        "points": points}
     return json.dumps(document, indent=1) + "\n"
 
 

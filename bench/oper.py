@@ -989,7 +989,7 @@ def markdown_report(headers: list[dict[str, object]], readings: list[dict[str, o
 # job runs it on the runner's bare Python).
 
 _BOUNDARY_KEYS = frozenset({"label", "kind", "params", "artifact", "timeout_s", "limit"})
-_BOUNDARY_OPTIONAL_KEYS = frozenset({"charge_s"})
+_BOUNDARY_OPTIONAL_KEYS = frozenset({"charge_s", "estimate_s"})
 _TIER_TARGETS = ("bytes", "seconds", "peak")
 
 
@@ -1003,11 +1003,14 @@ class BoundaryPoint:
     limit: Mapping[str, float]
 
 
-def load_boundary(path: Path) -> list[BoundaryPoint]:
-    """The points of a boundary file, or `ValueError` naming what is wrong. A blank file holds no
-    point; the caller decides that no reading is not a pass."""
+def load_boundary(path: Path, shard: int | None = None) -> list[BoundaryPoint]:
+    """The points of a boundary file, or of its 1-based `shard` (G34: the consecutive slice its
+    `shard_sizes` gives, so every point is in exactly one shard), or `ValueError` naming what is
+    wrong. A blank file holds no point; the caller decides that no reading is not a pass."""
     text = path.read_text()
     if not text.strip():
+        if shard is not None:
+            _refuse(f"{path}: a blank file has no shard {shard}")
         return []
     try:
         raw = json.loads(text)
@@ -1034,7 +1037,17 @@ def load_boundary(path: Path) -> list[BoundaryPoint]:
                     f"above 0 for each of {list(_TIER_TARGETS)}")
         out.append(BoundaryPoint(point, float(timeout),
                                  {key: float(value) for key, value in limit.items()}))
-    return out
+    if shard is None:
+        return out
+    sizes = raw.get("shard_sizes")
+    if not (isinstance(sizes, list) and all(_is_count(size) for size in sizes)
+            and sum(sizes) == len(out)):
+        _refuse(f"{path}: shard_sizes are whole numbers of at least 1 that sum to the "
+                f"{len(out)} points")
+    if not 1 <= shard <= len(sizes):
+        _refuse(f"{path}: shard {shard} is outside 1..{len(sizes)}")
+    start = sum(sizes[:shard - 1])
+    return out[start:start + sizes[shard - 1]]
 
 
 def judge(point: BoundaryPoint, reading: Mapping[str, object]) -> list[str]:
@@ -1082,7 +1095,7 @@ def check_report(points: list[BoundaryPoint], readings: list[Mapping[str, object
 
 def _cmd_check(args: argparse.Namespace) -> int:
     try:
-        points = load_boundary(Path(args.file))
+        points = load_boundary(Path(args.file), args.shard)
     except (OSError, ValueError) as exc:
         print(f"oper: {exc}", file=sys.stderr)
         return 2
@@ -1182,6 +1195,8 @@ def main(argv: list[str] | None = None) -> int:
                                               "R29's failures (07-18)")
     check.add_argument("file", help="a boundary file, tests/data/oper_boundary.json")
     check.add_argument("--image", required=True)
+    check.add_argument("--shard", type=int, help="only this 1-based shard of the file's "
+                                                 "shard_sizes (G34)")
     check.add_argument("--out", help="a JSONL path for the header and every reading, in `run`'s "
                                      "format")
     check.set_defaults(handler=_cmd_check)

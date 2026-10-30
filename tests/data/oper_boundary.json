@@ -1,5 +1,5 @@
 {
- "rule": "07-SWEEP-PROTOCOL.md R27 step 5, judged by R29 (D-07, D-12, G6)",
+ "rule": "07-SWEEP-PROTOCOL.md R27 step 5, judged by R29 (D-07, D-12, G6, G34)",
  "tier_s": 600,
  "sources": [
   "tier-order=bench/results/phase-07/tier-order.json",
@@ -46,6 +46,14 @@
    }
   }
  },
+ "shard_s": 600,
+ "shard_sizes": [
+  105,
+  86,
+  49,
+  96,
+  99
+ ],
  "points": [
   {
    "label": "iso4017:M20x200",
@@ -60,6 +68,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 7.713150279999979,
+   "estimate_s": 10.772313438000026,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 55704726.47566052,
@@ -80,6 +89,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 4.343125912000005,
+   "estimate_s": 6.496199961000002,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 50169461.16026938,
@@ -101,6 +111,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.325065550999966,
+   "estimate_s": 4.1441182070000195,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3436603.56086982,
@@ -121,6 +132,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 3.9385686219999343,
+   "estimate_s": 6.875466082999992,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 15364364.674577171,
@@ -141,6 +153,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 3.092471363999948,
+   "estimate_s": 5.737143626000034,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 596795.5050216838,
@@ -161,6 +174,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.5260806720000346,
+   "estimate_s": 4.880624926999985,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 8491870.213643149,
@@ -181,6 +195,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 5.751648418999821,
+   "estimate_s": 7.88790098000004,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 24822603.84591738,
@@ -201,6 +216,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 4.065505643999998,
+   "estimate_s": 6.3020776199999915,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 7660122.695240983,
@@ -221,6 +237,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.40631281900005,
+   "estimate_s": 4.961623717999942,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 447326.7411014132,
@@ -241,6 +258,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.8917738979999967,
+   "estimate_s": 4.56263829300002,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2587040.462927983,
@@ -261,6 +279,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.2197781029999533,
+   "estimate_s": 5.167223822999972,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3902297.2864187798,
@@ -281,6 +300,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.8079805300001226,
+   "estimate_s": 4.677801010999929,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 5482964.357128218,
@@ -301,6 +321,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.266670378000015,
+   "estimate_s": 4.464494542000011,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 12652578.89420378,
@@ -321,6 +342,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.5059985020000113,
+   "estimate_s": 3.412738622000006,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 10014500.956308363,
@@ -341,6 +363,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 4.910352545999899,
+   "estimate_s": 7.696317495000017,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 4236172.031721449,
@@ -361,6 +384,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.350910003999985,
+   "estimate_s": 3.231670551999997,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 5089243.35425145,
@@ -381,6 +405,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 4.37983092799999,
+   "estimate_s": 7.133971179000014,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 28413413.03137806,
@@ -399,6 +424,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.6619121780000228,
+   "estimate_s": 5.63414354400004,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1831523.8353930428,
@@ -419,6 +445,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.6794154029999504,
+   "estimate_s": 3.5988602799999967,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 13763706.199130164,
@@ -439,6 +466,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 3.1617527230000064,
+   "estimate_s": 5.887630161000004,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 7702444.090495822,
@@ -460,6 +488,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 0.5740956260000303,
+   "estimate_s": 2.636335748000022,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1155388.9928828394,
@@ -480,6 +509,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.6578454650000083,
+   "estimate_s": 3.822481952000004,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 7332595.456217078,
@@ -501,6 +531,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.7993090760000428,
+   "estimate_s": 5.106235056999992,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3728507.9166848203,
@@ -521,6 +552,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.660296324000001,
+   "estimate_s": 5.685619191000001,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1325030.255109873,
@@ -542,6 +574,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 26.0,
+   "estimate_s": 26.0,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 432134.0832146384,
@@ -562,6 +595,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.249937121999949,
+   "estimate_s": 5.030564107999965,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 8592678.991429547,
@@ -582,6 +616,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 9.280655663000061,
+   "estimate_s": 11.524620563000099,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 52520667.28869165,
@@ -602,6 +637,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.6852354080000111,
+   "estimate_s": 3.7341885529999956,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3811820.9359097113,
@@ -622,6 +658,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.6629587810000146,
+   "estimate_s": 3.855477081999993,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 7493392.5258261375,
@@ -642,6 +679,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 12.123098835000064,
+   "estimate_s": 14.679091778999918,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 18616946.69809878,
@@ -662,6 +700,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.6431549789999735,
+   "estimate_s": 3.56950716099999,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 5568427.892404498,
@@ -682,6 +721,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.8834924250000427,
+   "estimate_s": 4.633025844999963,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 4077452.5354956887,
@@ -702,6 +742,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.3097449640000036,
+   "estimate_s": 4.375819973000006,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 19970017.38975493,
@@ -722,6 +763,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.248962884999969,
+   "estimate_s": 3.3418600500000366,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 151771.63077017118,
@@ -743,6 +785,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 0.8659938039999702,
+   "estimate_s": 3.5689576440000224,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 409982.63607237226,
@@ -761,6 +804,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.923470371999997,
+   "estimate_s": 4.484804986999961,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 252440.3965405559,
@@ -781,6 +825,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.8402223940000226,
+   "estimate_s": 5.4944146660000115,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 11902073.558343519,
@@ -801,6 +846,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.3804118609998568,
+   "estimate_s": 3.987668701999951,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 442240.7684373262,
@@ -821,6 +867,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.8222943160000113,
+   "estimate_s": 3.9504734810000173,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 10236335.054107843,
@@ -841,6 +888,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 4.4585240640000166,
+   "estimate_s": 6.880587884999983,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 8023356.128797505,
@@ -861,6 +909,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.4570656760000134,
+   "estimate_s": 5.060257315999991,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 6755740.311993863,
@@ -881,6 +930,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.2438616910000064,
+   "estimate_s": 3.601641016000002,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 5318469.774448957,
@@ -901,6 +951,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 3.993542973999979,
+   "estimate_s": 6.94089169099999,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 12645667.611060143,
@@ -921,6 +972,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 3.029071999999985,
+   "estimate_s": 5.773030380000023,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3870091.1042768336,
@@ -941,6 +993,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 4.270507748999989,
+   "estimate_s": 7.137052707000009,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 14437691.509224147,
@@ -962,6 +1015,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 3.383237061999921,
+   "estimate_s": 5.852212893000001,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 4037406.592884799,
@@ -982,6 +1036,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.7096360670000195,
+   "estimate_s": 5.55844584099998,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 12503546.773409318,
@@ -1002,6 +1057,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 8.804594971000029,
+   "estimate_s": 10.806282652999982,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 16657450.501130167,
@@ -1022,6 +1078,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.0058755750000046,
+   "estimate_s": 4.879427672000006,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3149897.2649717564,
@@ -1042,6 +1099,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 4.745635209,
+   "estimate_s": 7.655580229000009,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 30759883.950366084,
@@ -1062,6 +1120,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.4704731119999224,
+   "estimate_s": 5.145002456000043,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3559540.767116748,
@@ -1082,6 +1141,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 5.03134643300001,
+   "estimate_s": 7.739027089999979,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 17043744.76172876,
@@ -1102,6 +1162,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 4.569645835000017,
+   "estimate_s": 7.455846914000006,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 24778402.295128383,
@@ -1122,6 +1183,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.0623461989999896,
+   "estimate_s": 4.708150106000005,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 7232107.022417094,
@@ -1142,6 +1204,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 3.4878175500000452,
+   "estimate_s": 6.12054488800004,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 19915714.819305193,
@@ -1163,6 +1226,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.674145798999973,
+   "estimate_s": 3.753316154999993,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 11377982.204076206,
@@ -1183,6 +1247,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.5126066529999775,
+   "estimate_s": 3.875889591999993,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1733894.033888914,
@@ -1203,6 +1268,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 4.616486094999999,
+   "estimate_s": 7.415564316000001,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 27400572.295901176,
@@ -1224,6 +1290,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 3.6836949300000015,
+   "estimate_s": 6.596763870000018,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 12940640.94756338,
@@ -1244,6 +1311,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.6618062059999374,
+   "estimate_s": 5.40903987400003,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 8264591.795270149,
@@ -1264,6 +1332,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.5291019830000323,
+   "estimate_s": 5.110580459999994,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 4523982.830836072,
@@ -1284,6 +1353,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.5052961919999746,
+   "estimate_s": 3.6696512769999856,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 4234752.404072229,
@@ -1304,6 +1374,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.5543507359999467,
+   "estimate_s": 5.335722608000083,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1555943.4004611673,
@@ -1324,6 +1395,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.3456269589999863,
+   "estimate_s": 4.259162616999987,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1944003.079494135,
@@ -1342,6 +1414,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.491076741000029,
+   "estimate_s": 5.215473466999981,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 604578.167392207,
@@ -1362,6 +1435,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.2840149189999863,
+   "estimate_s": 3.16810203899999,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2469919.9493904905,
@@ -1382,6 +1456,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.456112987000097,
+   "estimate_s": 5.281561799999963,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 5192607.639367252,
@@ -1402,6 +1477,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 10.268647185999953,
+   "estimate_s": 13.030487628000003,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 29672719.106236495,
@@ -1423,6 +1499,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.5614747060000127,
+   "estimate_s": 4.3890412989999845,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1248777.2066896183,
@@ -1443,6 +1520,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.44113538900001,
+   "estimate_s": 4.824445026999996,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 14986039.9631381,
@@ -1463,6 +1541,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.2761902510000027,
+   "estimate_s": 4.9125472750000085,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 6729131.400716418,
@@ -1483,6 +1562,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.9331837730000245,
+   "estimate_s": 4.780122086000006,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 5210389.4851504415,
@@ -1503,6 +1583,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 4.159156713999948,
+   "estimate_s": 6.810401423999963,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 22316222.881053623,
@@ -1524,6 +1605,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 0.6134248270000171,
+   "estimate_s": 2.6679846939999834,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 387808.6435772328,
@@ -1544,6 +1626,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.0795692859999804,
+   "estimate_s": 4.665484029999959,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 8733316.663025351,
@@ -1564,6 +1647,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.5339056579999806,
+   "estimate_s": 4.172558685999974,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1621971.7478330282,
@@ -1584,6 +1668,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.3281711110000174,
+   "estimate_s": 5.0949458470000195,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 4490785.679362668,
@@ -1604,6 +1689,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.1644418389999487,
+   "estimate_s": 4.503954300000032,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 8412561.013084816,
@@ -1622,6 +1708,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.368070409999973,
+   "estimate_s": 4.564609509999968,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2288238.0158354123,
@@ -1642,6 +1729,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.6987290240000164,
+   "estimate_s": 5.294806849000025,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 10522442.648041075,
@@ -1662,6 +1750,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.463756910000029,
+   "estimate_s": 4.886959512000033,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 11607174.705767369,
@@ -1682,6 +1771,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.5524574859999802,
+   "estimate_s": 3.4591037470000003,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 5176973.318300298,
@@ -1702,6 +1792,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 4.845293682000005,
+   "estimate_s": 7.817078339000005,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 32346470.3646195,
@@ -1722,6 +1813,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 3.7094787219999716,
+   "estimate_s": 6.1540823410000485,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 15156377.915338881,
@@ -1740,6 +1832,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.2751157879999937,
+   "estimate_s": 4.688568561000011,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 187875.60600888237,
@@ -1760,6 +1853,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.734548421999989,
+   "estimate_s": 5.212085863999988,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 15839041.724250942,
@@ -1781,6 +1875,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 0.5245272530000307,
+   "estimate_s": 2.330893185999969,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 378615.199913993,
@@ -1801,6 +1896,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.9940478749999784,
+   "estimate_s": 4.172347279999997,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 11545382.71428671,
@@ -1822,6 +1918,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 3.0648093949999975,
+   "estimate_s": 5.7237821950000125,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1460305.8874862886,
@@ -1842,6 +1939,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.6818229670000164,
+   "estimate_s": 5.64301282400001,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 5539893.617089207,
@@ -1862,6 +1960,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.1316116579999402,
+   "estimate_s": 5.003327185999979,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 8325685.98352194,
@@ -1882,6 +1981,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.9468823989999464,
+   "estimate_s": 5.803909469000018,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1437273.2018978386,
@@ -1902,6 +2002,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 3.6832151639999893,
+   "estimate_s": 6.403250014000008,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 7826812.563118004,
@@ -1923,6 +2024,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.0078718820000176,
+   "estimate_s": 3.9151810870000077,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3446865.6573935305,
@@ -1943,6 +2045,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.5730497990000742,
+   "estimate_s": 3.8511998899999753,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 7717743.959267913,
@@ -1963,6 +2066,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 5.215358481999971,
+   "estimate_s": 7.770397763000005,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 44630226.79902862,
@@ -1983,6 +2087,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 4.497773007999996,
+   "estimate_s": 6.990147700999984,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 34817463.99350362,
@@ -2003,6 +2108,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 4.186949226000024,
+   "estimate_s": 6.914466570000002,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 13901403.490409752,
@@ -2023,6 +2129,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 6.519279452000092,
+   "estimate_s": 9.206830494999963,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 11180135.956177872,
@@ -2043,6 +2150,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.705664132999999,
+   "estimate_s": 4.7397081379999975,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 27981294.727504358,
@@ -2063,6 +2171,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.7645501520000266,
+   "estimate_s": 4.870114704000002,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 13133511.880482245,
@@ -2083,6 +2192,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.4700216359999985,
+   "estimate_s": 3.505630912000001,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 4870624.577069628,
@@ -2103,6 +2213,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.8664235229999804,
+   "estimate_s": 5.620137107000005,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 14247923.5225455,
@@ -2123,6 +2234,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 3.2274630789999037,
+   "estimate_s": 6.016685528000039,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 22764551.612588298,
@@ -2143,6 +2255,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.709536471999911,
+   "estimate_s": 5.436957857999971,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 8395339.532171156,
@@ -2164,6 +2277,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 0.9806030040000451,
+   "estimate_s": 3.371800205999989,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3271947.426583452,
@@ -2184,6 +2298,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.309671516000037,
+   "estimate_s": 4.912063270000033,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3338327.789497436,
@@ -2204,6 +2319,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 4.310851034000024,
+   "estimate_s": 7.133503431999998,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 12102447.293747455,
@@ -2225,6 +2341,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.1980784300000096,
+   "estimate_s": 3.839465168000004,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3543021.070854057,
@@ -2245,6 +2362,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 3.384051620000008,
+   "estimate_s": 5.863478833000016,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 24925435.035809904,
@@ -2265,6 +2383,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 5.263930028999994,
+   "estimate_s": 7.944875545000002,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 26308705.510844786,
@@ -2285,6 +2404,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.6065570869999988,
+   "estimate_s": 4.259511674999999,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 4133406.2827262618,
@@ -2305,6 +2425,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 10.141278349999993,
+   "estimate_s": 13.452839065000035,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 29148441.318507493,
@@ -2325,6 +2446,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 3.7478368839999803,
+   "estimate_s": 6.112800492999995,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 5733467.686464996,
@@ -2345,6 +2467,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.6399081800000204,
+   "estimate_s": 5.501114426999948,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 499947.9419226971,
@@ -2366,6 +2489,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.678725899000028,
+   "estimate_s": 5.3816265680000015,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 12320622.992081046,
@@ -2386,6 +2510,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.0029190399999948,
+   "estimate_s": 2.8698283770000046,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1446668.0461411027,
@@ -2407,6 +2532,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 0.7884336229999462,
+   "estimate_s": 3.384846240999991,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 148288.27452720157,
@@ -2427,6 +2553,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.3105991469999765,
+   "estimate_s": 4.363257876999995,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3515752.9452498886,
@@ -2447,6 +2574,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 3.811402752999925,
+   "estimate_s": 5.760597933999975,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1965892.327638791,
@@ -2468,6 +2596,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.0564086609999777,
+   "estimate_s": 3.9368059179999477,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1184764.1529617729,
@@ -2488,6 +2617,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.869459261000003,
+   "estimate_s": 5.821841578999994,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 12446552.049754662,
@@ -2508,6 +2638,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 5.99080532500011,
+   "estimate_s": 9.145998041000098,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 17819518.913435988,
@@ -2528,6 +2659,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.671596800999964,
+   "estimate_s": 5.537298161000024,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 5487005.079250693,
@@ -2548,6 +2680,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.2991606940000793,
+   "estimate_s": 5.058893911000041,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1738976.522828552,
@@ -2568,6 +2701,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.368438674999993,
+   "estimate_s": 5.167099449000034,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2307431.5423755883,
@@ -2588,6 +2722,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.199449508000015,
+   "estimate_s": 4.967515781000003,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 9272682.454819186,
@@ -2608,6 +2743,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.488571336000007,
+   "estimate_s": 4.427955620000006,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 5150239.928934229,
@@ -2628,6 +2764,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.802141588999973,
+   "estimate_s": 3.8174307820000024,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 10629679.818649035,
@@ -2648,6 +2785,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.3131903749999765,
+   "estimate_s": 5.009264293000001,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 10031230.339857694,
@@ -2668,6 +2806,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 3.008336509000003,
+   "estimate_s": 5.784052974000019,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 10601046.092087204,
@@ -2688,6 +2827,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.0893731570000114,
+   "estimate_s": 4.491744913000019,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 7361590.637067153,
@@ -2708,6 +2848,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.4074507830000016,
+   "estimate_s": 4.540639737000021,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 7286225.754140443,
@@ -2728,6 +2869,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 3.421038904999989,
+   "estimate_s": 6.0960334219999766,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 4917078.231634997,
@@ -2748,6 +2890,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 5.0036978449999765,
+   "estimate_s": 7.5794384820000005,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 39689697.84203444,
@@ -2768,6 +2911,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 3.6415591420000055,
+   "estimate_s": 6.452999587000022,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 17149813.04544327,
@@ -2788,6 +2932,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.5924382579999588,
+   "estimate_s": 3.5161894529999813,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 7396032.692300675,
@@ -2808,6 +2953,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.1004411159999847,
+   "estimate_s": 4.237622295000023,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 17489318.829923224,
@@ -2828,6 +2974,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 3.2659988550000207,
+   "estimate_s": 5.574629899000001,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 21560079.877400465,
@@ -2848,6 +2995,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 3.06415542900001,
+   "estimate_s": 5.230229685000012,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 22448645.277493123,
@@ -2868,6 +3016,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 5.463703535000036,
+   "estimate_s": 8.489479555000003,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 32302907.494320203,
@@ -2888,6 +3037,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.1104289749999907,
+   "estimate_s": 4.230163994000009,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 12226621.84958576,
@@ -2908,6 +3058,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.4797028929999954,
+   "estimate_s": 4.436766093000017,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 18459912.05452081,
@@ -2928,6 +3079,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 26.0,
+   "estimate_s": 26.0,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 36828265.81847341,
@@ -2948,6 +3100,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.799058864999978,
+   "estimate_s": 5.014133420999997,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 7956181.148850157,
@@ -2968,6 +3121,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.9771769379999569,
+   "estimate_s": 4.341231944000015,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 6741910.533801504,
@@ -2988,6 +3142,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.284806885000023,
+   "estimate_s": 4.4312825370000155,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 16152256.77869504,
@@ -3008,6 +3163,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.8715609390000054,
+   "estimate_s": 5.826900144000007,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3694884.3133259173,
@@ -3028,6 +3184,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 3.0022913500000072,
+   "estimate_s": 5.948258446000011,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 10343146.902669134,
@@ -3048,6 +3205,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.94760164500002,
+   "estimate_s": 5.681034039999986,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 10312004.923388258,
@@ -3068,6 +3226,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 3.875647292000167,
+   "estimate_s": 5.806092023000019,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3607493.7598742493,
@@ -3088,6 +3247,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.767287090000025,
+   "estimate_s": 5.2390679490000025,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 14199298.67798625,
@@ -3109,6 +3269,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 0.853459579999992,
+   "estimate_s": 3.0673101100000224,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1314070.7942316222,
@@ -3129,6 +3290,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.755779422000046,
+   "estimate_s": 4.639484734999996,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1855994.1587789434,
@@ -3149,6 +3311,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.05293322,
+   "estimate_s": 4.83896874200002,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3228996.136318049,
@@ -3169,6 +3332,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.2092817070000024,
+   "estimate_s": 4.470623117000002,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 7613269.18346573,
@@ -3189,6 +3353,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 3.5875265039999817,
+   "estimate_s": 6.425298516999987,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 14156546.286533777,
@@ -3209,6 +3374,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.053682510999977,
+   "estimate_s": 4.776313536000032,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 5285576.065376552,
@@ -3229,6 +3395,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.8896177350001153,
+   "estimate_s": 4.5734350550000045,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2560284.0,
@@ -3249,6 +3416,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.668491943000049,
+   "estimate_s": 5.273690554000041,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 10259163.153103696,
@@ -3270,6 +3438,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 0.8242913270000258,
+   "estimate_s": 3.451431699000011,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1251110.4284738544,
@@ -3291,6 +3460,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 3.8182275479999817,
+   "estimate_s": 6.498476187000051,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 13316478.917059429,
@@ -3311,6 +3481,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 3.073921146000032,
+   "estimate_s": 5.837378493000017,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 16846016.787287883,
@@ -3332,6 +3503,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.0503482859999735,
+   "estimate_s": 3.828596793000031,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1282919.2559243764,
@@ -3352,6 +3524,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 5.188915712999972,
+   "estimate_s": 8.078225178999986,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 18345741.061288733,
@@ -3372,6 +3545,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.5402464250000207,
+   "estimate_s": 5.161275482000008,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 7248235.378335854,
@@ -3392,6 +3566,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.845116429000001,
+   "estimate_s": 4.914119269000025,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 17906690.670056615,
@@ -3412,6 +3587,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.608019385000034,
+   "estimate_s": 5.511441797999964,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 7346520.613509163,
@@ -3432,6 +3608,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 0.8805176959999983,
+   "estimate_s": 2.835000162,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1159056.4416281984,
@@ -3453,6 +3630,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.4289686140000413,
+   "estimate_s": 3.8783414629999697,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3633100.526137488,
@@ -3474,6 +3652,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.7117666779999468,
+   "estimate_s": 4.356730655000035,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3721318.603535118,
@@ -3494,6 +3673,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.614612606000037,
+   "estimate_s": 3.825241809999966,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 11276281.197021775,
@@ -3514,6 +3694,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 26.0,
+   "estimate_s": 26.0,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 28061659.14956245,
@@ -3534,6 +3715,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 4.274175441000011,
+   "estimate_s": 6.739614323000069,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 6428235.3020554725,
@@ -3552,6 +3734,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.5808788780000214,
+   "estimate_s": 3.472562238999984,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1503572.5778993587,
@@ -3572,6 +3755,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.9139861709999195,
+   "estimate_s": 5.714443557000095,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1223971.5640098613,
@@ -3592,6 +3776,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 8.90313854299984,
+   "estimate_s": 10.907556329000045,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 14185365.534794362,
@@ -3612,6 +3797,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 2.269355866000012,
+   "estimate_s": 4.463733829000034,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 10551678.839368515,
@@ -3632,6 +3818,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.5171320250000235,
+   "estimate_s": 4.159291295000003,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 336969.7005853531,
@@ -3652,6 +3839,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 6.048225896999838,
+   "estimate_s": 8.782257334000064,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 4812893.713856088,
@@ -3672,6 +3860,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 1.9224866209999902,
+   "estimate_s": 4.613927412999999,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3099845.228002405,
@@ -3692,6 +3881,7 @@
    },
    "artifact": "stl-preview",
    "charge_s": 3.7147903560000373,
+   "estimate_s": 6.732873249000022,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 18521805.311562438,
@@ -3712,6 +3902,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 28.546766427000023,
+   "estimate_s": 33.35777615999996,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 239508059.14804876,
@@ -3732,6 +3923,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 20.741558208000043,
+   "estimate_s": 24.865988913999985,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 215545021.09097725,
@@ -3753,6 +3945,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 4.4162707539999815,
+   "estimate_s": 7.3084424749999926,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 12343440.686479222,
@@ -3773,6 +3966,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 11.949671142000057,
+   "estimate_s": 15.60600230600005,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 73801678.76646446,
@@ -3793,6 +3987,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 2.5568746549998878,
+   "estimate_s": 4.619019028000025,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 20546341.161043733,
@@ -3813,6 +4008,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 6.638839107999985,
+   "estimate_s": 9.561327850999987,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 32671086.96894759,
@@ -3833,6 +4029,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 5.484048969000014,
+   "estimate_s": 7.904206400000021,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 50904139.37655124,
@@ -3853,6 +4050,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 6.0612090760000115,
+   "estimate_s": 9.099059449999999,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 27631019.0709712,
@@ -3873,6 +4071,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 13.507994663999995,
+   "estimate_s": 16.603281871000007,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 102204852.28979875,
@@ -3893,6 +4092,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 30.749232843000073,
+   "estimate_s": 35.15319055300006,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 165882835.21144947,
@@ -3913,6 +4113,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 8.059863438999969,
+   "estimate_s": 10.735026276000013,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 61834727.80367873,
@@ -3933,6 +4134,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 8.336726453999972,
+   "estimate_s": 11.22109165500001,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 17404729.14929662,
@@ -3954,6 +4156,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 3.1794379920000324,
+   "estimate_s": 5.435718870999949,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 16251160.337289365,
@@ -3975,6 +4178,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 1.2202960140000414,
+   "estimate_s": 3.282370419000017,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 6549908.846550326,
@@ -3995,6 +4199,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 8.93216679599999,
+   "estimate_s": 11.983416560999984,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 68121689.64214368,
@@ -4016,6 +4221,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 71.0,
+   "estimate_s": 71.0,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 2812333.867486451,
@@ -4037,6 +4243,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 7.872189149999997,
+   "estimate_s": 11.016700804000038,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 63372682.77047154,
@@ -4057,6 +4264,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 2.1796388589999935,
+   "estimate_s": 4.476043417999989,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 16451847.981787944,
@@ -4077,6 +4285,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 11.122337711,
+   "estimate_s": 14.189562594999984,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 42971912.24995107,
@@ -4098,6 +4307,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 4.3782387989999165,
+   "estimate_s": 7.0615121220000105,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 11726480.206048107,
@@ -4118,6 +4328,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 10.495890200999952,
+   "estimate_s": 13.872102761000008,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 61618102.4646708,
@@ -4138,6 +4349,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 2.6796474860000217,
+   "estimate_s": 5.945528061999994,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 16150697.367655007,
@@ -4158,6 +4370,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 15.052262221000035,
+   "estimate_s": 18.31817787199998,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 143665302.59282446,
@@ -4176,6 +4389,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 1.5275360059999912,
+   "estimate_s": 3.3261525070000175,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 1763271.673737997,
@@ -4196,6 +4410,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 6.520682376999986,
+   "estimate_s": 9.384036880000025,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 28107183.119872145,
@@ -4216,6 +4431,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 4.299150454999989,
+   "estimate_s": 7.407619116000006,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 13419390.689737402,
@@ -4236,6 +4452,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 16.169695435999984,
+   "estimate_s": 20.03080650600009,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 83442466.63287185,
@@ -4256,6 +4473,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 23.413116697999953,
+   "estimate_s": 27.156008302999908,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 138354099.30005714,
@@ -4276,6 +4494,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 4.187116565999986,
+   "estimate_s": 7.075750459000005,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 13345036.327142203,
@@ -4297,6 +4516,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 1.1447761979999882,
+   "estimate_s": 3.992322161000004,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 2704633.267215267,
@@ -4317,6 +4537,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 7.354997861000015,
+   "estimate_s": 10.44097641999997,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 38882436.97888293,
@@ -4337,6 +4558,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 25.542811932999967,
+   "estimate_s": 29.972198292,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 183484772.76336345,
@@ -4357,6 +4579,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 7.574983910999663,
+   "estimate_s": 9.900775994000014,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 38438313.591101386,
@@ -4377,6 +4600,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 1.0541019149999897,
+   "estimate_s": 2.95726204500005,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 1231565.204323059,
@@ -4398,6 +4622,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 9.464728033000029,
+   "estimate_s": 12.560759046999976,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 53517463.7682244,
@@ -4418,6 +4643,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 6.49698983199994,
+   "estimate_s": 9.198796474999995,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 71805838.5927265,
@@ -4438,6 +4664,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 6.780237158000006,
+   "estimate_s": 9.744949101999993,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 32238865.50386826,
@@ -4458,6 +4685,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 2.132748111000012,
+   "estimate_s": 4.098565285999996,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 12692125.19869794,
@@ -4478,6 +4706,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 16.782829995000014,
+   "estimate_s": 20.51111428600001,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 117201560.2341248,
@@ -4499,6 +4728,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 4.235506062000013,
+   "estimate_s": 6.8043927090000125,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 19906162.61924463,
@@ -4519,6 +4749,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 6.875422111000006,
+   "estimate_s": 10.117698926999992,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 40997357.79331578,
@@ -4539,6 +4770,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 19.501502328000015,
+   "estimate_s": 23.639624725000033,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 132493555.3903352,
@@ -4559,6 +4791,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 5.730522825999969,
+   "estimate_s": 8.25856037699998,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 51083351.33441811,
@@ -4579,6 +4812,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 1.8076781880000112,
+   "estimate_s": 3.8306082679999918,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 6350376.103307586,
@@ -4599,6 +4833,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 16.435889508999963,
+   "estimate_s": 20.02897886399998,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 101699992.28437123,
@@ -4620,6 +4855,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 2.4080829170000015,
+   "estimate_s": 4.933017275999987,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 10692927.877941467,
@@ -4640,6 +4876,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 3.9919887790000246,
+   "estimate_s": 6.8017870120000055,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 13754985.719591167,
@@ -4660,6 +4897,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 3.9676673820000588,
+   "estimate_s": 6.679393113999993,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 14105320.855245747,
@@ -4681,6 +4919,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 9.34774825300002,
+   "estimate_s": 12.684228605999976,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 65580370.50557485,
@@ -4701,6 +4940,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 3.337362359999929,
+   "estimate_s": 5.847420815000078,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 13932101.012713274,
@@ -4721,6 +4961,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 2.315137590000006,
+   "estimate_s": 4.939233984999987,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 7415114.036741034,
@@ -4742,6 +4983,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 2.9145632589999764,
+   "estimate_s": 5.505910150000034,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 11488582.20261187,
@@ -4762,6 +5004,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 1.9731404280000078,
+   "estimate_s": 4.024682256999995,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 10448333.609298876,
@@ -4782,6 +5025,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 18.197127145999985,
+   "estimate_s": 22.051196896999983,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 112462985.17949082,
@@ -4802,6 +5046,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 6.566013436999981,
+   "estimate_s": 8.989909017999992,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 51443586.729900286,
@@ -4823,6 +5068,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 7.715210630000058,
+   "estimate_s": 10.152721257999985,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 70460166.38579269,
@@ -4843,6 +5089,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 2.379079847999975,
+   "estimate_s": 4.451875840000014,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 20567281.755208444,
@@ -4863,6 +5110,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 5.613425129999996,
+   "estimate_s": 7.822840729000006,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 55554956.4961833,
@@ -4883,6 +5131,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 10.951811365000026,
+   "estimate_s": 14.361451284999987,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 65661765.458940044,
@@ -4904,6 +5153,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 1.0665880889999926,
+   "estimate_s": 4.074327877999963,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 924995.064629029,
@@ -4924,6 +5174,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 19.379082334999993,
+   "estimate_s": 23.531014336999988,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 127140270.08580746,
@@ -4944,6 +5195,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 3.0477058089999787,
+   "estimate_s": 5.1951905170000146,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 14835765.763991913,
@@ -4965,6 +5217,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 4.299030703999961,
+   "estimate_s": 6.743612919000043,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 27079896.20941008,
@@ -4985,6 +5238,7 @@
    },
    "artifact": "stl-fine",
    "charge_s": 7.0406028269999865,
+   "estimate_s": 9.672583830000008,
    "timeout_s": 71.0,
    "limit": {
     "bytes": 30920066.34083963,
@@ -5005,6 +5259,7 @@
    },
    "artifact": "step",
    "charge_s": 5.461321381000062,
+   "estimate_s": 8.329812911999966,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 9525234.797194306,
@@ -5025,6 +5280,7 @@
    },
    "artifact": "step",
    "charge_s": 3.5955048919999513,
+   "estimate_s": 5.853156506000005,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 9748694.773917168,
@@ -5046,6 +5302,7 @@
    },
    "artifact": "step",
    "charge_s": 2.508232914999951,
+   "estimate_s": 4.893336993999981,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 5879025.658933579,
@@ -5066,6 +5323,7 @@
    },
    "artifact": "step",
    "charge_s": 2.589961020000004,
+   "estimate_s": 5.460207515000008,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3978849.1043598535,
@@ -5086,6 +5344,7 @@
    },
    "artifact": "step",
    "charge_s": 3.0485305919999917,
+   "estimate_s": 5.5921132710000165,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 4530140.538270865,
@@ -5107,6 +5366,7 @@
    },
    "artifact": "step",
    "charge_s": 1.0872464470000978,
+   "estimate_s": 3.798591238999961,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 671668.4844013129,
@@ -5128,6 +5388,7 @@
    },
    "artifact": "step",
    "charge_s": 1.5346845249999888,
+   "estimate_s": 3.6192630780000172,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 854905.2158847875,
@@ -5149,6 +5410,7 @@
    },
    "artifact": "step",
    "charge_s": 2.4929835800001,
+   "estimate_s": 5.153229493000026,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 5243775.050461128,
@@ -5169,6 +5431,7 @@
    },
    "artifact": "step",
    "charge_s": 2.40102476200002,
+   "estimate_s": 5.044569706999994,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2470915.9650648595,
@@ -5189,6 +5452,7 @@
    },
    "artifact": "step",
    "charge_s": 2.9127711469999724,
+   "estimate_s": 5.037966369000003,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 7823602.718474407,
@@ -5209,6 +5473,7 @@
    },
    "artifact": "step",
    "charge_s": 1.5704794019999895,
+   "estimate_s": 4.1228854360000184,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2669838.817738132,
@@ -5230,6 +5495,7 @@
    },
    "artifact": "step",
    "charge_s": 0.9093977040000141,
+   "estimate_s": 3.5698267020000003,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 524047.0594409653,
@@ -5250,6 +5516,7 @@
    },
    "artifact": "step",
    "charge_s": 1.9279322619999846,
+   "estimate_s": 4.776160413000014,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2406104.3928778274,
@@ -5271,6 +5538,7 @@
    },
    "artifact": "step",
    "charge_s": 0.7224540359999878,
+   "estimate_s": 3.1047589199999948,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 471687.2481084728,
@@ -5292,6 +5560,7 @@
    },
    "artifact": "step",
    "charge_s": 26.0,
+   "estimate_s": 26.0,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 923768.5338737409,
@@ -5312,6 +5581,7 @@
    },
    "artifact": "step",
    "charge_s": 2.4764599519999706,
+   "estimate_s": 4.494111512999993,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 6276166.751645967,
@@ -5332,6 +5602,7 @@
    },
    "artifact": "step",
    "charge_s": 1.9552653840000005,
+   "estimate_s": 4.750376824999989,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2101732.427781123,
@@ -5352,6 +5623,7 @@
    },
    "artifact": "step",
    "charge_s": 1.4903401549999558,
+   "estimate_s": 3.2759598480000136,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2675924.5391951604,
@@ -5372,6 +5644,7 @@
    },
    "artifact": "step",
    "charge_s": 2.182525692000013,
+   "estimate_s": 4.892983215000015,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2571311.897005164,
@@ -5392,6 +5665,7 @@
    },
    "artifact": "step",
    "charge_s": 2.9580505569999787,
+   "estimate_s": 5.68893710999987,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1035758.6793730397,
@@ -5412,6 +5686,7 @@
    },
    "artifact": "step",
    "charge_s": 2.6851185289999933,
+   "estimate_s": 4.711781235000018,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 6698414.039548814,
@@ -5433,6 +5708,7 @@
    },
    "artifact": "step",
    "charge_s": 0.9355486970000015,
+   "estimate_s": 3.32727072199998,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 702462.6068521047,
@@ -5453,6 +5729,7 @@
    },
    "artifact": "step",
    "charge_s": 4.672968317000027,
+   "estimate_s": 7.330717104000087,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3031258.016640441,
@@ -5473,6 +5750,7 @@
    },
    "artifact": "step",
    "charge_s": 4.133969975000014,
+   "estimate_s": 6.89261559800002,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 7075265.603192428,
@@ -5493,6 +5771,7 @@
    },
    "artifact": "step",
    "charge_s": 2.4528169769999977,
+   "estimate_s": 5.105649013000004,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2367994.947798321,
@@ -5513,6 +5792,7 @@
    },
    "artifact": "step",
    "charge_s": 1.2422122389999686,
+   "estimate_s": 3.8154205939999883,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2016391.9511610237,
@@ -5533,6 +5813,7 @@
    },
    "artifact": "step",
    "charge_s": 3.0176219879999735,
+   "estimate_s": 5.881894695999904,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1048639.0713116915,
@@ -5553,6 +5834,7 @@
    },
    "artifact": "step",
    "charge_s": 1.3972086899999852,
+   "estimate_s": 3.5317535650000025,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3223129.86174232,
@@ -5574,6 +5856,7 @@
    },
    "artifact": "step",
    "charge_s": 0.7596983939999973,
+   "estimate_s": 2.84341353100001,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 665838.0077857703,
@@ -5594,6 +5877,7 @@
    },
    "artifact": "step",
    "charge_s": 2.079675057999964,
+   "estimate_s": 4.726855920000048,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2913202.5383071057,
@@ -5614,6 +5898,7 @@
    },
    "artifact": "step",
    "charge_s": 6.460909734999973,
+   "estimate_s": 9.269018262999907,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2645240.03175153,
@@ -5634,6 +5919,7 @@
    },
    "artifact": "step",
    "charge_s": 2.5842571149999856,
+   "estimate_s": 5.052111430999986,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 5328031.326058724,
@@ -5654,6 +5940,7 @@
    },
    "artifact": "step",
    "charge_s": 1.9214429980000034,
+   "estimate_s": 4.785354848999987,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2341748.1512603746,
@@ -5674,6 +5961,7 @@
    },
    "artifact": "step",
    "charge_s": 1.6103118039999345,
+   "estimate_s": 4.248460512000065,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1243358.2359008617,
@@ -5695,6 +5983,7 @@
    },
    "artifact": "step",
    "charge_s": 0.6578154129999803,
+   "estimate_s": 2.78885753000003,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 599201.7164584768,
@@ -5715,6 +6004,7 @@
    },
    "artifact": "step",
    "charge_s": 1.4995171509999636,
+   "estimate_s": 3.387618503999988,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2423251.905121021,
@@ -5735,6 +6025,7 @@
    },
    "artifact": "step",
    "charge_s": 2.903184710000062,
+   "estimate_s": 5.704262896999978,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2958879.1795263044,
@@ -5755,6 +6046,7 @@
    },
    "artifact": "step",
    "charge_s": 2.945182327999987,
+   "estimate_s": 5.749644165999939,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 6279208.875751796,
@@ -5775,6 +6067,7 @@
    },
    "artifact": "step",
    "charge_s": 2.4984352160000185,
+   "estimate_s": 5.34787537699998,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2447996.8899550545,
@@ -5795,6 +6088,7 @@
    },
    "artifact": "step",
    "charge_s": 1.3029212710000024,
+   "estimate_s": 3.267343761999996,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2274274.10991614,
@@ -5815,6 +6109,7 @@
    },
    "artifact": "step",
    "charge_s": 5.118598334000012,
+   "estimate_s": 7.573840057999973,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3050557.7834451213,
@@ -5835,6 +6130,7 @@
    },
    "artifact": "step",
    "charge_s": 1.6510827849999714,
+   "estimate_s": 3.7664411860000087,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2737705.348516149,
@@ -5855,6 +6151,7 @@
    },
    "artifact": "step",
    "charge_s": 1.6699834099999862,
+   "estimate_s": 3.729565745000002,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2406656.14938842,
@@ -5876,6 +6173,7 @@
    },
    "artifact": "step",
    "charge_s": 0.7195483770000237,
+   "estimate_s": 3.1323162620000176,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 548073.1522131853,
@@ -5896,6 +6194,7 @@
    },
    "artifact": "step",
    "charge_s": 2.3351297660000228,
+   "estimate_s": 4.976550487999987,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2708086.5364405503,
@@ -5916,6 +6215,7 @@
    },
    "artifact": "step",
    "charge_s": 1.907137404999986,
+   "estimate_s": 4.091265537999988,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2341704.1197953355,
@@ -5936,6 +6236,7 @@
    },
    "artifact": "step",
    "charge_s": 2.3849864149999576,
+   "estimate_s": 4.8673966579999615,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2447982.373195854,
@@ -5956,6 +6257,7 @@
    },
    "artifact": "step",
    "charge_s": 2.1412486039999976,
+   "estimate_s": 4.524886988000048,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3037144.93551152,
@@ -5976,6 +6278,7 @@
    },
    "artifact": "step",
    "charge_s": 2.2183922440000003,
+   "estimate_s": 4.646604315000019,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 4504078.082366569,
@@ -5996,6 +6299,7 @@
    },
    "artifact": "step",
    "charge_s": 3.1518233700000167,
+   "estimate_s": 5.334611873,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 6801399.663168809,
@@ -6017,6 +6321,7 @@
    },
    "artifact": "step",
    "charge_s": 1.9348445999999626,
+   "estimate_s": 3.9980190620000258,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 4317112.632818786,
@@ -6037,6 +6342,7 @@
    },
    "artifact": "step",
    "charge_s": 1.6510403749999796,
+   "estimate_s": 3.734747733000006,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2284012.554813991,
@@ -6057,6 +6363,7 @@
    },
    "artifact": "step",
    "charge_s": 2.2687036769999906,
+   "estimate_s": 4.1703538920000085,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 5728496.953870126,
@@ -6077,6 +6384,7 @@
    },
    "artifact": "step",
    "charge_s": 1.628745360000039,
+   "estimate_s": 4.508881083000006,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2664721.2039105683,
@@ -6097,6 +6405,7 @@
    },
    "artifact": "step",
    "charge_s": 2.5458705809999174,
+   "estimate_s": 5.04920203100005,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 4967531.009370796,
@@ -6117,6 +6426,7 @@
    },
    "artifact": "step",
    "charge_s": 2.167612964,
+   "estimate_s": 4.850786053000007,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3442008.986489214,
@@ -6138,6 +6448,7 @@
    },
    "artifact": "step",
    "charge_s": 26.0,
+   "estimate_s": 26.0,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 993069.8132907966,
@@ -6158,6 +6469,7 @@
    },
    "artifact": "step",
    "charge_s": 1.7682591669999965,
+   "estimate_s": 4.339494435999995,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2519399.2199470154,
@@ -6178,6 +6490,7 @@
    },
    "artifact": "step",
    "charge_s": 2.9514352699999904,
+   "estimate_s": 5.882505330000001,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3194729.2965280497,
@@ -6198,6 +6511,7 @@
    },
    "artifact": "step",
    "charge_s": 2.5416867269999557,
+   "estimate_s": 5.247491491999995,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2727334.8947264934,
@@ -6218,6 +6532,7 @@
    },
    "artifact": "step",
    "charge_s": 2.511268059000031,
+   "estimate_s": 5.408527504000006,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3892033.2781665544,
@@ -6239,6 +6554,7 @@
    },
    "artifact": "step",
    "charge_s": 1.427094306000015,
+   "estimate_s": 3.368812509999998,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 966120.7388810252,
@@ -6259,6 +6575,7 @@
    },
    "artifact": "step",
    "charge_s": 2.156916252999963,
+   "estimate_s": 4.672116011000014,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2330262.032408589,
@@ -6280,6 +6597,7 @@
    },
    "artifact": "step",
    "charge_s": 1.5328515079999647,
+   "estimate_s": 4.158073045000037,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 684410.9638300161,
@@ -6300,6 +6618,7 @@
    },
    "artifact": "step",
    "charge_s": 2.871764981999945,
+   "estimate_s": 5.806401316999995,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2939325.369957766,
@@ -6320,6 +6639,7 @@
    },
    "artifact": "step",
    "charge_s": 1.5109029659999464,
+   "estimate_s": 4.1585935850000055,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1787002.4343329372,
@@ -6340,6 +6660,7 @@
    },
    "artifact": "step",
    "charge_s": 1.773482892000004,
+   "estimate_s": 4.661828157999992,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2214418.561587932,
@@ -6360,6 +6681,7 @@
    },
    "artifact": "step",
    "charge_s": 2.1494114120000063,
+   "estimate_s": 4.213682883999979,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 5063783.535743474,
@@ -6380,6 +6702,7 @@
    },
    "artifact": "step",
    "charge_s": 1.4517708089999815,
+   "estimate_s": 3.3562014400000066,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2328860.3870313596,
@@ -6400,6 +6723,7 @@
    },
    "artifact": "step",
    "charge_s": 1.7424325910001244,
+   "estimate_s": 3.6965400660000114,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1243712.853481756,
@@ -6420,6 +6744,7 @@
    },
    "artifact": "step",
    "charge_s": 3.6097779580000235,
+   "estimate_s": 6.43808854400001,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 5754655.016506331,
@@ -6440,6 +6765,7 @@
    },
    "artifact": "step",
    "charge_s": 1.7226405360000285,
+   "estimate_s": 3.8107613330000163,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2487353.689426562,
@@ -6460,6 +6786,7 @@
    },
    "artifact": "step",
    "charge_s": 3.440537641999981,
+   "estimate_s": 6.142486954000049,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 5906509.658186933,
@@ -6480,6 +6807,7 @@
    },
    "artifact": "step",
    "charge_s": 1.259360992000012,
+   "estimate_s": 3.4803046139999765,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1634236.7504415957,
@@ -6500,6 +6828,7 @@
    },
    "artifact": "step",
    "charge_s": 4.490938658000005,
+   "estimate_s": 7.084742758999994,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 5461815.245177352,
@@ -6518,6 +6847,7 @@
    },
    "artifact": "step",
    "charge_s": 1.5888092509999865,
+   "estimate_s": 3.6517372059999786,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 690498.5658331629,
@@ -6538,6 +6868,7 @@
    },
    "artifact": "step",
    "charge_s": 2.241327401000035,
+   "estimate_s": 4.957633782000016,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1186906.2022608006,
@@ -6559,6 +6890,7 @@
    },
    "artifact": "step",
    "charge_s": 26.0,
+   "estimate_s": 26.0,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 563361.1628795313,
@@ -6579,6 +6911,7 @@
    },
    "artifact": "step",
    "charge_s": 4.405792324999993,
+   "estimate_s": 6.770311009999887,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2662082.054263294,
@@ -6599,6 +6932,7 @@
    },
    "artifact": "step",
    "charge_s": 2.671505014000104,
+   "estimate_s": 5.182548834000045,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1201666.220577799,
@@ -6620,6 +6954,7 @@
    },
    "artifact": "step",
    "charge_s": 2.110549061000029,
+   "estimate_s": 4.208845070999985,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3249422.82059307,
@@ -6641,6 +6976,7 @@
    },
    "artifact": "step",
    "charge_s": 1.425733623000042,
+   "estimate_s": 4.081873747999964,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 909127.3661232191,
@@ -6662,6 +6998,7 @@
    },
    "artifact": "step",
    "charge_s": 2.314968214999908,
+   "estimate_s": 5.144417669000063,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 817428.4083722144,
@@ -6683,6 +7020,7 @@
    },
    "artifact": "step",
    "charge_s": 1.1846787080000354,
+   "estimate_s": 4.037303865000013,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 796086.3952009319,
@@ -6703,6 +7041,7 @@
    },
    "artifact": "step",
    "charge_s": 1.4699153480000007,
+   "estimate_s": 3.6203597429999945,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2529899.694315106,
@@ -6723,6 +7062,7 @@
    },
    "artifact": "step",
    "charge_s": 1.6457838780000316,
+   "estimate_s": 3.7243436739999822,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2297586.0945072672,
@@ -6744,6 +7084,7 @@
    },
    "artifact": "step",
    "charge_s": 26.0,
+   "estimate_s": 26.0,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1153889.3729280566,
@@ -6765,6 +7106,7 @@
    },
    "artifact": "step",
    "charge_s": 26.0,
+   "estimate_s": 26.0,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1038409.4701366841,
@@ -6785,6 +7127,7 @@
    },
    "artifact": "step",
    "charge_s": 3.0171995399999787,
+   "estimate_s": 5.32305908699999,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 6911127.484125554,
@@ -6805,6 +7148,7 @@
    },
    "artifact": "step",
    "charge_s": 2.257875179999928,
+   "estimate_s": 4.88148849199996,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2527015.4667401733,
@@ -6826,6 +7170,7 @@
    },
    "artifact": "step",
    "charge_s": 0.8614538489999859,
+   "estimate_s": 3.747210967000001,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 493222.6302957035,
@@ -6846,6 +7191,7 @@
    },
    "artifact": "step",
    "charge_s": 2.807918419999993,
+   "estimate_s": 4.928747436000009,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 6326990.287075341,
@@ -6866,6 +7212,7 @@
    },
    "artifact": "step",
    "charge_s": 1.5832643059999896,
+   "estimate_s": 4.057372188999977,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2604741.3716547284,
@@ -6886,6 +7233,7 @@
    },
    "artifact": "step",
    "charge_s": 1.229503679000004,
+   "estimate_s": 3.398265601999995,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1533766.3918259405,
@@ -6906,6 +7254,7 @@
    },
    "artifact": "step",
    "charge_s": 1.13439901799984,
+   "estimate_s": 3.0695623940000587,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1264867.0748821106,
@@ -6926,6 +7275,7 @@
    },
    "artifact": "step",
    "charge_s": 0.9622486889999209,
+   "estimate_s": 3.052531024000018,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 501312.0,
@@ -6947,6 +7297,7 @@
    },
    "artifact": "step",
    "charge_s": 2.5686313090000112,
+   "estimate_s": 4.738197049000007,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3610126.160588005,
@@ -6967,6 +7318,7 @@
    },
    "artifact": "step",
    "charge_s": 1.8623417379999978,
+   "estimate_s": 3.794467387999987,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 4805911.601107655,
@@ -6988,6 +7340,7 @@
    },
    "artifact": "step",
    "charge_s": 1.7253096089999644,
+   "estimate_s": 4.1691576660000464,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 974580.6710416568,
@@ -7009,6 +7362,7 @@
    },
    "artifact": "step",
    "charge_s": 26.0,
+   "estimate_s": 26.0,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1186076.0855409116,
@@ -7029,6 +7383,7 @@
    },
    "artifact": "step",
    "charge_s": 1.620859849000027,
+   "estimate_s": 3.6127809760000105,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3865805.3599531874,
@@ -7049,6 +7404,7 @@
    },
    "artifact": "step",
    "charge_s": 2.4130585489999703,
+   "estimate_s": 5.215175681000005,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2422985.832959485,
@@ -7069,6 +7425,7 @@
    },
    "artifact": "step",
    "charge_s": 3.0055042679999815,
+   "estimate_s": 4.88650293500001,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 8516666.048696712,
@@ -7087,6 +7444,7 @@
    },
    "artifact": "step",
    "charge_s": 2.1860104599999772,
+   "estimate_s": 4.805082724999977,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 971121.6085849984,
@@ -7107,6 +7465,7 @@
    },
    "artifact": "step",
    "charge_s": 3.320992483999987,
+   "estimate_s": 5.981085799999988,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 6704790.623949278,
@@ -7127,6 +7486,7 @@
    },
    "artifact": "step",
    "charge_s": 3.195259903999954,
+   "estimate_s": 6.192725257000006,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 5208103.423386617,
@@ -7148,6 +7508,7 @@
    },
    "artifact": "step",
    "charge_s": 0.8912214400000948,
+   "estimate_s": 3.7665582209999684,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 493312.789895916,
@@ -7168,6 +7529,7 @@
    },
    "artifact": "step",
    "charge_s": 1.9407766630000083,
+   "estimate_s": 4.831546365000008,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3804428.0522179534,
@@ -7189,6 +7551,7 @@
    },
    "artifact": "step",
    "charge_s": 1.4706003209999494,
+   "estimate_s": 3.3460801940000238,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 4051748.994643835,
@@ -7209,6 +7572,7 @@
    },
    "artifact": "step",
    "charge_s": 2.792183926000007,
+   "estimate_s": 5.254699778000031,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 4501145.203650143,
@@ -7229,6 +7593,7 @@
    },
    "artifact": "step",
    "charge_s": 4.255000133999943,
+   "estimate_s": 6.179118972999959,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2612748.653819032,
@@ -7250,6 +7615,7 @@
    },
    "artifact": "step",
    "charge_s": 3.1593315329999996,
+   "estimate_s": 6.068940644999998,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 5621304.558526788,
@@ -7270,6 +7636,7 @@
    },
    "artifact": "step",
    "charge_s": 2.677576997000017,
+   "estimate_s": 5.053949071999995,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2908043.9692853633,
@@ -7290,6 +7657,7 @@
    },
    "artifact": "step",
    "charge_s": 3.688989783000011,
+   "estimate_s": 6.5481002500000045,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 6353360.224324891,
@@ -7310,6 +7678,7 @@
    },
    "artifact": "step",
    "charge_s": 1.5485754809999435,
+   "estimate_s": 3.514681304000021,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2412092.645848256,
@@ -7330,6 +7699,7 @@
    },
    "artifact": "step",
    "charge_s": 4.753811552000002,
+   "estimate_s": 7.423711123999993,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 8324965.618561589,
@@ -7350,6 +7720,7 @@
    },
    "artifact": "step",
    "charge_s": 2.2837368699999985,
+   "estimate_s": 4.350944140999999,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 5432474.965273428,
@@ -7371,6 +7742,7 @@
    },
    "artifact": "step",
    "charge_s": 2.3368605739999566,
+   "estimate_s": 4.42852147900004,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3553557.323945434,
@@ -7391,6 +7763,7 @@
    },
    "artifact": "step",
    "charge_s": 1.3642678100000012,
+   "estimate_s": 3.619464999999991,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2866873.843327365,
@@ -7411,6 +7784,7 @@
    },
    "artifact": "step",
    "charge_s": 1.8070602589999964,
+   "estimate_s": 4.362534597000007,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3204289.644433995,
@@ -7431,6 +7805,7 @@
    },
    "artifact": "step",
    "charge_s": 2.4907964090000405,
+   "estimate_s": 5.171197766000034,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2462220.184356044,
@@ -7451,6 +7826,7 @@
    },
    "artifact": "step",
    "charge_s": 1.7443338580000045,
+   "estimate_s": 3.7561805089999893,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1035230.3555172466,
@@ -7471,6 +7847,7 @@
    },
    "artifact": "step",
    "charge_s": 2.9713563680000163,
+   "estimate_s": 5.386304810000013,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 4065853.5140700783,
@@ -7491,6 +7868,7 @@
    },
    "artifact": "step",
    "charge_s": 3.7515009720000023,
+   "estimate_s": 6.450280340999996,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 6233222.921133157,
@@ -7511,6 +7889,7 @@
    },
    "artifact": "step",
    "charge_s": 1.4404805429999215,
+   "estimate_s": 3.6105473590000656,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1264582.4546082197,
@@ -7531,6 +7910,7 @@
    },
    "artifact": "step",
    "charge_s": 0.94038828500004,
+   "estimate_s": 2.9824396960000286,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1186567.7818569164,
@@ -7551,6 +7931,7 @@
    },
    "artifact": "step",
    "charge_s": 3.7039032540000107,
+   "estimate_s": 6.5787276739999925,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 5794301.750277183,
@@ -7571,6 +7952,7 @@
    },
    "artifact": "step",
    "charge_s": 2.1372736860000145,
+   "estimate_s": 4.775380370000022,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3107690.342648334,
@@ -7592,6 +7974,7 @@
    },
    "artifact": "step",
    "charge_s": 0.7691163810000035,
+   "estimate_s": 3.456907292999972,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 438770.5998113049,
@@ -7612,6 +7995,7 @@
    },
    "artifact": "step",
    "charge_s": 2.233363413999996,
+   "estimate_s": 5.069187599000003,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3719273.9463073616,
@@ -7632,6 +8016,7 @@
    },
    "artifact": "step",
    "charge_s": 2.934944100999928,
+   "estimate_s": 5.6747097950000125,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 4835075.464344702,
@@ -7652,6 +8037,7 @@
    },
    "artifact": "step",
    "charge_s": 1.4617063330000235,
+   "estimate_s": 3.3370341060000044,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2336745.0373892128,
@@ -7672,6 +8058,7 @@
    },
    "artifact": "step",
    "charge_s": 4.406276561999988,
+   "estimate_s": 7.135475028999991,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 7769948.2396964105,
@@ -7692,6 +8079,7 @@
    },
    "artifact": "step",
    "charge_s": 1.6404535169999974,
+   "estimate_s": 4.222221155999989,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2229674.812903899,
@@ -7712,6 +8100,7 @@
    },
    "artifact": "step",
    "charge_s": 5.05076547900012,
+   "estimate_s": 7.764256454999895,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3135722.273917985,
@@ -7732,6 +8121,7 @@
    },
    "artifact": "step",
    "charge_s": 2.6764280299998973,
+   "estimate_s": 5.574712341000009,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3024500.91306349,
@@ -7752,6 +8142,7 @@
    },
    "artifact": "step",
    "charge_s": 3.697901248000022,
+   "estimate_s": 5.772946671,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 5910202.85982176,
@@ -7772,6 +8163,7 @@
    },
    "artifact": "step",
    "charge_s": 1.88807062799998,
+   "estimate_s": 4.853873947000011,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1904061.1835540207,
@@ -7792,6 +8184,7 @@
    },
    "artifact": "step",
    "charge_s": 3.337452749000022,
+   "estimate_s": 6.21608954200002,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 5325594.864806156,
@@ -7812,6 +8205,7 @@
    },
    "artifact": "step",
    "charge_s": 1.492120964000037,
+   "estimate_s": 3.3141640249999966,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2445387.79044857,
@@ -7833,6 +8227,7 @@
    },
    "artifact": "step",
    "charge_s": 0.6997753539999962,
+   "estimate_s": 3.3814506070000334,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 588153.1702177842,
@@ -7853,6 +8248,7 @@
    },
    "artifact": "step",
    "charge_s": 4.005211230999976,
+   "estimate_s": 6.349162512000021,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 5223153.787192775,
@@ -7873,6 +8269,7 @@
    },
    "artifact": "step",
    "charge_s": 1.2637134330000208,
+   "estimate_s": 3.207527096000007,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2520365.251622491,
@@ -7893,6 +8290,7 @@
    },
    "artifact": "step",
    "charge_s": 1.8987443780000035,
+   "estimate_s": 4.013856630000021,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2506121.544144178,
@@ -7913,6 +8311,7 @@
    },
    "artifact": "step",
    "charge_s": 2.386360190000005,
+   "estimate_s": 5.325814788000002,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2722655.4718566,
@@ -7933,6 +8332,7 @@
    },
    "artifact": "step",
    "charge_s": 2.8410650330000067,
+   "estimate_s": 5.527848267999985,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 4365449.766546404,
@@ -7953,6 +8353,7 @@
    },
    "artifact": "step",
    "charge_s": 3.298169806999965,
+   "estimate_s": 5.929296977999996,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3757390.6064665234,
@@ -7974,6 +8375,7 @@
    },
    "artifact": "step",
    "charge_s": 2.3171009060000074,
+   "estimate_s": 5.007049613999982,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3874130.921505312,
@@ -7994,6 +8396,7 @@
    },
    "artifact": "step",
    "charge_s": 3.203736312999979,
+   "estimate_s": 6.0333897729999535,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 5415157.148593094,
@@ -8012,6 +8415,7 @@
    },
    "artifact": "step",
    "charge_s": 1.60192408599994,
+   "estimate_s": 3.625249722000035,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1097416.6032661751,
@@ -8032,6 +8436,7 @@
    },
    "artifact": "step",
    "charge_s": 2.491314676999991,
+   "estimate_s": 4.912324074000026,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 6423801.309828176,
@@ -8052,6 +8457,7 @@
    },
    "artifact": "step",
    "charge_s": 2.902105932000012,
+   "estimate_s": 5.635655650000018,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 4656649.26360903,
@@ -8072,6 +8478,7 @@
    },
    "artifact": "step",
    "charge_s": 2.3647447500000283,
+   "estimate_s": 5.305982850999982,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3553812.900329708,
@@ -8092,6 +8499,7 @@
    },
    "artifact": "step",
    "charge_s": 3.45838151800001,
+   "estimate_s": 6.148043431000019,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 5748482.23515669,
@@ -8112,6 +8520,7 @@
    },
    "artifact": "step",
    "charge_s": 2.261358267999981,
+   "estimate_s": 4.832563434999997,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2396801.997717207,
@@ -8130,6 +8539,7 @@
    },
    "artifact": "step",
    "charge_s": 1.6526733430000036,
+   "estimate_s": 3.7664275129999965,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1052434.9879532228,
@@ -8150,6 +8560,7 @@
    },
    "artifact": "step",
    "charge_s": 3.44257417700004,
+   "estimate_s": 6.361295611000003,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 5762178.7178294165,
@@ -8170,6 +8581,7 @@
    },
    "artifact": "step",
    "charge_s": 2.5234353490000103,
+   "estimate_s": 5.218225114999996,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2373221.865878826,
@@ -8190,6 +8602,7 @@
    },
    "artifact": "step",
    "charge_s": 1.8656405930000233,
+   "estimate_s": 4.466919604999987,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2832475.8267133413,
@@ -8210,6 +8623,7 @@
    },
    "artifact": "step",
    "charge_s": 1.6033596070000726,
+   "estimate_s": 3.512993091999988,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 4187292.984407005,
@@ -8230,6 +8644,7 @@
    },
    "artifact": "step",
    "charge_s": 2.379026352999972,
+   "estimate_s": 4.947538898999994,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2758362.184115769,
@@ -8250,6 +8665,7 @@
    },
    "artifact": "step",
    "charge_s": 2.748882361999989,
+   "estimate_s": 5.611674078000021,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2952355.7126291054,
@@ -8270,6 +8686,7 @@
    },
    "artifact": "step",
    "charge_s": 2.2909399799999903,
+   "estimate_s": 4.49217549399998,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2993667.862085261,
@@ -8290,6 +8707,7 @@
    },
    "artifact": "step",
    "charge_s": 2.5750638760000015,
+   "estimate_s": 5.125465728999984,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2981204.8402493345,
@@ -8310,6 +8728,7 @@
    },
    "artifact": "step",
    "charge_s": 1.0687950320000255,
+   "estimate_s": 3.780550696999967,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 501424.8305696673,
@@ -8330,6 +8749,7 @@
    },
    "artifact": "step",
    "charge_s": 1.8714570519999825,
+   "estimate_s": 4.308013394,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2694854.2230415614,
@@ -8350,6 +8770,7 @@
    },
    "artifact": "step",
    "charge_s": 1.6061086359999877,
+   "estimate_s": 3.838759359999983,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2703530.5014354726,
@@ -8368,6 +8789,7 @@
    },
    "artifact": "step",
    "charge_s": 2.5420023419999893,
+   "estimate_s": 5.410365592000005,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 799852.3402925708,
@@ -8389,6 +8811,7 @@
    },
    "artifact": "step",
    "charge_s": 3.0752357690000167,
+   "estimate_s": 5.857271873999991,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 4930124.746248427,
@@ -8409,6 +8832,7 @@
    },
    "artifact": "step",
    "charge_s": 1.6837067739999725,
+   "estimate_s": 4.498669270999983,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1651428.4484818897,
@@ -8429,6 +8853,7 @@
    },
    "artifact": "step",
    "charge_s": 2.482342370000026,
+   "estimate_s": 5.1604205239999885,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2742004.337462215,
@@ -8449,6 +8874,7 @@
    },
    "artifact": "step",
    "charge_s": 1.7485378760000572,
+   "estimate_s": 3.796054712,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3750388.860712285,
@@ -8467,6 +8893,7 @@
    },
    "artifact": "step",
    "charge_s": 1.9228169230000276,
+   "estimate_s": 3.738796459000014,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1212965.7593441661,
@@ -8487,6 +8914,7 @@
    },
    "artifact": "step",
    "charge_s": 1.38103697599999,
+   "estimate_s": 3.742425149000013,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2688232.689918886,
@@ -8508,6 +8936,7 @@
    },
    "artifact": "step",
    "charge_s": 26.0,
+   "estimate_s": 26.0,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1240454.3585466165,
@@ -8528,6 +8957,7 @@
    },
    "artifact": "step",
    "charge_s": 1.6692389260000482,
+   "estimate_s": 3.8349247880000235,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2604865.645511902,
@@ -8549,6 +8979,7 @@
    },
    "artifact": "step",
    "charge_s": 2.903045181999971,
+   "estimate_s": 5.763157858,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3022662.168098902,
@@ -8570,6 +9001,7 @@
    },
    "artifact": "step",
    "charge_s": 1.0965151790001073,
+   "estimate_s": 3.498717205000048,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 950808.3145165592,
@@ -8591,6 +9023,7 @@
    },
    "artifact": "step",
    "charge_s": 1.0053518609999514,
+   "estimate_s": 3.173534453000002,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 715658.4731453852,
@@ -8611,6 +9044,7 @@
    },
    "artifact": "step",
    "charge_s": 2.0099399329999983,
+   "estimate_s": 4.384550773000001,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2324599.6994718616,
@@ -8631,6 +9065,7 @@
    },
    "artifact": "step",
    "charge_s": 2.4593462820000696,
+   "estimate_s": 4.6327342450000515,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1235844.3357390498,
@@ -8652,6 +9087,7 @@
    },
    "artifact": "step",
    "charge_s": 0.9012451969999802,
+   "estimate_s": 3.061972727000011,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 815990.3540983871,
@@ -8672,6 +9108,7 @@
    },
    "artifact": "step",
    "charge_s": 3.431136071999987,
+   "estimate_s": 5.765123549999998,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 7682076.485925707,
@@ -8692,6 +9129,7 @@
    },
    "artifact": "step",
    "charge_s": 3.3305995990000383,
+   "estimate_s": 6.173595992999935,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2661323.01965528,
@@ -8712,6 +9150,7 @@
    },
    "artifact": "step",
    "charge_s": 3.996279024000046,
+   "estimate_s": 6.895285579000017,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 6518569.168635423,
@@ -8732,6 +9171,7 @@
    },
    "artifact": "step",
    "charge_s": 1.4488325220000036,
+   "estimate_s": 3.4605499849999717,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 3218921.4073376986,
@@ -8752,6 +9192,7 @@
    },
    "artifact": "step",
    "charge_s": 1.319110075000026,
+   "estimate_s": 3.7060395559999506,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 1355469.165465539,
@@ -8772,6 +9213,7 @@
    },
    "artifact": "step",
    "charge_s": 1.537550728000042,
+   "estimate_s": 3.428587743000037,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 2335097.7620270574,
@@ -8793,6 +9235,7 @@
    },
    "artifact": "step",
    "charge_s": 1.7376705739999352,
+   "estimate_s": 4.3690515400001,
    "timeout_s": 26.0,
    "limit": {
     "bytes": 869432.5020116611,

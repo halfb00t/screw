@@ -3088,8 +3088,9 @@ def test_the_bounds_job_checks_the_boundary_set_in_the_image_the_image_job_built
     assert 'python-version: "3.12"' in python
     assert "cache" not in python
     check = _step_with(job, "bench.oper check")
-    assert ("python3 -m bench.oper check tests/data/oper_boundary.json --image screw:ci "
-            "--out bounds-records.jsonl") in check
+    assert ('python3 -m bench.oper check tests/data/oper_boundary.json --shard "$SHARD" '
+            '--image screw:ci --out "bounds-records-$SHARD.jsonl"') in check
+    assert re.search(r"^    env:\n      SHARD: \$\{\{ matrix\.shard \}\}$", job, re.MULTILINE)
     assert '"$GITHUB_STEP_SUMMARY"' in check
     # The table is piped into the summary, so the step must fail with the check, not with tee.
     assert re.search(r"^\s+shell: bash$", check, re.MULTILINE)
@@ -3112,8 +3113,9 @@ def test_the_bounds_job_reads_the_repository_and_holds_no_secret() -> None:
 def test_the_bounds_job_keeps_the_readings_of_a_red_run_for_seven_days() -> None:
     upload = _step_with(_ci_job("bounds"), "actions/upload-artifact@v4")
     assert re.search(r"^\s+if: always\(\)$", upload, re.MULTILINE)
-    assert re.search(r"^\s+name: bounds-records$", upload, re.MULTILINE)
-    assert re.search(r"^\s+path: bounds-records\.jsonl$", upload, re.MULTILINE)
+    assert re.search(r"^\s+name: bounds-records-\$\{\{ env\.SHARD \}\}$", upload, re.MULTILINE)
+    assert re.search(r"^\s+path: bounds-records-\$\{\{ env\.SHARD \}\}\.jsonl$", upload,
+                     re.MULTILINE)
     assert re.search(r"^\s+retention-days: 7$", upload, re.MULTILINE)
 
 
@@ -3128,29 +3130,77 @@ def test_the_image_job_hands_its_image_on_for_one_day() -> None:
     assert re.search(r"^\s+retention-days: 1$", upload, re.MULTILINE)
 
 
-def test_bounds_is_a_job_make_pr_land_requires() -> None:
+BOUNDARY_FILE = REPO_ROOT / "tests" / "data" / "oper_boundary.json"
+
+
+def _shard_list() -> list[int]:
+    match = re.search(r"^      matrix:\n        shard: \[([\d, ]+)\]$", _ci_job("bounds"),
+                      re.MULTILINE)
+    assert match is not None
+    return [int(n) for n in match.group(1).split(",")]
+
+
+def test_the_bounds_job_reads_every_shard_of_the_boundary_file() -> None:
+    sizes = json.loads(BOUNDARY_FILE.read_text())["shard_sizes"]
+    assert _shard_list() == list(range(1, len(sizes) + 1))
+    assert re.search(r"^      fail-fast: false$", _ci_job("bounds"), re.MULTILINE)
+
+
+def test_every_shard_is_a_job_make_pr_land_requires() -> None:
+    sizes = json.loads(BOUNDARY_FILE.read_text())["shard_sizes"]
     lines = REQUIRED_JOBS.read_text().splitlines()
-    assert lines.count("bounds") == 1
+    assert [line for line in lines if line.startswith("bounds")] == [
+        f"bounds ({n})" for n in range(1, len(sizes) + 1)]
 
 
-def test_the_bounds_job_timeout_leaves_half_for_a_slower_runner() -> None:
-    """R6's precedent: the readings take at most half the job's `timeout-minutes`, the other half
-    left for a slower runner instance, the image load and the upload. A reading is estimated by
-    its explore container wall, or by its timeout where explore did not read it ok (R27's
-    charge)."""
+def test_the_shards_partition_the_tier_each_point_once_in_file_order() -> None:
+    whole = oper.load_boundary(BOUNDARY_FILE)
+    shards = [oper.load_boundary(BOUNDARY_FILE, n) for n in _shard_list()]
+    assert all(shards)
+    assert [p for shard in shards for p in shard] == whole
+    keys = [(p.point.label, p.point.artifact) for p in whole]
+    assert len(set(keys)) == len(keys)
+
+
+def test_each_shard_is_about_ten_minutes_and_under_half_the_job_timeout() -> None:
+    """G34 and R6's precedent: a shard's readings take at most half the job's `timeout-minutes`,
+    the other half left for a slower runner instance, the image load and the upload. A reading is
+    estimated by its explore container wall, or by its timeout where explore did not read it ok
+    (R27's charge); the estimates are recomputed here from the explore records."""
     match = re.search(r"^    timeout-minutes: (\d+)$", _ci_job("bounds"), re.MULTILINE)
     assert match is not None
-    document = json.loads((REPO_ROOT / "tests" / "data" / "oper_boundary.json").read_text())
+    document = json.loads(BOUNDARY_FILE.read_text())
     explore = dict(str(entry).split("=", 1) for entry in document["sources"])["explore"]
     files = sorted(str(path) for path in (REPO_ROOT / explore).glob("*/*.jsonl"))
     walls = {(r["label"], r["artifact"]): r for r in oper._read_records(files)[1]}
-    estimate = 0.0
+    estimates = []
     for point in document["points"]:
         reading = walls[point["label"], point["artifact"]]
         wall = reading["wall_s"]
         assert isinstance(wall, int | float)
-        estimate += wall if reading["status"] == "ok" else max(wall, point["timeout_s"])
-    assert estimate < int(match.group(1)) * 60 / 2
+        estimates.append(wall if reading["status"] == "ok" else max(wall, point["timeout_s"]))
+        assert point["estimate_s"] == estimates[-1]
+    start = 0
+    for size in document["shard_sizes"]:
+        shard = sum(estimates[start:start + size])
+        assert shard < document["shard_s"] == 600
+        assert 2 * shard <= int(match.group(1)) * 60
+        start += size
+
+
+@pytest.mark.parametrize("shard", [0, 6])
+def test_a_shard_outside_the_file_is_refused(shard: int) -> None:
+    with pytest.raises(ValueError, match=f"shard {shard} is outside 1..5"):
+        oper.load_boundary(BOUNDARY_FILE, shard)
+
+
+def test_check_reads_only_its_shard(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    taken = _stub_tier(monkeypatch, {f"b{i}": _tier_reading(f"b{i}") for i in range(5)})
+    path = tmp_path / "boundary.json"
+    path.write_text(json.dumps({"shard_sizes": [2, 3],
+                                "points": [_boundary_point(f"b{i}") for i in range(5)]}))
+    assert oper.main(["check", str(path), "--shard", "2", "--image", "i"]) == 0
+    assert [label for label, _, _ in taken] == ["b2", "b3", "b4"]
 
 
 def test_the_required_tier_is_read_in_shards_each_point_once() -> None:

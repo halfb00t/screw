@@ -2532,8 +2532,20 @@ def test_every_tier_point_carries_its_timeout_and_its_enveloped_limit_per_target
         assert point["timeout_s"] == 26.0
         assert point["limit"] == dict(zip(cost.TARGETS, oper_sets.enveloped(
             part, "stl-preview", envelope), strict=True))
-        assert set(point) == {"label", "kind", "params", "artifact", "charge_s", "timeout_s",
-                              "limit"}
+        assert set(point) == {"label", "kind", "params", "artifact", "charge_s", "estimate_s",
+                              "timeout_s", "limit"}
+
+
+def test_a_shard_estimate_is_the_container_wall_or_the_timeout_where_explore_was_not_ok(
+) -> None:
+    points = _bolts([4.0, 5.0, 6.0, 7.0], prefix="q")
+    readings = _ok_readings(points, q1={"wall_s": 40.0}, q2={"status": "killed", "wall_s": 600.4},
+                            q3={"status": "refused", "wall_s": 3.0})
+    tier = _tier({"stl-preview": (["q0", "q1", "q2"], ["q3"]), **PREVIEW_ONLY})
+    taken = oper_sets.boundary_points(tier, points, readings, _flat(),
+                                      dict.fromkeys(ARTIFACTS3, 26.0))
+    assert [(p["label"], p["estimate_s"]) for p in taken] == [
+        ("q0", 3.0), ("q1", 40.0), ("q2", 600.4), ("q3", 26.0)]
 
 
 def test_a_widened_envelope_moves_each_points_limit_and_nothing_else() -> None:

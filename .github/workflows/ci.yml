@@ -98,22 +98,30 @@ jobs:
   # fails it on a reading that is not ok, a cold wall past its artifact's timeout, or bytes,
   # seconds or peak above prediction x (1 + e). The records are uploaded on a red run too, because
   # R12 widens e only from recorded readings (`python -m bench.oper_sets envelope-check --from`
-  # over `gh run download <run> -p bounds-records -D <dir>`), never from a table. The recording
-  # tier, which sets the bounds, is operability.yml.
+  # over `gh run download <run> -p 'bounds-records-*' -D <dir>`), never from a table. The
+  # recording tier, which sets the bounds, is operability.yml.
+  #
+  # R27 (owner ruling G34): the set is read in parallel shards, one job each, every point in
+  # exactly one: the file's `shard_sizes` cut it, in file order, into the longest runs whose
+  # summed estimate stays under 600 s, D-12's 10 minutes. In one job the 435 points took 35.5 min.
+  # timeout-minutes is at least twice the largest shard's estimate (R6's half), and
+  # tests/test_oper.py holds the shard list, the estimates and required-jobs.txt to the file.
   #
   # T-07-44: no secret, no pull_request_target, and a token that only reads the repository; it
   # runs the PR's own code exactly as `test` does. A same-run artifact download needs no
   # github-token (actions/download-artifact README, read 2026-10-26).
-  #
-  # timeout-minutes: the readings' estimate, each point's explore container wall (or its timeout
-  # where explore read it not ok), was 2880.8 s at 9694cb6, and R6's precedent keeps it under half
-  # the job; tests/test_oper.py holds the two together.
   bounds:
     needs: image
     runs-on: ubuntu-latest
-    timeout-minutes: 100
+    timeout-minutes: 20
     permissions:
       contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5]
+    env:
+      SHARD: ${{ matrix.shard }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -129,10 +137,10 @@ jobs:
       # `shell: bash` adds pipefail, so the step fails with the check and not with tee.
       - name: the boundary set builds inside its timeouts and its envelope
         shell: bash
-        run: python3 -m bench.oper check tests/data/oper_boundary.json --image screw:ci --out bounds-records.jsonl | tee -a "$GITHUB_STEP_SUMMARY"
+        run: python3 -m bench.oper check tests/data/oper_boundary.json --shard "$SHARD" --image screw:ci --out "bounds-records-$SHARD.jsonl" | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: bounds-records
-          path: bounds-records.jsonl
+          name: bounds-records-${{ env.SHARD }}
+          path: bounds-records-${{ env.SHARD }}.jsonl
           retention-days: 7
