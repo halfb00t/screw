@@ -2161,7 +2161,8 @@ def test_no_qualifying_n_stops_at_r16_naming_each_reason() -> None:
 def test_derive_runtime_exits_3_on_a_stop_and_writes_nothing(
         repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
     point, _ = _contended("pa", "step", 1)
-    for name, points in (("bound", [point]), ("gzip", []), ("load", [])):
+    for name, points in (("bound", [point]), ("gzip", []), ("load", []), ("arenas", []),
+                         ("drift", []), ("drift-60", [])):
         (repo / "points" / f"{name}.json").write_text(json.dumps({"points": points}))
     out = repo / "runtime.json"
     assert oper_sets.main(["derive-runtime", "--from", str(repo / "explore"), "--out",
@@ -2462,3 +2463,20 @@ def test_stage_two_stops_at_a_plateau_miss_before_any_value() -> None:
     headers, tagged, sets = _stage_two(plateau_end=131 * 10**6)
     with _stop("R23", "the plateau does not hold"):
         dict(oper_sets.derivation(headers, tagged, sets, [], stage_two=True))
+
+
+def test_the_committed_records_keep_4_solids_and_the_trim_and_count_the_drift_in_w(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    """07-16 on the record: W(4) qualifies (run 41016510597), the trim lowers memory.current at
+    every artifact (run 40909754190), and the 20-build drift (run 41016507364) is above its
+    allowance at all three artifacts, but the 60-build run 41022812680 levels off (G32)."""
+    directories = sorted(str(p) for p in (REPO_ROOT / "bench/results/phase-07").iterdir()
+                         if p.is_dir())
+    assert oper_sets.main(["check-r22-r23", "--from", *directories]) == 0
+    out, err = capsys.readouterr()
+    assert err == ""
+    assert '"solid_cache_k": 4' in out
+    assert '"arenas_kept": true' in out
+    assert '"bytes": 2415919104' in out  # G20: the shipped mem_limit
+    assert '"above_allowance": true' in out
+    assert '"holds": false' not in out

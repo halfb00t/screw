@@ -2784,13 +2784,22 @@ def _points_of(name: str) -> list[Mapping[str, object]]:
     return points
 
 
+def _runtime_sets() -> dict[str, list[Mapping[str, object]]]:
+    """Every committed point file the derivation reads: the bound, gzip and load sets (G6), then
+    R22's W(K) sets that exist, R23's arena set and both drift sets (G32)."""
+    names = ["bound", "gzip", "load", "arenas", "drift", f"drift-{PLATEAU_BUILDS}",
+             *(f"solid-cache-{k}" for k in SOLID_CACHE_KS
+               if (POINTS_DIR / f"solid-cache-{k}.json").is_file())]
+    return {name: _points_of(name) for name in names}
+
+
 def derive_runtime(directories: Iterable[Path]) -> dict[str, object]:
-    """runtime.json's values from the records under `directories` and the committed bound, load
-    and gzip point files (G6)."""
+    """runtime.json's values, stage two included, from the records under `directories` and the
+    committed point files (G6, G32)."""
     folders = sorted(Path(d) for d in directories)
     headers, tagged = read_runs(folders)
-    sets = {name: _points_of(name) for name in ("bound", "gzip", "load")}
-    return runtime(headers, tagged, sets, [_relative(str(d)) for d in folders])
+    return dict(derivation(headers, tagged, _runtime_sets(), [_relative(str(d)) for d in folders],
+                           stage_two=True))
 
 
 def runtime_text(directories: Iterable[Path]) -> str:
@@ -3290,10 +3299,7 @@ def _run(args: argparse.Namespace) -> int:
     elif args.command == "check-r22-r23":
         folders = sorted(Path(d) for d in args.source)
         headers, tagged = read_runs(folders)
-        names = ["bound", "gzip", "load", "arenas", "drift", f"drift-{PLATEAU_BUILDS}",
-                 *(f"solid-cache-{k}" for k in SOLID_CACHE_KS
-                   if (POINTS_DIR / f"solid-cache-{k}.json").is_file())]
-        sets = {name: _points_of(name) for name in names}
+        sets = _runtime_sets()
         stage_one = set(runtime(headers, tagged, sets, []))
         for key, value in derivation(headers, tagged, sets, [], stage_two=True):
             if key not in stage_one:
