@@ -211,6 +211,10 @@ config entry, `pr.land` is one Makefile target; none of them touches product cod
 
 ## L09 — Fasteners are a registry of kinds with a frozen default, per-kind URLs, interim runtime bounds, and one deliberate pool divergence from spur
 
+Superseded in part by L23 and L24: the interim runtime bounds are measured on linux/amd64 (the
+workers, the container and the caches in L23; the build timeout and `Retry-After` in L24), and L24
+records the second divergence from spur's `pool.py`, the queue-aware deadline.
+
 Date: 2026-10-06. Decided by the owner in the Phase 1 discussion (D-01 to D-19). L08 (the
 wall of `main`) lands later in the same phase.
 
@@ -1831,3 +1835,171 @@ refuses nothing B-01 keeps; the bolt below the floor has no reading to cover it,
 
 Reversibility: costly, as L21. A wider e only refuses more. A re-fit, or a run that reads bolts below
 the floor, needs a superseding entry.
+
+## L23 — Screw's runtime is sized on the GitHub runner in the production image: 1 build worker, mem_limit 2304m, and every cache, gzip and healthcheck knob measured
+
+Date: 2026-10-30. Decided by D-01 to D-04, D-15 and D-19 of Phase 7 and by the pre-registered rules
+R1 to R6 and R14 to R26 of `07-SWEEP-PROTOCOL.md`, as ruled where they had gaps (G4, G6 to G9, G11,
+G15 to G18, G20, G22, G24, G31 and G32 in `07-GAP-RULINGS.md`). Every value below is derived from
+the committed runner records by `python -m bench.oper_sets derive-runtime` into
+`bench/results/phase-07/runtime.json`, never typed. `tests/test_runtime_bounds.py` fails if
+runtime.json is not what that command writes, if a shipped value differs from runtime.json, or if a
+value in the knob table below differs from the code. Every run is a GitHub Actions run of
+`.github/workflows/operability.yml` on linux/amd64 and has its section in `bench/RESULTS.md`.
+Timeouts, the queue-aware deadline and `Retry-After` are L24.
+
+**Where it was measured (D-01, D-15, R1, R2).** On `ubuntu-latest` runners, in the production image
+(`screw:ci`, built from the dispatched commit), one fresh container per reading under a 12 GiB
+`--memory` and `--memory-swap` cap, with the peak read from the cgroup (`memory.peak` on cgroup v2)
+after the build, the export and a level-1 gzip, never from sampled RSS. runtime.json reads 254
+runner headers over its 18 record directories: `nproc` is 4 in every one and the smallest `MemTotal`
+is 16758394880 B. The Host table of every Runs II section in `bench/RESULTS.md` records kernel
+7.0.0-1017-azure and cadquery 2.8.0 over cadquery-ocp 7.9.3.1.1. GitHub mixes CPU generations; the
+Runs II jobs ran on AMD EPYC 7763, 9V45 and 9V74 and on Intel Xeon Platinum 8370C, Platinum 8573C
+and Xeon 6973P-C. A macOS arm64 figure is context and sets nothing here.
+
+**Five repetitions, the margin and the shards (D-04, D-19, R3, R5, R6).** Every set that sets a
+bound takes 5 repetitions, each a matrix job on its own runner instance; per point the median and
+the max are recorded, a point with any repetition that is not `ok` (or not exactly repetitions 1 to
+5) has neither, and bounds use the max. The margin `m` is 0.5382691940004687, the largest `max /
+median - 1` of the cold wall over the 12 spread points, set by `iso4014:M20x200` at stl-fine (spread
+run 40646125666): a full-tier bulk row read once is re-run at 5 repetitions when its cold wall x (1
++ `m`) reaches its artifact's timeout. A shard is the longest run of consecutive points whose summed
+charge stays under half the measure job's `timeout-minutes` (350 min, so 10500 s): a point of an
+explore-like set is charged the largest explore `wall_s` of its (kind, artifact) group (explore run
+40646117094; 600.731243473 s for the bolt preview, the largest), and a contention, load, drift, gzip
+or arena reading its own deadline (G4, G24). The sets ran as: explore 40 shards, spread 12, walls 20
+and controls 4 (fixed by R4 before any timing), walls-down 6, walls-voids 6, walls-confirm 9, bound
+4, outband 2, and load, gzip, arenas, drift, solid-cache-4 and drift-60 1 each.
+
+**The worker count and mem_limit (D-02, D-03, R15, R16, G7, G20, G32).** The load run (R15) serves a
+fixed mix of 60 cold requests, 20 per artifact, from 2N clients against a queue of 2N, with
+`Accept-Encoding: identity`, a 1 MiB export cache and 4 cached solids, so it measures builds; 5
+repetitions per N, all `ok` (load run 40909724292). `mem_limit(N)` is the larger of W x N + B + the
+export cache + the tmpfs and the load peak at N, rounded up to 256 MiB; N qualifies when it is under
+16 x 10^9 B and under the smallest `MemTotal`, N is at most `nproc` - 1 and all 5 repetitions are
+`ok`.
+
+| N | load p95 over all requests s, max over 5 repetitions | reading | load peak B | tmpfs B | mem_limit(N) B | qualifies |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | 35.09087210645002 | `40909724292:load-n1 rep 2` | 1657307136 | 268435456 | 2415919104 | yes |
+| 2 | 51.878674375850004 | `40909724292:load-n2 rep 2` | 2047315968 | 536870912 | 4563402752 | yes |
+| 3 | 69.78429913074984 | `40909724292:load-n3 rep 2` | 2333671424 | 805306368 | 6442450944 | yes |
+
+R16 picks the qualifying N with the lowest p95, N = 1. It ranks latency only: throughput is not part
+of the rule, and one worker behind a queue of 2 answers fastest. W is 1758363648 B, the largest peak
+after any build of R23's drift readings once the plateau holds (G32;
+`41022812680:drift-nut-d30-p1-m0.8d-s4d-c5-right rep 2 build 15`), above the N = 1 contention W of
+1533550592 B (`40907549180:nut-d30-p1-m0.8d-s1.6d-c5-right-n1 rep 1`); B is 65208320 B, the idle
+server (`40909724292:load-n1 rep 1`); the export cache is 251658240 B and the tmpfs 268435456 B. G20
+ships the larger of that `mem_limit(N)` and the one built from W(4), 1652121600 B
+(`41016510597:solid-cache-4 rep 1`): both are 2415919104 B, which compose writes as `mem_limit:
+2304m`. That is under 16 x 10^9 B (D-02) and under the smallest `MemTotal`. D-02's headroom over W x
+N is B, the two caches and the 256 MiB rounding.
+
+**The knobs (R15 to R26).** Each value is the code's, as `compose.yaml`, the `Dockerfile` or `src/`
+writes it; each comment there names the same rule and run.
+
+| knob | where | value | rule | evidence | runs |
+| --- | --- | --- | --- | --- | --- |
+| `SCREW_BUILD_WORKERS` | app.py `DEFAULT_BUILD_WORKERS`, compose.yaml | 1 | R16 | the lowest load p95 of the qualifying N, table above | 40909724292 |
+| `mem_limit` | compose.yaml | 2304m | R16, G20, G32 | 2415919104 B from W, B, the export cache and the tmpfs at N = 1, and from W(4) alike | 40909724292, 41022812680, 41016510597 |
+| `SCREW_MAX_QUEUED_BUILDS` | app.py `_max_queued_builds`, 2N | 2 | R17, G8 | 2N kept: the largest request wall, queue wait plus build, is 0.3624844919793814 of its queue-aware deadline (`40909724292:load-n1 rep 2 pool call 26`) and the end peak 1657307136 B is under mem_limit | 40909724292 |
+| `_GZIP_LEVEL` | app.py | 1 | R19, G11, G15 | levels 6 and 9 each failed R19's test (at least 10 % smaller at no more than 1.5x the seconds) at all 14 STL bound points, maxima over 5 repetitions; `iso4017:M20x200` at stl-fine: 66239886 B in 2.007092078999989 s at level 1, 63595608 B in 3.55598981 s at level 6 | 40909739628, 40999657702 |
+| `minimum_size` | app.py `GZipMiddleware` | 4012 | R20 | over 1555 bodies the largest that does not shrink at level 1 is `/api/health`, 95 B to 98 B (`40909724292:load-n1 rep 5 /api/health`) | 40909724292 |
+| `SCREW_EXPORT_CACHE_MB` | app.py `EXPORT_CACHE_MB` | 240 | R21, G16 | both encodings of all three artifacts of `iso4017:M20x200`, 250654910 B, the largest over 394 candidates, rounded up to a whole MiB | 40646117094 |
+| `SCREW_SOLID_CACHE` | solid/__init__.py | 4 | R22, G9, G20 | W(4) 1652121600 B gives a mem_limit that qualifies at N = 1 | 41016510597 |
+| `_release_arenas` | solid/__init__.py | kept | R23, G17 | max `memory.current` after the export with the trim on against off: stl-preview 243089408 against 308285440 B, stl-fine 377843712 against 1093894144 B, step 217174016 against 283619328 B | 40909754190 |
+| `max_tasks_per_child` | pool.py | unset | R23, G32 | the plateau holds: builds 41 to 60 max minus builds 21 to 40 max at the worst repetition, 6467584 / 11583488 / 5222400 B (preview / fine / step) against allowances 44044697.6 / 134713753.6 / 28473344.0 B; the 20-build drift is counted in W | 41016507364, 41022812680 |
+| `TESSELLATION` | solid/__init__.py | kept | R23 | the presets are kept; every reading above exported at them, and L21's fit was taken at them | 40646117094 |
+| `SCREW_WORKERS` | Dockerfile `ENV`, compose.yaml, cli.py `serve` | 1 | R24 | `/api/health` p95 under load 0.00935187669999209 s (`40909724292:load-n1 rep 2`), inside the probe's 1 s `urlopen` timeout | 40909724292 |
+| `HEALTHCHECK --interval` | Dockerfile | 30s | R25 | Docker's documented default (docs.docker.com, Dockerfile reference, HEALTHCHECK), not measured | none |
+| `HEALTHCHECK --timeout` | Dockerfile | 2s | R25, G18 | ceil(2 x 0.7360738640000477 s), the max wall of the HEALTHCHECK command over 276 walls in the 5 load readings at N = 1 (`40909724292:load-n1 rep 2`), 0 non-zero exits | 40909724292 |
+| `HEALTHCHECK --start-period` | Dockerfile | 10s | R25, G18 | 2 x the max time to the first healthy response, 0.9576668719999759 s (`40909724292:load-n1 rep 2`), rounded up to 10 s | 40909724292 |
+| `HEALTHCHECK --retries` | Dockerfile | 3 | R25 | Docker's documented default, not measured | none |
+| `tmpfs /tmp` | compose.yaml | 256m | R26 | 268435456 B: the stl-fine bytes budget 239508059.14804876 B (B-01) x N = 1, rounded up to 256 MiB, inside mem_limit | none (the budget, L21) |
+
+Every environment override stays (`SCREW_BUILD_WORKERS`, `SCREW_MAX_QUEUED_BUILDS`,
+`SCREW_EXPORT_CACHE_MB`, `SCREW_SOLID_CACHE`, `SCREW_WORKERS`): CODING_VALUES keeps a limit in code
+with an env var. Only the defaults are measured; a deployer who moves one re-sweeps.
+
+**What it supersedes.** L09's "Interim runtime bounds" paragraph for the runtime knobs: every
+carried value is replaced by a measured one or re-confirmed by its rule, and no `INTERIM` label is
+left in `src/`, the `Dockerfile` or `compose.yaml` (its field ceiling went in L20, its build timeout
+and `Retry-After` in L24). For screw it also replaces the values carried from spur L17 (4g, two
+build workers, one server process), spur L19 (gzip level 1) and the rest of spur's defaults (the
+1024 B gzip threshold, the 64 MiB export cache, 4 cached solids, the healthcheck timings): spur's
+rule shapes stay, its figures are no longer used here.
+
+Reason: a number the tool prints is a number someone will cut metal to (L02), and the container's
+limits decide whether a request is served, queued or killed. Each is now a figure from the platform
+the product runs on, read by a rule fixed before its data.
+
+Reversibility: reversible (D-02). Each value is a constant in `compose.yaml`, the `Dockerfile` or
+`src/`, and `derive-runtime` re-derives runtime.json from a new sweep. A smaller deploy box, or a
+deployer who moves a default, means a new sweep and a superseding entry.
+
+## L24 — One build timeout per artifact, twice the worst admitted build with every worker busy; the deadline adds the timeouts queued ahead; Retry-After from the measured median
+
+Date: 2026-10-30. Decided by D-09, D-10, D-11, D-14 and D-16 of Phase 7 and by the pre-registered
+rules R14, R17 and R18 of `07-SWEEP-PROTOCOL.md` (G8). The values are `python -m bench.oper_sets
+derive-runtime` output in `bench/results/phase-07/runtime.json`, never typed;
+`tests/test_runtime_bounds.py` holds `calc.cost.BUILD_TIMEOUT_S` and `app.MEDIAN_BUILD_S` equal to
+it and to the table below. Supersedes L09's carried `SCREW_BUILD_TIMEOUT` of 30 s and `Retry-After`
+of 5 s.
+
+**The timeouts (D-09, R14).** Each artifact's timeout is `ceil(2 x` the max cold wall, build plus
+export, over the 5 repetitions of its bound point at the picked N `)`; 2 is D-09's factor. The bound
+point is the slowest point of the artifact's bound set (R14, G31) at N = 1 (L23), read in bound run
+40907549180. At N = 1 every worker busy is one worker busy: the bound point ran in a fresh container
+with no other build beside it, so these are single-build walls.
+
+| artifact | `BUILD_TIMEOUT_S` s | bound point | max cold wall s | reading | `MEDIAN_BUILD_S` s |
+| --- | --- | --- | --- | --- | --- |
+| `stl-preview` | 26.0 | `nut-d10-p0.35-m3d-s4d-c0.15-right-n1` | 12.724827096999945 | `40907549180:nut-d10-p0.35-m3d-s4d-c0.15-right-n1 rep 3` | 5.214082512000019 |
+| `stl-fine` | 71.0 | `nut-d30-p1-m0.8d-s1.6d-c5-right-n1` | 35.26048539499999 | `40907549180:nut-d30-p1-m0.8d-s1.6d-c5-right-n1 rep 4` | 9.527734555999999 |
+| `step` | 26.0 | `nut-d100-p3.5-m3d-s4d-c5-right-n1` | 12.81081261700001 | `40907549180:nut-d100-p3.5-m3d-s4d-c5-right-n1 rep 1` | 6.330915500499998 |
+
+**The deadline (D-14).** A build is held to its own timeout, not to the wait behind other builds on
+its worker. `screw.pool` routes a part to slot `hash(p) % N`, which runs one build at a time, and
+sets, when the request is submitted:
+
+`deadline = BUILD_TIMEOUT_S[artifact] + ` the sum of the timeouts of the requests already submitted
+on that slot and not yet finished.
+
+There is no lock, because the parent is single-threaded on the event loop and nothing awaits between
+the sum and the append; there is no new IPC, and `BuildPool`'s public shape is unchanged. Deadlines
+on a slot strictly increase in submit order, so a later request never fires before the one it queues
+behind. spur L37 saw four of ten admitted requests killed for the wait behind another build on their
+slot. This is the second divergence from spur's `pool.py`, after L09's same-slot guard. R17 checked
+it on the load records at N = 1: the largest request wall, queue wait plus build, was
+0.3624844919793814 of its deadline (`40909724292:load-n1 rep 2 pool call 26`), so no request timed
+out and the queue stays 2N (L23).
+
+**A miss (D-10).** An admitted part that still overruns its timeout gets the `503` `timeout` with
+`Retry-After`; its worker is replaced, nothing is cached and no partial file is served. The server
+logs `cost_model.miss` at ERROR next to `build.failed` (`records.cost_model_miss`), carrying the
+part's fields, the format, the quality, the artifact and the `timeout_s` it was held to, and never a
+traceback, so the part can be rebuilt and the model re-measured. The timeout is the backstop behind
+L21's cost model, not the bound.
+
+**`Retry-After` (D-11, R18).** On all three `503`s (busy, `timeout`, `pool_broken`),
+`retry_after(artifact)` is `max(1, ceil(MEDIAN_BUILD_S[artifact] x MAX_QUEUED_BUILDS))`. The medians
+are the built-request walls, queue wait plus build, pooled over the 5 load repetitions at N = 1, 100
+built requests per artifact (load run 40909724292). The product is taken at run time, so a
+deployer's `SCREW_MAX_QUEUED_BUILDS` moves it. It replaces spur's 5 s.
+
+**No override (D-16).** The three timeouts are read-only code constants in `calc/cost.py` with no
+environment override; `SCREW_BUILD_TIMEOUT` is removed from `src/` (plan 07-02) and from the bench
+harness, the Makefile help and `bench/README.md` (plan 07-17), and `bench.build_time` judges each
+export against `BUILD_TIMEOUT_S` for its artifact. A deployer on slower hardware re-sweeps, and a
+superseding entry records the new figures.
+
+Reason: a timeout that kills a build the platform was measured to finish refuses a part the cost
+model admitted, and one far above it holds a worker for nothing. Twice the measured worst, counted
+from the moment the build can start, is the backstop D-09 asks for, and a miss is logged as the
+model's fault, not the user's.
+
+Reversibility: reversible. Three constants in `calc/cost.py` and three medians in `app.py`, which
+`derive-runtime` re-derives from a new sweep; the new figures need a superseding entry. A shorter
+timeout turns slow admitted builds into `503`s, each logged as a miss.

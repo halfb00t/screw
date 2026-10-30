@@ -241,3 +241,106 @@ def test_the_healthcheck_timings_are_r25s_and_dockers_defaults() -> None:
     assert start_period == row["start_period_s"]
     # Docker's documented defaults, cited as such (R25), not measured.
     assert (interval, retries) == (30, 3) == (row["interval_s"], row["retries"])
+
+
+# --- every value in its log entry, every run in RESULTS (07-17 Task 2; OPER-02) ------------------
+
+DECISION_LOG = REPO_ROOT / "docs/architecture/decision_log.md"
+RESULTS = REPO_ROOT / "bench/RESULTS.md"
+# A GitHub Actions run id of this repo: 11 digits, 3.8e10 to 4.2e10 over its life so far. No byte
+# figure in the scanned text reaches 3e10 (the runner has 16 GB), so a byte count is never read as
+# a run id.
+_RUN_ID = r"(?<![\d.])[34]\d{10}(?![\d.])"
+
+
+def _entries() -> dict[str, str]:
+    """Each decision log entry's text, keyed by its id ('L23')."""
+    parts = re.split(r"^## (L\d\d) ", DECISION_LOG.read_text(), flags=re.MULTILINE)
+    return dict(zip(parts[1::2], parts[2::2], strict=True))
+
+
+def _table(entry: str) -> dict[str, list[str]]:
+    """The cells of each row of an entry's tables whose first cell is code, keyed by it."""
+    rows: dict[str, list[str]] = {}
+    for line in _entries()[entry].splitlines():
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if line.startswith("| `") and len(cells) > 1:
+            assert cells[0] not in rows, f"{entry} has two rows for {cells[0]}"
+            rows[cells[0]] = cells
+    return rows
+
+
+def test_every_shipped_runtime_value_is_in_l23_as_the_code_writes_it(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    """L23's knob table: column 3 is the value as compose.yaml, the Dockerfile or src/ writes it,
+    and each equals runtime.json (the tests above hold the code to runtime.json)."""
+    for name in ("SCREW_BUILD_WORKERS", "SCREW_MAX_QUEUED_BUILDS"):
+        monkeypatch.delenv(name, raising=False)
+    compose, dockerfile = _compose(), _dockerfile()
+    mem_limit = _one(r"^\s*mem_limit:\s*(\S+)\s*$", compose)[1]
+    tmpfs = _one(r"^\s*-\s*/tmp:size=(\S+)\s*$", compose)[1]
+    health = _one(r"^HEALTHCHECK --interval=(\S+) --timeout=(\S+) --start-period=(\S+) "
+                  r"--retries=(\S+) ", dockerfile)
+    [gzip] = [m for m in app_module.app.user_middleware if cast(object, m.cls) is GZipMiddleware]
+    kept = {True: "kept", False: "removed"}
+    shipped = {
+        "`SCREW_BUILD_WORKERS`": str(app_module.DEFAULT_BUILD_WORKERS),
+        "`mem_limit`": mem_limit,
+        "`SCREW_MAX_QUEUED_BUILDS`": str(app_module._max_queued_builds()),
+        "`_GZIP_LEVEL`": str(app_module._GZIP_LEVEL),
+        "`minimum_size`": str(gzip.kwargs["minimum_size"]),
+        "`SCREW_EXPORT_CACHE_MB`": str(app_module.EXPORT_CACHE_MB),
+        "`SCREW_SOLID_CACHE`": str(solid._build_cached.cache_parameters()["maxsize"]),
+        "`_release_arenas`": kept[_runtime()["arenas_kept"] is True],
+        "`max_tasks_per_child`": "unset" if _row("recycling")["max_tasks_per_child"] is None
+                                 else "set",
+        "`TESSELLATION`": kept[_row("tessellation_kept")["kept"] is True],
+        "`SCREW_WORKERS`": _one(r"^\s*SCREW_WORKERS=(\d+)\s*$", dockerfile)[1],
+        "`HEALTHCHECK --interval`": health[1],
+        "`HEALTHCHECK --timeout`": health[2],
+        "`HEALTHCHECK --start-period`": health[3],
+        "`HEALTHCHECK --retries`": health[4],
+        "`tmpfs /tmp`": tmpfs,
+    }
+    rows = _table("L23")
+    assert {knob: rows[knob][2] for knob in shipped if knob in rows} == shipped
+    # The two byte values compose writes in MiB are in L23 in bytes as runtime.json holds them.
+    assert f"{_runtime()['mem_limit_bytes']} B" in rows["`mem_limit`"][4]
+    assert f"{_runtime()['tmpfs_bytes']} B" in rows["`tmpfs /tmp`"][4]
+
+
+def test_every_timeout_and_retry_after_median_is_in_l24_as_the_code_writes_it() -> None:
+    rows = _table("L24")
+    timeouts = _row("timeouts")
+    for artifact in cost.ARTIFACTS:
+        row = rows[f"`{artifact}`"]
+        derived = timeouts[artifact]
+        assert isinstance(derived, dict)
+        assert row[1] == repr(cost.BUILD_TIMEOUT_S[artifact])
+        assert row[2] == f"`{derived['bound_point']}`"
+        assert row[3] == repr(derived["max_cold_wall_s"])
+        assert row[4] == f"`{derived['reading']}`"
+        assert row[5] == repr(app_module.MEDIAN_BUILD_S[artifact])
+    assert "deadline = BUILD_TIMEOUT_S[artifact] + " in _entries()["L24"]
+
+
+def _cited_run_ids() -> dict[str, set[str]]:
+    texts = {f"{entry} (decision log)": _entries()[entry]
+             for entry in ("L20", "L21", "L22", "L23", "L24")}
+    source = REPO_ROOT / "src"
+    for path in sorted([*source.rglob("*.py"), *source.rglob("*.js"),
+                        REPO_ROOT / "Dockerfile", REPO_ROOT / "compose.yaml"]):
+        if "vendor" not in path.parts:
+            texts[str(path.relative_to(REPO_ROOT))] = path.read_text()
+    return {name: set(re.findall(_RUN_ID, text)) for name, text in texts.items()}
+
+
+def test_every_run_id_the_code_and_l20_to_l24_cite_has_its_section_in_results() -> None:
+    results = RESULTS.read_text()
+    cited = _cited_run_ids()
+    assert cited["L23 (decision log)"]
+    assert cited["L24 (decision log)"]
+    missing = {name: sorted(run for run in runs
+                            if not re.search(rf"^#+ .*\brun {run}\b", results, re.MULTILINE))
+               for name, runs in cited.items()}
+    assert {name: runs for name, runs in missing.items() if runs} == {}
