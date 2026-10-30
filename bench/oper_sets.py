@@ -2750,6 +2750,134 @@ def runtime_text(directories: Iterable[Path]) -> str:
     return json.dumps(derive_runtime(directories), indent=1, allow_nan=False) + "\n"
 
 
+# --- R22's W(K) set and R23's drift set (07-16 Task 2), after the pick and the timeouts --------
+
+DRIFT_BUILDS = 20  # R23's K: the parts a load run takes for each artifact (R15)
+DRIFT_SETS = ("drift",)
+SOLID_CACHE_KS = (4, 3, 2, 1)  # R22: K = 4 first, each lower K only if the one above failed
+BOUND_POINTS = "bench/points/bound.json"
+LOAD_POINTS = "bench/points/load.json"
+
+
+def _bound_set(bound: Iterable[Mapping[str, object]], artifact: str) -> list[Mapping[str, object]]:
+    """The points P of `artifact`'s committed bound set, each once, from its contention points."""
+    found: dict[str, Mapping[str, object]] = {}
+    for point in bound:
+        members = point.get("points")
+        if point.get("artifact") == artifact and isinstance(members, list) and members:
+            p = members[0]
+            assert isinstance(p, dict)
+            found.setdefault(str(p["label"]), p)
+    return list(found.values())
+
+
+def drift_points(bound: Sequence[Mapping[str, object]], explore: Iterable[Reading],
+                 timeouts: Mapping[str, int]) -> list[dict[str, object]]:
+    """R23's drift readings: per artifact A, Z(A), the point of A's committed bound set with the
+    largest `memory_peak_bytes` among its ok explore readings (a tie to the label that sorts
+    first), built K = 20 times with a deadline of 20 x A's timeout (R14). A deadline that is not
+    under half the measure job's timeout stops the phase (R6, G4): the job also counts setup, the
+    image build and the upload."""
+    index = _explore_index(explore)
+    out: list[dict[str, object]] = []
+    for artifact in cost.ARTIFACTS:
+        measured: list[tuple[int, str, Mapping[str, object]]] = []
+        for p in _bound_set(bound, artifact):
+            reading = _ok(index, str(p["label"]), artifact)
+            if reading is not None:
+                measured.append((int(_number(reading, "memory_peak_bytes")), str(p["label"]), p))
+        if not measured:
+            raise ProtocolStop("R23", f"no point of the {artifact} bound set has an ok explore "
+                                      "reading, so Z(A) has no part")
+        _, label, z = min(measured, key=lambda m: (-m[0], m[1]))
+        deadline = DRIFT_BUILDS * timeouts[artifact]
+        if not deadline < HALF_JOB_S:
+            raise ProtocolStop("R6", f"the drift reading of {label} at {artifact} has a deadline "
+                                     f"of {deadline} s, not under half the job timeout "
+                                     f"({HALF_JOB_S:g} s)")
+        out.append({"label": f"drift-{label}", "kind": "drift", "artifact": artifact,
+                    "part": {"kind": z["kind"], "params": z["params"]}, "k": DRIFT_BUILDS,
+                    "deadline_s": deadline})
+    return out
+
+
+def solid_cache_points(load: Sequence[Mapping[str, object]], k: int) -> list[dict[str, object]]:
+    """R22's W(K) reading (G9): the committed R15 mix at N = 1, a queue and clients of 2, with
+    `SCREW_SOLID_CACHE` = K; the JSON bodies are R20's and are not read again."""
+    one = [p for p in load if p.get("workers") == 1]
+    if len(one) != 1:
+        raise ValueError("the load set has no one point at N = 1")
+    return [{"label": f"solid-cache-{k}", "kind": "load", "workers": 1, "queue": 2, "clients": 2,
+             "solid_cache": k, "bodies": False, "mix": one[0]["mix"]}]
+
+
+def _runtime_timeouts(path: str) -> dict[str, int]:
+    rows = json.loads((REPO_ROOT / path).read_text())["timeouts"]
+    return {artifact: int(rows[artifact]["seconds"]) for artifact in cost.ARTIFACTS}
+
+
+def _explore_dir_of(bound_path: str) -> str:
+    sources = json.loads((REPO_ROOT / bound_path).read_text())["sources"]
+    return dict(str(entry).split("=", 1) for entry in sources)["explore"]
+
+
+def build_drift(bound_path: str, runtime_path: str) -> _Set:
+    bound = json.loads((REPO_ROOT / bound_path).read_text())["points"]
+    explore_dir = _explore_dir_of(bound_path)
+    out = _Set("drift", reps=RUNS2_REPS, shards=1, rule="07-SWEEP-PROTOCOL.md R23 (G4, G14)",
+               notes=[
+                   "per artifact Z(A): the point of the committed bound set (bound.json) with the "
+                   "largest memory_peak_bytes among its ok explore readings, a tie to the label "
+                   "that sorts first",
+                   "K = 20 cold builds in one process, the solid cache emptied before each; the "
+                   "peak read after each build, its export and a level-1 gzip (G14)",
+                   "each reading's deadline_s is 20 x its artifact's timeout (runtime.json, R14), "
+                   "and it is charged that deadline (R6, G4); 5 repetitions"])
+    for point in drift_points(bound, _read(explore_dir), _runtime_timeouts(runtime_path)):
+        out.copy(point)
+    charged = [float(str(point["deadline_s"])) for point in out.points]
+    out.shard_sizes = shard_sizes(charged, HALF_JOB_S)
+    out.shards = len(out.shard_sizes)
+    out.sources = [f"bound={bound_path}", f"explore={explore_dir}", f"runtime={runtime_path}"]
+    return out
+
+
+def build_solid_cache(load_path: str, k: int) -> _Set:
+    load = json.loads((REPO_ROOT / load_path).read_text())["points"]
+    out = _Set(f"solid-cache-{k}", reps=RUNS2_REPS, shards=1,
+               rule="07-SWEEP-PROTOCOL.md R22 (G4, G9)", notes=[
+                   f"W({k}): the committed R15 mix (load.json) at N = 1, queue and clients 2, "
+                   f"SCREW_SOLID_CACHE = {k}, measured after R16's pick (G9)",
+                   "W(K) is the max container peak over the 5 repetitions; each reading charged "
+                   "R2's 600 s (R6, G4)"])
+    for point in solid_cache_points(load, k):
+        out.copy(point)
+    out.shard_sizes = shard_sizes([float(DEADLINE_S)] * len(out.points), HALF_JOB_S)
+    out.shards, out.sources = len(out.shard_sizes), [f"load={load_path}"]
+    return out
+
+
+def _check_runtime_sets() -> str | None:
+    """The first drift or W(K) file that is not what its generator writes from its sources."""
+    paths = [POINTS_DIR / "drift.json",
+             *(POINTS_DIR / f"solid-cache-{k}.json" for k in SOLID_CACHE_KS)]
+    for path in paths:
+        if not path.is_file():
+            continue
+        text = path.read_text()
+        try:
+            sources = dict(str(e).split("=", 1) for e in json.loads(text).get("sources", []))
+            if path.stem == "drift":
+                again = build_drift(sources["bound"], sources["runtime"]).text()
+            else:
+                again = build_solid_cache(sources["load"], int(path.stem.rsplit("-", 1)[1])).text()
+        except (KeyError, TypeError, ValueError) as exc:  # a stop is a ValueError, too
+            return f"{path} cannot be written again from its sources: {exc}"
+        if text != again:
+            return f"{path} is not what the generator writes from its sources"
+    return None
+
+
 def _recorded_envelope(text: str) -> dict[tuple[str, str, str], float]:
     """The envelope a Runs II file was drawn under. A recorded e above the shipped one is no
     envelope this code ever shipped (a widening only raises e), so the file cannot stand."""
@@ -2974,6 +3102,11 @@ def _run(args: argparse.Namespace) -> int:
         _envelope_check_command(args)
     elif args.command == "load-table":
         sys.stdout.write(load_table(read_readings(Path(args.source))))
+    elif args.command in ("drift", "solid-cache"):
+        made = (build_drift(BOUND_POINTS, RUNTIME) if args.command == "drift"
+                else build_solid_cache(LOAD_POINTS, args.k))
+        Path(args.out).write_text(made.text())
+        print(f"{made.name}: {len(made.points)} points in shards of {made.shard_sizes}")
     elif args.command == "derive-runtime":
         text = runtime_text(Path(d) for d in args.source)
         Path(args.out).write_text(text)
@@ -3027,6 +3160,11 @@ def main(argv: list[str] | None = None) -> int:
                            help="R12 over the Runs II readings that may widen e (07-15)")
     check.add_argument("--fit", required=True)
     check.add_argument("--from", dest="source", nargs="+", required=True)
+    sub.add_parser("drift", help="write R23's drift set from runtime.json's timeouts "
+                                 "(07-16)").add_argument("--out", required=True)
+    solid = sub.add_parser("solid-cache", help="write R22's W(K) set (07-16)")
+    solid.add_argument("--k", type=int, required=True, choices=SOLID_CACHE_KS)
+    solid.add_argument("--out", required=True)
     derive = sub.add_parser("derive-runtime", help="R14 to R26: the runtime values from the "
                                                    "records (07-16)")
     derive.add_argument("--from", dest="source", nargs="+", required=True)
@@ -3064,7 +3202,7 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"oper_sets: {path} is not what the generator writes from its sources",
                       file=sys.stderr)
                 return 1
-        failure = _check_runs2()
+        failure = _check_runs2() or _check_runtime_sets()
         if failure is not None:
             print(f"oper_sets: {failure}", file=sys.stderr)
             return 1

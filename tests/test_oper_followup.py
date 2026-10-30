@@ -2168,3 +2168,82 @@ def test_derive_runtime_exits_3_on_a_stop_and_writes_nothing(
                            str(out)]) == 3
     assert "oper_sets: stop (R14): pa-n1 at step is read in 0 runs" in capsys.readouterr().err
     assert not out.exists()
+
+
+def _bound_points(labels_by_artifact: Mapping[str, Iterable[str]]) -> list[Raw]:
+    out: list[Raw] = []
+    for artifact, labels in labels_by_artifact.items():
+        for label in labels:
+            for workers in (1, 2):
+                point, _ = _contended(label, artifact, workers)
+                out.append(point)
+    return out
+
+
+def _explore_peak(label: str, artifact: str, peak: int, status: str = "ok") -> Raw:
+    return {"type": "reading", "label": label, "kind": "bolt", "params": {}, "artifact": artifact,
+            "rep": 1, "status": status, "memory_peak_bytes": peak}
+
+
+def test_drift_takes_per_artifact_the_bound_point_with_the_largest_ok_explore_peak() -> None:
+    bound = _bound_points(dict.fromkeys(ARTIFACTS3, ("aa", "bb", "cc")))
+    explore = [_explore_peak("aa", a, 100) for a in ARTIFACTS3] + [
+        _explore_peak("bb", a, 300) for a in ARTIFACTS3] + [
+        _explore_peak("cc", a, 900, status="ok" if a == "step" else "killed")
+        for a in ARTIFACTS3]
+    timeouts = {"stl-preview": 26, "stl-fine": 71, "step": 26}
+    found = oper_sets.drift_points(bound, explore, timeouts)
+    assert [(p["label"], p["artifact"], p["k"], p["deadline_s"]) for p in found] == [
+        ("drift-bb", "stl-preview", 20, 520), ("drift-bb", "stl-fine", 20, 1420),
+        ("drift-cc", "step", 20, 520)]
+    assert found[0]["part"] == {"kind": "bolt", "params": {"length": 2.0}}
+
+
+def test_a_tie_in_the_drift_peak_goes_to_the_label_that_sorts_first() -> None:
+    bound = _bound_points(dict.fromkeys(ARTIFACTS3, ("zz", "aa")))
+    explore = [_explore_peak(label, a, 5) for label in ("zz", "aa") for a in ARTIFACTS3]
+    found = oper_sets.drift_points(bound, explore, dict.fromkeys(ARTIFACTS3, 10))
+    assert {p["label"] for p in found} == {"drift-aa"}
+
+
+def test_a_drift_deadline_not_under_half_the_job_timeout_stops_at_r6() -> None:
+    bound = _bound_points(dict.fromkeys(ARTIFACTS3, ("aa",)))
+    explore = [_explore_peak("aa", a, 5) for a in ARTIFACTS3]
+    found = oper_sets.drift_points(bound, explore, dict.fromkeys(ARTIFACTS3, 524))
+    assert {p["deadline_s"] for p in found} == {10480}
+    with _stop("R6", "deadline of 10500 s, not under half the job timeout"):
+        oper_sets.drift_points(bound, explore, dict.fromkeys(ARTIFACTS3, 525))
+
+
+def test_the_w_k_set_is_the_committed_mix_at_n1_with_k_solids_cached() -> None:
+    load = json.loads((REPO_ROOT / "bench/points/load.json").read_text())["points"]
+    found = oper_sets.solid_cache_points(load, 3)
+    assert found == [{"label": "solid-cache-3", "kind": "load", "workers": 1, "queue": 2,
+                      "clients": 2, "solid_cache": 3, "bodies": False,
+                      "mix": next(p["mix"] for p in load if p["workers"] == 1)}]
+    made = oper_sets.build_solid_cache(oper_sets.LOAD_POINTS, 3)
+    assert (made.reps, made.shard_sizes, made.sources) == (5, [1], ["load=bench/points/load.json"])
+
+
+def test_the_committed_drift_set_is_drawn_from_the_shipped_timeouts() -> None:
+    drift = json.loads((REPO_ROOT / "bench/points/drift.json").read_text())
+    assert drift["reps"] == 5
+    for point in drift["points"]:
+        assert point["deadline_s"] == 20 * cost.BUILD_TIMEOUT_S[point["artifact"]]
+        assert point["deadline_s"] < oper_sets.HALF_JOB_S
+    arenas = json.loads((REPO_ROOT / "bench/points/arenas.json").read_text())["points"]
+    assert [p["part"] for p in drift["points"]] == [p["part"] for p in arenas[::2]]
+
+
+def test_check_fails_on_a_drift_or_w_k_file_its_generator_does_not_write(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(oper_sets, "POINTS_DIR", tmp_path)
+    assert oper_sets._check_runtime_sets() is None  # no such file: nothing to check
+    for name in ("drift", "solid-cache-4"):
+        text = (REPO_ROOT / f"bench/points/{name}.json").read_text()
+        (tmp_path / f"{name}.json").write_text(text)
+    assert oper_sets._check_runtime_sets() is None
+    drift = tmp_path / "drift.json"
+    drift.write_text(drift.read_text().replace('"deadline_s": 1420', '"deadline_s": 1400'))
+    assert oper_sets._check_runtime_sets() == (f"{drift} is not what the generator writes from "
+                                               "its sources")
