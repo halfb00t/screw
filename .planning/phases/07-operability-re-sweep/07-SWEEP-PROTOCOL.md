@@ -613,6 +613,24 @@ that two implementations write the same list.
    timeouts, which R14 fixes after R16 has picked N, so the tier is built only then and never before.
    A point's charge is its `explore` reading and the timeout, each fixed before the tier is built.
 
+The tier is read in parallel shards, one job each, all on the one image: in the order the tier
+file lists its points, a shard is the longest run of consecutive points not yet placed whose
+summed estimate stays under 600 s, D-12's 10 minutes, so every point is in exactly one shard and
+is read once. A point's estimate is the container wall (`wall_s`) of its `explore` reading when
+that reading is `ok`, and otherwise the larger of that wall and its artifact's timeout. Each shard
+job's `timeout-minutes` is at least twice its shard's summed estimate. The 600 s of step 5 per
+artifact is unchanged. This sentence was added after the first runner reading by the owner's
+ruling that R30 asks for.
+
+When `tier-order.json` or the tier file is written again to check it, every value must be the same
+except a float computed from the cost model's prediction (an edge ratio of step 2, a limit of
+R29), which may differ from the committed one by a relative difference of at most 2^-51, that is
+2 x 2^-52. The prediction is `exp` of a sum of `log` terms, and the platform's libm sets their
+last bit: written again on the Linux runner, 2 of the 2559 such floats in the two files moved by
+one ulp from the files written on macOS, the larger by a relative 1.459 x 2^-52, and no other
+value moved. 2^-51 is the smallest whole multiple of 2^-52 at or above that measurement. This
+sentence was added after the first runner reading by the owner's ruling that R30 asks for.
+
 ## R28 - The full tier (D-12)
 
 Every catalogue row x 3 artifacts, the nut factorial, and the dense boundary. The dense boundary is

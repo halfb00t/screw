@@ -3151,3 +3151,48 @@ def test_the_bounds_job_timeout_leaves_half_for_a_slower_runner() -> None:
         assert isinstance(wall, int | float)
         estimate += wall if reading["status"] == "ok" else max(wall, point["timeout_s"])
     assert estimate < int(match.group(1)) * 60 / 2
+
+
+def test_the_required_tier_is_read_in_shards_each_point_once() -> None:
+    rule = " ".join(_rule(27).split())
+    assert "The tier is read in parallel shards, one job each, all on the one image" in rule
+    assert ("a shard is the longest run of consecutive points not yet placed whose summed "
+            "estimate stays under 600 s, D-12's 10 minutes, so every point is in exactly one "
+            "shard and is read once") in rule
+    assert ("A point's estimate is the container wall (`wall_s`) of its `explore` reading when "
+            "that reading is `ok`, and otherwise the larger of that wall and its artifact's "
+            "timeout") in rule
+    assert ("Each shard job's `timeout-minutes` is at least twice its shard's summed "
+            "estimate") in rule
+    assert "The 600 s of step 5 per artifact is unchanged" in rule
+    rulings = (PROTOCOL.parent / "07-GAP-RULINGS.md").read_text()
+    assert "\n## Gap G34 (owner ruling on the required tier's wall time, 2026-10-30)\n" in rulings
+    for evidence in ('"Shard into parallel jobs (Recommended)"', "41042483745", "35.5 min",
+                     "not a harness fix"):
+        assert evidence in rulings, evidence
+    assert re.search(r"^\| G34 \| R27, D-12 \|", rulings, re.MULTILINE)
+
+
+def test_a_predicted_float_may_move_by_the_measured_libm_difference_and_nothing_else() -> None:
+    rule = " ".join(_rule(27).split())
+    assert ("every value must be the same except a float computed from the cost model's "
+            "prediction (an edge ratio of step 2, a limit of R29), which may differ from the "
+            "committed one by a relative difference of at most 2^-51, that is 2 x 2^-52") in rule
+    assert ("2 of the 2559 such floats in the two files moved by one ulp from the files written "
+            "on macOS, the larger by a relative 1.459 x 2^-52, and no other value moved") in rule
+    assert rule.count("added after the first runner reading by the owner's ruling that R30 asks "
+                      "for") == 2
+    rulings = (PROTOCOL.parent / "07-GAP-RULINGS.md").read_text()
+    assert ("\n## Gap G33 (owner ruling on the regeneration checks across platforms, "
+            "2026-10-30)\n") in rulings
+    for evidence in ('"A: tolerance on limits (Recommended)"', "41048346068",
+                     "3.239877599502309e-16", "6801399.663168809", "not a harness fix"):
+        assert evidence in rulings, evidence
+    assert re.search(r"^\| G33 \| R27 \|", rulings, re.MULTILINE)
+    owner = (PROTOCOL.parent / "07-OWNER-RULINGS.md").read_text()
+    assert ("\n## R27: the required tier, after its first runner reading (2026-10-30, G33, "
+            "G34)\n") in owner
+    for reply in ('"B: fix\n   in-wall debt first (Recommended)"',
+                  '"A: tolerance on limits (Recommended)"',
+                  '"Shard into parallel jobs (Recommended)"'):
+        assert reply in owner, reply

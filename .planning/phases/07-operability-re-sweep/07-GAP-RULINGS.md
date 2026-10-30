@@ -283,3 +283,48 @@ artifact. That is never more than the 20-build reading's own allowance.
 | Gap | Rule(s) | Owner ruling |
 |---|---|---|
 | G32 | R16, R23 | A drift reading of 60 builds per repetition is read: 5 repetitions, the same three artifacts, the same points in the same order as the 20-build set, each deadline 60 x the artifact's timeout. The plateau: per artifact and repetition, the max peak over builds 41 to 60 minus the max peak over builds 21 to 40 must be at most R23's allowance at the worst repetition of every artifact. Otherwise the phase stops for the owner again, and the next step is recycling. If the plateau holds, W (R16) also takes the largest peak after any build of the drift readings, so the 60-build set's peak replaces 1716760576 B as the input when it is larger. The values are re-derived by committed code. If the pick N, any timeout or any set's `--check` moves, the phase stops. R23 no longer stops on the build-1 to build-20 drift alone, because the drift is absorbed into W, and `max_tasks_per_child` stays unset while the plateau holds. |
+
+## Gap G33 (owner ruling on the regeneration checks across platforms, 2026-10-30)
+
+Source: plan 07-18's checkpoint. The first CI run of the phase branch, run 41042483745 at 155fabb,
+failed `test (3.12)` on two regeneration checks: `tier-order.json`'s `--check` and the tier file's
+regeneration test. Both files hold floats from `cost.predict`, which is `math.exp` of a sum of
+`math.log` terms, and the platform libm sets their last bit. For example, a limit of the tier file
+is 6801399.663168809 on macOS and 6801399.66316881 on the Linux runner, one ulp apart. Membership
+and order did not move, and the bounds job judges the limits the committed file holds.
+
+The owner's reply, verbatim (the label "(Recommended)" is the orchestrator's, not part of the
+ruling): "A: tolerance on limits (Recommended)".
+
+The measurement, by committed code (`python -m bench.oper_sets prediction-drift`, ef45c0c), in
+the `test (3.12)` job of run 41048346068 on the runner: every file `--check` and the tier test
+write again was compared with the committed one. Only `tier-order.json` (1254 edge ratios) and
+the tier file (1305 limits) hold predicted floats. One float in each differs, by a relative
+3.239877599502309e-16 (1.459 x 2^-52, an edge ratio) and 1.369310172520534e-16 (0.617 x 2^-52, a
+limit), and no other value of any file differs. The tolerance is 2^-51, the smallest whole
+multiple of 2^-52 at or above the larger.
+
+This is a ruled change after R30's freeze, not a harness fix. It amends `07-SWEEP-PROTOCOL.md` R27
+on the phase branch `gsd/phase-07-operability-re-sweep`.
+
+| Gap | Rule(s) | Owner ruling |
+|---|---|---|
+| G33 | R27 | When `tier-order.json` or the tier file is written again to check it, only a float computed from the prediction (an edge ratio, a limit) may differ from the committed one, by a relative difference of at most 2^-51 (2 x 2^-52); every other value, the order and the membership stay exact. The tolerance is the measured cross-platform difference (largest 1.459 x 2^-52, run 41048346068) rounded up to a whole multiple of 2^-52. |
+
+## Gap G34 (owner ruling on the required tier's wall time, 2026-10-30)
+
+Source: plan 07-18's checkpoint. The bounds job of run 41042483745 read the 435 points of R27 step
+5 in one job: 35.5 min, from 10:43:07 to 11:18:38, with the readings' container walls summing to
+2092.9 s. D-12 targets about 10 minutes. R27 step 5 gives each artifact 600 s of charges, so the
+tier holds about 30 minutes of cold walls, and every reading also starts and stops a container.
+
+The owner's reply, verbatim (the label "(Recommended)" is the orchestrator's, not part of the
+ruling): "Shard into parallel jobs (Recommended)".
+
+This is a ruled change after R30's freeze, not a harness fix. It amends `07-SWEEP-PROTOCOL.md` R27
+on the phase branch `gsd/phase-07-operability-re-sweep`. Step 5's membership and its 600 s per
+artifact do not change.
+
+| Gap | Rule(s) | Owner ruling |
+|---|---|---|
+| G34 | R27, D-12 | The required tier is read in parallel shard jobs on the one image, cut deterministically in the tier file's order: each shard is the longest run of consecutive points whose summed estimate stays under 600 s (a point's estimate is its explore `wall_s` when ok, else the larger of that and its timeout), so every point is judged exactly once. Each shard job's `timeout-minutes` is at least twice its estimate. The shard jobs replace `bounds` in `required-jobs.txt`, and a test holds the shards to a partition of the tier. D-12's 10 minutes is the target of one shard. |

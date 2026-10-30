@@ -191,3 +191,21 @@ The ruling:
    committed code, with stage two. If the pick N, any timeout or any set's `--check` moves, the
    phase stops and the executor reports. R23 no longer stops on the build-1 to build-20 drift
    alone: the drift is absorbed into W. `max_tasks_per_child` stays unset.
+
+## R27: the required tier, after its first runner reading (2026-10-30, G33, G34)
+
+Source: plan 07-18's checkpoint after CI run 41042483745 (`07-GAP-RULINGS.md`, G33 and G34). The
+owner's replies, verbatim (the label "(Recommended)" is the orchestrator's, not part of the
+ruling):
+
+1. On the 11 tier points the kernel refused again, exactly the ones `explore` refused: "B: fix
+   in-wall debt first (Recommended)". R27's membership is unchanged. The in-wall item
+   (`docs/tech_debt/active/2026-10-29-in-wall-parts-the-kernel-refuses.md`) is debugged first, and
+   how the tier judges a point the shipped gate then refuses waits on that outcome.
+2. On the regeneration checks across platforms: "A: tolerance on limits (Recommended)". Only the
+   prediction-derived floats (edge ratios, limits) are compared within a stated relative
+   tolerance, justified by the measured cross-platform difference. Everything else stays exact.
+   The tolerance is 2^-51 (G33).
+3. On the required tier's 35.5 min in one job: "Shard into parallel jobs (Recommended)". The tier
+   is read in shards of about 10 minutes each, every point judged exactly once, and the shard
+   jobs replace `bounds` among the jobs `make pr.land` requires (G34).
