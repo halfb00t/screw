@@ -258,3 +258,28 @@ edited.
 | Gap | Rule(s) | Owner ruling |
 |---|---|---|
 | G31 | R14, R19 | Every candidate of a bound set (the 5 slowest, the two prediction extrema, the two measured extrema and every contention partner) is an admitted explore point whose explore reading is `ok` at every artifact, not only the two measured choices. `bound.json` and `gzip.json` are regenerated under their recorded envelope. Only the stl-preview contention and gzip points this changes are read again, at 5 repetitions; the records are committed before they are used and the earlier readings of the points they replace decide nothing. D(A), the load mix, the stl-fine and STEP bound sets and the arena set do not change. |
+
+## Gap G32 (owner ruling on the drift stop, 2026-10-30)
+
+Source: plan 07-16 stopped at R23 (`07-16-SUMMARY.md`, "Needs the owner: the R23 drift stop";
+`bench/RESULTS.md`, "R22 and R23 (07-16)"). Drift run 41016507364 read Z(A) 20 times per repetition,
+5 repetitions, all `ok`. Its drift, the peak after build 20 minus the peak after build 1 at the worst
+repetition, was above the allowance (0.10 x the smallest build-1 peak) at every artifact:
+stl-preview 53616640 B against 44301516.8 B, stl-fine 323194880 B against 137344204.8 B, and step
+31100928 B against 28473344.0 B. Most of each repetition's growth falls between build 1 and build 2.
+The largest peak after build 20, 1716760576 B (stl-fine, rep 1), is above both W (1533550592 B,
+contention run 40907549180) and W(4) (1652121600 B, run 41016510597). The figures are
+`check-r22-r23` output at 378d58c.
+
+The owner's reply, verbatim (the label "(Recommended)" is the orchestrator's, not part of the
+ruling): "1 + longer drift run (Recommended)".
+
+This is a ruled change after R30's freeze, not a harness fix. It amends `07-SWEEP-PROTOCOL.md` R16
+and R23 on the phase branch `gsd/phase-07-operability-re-sweep`, and the plateau criterion was
+committed before the 60-build reading was dispatched. The plan executor took R23's allowance for the
+plateau to be 0.10 x the smallest build-1 peak among the repetitions of both drift readings of an
+artifact. That is never more than the 20-build reading's own allowance.
+
+| Gap | Rule(s) | Owner ruling |
+|---|---|---|
+| G32 | R16, R23 | A drift reading of 60 builds per repetition is read: 5 repetitions, the same three artifacts, the same points in the same order as the 20-build set, each deadline 60 x the artifact's timeout. The plateau: per artifact and repetition, the max peak over builds 41 to 60 minus the max peak over builds 21 to 40 must be at most R23's allowance at the worst repetition of every artifact. Otherwise the phase stops for the owner again, and the next step is recycling. If the plateau holds, W (R16) also takes the largest peak after any build of the drift readings, so the 60-build set's peak replaces 1716760576 B as the input when it is larger. The values are re-derived by committed code. If the pick N, any timeout or any set's `--check` moves, the phase stops. R23 no longer stops on the build-1 to build-20 drift alone, because the drift is absorbed into W, and `max_tasks_per_child` stays unset while the plateau holds. |

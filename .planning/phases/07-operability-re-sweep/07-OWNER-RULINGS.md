@@ -166,3 +166,28 @@ ruling): "Keep over_budget (Recommended)".
 
 Ruling: the turns refusal keeps its place, ahead of the builder's check. There is one rule with no
 exception, and G30's "at every artifact" covers these parts.
+
+## R16 and R23: the drift is counted in W, under a plateau read over 60 builds (2026-10-30, G32)
+
+Source: the R23 stop of plan 07-16 (`07-GAP-RULINGS.md`, G32). In drift run 41016507364, the growth
+from build 1 to build 20 was above the 10 % allowance at all three artifacts. The largest peak after
+build 20, 1716760576 B at stl-fine, is above R16's W (1533550592 B) and W(4) (1652121600 B).
+
+The owner's reply, verbatim (the label "(Recommended)" is the orchestrator's, not part of the
+ruling): "1 + longer drift run (Recommended)".
+
+The ruling:
+
+1. **A longer drift set.** It has 60 builds per repetition, with 5 repetitions, the same three
+   artifacts and the same points in the same order as the 20-build set. It is read on the runner,
+   and its records are committed before they are used.
+2. **The plateau.** It is written into the protocol and committed before the reading is
+   dispatched (R30). Per artifact and repetition, the max peak over builds 41 to 60 minus the max
+   peak over builds 21 to 40 must be at most R23's allowance, 0.10 x the smallest build-1 peak. If
+   any artifact misses it at its worst repetition, the phase stops for the owner again, and the
+   next step is recycling.
+3. **W.** If the plateau holds, W also takes the largest peak after any build of the 60-build set,
+   in place of the 20-build peak, 1716760576 B, when it is larger. Everything is re-derived by
+   committed code, with stage two. If the pick N, any timeout or any set's `--check` moves, the
+   phase stops and the executor reports. R23 no longer stops on the build-1 to build-20 drift
+   alone: the drift is absorbed into W. `max_tasks_per_child` stays unset.

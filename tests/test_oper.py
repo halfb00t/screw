@@ -2326,7 +2326,8 @@ def test_the_drift_run_builds_one_fixed_part_cold_k_times_and_compares_the_first
     assert "compares the cgroup peak after build 1 with the peak after build K" in rule
     assert "the drift of the artifact is the max over its 5 repetitions" in rule
     assert "exceeds 0.10 x the smallest peak after build 1 among its 5 repetitions" in rule
-    assert "Drift adds nothing to R16's `mem_limit(N)`" in rule
+    assert "Drift adds to R16's `mem_limit(N)` only through W" in rule
+    assert "Drift adds nothing to R16's `mem_limit(N)`" not in rule
     assert "the owner fixes" not in rule
     assert "pass 2" not in rule
 
@@ -2846,6 +2847,48 @@ def test_every_bound_candidate_has_an_ok_explore_reading_at_every_artifact() -> 
                      "not a harness fix"):
         assert evidence in rulings, evidence
     assert re.search(r"^\| G31 \| R14, R19 \|", rulings, re.MULTILINE)
+    protocol = _protocol()
+    assert protocol[protocol.index("## Harness fixes"):].startswith("## Harness fixes\n\nNone yet.")
+    assert not re.search(r"\bG\d+\b", protocol)
+    assert not re.search(r"\b\d{11}\b", protocol)
+
+
+# --- the owner's ruling on the drift stop (G32): pinned by its key phrases ----------------------
+
+
+def test_the_drift_is_counted_in_w_under_a_plateau_read_over_60_builds() -> None:
+    r16 = " ".join(_rule(16).split())
+    assert ("W is also at least the largest peak after any build of R23's drift readings, the "
+            "20-build and the 60-build one, once R23's plateau holds") in r16
+    assert r16.count("added after the first runner reading by the owner's ruling that R30 asks "
+                     "for") == 1
+    r23 = " ".join(_rule(23).split())
+    assert ("`max_tasks_per_child` stays unset unless the plateau (below) fails for any "
+            "artifact") in r23
+    assert "shows growth above its allowance for any artifact" not in r23
+    assert "A drift above its allowance does not stop the phase by itself" in r23
+    assert ("A second drift reading builds the same Z(A), at the same three artifacts in the "
+            "same order, K = 60 times, 5 repetitions, each with a deadline of 60 x the "
+            "artifact's timeout, which R6 charges it") in r23
+    assert ("the plateau difference is the max peak over builds 41 to 60 minus the max peak "
+            "over builds 21 to 40") in r23
+    assert ("0.10 x the smallest peak after build 1 among the repetitions of both drift "
+            "readings of that artifact") in r23
+    assert ("If any artifact misses it, the phase stops and asks the owner again, and the next "
+            "step is recycling") in r23
+    assert "This criterion was fixed before the 60-build reading was taken" in r23
+    assert r23.count("added after the first runner reading by the owner's ruling that R30 asks "
+                     "for") == 1
+    rulings = (PROTOCOL.parent / "07-GAP-RULINGS.md").read_text()
+    assert "\n## Gap G32 (owner ruling on the drift stop, 2026-10-30)\n" in rulings
+    for evidence in ('"1 + longer drift run (Recommended)"', "41016507364", "1716760576",
+                     "378d58c", "not a harness fix"):
+        assert evidence in rulings, evidence
+    assert re.search(r"^\| G32 \| R16, R23 \|", rulings, re.MULTILINE)
+    owner = (PROTOCOL.parent / "07-OWNER-RULINGS.md").read_text()
+    assert ("\n## R16 and R23: the drift is counted in W, under a plateau read over 60 builds "
+            "(2026-10-30, G32)\n") in owner
+    assert '"1 + longer drift run (Recommended)"' in owner
     protocol = _protocol()
     assert protocol[protocol.index("## Harness fixes"):].startswith("## Harness fixes\n\nNone yet.")
     assert not re.search(r"\bG\d+\b", protocol)

@@ -446,6 +446,9 @@ its 5 repetitions of each repetition's p95, D-04), ties to the smaller N. 256 Mi
 step fixed before the data: small against the 16 GB ceiling (about 1.7 %), large enough to be a visible
 margin and not an arithmetic residue. The `mem_limit` that ships is the larger of `mem_limit(N)` at
 the picked N built from this W and the one built from `W(K)` at the K R22 keeps.
+W is also at least the largest peak after any build of R23's drift readings, the 20-build and the
+60-build one, once R23's plateau holds, so that the limit is sized for a warm worker and not only for
+one cold build. This sentence was added after the first runner reading by the owner's ruling that R30 asks for.
 
 ## R17 - The queue depth
 
@@ -512,8 +515,8 @@ trim on and 5 with it off. The measure is the cgroup's `memory.current`, read af
 maxima over the 5 repetitions are compared, and the trim is kept only if the max with the trim on is
 lower than the max with it off at every artifact. If a max the arena comparison needs is missing (R3:
 a point with any repetition that is not `ok` has no max), the phase stops and asks the owner.
-`max_tasks_per_child` stays unset unless the drift run shows growth above its allowance for any
-artifact; if it does, the phase stops and asks the owner, because no rule here sets a recycling value.
+`max_tasks_per_child` stays unset unless the plateau (below) fails for any artifact; if it does,
+the phase stops and asks the owner, because no rule here sets a recycling value.
 
 *The drift run.* It is separate from the load run, because a load run builds different parts and a
 larger transient build later in it would read as growth. For each artifact it builds one fixed part
@@ -539,8 +542,21 @@ K = 20 times in a row, and compares the cgroup peak after build 1 with the peak 
   smallest peak after build 1 among its 5 repetitions. The owner fixed the fraction before any
   reading: it scales with the part, and 10 % sits above the run-to-run spread expected between cold
   builds of one part. It is a pre-registered allowance, not a measured figure.
-- *Memory limit.* Drift adds nothing to R16's `mem_limit(N)`: drift above the allowance stops the
-  phase, so a drift term in the limit would count the same growth twice.
+- *Memory limit.* Drift adds to R16's `mem_limit(N)` only through W, which takes the largest peak
+  after any build of the drift readings once the plateau holds; no separate drift term is added, as
+  it would count the same growth twice.
+
+*The plateau.* A drift above its allowance does not stop the phase by itself: it is counted in W
+(R16), and whether the growth has levelled off decides. A second drift reading builds the same Z(A),
+at the same three artifacts in the same order, K = 60 times, 5 repetitions, each with a deadline of
+60 x the artifact's timeout, which R6 charges it. Per artifact and repetition, the plateau
+difference is the max peak over builds 41 to 60 minus the max peak over builds 21 to 40. The plateau
+holds when, at every artifact, the difference of its worst repetition is at most the allowance: 0.10 x
+the smallest peak after build 1 among the repetitions of both drift readings of that artifact, so
+never more than the allowance of the 20-build reading alone. If any artifact misses it, the phase
+stops and asks the owner again, and the next step is recycling. A 60-build repetition that is not
+`ok`, or whose peak after any of its 60 builds is missing, leaves no plateau and stops the phase as
+well. This criterion was fixed before the 60-build reading was taken. This sentence was added after the first runner reading by the owner's ruling that R30 asks for.
 
 ## R24 - SCREW_WORKERS
 
