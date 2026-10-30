@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 07
 current_phase_name: Operability Re-sweep
 status: executing
-stopped_at: Completed 07-14-PLAN.md
-last_updated: "2026-10-29T15:34:19.054Z"
-last_activity: 2026-10-29
+stopped_at: Completed 07-15-PLAN.md
+last_updated: "2026-10-30T04:27:44.304Z"
+last_activity: 2026-10-30
 last_activity_desc: Phase 07 execution started
-state_head: 63460c7a08782dce61ede634b7397b2762252ffb
+state_head: 54965a0916bd2f1ebeeefdeb4938dcbcfb3d72cf
 progress:
   total_phases: 8
   completed_phases: 7
   total_plans: 103
-  completed_plans: 96
+  completed_plans: 97
   percent: 88
 ---
 
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-10-25)
 ## Current Position
 
 Phase: 07 (Operability Re-sweep) — EXECUTING
-Plan: 15 of 21
+Plan: 16 of 21
 Status: Ready to execute
-Last activity: 2026-10-29 — Plan 07-14 complete (the page handles a refused preview: no mesh request, the mesh dropped, the panel and the served downloads shown, the refusal as status; the debounce relabelled a UI choice; 01-UI-SPEC amended in place)
+Last activity: 2026-10-30 — Plan 07-15 complete (Runs II read on the runner; the G28/G29 stop ruled as G30 and G31; the stl-preview bound and gzip reruns read; the envelope check widened only the nut stl-fine seconds and peak e, L22)
 
 Progress: [█████████░] 88%
 
@@ -158,6 +158,7 @@ Progress: [█████████░] 88%
 | Phase 07 P12 | 85 min | 3 tasks | 13 files |
 | Phase 07 P13 | 25min | 2 tasks | 9 files |
 | Phase 07 P14 | 25 min | 2 tasks | 5 files |
+| Phase 07 P15 | 135 min | 3 tasks | 31 files |
 
 ## Accumulated Context
 
@@ -323,6 +324,9 @@ Recent decisions affecting current work:
 - [Phase 07]: cap_defaults treats a field off its frozen default as named, so direct construction never has a chosen value moved
 - [Phase 07]: 07-13: the six retired cap names are deleted from src/; download_refusal already read the cost model alone, so no outcome moved
 - [Phase 07]: 07-14: the page names the preview STL once (PREVIEW); a refused preview drops the mesh, draws the panel after the drop, links the served downloads and shows the refusal as status
+- [Phase 07]: 07-15: G30 widens the nut stl-fine seconds e to 1.7812452161769916 and peak e to 0.5976833077470993 from outband run 40909768713; no other Runs II reading exceeds its envelope (L22)
+- [Phase 07]: 07-15: G30 refuses a bolt below cost.MIN_FITTED_TURNS at every artifact (over_budget naming pitch, length, thread_length); a too-short bolt now gets it before the doorway's build_error
+- [Phase 07]: 07-15: G31 draws bound candidates from points read ok at every artifact; the 10 stl-preview contention and 2 gzip points that moved were read again (runs 40999654995, 40999657702); match bound readings to points by members, not label
 
 ### Pending Todos
 
@@ -378,6 +382,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-29T15:34:18.676Z
-Stopped at: Completed 07-14-PLAN.md
+Last session: 2026-10-30T04:27:43.982Z
+Stopped at: Completed 07-15-PLAN.md
 Resume file: None

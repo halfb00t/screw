@@ -2,34 +2,36 @@
 phase: 07-operability-re-sweep
 plan: 15
 subsystem: testing
-tags: [operability, runs-ii, contention, load, gzip, arenas, outband, envelope, G28, G29, R11, R12, R14, R15, R19, R23, R27]
-status: stopped-for-owner   # Task 3 halted at its G28/G29 stop (R11); not complete
+tags: [operability, runs-ii, contention, load, gzip, arenas, outband, envelope, G28, G29, G30, G31, R11, R12, R14, R15, R19, R23, R27]
+status: complete
 
 requires:
   - phase: 07-operability-re-sweep
     provides: "07-06 bench.oper_bound and the Runs II point kinds; 07-08 bench.oper_load; 07-11 calc/cost.py and emit-constants; 07-12 the cap; quick 261029-mik (G28 bands) and 261029-rxk (MIN_FITTED_TURNS)"
 provides:
-  - "bench.oper_sets: tier_order, candidates, bound_sets, bound_points, load_mix, load_points, gzip_points, arena_points, head_ratio_points, turns_points, load_table, envelope_check; CLI runs2, load-table, envelope-check"
+  - "bench.oper_sets: tier_order, candidates, bound_candidates, bound_sets, bound_points, load_mix, load_points, gzip_points, arena_points, head_ratio_points, turns_points, unread, build_rerun, load_table, envelope_check, widens; CLI runs2, rerun, load-table, envelope-check"
   - "bench.oper: the optional `envelope` header of a point file"
-  - "bench/results/phase-07/tier-order.json (D(A) steps 1 to 4) and bench/points/{bound,load,gzip,arenas,outband}.json, each with its envelope and sources, checked by --check"
-  - "runner records of all five sets under bench/results/phase-07/ and `## Phase 7 Runs II` in bench/RESULTS.md"
+  - "bench/results/phase-07/tier-order.json (D(A) steps 1 to 4) and bench/points/{bound,load,gzip,arenas,outband,bound-rerun,gzip-rerun}.json, each with its envelope and sources, checked by --check"
+  - "runner records of all seven sets under bench/results/phase-07/ and `## Phase 7 Runs II` in bench/RESULTS.md, with the out-of-band check and the envelope check"
+  - "calc.cost: below_fitted_turns, refused_fields, TURN_FIELDS; the nut stl-fine seconds and peak e widened by outband run 40909768713 (L22)"
 affects: [07-16]
 
 estimate:
   tokens: 140000
   tasks: 3
 actuals:
-  tokens: 30950      # chars/4 over the authored added lines (123802 chars), generated point files and records excluded
-  tasks: 2           # Tasks 1 and 2 done; Task 3 step 1 done, step 2 stopped at G28/G29, step 3 not reached
-  commits: 12        # MEASURED: git rev-list --count 97d33cc..01eecff (this SUMMARY's commit not counted)
+  tokens: 45548      # chars/4 over the authored added lines (123802 chars to the stop, 58389 after it), generated point files and records excluded
+  tasks: 3
+  commits: 23        # MEASURED: git rev-list --count 97d33cc..54965a0 (this SUMMARY's commit not counted)
 plan_head_before: 97d33cce511273dee04d4e81bc6bea96cc909ea3
-plan_head_after: 01eecffc786e5e6087fa55df913670cb82788bd9
+plan_head_after: 54965a0916bd2f1ebeeefdeb4938dcbcfb3d72cf
 
 tech-stack:
   added: []
   patterns:
     - "a Runs II file records the envelope it was drawn under; --check regenerates it under that envelope and refuses a recorded e above the shipped one, so a widening never redraws a set (G6)"
     - "set generators take the envelope and the budget as parameters and admit with the shipped cost.predict, so the tests steer them without a stub cost module"
+    - "a rerun file is the points of a regenerated set that no reading of the earlier run is of, matched on every identity field the point carries (contention members included), and --check regenerates it from both sources"
 
 key-files:
   created:
@@ -39,40 +41,61 @@ key-files:
     - bench/points/gzip.json
     - bench/points/arenas.json
     - bench/points/outband.json
+    - bench/points/bound-rerun.json
+    - bench/points/gzip-rerun.json
     - bench/results/phase-07/bound-40907549180/
     - bench/results/phase-07/load-40909724292/
     - bench/results/phase-07/gzip-40909739628/
     - bench/results/phase-07/arenas-40909754190/
     - bench/results/phase-07/outband-40909768713/
+    - bench/results/phase-07/bound-rerun-40999654995/
+    - bench/results/phase-07/gzip-rerun-40999657702/
+    - docs/tech_debt/active/2026-10-30-pool-dying-worker-tests-time-out-under-host-load.md
   modified:
     - bench/oper.py
     - bench/oper_sets.py
+    - bench/results/phase-07/fit.json
+    - bench/RESULTS.md
+    - src/screw/calc/cost.py
+    - src/screw/app.py
+    - src/screw/cli.py
+    - docs/architecture/decision_log.md
+    - .planning/phases/07-operability-re-sweep/07-GAP-RULINGS.md
+    - .planning/phases/07-operability-re-sweep/07-OWNER-RULINGS.md
+    - .planning/phases/07-operability-re-sweep/07-SWEEP-PROTOCOL.md
     - tests/test_oper.py
     - tests/test_oper_followup.py
     - tests/test_oper_load.py
-    - bench/RESULTS.md
-    - docs/tech_debt/active/2026-10-29-cost-model-admits-out-of-fit-head-heights.md
+    - tests/test_oper_fit.py
+    - tests/test_cost.py
+    - tests/test_api.py
+    - tests/test_cli.py
+    - docs/tech_debt/INDEX.md
     - docs/tech_debt/active/2026-10-29-in-wall-parts-the-kernel-refuses.md
+    - docs/tech_debt/resolved/2026-10-29-cost-model-admits-out-of-fit-head-heights.md
 
 key-decisions:
-  - "G28/G29 stop (R11): 7 (point, target) pairs of outband run 40909768713 read above their enveloped prediction; no e is widened and the envelope check over the Runs II readings is not run; the owner rules"
+  - "G30 (owner): a nut out-of-band reading widens e as a cold isolated reading does; a bolt's never does. The envelope check widens nut stl-fine seconds e 1.1069417227945801 to 1.7812452161769916 and peak e 0.5571452809681212 to 0.5976833077470993, both set by run 40909768713; no other Runs II reading exceeds its envelope (L22)"
+  - "G30 (owner): a bolt below cost.MIN_FITTED_TURNS built turns is refused at every artifact with the over_budget 422 naming pitch, length and thread_length; the bolt stl-fine bytes e is not widened"
+  - "G31 (owner): every bound candidate, partners included, has an ok explore reading at every artifact; only the 10 stl-preview contention and 2 gzip points that changed were read again (runs 40999654995, 40999657702)"
   - "The far point of G28 takes the first value on the form step at or above 10 x the high edge x d"
   - "tier-order.json names one source, the explore point file: R27 steps 1 to 4 read predictions and file order, no reading"
 
-requirements-completed: []   # OPER-01, OPER-02 and OPER-03 advance; none is wholly done
+requirements-completed: []   # OPER-01, OPER-02 and OPER-03 advance; 07-16 derives the timeouts and the remaining bounds, so none is wholly done
 
 metrics:
-  duration: "commits from 15:55Z to 16:59Z on 2026-10-29 (about 1 h, the runner time inside it), after the reading and design work"
-  completed: 2026-10-29
+  duration: "commits 15:55Z to 17:02Z on 2026-10-29 and 03:14Z to 04:22Z on 2026-10-30, about 135 min, the owner's rulings in between; the runner time is inside it"
+  completed: 2026-10-30
 ---
 
-# Phase 7 Plan 15: Runs II, stopped at the G28/G29 out-of-band check Summary
+# Phase 7 Plan 15: Runs II, the out-of-band stop, the owner's G30 and G31, and the envelope check Summary
 
-**All five Runs II sets ran on the runner at 5 repetitions and are committed with a RESULTS
-section: bound 40907549180, load 40909724292, gzip 40909739628, arenas 40909754190 and outband
-40909768713. The G28/G29 out-of-band check then found 7 (point, target) pairs above their enveloped
-prediction, all at the M2 rows at stl-fine. R11 and G28 stop the phase there for the owner: no e is
-widened, the envelope check is not run, and fit.json and `calc/cost.py` are unchanged.**
+**All Runs II sets ran on the runner at 5 repetitions and are committed with RESULTS subsections. The
+G28/G29 out-of-band check stopped the phase. The owner ruled G30 and G31. Under them, the stl-preview
+bound and gzip points that held two kernel-refused nuts were read again, and a bolt below the fitted
+turns is now refused. The envelope check over every Runs II directory then widened exactly two e,
+nut stl-fine seconds and peak, both from outband run 40909768713, in one commit with fit.json,
+`calc/cost.py`, RESULTS and L22.**
 
 ## Commits
 
@@ -90,6 +113,17 @@ widened, the envelope check is not run, and fit.json and `calc/cost.py` are unch
 | 10 | fef28d1 | docs(bench): record the phase 7 Runs II bound, load, gzip and arena sets (07 D-02, D-03, D-09) |
 | 11 | 14093ac | docs(bench): record the G28 and G29 out-of-band check, which stops the phase (07 G28, G29) |
 | 12 | 01eecff | docs(bench): give the M2 nut's own readings in the out-of-band context |
+| 13 | 196ef2e | docs(07-15): record the Runs II campaign and its stop at the G28/G29 check |
+| 14 | d5876d6 | fix(cli): type the numeric flags' converter for mypy 2.4 |
+| 15 | 27ea042 | docs(debt): file the pool's dying-worker tests timing out under host load |
+| 16 | 3bcbdb3 | docs(07): record the owner's rulings G30 and G31 and amend R11 and R14 |
+| 17 | a09ce3e | docs(debt): record the pool tests' second timeout under host load |
+| 18 | 6d68f20 | feat(bench): draw the bound set from points read ok at every artifact (07 G31) |
+| 19 | bccb6f3 | feat(calc): refuse a bolt below the fitted turns at every artifact (07 G30) |
+| 20 | 4c70138 | docs(bench): add the G31 stl-preview bound and gzip rerun records (runs 40999654995, 40999657702) |
+| 21 | c07ed46 | feat(bench): let the out-of-band nut readings widen the envelope (07 G30) |
+| 22 | 65867a8 | docs(bench): record the G31 stl-preview bound and gzip reruns in RESULTS (07 G31) |
+| 23 | 54965a0 | feat(calc): widen the cost model's envelope to cover every cold isolated Runs II reading (07 D-07) |
 
 This SUMMARY lands in its own docs commit after these.
 
@@ -102,9 +136,14 @@ This SUMMARY lands in its own docs commit after these.
 | gzip | 40909739628 | f730ecb | 5 | 70 | ok 60, refused 10 |
 | arenas | 40909754190 | f730ecb | 5 | 30 | ok 30 |
 | outband | 40909768713 | f730ecb | 10 (2 shards x 5) | 300 | ok 300 |
+| bound-rerun (G31) | 40999654995 | 6d68f20 | 5 | 50 | ok 50 |
+| gzip-rerun (G31) | 40999657702 | 6d68f20 | 5 | 10 | ok 10 |
 
 Every job of every run succeeded on its first attempt, so no `gh run rerun` was needed. Every point
-has repetitions 1 to 5 each once. The CPU models per job are in each RESULTS subsection.
+has repetitions 1 to 5 each once. With the reruns, each of the 60 bound points and 14 gzip points
+has 5 ok repetitions in exactly one run, matched by its identity fields (members included). The 50
+bound and 10 gzip readings G31 replaced, all `refused`, decide nothing. The CPU models per job are in
+each RESULTS subsection.
 
 ## What was built
 
@@ -113,26 +152,35 @@ has repetitions 1 to 5 each once. The CPU models per job are in each RESULTS sub
    ratio first, a tie to the label) and the draw (`random.Random(20261026).shuffle`, a new
    generator per artifact). `tier-order.json` was committed in c28c768, before `load.json`
    (98c62ad). It has 411, 404 and 439 candidates at stl-preview, stl-fine and step, which are
-   B-01's admitted counts.
+   B-01's admitted counts. G31 does not touch it.
 2. **The sets.** Each file records `envelope` and `sources`, carries R6 `shard_sizes`, and is
    regenerated byte for byte by `--check`:
-   - `bound.json` (R14): 7, 7 and 6 bound points; 60 contention readings in shards of 17, 17, 17
-     and 9. The tracer gate passed on shard 4's first record: ok builds on the named slots and
-     integer peaks.
+   - `bound.json` (R14, G31): 7, 7 and 6 bound points; 60 contention readings in shards of 17, 17,
+     17 and 9. Its candidates are the admitted explore points read ok at every artifact
+     (`bound_candidates`), partners included. The G31 regeneration moved only stl-preview points:
+     `iso4017:M16x150` and `iso4017:M20x160` replace the two nuts, and four N = 3 points take a new
+     partner.
    - `load.json` (R15): N 1, 2 and 3, Q = C = 2N, `solid_cache` 4, bodies at N = 1 only, one mix
      of 60 distinct cold requests.
    - `gzip.json` (R19): the 14 STL bound points at levels 1, 6 and 9.
-   - `arenas.json` (R23, G17): Z(A) with the trim on and off.
+   - `arenas.json` (R23, G17): Z(A) with the trim on and off; unchanged by G31.
    - `outband.json` (G28, G29): 60 points. Far points exist for bolt k and nut s only.
+   - `bound-rerun.json` and `gzip-rerun.json` (G31): `python -m bench.oper_sets rerun`. These are the
+     points of the regenerated set that no reading of the earlier run is of (10 and 2), with
+     sources `explore` and `run`.
 3. **`load-table`** prints the per-N figures of a load run. A non-ok reading, and every repetition
    of an incomplete point, prints no figure.
-4. **`envelope-check`** applies R12 to the cold isolated readings only: part, gzip and arena
-   readings, contention at N = 1, and drift build 1. Load, outband and N = 2 or 3 contention
-   readings are skipped. Where a reading exceeds its envelope, it raises the factor 1 + e by ulps
-   and writes only the widened models' `envelope` and a `widened_by` list. It stops (exit 3) and
-   writes nothing when the widened envelope would refuse a catalogue row or a default part.
-   **Built and tested, but not run over the Runs II records, because the G28 check stopped
-   first.**
+4. **`envelope-check`** applies R12 to the readings `widens` keeps. Load readings are never kept;
+   outband readings are kept only of a nut (G30); every other set is kept and its cold isolated
+   readings are used: part, gzip and arena readings, contention at N = 1, drift build 1. Where a
+   reading exceeds its envelope, it raises the factor 1 + e by ulps and writes only the widened
+   models' `envelope` and a `widened_by` list. It stops (exit 3) and writes nothing when the
+   widened envelope would refuse a catalogue row or a default part.
+5. **The turns refusal (G30).** `cost.fits` is False at every artifact for a bolt with
+   `built_thread_length / pitch < MIN_FITTED_TURNS`. `cost.refusal` names pitch, length and
+   thread_length and prints no figure; the API's `ctx.fields` reads `cost.refused_fields`. The
+   bench's `admits` keeps the budget comparison alone, so every set drawn before G30 still
+   regenerates.
 
 ## G28/G29 outcome per point (outband run 40909768713)
 
@@ -217,63 +265,79 @@ Every nearest-the-budget point, and every point at stl-preview and step, is with
 The largest actual, the enveloped prediction and the repetitions above it are in `bench/RESULTS.md`,
 `### out-of-band check`.
 
-## Needs the owner: the G28/G29 stop (R11)
+**After G30:** the six nut pairs are covered by the widened nut stl-fine e (below). The G29 bolt is
+refused by the shipped rule (bccb6f3). Every outband reading is within the shipped envelope, or is
+of a part the shipped rule refuses.
 
-**Trigger.** R11's G28 and G29 sentences say: "a reading above its enveloped prediction stops the
-phase for the owner and does not widen `e`." 7 pairs did, so Task 3 stopped at step 2. Steps 2b
-(the envelope check) and 3 did not run, and fit.json and `calc/cost.py` are unchanged.
+## The owner's rulings (2026-10-30)
 
-**Evidence that bears on the choice.** All figures are computed by committed code from committed
-records; none is written to a file.
+- **G30**, reply verbatim "1: widen nuts, guard G29 (Recommended)". A nut out-of-band reading widens
+  e as a cold isolated reading does, and a bolt's does not. A bolt below the fitted turns is refused
+  at every artifact. B-03's cap floor is unchanged. Recorded in `07-GAP-RULINGS.md` and
+  `07-OWNER-RULINGS.md`. R11 is amended (3bcbdb3) with no gap label, no run id and the post-freeze
+  sentence; the pins are in `tests/test_oper.py`.
+- **G31**, reply verbatim "Exclude, rerun preview (Recommended)". Every bound candidate has an ok
+  explore reading at every artifact; R14 is amended. Read literally ("at every artifact") or as "at
+  its own artifact", the rule gives the same sets on the record (computed both ways before coding);
+  the code takes the literal reading.
 
-- The nut overruns sit where the prediction is the in-band one. `outband-nut-m-below-iso4032:M2`
-  is predicted one float below the in-band `iso4032:M2` row: m 1.5 is judged at the low edge,
-  0.7999999999999999 x d. Its fine STL read a 1.5275 s cold wall in explore 40646117094, against
-  an enveloped 2.2918 s. Its own five stl-fine readings are 2.682, 2.423, 2.800, 1.701 and 2.033 s,
-  the first three above that prediction. This points at the spread of repeated cold readings at the
-  cheap end of the fine STL, more than at the below-band assumption. ASSUMPTION: the in-band M2 nut would overrun the same way at 5
-  repetitions; it was not read here.
-- The G29 miss is an extrapolation miss. A 1 mm thread on the 4 mm M2 bolt keeps 3 mm of
-  tessellated shank, and the model, fitted on 3 turns and up, does not see it.
-- These are the cheapest parts: 3.15 s against the 94.43 s stl-fine budget, and 1446684 bytes
-  against 239508059 bytes.
-- What a widening would do (`envelope_check` over the outband readings, then `_admits_all`,
-  computed and not written):
+## Envelope check (Task 3, under G30)
 
-  | model | e now | e covering the outband readings | refuses |
-  | --- | --- | --- | --- |
-  | nut stl-fine seconds | 1.1069417227945801 | 1.7812452161769916 | nothing B-01 keeps |
-  | nut stl-fine peak | 0.5571452809681212 | 0.5976833077470993 | nothing B-01 keeps |
-  | bolt stl-fine bytes | 0.5633622849303941 | 1.0504847478595214 | 6 catalogue rows at stl-fine, among them iso4017:M16x150, M16x160, M18x180 and M20x160 (C1 sets the budget at the largest catalogue prediction, so any bolt stl-fine bytes widening refuses its top rows) |
+Over all seven Runs II directories, 775 readings, 335 of them used (contention N = 1: 90 and 10;
+gzip: 60 and 10; arenas: 30; nut outband: 135). Exactly the two models G30 names widen:
 
-**Options.**
+| model | e before | e now | set by |
+| --- | --- | --- | --- |
+| nut stl-fine seconds | 1.1069417227945801 | 1.7812452161769916 | 40909768713:outband-nut-s-below-iso4032:M2 rep 3 |
+| nut stl-fine peak | 0.5571452809681212 | 0.5976833077470993 | 40909768713:outband-nut-s-below-iso4032:M2 rep 3 |
 
-1. **Widen the two nut models, and guard G29 (recommended).** Rule that these out-of-band nut
-   readings widen e like cold isolated readings, which changes R11/G28's "does not widen". The
-   nut stl-fine seconds and peak then cover them, and B-01's set does not move. For G29, rule that
-   a bolt whose built thread is below `cost.MIN_FITTED_TURNS` is refused at the cost rule (a
-   B-02 `over_budget` 422, or a wall in L20), since no reading supports its prediction. Then
-   continue 07-15 Task 3 over the other Runs II readings.
-2. **Accept and record.** Rule that these overruns, far below every budget, are recorded in L21 as
-   the model's known error at the cheap end, widen nothing, and continue Task 3. Faster, but it
-   leaves a measured under-prediction in the shipped rule.
-3. **Widen all three models from these readings.** The bolt stl-fine bytes widening refuses 6
-   catalogue rows, so B-01 (C1) has to be re-ruled or its budget recomputed before Task 3. That
-   is the most change.
+No other reading is above its enveloped prediction, the G31 reruns included. The widened envelope
+refuses no catalogue row and neither default part. So B-01's budget, the refused-preset count and
+every cap case stay put, and no cap test moved. The widening commit 54965a0 holds fit.json (only
+the two `envelope` lines and `widened_by`), the re-emitted `calc/cost.py` block, RESULTS (the G30
+outcome and `### envelope check`), decision_log (L22, and L21's "Superseded in part" line), the
+resolved head-height item and two re-pinned fit tests. It lists no `bench/points` file and not
+`tier-order.json`; `--check` exits 0.
 
-Recommendation: option 1. It keeps B-01 as ruled, and it leaves no admitted part whose cost no
-reading covers. Waiting for the owner.
+Re-pinned tests:
+- `tests/test_oper_fit.py::test_the_committed_fit_json_is_what_the_code_fits_from_the_committed_records`:
+  a committed e may exceed the fresh fit's only when `widened_by` names a run.
+- `tests/test_oper_followup.py::test_the_command_writes_only_the_widened_envelopes_and_the_widening_runs`:
+  keeps the `widened_by` already present. Its out-of-band reading is now a bolt (c07ed46).
+- G30's turns refusal (bccb6f3) moved six tests whose bolt (length 1e-8, 1e-9 or 5e-5 mm) is below
+  the floor. Each is now the `over_budget` 422 or CLI exit 2, before the builder's doorway
+  `build_error` or exit 1:
+  - `tests/test_api.py`: the three cases of `test_a_length_too_short_to_model_is_a_422_not_a_served_file`
+    and `test_a_length_below_the_floor_is_a_warned_info_document_and_a_422`.
+  - `tests/test_cli.py`: `test_a_length_too_short_to_model_ends_with_an_error_naming_it_and_writes_nothing`
+    and `test_a_length_too_short_to_model_exits_2_from_the_real_process`.
+- Protocol pins (3bcbdb3): the G29 R11 pin and the R14 partner pin.
 
-## Also for the owner (not a stop of this plan)
+## For the owner
 
-- **Two kernel-refused nuts sit in the stl-preview bound set.** `nut-d30-p0.35-m0.8d-s4d-c0.15-right`
-  and `nut-d30-p0.35-m0.8d-s1.6d-c0.15-left` are admitted, and R14 asks for an ok explore reading
-  only for its two measured choices. They entered as P (5 slowest) and as the N = 3 partner of four
-  other P. Every reading that built them was refused (`BuildError`, the lead-in countersink): 50
-  bound and 10 gzip readings. Under R3 those (P, N) have no max. 07-16 meets this when it takes the
-  stl-preview bound point at the picked N (four of seven P have no N = 3 max), R16's W (two P have
-  no N = 1 reading) and R19 (two stl-preview gzip points have no max, which G22 makes a stop).
-  Recorded in `docs/tech_debt/active/2026-10-29-in-wall-parts-the-kernel-refuses.md`.
+- **The turns refusal now answers before the builder's doorway (D-17).** Six request shapes changed:
+  a bolt too short to model (length 1e-8 mm and the like) has fewer turns than the floor. So the API
+  answers `over_budget` naming pitch, length and thread_length instead of `build_error`, and
+  `screw export` exits 2 instead of 1. Both are still 422 refusals that name the length, and no file
+  is written. This follows G30's text, "at every artifact", and nothing was approximated. If the
+  doorway's message should win for such parts, that is a new ruling. Options: (1) keep as built
+  (recommended: one rule, no exception); (2) let `download_refusal` pass a part the builder's
+  doorway refuses, so its `build_error` is returned.
+- **L21 vs the plan.** The plan asked to amend L21's envelope paragraph. L21 itself says a widened e is
+  "a superseding entry that names the run, never an edit of this one". I followed the log's own
+  convention: L22 supersedes the two rows, and L21 ends with a "Superseded in part by L22" line that
+  names each widened e and its run.
+- **`envelope_set_by` in fit.json** still names the explore point for the two widened models; the
+  acceptance criterion allows only `envelope` and `widened_by` lines to change. `widened_by` and L22
+  name the run that set them.
+- **The pool tests' flake fired twice** (`docs/tech_debt/active/2026-10-30-pool-dying-worker-tests-time-out-under-host-load.md`,
+  `must`, trigger fired). Each time the commit was retried openly at a lower host load and passed.
+  Its next step is due before phase 7 lands.
+- **For 07-16:** a contention point keeps its label when its partner changes. So the bound readings
+  of `iso4017:M16x160-n3`, `iso4017:M20x180-n3`, `iso4017:M20x200-n3` and
+  `nut-d100-p3.5-m0.8d-s4d-c5-right-n3` in run 40907549180 are of different points from those in
+  bound.json. Match readings to points by their members (`bench.oper_sets.unread`'s identity), never
+  by label.
 
 ## Deviations from Plan
 
@@ -310,6 +374,26 @@ bit for bit (07-11's test), and the e values come from fit.json.
 - The G28 far point takes the first value on the form step at or above 10 x the high edge x d.
 - Outband points carry no `preset`: their fields are not the row's.
 
+**6. [Rule 3 - Blocking] The venv re-sync took mypy to 2.4.0, which failed `make verify`.**
+- **Issue:** `src/screw/cli.py:74: error: Argument "type" to "add_argument" ... incompatible type
+  "TypeForm[Any]"` on an unchanged tree, after the orchestrator's `uv run` re-synced the venv.
+- **Fix:** the numeric fields' annotation is cast to the converter it is at run time; no behavior
+  change. **Commit:** d5876d6.
+
+**7. [Gate] Two pre-commit runs failed on `tests/test_pool.py` under host load (15.47, then 22.63).**
+The assertions were `BuildTimeout(... 5s ...)` where `BrokenProcessPool` was expected, and once
+`BuildTimeout(... 2s ...) != b''`. `test_pool.py` alone passed 22 of 22 three times. Each commit was
+retried openly and passed. The debt item was filed (27ea042) and updated (a09ce3e); it is out of
+scope here.
+
+**8. [Rule 1 - Bug] A pin missed by the first rulings commit.** The R14 partner pin in
+`tests/test_oper.py` held the old "one admitted point" text. It was re-pinned in the same commit
+(3bcbdb3), after the hook reported `1 failed`.
+
+**9. [Interpretation] The G31 reruns as their own sets.** `bound-rerun.json` and `gzip-rerun.json`
+are written by code from two sources (`explore`, `run`) and checked by `--check`. `RUNS2_SETS` and
+the default `runs2` command are unchanged.
+
 ### TDD evidence
 
 Each task's tests were run against HEAD's sources swapped in, then restored:
@@ -319,6 +403,9 @@ Each task's tests were run against HEAD's sources swapped in, then restored:
 | c28c768 | the new Runs II tests | 23 failed, 3 errors |
 | 6cf6f39 | `load_table` | 2 failed |
 | 9e47eb1 | envelope check | 4 failed |
+| 6d68f20 | G31 candidates, `unread`, `rerun` | 4 failed |
+| bccb6f3 | the turns refusal (cost, API, CLI) | 4 failed |
+| c07ed46 | `widens` | 1 failed |
 
 GREEN was every commit's pre-commit `make verify`.
 
@@ -329,32 +416,32 @@ None.
 ## Threat Flags
 
 None beyond the plan's register:
-- **T-07-37:** each set is generated by code and checked by regeneration.
+- **T-07-37:** each set, the reruns included, is generated by code and checked by regeneration.
 - **T-07-63:** each set records its envelope, and `--check` refuses a recorded e above the shipped one.
 - **T-07-64:** one partner per slot, and an empty slot is a stop.
-- **T-07-38:** the widening path is built, with its B-01 guard, and was not run.
+- **T-07-38:** the widening ran with its B-01 guard: nothing B-01 keeps is refused.
 
 ## Debt
 
-- Updated, still active:
-  - `docs/tech_debt/active/2026-10-29-cost-model-admits-out-of-fit-head-heights.md` (the 07-15
-    readings).
-  - `docs/tech_debt/active/2026-10-29-in-wall-parts-the-kernel-refuses.md` (seen again in Runs II).
-- None filed, none resolved. The head-height item resolves only when every outband reading is
-  within its envelope.
-- Not done: the plan's move of the head-height item to `resolved/`.
+- Filed: `docs/tech_debt/active/2026-10-30-pool-dying-worker-tests-time-out-under-host-load.md`
+  (must; the trigger fired on its second occurrence).
+- Resolved: `docs/tech_debt/resolved/2026-10-29-cost-model-admits-out-of-fit-head-heights.md`
+  (54965a0; INDEX row moved).
+- Updated, still active: `docs/tech_debt/active/2026-10-29-in-wall-parts-the-kernel-refuses.md`
+  (seen again in Runs II; G31 keeps such parts out of the bound set, but the kernel still refuses
+  them).
 
 ## Self-Check: PASSED
 
-- Found: `bench/results/phase-07/tier-order.json`, the five point files under `bench/points/`, and
-  the five record directories under `bench/results/phase-07/`.
-- The 12 commits of the table are ancestors of HEAD.
-- `.venv/bin/python -m bench.oper_sets --check` exits 0.
-- D(A) came first: `tier-order.json`'s last commit, c28c768, is an ancestor of `load.json`'s, 98c62ad.
-- `tests/test_oper_followup.py`: 123 passed (`-n0 --no-cov`).
-- The Task 2 verify loop finds a records directory and a `### <set>, run ` subsection for all five
-  sets.
-- Three RESULTS figures were checked against the raw records:
-  - load-n3 rep 2 p95 all: 69.784, from 69.78429913074984.
-  - `iso4017:M20x200-n1` stl-preview median build: 4.792, from 4.791720593999997.
-  - Arena stl-fine trim-on max peak: 1445138432.
+- Found: `tier-order.json`, the seven Runs II point files under `bench/points/`, the seven record
+  directories under `bench/results/phase-07/`, the resolved head-height item and the new pool item.
+- All 23 commits of the table are ancestors of HEAD.
+- `python -m bench.oper_sets --check` exits 0.
+- The plan's verify command, `make test PYTEST_ARGS="tests/test_oper_followup.py tests/test_cost.py
+  tests/test_presets.py -q -n0 --no-cov"`, gave `530 passed`. `grep -q "### envelope check"
+  bench/RESULTS.md` succeeds.
+- `git show --stat 54965a0` lists fit.json, `calc/cost.py`, RESULTS and decision_log, and no
+  `bench/points` file and not `tier-order.json`. Its fit.json diff is two `envelope` lines and
+  `widened_by`.
+- The envelope check run again on the pre-widening fit.json writes the same file byte for byte
+  (`cmp`).
