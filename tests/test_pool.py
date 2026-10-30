@@ -53,6 +53,21 @@ def _die() -> bytes:
     os._exit(1)
 
 
+def _start_worker(pool: BuildPool, params: BoltParams) -> None:
+    """Start `params`' worker and load this module into it before a test's clock runs.
+
+    A worker spawns on its first task, runs `_warm` (cadquery and OCP), then unpickles the
+    task, which imports this module (screw.app, fastapi) inside the worker. Quick
+    261030-g01 timed both on an 18-CPU host while `pytest -n auto` ran the other test files
+    (load average 5 to 75): spawn plus `_warm` took up to 11.4 s (1.4 s idle), so a `_die`
+    sent to a cold worker took up to 9.3 s and 13 of 81 samples overran the dying-worker
+    tests' 5 s; the module import alone took up to 0.62 s, all of it inside the queued
+    test's 0.8 s of slack after an `os.getpid` warm-up. After this warm-up, `_die` surfaced
+    within 0.027 s and a 1.2 s build returned within 1.22 s.
+    """
+    pool.executor_for(params).submit(_sleep_past_timeout, 0.0).result()
+
+
 def _event_records(caplog: pytest.LogCaptureFixture, event: str) -> list[logging.LogRecord]:
     """Same helper as tests/test_api.py's own `_event_records` -- the records
     this module's helpers emitted for one literal event name. `getattr(..., None)`
@@ -247,6 +262,7 @@ def test_a_dying_worker_surfaces_as_broken_pool_and_is_replaced(
         params = BoltParams()
         expected_slot = hash(params) % pool.workers
         replaced_before = pool.replaced
+        _start_worker(pool, params)
 
         with pytest.raises(BrokenProcessPool):
             asyncio.run(pool._run_with_timeout(params, 5.0, _die))
@@ -529,6 +545,7 @@ def test_two_same_slot_deaths_from_one_incident_replace_the_worker_once(
         pool = app.state.pool
         params = BoltParams()
         replaced_before = pool.replaced
+        _start_worker(pool, params)
 
         async def _drive() -> list[object]:
             first = asyncio.create_task(pool._run_with_timeout(params, 5.0, _die))
@@ -598,12 +615,13 @@ def test_a_request_queued_behind_a_build_keeps_its_own_full_timeout() -> None:
     two together pass it. At 0.6 s under 1.0 s the first build's 0.4 s of slack ran out
     under the full suite's load and it timed out on its own build (failed four times on
     2026-10-28); scaling both doubles the slack to 0.8 s for about 1.2 s more test time.
+    It failed once more at 2.0 s on 2026-10-30: the worker imported this module inside the
+    clock, which `_start_worker` now does before it.
     """
     with TestClient(app):
         pool = app.state.pool
         params = BoltParams()
-        pool.executor_for(params).submit(os.getpid).result()  # start the worker first, so
-        # the kernel warm-up is not part of the wall time under test
+        _start_worker(pool, params)
 
         async def _drive() -> tuple[list[object], float]:
             start = time.monotonic()

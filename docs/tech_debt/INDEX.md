@@ -16,7 +16,6 @@ Severity (grep-able `Severity:` field):
 
 | Severity | Item | Trigger to revisit |
 |---|---|---|
-| must | [The pool's two dying-worker tests time out at 5 s under host load](active/2026-10-30-pool-dying-worker-tests-time-out-under-host-load.md) | fired 2026-10-30 (second occurrence): due before phase 7 lands |
 | must | [Twenty parts inside the L20 walls pass validation and then fail in the kernel](active/2026-10-29-in-wall-parts-the-kernel-refuses.md) | before phase 7 closes, or the first release |
 | nice | [The refused preview's status sentence runs under the Fit button](active/2026-10-29-status-sentence-runs-under-fit.md) | the phase 7 UAT, or the next change to the viewport overlay |
 | nice | [The shank-fold warning prints its numbers with :g, so a value near the 0.0001 mm line can read as the wrong side of it](active/2026-10-28-shank-fold-warning-rounds-the-numbers-it-compares.md) | the next change to the warning texts |
@@ -42,6 +41,7 @@ Severity (grep-able `Severity:` field):
 
 | Item | Resolved in |
 |---|---|
+| [The pool's two dying-worker tests time out at 5 s under host load](resolved/2026-10-30-pool-dying-worker-tests-time-out-under-host-load.md) | this commit — test(pool): start the worker before the clock in the dying-worker and queued-timeout tests |
 | [The cost model admits a part it refuses once its head height leaves the fitted band](resolved/2026-10-29-cost-model-admits-out-of-fit-head-heights.md) | this commit — feat(calc): widen the cost model's envelope to cover every cold isolated Runs II reading (07 D-07) |
 | [The nut's size ceilings are interim; its fine-STL caps are measured on macOS arm64 only](resolved/2026-10-14-nut-interim-bounds.md) | this commit — refactor(calc): retire the per-row fine-STL caps the cost model replaced (07 D-08, D-17) |
 | [The default cap can pick a thread shorter than any turn count the cost model was fitted on](resolved/2026-10-29-default-cap-lands-below-the-fitted-turns.md) | this commit — feat(calc): the default cap stops at the fewest turns the cost model was fitted on (07 B-03) |
