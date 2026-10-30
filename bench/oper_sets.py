@@ -20,6 +20,7 @@ height, `m` nut height, `c` radial clearance, `r` root radius `d/2 - 5H/8` (plus
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import functools
 import json
 import math
@@ -2163,9 +2164,10 @@ def _set_of(path: Path) -> str:
     return stem.rsplit("-", 2)[0]
 
 
-def runs_readings(directories: Iterable[Path]) -> list[tuple[str, str, Reading]]:
-    """(set, run id, reading) of every downloaded record under `directories`; a file whose header
-    does not name exactly one run is refused."""
+def read_runs(directories: Iterable[Path]) -> tuple[list[Reading], list[tuple[str, str, Reading]]]:
+    """The runner headers, and (set, run id, reading) of every downloaded record, under
+    `directories`; a file whose header does not name exactly one run is refused."""
+    heads: list[Reading] = []
     out: list[tuple[str, str, Reading]] = []
     for directory in directories:
         files = sorted(directory.glob("*/*.jsonl"))
@@ -2177,8 +2179,14 @@ def runs_readings(directories: Iterable[Path]) -> list[tuple[str, str, Reading]]
             if len(runs) != 1:
                 raise ValueError(f"{path}: headers name {sorted(runs)}, not one run")
             run = runs.pop()
+            heads += headers
             out += [(_set_of(path), run, reading) for reading in found]
-    return out
+    return heads, out
+
+
+def runs_readings(directories: Iterable[Path]) -> list[tuple[str, str, Reading]]:
+    """(set, run id, reading) of every downloaded record under `directories`."""
+    return read_runs(directories)[1]
 
 
 def _admits_all(envelope: Envelope) -> list[str]:
@@ -2226,6 +2234,520 @@ def _envelope_check_command(args: argparse.Namespace) -> None:
     document["widened_by"] = sorted({*document.get("widened_by", []), *runs})
     fit_path.write_text(json.dumps(document, sort_keys=True, indent=1, allow_nan=False) + "\n")
     print(f"widened {len(widened)} envelopes by runs {', '.join(runs)}; wrote {fit_path}")
+
+
+# --- the runtime values (07-16; R14 to R26) -------------------------------------------------------
+#
+# Every value the server and the image ship is derived here from committed runner records, in the
+# order the rules' inputs exist (07-16 audit #4): R19's gzip level, R21's export cache, R26's tmpfs
+# per N, R16's W, B, mem_limit(N), qualification and pick, R14's timeouts at the picked N, then R17,
+# R18, R20, R24 and R25. The bound sets, the load mix and the gzip set are the committed point
+# files, never drawn again (G6). Each value carries the run ids and the readings it rests on,
+# and every "the phase stops and asks the owner" is a `ProtocolStop`: nothing is written past one.
+
+RUNTIME = "bench/results/phase-07/runtime.json"
+MIB = 2**20
+LIMIT_STEP_BYTES = 256 * MIB  # R16, R26: the rounding step, fixed before the data
+HOST_BYTES = 16 * 10**9  # D-02: mem_limit stays under this and under the smallest MemTotal (R16)
+TIMEOUT_FACTOR = 2  # D-09: a timeout is ceil(2 x its bound point's max cold wall) (R14)
+GZIP_KEEP = Fraction(9, 10)  # R19: a higher level keeps at most 90 % of the adopted level's bytes
+GZIP_SLOWDOWN = Fraction(3, 2)  # R19: and takes at most 1.5x its seconds
+HEALTH_PROBE_S = 1.0  # R24: the HEALTHCHECK's `urlopen(..., timeout=1)` (Dockerfile)
+HEALTH_SAMPLES = 20  # R15: the floor of samples behind a reported p95
+START_PERIOD_STEP_S = 10  # R25: --start-period is rounded up to 10 s
+DOCKER_INTERVAL_S, DOCKER_RETRIES = 30, 3  # R25: Docker's documented defaults, cited as such
+BOUND_SETS, GZIP_SETS, LOAD_SETS = ("bound", "bound-rerun"), ("gzip", "gzip-rerun"), ("load",)
+# A load reading copies its point's settings, but its `bodies` is the measured list, not the flag.
+_LOAD_IDENTITY = ("label", "kind", "workers", "queue", "clients", "solid_cache")
+_REPS = [str(n) for n in range(1, RUNS2_REPS + 1)]
+
+type Tagged = tuple[str, str, Reading]
+
+
+@dataclass(frozen=True)
+class Read:
+    """A committed point and every reading of it, all from one run."""
+
+    point: Mapping[str, object]
+    run: str
+    readings: tuple[Reading, ...]
+
+    @property
+    def what(self) -> str:
+        return f"{self.point['label']} at {self.point.get('artifact', 'load')}"
+
+    @property
+    def workers(self) -> int:
+        workers = self.point["workers"]
+        assert isinstance(workers, int)
+        return workers
+
+    @property
+    def ok(self) -> bool:
+        """Repetitions 1 to 5 each once, every one `ok` (R3)."""
+        return (sorted(str(r.get("rep")) for r in self.readings) == _REPS
+                and all(r.get("status") == "ok" for r in self.readings))
+
+
+def _where(run: str, reading: Reading) -> str:
+    return f"{run}:{reading.get('label')} rep {reading.get('rep')}"
+
+
+def _round_up(value: float, step: int) -> int:
+    """`value` rounded up to a whole number of `step`, exactly: 1 GiB + 1 B is 1.25 GiB."""
+    return math.ceil(Fraction(value) / step) * step
+
+
+def matched(points: Iterable[Mapping[str, object]], tagged: Iterable[Tagged],
+            sets: Sequence[str], keys: Sequence[str], rule: str) -> list[Read]:
+    """Each point with its readings in `sets`: a reading is of a point when every identity field
+    in `keys` that the point carries is equal in it. A contention point keeps its label when a
+    partner changes, so its members decide, never its label (G31). A point read in no run or in
+    two is a stop: its repetitions must come from exactly one run."""
+    pool = [(run, reading) for name, run, reading in tagged if name in sets]
+    out: list[Read] = []
+    for point in points:
+        fields = [key for key in keys if key in point]
+        found = [(run, r) for run, r in pool if all(r.get(key) == point[key] for key in fields)]
+        runs = sorted({run for run, _ in found})
+        read = Read(point, runs[0] if runs else "", tuple(r for _, r in found))
+        if len(runs) != 1:
+            raise ProtocolStop(rule, f"{read.what} is read in {len(runs)} runs "
+                                     f"({', '.join(runs) or 'none'}), not in exactly one (R3)")
+        out.append(read)
+    return out
+
+
+def _five_ok(read: Read, rule: str) -> list[Reading]:
+    """The 5 repetitions of `read`, or a stop: a point with a repetition that is not `ok`, or
+    without repetitions 1 to 5 each once, has no max (R3)."""
+    if not read.ok:
+        reps = sorted(str(r.get("rep")) for r in read.readings)
+        statuses = sorted({str(r.get("status")) for r in read.readings})
+        raise ProtocolStop(rule, f"{read.what} has no max: run {read.run}, repetitions {reps}, "
+                                 f"statuses {statuses} (R3)")
+    return sorted(read.readings, key=lambda r: str(r.get("rep")))
+
+
+def _cold_wall(reading: Reading) -> float:
+    return _number(reading, "build_s") + _number(reading, "export_s")
+
+
+def _gzip_bytes_seconds(reading: Reading, level: int) -> tuple[int, float]:
+    entries = reading.get("gzip")
+    found = [e for e in entries if isinstance(e, dict) and e.get("level") == level] if isinstance(
+        entries, list) else []
+    if len(found) != 1:
+        raise ProtocolStop("R19", f"the reading of {reading.get('label')} rep {reading.get('rep')} "
+                                  f"has no one gzip entry at level {level}")
+    return int(_number(found[0], "bytes")), _number(found[0], "seconds")
+
+
+def gzip_level(reads: Sequence[Read]) -> dict[str, object]:
+    """R19 (G11, G15, G22): per gzip point and level, the max bytes and the max seconds over its 5
+    repetitions. Level 1 is the start, level 6 is tried, then level 9 against the level adopted
+    by then; a level is adopted only if, at every point on its own, its bytes are at most 90 % of
+    the adopted level's and its seconds at most 1.5x. A point with no max is a stop."""
+    maxima: dict[str, dict[int, tuple[int, float]]] = {}
+    for read in reads:
+        rows = _five_ok(read, "R19")
+        levels: dict[int, tuple[int, float]] = {}
+        for level in GZIP_LEVELS:
+            pairs = [_gzip_bytes_seconds(r, level) for r in rows]
+            levels[level] = (max(b for b, _ in pairs), max(s for _, s in pairs))
+        maxima[read.what] = levels
+    adopted, trials = GZIP_LEVELS[0], []
+    for level in GZIP_LEVELS[1:]:
+        ratios = {what: (m[level][0] / m[adopted][0], m[level][1] / m[adopted][1])
+                  for what, m in maxima.items()}
+        failing = [what for what, m in maxima.items()
+                   if not (m[level][0] <= GZIP_KEEP * m[adopted][0]
+                           and Fraction(m[level][1]) <= GZIP_SLOWDOWN * Fraction(m[adopted][1]))]
+        trials.append({"level": level, "against": adopted, "adopted": not failing,
+                       "failing": failing,
+                       "bytes_and_seconds_ratios": {w: list(r) for w, r in ratios.items()}})
+        if not failing:
+            adopted = level
+    return {"level": adopted, "runs": sorted({read.run for read in reads}), "trials": trials,
+            "maxima": {what: {str(level): {"bytes": b, "seconds": s}
+                              for level, (b, s) in m.items()} for what, m in maxima.items()}}
+
+
+def export_cache(explore: Iterable[Tagged], gzip_reads: Sequence[Read]) -> dict[str, object]:
+    """R21 (G16): the whole MiB that holds both encodings of all three artifacts of the candidate
+    with the largest raw plus level-1 gzip bytes over its three explore readings. The candidates
+    are the explore parts admitted (`cost.fits`) and read `ok` at all 3 artifacts. The level-1
+    bytes bound every level only while no R19 reading shows level 6 or 9 above level 1: a stop."""
+    for read in gzip_reads:
+        for reading in read.readings:
+            if reading.get("status") != "ok":
+                continue
+            first, _ = _gzip_bytes_seconds(reading, GZIP_LEVELS[0])
+            for level in GZIP_LEVELS[1:]:
+                if _gzip_bytes_seconds(reading, level)[0] > first:
+                    raise ProtocolStop("R21", f"{_where(read.run, reading)} reads more bytes at "
+                                              f"gzip level {level} than at level 1 (G16)")
+    tagged = list(explore)
+    runs = sorted({run for _, run, _ in tagged})
+    by_label: dict[str, dict[str, Reading]] = {}
+    for (label, artifact), reading in _explore_index(r for _, _, r in tagged).items():
+        by_label.setdefault(label, {})[artifact] = reading
+    best: tuple[int, str] | None = None
+    candidates_seen = 0
+    for label, found in sorted(by_label.items()):
+        if set(found) != set(cost.ARTIFACTS) or any(r.get("status") != "ok"
+                                                    for r in found.values()):
+            continue
+        params = found["step"].get("params")
+        assert isinstance(params, dict)
+        part = _validated(str(found["step"]["kind"]), params)
+        if part is None or not all(cost.fits(part, a) for a in cost.ARTIFACTS):
+            continue
+        candidates_seen += 1
+        total = sum(int(_number(r, "bytes")) + int(_number(r, "gzip1_bytes"))
+                    for r in found.values())
+        if best is None or total > best[0]:
+            best = (total, label)
+    if best is None:
+        raise ProtocolStop("R21", "no explore part is admitted and read ok at all 3 artifacts")
+    mib = math.ceil(Fraction(best[0], MIB))
+    return {"mib": mib, "bytes": mib * MIB, "part": best[1], "raw_and_gzip1_bytes": best[0],
+            "candidates": candidates_seen, "runs": runs}
+
+
+def tmpfs_base(explore: Iterable[Tagged]) -> tuple[float, str]:
+    """R26's tmpfs per worker before rounding: B-01's `stl-fine` bytes budget, or where the budget
+    leaves it unbounded the largest enveloped `stl-fine` bytes prediction over the admitted explore
+    points."""
+    component = cost.BUDGET["stl-fine"][0]
+    if component is not None:
+        return component, "the stl-fine bytes budget (B-01)"
+    found: list[float] = []
+    for _, _, reading in explore:
+        params = reading.get("params")
+        if reading.get("artifact") != "stl-fine" or not isinstance(params, dict):
+            continue
+        part = _validated(str(reading["kind"]), params)
+        if part is not None and cost.fits(part, "stl-fine"):
+            found.append(enveloped(part, "stl-fine", shipped_envelope())[0])
+    if not found:
+        raise ProtocolStop("R26", "the stl-fine bytes are unbounded and no explore point is "
+                                  "admitted")
+    return max(found), "the largest enveloped stl-fine bytes prediction over the admitted explore"
+
+
+def tmpfs_inside(tmpfs: int, limit: int, workers: int) -> None:
+    """R26: the tmpfs lives inside the container's memory, so it must fit inside mem_limit."""
+    if tmpfs > limit:
+        raise ProtocolStop("R26", f"the tmpfs at N = {workers}, {tmpfs} bytes, is larger than "
+                                  f"mem_limit, {limit} bytes")
+
+
+def _runner(headers: Sequence[Reading]) -> tuple[int, int]:
+    """The one nproc every runner header recorded, and the smallest MemTotal (R16)."""
+    nprocs = {h.get("nproc") for h in headers}
+    totals = [h.get("mem_total_bytes") for h in headers]
+    if len(nprocs) != 1:
+        raise ProtocolStop("R16", f"the runner headers record nproc {sorted(map(str, nprocs))}, "
+                                  "not one value, so no N is at most nproc - 1 for all of them")
+    nproc = nprocs.pop()
+    if not isinstance(nproc, int) or not all(isinstance(t, int) for t in totals) or not totals:
+        raise ProtocolStop("R16", "a runner header records no whole nproc or MemTotal")
+    return nproc, min(t for t in totals if isinstance(t, int))
+
+
+def _w(bound: Sequence[Read]) -> tuple[int, str]:
+    """R16's W: the max container peak over the N = 1 contention readings of every point of every
+    bound set, the memory extrema included. A point without 5 ok repetitions leaves W no number."""
+    best: tuple[int, str] | None = None
+    for read in bound:
+        if read.workers != 1:
+            continue
+        for reading in _five_ok(read, "R16"):
+            peak = int(_number(reading, "memory_peak_bytes"))
+            if best is None or peak > best[0]:
+                best = (peak, _where(read.run, reading))
+    if best is None:
+        raise ProtocolStop("R16", "no bound point was read at N = 1, so W has no number")
+    return best
+
+
+@dataclass(frozen=True)
+class Workers:
+    """R16 at one N: its load run, tmpfs and, with 5 ok load repetitions, its load peak, p95 and
+    mem_limit; whether it qualifies, and why not."""
+
+    load_run: str
+    tmpfs_bytes: int
+    qualifies: bool
+    why_not: tuple[str, ...]
+    load_peak_bytes: int | None = None
+    load_peak_reading: str | None = None
+    p95_s: float | None = None
+    p95_reading: str | None = None
+    mem_limit_bytes: int | None = None
+
+
+def per_workers(read: Read, w: int, b: int, cache: int, tmpfs: int, nproc: int,
+                mem_total: int) -> Workers:
+    """R16 at one N (G7): mem_limit(N), the larger of W x N + B + the export cache + the tmpfs and
+    the max load peak at N, rounded up to 256 MiB. N qualifies when that is under 16 x 10^9 bytes
+    and under the smallest MemTotal, N is at most nproc - 1 and all 5 load repetitions are ok."""
+    n = read.workers
+    why = [f"N = {n} is above nproc - 1 = {nproc - 1}"] if n > nproc - 1 else []
+    if not read.ok:
+        reps = sorted((str(r.get("rep")), str(r.get("status"))) for r in read.readings)
+        return Workers(read.run, tmpfs, False, (*why, f"its load repetitions are not 5 ok: {reps}"))
+    rows = _five_ok(read, "R16")
+    peak = max(rows, key=lambda r: _number(r, "memory_peak_bytes"))
+    p95s: list[tuple[float, str]] = []
+    for reading in rows:
+        latency = reading.get("latency")
+        spread = latency.get("all") if isinstance(latency, dict) else None
+        if not isinstance(spread, dict):
+            raise ProtocolStop("R16", f"{_where(read.run, reading)} has no p95 over all requests")
+        p95s.append((_number(spread, "p95_s"), _where(read.run, reading)))
+    p95 = max(p95s)
+    peak_bytes = int(_number(peak, "memory_peak_bytes"))
+    limit = _round_up(max(w * n + b + cache + tmpfs, peak_bytes), LIMIT_STEP_BYTES)
+    if not limit < HOST_BYTES:
+        why.append(f"mem_limit {limit} is not under 16 x 10^9 bytes")
+    if not limit < mem_total:
+        why.append(f"mem_limit {limit} is not under the smallest MemTotal {mem_total}")
+    return Workers(read.run, tmpfs, not why, tuple(why), peak_bytes, _where(read.run, peak),
+                   p95[0], p95[1], limit)
+
+
+def timeouts(bound: Sequence[Read], workers: int) -> dict[str, dict[str, object]]:
+    """R14 (D-09) at the picked N: per artifact the bound point, the P whose max cold wall over its
+    5 repetitions is the largest (a tie to the label), and the timeout `ceil(2 x` that max `)`."""
+    out: dict[str, dict[str, object]] = {}
+    for artifact in cost.ARTIFACTS:
+        best: tuple[float, str, str] | None = None
+        for read in bound:
+            if read.workers != workers or read.point.get("artifact") != artifact:
+                continue
+            reading = max(_five_ok(read, "R14"), key=_cold_wall)
+            wall, label = _cold_wall(reading), str(read.point["label"])
+            if best is None or wall > best[0] or (wall == best[0] and label < best[1]):
+                best = (wall, label, _where(read.run, reading))
+        if best is None:
+            raise ProtocolStop("R14", f"no bound point of {artifact} was read at N = {workers}")
+        out[artifact] = {"seconds": math.ceil(TIMEOUT_FACTOR * best[0]), "max_cold_wall_s": best[0],
+                         "bound_point": best[1], "reading": best[2]}
+    return out
+
+
+def _pool_deadline(call: Mapping[str, object], limits: Mapping[str, int]) -> float:
+    """D-14 (`screw.pool`): a call's own timeout plus those already pending on its slot."""
+    pending = call.get("pending")
+    assert isinstance(pending, list)
+    return limits[str(call["artifact"])] + sum(limits[str(a)] for a in pending)
+
+
+def queue_depth(reads: Sequence[Read], limits: Mapping[str, int], limit: int,
+                workers: int) -> dict[str, object]:
+    """R17 (G8) on the picked N's load records under R14's timeouts: 2N when no pool call's queue
+    wait plus build exceeds the D-14 deadline its slot gives it and every end peak is at most
+    mem_limit, otherwise N."""
+    worst: tuple[float, str] | None = None
+    peak = 0
+    for read in reads:
+        for reading in _five_ok(read, "R17"):
+            peak = max(peak, int(_number(reading, "memory_peak_bytes")))
+            calls = reading.get("pool_calls")
+            if not isinstance(calls, list) or not calls:
+                raise ProtocolStop("R17", f"{_where(read.run, reading)} has no pool log")
+            for index, call in enumerate(calls):
+                assert isinstance(call, dict)
+                ratio = (_number(call, "end_s") - _number(call, "submit_s")) / _pool_deadline(
+                    call, limits)
+                if worst is None or ratio > worst[0]:
+                    worst = (ratio, f"{_where(read.run, reading)} pool call {index}")
+    assert worst is not None
+    timed_out, over = worst[0] > 1.0, peak > limit
+    return {"depth": workers if timed_out or over else 2 * workers,
+            "largest_wall_over_deadline": worst[0], "reading": worst[1],
+            "end_peak_bytes": peak, "mem_limit_bytes": limit}
+
+
+def _wall_of(request: Mapping[str, object]) -> float:
+    return _number(request, "end_s") - _number(request, "start_s")
+
+
+def retry_after(reads: Sequence[Read]) -> dict[str, dict[str, object]]:
+    """R18 (D-11): per artifact, the median built-request wall of the picked N's load runs, pooled
+    over its 5 repetitions. The ceil and the live queue depth are applied at run time."""
+    walls: dict[str, list[float]] = {}
+    for read in reads:
+        for reading in _five_ok(read, "R18"):
+            requests = reading.get("requests")
+            assert isinstance(requests, list)
+            for request in requests:
+                assert isinstance(request, dict)
+                if request.get("status_code") == 200:
+                    walls.setdefault(str(request["artifact"]), []).append(_wall_of(request))
+    return {artifact: {"median_s": statistics.median(walls[artifact]),
+                       "samples": len(walls[artifact])} for artifact in cost.ARTIFACTS}
+
+
+def minimum_size(reads: Sequence[Read], level: int) -> dict[str, object]:
+    """R20: the smallest measured JSON body length from which every measured body shrinks at the
+    adopted level: the smallest length above the largest body that does not shrink."""
+    bodies: list[tuple[int, int, str]] = []
+    for read in reads:
+        for reading in read.readings:
+            found = reading.get("bodies")
+            if reading.get("status") != "ok" or not isinstance(found, list):
+                continue
+            for body in found:
+                assert isinstance(body, dict)
+                gz = body.get("gzip")
+                assert isinstance(gz, dict)
+                bodies.append((int(_number(body, "bytes")), int(gz[str(level)]),
+                               f"{_where(read.run, reading)} {body.get('path')}"))
+    if not bodies:
+        raise ProtocolStop("R20", "no load reading measured a JSON body")
+    grows = [b for b in bodies if b[1] >= b[0]]
+    floor = max(grows, default=None)
+    above = sorted(b[0] for b in bodies if floor is None or b[0] > floor[0])
+    if not above:
+        raise ProtocolStop("R20", f"the largest measured body does not shrink at level {level}")
+    return {"bytes": above[0], "level": level, "bodies": len(bodies),
+            "largest_not_shrinking": None if floor is None else {
+                "bytes": floor[0], "gzip_bytes": floor[1], "body": floor[2]},
+            "runs": sorted({read.run for read in reads})}
+
+
+def screw_workers(reads: Sequence[Read]) -> dict[str, object]:
+    """R24: `SCREW_WORKERS` stays 1 when the max over the picked N's 5 repetitions of each one's
+    `/api/health` p95 is at most the probe's 1 s; otherwise, or below 20 samples, a stop."""
+    worst: tuple[float, str] | None = None
+    for read in reads:
+        for reading in _five_ok(read, "R24"):
+            spread = reading.get("health_latency")
+            assert isinstance(spread, dict)
+            if _number(spread, "samples") < HEALTH_SAMPLES:
+                raise ProtocolStop("R24", f"{_where(read.run, reading)} has "
+                                          f"{spread.get('samples')} health samples, under 20")
+            p95 = _number(spread, "p95_s")
+            if worst is None or p95 > worst[0]:
+                worst = (p95, _where(read.run, reading))
+    assert worst is not None
+    if worst[0] > HEALTH_PROBE_S:
+        raise ProtocolStop("R24", f"the health p95 under load is {worst[0]} s at {worst[1]}, "
+                                  "above the probe's 1 s")
+    return {"workers": 1, "health_p95_s": worst[0], "reading": worst[1]}
+
+
+def healthcheck(reads: Sequence[Read]) -> dict[str, object]:
+    """R25 (G18): `--timeout` is ceil(2 x the max wall of the HEALTHCHECK command) over the picked
+    N's 5 load readings; `--start-period` 2 x the max time to the first healthy response, rounded
+    up to 10 s; `--interval` and `--retries` Docker's documented defaults."""
+    walls: list[tuple[float, str]] = []
+    healthy: list[tuple[float, str]] = []
+    failed = 0
+    for read in reads:
+        for reading in _five_ok(read, "R25"):
+            healthy.append((_number(reading, "time_to_healthy_s"), _where(read.run, reading)))
+            checks = reading.get("healthcheck")
+            assert isinstance(checks, list)
+            for check in checks:
+                assert isinstance(check, dict)
+                walls.append((_number(check, "wall_s"), _where(read.run, reading)))
+                failed += check.get("exit_code") != 0
+    if not walls:
+        raise ProtocolStop("R25", "no HEALTHCHECK command was timed under load")
+    wall, slowest = max(walls), max(healthy)
+    return {"timeout_s": math.ceil(TIMEOUT_FACTOR * wall[0]), "max_wall_s": wall[0],
+            "wall_reading": wall[1], "walls": len(walls), "nonzero_exits": failed,
+            "start_period_s": START_PERIOD_STEP_S * math.ceil(
+                Fraction(TIMEOUT_FACTOR * slowest[0]) / START_PERIOD_STEP_S),
+            "max_time_to_healthy_s": slowest[0], "healthy_reading": slowest[1],
+            "interval_s": DOCKER_INTERVAL_S, "retries": DOCKER_RETRIES,
+            "interval_and_retries": "Docker's documented defaults (R25)"}
+
+
+def runtime(headers: Sequence[Reading], tagged: Sequence[Tagged],
+            sets: Mapping[str, Sequence[Mapping[str, object]]],
+            sources: Sequence[str]) -> dict[str, object]:
+    """R14 to R21 and R24 to R26 over the records, in the order their inputs exist (07-16), from
+    the committed `bound`, `load` and `gzip` points in `sets`."""
+    bound = matched(sets["bound"], tagged, BOUND_SETS, _IDENTITY, "R14")
+    gzip_reads = matched(sets["gzip"], tagged, GZIP_SETS, _IDENTITY, "R19")
+    loads = matched(sets["load"], tagged, LOAD_SETS, _LOAD_IDENTITY, "R15")
+    explore = [t for t in tagged if t[0] == "explore"]
+    gzip = gzip_level(gzip_reads)
+    cache = export_cache(explore, gzip_reads)
+    base, base_rule = tmpfs_base(explore)
+    nproc, mem_total = _runner(headers)
+    w, w_reading = _w(bound)
+    idle = [(int(_number(r, "idle_peak_bytes")), _where(read.run, r))
+            for read in loads for r in read.readings if r.get("status") == "ok"]
+    if not idle:
+        raise ProtocolStop("R16", "no load reading is ok, so B has no number")
+    b = max(idle)
+    cache_bytes = cache["bytes"]
+    assert isinstance(cache_bytes, int)
+    rows = {read.workers: per_workers(read, w, b[0], cache_bytes,
+                                      _round_up(base * read.workers, LIMIT_STEP_BYTES), nproc,
+                                      mem_total) for read in loads}
+    ranked = sorted((row.p95_s, n) for n, row in rows.items()
+                    if row.qualifies and row.p95_s is not None)
+    if not ranked:
+        raise ProtocolStop("R16", "no N qualifies (G7): " + "; ".join(
+            f"N = {n}: {', '.join(row.why_not)}" for n, row in sorted(rows.items())))
+    picked = ranked[0][1]  # the lowest max-over-reps p95, a tie to the smaller N
+    limit = rows[picked].mem_limit_bytes
+    assert limit is not None
+    tmpfs_inside(rows[picked].tmpfs_bytes, limit, picked)
+    limits = timeouts(bound, picked)
+    for read in bound:  # every bound point has 5 ok repetitions from one run (R3, G31)
+        _five_ok(read, "R14")
+    picked_reads = [read for read in loads if read.workers == picked]
+    seconds = {artifact: int(str(row["seconds"])) for artifact, row in limits.items()}
+    level = gzip["level"]
+    assert isinstance(level, int)
+    return {
+        "rule": "07-SWEEP-PROTOCOL.md R14 to R21, R24 to R26 (G6, G7, G8, G11, G15, G16, G18, "
+                "G22, G31)",
+        "sources": list(sources),
+        "sets": {name: f"bench/points/{name}.json" for name in sorted(sets)},
+        "runner": {"nproc": nproc, "smallest_mem_total_bytes": mem_total, "headers": len(headers)},
+        "gzip": gzip,
+        "export_cache": cache,
+        "tmpfs_per_worker": {"bytes": base, "rule": base_rule},
+        "w": {"bytes": w, "reading": w_reading},
+        "b": {"bytes": b[0], "reading": b[1]},
+        "per_workers": {str(n): dataclasses.asdict(row) for n, row in sorted(rows.items())},
+        "picked_workers": picked,
+        "mem_limit_bytes": limit,
+        "tmpfs_bytes": rows[picked].tmpfs_bytes,
+        "timeouts": limits,
+        "queue_depth": queue_depth(picked_reads, seconds, limit, picked),
+        "retry_after": retry_after(picked_reads),
+        "minimum_size": minimum_size(loads, level),
+        "screw_workers": screw_workers(picked_reads),
+        "healthcheck": healthcheck(picked_reads)}
+
+
+def _points_of(name: str) -> list[Mapping[str, object]]:
+    points = json.loads((POINTS_DIR / f"{name}.json").read_text())["points"]
+    assert isinstance(points, list)
+    return points
+
+
+def derive_runtime(directories: Iterable[Path]) -> dict[str, object]:
+    """runtime.json's values from the records under `directories` and the committed bound, load
+    and gzip point files (G6)."""
+    folders = sorted(Path(d) for d in directories)
+    headers, tagged = read_runs(folders)
+    sets = {name: _points_of(name) for name in ("bound", "gzip", "load")}
+    return runtime(headers, tagged, sets, [_relative(str(d)) for d in folders])
+
+
+def runtime_text(directories: Iterable[Path]) -> str:
+    return json.dumps(derive_runtime(directories), indent=1, allow_nan=False) + "\n"
 
 
 def _recorded_envelope(text: str) -> dict[tuple[str, str, str], float]:
@@ -2452,6 +2974,10 @@ def _run(args: argparse.Namespace) -> int:
         _envelope_check_command(args)
     elif args.command == "load-table":
         sys.stdout.write(load_table(read_readings(Path(args.source))))
+    elif args.command == "derive-runtime":
+        text = runtime_text(Path(d) for d in args.source)
+        Path(args.out).write_text(text)
+        print(f"wrote {args.out}")
     else:
         confirm = build_confirm(walls_dir, down_dir, explore_dir)
         Path(args.out).write_text(confirm.text())
@@ -2501,6 +3027,10 @@ def main(argv: list[str] | None = None) -> int:
                            help="R12 over the Runs II readings that may widen e (07-15)")
     check.add_argument("--fit", required=True)
     check.add_argument("--from", dest="source", nargs="+", required=True)
+    derive = sub.add_parser("derive-runtime", help="R14 to R26: the runtime values from the "
+                                                   "records (07-16)")
+    derive.add_argument("--from", dest="source", nargs="+", required=True)
+    derive.add_argument("--out", required=True)
     args = parser.parse_args(argv)
     if args.command is not None:
         try:

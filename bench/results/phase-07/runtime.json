@@ -1,0 +1,527 @@
+{
+ "rule": "07-SWEEP-PROTOCOL.md R14 to R21, R24 to R26 (G6, G7, G8, G11, G15, G16, G18, G22, G31)",
+ "sources": [
+  "bench/results/phase-07/arenas-40909754190",
+  "bench/results/phase-07/bound-40907549180",
+  "bench/results/phase-07/bound-rerun-40999654995",
+  "bench/results/phase-07/controls-40646142406",
+  "bench/results/phase-07/explore-40646117094",
+  "bench/results/phase-07/gzip-40909739628",
+  "bench/results/phase-07/gzip-rerun-40999657702",
+  "bench/results/phase-07/load-40909724292",
+  "bench/results/phase-07/outband-40909768713",
+  "bench/results/phase-07/spread-40646125666",
+  "bench/results/phase-07/tracer-40645463872",
+  "bench/results/phase-07/walls-40646134133",
+  "bench/results/phase-07/walls-confirm-40678150220",
+  "bench/results/phase-07/walls-down-40652801529",
+  "bench/results/phase-07/walls-voids-40665307964"
+ ],
+ "sets": {
+  "bound": "bench/points/bound.json",
+  "gzip": "bench/points/gzip.json",
+  "load": "bench/points/load.json"
+ },
+ "runner": {
+  "nproc": 4,
+  "smallest_mem_total_bytes": 16758394880,
+  "headers": 239
+ },
+ "gzip": {
+  "level": 1,
+  "runs": [
+   "40909739628",
+   "40999657702"
+  ],
+  "trials": [
+   {
+    "level": 6,
+    "against": 1,
+    "adopted": false,
+    "failing": [
+     "iso4017:M20x200 at stl-preview",
+     "iso4017:M20x180 at stl-preview",
+     "iso4017:M16x160 at stl-preview",
+     "iso4017:M16x150 at stl-preview",
+     "iso4017:M20x160 at stl-preview",
+     "nut-d10-p0.35-m3d-s4d-c0.15-right at stl-preview",
+     "nut-d100-p3.5-m0.8d-s4d-c5-right at stl-preview",
+     "iso4017:M20x200 at stl-fine",
+     "iso4017:M20x180 at stl-fine",
+     "iso4017:M16x160 at stl-fine",
+     "iso4017:M20x160 at stl-fine",
+     "iso4017:M16x150 at stl-fine",
+     "nut-d30-p1-m0.8d-s1.6d-c5-right at stl-fine",
+     "nut-d30-p1-m0.8d-s4d-c5-right at stl-fine"
+    ],
+    "bytes_and_seconds_ratios": {
+     "iso4017:M20x200 at stl-preview": [
+      0.9573212919795915,
+      1.755677517049627
+     ],
+     "iso4017:M20x180 at stl-preview": [
+      0.9574795729149103,
+      1.8520839312073545
+     ],
+     "iso4017:M16x160 at stl-preview": [
+      0.9581092114768012,
+      2.003895762916234
+     ],
+     "iso4017:M16x150 at stl-preview": [
+      0.9579720288197852,
+      1.9799453575351473
+     ],
+     "iso4017:M20x160 at stl-preview": [
+      0.9575549898493328,
+      1.7457298179750544
+     ],
+     "nut-d10-p0.35-m3d-s4d-c0.15-right at stl-preview": [
+      0.95129423313575,
+      1.7839870720074573
+     ],
+     "nut-d100-p3.5-m0.8d-s4d-c5-right at stl-preview": [
+      0.9577651656565496,
+      1.7937185770770478
+     ],
+     "iso4017:M20x200 at stl-fine": [
+      0.9600802755004741,
+      1.7717123430489208
+     ],
+     "iso4017:M20x180 at stl-fine": [
+      0.9601059727542018,
+      1.7543757790813985
+     ],
+     "iso4017:M16x160 at stl-fine": [
+      0.957998323437279,
+      1.9239613365688075
+     ],
+     "iso4017:M20x160 at stl-fine": [
+      0.9601974018648064,
+      1.757550363624041
+     ],
+     "iso4017:M16x150 at stl-fine": [
+      0.9579769407095279,
+      1.8538838410471654
+     ],
+     "nut-d30-p1-m0.8d-s1.6d-c5-right at stl-fine": [
+      0.9567289344476871,
+      1.9131398253115117
+     ],
+     "nut-d30-p1-m0.8d-s4d-c5-right at stl-fine": [
+      0.9567429739118412,
+      1.9686732404288607
+     ]
+    }
+   },
+   {
+    "level": 9,
+    "against": 1,
+    "adopted": false,
+    "failing": [
+     "iso4017:M20x200 at stl-preview",
+     "iso4017:M20x180 at stl-preview",
+     "iso4017:M16x160 at stl-preview",
+     "iso4017:M16x150 at stl-preview",
+     "iso4017:M20x160 at stl-preview",
+     "nut-d10-p0.35-m3d-s4d-c0.15-right at stl-preview",
+     "nut-d100-p3.5-m0.8d-s4d-c5-right at stl-preview",
+     "iso4017:M20x200 at stl-fine",
+     "iso4017:M20x180 at stl-fine",
+     "iso4017:M16x160 at stl-fine",
+     "iso4017:M20x160 at stl-fine",
+     "iso4017:M16x150 at stl-fine",
+     "nut-d30-p1-m0.8d-s1.6d-c5-right at stl-fine",
+     "nut-d30-p1-m0.8d-s4d-c5-right at stl-fine"
+    ],
+    "bytes_and_seconds_ratios": {
+     "iso4017:M20x200 at stl-preview": [
+      0.957330017598245,
+      1.8823214718702646
+     ],
+     "iso4017:M20x180 at stl-preview": [
+      0.957476328319177,
+      2.028249593897318
+     ],
+     "iso4017:M16x160 at stl-preview": [
+      0.9580621495132794,
+      2.409785177690598
+     ],
+     "iso4017:M16x150 at stl-preview": [
+      0.9579149998352307,
+      2.4293646126934925
+     ],
+     "iso4017:M20x160 at stl-preview": [
+      0.95756288324188,
+      1.9542082027040877
+     ],
+     "nut-d10-p0.35-m3d-s4d-c0.15-right at stl-preview": [
+      0.9512877748865697,
+      1.9302463149485012
+     ],
+     "nut-d100-p3.5-m0.8d-s4d-c5-right at stl-preview": [
+      0.9578314918224207,
+      1.909228295052443
+     ],
+     "iso4017:M20x200 at stl-fine": [
+      0.9601332949153928,
+      1.8922332187630604
+     ],
+     "iso4017:M20x180 at stl-fine": [
+      0.9601486101128791,
+      1.8624101721055342
+     ],
+     "iso4017:M16x160 at stl-fine": [
+      0.9580068297344924,
+      2.128661844047847
+     ],
+     "iso4017:M20x160 at stl-fine": [
+      0.9602492469590631,
+      1.8806846768522096
+     ],
+     "iso4017:M16x150 at stl-fine": [
+      0.9579650170112548,
+      2.055424472535987
+     ],
+     "nut-d30-p1-m0.8d-s1.6d-c5-right at stl-fine": [
+      0.9565082542864779,
+      2.160251183460708
+     ],
+     "nut-d30-p1-m0.8d-s4d-c5-right at stl-fine": [
+      0.9565129290820658,
+      2.2408995210869636
+     ]
+    }
+   }
+  ],
+  "maxima": {
+   "iso4017:M20x200 at stl-preview": {
+    "1": {
+     "bytes": 10543665,
+     "seconds": 0.31931207500002756
+    },
+    "6": {
+     "bytes": 10093675,
+     "seconds": 0.5606090310000127
+    },
+    "9": {
+     "bytes": 10093767,
+     "seconds": 0.6010479750000002
+    }
+   },
+   "iso4017:M20x180 at stl-preview": {
+    "1": {
+     "bytes": 9554349,
+     "seconds": 0.28050781999999685
+    },
+    "6": {
+     "bytes": 9148094,
+     "seconds": 0.5195240259999991
+    },
+    "9": {
+     "bytes": 9148063,
+     "seconds": 0.5689398720000156
+    }
+   },
+   "iso4017:M16x160 at stl-preview": {
+    "1": {
+     "bytes": 6204586,
+     "seconds": 0.17995910300004425
+    },
+    "6": {
+     "bytes": 5944671,
+     "seconds": 0.3606192839999949
+    },
+    "9": {
+     "bytes": 5944379,
+     "seconds": 0.4336627790000023
+    }
+   },
+   "iso4017:M16x150 at stl-preview": {
+    "1": {
+     "bytes": 5856671,
+     "seconds": 0.1715083679999907
+    },
+    "6": {
+     "bytes": 5610527,
+     "seconds": 0.3395771970000112
+    },
+    "9": {
+     "bytes": 5610193,
+     "seconds": 0.4166563599999904
+    }
+   },
+   "iso4017:M20x160 at stl-preview": {
+    "1": {
+     "bytes": 8488112,
+     "seconds": 0.2560353970000051
+    },
+    "6": {
+     "bytes": 8127834,
+     "seconds": 0.44696862699998974
+    },
+    "9": {
+     "bytes": 8127901,
+     "seconds": 0.5003464730000076
+    }
+   },
+   "nut-d10-p0.35-m3d-s4d-c0.15-right at stl-preview": {
+    "1": {
+     "bytes": 3406496,
+     "seconds": 0.09556874300000118
+    },
+    "6": {
+     "bytes": 3240580,
+     "seconds": 0.1704934020000053
+    },
+    "9": {
+     "bytes": 3240558,
+     "seconds": 0.18447121400001265
+    }
+   },
+   "nut-d100-p3.5-m0.8d-s4d-c5-right at stl-preview": {
+    "1": {
+     "bytes": 12589300,
+     "seconds": 0.3718151490000139
+    },
+    "6": {
+     "bytes": 12057593,
+     "seconds": 0.6669317399999954
+    },
+    "9": {
+     "bytes": 12058428,
+     "seconds": 0.7098800029999666
+    }
+   },
+   "iso4017:M20x200 at stl-fine": {
+    "1": {
+     "bytes": 66239886,
+     "seconds": 2.007092078999989
+    },
+    "6": {
+     "bytes": 63595608,
+     "seconds": 3.55598981
+    },
+    "9": {
+     "bytes": 63599120,
+     "seconds": 3.7978863049999916
+    }
+   },
+   "iso4017:M20x180 at stl-fine": {
+    "1": {
+     "bytes": 58938923,
+     "seconds": 1.8018993539999997
+    },
+    "6": {
+     "bytes": 56587612,
+     "seconds": 3.1612085830000183
+    },
+    "9": {
+     "bytes": 56590125,
+     "seconds": 3.3558756859999903
+    }
+   },
+   "iso4017:M16x160 at stl-fine": {
+    "1": {
+     "bytes": 63247261,
+     "seconds": 1.935096336000015
+    },
+    "6": {
+     "bytes": 60590770,
+     "seconds": 3.7230505329999914
+    },
+    "9": {
+     "bytes": 60591308,
+     "seconds": 4.119165735000024
+    }
+   },
+   "iso4017:M20x160 at stl-fine": {
+    "1": {
+     "bytes": 52444692,
+     "seconds": 1.6202820299999985
+    },
+    "6": {
+     "bytes": 50357257,
+     "seconds": 2.8477272709999966
+    },
+    "9": {
+     "bytes": 50359976,
+     "seconds": 3.0472395859999892
+    }
+   },
+   "iso4017:M16x150 at stl-fine": {
+    "1": {
+     "bytes": 59545284,
+     "seconds": 1.8985410989999991
+    },
+    "6": {
+     "bytes": 57043009,
+     "seconds": 3.519674665000025
+    },
+    "9": {
+     "bytes": 57042299,
+     "seconds": 3.9023078369999666
+    }
+   },
+   "nut-d30-p1-m0.8d-s1.6d-c5-right at stl-fine": {
+    "1": {
+     "bytes": 59873982,
+     "seconds": 1.834498970000027
+    },
+    "6": {
+     "bytes": 57283171,
+     "seconds": 3.509653039
+    },
+    "9": {
+     "bytes": 57269958,
+     "seconds": 3.962978571000008
+    }
+   },
+   "nut-d30-p1-m0.8d-s4d-c5-right at stl-fine": {
+    "1": {
+     "bytes": 59897021,
+     "seconds": 1.7683263050000164
+    },
+    "6": {
+     "bytes": 57306054,
+     "seconds": 3.481256676999976
+    },
+    "9": {
+     "bytes": 57292275,
+     "seconds": 3.9626415700000166
+    }
+   }
+  }
+ },
+ "export_cache": {
+  "mib": 240,
+  "bytes": 251658240,
+  "part": "iso4017:M20x200",
+  "raw_and_gzip1_bytes": 250654910,
+  "candidates": 394,
+  "runs": [
+   "40646117094"
+  ]
+ },
+ "tmpfs_per_worker": {
+  "bytes": 239508059.14804876,
+  "rule": "the stl-fine bytes budget (B-01)"
+ },
+ "w": {
+  "bytes": 1533550592,
+  "reading": "40907549180:nut-d30-p1-m0.8d-s1.6d-c5-right-n1 rep 1"
+ },
+ "b": {
+  "bytes": 65208320,
+  "reading": "40909724292:load-n1 rep 1"
+ },
+ "per_workers": {
+  "1": {
+   "load_run": "40909724292",
+   "tmpfs_bytes": 268435456,
+   "qualifies": true,
+   "why_not": [],
+   "load_peak_bytes": 1657307136,
+   "load_peak_reading": "40909724292:load-n1 rep 3",
+   "p95_s": 35.09087210645002,
+   "p95_reading": "40909724292:load-n1 rep 2",
+   "mem_limit_bytes": 2147483648
+  },
+  "2": {
+   "load_run": "40909724292",
+   "tmpfs_bytes": 536870912,
+   "qualifies": true,
+   "why_not": [],
+   "load_peak_bytes": 2047315968,
+   "load_peak_reading": "40909724292:load-n2 rep 4",
+   "p95_s": 51.878674375850004,
+   "p95_reading": "40909724292:load-n2 rep 2",
+   "mem_limit_bytes": 4026531840
+  },
+  "3": {
+   "load_run": "40909724292",
+   "tmpfs_bytes": 805306368,
+   "qualifies": true,
+   "why_not": [],
+   "load_peak_bytes": 2333671424,
+   "load_peak_reading": "40909724292:load-n3 rep 2",
+   "p95_s": 69.78429913074984,
+   "p95_reading": "40909724292:load-n3 rep 2",
+   "mem_limit_bytes": 5905580032
+  }
+ },
+ "picked_workers": 1,
+ "mem_limit_bytes": 2147483648,
+ "tmpfs_bytes": 268435456,
+ "timeouts": {
+  "stl-preview": {
+   "seconds": 26,
+   "max_cold_wall_s": 12.724827096999945,
+   "bound_point": "nut-d10-p0.35-m3d-s4d-c0.15-right-n1",
+   "reading": "40907549180:nut-d10-p0.35-m3d-s4d-c0.15-right-n1 rep 3"
+  },
+  "stl-fine": {
+   "seconds": 71,
+   "max_cold_wall_s": 35.26048539499999,
+   "bound_point": "nut-d30-p1-m0.8d-s1.6d-c5-right-n1",
+   "reading": "40907549180:nut-d30-p1-m0.8d-s1.6d-c5-right-n1 rep 4"
+  },
+  "step": {
+   "seconds": 26,
+   "max_cold_wall_s": 12.81081261700001,
+   "bound_point": "nut-d100-p3.5-m3d-s4d-c5-right-n1",
+   "reading": "40907549180:nut-d100-p3.5-m3d-s4d-c5-right-n1 rep 1"
+  }
+ },
+ "queue_depth": {
+  "depth": 2,
+  "largest_wall_over_deadline": 0.3624844919793814,
+  "reading": "40909724292:load-n1 rep 2 pool call 26",
+  "end_peak_bytes": 1657307136,
+  "mem_limit_bytes": 2147483648
+ },
+ "retry_after": {
+  "stl-preview": {
+   "median_s": 5.214082512000019,
+   "samples": 100
+  },
+  "stl-fine": {
+   "median_s": 9.527734555999999,
+   "samples": 100
+  },
+  "step": {
+   "median_s": 6.330915500499998,
+   "samples": 100
+  }
+ },
+ "minimum_size": {
+  "bytes": 4012,
+  "level": 1,
+  "bodies": 1555,
+  "largest_not_shrinking": {
+   "bytes": 95,
+   "gzip_bytes": 98,
+   "body": "40909724292:load-n1 rep 5 /api/health"
+  },
+  "runs": [
+   "40909724292"
+  ]
+ },
+ "screw_workers": {
+  "workers": 1,
+  "health_p95_s": 0.00935187669999209,
+  "reading": "40909724292:load-n1 rep 2"
+ },
+ "healthcheck": {
+  "timeout_s": 2,
+  "max_wall_s": 0.7360738640000477,
+  "wall_reading": "40909724292:load-n1 rep 2",
+  "walls": 276,
+  "nonzero_exits": 0,
+  "start_period_s": 10,
+  "max_time_to_healthy_s": 0.9576668719999759,
+  "healthy_reading": "40909724292:load-n1 rep 2",
+  "interval_s": 30,
+  "retries": 3,
+  "interval_and_retries": "Docker's documented defaults (R25)"
+ }
+}

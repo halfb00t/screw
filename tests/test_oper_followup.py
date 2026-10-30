@@ -1727,3 +1727,444 @@ def test_a_widening_that_would_refuse_a_part_b01_keeps_stops_and_writes_nothing(
                            str(tmp_path / "gzip")]) == 3
     assert "oper_sets: stop (R12): the widened envelope refuses" in capsys.readouterr().err
     assert fit.read_text() == before
+
+
+# --- the runtime values (07-16; R14 to R26) -----------------------------------------------------
+
+GIB = 2**30
+QUARTER = 256 * 2**20  # R16's rounding step
+
+
+def _bolt_part(length: float) -> Raw:
+    return {"label": f"bolt-{length:g}", "kind": "bolt", "params": {"length": length}}
+
+
+def _contended(p: str, artifact: str, workers: int, walls: Iterable[float] = (1.0,) * 5,
+                peaks: Iterable[int] = (100,) * 5, statuses: Iterable[str] = ("ok",) * 5,
+                reps: Iterable[int] = REPS) -> tuple[Raw, list[Raw]]:
+    """A contention point P at N and its readings: rep i reads `walls[i]` s and `peaks[i]` B."""
+    members = [{**_bolt_part(float(len(p))), "label": p, "slot": 0}]
+    point: Raw = {"label": f"{p}-n{workers}", "kind": "contention", "artifact": artifact,
+                  "workers": workers, "points": members}
+    readings: list[Raw] = [{**point, "type": "reading", "params": {}, "rep": rep, "status": s,
+                            "build_s": wall - 0.25, "export_s": 0.25, "memory_peak_bytes": peak}
+                           for rep, wall, peak, s in zip(reps, walls, peaks, statuses,
+                                                         strict=False)]
+    return point, readings
+
+
+def _read(point: Mapping[str, object], readings: Iterable[Mapping[str, object]],
+          run: str = "7") -> oper_sets.Read:
+    return oper_sets.Read(point, run, tuple(readings))
+
+
+def _load_point(workers: int) -> Raw:
+    return {"label": f"load-n{workers}", "kind": "load", "workers": workers,
+            "queue": 2 * workers, "clients": 2 * workers, "solid_cache": 4,
+            "bodies": workers == 1, "mix": []}
+
+
+def _request(index: int, artifact: str, wall: float) -> Raw:
+    return {"index": index, "artifact": artifact, "start_s": 10.0, "end_s": 10.0 + wall,
+            "status_code": 200}
+
+
+def _served(workers: int, rep: int, status: str = "ok", p95: float = 10.0,
+                  peak: int = GIB, idle: int = 50 * 2**20, health: tuple[float, int] = (0.01, 25),
+                  **over: object) -> Raw:
+    reading: Raw = {**_load_point(workers), "type": "reading", "rep": rep, "status": status,
+                    "idle_peak_bytes": idle, "memory_peak_bytes": peak,
+                    "latency": {"all": {"samples": 60, "p95_s": p95}},
+                    "requests": [_request(i, a, 1.0) for i, a in enumerate(ARTIFACTS3)],
+                    "pool_calls": [{"slot": 0, "artifact": "stl-fine", "pending": [],
+                                    "submit_s": 0.0, "end_s": 1.0, "outcome": "ok"}],
+                    "health_latency": {"samples": health[1], "p95_s": health[0]},
+                    "healthcheck": [{"offset_s": 0.0, "wall_s": 0.2, "exit_code": 0}],
+                    "time_to_healthy_s": 0.5}
+    reading.update(over)
+    return reading
+
+
+def _load(workers: int, status: str = "ok", p95: float = 10.0, peak: int = GIB,
+          health: tuple[float, int] = (0.01, 25), **over: object) -> oper_sets.Read:
+    return _read(_load_point(workers), [{**_served(workers, rep, status, p95, peak,
+                                                   health=health), **over} for rep in REPS])
+
+
+def _workers(read: oper_sets.Read, w: int = GIB, nproc: int = 4,
+             mem_total: int = 16 * GIB) -> oper_sets.Workers:
+    return oper_sets.per_workers(read, w, 0, 0, QUARTER, nproc, mem_total)
+
+
+def _gzip_point(label: str, artifact: str = "stl-preview") -> Raw:
+    return {**_bolt_part(4.0), "label": label, "artifact": artifact, "gzip_levels": [1, 6, 9]}
+
+
+def _gzip_reading(point: Raw, rep: int, levels: Mapping[int, tuple[int, float]]) -> Raw:
+    return {**point, "type": "reading", "rep": rep, "status": "ok",
+            "gzip": [{"level": level, "bytes": b, "seconds": s}
+                     for level, (b, s) in levels.items()]}
+
+
+def _gzip(label: str, by_rep: Mapping[int, Mapping[int, tuple[int, float]]]) -> oper_sets.Read:
+    point = _gzip_point(label)
+    return _read(point, [_gzip_reading(point, rep, levels) for rep, levels in by_rep.items()])
+
+
+def _same(levels: Mapping[int, tuple[int, float]]) -> dict[int, Mapping[int, tuple[int, float]]]:
+    return dict.fromkeys(REPS, levels)
+
+
+def test_a_value_rounds_up_to_the_256_mib_step_and_one_byte_over_a_gib_is_1_25_gib() -> None:
+    assert oper_sets._round_up(GIB, QUARTER) == GIB
+    assert oper_sets._round_up(GIB + 1, QUARTER) == 5 * QUARTER
+    assert oper_sets._round_up(239508059.14804876, QUARTER) == QUARTER
+
+
+def test_mem_limit_is_the_larger_of_the_sum_and_the_load_peak_rounded_up() -> None:
+    read = _load(1, peak=GIB)
+    row = oper_sets.per_workers(read, GIB + 1, 0, 0, 0, 4, 16 * GIB)  # the sum, 1 B over a GiB
+    assert row.mem_limit_bytes == 5 * QUARTER
+    assert row.qualifies
+    row = oper_sets.per_workers(_load(2, peak=3 * GIB + 1), 10, 10, 10, QUARTER, 4, 16 * GIB)
+    assert row.mem_limit_bytes == 13 * QUARTER  # the load peak, above W x N + B + cache + tmpfs
+    row = oper_sets.per_workers(_load(3, peak=1), 100, 7, 11, QUARTER, 4, 16 * GIB)
+    assert row.mem_limit_bytes == 2 * QUARTER  # 300 + 7 + 11 B over 256 MiB rounds up a step
+
+
+@pytest.mark.parametrize("status", ["killed", "capped", "crashed"])
+def test_an_n_with_one_load_repetition_not_ok_does_not_qualify(status: str) -> None:
+    read = _load(1)
+    readings = list(read.readings)
+    readings[2] = {**readings[2], "status": status}
+    row = _workers(_read(read.point, readings))
+    assert not row.qualifies
+    assert row.mem_limit_bytes is None
+    assert "not 5 ok" in row.why_not[0]
+
+
+def test_an_n_with_four_load_repetitions_does_not_qualify() -> None:
+    read = _load(1)
+    assert not _workers(_read(read.point, read.readings[:4])).qualifies
+
+
+def test_n_must_be_at_most_nproc_minus_one() -> None:
+    assert _workers(_load(3), nproc=4).qualifies
+    row = _workers(_load(3), nproc=3)
+    assert not row.qualifies
+    assert row.why_not == ("N = 3 is above nproc - 1 = 2",)
+
+
+def test_mem_limit_must_be_under_the_smallest_mem_total_and_under_16e9() -> None:
+    row = _workers(_load(1, peak=4 * GIB), w=0)
+    assert row.mem_limit_bytes == 4 * GIB
+    assert row.qualifies
+    assert not _workers(_load(1, peak=4 * GIB), w=0, mem_total=4 * GIB).qualifies
+    assert _workers(_load(1, peak=4 * GIB), w=0, mem_total=4 * GIB + 1).qualifies
+    row = _workers(_load(1, peak=16 * 10**9 - 1), w=0, mem_total=20 * 10**9)
+    assert row.mem_limit_bytes is not None
+    assert row.mem_limit_bytes >= 16 * 10**9
+    assert not row.qualifies
+
+
+def test_the_p95_of_an_n_is_the_max_over_its_five_repetitions() -> None:
+    read = _load(2)
+    readings = [{**r, "latency": {"all": {"samples": 60, "p95_s": 5.0 + int(str(r["rep"]))}}}
+                for r in read.readings]
+    row = _workers(_read(read.point, readings))
+    assert row.p95_s == 10.0
+    assert row.p95_reading == "7:load-n2 rep 5"
+
+
+def test_the_bound_point_is_the_p_with_the_largest_max_cold_wall_at_the_picked_n() -> None:
+    a = _contended("pa", "stl-fine", 2, walls=(10.0, 30.2, 11.0, 12.0, 9.0))
+    b = _contended("pb", "stl-fine", 2, walls=(29.0,) * 5)
+    c = _contended("pc", "stl-fine", 1, walls=(90.0,) * 5)  # another N decides nothing
+    others = [_contended(f"p{x}", art, 2) for x, art in (("d", "stl-preview"), ("e", "step"))]
+    reads = [_read(*x) for x in (a, b, c, *others)]
+    found = oper_sets.timeouts(reads, 2)
+    assert found["stl-fine"] == {"seconds": 61, "max_cold_wall_s": 30.2, "bound_point": "pa-n2",
+                                 "reading": "7:pa-n2 rep 2"}
+    assert found["stl-preview"]["seconds"] == 2
+    assert found["step"]["seconds"] == 2
+
+
+def test_a_tie_between_bound_points_goes_to_the_label_that_sorts_first() -> None:
+    reads = [_read(*_contended(p, a, 1, walls=(4.0,) * 5)) for p in ("zz", "aa")
+             for a in ARTIFACTS3]
+    assert {row["bound_point"] for row in oper_sets.timeouts(reads, 1).values()} == {"aa-n1"}
+
+
+def test_a_bound_point_at_the_picked_n_with_four_repetitions_stops_at_r14() -> None:
+    point, readings = _contended("pa", "stl-fine", 1)
+    reads = [_read(point, readings[:4]), *(_read(*_contended("p", a, 1)) for a in
+                                           ("stl-preview", "step"))]
+    with _stop("R14", "pa-n1 at stl-fine has no max"):
+        oper_sets.timeouts(reads, 1)
+
+
+def test_w_is_the_max_n1_container_peak_over_every_bound_point_and_ignores_other_ns() -> None:
+    reads = [_read(*_contended("slow", "stl-fine", 1, peaks=(5, 6, 7, 8, 9))),
+             _read(*_contended("heavy", "step", 1, peaks=(1, 2, 300, 4, 5))),
+             _read(*_contended("heavy", "step", 3, peaks=(10**9,) * 5))]
+    assert oper_sets._w(reads) == (300, "7:heavy-n1 rep 3")
+
+
+@pytest.mark.parametrize("status", ["capped", "killed", "no_cgroup"])
+def test_an_n1_contention_reading_that_is_not_ok_leaves_w_no_number(status: str) -> None:
+    statuses = ("ok", status, "ok", "ok", "ok")
+    reads = [_read(*_contended("heavy", "step", 1, statuses=statuses))]
+    with _stop("R16", "heavy-n1 at step has no max"):
+        oper_sets._w(reads)
+
+
+def test_a_point_read_in_two_runs_or_in_none_is_a_stop() -> None:
+    point, readings = _contended("pa", "step", 1)
+    tagged = [("bound", "1", r) for r in readings[:3]] + [("bound-rerun", "2", r)
+                                                         for r in readings[3:]]
+    with _stop("R14", r"pa-n1 at step is read in 2 runs \(1, 2\), not in exactly one"):
+        oper_sets.matched([point], tagged, oper_sets.BOUND_SETS, oper_sets._IDENTITY, "R14")
+    with _stop("R14", "read in 0 runs"):
+        oper_sets.matched([point], [], oper_sets.BOUND_SETS, oper_sets._IDENTITY, "R14")
+
+
+def test_a_contention_point_is_matched_by_its_members_and_not_by_its_label() -> None:
+    point, readings = _contended("pa", "step", 2)
+    members = point["points"]
+    assert isinstance(members, list)
+    old_members = [*members, {"label": "nut", "kind": "nut", "params": {}, "slot": 1}]
+    stale = [{**r, "points": old_members, "status": "refused"} for r in readings]
+    tagged = [("bound", "1", r) for r in stale] + [("bound-rerun", "2", r) for r in readings]
+    found = oper_sets.matched([point], tagged, oper_sets.BOUND_SETS, oper_sets._IDENTITY, "R14")
+    assert found[0].run == "2"
+    assert found[0].ok
+
+
+def test_disagreeing_nproc_across_the_runner_headers_is_a_stop() -> None:
+    with _stop("R16", "nproc"):
+        oper_sets._runner([{"nproc": 4, "mem_total_bytes": 1}, {"nproc": 2, "mem_total_bytes": 1}])
+    assert oper_sets._runner([{"nproc": 4, "mem_total_bytes": 9},
+                              {"nproc": 4, "mem_total_bytes": 7}]) == (4, 7)
+
+
+def test_the_tmpfs_must_fit_inside_mem_limit() -> None:
+    oper_sets.tmpfs_inside(QUARTER, QUARTER, 1)
+    with _stop("R26", "larger than mem_limit"):
+        oper_sets.tmpfs_inside(2 * QUARTER, QUARTER, 2)
+
+
+def test_the_tmpfs_per_worker_is_the_stl_fine_bytes_budget() -> None:
+    assert oper_sets.tmpfs_base([]) == (cost.BUDGET["stl-fine"][0],
+                                        "the stl-fine bytes budget (B-01)")
+
+
+def test_r17_keeps_a_queue_of_2n_when_every_call_fits_its_queue_aware_deadline() -> None:
+    limits = {"stl-preview": 10, "stl-fine": 30, "step": 10}
+    # queued behind a fine STL and a preview: its deadline is 10 + 30 + 10 = 50 s
+    call = {"slot": 0, "artifact": "step", "pending": ["stl-fine", "stl-preview"],
+            "submit_s": 0.0, "end_s": 50.0, "outcome": "ok"}
+    reads = [_load(2, pool_calls=[call])]
+    found = oper_sets.queue_depth(reads, limits, 2 * GIB, 2)
+    assert found["depth"] == 4
+    assert found["largest_wall_over_deadline"] == 1.0
+
+
+def test_r17_takes_a_queue_of_n_when_one_call_overruns_its_deadline() -> None:
+    limits = {"stl-preview": 10, "stl-fine": 30, "step": 10}
+    call = {"slot": 0, "artifact": "step", "pending": ["stl-fine"], "submit_s": 0.0,
+            "end_s": 40.5, "outcome": "ok"}
+    found = oper_sets.queue_depth([_load(2, pool_calls=[call])], limits, 2 * GIB, 2)
+    assert found["depth"] == 2
+    assert found["reading"] == "7:load-n2 rep 1 pool call 0"
+
+
+def test_r17_takes_a_queue_of_n_when_an_end_peak_is_above_mem_limit() -> None:
+    limits = {str(a): 100 for a in ARTIFACTS3}
+    assert oper_sets.queue_depth([_load(3, peak=GIB + 1)], limits, GIB, 3)["depth"] == 3
+    assert oper_sets.queue_depth([_load(3, peak=GIB)], limits, GIB, 3)["depth"] == 6
+
+
+def test_retry_after_is_the_median_of_the_pooled_request_walls_per_artifact() -> None:
+    readings = [_served(1, rep, requests=[_request(i, a, float(rep * 10 + i))
+                                                for i in range(20) for a in ARTIFACTS3])
+                for rep in REPS]
+    found = oper_sets.retry_after([_read(_load_point(1), readings)])
+    walls = sorted(float(rep * 10 + i) for rep in REPS for i in range(20))
+    assert found["step"] == {"median_s": (walls[49] + walls[50]) / 2, "samples": 100}
+
+
+def test_minimum_size_is_the_smallest_length_above_the_largest_body_that_does_not_shrink() -> None:
+    def body(size: int, level1: int) -> Raw:
+        return {"path": f"/b{size}", "status_code": 200, "bytes": size,
+                "gzip": {"1": level1, "6": level1, "9": level1}}
+
+    bodies = [body(95, 98), body(300, 280), body(500, 500), body(4012, 686), body(9000, 900)]
+    found = oper_sets.minimum_size([_load(1, bodies=bodies)], 1)
+    assert found["bytes"] == 4012
+    assert found["largest_not_shrinking"] == {"bytes": 500, "gzip_bytes": 500,
+                                              "body": "7:load-n1 rep 5 /b500"}
+    assert oper_sets.minimum_size([_load(1, bodies=bodies[3:])], 1)["bytes"] == 4012
+    with _stop("R20", "does not shrink"):
+        oper_sets.minimum_size([_load(1, bodies=[body(95, 98)])], 1)
+
+
+def test_screw_workers_stays_1_at_a_health_p95_of_the_probes_1_s() -> None:
+    assert oper_sets.screw_workers([_load(1, health=(1.0, 20))])["workers"] == 1
+    with _stop("R24", "above the probe's 1 s"):
+        oper_sets.screw_workers([_load(1, health=(1.01, 400))])
+    with _stop("R24", "19 health samples"):
+        oper_sets.screw_workers([_load(1, health=(0.01, 19))])
+
+
+def test_the_healthcheck_timeout_and_start_period_come_from_the_picked_n() -> None:
+    checks = [{"offset_s": 0.0, "wall_s": w, "exit_code": 0} for w in (0.2, 0.74, 0.3)]
+    found = oper_sets.healthcheck([_load(1, healthcheck=checks, time_to_healthy_s=5.01)])
+    assert (found["timeout_s"], found["max_wall_s"]) == (2, 0.74)
+    assert found["start_period_s"] == 20  # 2 x 5.01 s rounded up to 10 s
+    assert (found["interval_s"], found["retries"]) == (30, 3)
+    with _stop("R25", "no HEALTHCHECK"):
+        oper_sets.healthcheck([_load(1, healthcheck=[])])
+
+
+def test_r19_compares_each_levels_max_over_five_repetitions() -> None:
+    by_rep: dict[int, Mapping[int, tuple[int, float]]] = {
+        rep: {1: (1000, 0.1), 6: (850 if rep < 5 else 950, 0.12), 9: (800, 0.2)} for rep in REPS}
+    found = oper_sets.gzip_level([_gzip("a", by_rep)])
+    assert found["maxima"] == {"a at stl-preview": {"1": {"bytes": 1000, "seconds": 0.1},
+                                                    "6": {"bytes": 950, "seconds": 0.12},
+                                                    "9": {"bytes": 800, "seconds": 0.2}}}
+    # level 6's max, 950, saves only 5 %; level 9 against level 1 saves 20 % but takes 2x
+    assert found["level"] == 1
+
+
+def test_r19_adopts_level_6_only_if_every_point_passes_on_its_own() -> None:
+    good = _same({1: (1000, 0.1), 6: (900, 0.15), 9: (800, 0.3)})
+    poor = _same({1: (1000, 0.1), 6: (901, 0.1), 9: (900, 0.1)})
+    assert oper_sets.gzip_level([_gzip("a", good)])["level"] == 6
+    found = oper_sets.gzip_level([_gzip("a", good), _gzip("b", poor)])
+    trials = found["trials"]
+    assert isinstance(trials, list)
+    assert trials[0]["failing"] == ["b at stl-preview"]
+    # level 9 is compared with level 1, the adopted one: 'a' takes 3x level 1's seconds
+    assert trials[1]["against"] == 1
+    assert trials[1]["failing"] == ["a at stl-preview"]
+    assert found["level"] == 1
+
+
+def test_r19_compares_level_9_with_the_adopted_level_6() -> None:
+    levels = _same({1: (1000, 0.1), 6: (900, 0.15), 9: (810, 0.2)})
+    found = oper_sets.gzip_level([_gzip("a", levels)])
+    assert found["level"] == 9  # 810 <= 0.9 x 900 and 0.2 <= 1.5 x 0.15
+
+
+def test_a_gzip_point_with_four_repetitions_stops_at_r19() -> None:
+    levels = {1: (1000, 0.1), 6: (900, 0.1), 9: (800, 0.1)}
+    with _stop("R19", "a at stl-preview has no max"):
+        oper_sets.gzip_level([_gzip("a", dict.fromkeys(REPS[:4], levels))])
+
+
+def _explore_part(label: str, params: Mapping[str, object], size: int,
+                  status: str = "ok") -> list[oper_sets.Tagged]:
+    return [("explore", "40646117094",
+             {"type": "reading", "label": label, "kind": "bolt", "params": dict(params),
+              "artifact": a, "rep": 1, "status": status, "bytes": size, "gzip1_bytes": size // 2})
+            for a in ARTIFACTS3]
+
+
+def test_the_export_cache_holds_the_largest_candidates_raw_and_gzip_bytes_in_whole_mib() -> None:
+    explore = [*_explore_part("small", {}, 10**6), *_explore_part("big", {"length": 30.0}, 10**7),
+               *_explore_part("failed", {"length": 25.0}, 10**8, status="killed")]
+    found = oper_sets.export_cache(explore, [])
+    assert found["part"] == "big"
+    assert found["raw_and_gzip1_bytes"] == 3 * (10**7 + 5 * 10**6)
+    assert found["mib"] == 43
+    assert found["bytes"] == 43 * 2**20
+    assert found["candidates"] == 2
+
+
+def test_a_part_the_cost_model_refuses_at_any_artifact_is_no_export_cache_candidate() -> None:
+    refused = {"length": 2.0, "thread_length": 1.0}  # below the fitted turns (G30)
+    assert oper_sets._validated("bolt", refused) is not None
+    explore = [*_explore_part("small", {}, 10**6), *_explore_part("refused", refused, 10**8)]
+    assert oper_sets.export_cache(explore, [])["part"] == "small"
+
+
+def test_a_gzip_reading_with_more_bytes_at_level_6_than_level_1_stops_at_r21() -> None:
+    levels = _same({1: (1000, 0.1), 6: (1001, 0.1), 9: (900, 0.1)})
+    with _stop("R21", "more bytes at gzip level 6 than at level 1"):
+        oper_sets.export_cache(_explore_part("small", {}, 10**6), [_gzip("a", levels)])
+
+
+def _scenario(nproc: Iterable[int] = (4,)) -> tuple[list[Raw], list[oper_sets.Tagged],
+                                                     dict[str, list[Mapping[str, object]]]]:
+    """Every set R14 to R26 read, all ok: one bound point per artifact at N 1 to 3, one gzip point,
+    loads at N 1 to 3 whose p95 grows with N, and two explore parts."""
+    headers: list[Raw] = [{"type": "header", "nproc": n, "mem_total_bytes": 16 * GIB}
+                          for n in nproc]
+    tagged: list[oper_sets.Tagged] = []
+    bound: list[Mapping[str, object]] = []
+    for artifact in ARTIFACTS3:
+        for workers in (1, 2, 3):
+            point, readings = _contended("p", artifact, workers, walls=(2.0 * workers,) * 5,
+                                          peaks=(GIB // 2,) * 5)
+            bound.append(point)
+            tagged += [("bound", "1", r) for r in readings]
+    gzip_read = _gzip("g", _same({1: (1000, 0.1), 6: (950, 0.1), 9: (940, 0.1)}))
+    tagged += [("gzip", "2", r) for r in gzip_read.readings]
+    bodies = [{"path": "/api/health", "status_code": 200, "bytes": 95,
+               "gzip": {"1": 98, "6": 98, "9": 98}},
+              {"path": "/api/presets?kind=nut", "status_code": 200, "bytes": 4012,
+               "gzip": {"1": 686, "6": 619, "9": 618}}]
+    loads = [_load(1, p95=10.0, peak=GIB, bodies=bodies),
+             *(_load(n, p95=10.0 * n, peak=n * GIB) for n in (2, 3))]
+    tagged += [("load", "3", r) for read in loads for r in read.readings]
+    tagged += [*_explore_part("small", {}, 10**6), *_explore_part("big", {"length": 30.0}, 10**7)]
+    sets = {"bound": bound, "gzip": [gzip_read.point], "load": [read.point for read in loads]}
+    return headers, tagged, sets
+
+
+def test_runtime_derives_every_value_in_order_from_a_complete_record() -> None:
+    headers, tagged, sets = _scenario()
+    found = oper_sets.runtime(headers, tagged, sets, ["somewhere"])
+    assert found["picked_workers"] == 1  # the lowest max-over-reps p95
+    assert found["w"] == {"bytes": GIB // 2, "reading": "1:p-n1 rep 1"}
+    assert found["timeouts"] == {a: {"seconds": 4, "max_cold_wall_s": 2.0, "bound_point": "p-n1",
+                                     "reading": "1:p-n1 rep 1"} for a in ARTIFACTS3}
+    assert found["tmpfs_bytes"] == QUARTER
+    assert found["mem_limit_bytes"] == 4 * QUARTER
+    assert found["export_cache"]["mib"] == 43  # type: ignore[index]
+    assert found["gzip"]["level"] == 1  # type: ignore[index]
+    assert found["queue_depth"]["depth"] == 2  # type: ignore[index]
+    assert found["minimum_size"]["bytes"] == 4012  # type: ignore[index]
+
+
+def test_the_pick_goes_to_the_smaller_n_on_a_tie_in_p95() -> None:
+    headers, tagged, sets = _scenario()
+    tagged = [(name, run, {**r, "latency": {"all": {"samples": 60, "p95_s": 7.0}}})
+              if r.get("kind") == "load" and r.get("workers") in (2, 3) else (name, run, r)
+              for name, run, r in tagged]
+    tagged = [(name, run, {**r, "latency": {"all": {"samples": 60, "p95_s": 9.0}}})
+              if r.get("kind") == "load" and r.get("workers") == 1 else (name, run, r)
+              for name, run, r in tagged]
+    assert oper_sets.runtime(headers, tagged, sets, [])["picked_workers"] == 2
+
+
+def test_no_qualifying_n_stops_at_r16_naming_each_reason() -> None:
+    headers, tagged, sets = _scenario(nproc=(1,))
+    with _stop("R16", r"no N qualifies \(G7\): N = 1: N = 1 is above nproc - 1 = 0; N = 2"):
+        oper_sets.runtime(headers, tagged, sets, [])
+    headers, _, _ = _scenario(nproc=(4, 2))
+    with _stop("R16", "nproc"):
+        oper_sets.runtime(headers, tagged, sets, [])
+
+
+def test_derive_runtime_exits_3_on_a_stop_and_writes_nothing(
+        repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    point, _ = _contended("pa", "step", 1)
+    for name, points in (("bound", [point]), ("gzip", []), ("load", [])):
+        (repo / "points" / f"{name}.json").write_text(json.dumps({"points": points}))
+    out = repo / "runtime.json"
+    assert oper_sets.main(["derive-runtime", "--from", str(repo / "explore"), "--out",
+                           str(out)]) == 3
+    assert "oper_sets: stop (R14): pa-n1 at step is read in 0 runs" in capsys.readouterr().err
+    assert not out.exists()
