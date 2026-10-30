@@ -1,6 +1,6 @@
 {
  "set": "gzip",
- "rule": "07-SWEEP-PROTOCOL.md R19 (G11, G15, G24)",
+ "rule": "07-SWEEP-PROTOCOL.md R19 (G11, G15, G24, G31)",
  "reps": 5,
  "shards": 1,
  "deadline_s": 600,
@@ -18,24 +18,6 @@
    },
    "artifact": "stl-preview",
    "preset": "iso4017:M20x200",
-   "gzip_levels": [
-    1,
-    6,
-    9
-   ]
-  },
-  {
-   "label": "nut-d30-p0.35-m0.8d-s4d-c0.15-right",
-   "kind": "nut",
-   "params": {
-    "d": 30.0,
-    "pitch": 0.35,
-    "m": 24.0,
-    "s": 120.0,
-    "clearance": 0.15,
-    "left_hand": false
-   },
-   "artifact": "stl-preview",
    "gzip_levels": [
     1,
     6,
@@ -62,24 +44,6 @@
    ]
   },
   {
-   "label": "nut-d30-p0.35-m0.8d-s1.6d-c0.15-left",
-   "kind": "nut",
-   "params": {
-    "d": 30.0,
-    "pitch": 0.35,
-    "m": 24.0,
-    "s": 48.0,
-    "clearance": 0.15,
-    "left_hand": true
-   },
-   "artifact": "stl-preview",
-   "gzip_levels": [
-    1,
-    6,
-    9
-   ]
-  },
-  {
    "label": "iso4017:M16x160",
    "kind": "bolt",
    "params": {
@@ -92,6 +56,44 @@
    },
    "artifact": "stl-preview",
    "preset": "iso4017:M16x160",
+   "gzip_levels": [
+    1,
+    6,
+    9
+   ]
+  },
+  {
+   "label": "iso4017:M16x150",
+   "kind": "bolt",
+   "params": {
+    "d": 16.0,
+    "pitch": 2.0,
+    "length": 150.0,
+    "s": 24.0,
+    "k": 10.0,
+    "thread_length": 150.0
+   },
+   "artifact": "stl-preview",
+   "preset": "iso4017:M16x150",
+   "gzip_levels": [
+    1,
+    6,
+    9
+   ]
+  },
+  {
+   "label": "iso4017:M20x160",
+   "kind": "bolt",
+   "params": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "length": 160.0,
+    "s": 30.0,
+    "k": 12.5,
+    "thread_length": 160.0
+   },
+   "artifact": "stl-preview",
+   "preset": "iso4017:M20x160",
    "gzip_levels": [
     1,
     6,
@@ -268,7 +270,7 @@
  ],
  "dropped": [],
  "notes": [
-  "every point of the stl-preview and stl-fine bound sets (R14), read as a part with gzip levels 1, 6 and 9",
+  "every point of the stl-preview and stl-fine bound sets (R14, G31), read as a part with gzip levels 1, 6 and 9",
   "5 repetitions; each reading charged R2's 600 s (R6, G24)"
  ],
  "shard_sizes": [

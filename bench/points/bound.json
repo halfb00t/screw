@@ -1,6 +1,6 @@
 {
  "set": "bound",
- "rule": "07-SWEEP-PROTOCOL.md R14 (G4, G6, G24)",
+ "rule": "07-SWEEP-PROTOCOL.md R14 (G4, G6, G24, G31)",
  "reps": 5,
  "shards": 4,
  "deadline_s": 600,
@@ -80,119 +80,17 @@
      "slot": 1
     },
     {
-     "label": "nut-d30-p0.35-m0.8d-s4d-c0.15-right",
-     "kind": "nut",
-     "params": {
-      "d": 30.0,
-      "pitch": 0.35,
-      "m": 24.0,
-      "s": 120.0,
-      "clearance": 0.15,
-      "left_hand": false
-     },
-     "slot": 0
-    },
-    {
-     "label": "iso4017:M20x180",
+     "label": "iso4017:M16x140",
      "kind": "bolt",
      "params": {
-      "d": 20.0,
-      "pitch": 2.5,
-      "length": 180.0,
-      "s": 30.0,
-      "k": 12.5,
-      "thread_length": 180.0
-     },
-     "slot": 2
-    }
-   ]
-  },
-  {
-   "label": "nut-d30-p0.35-m0.8d-s4d-c0.15-right-n1",
-   "kind": "contention",
-   "artifact": "stl-preview",
-   "workers": 1,
-   "points": [
-    {
-     "label": "nut-d30-p0.35-m0.8d-s4d-c0.15-right",
-     "kind": "nut",
-     "params": {
-      "d": 30.0,
-      "pitch": 0.35,
-      "m": 24.0,
-      "s": 120.0,
-      "clearance": 0.15,
-      "left_hand": false
+      "d": 16.0,
+      "pitch": 2.0,
+      "length": 140.0,
+      "s": 24.0,
+      "k": 10.0,
+      "thread_length": 140.0
      },
      "slot": 0
-    }
-   ]
-  },
-  {
-   "label": "nut-d30-p0.35-m0.8d-s4d-c0.15-right-n2",
-   "kind": "contention",
-   "artifact": "stl-preview",
-   "workers": 2,
-   "points": [
-    {
-     "label": "nut-d30-p0.35-m0.8d-s4d-c0.15-right",
-     "kind": "nut",
-     "params": {
-      "d": 30.0,
-      "pitch": 0.35,
-      "m": 24.0,
-      "s": 120.0,
-      "clearance": 0.15,
-      "left_hand": false
-     },
-     "slot": 0
-    },
-    {
-     "label": "iso4017:M20x180",
-     "kind": "bolt",
-     "params": {
-      "d": 20.0,
-      "pitch": 2.5,
-      "length": 180.0,
-      "s": 30.0,
-      "k": 12.5,
-      "thread_length": 180.0
-     },
-     "slot": 1
-    }
-   ]
-  },
-  {
-   "label": "nut-d30-p0.35-m0.8d-s4d-c0.15-right-n3",
-   "kind": "contention",
-   "artifact": "stl-preview",
-   "workers": 3,
-   "points": [
-    {
-     "label": "nut-d30-p0.35-m0.8d-s4d-c0.15-right",
-     "kind": "nut",
-     "params": {
-      "d": 30.0,
-      "pitch": 0.35,
-      "m": 24.0,
-      "s": 120.0,
-      "clearance": 0.15,
-      "left_hand": false
-     },
-     "slot": 0
-    },
-    {
-     "label": "iso4017:M20x200",
-     "kind": "bolt",
-     "params": {
-      "d": 20.0,
-      "pitch": 2.5,
-      "length": 200.0,
-      "s": 30.0,
-      "k": 12.5,
-      "thread_length": 200.0
-     },
-     "slot": 1
     },
     {
      "label": "iso4017:M20x180",
@@ -284,15 +182,15 @@
      "slot": 2
     },
     {
-     "label": "nut-d30-p0.35-m0.8d-s4d-c0.15-right",
-     "kind": "nut",
+     "label": "iso4017:M16x140",
+     "kind": "bolt",
      "params": {
-      "d": 30.0,
-      "pitch": 0.35,
-      "m": 24.0,
-      "s": 120.0,
-      "clearance": 0.15,
-      "left_hand": false
+      "d": 16.0,
+      "pitch": 2.0,
+      "length": 140.0,
+      "s": 24.0,
+      "k": 10.0,
+      "thread_length": 140.0
      },
      "slot": 0
     },
@@ -308,108 +206,6 @@
       "thread_length": 200.0
      },
      "slot": 1
-    }
-   ]
-  },
-  {
-   "label": "nut-d30-p0.35-m0.8d-s1.6d-c0.15-left-n1",
-   "kind": "contention",
-   "artifact": "stl-preview",
-   "workers": 1,
-   "points": [
-    {
-     "label": "nut-d30-p0.35-m0.8d-s1.6d-c0.15-left",
-     "kind": "nut",
-     "params": {
-      "d": 30.0,
-      "pitch": 0.35,
-      "m": 24.0,
-      "s": 48.0,
-      "clearance": 0.15,
-      "left_hand": true
-     },
-     "slot": 0
-    }
-   ]
-  },
-  {
-   "label": "nut-d30-p0.35-m0.8d-s1.6d-c0.15-left-n2",
-   "kind": "contention",
-   "artifact": "stl-preview",
-   "workers": 2,
-   "points": [
-    {
-     "label": "nut-d30-p0.35-m0.8d-s1.6d-c0.15-left",
-     "kind": "nut",
-     "params": {
-      "d": 30.0,
-      "pitch": 0.35,
-      "m": 24.0,
-      "s": 48.0,
-      "clearance": 0.15,
-      "left_hand": true
-     },
-     "slot": 0
-    },
-    {
-     "label": "iso4017:M20x180",
-     "kind": "bolt",
-     "params": {
-      "d": 20.0,
-      "pitch": 2.5,
-      "length": 180.0,
-      "s": 30.0,
-      "k": 12.5,
-      "thread_length": 180.0
-     },
-     "slot": 1
-    }
-   ]
-  },
-  {
-   "label": "nut-d30-p0.35-m0.8d-s1.6d-c0.15-left-n3",
-   "kind": "contention",
-   "artifact": "stl-preview",
-   "workers": 3,
-   "points": [
-    {
-     "label": "nut-d30-p0.35-m0.8d-s1.6d-c0.15-left",
-     "kind": "nut",
-     "params": {
-      "d": 30.0,
-      "pitch": 0.35,
-      "m": 24.0,
-      "s": 48.0,
-      "clearance": 0.15,
-      "left_hand": true
-     },
-     "slot": 0
-    },
-    {
-     "label": "iso4017:M20x200",
-     "kind": "bolt",
-     "params": {
-      "d": 20.0,
-      "pitch": 2.5,
-      "length": 200.0,
-      "s": 30.0,
-      "k": 12.5,
-      "thread_length": 200.0
-     },
-     "slot": 1
-    },
-    {
-     "label": "iso4017:M20x180",
-     "kind": "bolt",
-     "params": {
-      "d": 20.0,
-      "pitch": 2.5,
-      "length": 180.0,
-      "s": 30.0,
-      "k": 12.5,
-      "thread_length": 180.0
-     },
-     "slot": 2
     }
    ]
   },
@@ -488,15 +284,219 @@
      "slot": 2
     },
     {
-     "label": "nut-d30-p0.35-m0.8d-s4d-c0.15-right",
-     "kind": "nut",
+     "label": "iso4017:M16x140",
+     "kind": "bolt",
      "params": {
-      "d": 30.0,
-      "pitch": 0.35,
-      "m": 24.0,
-      "s": 120.0,
-      "clearance": 0.15,
-      "left_hand": false
+      "d": 16.0,
+      "pitch": 2.0,
+      "length": 140.0,
+      "s": 24.0,
+      "k": 10.0,
+      "thread_length": 140.0
+     },
+     "slot": 0
+    },
+    {
+     "label": "iso4017:M20x200",
+     "kind": "bolt",
+     "params": {
+      "d": 20.0,
+      "pitch": 2.5,
+      "length": 200.0,
+      "s": 30.0,
+      "k": 12.5,
+      "thread_length": 200.0
+     },
+     "slot": 1
+    }
+   ]
+  },
+  {
+   "label": "iso4017:M16x150-n1",
+   "kind": "contention",
+   "artifact": "stl-preview",
+   "workers": 1,
+   "points": [
+    {
+     "label": "iso4017:M16x150",
+     "kind": "bolt",
+     "params": {
+      "d": 16.0,
+      "pitch": 2.0,
+      "length": 150.0,
+      "s": 24.0,
+      "k": 10.0,
+      "thread_length": 150.0
+     },
+     "slot": 0
+    }
+   ]
+  },
+  {
+   "label": "iso4017:M16x150-n2",
+   "kind": "contention",
+   "artifact": "stl-preview",
+   "workers": 2,
+   "points": [
+    {
+     "label": "iso4017:M16x150",
+     "kind": "bolt",
+     "params": {
+      "d": 16.0,
+      "pitch": 2.0,
+      "length": 150.0,
+      "s": 24.0,
+      "k": 10.0,
+      "thread_length": 150.0
+     },
+     "slot": 0
+    },
+    {
+     "label": "iso4017:M20x180",
+     "kind": "bolt",
+     "params": {
+      "d": 20.0,
+      "pitch": 2.5,
+      "length": 180.0,
+      "s": 30.0,
+      "k": 12.5,
+      "thread_length": 180.0
+     },
+     "slot": 1
+    }
+   ]
+  },
+  {
+   "label": "iso4017:M16x150-n3",
+   "kind": "contention",
+   "artifact": "stl-preview",
+   "workers": 3,
+   "points": [
+    {
+     "label": "iso4017:M16x150",
+     "kind": "bolt",
+     "params": {
+      "d": 16.0,
+      "pitch": 2.0,
+      "length": 150.0,
+      "s": 24.0,
+      "k": 10.0,
+      "thread_length": 150.0
+     },
+     "slot": 1
+    },
+    {
+     "label": "iso4017:M16x140",
+     "kind": "bolt",
+     "params": {
+      "d": 16.0,
+      "pitch": 2.0,
+      "length": 140.0,
+      "s": 24.0,
+      "k": 10.0,
+      "thread_length": 140.0
+     },
+     "slot": 0
+    },
+    {
+     "label": "iso4017:M20x180",
+     "kind": "bolt",
+     "params": {
+      "d": 20.0,
+      "pitch": 2.5,
+      "length": 180.0,
+      "s": 30.0,
+      "k": 12.5,
+      "thread_length": 180.0
+     },
+     "slot": 2
+    }
+   ]
+  },
+  {
+   "label": "iso4017:M20x160-n1",
+   "kind": "contention",
+   "artifact": "stl-preview",
+   "workers": 1,
+   "points": [
+    {
+     "label": "iso4017:M20x160",
+     "kind": "bolt",
+     "params": {
+      "d": 20.0,
+      "pitch": 2.5,
+      "length": 160.0,
+      "s": 30.0,
+      "k": 12.5,
+      "thread_length": 160.0
+     },
+     "slot": 0
+    }
+   ]
+  },
+  {
+   "label": "iso4017:M20x160-n2",
+   "kind": "contention",
+   "artifact": "stl-preview",
+   "workers": 2,
+   "points": [
+    {
+     "label": "iso4017:M20x160",
+     "kind": "bolt",
+     "params": {
+      "d": 20.0,
+      "pitch": 2.5,
+      "length": 160.0,
+      "s": 30.0,
+      "k": 12.5,
+      "thread_length": 160.0
+     },
+     "slot": 1
+    },
+    {
+     "label": "iso4017:M20x200",
+     "kind": "bolt",
+     "params": {
+      "d": 20.0,
+      "pitch": 2.5,
+      "length": 200.0,
+      "s": 30.0,
+      "k": 12.5,
+      "thread_length": 200.0
+     },
+     "slot": 0
+    }
+   ]
+  },
+  {
+   "label": "iso4017:M20x160-n3",
+   "kind": "contention",
+   "artifact": "stl-preview",
+   "workers": 3,
+   "points": [
+    {
+     "label": "iso4017:M20x160",
+     "kind": "bolt",
+     "params": {
+      "d": 20.0,
+      "pitch": 2.5,
+      "length": 160.0,
+      "s": 30.0,
+      "k": 12.5,
+      "thread_length": 160.0
+     },
+     "slot": 2
+    },
+    {
+     "label": "iso4017:M16x140",
+     "kind": "bolt",
+     "params": {
+      "d": 16.0,
+      "pitch": 2.0,
+      "length": 140.0,
+      "s": 24.0,
+      "k": 10.0,
+      "thread_length": 140.0
      },
      "slot": 0
     },
@@ -692,15 +692,15 @@
      "slot": 2
     },
     {
-     "label": "nut-d30-p0.35-m0.8d-s4d-c0.15-right",
-     "kind": "nut",
+     "label": "iso4017:M16x140",
+     "kind": "bolt",
      "params": {
-      "d": 30.0,
-      "pitch": 0.35,
-      "m": 24.0,
-      "s": 120.0,
-      "clearance": 0.15,
-      "left_hand": false
+      "d": 16.0,
+      "pitch": 2.0,
+      "length": 140.0,
+      "s": 24.0,
+      "k": 10.0,
+      "thread_length": 140.0
      },
      "slot": 0
     },
@@ -2056,8 +2056,9 @@
  ],
  "dropped": [],
  "notes": [
-  "per artifact the bound set: the 5 admitted explore points with the largest enveloped build-seconds prediction, the largest measured cold wall and the largest measured memory_peak_bytes among ok explore readings, and the largest enveloped peak prediction, a tie to the label that sorts first, a point in two groups once",
-  "each bound point P at N 1, 2 and 3: P on slot hash(p) % N and, on every other slot, the admitted point other than P on that slot with the largest enveloped build-seconds prediction, a tie to the label",
+  "the candidates of an artifact: its admitted explore points whose explore reading is ok at every artifact (G31)",
+  "per artifact the bound set: the 5 candidates with the largest enveloped build-seconds prediction, the largest measured cold wall, the largest measured memory_peak_bytes and the largest enveloped peak prediction, a tie to the label that sorts first, a point in two groups once",
+  "each bound point P at N 1, 2 and 3: P on slot hash(p) % N and, on every other slot, the candidate other than P on that slot with the largest enveloped build-seconds prediction, a tie to the label",
   "5 repetitions; each reading charged R2's 600 s (R6, G4)"
  ],
  "shard_sizes": [

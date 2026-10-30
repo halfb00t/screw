@@ -1495,20 +1495,30 @@ def _largest(found: Iterable[Candidate], key: Callable[[Candidate], float]) -> C
     return min(found, key=lambda c: (-key(c), c.label), default=None)
 
 
+def bound_candidates(points: Sequence[Mapping[str, object]],
+                     index: Mapping[tuple[str, str], Reading], artifact: cost.Artifact,
+                     envelope: Envelope, budget: Budget = cost.BUDGET) -> list[Candidate]:
+    """R14's candidates at `artifact` (G31): the admitted explore points whose explore reading is
+    ok at every artifact. Two admitted nuts the kernel refuses entered the stl-preview set as P and
+    as partners when only the two measured picks needed an ok reading, and every reading that built
+    them was refused (bound 40907549180, gzip 40909739628), so those (P, N) had no max (R3)."""
+    return [c for c in candidates(points, artifact, envelope, budget)
+            if all(_ok(index, c.label, other) is not None for other in cost.ARTIFACTS)]
+
+
 def bound_sets(points: Sequence[Mapping[str, object]], readings: Iterable[Reading],
                envelope: Envelope, budget: Budget = cost.BUDGET) -> dict[str, list[Candidate]]:
-    """R14's bound set per artifact: the 5 admitted points with the largest enveloped build-seconds
-    prediction, the largest measured cold wall among ok explore readings, the largest enveloped
-    peak prediction and the largest measured `memory_peak_bytes` among ok readings, a point in
-    two groups once, so 5 to 8 points, in that order."""
+    """R14's bound set per artifact, from its candidates (`bound_candidates`): the 5 with the
+    largest enveloped build-seconds prediction, the largest measured cold wall, the largest
+    enveloped peak prediction and the largest measured `memory_peak_bytes`, a point in two groups
+    once, so 5 to 8 points, in that order."""
     index = _explore_index(readings)
     out: dict[str, list[Candidate]] = {}
     for artifact in cost.ARTIFACTS:
-        found = candidates(points, artifact, envelope, budget)
-        measured = [c for c in found if _ok(index, c.label, artifact) is not None]
-        if not measured:
-            raise ProtocolStop("R14", f"no admitted point at {artifact} has an ok explore reading, "
-                                      "so the measured extrema have no point")
+        found = bound_candidates(points, index, artifact, envelope, budget)
+        if not found:
+            raise ProtocolStop("R14", f"no admitted point at {artifact} has an ok explore reading "
+                                      "at every artifact, so the bound set has no point")
 
         def reading(c: Candidate, artifact: str = artifact) -> Reading:
             found_reading = _ok(index, c.label, artifact)
@@ -1523,10 +1533,10 @@ def bound_sets(points: Sequence[Mapping[str, object]], readings: Iterable[Readin
 
         top = sorted(found, key=lambda c: (-seconds(c), c.label))[:TOP_SECONDS]
         picks = [*top,
-                 _largest(measured, lambda c: _number(reading(c), "build_s")
+                 _largest(found, lambda c: _number(reading(c), "build_s")
                           + _number(reading(c), "export_s")),
                  _largest(found, peak),
-                 _largest(measured, lambda c: _number(reading(c), "memory_peak_bytes"))]
+                 _largest(found, lambda c: _number(reading(c), "memory_peak_bytes"))]
         chosen: list[Candidate] = []
         for pick in picks:
             if pick is not None and pick.label not in {c.label for c in chosen}:
@@ -1542,13 +1552,15 @@ def _member(c: Candidate, slot: int) -> dict[str, object]:
 def bound_points(points: Sequence[Mapping[str, object]], readings: Iterable[Reading],
                  envelope: Envelope, budget: Budget = cost.BUDGET) -> list[dict[str, object]]:
     """R14's contention readings: every point P of every bound set at N 1, 2 and 3, P on its own
-    slot (`hash(p) % N`, `pool_slot`) and, on every slot P does not hold, the admitted point
+    slot (`hash(p) % N`, `pool_slot`) and, on every slot P does not hold, the candidate
     other than P on that slot with the largest enveloped build-seconds prediction, a tie to the
-    label. A slot no admitted point holds is a stop: no rule puts two points on one worker."""
-    bound = bound_sets(points, readings, envelope, budget)
+    label, both from `bound_candidates` (G31). A slot no candidate holds is a stop: no rule puts
+    two points on one worker."""
+    readings = list(readings)
+    bound, index = bound_sets(points, readings, envelope, budget), _explore_index(readings)
     out: list[dict[str, object]] = []
     for artifact in cost.ARTIFACTS:
-        found = candidates(points, artifact, envelope, budget)
+        found = bound_candidates(points, index, artifact, envelope, budget)
         # Slowest first, a tie to the label: the first on a slot is that slot's partner.
         slowest = sorted(found, key=lambda c: (-enveloped(c.part, artifact, envelope)[1],
                                                c.label))
@@ -1563,7 +1575,7 @@ def bound_points(points: Sequence[Mapping[str, object]], readings: Iterable[Read
                                     and hash(c.part) % workers == slot), None)
                     if partner is None:
                         raise ProtocolStop("R14", f"{p.label} at {artifact}, N = {workers}: no "
-                                                  f"admitted point is on slot {slot}, so the "
+                                                  f"candidate is on slot {slot}, so the "
                                                   "reading cannot run N-way")
                     members.append(_member(partner, slot))
                 out.append({"label": f"{p.label}-n{workers}", "kind": "contention",
@@ -1871,13 +1883,15 @@ def tier_order_text(envelope: Envelope) -> str:
 
 
 def build_bound(explore_dir: str, envelope: Envelope) -> _Set:
-    return _runs2_set("bound", "07-SWEEP-PROTOCOL.md R14 (G4, G6, G24)", [
-        "per artifact the bound set: the 5 admitted explore points with the largest enveloped "
-        "build-seconds prediction, the largest measured cold wall and the largest measured "
-        "memory_peak_bytes among ok explore readings, and the largest enveloped peak prediction, "
-        "a tie to the label that sorts first, a point in two groups once",
+    return _runs2_set("bound", "07-SWEEP-PROTOCOL.md R14 (G4, G6, G24, G31)", [
+        "the candidates of an artifact: its admitted explore points whose explore reading is ok "
+        "at every artifact (G31)",
+        "per artifact the bound set: the 5 candidates with the largest enveloped build-seconds "
+        "prediction, the largest measured cold wall, the largest measured memory_peak_bytes and "
+        "the largest enveloped peak prediction, a tie to the label that sorts first, a point in "
+        "two groups once",
         "each bound point P at N 1, 2 and 3: P on slot hash(p) % N and, on every other slot, the "
-        "admitted point other than P on that slot with the largest enveloped build-seconds "
+        "candidate other than P on that slot with the largest enveloped build-seconds "
         "prediction, a tie to the label",
         "5 repetitions; each reading charged R2's 600 s (R6, G4)"],
         bound_points(_explore_points(), _read(explore_dir), envelope), envelope,
@@ -1898,8 +1912,8 @@ def build_load(tier_path: str, explore_dir: str) -> _Set:
 
 def build_gzip(explore_dir: str, envelope: Envelope) -> _Set:
     bound = bound_sets(_explore_points(), _read(explore_dir), envelope)
-    return _runs2_set("gzip", "07-SWEEP-PROTOCOL.md R19 (G11, G15, G24)", [
-        "every point of the stl-preview and stl-fine bound sets (R14), read as a part with "
+    return _runs2_set("gzip", "07-SWEEP-PROTOCOL.md R19 (G11, G15, G24, G31)", [
+        "every point of the stl-preview and stl-fine bound sets (R14, G31), read as a part with "
         "gzip levels 1, 6 and 9",
         "5 repetitions; each reading charged R2's 600 s (R6, G24)"],
         gzip_points(bound), envelope, [f"explore={explore_dir}"])
@@ -1915,6 +1929,43 @@ def build_arenas(explore_dir: str, envelope: Envelope) -> _Set:
         "the level-1 gzip; the peak is read last (R2)",
         "5 repetitions; each reading charged R2's 600 s (R6, G24)"],
         arena_points(bound, _read(explore_dir)), envelope, [f"explore={explore_dir}"])
+
+
+RERUN_SETS = ("bound-rerun", "gzip-rerun")
+_RERUN_RULES = {"bound-rerun": "07-SWEEP-PROTOCOL.md R14 (G4, G24, G31)",
+                "gzip-rerun": "07-SWEEP-PROTOCOL.md R19 (G24, G31)"}
+# The fields a record copies from its point: a gzip point's `preset` is not among them.
+_IDENTITY = ("label", "kind", "artifact", "params", "workers", "points", "gzip_levels")
+
+
+def unread(points: Iterable[Mapping[str, object]],
+           recorded: Iterable[Reading]) -> list[dict[str, object]]:
+    """The points no recorded reading is of: a reading is of a point when every identity field
+    the point carries is equal in the reading. A contention point keeps its label when a partner
+    changes, so its members decide, not its label (G31)."""
+    readings = list(recorded)
+
+    def read(point: Mapping[str, object]) -> bool:
+        keys = [key for key in _IDENTITY if key in point]
+        return any(all(reading.get(key) == point[key] for key in keys) for reading in readings)
+
+    return [dict(point) for point in points if not read(point)]
+
+
+def build_rerun(name: str, explore_dir: str, run_dir: str, envelope: Envelope) -> _Set:
+    """`bound-rerun.json` or `gzip-rerun.json` (G31): the points of the bound or gzip set, drawn
+    under `envelope`, that no reading of the earlier run `run_dir` is of. A rerun with no point is
+    not written: the earlier run read the whole set."""
+    whole = (build_bound if name == "bound-rerun" else build_gzip)(explore_dir, envelope)
+    points = unread(whole.points, _read(run_dir))
+    if not points:
+        raise ValueError(f"run {run_dir} read every point of the {whole.name} set")
+    return _runs2_set(name, _RERUN_RULES[name], [
+        f"the points of the {whole.name} set (its notes and envelope) that no reading of {run_dir} "
+        "is of, every identity field the point carries equal in the reading; the earlier "
+        "readings of the points they replace decide nothing (R14, G31)",
+        "5 repetitions; each reading charged R2's 600 s (R6, G4, G24)"],
+        points, envelope, [f"explore={explore_dir}", f"run={run_dir}"])
 
 
 def build_outband(explore_dir: str, envelope: Envelope) -> _Set:
@@ -2182,7 +2233,8 @@ def _regenerate_runs2(name: str, text: str) -> str:
     raw = json.loads(text)
     sources = dict(str(entry).split("=", 1) for entry in raw.get("sources", []))
     needs = {"bound": ("explore",), "load": ("tier-order", "explore"), "gzip": ("explore",),
-             "arenas": ("explore",), "outband": ("explore",)}[name]
+             "arenas": ("explore",), "outband": ("explore",), "bound-rerun": ("explore", "run"),
+             "gzip-rerun": ("explore", "run")}[name]
     missing = [source for source in needs if source not in sources]
     if missing:
         raise ValueError(f"it names no {' and '.join(missing)} source")
@@ -2194,6 +2246,8 @@ def _regenerate_runs2(name: str, text: str) -> str:
         return build_arenas(sources["explore"], envelope).text()
     if name == "outband":
         return build_outband(sources["explore"], envelope).text()
+    if name in RERUN_SETS:
+        return build_rerun(name, sources["explore"], sources["run"], envelope).text()
     return build_gzip(sources["explore"], envelope).text()
 
 
@@ -2201,7 +2255,7 @@ def _check_runs2() -> str | None:
     """The first Runs II file that is not what its generator writes under its recorded envelope,
     with the reason, or None. Absent files are not checked: each is written by its own step."""
     paths = [("tier-order", REPO_ROOT / TIER_ORDER),
-             *((name, POINTS_DIR / f"{name}.json") for name in RUNS2_SETS)]
+             *((name, POINTS_DIR / f"{name}.json") for name in (*RUNS2_SETS, *RERUN_SETS))]
     for name, path in paths:
         if not path.is_file():
             continue
@@ -2372,6 +2426,12 @@ def _run(args: argparse.Namespace) -> int:
                                      "no rule says what it becomes, so the owner rules")
     elif args.command == "runs2":
         _runs2(args, explore_dir)
+    elif args.command == "rerun":
+        name = f"{args.set}-rerun"
+        whole = (POINTS_DIR / f"{args.set}.json").read_text()
+        made = build_rerun(name, explore_dir, _relative(args.run), _recorded_envelope(whole))
+        Path(args.out).write_text(made.text())
+        print(f"{name}: {len(made.points)} points in shards of {made.shard_sizes}")
     elif args.command == "envelope-check":
         _envelope_check_command(args)
     elif args.command == "load-table":
@@ -2413,6 +2473,12 @@ def main(argv: list[str] | None = None) -> int:
     runs2.add_argument("--tier-order", default=str(REPO_ROOT / TIER_ORDER))
     runs2.add_argument("--sets", nargs="+", choices=("tier-order", *RUNS2_SETS),
                        default=["tier-order", *RUNS2_SETS])
+    rerun = sub.add_parser("rerun", help="the points of a Runs II set an earlier run did not "
+                                         "read (07-15, G31)")
+    rerun.add_argument("--set", required=True, choices=("bound", "gzip"))
+    rerun.add_argument("--explore", required=True)
+    rerun.add_argument("--run", required=True)
+    rerun.add_argument("--out", required=True)
     sub.add_parser("load-table", help="the per-N table of a load run's readings").add_argument(
         "--from", dest="source", required=True)
     check = sub.add_parser("envelope-check",

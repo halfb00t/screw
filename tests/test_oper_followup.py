@@ -1131,18 +1131,18 @@ def test_the_bound_set_is_the_top_five_the_measured_extrema_and_the_peak_predict
     points, readings, envelope = _bound_space()
     bound = oper_sets.bound_sets(points, readings, envelope, UNBOUNDED)
     for artifact in ARTIFACTS3:
-        here = [p for p in points if p["artifact"] == artifact]
+        # n1 is capped at every artifact, so it is no candidate (G31), not even for the peak
+        # prediction, which reads no reading
+        here = [p for p in points if p["artifact"] == artifact and p["label"] != "n1"]
         slowest = sorted(here, key=lambda p: (-_env_seconds(p, artifact, envelope),
                                               str(p["label"])))[:5]
         peaks = {str(p["label"]): cost.predict(_part(p), artifact).peak * (
             1.0 + envelope[str(p["kind"]), artifact, "peak"]) for p in here}
         top_peak = min(peaks, key=lambda label: (-peaks[label], label))
         assert [str(p["label"]) for p in slowest] == ["b5", "b4", "b3", "b2", "b1"]
-        assert top_peak.startswith("n")
-        # b5 (worst measured wall) is in the top 5 already; b0 is the largest ok peak; n1's
-        # larger peak is not ok, so it is skipped
-        assert [c.label for c in bound[artifact]] == ["b5", "b4", "b3", "b2", "b1", top_peak,
-                                                      "b0"]
+        assert top_peak == "n0"
+        # b5 (worst measured wall) is in the top 5 already; b0 is the largest ok peak
+        assert [c.label for c in bound[artifact]] == ["b5", "b4", "b3", "b2", "b1", "n0", "b0"]
 
 
 def test_every_contention_partner_is_the_slowest_admitted_point_on_its_slot() -> None:
@@ -1169,6 +1169,100 @@ def test_every_contention_partner_is_the_slowest_admitted_point_on_its_slot() ->
                       and hash(_part(p)) % workers == member["slot"]]
             assert member["label"] == min(rivals, key=lambda label: (
                 -_env_seconds(here[label], where, envelope), label))
+
+
+def _members(contention: Iterable[Mapping[str, object]], artifact: str) -> set[str]:
+    out: set[str] = set()
+    for reading in contention:
+        members = reading["points"]
+        assert isinstance(members, list)
+        if reading["artifact"] == artifact:
+            out |= {str(m["label"]) for m in members}
+    return out
+
+
+def test_a_point_not_ok_at_another_artifact_is_neither_a_bound_point_nor_a_partner() -> None:
+    """G31: two nuts the kernel refuses were admitted, entered the stl-preview set as P and as
+    partners, and every reading that built them was refused. A candidate needs an ok explore
+    reading at every artifact, not only the two measured picks at their own artifact."""
+    points, readings, envelope = _bound_space()
+    before = oper_sets.bound_points(points, readings, envelope, UNBOUNDED)
+    assert "b4" in _members(before, "stl-preview")
+    readings = [{**r, "status": "refused"} if (r["label"], r["artifact"]) == ("b4", "step")
+                else r for r in readings]
+    bound = oper_sets.bound_sets(points, readings, envelope, UNBOUNDED)
+    contention = oper_sets.bound_points(points, readings, envelope, UNBOUNDED)
+    for artifact in ARTIFACTS3:
+        assert "b4" not in [c.label for c in bound[artifact]]
+        assert [c.label for c in bound[artifact]][:5] == ["b5", "b3", "b2", "b1", "b0"]
+    assert not any("b4" in _members(contention, artifact) for artifact in ARTIFACTS3)
+
+
+def test_a_point_is_unread_when_no_reading_carries_its_identity_fields() -> None:
+    """A contention point keeps its label when its partner changes, so the members decide; a gzip
+    point's `preset` is not copied into its readings, so it does not."""
+    member = {"label": "a", "kind": "bolt", "params": {}, "slot": 0}
+    other = {"label": "b", "kind": "bolt", "params": {"length": 30.0}, "slot": 1}
+    contention = {"label": "a-n2", "kind": "contention", "artifact": "stl-preview",
+                  "workers": 2, "points": [member, other]}
+    swapped = {**contention, "points": [member, {**other, "label": "c"}]}
+    gzip = {"label": "g", "kind": "bolt", "params": {"d": 8.0}, "artifact": "stl-fine",
+            "preset": "iso4017:M8x20", "gzip_levels": [1, 6, 9]}
+    recorded = [{**contention, "params": {}, "rep": 1, "status": "ok"},
+                {**{k: v for k, v in gzip.items() if k != "preset"}, "rep": 1, "status": "ok"}]
+    assert oper_sets.unread([contention, swapped, gzip], recorded) == [swapped]
+    assert oper_sets.unread([{**gzip, "gzip_levels": [1]}], recorded) == [
+        {**gzip, "gzip_levels": [1]}]
+
+
+def test_the_committed_reruns_are_the_stl_preview_points_the_two_refused_nuts_touched() -> None:
+    """G31 on the record: the two kernel-refused nuts leave every bound and gzip point, and only
+    stl-preview points are read again, 10 contention and 2 gzip."""
+    nuts = {"nut-d30-p0.35-m0.8d-s4d-c0.15-right", "nut-d30-p0.35-m0.8d-s1.6d-c0.15-left"}
+    sets = {name: json.loads((REPO_ROOT / "bench/points" / f"{name}.json").read_text())
+            for name in ("bound", "gzip", "bound-rerun", "gzip-rerun")}
+    for name in ("bound", "gzip"):
+        labels = {str(p["label"]) for p in sets[name]["points"]} | {
+            str(m["label"]) for p in sets[name]["points"] for m in p.get("points", [])}
+        assert not labels & nuts, name
+    rerun = sets["bound-rerun"]["points"]
+    assert len(rerun) == 10
+    assert {p["artifact"] for p in rerun} == {"stl-preview"}
+    assert sets["bound-rerun"]["sources"] == [
+        "explore=bench/results/phase-07/explore-40646117094",
+        "run=bench/results/phase-07/bound-40907549180"]
+    assert [(p["label"], p["artifact"]) for p in sets["gzip-rerun"]["points"]] == [
+        ("iso4017:M16x150", "stl-preview"), ("iso4017:M20x160", "stl-preview")]
+    assert all(p in sets["bound"]["points"] for p in rerun)
+    assert all(p in sets["gzip"]["points"] for p in sets["gzip-rerun"]["points"])
+    for name in ("bound-rerun", "gzip-rerun"):
+        assert sets[name]["envelope"] == sets[name.removesuffix("-rerun")]["envelope"]
+        assert sets[name]["shard_sizes"] == [len(sets[name]["points"])]
+
+
+def _recorded(point: Mapping[str, object]) -> Raw:
+    """An ok reading of a contention point as the harness records it: the point's fields, `params`
+    empty."""
+    return {**point, "type": "reading", "params": {}, "rep": 1, "status": "ok"}
+
+
+def test_the_rerun_command_writes_the_unread_points_and_refuses_an_empty_rerun(
+        runs2_repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    assert _runs2(runs2_repo, "tier-order", "bound") == 0
+    bound = json.loads((runs2_repo / "points" / "bound.json").read_text())
+    read, unread_points = bound["points"][:-2], bound["points"][-2:]
+    _write_records(runs2_repo / "b1", [_recorded(p) for p in read])
+    out = runs2_repo / "points" / "bound-rerun.json"
+    assert oper_sets.main(["rerun", "--set", "bound", "--explore", str(runs2_repo / "ex2"),
+                           "--run", str(runs2_repo / "b1"), "--out", str(out)]) == 0
+    doc = json.loads(out.read_text())
+    assert doc["points"] == unread_points
+    assert doc["sources"] == ["explore=ex2", "run=b1"]
+    assert doc["rule"] == "07-SWEEP-PROTOCOL.md R14 (G4, G24, G31)"
+    assert oper_sets.main(["--check"]) == 0, capsys.readouterr().err
+    _write_records(runs2_repo / "b2", [_recorded(p) for p in bound["points"]])
+    with pytest.raises(ValueError, match="read every point of the bound set"):
+        oper_sets.build_rerun("bound-rerun", "ex2", "b2", oper_sets.shipped_envelope())
 
 
 def test_a_slot_no_admitted_point_holds_stops_the_phase() -> None:
