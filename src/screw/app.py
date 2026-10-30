@@ -41,8 +41,7 @@ from starlette.concurrency import run_in_threadpool
 from . import __version__, int_env
 from .build_errors import BuildError, BuildTimeout
 from .calc import PartInfo, derive_capped, download_name, download_refusal, explicit_conflict
-from .calc.cost import BUILD_TIMEOUT_S, artifact_of, cap_defaults
-from .calc.cost import FIELDS as COST_FIELDS
+from .calc.cost import BUILD_TIMEOUT_S, artifact_of, cap_defaults, refused_fields
 from .calc.presets import PresetCatalogue, catalogue_document
 from .params import DEFAULT_KIND, KINDS, BoltParams, FastenerParams, NutParams
 from .pool import BuildPool
@@ -501,13 +500,13 @@ async def _serve(params: FastenerParams, fmt: Literal["stl", "step"], quality: s
     # predicts over its measured budget is refused on the parameters alone, so it never occupies
     # a worker (D-05, D-06, L21). Reads no field by name, so every kind gets its own rule
     # through the one call. B-02 (07-OWNER-RULINGS.md, 2026-10-29): one type, `over_budget`, for
-    # every artifact, naming the fields the cost reads in model order and the artifact; it
-    # retires `fine_stl_cap`.
+    # every artifact, naming the fields the cost reads in model order (for a bolt below the fitted
+    # turns, the fields that set them, G30) and the artifact; it retires `fine_stl_cap`.
     refusal = download_refusal(params, fmt, quality)
     if refusal is not None:
         raise HTTPException(422, detail=[{
             "loc": ["query"], "type": "over_budget", "msg": refusal,
-            "ctx": {"fields": list(COST_FIELDS[params.kind]),
+            "ctx": {"fields": list(refused_fields(params)),
                     "artifact": artifact_of(fmt, quality)}}])
     # A plain local, not middleware or contextvars -- minted once here and passed to every
     # record this request emits, so two concurrent requests for the same part (the one

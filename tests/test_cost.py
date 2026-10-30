@@ -459,6 +459,49 @@ def test_an_m6_with_s_15_named_is_no_longer_capped_to_half_a_turn() -> None:
     assert [a for a in ARTIFACTS if not cost.fits(part, a)] == ["stl-preview"]
 
 
+# G30 (07-GAP-RULINGS.md, 07-OWNER-RULINGS.md 2026-10-30): the G29 bolt of outband run 40909768713,
+# thread_length 1.0 on the 4 mm M2 (2.5 built turns), read 1446684 bytes at the fine STL in all 5
+# repetitions, 1.3116 x its enveloped prediction. The fit has no point below the floor.
+SHORT = BoltParams(d=2.0, pitch=0.4, length=4.0, s=4.0, k=1.4, thread_length=1.0)
+
+
+def test_a_bolt_below_the_fitted_turns_is_refused_at_every_artifact_naming_its_thread_fields(
+) -> None:
+    assert _turns(SHORT) < cost.MIN_FITTED_TURNS
+    assert cost.refused_fields(SHORT) == ("pitch", "length", "thread_length")
+    for artifact in ARTIFACTS:
+        assert not cost.fits(SHORT, artifact), artifact
+        refusal = cost.refusal(SHORT, artifact)
+        assert refusal is not None
+        assert refusal.startswith("pitch, length and thread_length: "), refusal
+        assert cost._NAMES[artifact] in refusal
+        assert "no artifact of this part fits" in refusal
+        # L02: no figure, not even the floor; the only digits are L21's.
+        assert re.findall(r"\d+", refusal) == ["21"]
+    # The floor is admitted: 1.2 / 0.4 is 2.9999999999999996 turns, exactly the floor.
+    at_floor = SHORT.model_copy(update={"thread_length": 1.2})
+    assert _turns(at_floor) == cost.MIN_FITTED_TURNS
+    assert all(cost.fits(at_floor, a) for a in ARTIFACTS)
+    assert cost.refused_fields(at_floor) == cost.FIELDS["bolt"]
+    assert cost.refused_fields(NutParams()) == cost.FIELDS["nut"]
+
+
+def test_no_catalogue_row_is_below_the_fitted_turns_so_b01_keeps_every_row() -> None:
+    # G30's guard refuses no part B-01 was ruled to keep (C1: all 294 bolt rows).
+    rows = [BoltParams.model_validate(dict(r.fields)) for r in catalogue()]
+    assert len(rows) == 294
+    assert [p for p in rows if _turns(p) < cost.MIN_FITTED_TURNS] == []
+    assert all(cost.fits(p, a) for p in rows for a in ARTIFACTS)
+
+
+def test_the_cap_never_caps_a_part_into_the_turns_refusal() -> None:
+    # B-03's second clarification stays as it was: with only s named, the M6 is served uncapped,
+    # its preview over the budget and its fine STL and STEP fit, never capped below the floor.
+    part = BoltParams(s=15.0)
+    assert cost.cap_defaults(part, frozenset({"s"})) == (part, ())
+    assert cost.refused_fields(part) == cost.FIELDS["bolt"]
+
+
 def test_the_cap_steps_are_the_form_steps_the_schema_publishes() -> None:
     for kind, fields in cost.CAP_STEPS.items():
         properties = KINDS[kind].model_json_schema()["properties"]

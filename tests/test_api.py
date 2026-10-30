@@ -1130,15 +1130,17 @@ def test_a_failure_other_than_a_timeout_is_not_a_cost_model_miss(
     ("model.stl", {"length": 1e-9, "quality": "preview"}),
     ("model.step", {"length": 1e-8}),
 ])
-def test_a_length_too_short_to_model_is_a_422_build_error_not_a_served_file(
+def test_a_length_too_short_to_model_is_a_422_not_a_served_file(
         route: str, query: Params) -> None:
     # The collapsed-solid blocker's own reproductions. They used to be a 134-byte STL as a 200,
-    # a non-watertight mesh, a one-face STEP and a 500; the builder's doorway now refuses them
-    # (D-17) before the kernel runs, so no worker dies on them either.
+    # a non-watertight mesh, a one-face STEP and a 500; the builder's doorway refused them (D-17)
+    # as a `build_error` before the kernel ran. Since G30 a bolt below the fitted turns is refused
+    # before the build, so these never reach the doorway: an `over_budget` 422 naming the length.
     r = client.get(f"/api/bolt/{route}", params=query)
     assert r.status_code == 422
     detail = r.json()["detail"][0]
-    assert detail["type"] == "build_error"
+    assert detail["type"] == "over_budget"
+    assert detail["ctx"]["fields"] == ["pitch", "length", "thread_length"]
     assert "length" in detail["msg"]
 
 
@@ -1273,6 +1275,34 @@ def test_a_nut_step_over_its_budget_is_the_same_422_naming_the_step() -> None:
             assert r.json()["detail"] == [{
                 "loc": ["query"], "type": "over_budget", "msg": refusal,
                 "ctx": {"fields": ["d", "pitch", "s", "m", "clearance"], "artifact": "step"}}]
+    assert calls == 0
+
+
+def test_a_bolt_below_the_fitted_turns_is_the_422_naming_the_thread_fields_at_every_artifact(
+) -> None:
+    """G30: no reading supports a prediction below the fewest fitted turns, so every artifact is
+    refused before any build, naming the fields that set the turns."""
+    calls = 0
+
+    async def counting_backend(p: FastenerParams, fmt: str, quality: str) -> bytes:
+        nonlocal calls
+        calls += 1
+        return b"served"
+
+    fields = {"d": 2.0, "pitch": 0.4, "length": 4.0, "s": 4.0, "k": 1.4, "thread_length": 1.0}
+    part = BoltParams.model_validate(fields)
+    with _backend(counting_backend):
+        downloads: list[tuple[str, str, cost_model.Artifact]] = [
+            ("stl", "preview", "stl-preview"), ("stl", "fine", "stl-fine"),
+            ("step", "fine", "step")]
+        for fmt, quality, artifact in downloads:
+            r = client.get(f"/api/bolt/model.{fmt}", params={**fields, "quality": quality})
+            assert r.status_code == 422
+            assert r.json()["detail"] == [{
+                "loc": ["query"], "type": "over_budget",
+                "msg": cost_model.refusal(part, artifact),
+                "ctx": {"fields": ["pitch", "length", "thread_length"], "artifact": artifact}}]
+        assert client.get("/api/bolt/info", params=fields).status_code == 200
     assert calls == 0
 
 
@@ -1624,9 +1654,10 @@ def test_an_explicit_head_chamfer_exactly_at_half_k_builds_uncapped_and_one_floa
     assert [d["type"] for d in r.json()["detail"]] == ["head_chamfer_conflict"]
 
 
-def test_a_length_below_the_floor_is_a_warned_info_document_and_a_422_build_error() -> None:
-    # IN-01: the info document and the build agree on what is a part. The info document says so
-    # with a warning and no turns or volume; the build names thread_length and length.
+def test_a_length_below_the_floor_is_a_warned_info_document_and_a_422() -> None:
+    # IN-01: the info document and the download agree on what is a part. The info document says
+    # so with a warning and no turns or volume; the download, refused before the build since G30
+    # (fewer turns than any fitted bolt), names thread_length and length.
     info = client.get("/api/bolt/info", params={"length": 0.00005})
     assert info.status_code == 200
     body = info.json()
@@ -1637,8 +1668,8 @@ def test_a_length_below_the_floor_is_a_warned_info_document_and_a_422_build_erro
     r = client.get("/api/bolt/model.stl", params={"length": 0.00005, "quality": "preview"})
     assert r.status_code == 422
     detail = r.json()["detail"][0]
-    assert detail["type"] == "build_error"
-    assert detail["msg"].startswith("thread_length and length: ")
+    assert detail["type"] == "over_budget"
+    assert detail["msg"].startswith("pitch, length and thread_length: ")
 
 
 def test_the_m18_nut_info_carries_the_pair_proof_label_on_the_route() -> None:

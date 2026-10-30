@@ -258,8 +258,26 @@ def admitted(pred: float, e: float, budget: float | None) -> bool:
     return budget is None or pred * (1.0 + e) <= budget
 
 
+# G30: the fields that set a bolt's built turns, in `FIELDS` order, which the turns refusal names.
+TURN_FIELDS: Final[tuple[str, ...]] = ("pitch", "length", "thread_length")
+
+
+def below_fitted_turns(p: FastenerParams) -> bool:
+    """G30: whether `p` is a bolt whose built thread has fewer turns than any fitted bolt point.
+
+    The fit has no point there, and the one bolt read below the floor, a 1 mm thread on the 4 mm
+    M2 (2.5 turns), read 1446684 bytes at the fine STL, 1.3116 x its enveloped prediction (outband
+    run 40909768713). `ln_turns` is positive on every bolt model, so fewer turns always predict a
+    cheaper part, which is no reading's figure."""
+    return isinstance(p, BoltParams) and built_thread_length(
+        p.thread_length, p.length) / p.pitch < MIN_FITTED_TURNS
+
+
 def fits(p: FastenerParams, artifact: Artifact) -> bool:
-    """Whether every target of `p`'s `artifact` is admitted against B-01's budget (R12)."""
+    """Whether every target of `p`'s `artifact` is admitted against B-01's budget (R12); never for a
+    bolt below the fitted turns (G30), whose prediction no reading supports."""
+    if below_fitted_turns(p):
+        return False
     kind = p.kind
     return all(admitted(pred, ENVELOPE[kind, artifact, target], budget)
                for pred, target, budget in zip(predict(p, artifact), TARGETS, BUDGET[artifact],
@@ -268,6 +286,12 @@ def fits(p: FastenerParams, artifact: Artifact) -> bool:
 
 def _listed(names: list[str]) -> str:
     return names[0] if len(names) == 1 else f"{', '.join(names[:-1])} and {names[-1]}"
+
+
+def refused_fields(p: FastenerParams) -> tuple[str, ...]:
+    """The fields a refusal of `p` names, in the text and in the 422's `ctx.fields` (B-02): the
+    turns fields for a bolt below the fitted turns (G30), otherwise every field the cost reads."""
+    return TURN_FIELDS if below_fitted_turns(p) else FIELDS[p.kind]
 
 
 def refusal(p: FastenerParams, artifact: Artifact) -> str | None:
@@ -280,6 +304,12 @@ def refusal(p: FastenerParams, artifact: Artifact) -> str | None:
     """
     if fits(p, artifact):
         return None
+    if below_fitted_turns(p):
+        # No figure, not even the floor: 2.9999999999999996 is not a number to cut metal to (L02).
+        return (f"{_listed(list(TURN_FIELDS))}: this bolt's built thread has fewer turns than any "
+                f"bolt the cost model was fitted on (L21), so its {_NAMES[artifact]} is refused "
+                f"before any build; no artifact of this part fits. To get it, change one of these "
+                f"fields")
     others = [_NAMES[a] for a in ARTIFACTS if a != artifact and fits(p, a)]
     verb = "fits" if len(others) == 1 else "fit"
     served = (f"the {_listed(others)} of this part {verb}" if others

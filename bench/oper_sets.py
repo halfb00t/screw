@@ -1403,7 +1403,9 @@ def _validated(kind: str, params: Mapping[str, object]) -> FastenerParams | None
 def admits(part: FastenerParams, artifact: cost.Artifact, envelope: Envelope,
            budget: Budget) -> bool:
     """R12 with the shipped prediction (G28's bands included) under `envelope`: `cost.fits` with
-    the envelope and the budget given rather than shipped."""
+    the envelope and the budget given rather than shipped, and without G30's turns refusal. Every
+    set was drawn before G30, and G29's points lie below the turns floor by design, so with the
+    refusal here `outband.json` would no longer regenerate from its sources (G6)."""
     return all(cost.admitted(pred, envelope[part.kind, artifact, target], component)
                for pred, target, component in zip(cost.predict(part, artifact), cost.TARGETS,
                                                   budget[artifact], strict=True))
