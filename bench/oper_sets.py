@@ -2684,6 +2684,18 @@ def derivation(headers: Sequence[Reading], tagged: Sequence[Tagged],
     base, base_rule = tmpfs_base(explore)
     nproc, mem_total = _runner(headers)
     w, w_reading = _w(bound)
+    w_row: dict[str, object] = {"bytes": w, "reading": w_reading}
+    drifts: dict[str, dict[str, object]] = {}
+    flat: dict[str, dict[str, object]] = {}
+    if stage_two:  # R23's plateau, then W takes the drift readings' largest peak (R16, G32)
+        drift_reads = matched(sets["drift"], tagged, DRIFT_SETS, _DRIFT_IDENTITY, "R23")
+        plateau_reads = matched(sets[f"drift-{PLATEAU_BUILDS}"], tagged, PLATEAU_SETS,
+                                _DRIFT_IDENTITY, "R23")
+        drifts, flat = drift(drift_reads), plateau(plateau_reads, drift_reads)
+        peak, peak_reading = drift_peak([*drift_reads, *plateau_reads])
+        w_row = {"bytes": max(w, peak), "contention": {"bytes": w, "reading": w_reading},
+                 "drift": {"bytes": peak, "reading": peak_reading}}
+        w = max(w, peak)
     idle = [(int(_number(r, "idle_peak_bytes")), _where(read.run, r))
             for read in loads for r in read.readings if r.get("status") == "ok"]
     if not idle:
@@ -2711,15 +2723,16 @@ def derivation(headers: Sequence[Reading], tagged: Sequence[Tagged],
     level = gzip["level"]
     assert isinstance(level, int)
     yield from {
-        "rule": "07-SWEEP-PROTOCOL.md R14 to R21, R24 to R26 (G6, G7, G8, G11, G15, G16, G18, "
-                "G22, G31)",
+        "rule": ("07-SWEEP-PROTOCOL.md R14 to R26 (G6 to G9, G11, G15 to G18, G20, G22, G31, G32)"
+                 if stage_two else "07-SWEEP-PROTOCOL.md R14 to R21, R24 to R26 (G6, G7, G8, "
+                 "G11, G15, G16, G18, G22, G31)"),
         "sources": list(sources),
         "sets": {name: f"bench/points/{name}.json" for name in sorted(sets)},
         "runner": {"nproc": nproc, "smallest_mem_total_bytes": mem_total, "headers": len(headers)},
         "gzip": gzip,
         "export_cache": cache,
         "tmpfs_per_worker": {"bytes": base, "rule": base_rule},
-        "w": {"bytes": w, "reading": w_reading},
+        "w": w_row,
         "b": {"bytes": b[0], "reading": b[1]},
         "per_workers": {str(n): dataclasses.asdict(row) for n, row in sorted(rows.items())},
         "picked_workers": picked,
@@ -2750,9 +2763,11 @@ def derivation(headers: Sequence[Reading], tagged: Sequence[Tagged],
     release = arenas(matched(sets["arenas"], tagged, ("arenas",), _ARENAS_IDENTITY, "R23"))
     yield "arenas_kept", release["kept"]
     yield "arenas", release
-    drifts = drift(matched(sets["drift"], tagged, DRIFT_SETS, _DRIFT_IDENTITY, "R23"))
     yield "drift", drifts
-    yield "recycling", recycling(drifts)
+    yield "plateau", flat
+    yield "recycling", {"max_tasks_per_child": None,
+                        "rule": "R23: the plateau holds at every artifact, and the drift is "
+                                "counted in W (R16)"}
     yield "tessellation_kept", {"kept": True, "rule": "R23: the tessellation presets are kept"}
 
 
@@ -2785,7 +2800,9 @@ def runtime_text(directories: Iterable[Path]) -> str:
 # --- R22's W(K) set and R23's drift set (07-16 Task 2), after the pick and the timeouts --------
 
 DRIFT_BUILDS = 20  # R23's K: the parts a load run takes for each artifact (R15)
+PLATEAU_BUILDS = 60  # R23's plateau reading, its builds 21 to 40 against 41 to 60
 DRIFT_SETS = ("drift",)
+PLATEAU_SETS = ("drift-60",)
 SOLID_CACHE_KS = (4, 3, 2, 1)  # R22: K = 4 first, each lower K only if the one above failed
 BOUND_POINTS = "bench/points/bound.json"
 LOAD_POINTS = "bench/points/load.json"
@@ -2804,10 +2821,12 @@ def _bound_set(bound: Iterable[Mapping[str, object]], artifact: str) -> list[Map
 
 
 def drift_points(bound: Sequence[Mapping[str, object]], explore: Iterable[Reading],
-                 timeouts: Mapping[str, int]) -> list[dict[str, object]]:
+                 timeouts: Mapping[str, int],
+                 builds: int = DRIFT_BUILDS) -> list[dict[str, object]]:
     """R23's drift readings: per artifact A, Z(A), the point of A's committed bound set with the
     largest `memory_peak_bytes` among its ok explore readings (a tie to the label that sorts
-    first), built K = 20 times with a deadline of 20 x A's timeout (R14). A deadline that is not
+    first), built K times with a deadline of K x A's timeout (R14): K = 20, or 60 for the plateau
+    reading, the same parts in the same order. A deadline that is not
     under half the measure job's timeout stops the phase (R6, G4): the job also counts setup, the
     image build and the upload."""
     index = _explore_index(explore)
@@ -2822,13 +2841,13 @@ def drift_points(bound: Sequence[Mapping[str, object]], explore: Iterable[Readin
             raise ProtocolStop("R23", f"no point of the {artifact} bound set has an ok explore "
                                       "reading, so Z(A) has no part")
         _, label, z = min(measured, key=lambda m: (-m[0], m[1]))
-        deadline = DRIFT_BUILDS * timeouts[artifact]
+        deadline = builds * timeouts[artifact]
         if not deadline < HALF_JOB_S:
             raise ProtocolStop("R6", f"the drift reading of {label} at {artifact} has a deadline "
                                      f"of {deadline} s, not under half the job timeout "
                                      f"({HALF_JOB_S:g} s)")
         out.append({"label": f"drift-{label}", "kind": "drift", "artifact": artifact,
-                    "part": {"kind": z["kind"], "params": z["params"]}, "k": DRIFT_BUILDS,
+                    "part": {"kind": z["kind"], "params": z["params"]}, "k": builds,
                     "deadline_s": deadline})
     return out
 
@@ -2853,19 +2872,23 @@ def _explore_dir_of(bound_path: str) -> str:
     return dict(str(entry).split("=", 1) for entry in sources)["explore"]
 
 
-def build_drift(bound_path: str, runtime_path: str) -> _Set:
+def build_drift(bound_path: str, runtime_path: str, builds: int = DRIFT_BUILDS) -> _Set:
     bound = json.loads((REPO_ROOT / bound_path).read_text())["points"]
     explore_dir = _explore_dir_of(bound_path)
-    out = _Set("drift", reps=RUNS2_REPS, shards=1, rule="07-SWEEP-PROTOCOL.md R23 (G4, G14)",
-               notes=[
+    plateau = builds != DRIFT_BUILDS
+    out = _Set(f"drift-{builds}" if plateau else "drift", reps=RUNS2_REPS, shards=1,
+               rule=f"07-SWEEP-PROTOCOL.md R23 (G4, G14{', G32' if plateau else ''})", notes=[
                    "per artifact Z(A): the point of the committed bound set (bound.json) with the "
                    "largest memory_peak_bytes among its ok explore readings, a tie to the label "
                    "that sorts first",
-                   "K = 20 cold builds in one process, the solid cache emptied before each; the "
-                   "peak read after each build, its export and a level-1 gzip (G14)",
-                   "each reading's deadline_s is 20 x its artifact's timeout (runtime.json, R14), "
-                   "and it is charged that deadline (R6, G4); 5 repetitions"])
-    for point in drift_points(bound, _read(explore_dir), _runtime_timeouts(runtime_path)):
+                   f"K = {builds} cold builds in one process, the solid cache emptied before "
+                   "each; the peak read after each build, its export and a level-1 gzip (G14)",
+                   f"each reading's deadline_s is {builds} x its artifact's timeout "
+                   "(runtime.json, R14), and it is charged that deadline (R6, G4); 5 repetitions",
+                   *(["the plateau reading (G32): the same parts in the same order as drift.json; "
+                      "builds 41 to 60 against builds 21 to 40"] if plateau else [])])
+    for point in drift_points(bound, _read(explore_dir), _runtime_timeouts(runtime_path),
+                              builds):
         out.copy(point)
     charged = [float(str(point["deadline_s"])) for point in out.points]
     out.shard_sizes = shard_sizes(charged, HALF_JOB_S)
@@ -2942,17 +2965,58 @@ def drift(reads: Sequence[Read]) -> dict[str, dict[str, object]]:
     return out
 
 
-def recycling(drifts: Mapping[str, Mapping[str, object]]) -> dict[str, object]:
-    """R23: `max_tasks_per_child` stays unset while every artifact's drift is within its
-    allowance; above it the phase stops, because no rule sets a recycling value."""
-    above = [f"{artifact} drifts {row['drift_bytes']} bytes at {row['reading']}, above its "
-             f"allowance of {row['allowance_bytes']!r} bytes" for artifact, row in drifts.items()
-             if row["above_allowance"]]
-    if above:
-        raise ProtocolStop("R23", "; ".join(above) + " (0.10 x the smallest build-1 peak): no "
-                                  "rule sets a recycling value")
-    return {"max_tasks_per_child": None,
-            "rule": "R23: every artifact's drift is within its allowance"}
+def plateau(reads: Sequence[Read], drift_reads: Sequence[Read]) -> dict[str, dict[str, object]]:
+    """R23's plateau (G32), fixed before its reading: per artifact and repetition of the 60-build
+    reading, the max peak over builds 41 to 60 minus the max peak over builds 21 to 40, which at
+    the worst repetition of every artifact must be at most 0.10 x the smallest build-1 peak among
+    the repetitions of both drift readings of that artifact. A miss stops the phase, and the next
+    step is recycling; a repetition that is not ok or misses a build's peak leaves no plateau."""
+    firsts: dict[str, list[int]] = {}
+    for read in drift_reads:
+        for reading in _five_ok(read, "R23"):
+            peaks = reading.get("peaks")
+            assert isinstance(peaks, list)
+            firsts.setdefault(str(read.point["artifact"]), []).append(int(peaks[0]))
+    out: dict[str, dict[str, object]] = {}
+    for read in reads:
+        artifact = str(read.point["artifact"])
+        rows: list[tuple[int, str]] = []
+        for reading in _five_ok(read, "R23"):
+            peaks = reading.get("peaks")
+            if not isinstance(peaks, list) or len(peaks) < PLATEAU_BUILDS:
+                raise ProtocolStop("R23", f"{_where(read.run, reading)} has no peak after each of "
+                                          f"its {PLATEAU_BUILDS} builds")
+            values = [int(peak) for peak in peaks[:PLATEAU_BUILDS]]
+            firsts.setdefault(artifact, []).append(values[0])
+            rows.append((max(values[40:60]) - max(values[20:40]), _where(read.run, reading)))
+        worst = max(rows)
+        allowance = DRIFT_ALLOWANCE * min(firsts[artifact])
+        out[artifact] = {"difference_bytes": worst[0], "reading": worst[1],
+                         "allowance_bytes": float(allowance), "holds": worst[0] <= allowance,
+                         "repetitions": [{"reading": where, "difference_bytes": difference}
+                                         for difference, where in rows]}
+    missed = [f"{artifact}: builds 41 to 60 peak {row['difference_bytes']} bytes above builds 21 "
+              f"to 40 at {row['reading']}, over its allowance of {row['allowance_bytes']!r} bytes"
+              for artifact, row in out.items() if not row["holds"]]
+    if missed:
+        raise ProtocolStop("R23", "the plateau does not hold: " + "; ".join(missed)
+                                  + "; the next step is recycling")
+    return out
+
+
+def drift_peak(reads: Sequence[Read]) -> tuple[int, str]:
+    """The largest peak after any build of the drift readings, which W takes once the plateau
+    holds (R16, G32), and the reading and build that set it."""
+    best: tuple[int, str] | None = None
+    for read in reads:
+        for reading in _five_ok(read, "R23"):
+            peaks = reading.get("peaks")
+            assert isinstance(peaks, list)
+            for number, peak in enumerate(peaks, start=1):
+                if best is None or int(peak) > best[0]:
+                    best = (int(peak), f"{_where(read.run, reading)} build {number}")
+    assert best is not None
+    return best
 
 
 def arenas(reads: Sequence[Read]) -> dict[str, object]:
@@ -2974,7 +3038,7 @@ def arenas(reads: Sequence[Read]) -> dict[str, object]:
 
 def _check_runtime_sets() -> str | None:
     """The first drift or W(K) file that is not what its generator writes from its sources."""
-    paths = [POINTS_DIR / "drift.json",
+    paths = [POINTS_DIR / "drift.json", POINTS_DIR / f"drift-{PLATEAU_BUILDS}.json",
              *(POINTS_DIR / f"solid-cache-{k}.json" for k in SOLID_CACHE_KS)]
     for path in paths:
         if not path.is_file():
@@ -2982,8 +3046,9 @@ def _check_runtime_sets() -> str | None:
         text = path.read_text()
         try:
             sources = dict(str(e).split("=", 1) for e in json.loads(text).get("sources", []))
-            if path.stem == "drift":
-                again = build_drift(sources["bound"], sources["runtime"]).text()
+            if path.stem.startswith("drift"):
+                builds = DRIFT_BUILDS if path.stem == "drift" else PLATEAU_BUILDS
+                again = build_drift(sources["bound"], sources["runtime"], builds).text()
             else:
                 again = build_solid_cache(sources["load"], int(path.stem.rsplit("-", 1)[1])).text()
         except (KeyError, TypeError, ValueError) as exc:  # a stop is a ValueError, too
@@ -3218,14 +3283,14 @@ def _run(args: argparse.Namespace) -> int:
     elif args.command == "load-table":
         sys.stdout.write(load_table(read_readings(Path(args.source))))
     elif args.command in ("drift", "solid-cache"):
-        made = (build_drift(BOUND_POINTS, RUNTIME) if args.command == "drift"
+        made = (build_drift(BOUND_POINTS, RUNTIME, args.k) if args.command == "drift"
                 else build_solid_cache(LOAD_POINTS, args.k))
         Path(args.out).write_text(made.text())
         print(f"{made.name}: {len(made.points)} points in shards of {made.shard_sizes}")
     elif args.command == "check-r22-r23":
         folders = sorted(Path(d) for d in args.source)
         headers, tagged = read_runs(folders)
-        names = ["bound", "gzip", "load", "arenas", "drift",
+        names = ["bound", "gzip", "load", "arenas", "drift", f"drift-{PLATEAU_BUILDS}",
                  *(f"solid-cache-{k}" for k in SOLID_CACHE_KS
                    if (POINTS_DIR / f"solid-cache-{k}.json").is_file())]
         sets = {name: _points_of(name) for name in names}
@@ -3286,8 +3351,11 @@ def main(argv: list[str] | None = None) -> int:
                            help="R12 over the Runs II readings that may widen e (07-15)")
     check.add_argument("--fit", required=True)
     check.add_argument("--from", dest="source", nargs="+", required=True)
-    sub.add_parser("drift", help="write R23's drift set from runtime.json's timeouts "
-                                 "(07-16)").add_argument("--out", required=True)
+    drift_set = sub.add_parser("drift", help="write R23's drift set from runtime.json's timeouts "
+                                             "(07-16)")
+    drift_set.add_argument("--k", type=int, default=DRIFT_BUILDS,
+                           choices=(DRIFT_BUILDS, PLATEAU_BUILDS))
+    drift_set.add_argument("--out", required=True)
     solid = sub.add_parser("solid-cache", help="write R22's W(K) set (07-16)")
     solid.add_argument("--k", type=int, required=True, choices=SOLID_CACHE_KS)
     solid.add_argument("--out", required=True)

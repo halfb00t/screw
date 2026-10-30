@@ -2300,21 +2300,24 @@ def _drift(artifact: str, first: int = 100 * 10**6, last: int = 105 * 10**6, bui
                           "peaks": peaks} for rep, status in zip(REPS, statuses, strict=True)])
 
 
-def test_a_drift_within_a_tenth_of_the_smallest_build_1_peak_leaves_recycling_unset() -> None:
+def _long(artifact: str, first: int = 100 * 10**6, middle: int = 120 * 10**6,
+          end: int = 125 * 10**6, builds: int = 60,
+          statuses: Iterable[str] = ("ok",) * 5) -> oper_sets.Read:
+    """A 60-build drift reading: `first` after build 1, `middle` after builds 2 to 40, `end` after
+    builds 41 to 60."""
+    point: Raw = {"label": f"drift-{artifact}", "kind": "drift", "artifact": artifact,
+                  "part": {"kind": "bolt", "params": {}}, "k": 60, "deadline_s": 1560}
+    peaks = [first, *([middle] * 39), *([end] * 20)][:builds]
+    return _read(point, [{**point, "type": "reading", "rep": rep, "status": status,
+                          "peaks": peaks} for rep, status in zip(REPS, statuses, strict=True)])
+
+
+def test_the_drift_is_the_max_over_repetitions_of_build_20_minus_build_1() -> None:
     found = oper_sets.drift([_drift(a) for a in ARTIFACTS3])
     row = found["step"]
     assert (row["drift_bytes"], row["allowance_bytes"]) == (5 * 10**6, 10**7)
     assert not row["above_allowance"]
-    assert oper_sets.recycling(found)["max_tasks_per_child"] is None
-
-
-def test_a_drift_above_its_allowance_stops_at_r23_naming_every_artifact_over_it() -> None:
-    found = oper_sets.drift([_drift("stl-preview", last=112 * 10**6), _drift("step"),
-                             _drift("stl-fine", last=110 * 10**6 + 1)])
-    with _stop("R23", "stl-preview drifts 12000000 bytes .* stl-fine drifts 10000001 bytes"
-                      ".*no rule sets a recycling value"):
-        oper_sets.recycling(found)
-    oper_sets.recycling(oper_sets.drift([_drift("stl-fine", last=110 * 10**6)]))  # at it: within
+    assert oper_sets.drift([_drift("step", last=112 * 10**6)])["step"]["above_allowance"]
 
 
 def test_a_drift_repetition_not_ok_or_missing_build_20_stops_at_r23() -> None:
@@ -2322,6 +2325,61 @@ def test_a_drift_repetition_not_ok_or_missing_build_20_stops_at_r23() -> None:
         oper_sets.drift([_drift("step", statuses=("ok", "killed", "ok", "ok", "ok"))])
     with _stop("R23", "has no peak after build 1 and build 20"):
         oper_sets.drift([_drift("step", builds=19)])
+
+
+def test_the_plateau_holds_when_builds_41_to_60_rise_at_most_the_allowance() -> None:
+    drifts = [_drift(a) for a in ARTIFACTS3]
+    found = oper_sets.plateau([_long(a) for a in ARTIFACTS3], drifts)
+    assert found["step"]["difference_bytes"] == 5 * 10**6
+    assert found["step"]["allowance_bytes"] == 10**7
+    assert found["step"]["holds"] is True
+    at_it = oper_sets.plateau([_long("step", end=130 * 10**6)], drifts)  # 10 MB: at it
+    assert at_it["step"]["holds"] is True
+
+
+def test_a_plateau_miss_stops_at_r23_and_names_recycling_as_next() -> None:
+    drifts = [_drift(a) for a in ARTIFACTS3]
+    with _stop("R23", "the plateau does not hold: step: builds 41 to 60 peak 10000001 bytes .*"
+                      "the next step is recycling"):
+        oper_sets.plateau([_long("stl-fine"), _long("step", end=130 * 10**6 + 1)], drifts)
+
+
+def test_the_plateau_allowance_is_a_tenth_of_the_smallest_build_1_peak_of_both_readings() -> None:
+    drifts = [_drift("step", first=80 * 10**6)]
+    with _stop("R23", "over its allowance of 8000000.0 bytes"):
+        oper_sets.plateau([_long("step", end=129 * 10**6)], drifts)
+
+
+def test_a_plateau_repetition_not_ok_or_short_of_60_builds_stops_at_r23() -> None:
+    drifts = [_drift("step")]
+    with _stop("R23", "drift-step at step has no max"):
+        oper_sets.plateau([_long("step", statuses=("ok", "ok", "capped", "ok", "ok"))], drifts)
+    with _stop("R23", "has no peak after each of its 60 builds"):
+        oper_sets.plateau([_long("step", builds=59)], drifts)
+
+
+def test_the_drift_peak_is_the_largest_peak_after_any_build_of_both_readings() -> None:
+    found = oper_sets.drift_peak([_drift("step"), _long("stl-fine", end=7 * 10**8)])
+    assert found == (7 * 10**8, "7:drift-stl-fine rep 1 build 41")
+
+
+def test_a_60_build_drift_set_takes_60_x_the_timeout_and_stops_at_r6_past_half_the_job() -> None:
+    bound = _bound_points(dict.fromkeys(ARTIFACTS3, ("aa",)))
+    explore = [_explore_peak("aa", a, 5) for a in ARTIFACTS3]
+    found = oper_sets.drift_points(bound, explore, dict.fromkeys(ARTIFACTS3, 26), builds=60)
+    assert {(p["k"], p["deadline_s"]) for p in found} == {(60, 1560)}
+    with _stop("R6", "deadline of 10500 s"):
+        oper_sets.drift_points(bound, explore, dict.fromkeys(ARTIFACTS3, 175), builds=60)
+
+
+def test_the_committed_60_build_set_is_the_20_build_set_read_60_times() -> None:
+    short = json.loads((REPO_ROOT / "bench/points/drift.json").read_text())["points"]
+    long = json.loads((REPO_ROOT / "bench/points/drift-60.json").read_text())["points"]
+    assert [(p["label"], p["artifact"], p["part"]) for p in long] == [
+        (p["label"], p["artifact"], p["part"]) for p in short]
+    for point in long:
+        assert point["k"] == 60
+        assert point["deadline_s"] == 60 * cost.BUILD_TIMEOUT_S[point["artifact"]]
 
 
 def _arenas(current: Mapping[tuple[str, bool], int]) -> list[oper_sets.Read]:
@@ -2351,17 +2409,27 @@ def test_the_trim_is_kept_only_if_its_max_current_is_lower_at_every_artifact() -
         oper_sets.arenas(reads)
 
 
-def test_stage_two_ships_the_larger_mem_limit_and_keeps_the_tessellation() -> None:
+def _stage_two(drift_end: int = 105 * 10**6, plateau_middle: int = 120 * 10**6,
+               plateau_end: int = 125 * 10**6) -> tuple[
+        list[Raw], list[oper_sets.Tagged], dict[str, list[Mapping[str, object]]]]:
     headers, tagged, sets = _scenario()
     w_k = _w_k(4, peaks=(3 * GIB,) * 5)
-    drifts = [_drift(a) for a in ARTIFACTS3]
+    drifts = [_drift(a, last=drift_end) for a in ARTIFACTS3]
+    longs = [_long(a, middle=plateau_middle, end=plateau_end) for a in ARTIFACTS3]
     release = _arenas({(str(a), trim): 100 if trim else 200 for a in ARTIFACTS3
                        for trim in (True, False)})
     tagged = [*tagged, *(("solid-cache-4", "4", r) for r in w_k.readings),
               *(("drift", "5", r) for read in drifts for r in read.readings),
+              *(("drift-60", "8", r) for read in longs for r in read.readings),
               *(("arenas", "6", r) for read in release for r in read.readings)]
     sets = {**sets, "solid-cache-4": [w_k.point], "drift": [read.point for read in drifts],
+            "drift-60": [read.point for read in longs],
             "arenas": [read.point for read in release]}
+    return headers, tagged, sets
+
+
+def test_stage_two_ships_the_larger_mem_limit_and_keeps_the_tessellation() -> None:
+    headers, tagged, sets = _stage_two()
     found = dict(oper_sets.derivation(headers, tagged, sets, [], stage_two=True))
     assert found["solid_cache_k"] == 4
     # W(4) 3 GiB + B 50 MiB + the 43 MiB cache + the 256 MiB tmpfs is 3421 MiB: 3.5 GiB
@@ -2369,24 +2437,28 @@ def test_stage_two_ships_the_larger_mem_limit_and_keeps_the_tessellation() -> No
                                           "from_w_k_bytes": 14 * QUARTER}
     assert found["arenas_kept"] is True
     assert found["recycling"] == {"max_tasks_per_child": None,
-                                  "rule": "R23: every artifact's drift is within its allowance"}
+                                  "rule": "R23: the plateau holds at every artifact, and the "
+                                          "drift is counted in W (R16)"}
     assert found["tessellation_kept"] == {"kept": True,
                                           "rule": "R23: the tessellation presets are kept"}
     assert set(oper_sets.runtime(headers, tagged, sets, [])) < set(found)
 
 
-def test_the_committed_records_keep_4_solids_and_the_trim_and_stop_at_r23s_drift(
-        capsys: pytest.CaptureFixture[str]) -> None:
-    """07-16 on the record: W(4) qualifies (run 41016510597), the trim lowers memory.current at
-    every artifact (run 40909754190), and drift run 41016507364 is above its allowance at all
-    three artifacts, which stops the phase for the owner (R23)."""
-    directories = sorted(str(p) for p in (REPO_ROOT / "bench/results/phase-07").iterdir()
-                         if p.is_dir())
-    assert oper_sets.main(["check-r22-r23", "--from", *directories]) == 3
-    out, err = capsys.readouterr()
-    assert '"solid_cache_k": 4' in out
-    assert '"arenas_kept": true' in out
-    assert '"bytes": 2415919104' in out  # G20: the larger mem_limit, from W(4)
-    assert err.startswith("oper_sets: stop (R23): stl-preview drifts 53616640 bytes")
-    assert "stl-fine drifts 323194880 bytes" in err
-    assert "step drifts 31100928 bytes" in err
+def test_w_takes_the_drift_peak_and_a_20_build_drift_above_its_allowance_stops_nothing() -> None:
+    headers, tagged, sets = _stage_two(drift_end=GIB, plateau_middle=GIB, plateau_end=GIB)
+    found = dict(oper_sets.derivation(headers, tagged, sets, [], stage_two=True))
+    drifts = found["drift"]
+    assert isinstance(drifts, dict)
+    assert drifts["step"]["above_allowance"]  # a tenfold drift, absorbed into W (G32)
+    assert found["w"] == {"bytes": GIB, "contention": {"bytes": GIB // 2,
+                                                       "reading": "1:p-n1 rep 1"},
+                          "drift": {"bytes": GIB, "reading": "5:drift-stl-preview rep 1 build 2"}}
+    assert found["mem_limit_bytes"] == 6 * QUARTER  # 1 GiB + 349 MiB rounds up to 1.5 GiB
+    assert dict(oper_sets.derivation(headers, tagged, sets, []))["w"] == {
+        "bytes": GIB // 2, "reading": "1:p-n1 rep 1"}
+
+
+def test_stage_two_stops_at_a_plateau_miss_before_any_value() -> None:
+    headers, tagged, sets = _stage_two(plateau_end=131 * 10**6)
+    with _stop("R23", "the plateau does not hold"):
+        dict(oper_sets.derivation(headers, tagged, sets, [], stage_two=True))
