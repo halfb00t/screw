@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 07
 current_phase_name: Operability Re-sweep
 status: executing
-stopped_at: Completed 07-16-PLAN.md
-last_updated: "2026-10-30T08:58:25.953Z"
+stopped_at: Completed 07-21-PLAN.md
+last_updated: "2026-10-30T09:28:45.644Z"
 last_activity: 2026-10-30
 last_activity_desc: Phase 07 execution started
-state_head: 3aac68694ef6edb256be22a63c950bd96263d6ec
+state_head: 744d6e40966c568e636ba0324ff6aff1848e0d0f
 progress:
   total_phases: 8
   completed_phases: 7
   total_plans: 103
-  completed_plans: 98
+  completed_plans: 99
   percent: 88
 ---
 
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-10-25)
 ## Current Position
 
 Phase: 07 (Operability Re-sweep) — EXECUTING
-Plan: 17 of 21
+Plan: 18 of 21
 Status: Ready to execute
-Last activity: 2026-10-30 — Plan 07-16 complete (runtime.json derived by rule from committed runner records; N = 1 and the timeouts 26/71/26 s shipped; K = 4 and the arena trim kept; the R23 drift stop ruled as G32, and the 60-build plateau held, so W takes the drift peak and recycling stays unset)
+Last activity: 2026-10-30 — Plan 07-21 complete (the serving and worker knobs equal runtime.json: 1 build worker, queue 2, Retry-After ceil(R18 median x live depth) per artifact, export cache 240 MiB, gzip level 1 at 4012 B, solid cache 4, the trim kept, no recycling, SCREW_WORKERS 1; tests/test_runtime_bounds.py ties each; next 07-17)
 
 Progress: [█████████░] 88%
 
@@ -160,6 +160,7 @@ Progress: [█████████░] 88%
 | Phase 07 P14 | 25 min | 2 tasks | 5 files |
 | Phase 07 P15 | 135 min | 3 tasks | 31 files |
 | Phase 07 P16 | 154 min | 3 tasks | 17 files |
+| Phase 07 P21 | 20 min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -330,6 +331,7 @@ Recent decisions affecting current work:
 - [Phase 07]: 07-15: G31 draws bound candidates from points read ok at every artifact; the 10 stl-preview contention and 2 gzip points that moved were read again (runs 40999654995, 40999657702); match bound readings to points by members, not label
 - [Phase 07]: 07-16: runtime.json derived by rule from committed runner records: N = 1, timeouts 26/71/26 s (shipped in BUILD_TIMEOUT_S), K = 4, the arena trim kept, gzip level 1, export cache 240 MiB, tmpfs 256 MiB, queue depth 2, shipped mem_limit 2415919104 B
 - [Phase 07]: 07-16 (G32): R23's 20-build drift no longer stops alone; the 60-build plateau holds at every artifact (run 41022812680), W takes the drift readings' largest peak 1758363648 B, and max_tasks_per_child stays unset
+- [Phase 07]: 07-21: the serving and worker knobs equal runtime.json: 1 build worker, queue 2, Retry-After ceil(R18 median x live depth), export cache 240 MiB, gzip 1 / 4012 B, solid cache 4, trim kept, no recycling, SCREW_WORKERS 1
 
 ### Pending Todos
 
@@ -386,6 +388,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-30T08:58:25.638Z
-Stopped at: Completed 07-16-PLAN.md
+Last session: 2026-10-30T09:28:45.331Z
+Stopped at: Completed 07-21-PLAN.md
 Resume file: None
