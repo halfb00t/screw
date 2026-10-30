@@ -3096,7 +3096,7 @@ def _regenerate_runs2(name: str, text: str) -> str:
     sources = dict(str(entry).split("=", 1) for entry in raw.get("sources", []))
     needs = {"bound": ("explore",), "load": ("tier-order", "explore"), "gzip": ("explore",),
              "arenas": ("explore",), "outband": ("explore",), "bound-rerun": ("explore", "run"),
-             "gzip-rerun": ("explore", "run")}[name]
+             "gzip-rerun": ("explore", "run"), PITCH_WALK: ("explore",)}[name]
     missing = [source for source in needs if source not in sources]
     if missing:
         raise ValueError(f"it names no {' and '.join(missing)} source")
@@ -3110,6 +3110,8 @@ def _regenerate_runs2(name: str, text: str) -> str:
         return build_outband(sources["explore"], envelope).text()
     if name in RERUN_SETS:
         return build_rerun(name, sources["explore"], sources["run"], envelope).text()
+    if name == PITCH_WALK:
+        return build_pitch_walk(sources["explore"], envelope).text()
     return build_gzip(sources["explore"], envelope).text()
 
 
@@ -3117,7 +3119,8 @@ def _check_runs2() -> str | None:
     """The first Runs II file that is not what its generator writes under its recorded envelope,
     with the reason, or None. Absent files are not checked: each is written by its own step."""
     paths = [("tier-order", REPO_ROOT / TIER_ORDER),
-             *((name, POINTS_DIR / f"{name}.json") for name in (*RUNS2_SETS, *RERUN_SETS))]
+             *((name, POINTS_DIR / f"{name}.json") for name in (*RUNS2_SETS, *RERUN_SETS,
+                                                                PITCH_WALK))]
     for name, path in paths:
         if not path.is_file():
             continue
@@ -3230,6 +3233,199 @@ def boundary_text(explore_dir: str) -> str:
     return json.dumps(document, indent=1) + "\n"
 
 
+# --- R31: the fine-pitch walk (G35) --------------------------------------------------------------
+#
+# The in-wall debug session (.planning/debug/in-wall-kernel-builderror.md) found the kernel's
+# end-cut booleans refuse parts at a fine pitch for their d, and the owner ruled a wall on the
+# exact d / pitch per kind, final only once this walk, read on the runner, confirms it. The grid
+# is the session's: its d values, its 3-turn bolt forms and its four nut forms, around each wall.
+
+PITCH_WALK = "walls-pitch"
+PITCH_RULE = "07-SWEEP-PROTOCOL.md R31 (G35)"
+PITCH_BOLT_D = ("0.3", "0.5", "0.8", "1", "1.2", "1.5", "1.8", "2", "2.2", "2.5", "2.8", "3",
+                "3.5", "4", "4.5", "5", "6", "8", "10", "12", "16", "20", "24", "30", "42", "60",
+                "100", "150", "200", "300", "450", "600", "999.999")
+PITCH_BOLT_Q = (5, 8, 10, 12, 14, *range(15, 32))
+PITCH_NUT_D = ("0.5", "0.6", "0.7", "0.8", "0.9", "1", "1.1", "1.2", "1.4", "1.5", "1.6", "1.8",
+               "2", "2.2", "2.4", "2.5", "2.6", "2.8", "3", "3.2", "3.5", "4", "4.5", "5", "5.5",
+               "6", "7", "8", "9", "10", "11", "12", "14", "16", "18", "20", "24", "30", "42",
+               "60", "100", "200", "300", "600")
+PITCH_NUT_Q = tuple(range(5, 13))
+PITCH_BOLT_FORMS = ("n3", "n3s")  # t = L = 3 P; t = 3 P with a shank, L = t + d
+PITCH_NUT_FORMS = ("base", "s4", "c0", "m1")  # m 0.8 d, s 1.6 d, c 0.15; s 4 d; c 0; m = d
+PITCH_BOLT_S_MAX = 1000.0  # R31: s = 1.6 d at most 1000 mm, the walls' s (L20) when R31 was ruled
+PITCH_TURNS = 3
+# R31: a refusal comes in the build, before any export, so the status does not depend on the
+# artifact; `step` is the one whose explore groups R6 charges least for both kinds (bolt 29.9 s,
+# nut 38.0 s, against 600.7 s and 74.7 s at stl-preview; run 40646117094).
+PITCH_ARTIFACT = ("step",)
+# R31: W is the largest ISO 3 R10 number at or below F / 1.25, one R10 step under F.
+R10_SERIES = tuple(Fraction(v) for v in ("1", "1.25", "1.6", "2", "2.5", "3.15", "4", "5", "6.3",
+                                          "8"))
+PITCH_MARGIN = Fraction(5, 4)
+RULED_PITCH_WALLS = {"bolt": Fraction(20), "nut": Fraction(8)}  # G35 rulings 1 and 2
+
+
+def _ceil_figures(x: Fraction) -> float:
+    """`x` rounded up to 6 significant figures, exactly: a pitch of `d / q` rounded so that the
+    exact `d / pitch` is at most q (R31)."""
+    scale = Fraction(1)
+    while scale > x:
+        scale /= 10
+    while scale * 10 <= x:
+        scale *= 10
+    step = scale / 10 ** (SIGNIFICANT_FIGURES - 1)
+    return _dec(math.ceil(x / step) * step)
+
+
+def _pitch_params(kind: str, form: str, d: str, q: int,
+                  left: bool) -> dict[str, float | bool]:
+    """The fields of one R31 cell."""
+    pitch = _ceil_figures(Fraction(d) / q)
+    size = float(d)
+    if kind == "bolt":
+        thread = _dec(PITCH_TURNS * Fraction(repr(pitch)))
+        length = thread if form == "n3" else _dec(Fraction(repr(thread)) + Fraction(d))
+        return {"d": size, "pitch": pitch, "length": length, "thread_length": thread,
+                "s": min(_scaled(size, "1.6"), PITCH_BOLT_S_MAX), "k": _scaled(size, "0.6"),
+                "left_hand": left}
+    return {"d": size, "pitch": pitch,
+            "m": size if form == "m1" else _scaled(size, "0.8"),
+            "s": _scaled(size, "4" if form == "s4" else "1.6"),
+            "clearance": 0.0 if form == "c0" else DEFAULT_NUT_CLEARANCE, "left_hand": left}
+
+
+def _model_refusal(kind: str, params: Params) -> str | None:
+    """The pydantic error type with which the production parameter model refuses `params`, or
+    `None`."""
+    try:
+        KINDS[kind].model_validate(dict(params))
+    except ValidationError as exc:
+        return str(exc.errors()[0]["type"])
+    return None
+
+
+def _pitch_cells() -> Iterator[tuple[str, str, str, int, bool]]:
+    """(kind, form, d, q, left) of every R31 cell, in file order."""
+    for kind, forms, sizes, ratios in (("bolt", PITCH_BOLT_FORMS, PITCH_BOLT_D, PITCH_BOLT_Q),
+                                       ("nut", PITCH_NUT_FORMS, PITCH_NUT_D, PITCH_NUT_Q)):
+        for form in forms:
+            for d in sizes:
+                for q in ratios:
+                    for left in (False, True):
+                        yield kind, form, d, q, left
+
+
+def pitch_walk_set(envelope: Envelope, budget: Budget = cost.BUDGET) -> _Set:
+    """R31's walk, unsharded: every cell at `step`, a cell the parameter model refuses or the cost
+    model admits at no artifact (under `envelope`) in `dropped` with its type."""
+    out = _Set(PITCH_WALK, reps=1, shards=1, rule=PITCH_RULE, notes=[
+        "R31: bolts with 3 turns of thread (t = L = 3 pitch, and t = 3 pitch with L = t + d), s "
+        "1.6 d at most 1000 mm, k 0.6 d; nuts m 0.8 d, s 1.6 d, clearance 0.15, and the same with "
+        "s 4 d, with clearance 0, and with m = d; both hands; pitch = d / q rounded up to 6 "
+        "significant figures, so the exact d / pitch is at most q",
+        "1 repetition at step; F per kind is the smallest exact d / pitch of a refused or crashed "
+        "reading, W the largest ISO 3 R10 number at or below F / 1.25 (G35)"])
+    for kind, form, d, q, left in _pitch_cells():
+        params = _pitch_params(kind, form, d, q, left)
+        label = f"pitch-{kind}-{form}-d{d}-q{q}-{_hand(left)}"
+        error = _model_refusal(kind, params)
+        if error is None:
+            part = KINDS[kind].model_validate(params)
+            if not any(admits(part, artifact, envelope, budget) for artifact in cost.ARTIFACTS):
+                error = "over_budget"
+        if error is not None:
+            out.dropped.append({"label": label, "kind": kind, "params": params,
+                                "artifacts": list(PITCH_ARTIFACT), "error": error})
+            continue
+        for artifact in PITCH_ARTIFACT:
+            out.copy({"label": label, "kind": kind, "params": params, "artifact": artifact})
+    out.envelope = envelope_document(envelope)
+    return out
+
+
+def build_pitch_walk(explore_dir: str, envelope: Envelope) -> _Set:
+    """R31's walk under `envelope`, sharded by R6 from an explore run."""
+    out = pitch_walk_set(envelope)
+    out.sharded(charge_table(_read(explore_dir)), [f"explore={explore_dir}"])
+    return out
+
+
+@dataclass(frozen=True)
+class PitchWall:
+    """R31 for one kind: F, the reading that sets it, and W."""
+
+    kind: str
+    f: Fraction
+    label: str
+    w: Fraction
+
+
+def r10_at_or_below(x: Fraction) -> Fraction:
+    """The largest number of the ISO 3 R10 series at or below `x` (above 0)."""
+    if x <= 0:
+        raise ValueError(f"{x} is not above 0")
+    scale = Fraction(1)
+    while scale > x:
+        scale /= 10
+    while scale * 10 <= x:
+        scale *= 10
+    return max(value * scale for value in R10_SERIES if value * scale <= x)
+
+
+def _d_per_pitch(params: object) -> Fraction:
+    if not isinstance(params, Mapping):
+        raise ProtocolStop("R31", "a walk reading carries no params")
+    return _exact(float(params["d"])) / _exact(float(params["pitch"]))
+
+
+def pitch_walls(points: Sequence[Mapping[str, object]],
+                readings: Iterable[Reading]) -> dict[str, PitchWall]:
+    """R31 per kind from the walk's readings: every point read exactly once, nothing read that the
+    walk does not hold, every reading `ok`, `refused` or `crashed`. F is the smallest exact
+    d / pitch of a `refused` or `crashed` reading and W the largest R10 number at or below
+    F / 1.25. Anything else has no number: `ProtocolStop`."""
+    wanted = {(str(p["label"]), str(p["artifact"])) for p in points}
+    seen: dict[tuple[str, str], Reading] = {}
+    for reading in readings:
+        key = (str(reading.get("label")), str(reading.get("artifact")))
+        if key not in wanted:
+            raise ProtocolStop("R31", f"{key[0]} at {key[1]} is not a point of the walk")
+        if key in seen:
+            raise ProtocolStop("R31", f"{key[0]} at {key[1]} was read twice")
+        seen[key] = reading
+    missing = sorted(wanted - set(seen))
+    if missing:
+        raise ProtocolStop("R31", f"{len(missing)} points of the walk have no reading, the first "
+                                  f"{missing[0][0]} at {missing[0][1]}")
+    failing: dict[str, tuple[Fraction, str]] = {}
+    for (label, _), reading in sorted(seen.items()):
+        status = str(reading.get("status"))
+        if status == "ok":
+            continue
+        if status not in FAILED:
+            raise ProtocolStop("R31", f"{label} is {status}, which is cost or a gap and not a "
+                                      "wall, so W has no number")
+        kind, ratio = str(reading.get("kind")), _d_per_pitch(reading.get("params"))
+        if kind not in failing or ratio < failing[kind][0]:
+            failing[kind] = (ratio, label)
+    walls: dict[str, PitchWall] = {}
+    for kind in CELL_KINDS:
+        if kind not in failing:
+            raise ProtocolStop("R31", f"no {kind} of the walk was refused or crashed, so F and W "
+                                      "have no number")
+        f, label = failing[kind]
+        walls[kind] = PitchWall(kind, f, label, r10_at_or_below(f / PITCH_MARGIN))
+    return walls
+
+
+def pitch_walls_text(walls: Mapping[str, PitchWall]) -> str:
+    """One line per kind: F as the exact fraction and its float, the reading that sets it, W."""
+    return "".join(f"{wall.kind}: F = {wall.f} ({float(wall.f)!r}) at {wall.label}; "
+                   f"F / 1.25 = {float(wall.f / PITCH_MARGIN)!r}; W = {wall.w}\n"
+                   for wall in walls.values())
+
+
 # --- how far a regeneration on this host drifts from the committed files (07-18) ----------------
 #
 # `cost.predict` is `math.exp` of a sum of `math.log` terms, and the platform's libm decides their
@@ -3315,7 +3511,8 @@ def _regenerations() -> Iterator[tuple[Path, str, Callable[[], str]]]:
             yield path, path.read_text(), functools.partial(_regenerate, path)
     for name, path in (("tier-order", REPO_ROOT / TIER_ORDER),
                        *((name, POINTS_DIR / f"{name}.json") for name in (*RUNS2_SETS,
-                                                                          *RERUN_SETS))):
+                                                                          *RERUN_SETS,
+                                                                          PITCH_WALK))):
         if path.is_file():
             text = path.read_text()
             yield path, text, functools.partial(_regenerate_runs2, name, text)
@@ -3497,6 +3694,19 @@ def _run(args: argparse.Namespace) -> int:
     elif args.command == "boundary":
         Path(args.out).write_text(boundary_text(explore_dir))
         print(f"wrote {args.out}")
+    elif args.command == "pitch-walk":
+        made = build_pitch_walk(explore_dir, shipped_envelope())
+        Path(args.out).write_text(made.text())
+        print(f"{made.name}: {len(made.points)} points in shards of {made.shard_sizes}, "
+              f"{len(made.dropped)} dropped")
+    elif args.command == "pitch-walls":
+        walls = pitch_walls(_points_of(PITCH_WALK), read_readings(Path(args.source)))
+        sys.stdout.write(pitch_walls_text(walls))
+        other = [w for w in walls.values() if w.w != RULED_PITCH_WALLS[w.kind]]
+        if other:
+            raise ProtocolStop("R31", "; ".join(
+                f"the {w.kind} W is {w.w}, not the ruled {RULED_PITCH_WALLS[w.kind]}"
+                for w in other))
     elif args.command == "load-table":
         sys.stdout.write(load_table(read_readings(Path(args.source))))
     elif args.command in ("drift", "solid-cache"):
@@ -3559,6 +3769,12 @@ def main(argv: list[str] | None = None) -> int:
     rerun.add_argument("--explore", required=True)
     rerun.add_argument("--run", required=True)
     rerun.add_argument("--out", required=True)
+    pitch_walk = sub.add_parser("pitch-walk", help="write R31's fine-pitch walk (G35)")
+    pitch_walk.add_argument("--explore", required=True)
+    pitch_walk.add_argument("--out", required=True)
+    sub.add_parser("pitch-walls", help="R31's F and W per kind from the walk's records, exit 3 "
+                                       "if a W is not the ruled one (G35)").add_argument(
+        "--from", dest="source", required=True)
     sub.add_parser("load-table", help="the per-N table of a load run's readings").add_argument(
         "--from", dest="source", required=True)
     check = sub.add_parser("envelope-check",
