@@ -5,11 +5,13 @@
   "bench/results/phase-07/bound-40907549180",
   "bench/results/phase-07/bound-rerun-40999654995",
   "bench/results/phase-07/controls-40646142406",
+  "bench/results/phase-07/drift-41016507364",
   "bench/results/phase-07/explore-40646117094",
   "bench/results/phase-07/gzip-40909739628",
   "bench/results/phase-07/gzip-rerun-40999657702",
   "bench/results/phase-07/load-40909724292",
   "bench/results/phase-07/outband-40909768713",
+  "bench/results/phase-07/solid-cache-4-41016510597",
   "bench/results/phase-07/spread-40646125666",
   "bench/results/phase-07/tracer-40645463872",
   "bench/results/phase-07/walls-40646134133",
@@ -25,7 +27,7 @@
  "runner": {
   "nproc": 4,
   "smallest_mem_total_bytes": 16758394880,
-  "headers": 239
+  "headers": 249
  },
  "gzip": {
   "level": 1,
