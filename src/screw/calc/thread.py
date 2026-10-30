@@ -64,9 +64,9 @@ MIN_ROOT_RADIUS_MM = 1e-2
 # The finest pitch for its diameter, as the largest exact d / pitch a part may ask for (07 R31,
 # rulings G35 and G36): above it the kernel's end-cut booleans act on a swept thread whose error
 # does not shrink with the thread depth and return a wrong solid the gates refuse
-# (.planning/debug/in-wall-kernel-builderror.md). A part above its kind's wall is a 422 naming d
-# and pitch; a part at it is admitted. Bolt: walk run 41074314305 read 2904 bolts with 3 turns of
-# thread on linux/amd64 on the GitHub runner, the smallest refused d / pitch F was
+# (.planning/debug/resolved/in-wall-kernel-builderror.md). A part above its kind's wall is a 422
+# naming d and pitch; a part at it is admitted. Bolt: walk run 41074314305 read 2904 bolts with 3
+# turns of thread on linux/amd64 on the GitHub runner, the smallest refused d / pitch F was
 # 26.999784001727985 (d 3, pitch 0.111112, right hand), and the wall is the largest ISO 3 R10
 # number at or below F / 1.25, written by the walk's judge below. Longer threads in the bands d 0.5
 # to 0.85 and 1.6 to 3.3 mm are refused below it and stay debt

@@ -3260,10 +3260,11 @@ def boundary_text(explore_dir: str) -> str:
 
 # --- R31: the fine-pitch walk (G35) --------------------------------------------------------------
 #
-# The in-wall debug session (.planning/debug/in-wall-kernel-builderror.md) found the kernel's
-# end-cut booleans refuse parts at a fine pitch for their d, and the owner ruled a wall on the
-# exact d / pitch per kind, final only once this walk, read on the runner, confirms it. The grid
-# is the session's: its d values, its 3-turn bolt forms and its four nut forms, around each wall.
+# The in-wall debug session (.planning/debug/resolved/in-wall-kernel-builderror.md) found the
+# kernel's end-cut booleans refuse parts at a fine pitch for their d, and the owner ruled a wall on
+# the exact d / pitch per kind, final only once this walk, read on the runner, confirms it. The
+# grid is the session's: its d values, its 3-turn bolt forms and its four nut forms, around each
+# wall.
 
 PITCH_WALK = "walls-pitch"
 PITCH_RULE = "07-SWEEP-PROTOCOL.md R31 (G35)"

@@ -1,8 +1,8 @@
 ---
-status: diagnosed
+status: resolved
 trigger: "docs/tech_debt/active/2026-10-29-in-wall-parts-the-kernel-refuses.md — 20 parts inside the L20 walls pass validation and then fail with BuildError; 11 of them fail the required bounds tier on run 41052312369 (PR #26, head 9b880db). Find the root cause, then propose a kernel fix or a measured guard (a 422 at the parameter boundary). Stop for the owner before applying either."
 created: 2026-10-30
-updated: 2026-10-30T20:15+06:00
+updated: 2026-10-30
 goal: find_root_cause_then_propose
 ---
 
@@ -687,6 +687,30 @@ guard_measurement (2026-10-30): >
   (c) counts; the margin rule gives 8 (0 of 568 / 0 of 44), which also refuses the explore nuts
   at d/p 8.571 and 10: (c) then refuses 117 labels (97 that build today, 77 of them admitted) and
   80 tier points (11 + 26 bolt + 43 nut).
-fix: none applied (diagnose-only mode; the owner chooses). Options in the ROOT CAUSE FOUND return.
-verification: n/a
-files_changed: []
+fix: >
+  The owner chose option 1, a partial d / pitch wall with the residual kept as must debt (G35:
+  "Guard d/p wall + debt", "Nut d/p <= 8", "Walk W on runner", "Must debt, don't block"; G36: "Rule
+  nut W = 8, island to debt", "(i)(b) old sets, drop refused"). Logged as L25 and applied in
+  36c3601: a bolt above exact d / pitch 20 and a nut above 8 is a 422 `pitch_too_fine` naming d and
+  pitch, checked at the parameter-model boundary. The bolt's 20 is the margin rule over walk run
+  41074314305 on the runner (F 26.999784001727985); the nut's 8 is ruled (the margin rule gave 5,
+  from an island at d 2.2, d / pitch 7). The kernel is not changed. Option 2, the accuracy variant,
+  and the residual (the nut island, the long-thread bolt bands below 20) are kept as must debt,
+  trigger "before the first release": docs/tech_debt/active/2026-10-29-in-wall-parts-the-kernel-refuses.md.
+verification: >
+  tests/test_fine_pitch.py: all 20 in-wall parts are a 422 pitch_too_fine on the API (info and
+  model routes, no build reached) and exit 2 on the CLI with the same text; 0 of 294 bolt and 0 of
+  14 nut catalogue rows refused; a ratio typed at the wall admitted, one float finer refused.
+  tests/test_oper_pitch.py: the shipped bolt block equals what the judge writes from the committed
+  records; the residual of the walk is exactly the six island cells. make verify: 4718 passed.
+  The required bounds tier (355 points, the refused 80 dropped) re-runs on PR #26.
+files_changed:
+  - src/screw/calc/thread.py
+  - src/screw/params.py
+  - bench/oper_lift.py
+  - bench/oper_sets.py
+  - bench/oper_fit.py
+  - bench/build_time.py
+  - tests/data/oper_boundary.json
+  - .github/workflows/ci.yml
+  - tests/test_fine_pitch.py
