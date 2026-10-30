@@ -11195,7 +11195,7 @@ Owner ruling G27 (`07-GAP-RULINGS.md`): R8 writes no `MAX_NUT_D_MM`. The nut `d`
 
 ## Phase 7 Runs II
 
-Runner readings of plan 07-15, taken under `07-SWEEP-PROTOCOL.md` as amended through G29, on `ubuntu-latest` (07 D-01). The sets are `python -m bench.oper_sets runs2` output from explore run 40646117094 under the shipped envelope, which each point file records (G6). D(A) of R27 steps 1 to 4 is `bench/results/phase-07/tier-order.json`, committed in c28c768, before `bench/points/load.json` (98c62ad). Every figure below is `bench.oper summarize` or `bench.oper_sets load-table` output over the records committed under `bench/results/phase-07/`, downloaded with `gh run download <id> -p 'oper-*'`. Every set ran at 5 repetitions, each repetition a matrix job on its own runner instance.
+Runner readings of plan 07-15, taken under `07-SWEEP-PROTOCOL.md` as amended through G29, on `ubuntu-latest` (07 D-01). The sets are `python -m bench.oper_sets runs2` output from explore run 40646117094 under the shipped envelope, which each point file records (G6). D(A) of R27 steps 1 to 4 is `bench/results/phase-07/tier-order.json`, committed in c28c768, before `bench/points/load.json` (98c62ad). Every figure below is `bench.oper summarize` or `bench.oper_sets load-table` output over the records committed under `bench/results/phase-07/`, downloaded with `gh run download <id> -p 'oper-*'`. Every set ran at 5 repetitions, each repetition a matrix job on its own runner instance. After the owner's G31 ruling (R14: every bound candidate has an ok explore reading at every artifact), `bench/points/bound.json` and `bench/points/gzip.json` were regenerated in 6d68f20 and only their changed stl-preview points read again: the bound-rerun and gzip-rerun subsections below.
 
 ### bound, run 40907549180
 
@@ -11514,6 +11514,82 @@ Status counts: ok: 300
 | turns-below-iso4017:M2x4 | stl-fine | 5 | ok | ok: 5 | 0.868 | 1.024 | 0.252 | 0.311 | 1446684 | 1446684 | 251654144 | 258457600 |
 | turns-below-iso4017:M20x40 | step | 5 | ok | ok: 5 | 1.111 | 1.255 | 0.019 | 0.021 | 371324 | 371324 | 210001920 | 210026496 |
 | turns-below-iso4017:M2x4 | step | 5 | ok | ok: 5 | 0.862 | 1.000 | 0.015 | 0.018 | 257459 | 257459 | 208896000 | 209113088 |
+
+### bound-rerun, run 40999654995
+
+- Dispatched sha: `6d68f207d971860f908b6e0a63f14c0594876e2a`
+- Records: `bench/results/phase-07/bound-rerun-40999654995/` (5 artifacts, 50 readings), run https://github.com/halfb00t/screw/actions/runs/40999654995
+- CPU models seen (jobs): AMD EPYC 7763 64-Core Processor (3); AMD EPYC 9V45 96-Core Processor (1); AMD EPYC 9V74 80-Core Processor (1)
+- Counts by status: ok: 50
+- G31 (R14): the 10 stl-preview contention points of the regenerated `bench/points/bound.json` that no reading of bound run 40907549180 is of (`bench/points/bound-rerun.json`, `python -m bench.oper_sets rerun --set bound`): the two kernel-refused nuts left the candidates, so `iso4017:M16x150` and `iso4017:M20x160` join the stl-preview bound set at N 1 to 3 and four N = 3 points take a new partner. The 50 readings of run 40907549180 those points replace (every reading with either nut as P or partner) decide nothing; its other 250 readings stand. Every bound point now has 5 ok repetitions in exactly one of the two runs, matched by its members.
+- Summary: `python -m bench.oper summarize --markdown --reps 1,2,3,4,5` over the directory, as printed.
+
+### Host
+
+| fact | value |
+| --- | --- |
+| image | screw:ci |
+| image_id | sha256:c779344f80f8550bcb2d0b5ac0f676f436c37f5f620ec553f01b8d76cc688d1f, sha256:e2ae14795ae685903fbbfbb56f2e7af406f8dcc2be5fb67b7bd14f4491977ff6, sha256:1b9337968f9ccb601f1acdc04b00f9783d4f856f5824ce418f55c4802e048d5c, sha256:1f742b4a113b1a14bea5b587072866d768f533e1eb4006b911d2cd980c83bcba, sha256:8c90e69e8252470ca19ca621d32daf8bdb1494394659d884d23a64c3c9b69dac |
+| versions | {"cadquery": "2.8.0", "cadquery_ocp": "7.9.3.1.1"} |
+| nproc | 4 |
+| mem_total_bytes | 16759443456 |
+| cpu_model | AMD EPYC 7763 64-Core Processor, AMD EPYC 9V74 80-Core Processor, AMD EPYC 9V45 96-Core Processor |
+| kernel | 7.0.0-1017-azure |
+| machine | x86_64 |
+| GITHUB_RUN_ID | 40999654995 |
+| GITHUB_JOB | measure |
+| GITHUB_SHA | 6d68f207d971860f908b6e0a63f14c0594876e2a |
+
+### Readings
+
+Status counts: ok: 50
+
+| point | artifact | n | status | counts | median build s | max build s | median export s | max export s | median bytes | max bytes | median peak bytes | max peak bytes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| iso4017:M20x200-n3 | stl-preview | 5 | ok | ok: 5 | 8.279 | 12.532 | 4.726 | 6.381 | 22807184 | 22807184 | 890523648 | 907612160 |
+| iso4017:M20x180-n3 | stl-preview | 5 | ok | ok: 5 | 7.892 | 9.913 | 4.462 | 5.183 | 20646884 | 20646884 | 891002880 | 904912896 |
+| iso4017:M16x160-n3 | stl-preview | 5 | ok | ok: 5 | 8.229 | 8.757 | 4.192 | 4.673 | 13148084 | 13148084 | 897777664 | 904712192 |
+| iso4017:M16x150-n1 | stl-preview | 5 | ok | ok: 5 | 5.052 | 5.082 | 1.784 | 1.809 | 12378384 | 12378384 | 330518528 | 336195584 |
+| iso4017:M16x150-n2 | stl-preview | 5 | ok | ok: 5 | 6.003 | 6.554 | 3.544 | 3.747 | 12378384 | 12378384 | 610672640 | 628379648 |
+| iso4017:M16x150-n3 | stl-preview | 5 | ok | ok: 5 | 8.362 | 10.838 | 3.702 | 5.169 | 12378384 | 12378384 | 877035520 | 887726080 |
+| iso4017:M20x160-n1 | stl-preview | 5 | ok | ok: 5 | 4.323 | 4.376 | 2.035 | 2.193 | 18350484 | 18350484 | 337604608 | 342413312 |
+| iso4017:M20x160-n2 | stl-preview | 5 | ok | ok: 5 | 5.378 | 5.636 | 2.654 | 3.188 | 18350484 | 18350484 | 627511296 | 639926272 |
+| iso4017:M20x160-n3 | stl-preview | 5 | ok | ok: 5 | 7.769 | 7.850 | 4.389 | 5.271 | 18350484 | 18350484 | 898650112 | 906686464 |
+| nut-d100-p3.5-m0.8d-s4d-c5-right-n3 | stl-preview | 5 | ok | ok: 5 | 11.121 | 13.860 | 4.402 | 6.762 | 27853884 | 27853884 | 942301184 | 963174400 |
+
+### gzip-rerun, run 40999657702
+
+- Dispatched sha: `6d68f207d971860f908b6e0a63f14c0594876e2a`
+- Records: `bench/results/phase-07/gzip-rerun-40999657702/` (5 artifacts, 10 readings), run https://github.com/halfb00t/screw/actions/runs/40999657702
+- CPU models seen (jobs): AMD EPYC 7763 64-Core Processor (2); AMD EPYC 9V45 96-Core Processor (1); AMD EPYC 9V74 80-Core Processor (1); Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz (1)
+- Counts by status: ok: 10
+- G31 (R19): the `iso4017:M16x150` and `iso4017:M20x160` stl-preview gzip points of the regenerated `bench/points/gzip.json` (`bench/points/gzip-rerun.json`), in place of the two kernel-refused nuts, whose 10 readings of gzip run 40909739628 decide nothing. Every gzip point now has 5 ok repetitions in exactly one of the two runs.
+- Summary: `python -m bench.oper summarize --markdown --reps 1,2,3,4,5` over the directory, as printed.
+
+### Host
+
+| fact | value |
+| --- | --- |
+| image | screw:ci |
+| image_id | sha256:b51d0db4dccdf271e95cb9d2fd37cf1b2c94dd191aed94dbb1252a924396e8d7, sha256:ff0cfd525ee83a01ffbde01d6137971655b466071d6840a99ff4f131d5444eb7, sha256:9f5575903255a53b8cc7839a0770ed3d60e0a586133c776c2a82e6beaf8e9317, sha256:6fca7a37ffd630f8893d476954eb4bbabec06a869fa14137ae0c2f8df2f5a73f, sha256:2173ab075f3ccd99ca87fc13eb7aca1fd7d403295d8829ff4ac630796e43e9df |
+| versions | {"cadquery": "2.8.0", "cadquery_ocp": "7.9.3.1.1"} |
+| nproc | 4 |
+| mem_total_bytes | 16759443456, 16758407168 |
+| cpu_model | AMD EPYC 9V74 80-Core Processor, Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz, AMD EPYC 7763 64-Core Processor, AMD EPYC 9V45 96-Core Processor |
+| kernel | 7.0.0-1017-azure |
+| machine | x86_64 |
+| GITHUB_RUN_ID | 40999657702 |
+| GITHUB_JOB | measure |
+| GITHUB_SHA | 6d68f207d971860f908b6e0a63f14c0594876e2a |
+
+### Readings
+
+Status counts: ok: 10
+
+| point | artifact | n | status | counts | median build s | max build s | median export s | max export s | median bytes | max bytes | median peak bytes | max peak bytes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| iso4017:M16x150 | stl-preview | 5 | ok | ok: 5 | 4.909 | 4.984 | 1.756 | 2.139 | 12378384 | 12378384 | 293662720 | 297340928 |
+| iso4017:M20x160 | stl-preview | 5 | ok | ok: 5 | 4.295 | 4.376 | 1.996 | 2.063 | 18350484 | 18350484 | 296964096 | 306118656 |
 
 ### out-of-band check
 
