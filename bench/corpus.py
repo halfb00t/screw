@@ -1,10 +1,14 @@
 """The Phase 1 corpus: 12 parts on a d x length grid, threaded since Phase 3.
 
-This exercises the harness. It sets no bound (L07: the harness is ported, the numbers are not).
-It stays far below the D-14 corner (`d`, `length` up to 1e5 mm) on purpose, so nothing
-measured against it says anything about the interim `mem_limit` or `SCREW_BUILD_TIMEOUT`.
-Phase 7 replaces it with the threaded grid and keeps that one fixed from then on, so a later
-run is comparable with an earlier one (OPER-02).
+This exercises the harness. It sets no bound (L07: the harness is ported, the numbers are not):
+the container's limits and the timeouts come from the Phase 7 sweep (L23, L24), and
+`bench.build_time` judges each row's cold wall against `calc.cost.BUILD_TIMEOUT_S` for its
+artifact (L24). It holds no entry the parameter model refuses: its last length has been 90 mm
+since L20 (a804806), so a heaviest-part run from before that commit is not comparable with a
+later one (owner ruling 2026-10-28, replacing WR-05's ask that the corpus keep a refused entry).
+The cost model (L21) refuses some entries at some artifacts; `bench.build_time` marks those and
+does not judge them. The grid stays fixed from now on, so a later run is comparable with an
+earlier one (OPER-02).
 
 Deterministic: the grid is written out, never generated from a seed or the host.
 """

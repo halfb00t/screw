@@ -28,12 +28,9 @@ Severity (grep-able `Severity:` field):
 | must | [The ISO standards Phase 5 reads are not purchased: rows come from free GOST texts of older editions](active/2026-10-20-iso-standards-not-purchased.md) | before the first release (after Phase 7), or any public release that claims ISO conformance |
 | nice | [The tip cut fails in the sliver of thread_length just above the cone's axial length](active/2026-10-20-tip-cone-degenerate-boolean-at-the-cone-length.md) | revisit if a real size meets the window, or when the tip length is next changed |
 | must | [The pair tier has not run on ubuntu: pair.yml can be dispatched only once it is on main](active/2026-10-14-first-pair-yml-dispatch.md) | the Phase 5 PR's merge to `main` |
-| must | [A valid in-cap request (d=100, length=200, default pitch) exceeds both interim backstops and is unrecorded](active/2026-10-11-default-pitch-d100-length200-exceeds-both-interim-backstops.md) | owner severity ruling; measure at the 30 s kill point |
 | nice | [The M18 probe's --one entry has no deadline when started by hand during a run](active/2026-10-14-m18-probe-one-entry-has-no-deadline-during-a-run.md) | the probe is reused, or the owner wants the entry closed completely |
 | nice | [check_solid discards the volume estimator's own error estimate](active/2026-10-11-check-solid-ignores-the-volume-error-estimate.md) | when the gate or T_GATE next changes |
 | must | [Two thread spike protocol amendments wait for the owner before the next campaign](active/2026-10-10-spike-protocol-amendments-before-next-campaign.md) | before the next thread-spike campaign runs |
-| must | [Interim runtime bounds are spur's figures, not screw's measurements](active/2026-10-05-interim-runtime-bounds.md) | Phase 7 operability re-sweep (OPER-02) |
-| must | [bench.memory samples too coarsely to read a peak off a corpus that runs in seconds](active/2026-10-06-bench-memory-sampling-is-too-coarse-for-short-corpora.md) | before the Phase 7 memory sweep (OPER-02, OPER-03) |
 | nice | [The infrastructure forked from spur is not a shared package](active/2026-10-05-shared-infra-extraction.md) | fired: the pool.py race guard (L09) — owner decides extract vs fix twice |
 | nice | [Enji Guard not connected](active/2026-10-05-enji-guard-not-connected.md) | first product code on `main`, or the owner decides they want continuous AI audit |
 
@@ -41,6 +38,9 @@ Severity (grep-able `Severity:` field):
 
 | Item | Resolved in |
 |---|---|
+| [Interim runtime bounds are spur's figures, not screw's measurements](resolved/2026-10-05-interim-runtime-bounds.md) | this commit — chore(07): remove the last interim runtime labels and close the debt they tracked (07 D-16) |
+| [bench.memory samples too coarsely to read a peak off a corpus that runs in seconds](resolved/2026-10-06-bench-memory-sampling-is-too-coarse-for-short-corpora.md) | this commit — chore(07): remove the last interim runtime labels and close the debt they tracked (07 D-16) |
+| [A valid in-cap request (d=100, length=200, default pitch) exceeds both interim backstops and is unrecorded](resolved/2026-10-11-default-pitch-d100-length200-exceeds-both-interim-backstops.md) | this commit — chore(07): remove the last interim runtime labels and close the debt they tracked (07 D-16) |
 | [The pool's two dying-worker tests time out at 5 s under host load](resolved/2026-10-30-pool-dying-worker-tests-time-out-under-host-load.md) | this commit — test(pool): start the worker before the clock in the dying-worker and queued-timeout tests |
 | [The cost model admits a part it refuses once its head height leaves the fitted band](resolved/2026-10-29-cost-model-admits-out-of-fit-head-heights.md) | this commit — feat(calc): widen the cost model's envelope to cover every cold isolated Runs II reading (07 D-07) |
 | [The nut's size ceilings are interim; its fine-STL caps are measured on macOS arm64 only](resolved/2026-10-14-nut-interim-bounds.md) | this commit — refactor(calc): retire the per-row fine-STL caps the cost model replaced (07 D-08, D-17) |

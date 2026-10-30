@@ -41,7 +41,7 @@ import httpx2 as httpx
 import pytest
 from pydantic import ValidationError
 
-from bench import end_cuts, mesh_deviation, nut_fine_caps, oper_lift
+from bench import build_time, end_cuts, mesh_deviation, nut_fine_caps, oper_lift
 from bench import quiet as quiet_module
 from bench.build_time import Timing, load_sweep, report, stl_size
 from bench.corpus import corpus
@@ -132,6 +132,7 @@ from bench.thread_spike.verdict import (
 )
 from screw import solid as screw_solid
 from screw.calc import thread as screw_thread
+from screw.calc.cost import BUILD_TIMEOUT_S, Artifact
 from screw.params import BoltParams, NutParams
 from screw.solid import helical as screw_helical
 
@@ -139,7 +140,7 @@ from screw.solid import helical as screw_helical
 def test_the_skeleton_corpus_is_the_d_by_length_grid() -> None:
     """12 parts, d outermost: the grid is pinned so a later edit cannot quietly change the
     workload under figures that someone compares with an earlier run. It exercises the
-    harness and sets no bound (L07); Phase 7 replaces it with the threaded grid."""
+    harness and sets no bound (L07); the Phase 7 sweep sets the bounds (L23, L24)."""
     # Each entry pins a head, s = 2 d and k = d / 2: harness inputs so every entry passes
     # `s > d`, not ISO rows and not bounds (04-03, RESEARCH Alert 4). It also pins
     # thread_length = length: the default 20 mm thread would quietly make the heaviest part
@@ -208,26 +209,79 @@ def test_an_stl_whose_length_disagrees_with_its_header_is_refused() -> None:
         stl_size(data)
 
 
+def _timing(name: str, build: float, preview: float, fine: float, step: float, size: int,
+            triangles: int, refused: frozenset[Artifact] = frozenset()) -> Timing:
+    return Timing(name, build, {"stl-preview": preview, "stl-fine": fine, "step": step}, size,
+                  triangles, refused)
+
+
 def test_the_report_names_the_largest_fine_stl_and_breaks_a_tie_by_file_order() -> None:
-    """Two rows tied for the largest fine STL and for the heaviest worst request: both lines
-    name the first in the list, which is `max()`'s documented behaviour pinned rather than
-    assumed. Also pins the two size columns."""
+    """Two rows tied for the largest fine STL and for the heaviest cold wall at every artifact:
+    each line names the first in the list, which is `max()`'s documented behaviour pinned
+    rather than assumed. Also pins the columns and the timeouts the rows are judged against."""
     timings = [
-        Timing("a", 1.0, 1.0, 1.0, 1000, 10),
-        Timing("b", 1.0, 1.0, 1.0, 1000, 10),  # ties "a" on both worst_request and stl_bytes
-        Timing("c", 0.5, 0.5, 0.5, 500, 5),
+        _timing("a", 1.0, 1.0, 1.0, 1.0, 1000, 10),
+        _timing("b", 1.0, 1.0, 1.0, 1.0, 1000, 10),  # ties "a" on every cold wall and the size
+        _timing("c", 0.5, 0.5, 0.5, 0.5, 500, 5),
     ]
-    text = report(Path("x.json"), timings, 30, (1.23, 4.56, 7.89))
+    text = report(Path("x.json"), timings, (1.23, 4.56, 7.89))
+    preview, fine, step = (f"{BUILD_TIMEOUT_S[a]:g}" for a in ("stl-preview", "stl-fine", "step"))
+    assert (f"- Timeouts (`calc.cost.BUILD_TIMEOUT_S`, L24): stl-preview {preview} s, stl-fine "
+            f"{fine} s, step {step} s; a cold request is one build plus one export") in text
     assert "| Fine STL (bytes) | Triangles |" in text
-    assert "| a | 1.00 | 1.00 | 1.00 | 2.00 | yes | 1000 | 10 |" in text
-    assert "**Heaviest:** a -- 2.00 s of 30 s." in text
+    assert "| a | 1.00 | 1.00 | 1.00 | 1.00 | 2.00 yes | 2.00 yes | 2.00 yes | 1000 | 10 |" in text
+    assert f"**Heaviest stl-fine:** a -- 2.00 s of {fine} s." in text
     assert "**Largest fine STL:** a -- 1000 bytes, 10 triangles." in text
+    assert "SCREW_BUILD_TIMEOUT" not in text
+
+
+def test_each_export_is_judged_against_its_own_artifacts_timeout() -> None:
+    """A cold request for an artifact pays one build plus that artifact's export (R2), and
+    `BUILD_TIMEOUT_S[artifact]` bounds it (L24): at the timeout is inside, past it is over."""
+    at = _timing("x", 1.0, BUILD_TIMEOUT_S["stl-preview"] - 1.0, 0.0,
+                 BUILD_TIMEOUT_S["step"], 1, 1)
+    assert at.cold_wall("stl-preview") == BUILD_TIMEOUT_S["stl-preview"]
+    assert at.over_timeout() == ["step"]
+    text = report(Path("x.json"), [at], (0.0, 0.0, 0.0))
+    assert f"| {BUILD_TIMEOUT_S['step'] + 1.0:.2f} **NO** |" in text
+
+
+def test_an_artifact_the_cost_model_refuses_is_never_held_to_a_timeout() -> None:
+    """The service answers it with a 422 before any build (L21), so its wall is shown and not
+    judged, and it never makes the run fail."""
+    refused = _timing("r", 1.0, 0.0, 10.0 * BUILD_TIMEOUT_S["stl-fine"], 0.0, 1, 1,
+                      frozenset({"stl-fine"}))
+    assert refused.over_timeout() == []
+    text = report(Path("x.json"), [refused], (0.0, 0.0, 0.0))
+    assert f"| {refused.cold_wall('stl-fine'):.2f} refused (L21) |" in text
+
+
+def test_main_fails_only_on_an_admitted_export_past_its_timeout(
+        monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """The exit code comes from `BUILD_TIMEOUT_S`, which has no environment override (D-16):
+    a `SCREW_BUILD_TIMEOUT` in the environment moves nothing. The default bolt is admitted at
+    every artifact, so each wall is judged."""
+    monkeypatch.setenv("SCREW_BUILD_TIMEOUT", "100000")
+    monkeypatch.setattr(build_time, "load_sweep", lambda path: [("default", BoltParams())])
+    monkeypatch.setattr(build_time, "report", lambda *args: "")
+    walls = {"stl-preview": 0.0, "stl-fine": 0.0, "step": BUILD_TIMEOUT_S["step"]}
+    monkeypatch.setattr(build_time, "time_set", lambda p: (1.0, walls, 1, 1))
+    assert build_time.main([]) == 1
+    assert "default is over its step timeout" in capsys.readouterr().err
+    walls["step"] = 0.0
+    assert build_time.main([]) == 0
+
+
+def test_build_time_takes_no_timeout_option() -> None:
+    with pytest.raises(SystemExit) as raised:
+        build_time.main(["--timeout", "5"])
+    assert raised.value.code == 2
 
 
 def test_an_empty_sweep_is_refused_rather_than_reported() -> None:
     """An empty table reads as a pass; refuse it loudly instead."""
     with pytest.raises(ValueError, match="empty"):
-        report(Path("empty.json"), [], 30, (0.0, 0.0, 0.0))
+        report(Path("empty.json"), [], (0.0, 0.0, 0.0))
 
 
 def test_the_report_prints_the_load_it_was_given_rather_than_reading_one_itself() -> None:
@@ -235,7 +289,7 @@ def test_the_report_prints_the_load_it_was_given_rather_than_reading_one_itself(
     an end-of-run figure. A made-up load no real host would report (99.99) proves the
     printed figures are the caller's: a live `os.getloadavg()` inside `report()` could
     coincidentally print the same numbers as the host's, and this test would not notice."""
-    text = report(Path("x.json"), [Timing("a", 1.0, 1.0, 1.0, 100, 1)], 30,
+    text = report(Path("x.json"), [_timing("a", 1.0, 1.0, 1.0, 1.0, 100, 1)],
                   (99.99, 88.88, 77.77))
     assert "- Load averages at start: 99.99, 88.88, 77.77" in text
 

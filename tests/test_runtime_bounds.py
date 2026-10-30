@@ -344,3 +344,42 @@ def test_every_run_id_the_code_and_l20_to_l24_cite_has_its_section_in_results() 
                             if not re.search(rf"^#+ .*\brun {run}\b", results, re.MULTILINE))
                for name, runs in cited.items()}
     assert {name: runs for name, runs in missing.items() if runs} == {}
+
+
+# --- nothing shipped is interim, and no timeout comes from the environment (07-17 Task 3) -------
+
+_TEXT_SUFFIXES = {".py", ".js", ".html", ".css"}
+
+
+def _shipped() -> list[Path]:
+    source = sorted(path for path in (REPO_ROOT / "src").rglob("*")
+                    if path.is_file() and path.suffix in _TEXT_SUFFIXES)
+    return [*source, REPO_ROOT / "Dockerfile", REPO_ROOT / "compose.yaml"]
+
+
+def test_nothing_shipped_is_left_interim_or_waiting_on_a_phase_7_re_sweep() -> None:
+    """OPER-02: every bound in src/, the Dockerfile and compose.yaml cites the run that set it;
+    `src/screw/static/app.js` is scanned with the rest of src/."""
+    paths = _shipped()
+    assert REPO_ROOT / "src/screw/static/app.js" in paths
+    found = {str(path.relative_to(REPO_ROOT)): [marker for marker in ("INTERIM", "Phase 7 re-sweep")
+                                                 if marker in path.read_text()]
+             for path in paths}
+    assert {path: markers for path, markers in found.items() if markers} == {}
+
+
+def test_no_build_timeout_is_read_from_the_environment_by_the_service_or_the_bench() -> None:
+    """D-16, L24: the timeouts are `calc.cost.BUILD_TIMEOUT_S` with no override. The one line
+    left, in the thread spike's verdict, says it is history. `bench/RESULTS.md` and
+    `bench/results/` are the run records and keep what each run used."""
+    history = REPO_ROOT / "bench/thread_spike/verdict.py"
+    paths = [*sorted((REPO_ROOT / "src").rglob("*.py")),
+             *sorted((REPO_ROOT / "bench").rglob("*.py")),
+             REPO_ROOT / "bench/README.md", REPO_ROOT / "Makefile"]
+    assert history in paths
+    found = {str(path.relative_to(REPO_ROOT)): line.strip()
+             for path in paths for line in path.read_text().splitlines()
+             if "SCREW_BUILD_TIMEOUT" in line
+             and not (path == history and "(history: removed by L24)" in line)}
+    assert found == {}
+    assert "(history: removed by L24)" in history.read_text()

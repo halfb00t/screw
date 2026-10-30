@@ -1,8 +1,9 @@
 # Interim runtime bounds are spur's figures, not screw's measurements
 
 Severity: must
-Status: active
+Status: resolved
 Date: 2026-10-05
+Resolved in: this commit — `chore(07): remove the last interim runtime labels and close the debt they tracked (07 D-16)` (`git log --grep` finds the sha)
 Source: Phase 1 D-01, D-02, D-14; 01-RESEARCH.md F1, F9; L09. Phase 3 added `MIN_TAIL_MM`,
 `MAX_TURNS` and `FINE_STL_ROWS` and the in-cap costs below (D-01 to D-03, D-17, D-18; L12; plan 03-07).
 Phase 4 moved `MIN_TAIL_MM` to `calc/thread.py`, keyed `FINE_STL_ROWS` by hand and read both caps on the
@@ -87,6 +88,48 @@ Revisit at the Phase 7 operability re-sweep (OPER-01, OPER-02, OPER-03): replace
 (`MIN_TAIL_MM`, `MAX_TURNS` and `FINE_STL_ROWS` included) with a value measured on threaded parts
 under linux/amd64, drop the `INTERIM` comment from
 each knob, and resolve this item in that commit.
+
+## Resolution
+Every knob of the table is now measured on linux/amd64 threaded parts in the production image and
+names its decision log entry, and no `INTERIM` label is left in `src/`, the `Dockerfile` or
+`compose.yaml` (`tests/test_runtime_bounds.py::test_nothing_shipped_is_left_interim_or_waiting_on_a_phase_7_re_sweep`).
+The values are derived from the runner records by `python -m bench.oper_sets derive-runtime`
+(`bench/results/phase-07/runtime.json`) and held equal to the code and to L23 and L24 by
+`tests/test_runtime_bounds.py`.
+
+| Knob | Now | Entry |
+|---|---|---|
+| `SCREW_BUILD_TIMEOUT` | removed; per-artifact `BUILD_TIMEOUT_S` 26.0 / 71.0 / 26.0 s (preview / fine / STEP), no override, behind a queue-aware deadline | L24 (bound run 40907549180) |
+| `SCREW_BUILD_WORKERS` | 1 | L23 (load run 40909724292) |
+| `SCREW_MAX_QUEUED_BUILDS` | 2 x workers, kept by R17 | L23 (load run 40909724292) |
+| `SCREW_EXPORT_CACHE_MB` | 240 | L23 (explore run 40646117094) |
+| `_GZIP_LEVEL` | 1, kept by R19 | L23 (gzip runs 40909739628, 40999657702) |
+| GZipMiddleware `minimum_size` | 4012 | L23 (load run 40909724292) |
+| `Retry-After` | ceil(the artifact's median build x the live queue depth), at least 1 s | L24 (load run 40909724292) |
+| `SCREW_SOLID_CACHE` | 4 | L23 (run 41016510597) |
+| `TESSELLATION` | kept by R23 | L23 |
+| `_release_arenas` | kept by R23 | L23 (arenas run 40909754190) |
+| `INTERIM_MAX_MM` | renamed `MAX_FIELD_MM`, 1000 mm with four per-field exceptions | L20 (walls runs 40646134133, 40678150220) |
+| `MIN_TAIL_MM` | 1e-4 mm | L20 |
+| `MAX_TURNS` | 90 turns | L20 |
+| `FINE_STL_ROWS` | retired; the cost model judges every artifact | L21 |
+| Preview STL a pick loads | judged by the cost model against the stl-preview budget; every catalogue row is admitted (C1, B-01) | L21 |
+| `SCREW_WORKERS` | 1 | L23 (load run 40909724292) |
+| `mem_limit` | 2304m, 2415919104 B | L23 (runs 40909724292, 41022812680, 41016510597) |
+| HEALTHCHECK | timeout 2 s and start-period 10 s measured; interval 30 s and retries 3 cited as Docker's defaults | L23 (load run 40909724292) |
+| tmpfs `/tmp` | 256m, 268435456 B | L23 |
+
+The UI debounce row is withdrawn as stale: 350 ms is how long typing pauses before a request, a
+UI choice that bounds no build, and plan 07-14 relabelled it so in `src/screw/static/app.js`
+(717f333; `tests/test_parity.py::test_the_debounce_is_a_ui_choice_and_not_a_runtime_bound`). It
+names no entry because it is not a runtime bound.
+
+The in-cap costs of Phase 3 are no longer reachable as written. d=100, pitch=5, length=1250 and
+d=6, pitch=0.1, length=25 are each 250 turns, past L20's 90, and d=1e5 is past L20's
+`MAX_BOLT_D_MM` of 999.999: each is a 422 at validation. Inside the walls, the cost model (L21,
+L22) admits a part only on a prediction within the owner's budget, and the timeouts (L24) are
+the backstop behind it, so "which backstop fires first" is answered by the order of the checks,
+not by a race.
 
 <!-- On resolve: set Status: resolved, add `Resolved in: <commit sha>`,
      git mv into resolved/, move the INDEX row to Resolved — same commit as the fix. -->

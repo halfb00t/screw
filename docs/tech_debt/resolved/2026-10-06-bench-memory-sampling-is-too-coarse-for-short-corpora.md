@@ -1,8 +1,9 @@
 # bench.memory samples too coarsely to read a peak off a corpus that runs in seconds
 
 Severity: must
-Status: active
+Status: resolved
 Date: 2026-10-06
+Resolved in: this commit — `chore(07): remove the last interim runtime labels and close the debt they tracked (07 D-16)` (`git log --grep` finds the sha)
 Source: 01-08 harness check on the walking skeleton (bench/RESULTS.md, "Container memory sweep")
 Related files:
 - bench/memory.py (`_poll_peak_mem`, `_sweep_one`)
@@ -31,6 +32,15 @@ through `docker exec` once at the end of the run, which is exact where `docker s
 or refuse a row below a stated sample count the way `bench.latency` refuses a p95 under 20
 samples (`MIN_SAMPLES`). Pick one with the owner when the Phase 7 corpus lands; the image runs as
 a non-root `nologin` user, so check `docker exec` works without a shell first.
+
+## Resolution
+`mem_limit` is no longer set from `bench.memory`. Phase 7 sets it from the cgroup's own peak,
+`memory.peak` on cgroup v2 (else v1 `memory.max_usage_in_bytes`, else no figure), read once per
+container after the work it covers, by `bench.oper_child.read_peak`: for a part reading, for the
+contention and drift readings W comes from (`bench.oper_bound`) and for the load run B and the load
+peak come from (`bench.oper_load`) (07 R2, R15, R16, D-02, D-15). The shipped `mem_limit`, 2415919104 B, is built from those readings (L23; runs 40909724292,
+41022812680, 41016510597). `bench.memory` keeps its sampled `docker stats` peak, which its
+docstring and `bench/README.md` name as sampled; it sets no bound.
 
 <!-- On resolve: set Status: resolved, add `Resolved in: <commit sha>`,
      git mv into resolved/, move the INDEX row to Resolved — same commit as the fix. -->

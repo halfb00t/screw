@@ -11,9 +11,12 @@ turns a measurement into a limit.
 
 ## What each half measures
 
-- **`bench.build_time`** (`make bench.build`) -- build, fine-STL and STEP time per corpus part,
-  in-process through `screw.solid`'s public surface, against `SCREW_BUILD_TIMEOUT`. Also the
-  fine STL's byte and triangle counts.
+- **`bench.build_time`** (`make bench.build`) -- build time and the preview-STL, fine-STL and
+  STEP export times per corpus part, in-process through `screw.solid`'s public surface. Each
+  artifact's cold wall, the build plus its export, is judged against that artifact's timeout,
+  `calc.cost.BUILD_TIMEOUT_S` (L24); an artifact the cost model refuses (L21) is shown and not
+  judged, since the service answers it with a 422 before any build. Also the fine STL's byte and
+  triangle counts.
 - **`bench.export_cost`** (`make bench.export SET="d=100 length=90"`) -- spur L19's gzip level
   table with its selection rule, and L24's mesh-copy cost, for one part.
 - **`bench.latency`** (`make bench.latency`) -- does `/api/health` stay responsive while a
@@ -79,12 +82,17 @@ Since Phase 4 each entry also carries a head (`s = 2 d`, `k = d / 2`: harness in
 every entry passes `s > d`, not ISO rows and not bounds) and pins `thread_length = length`, because
 the default is a 20 mm thread under a plain shank and would quietly make the 200-turn part cheap;
 pinned, each entry builds the full-length thread it built in Phase 3. The grid itself is unchanged.
-It exercises the harness and sets no bound: it stays far below the D-14 corner (`d`, `length` up
-to 1e5 mm), so nothing measured against it says anything about the interim `mem_limit` or
-`SCREW_BUILD_TIMEOUT`. Phase 7 replaces it with the threaded grid and keeps that one fixed from
-then on: narrowing, shortening or re-picking a corpus to make a ceiling look better produces a
-number that cannot be compared with the one already on record, which defeats the point of
-measuring.
+It exercises the harness and sets no bound: the container's limits and the timeouts come from the
+Phase 7 sweep (`bench/points/`, its runner records, L23 and L24), not from this corpus. It holds no
+entry the parameter model refuses: its last length has been 90 mm since L20 (a804806), when 200
+turns became a 422 under `MAX_TURNS`, so a heaviest-part run from before that commit is not
+comparable with a later one (owner ruling 2026-10-28, replacing WR-05's ask that the corpus keep a
+refused entry). The cost model (L21) refuses some entries at some artifacts, because `s = 2 d` and
+`k = d / 2` are harness inputs and not ISO rows; `bench.build_time` builds them below the service
+all the same and marks those artifacts refused instead of judging them against a timeout. The grid
+stays fixed from now on: narrowing, shortening or re-picking a corpus to make a ceiling look better
+produces a number that cannot be compared with the one already on record, which defeats the point
+of measuring.
 
 ## Thread spike (Phase 2)
 

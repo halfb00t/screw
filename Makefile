@@ -170,7 +170,7 @@ bench.memory: $(STAMP)  ## container memory sweep over the corpus at 1, 2, 4 wor
 	$(PY) -m bench.memory sweep
 
 # Needs no service: it times screw.solid in-process, the code a worker runs.
-bench.build: $(STAMP)  ## build, fine STL and STEP time per corpus part vs SCREW_BUILD_TIMEOUT; SWEEP=<json> optional
+bench.build: $(STAMP)  ## build and export time per corpus part, each artifact vs calc.cost.BUILD_TIMEOUT_S (L24); SWEEP=<json> optional
 	$(PY) -m bench.build_time $(SWEEP)
 
 # Re-measures spur L19's gzip table and L24's mesh-copy cost for one part; needs no service,
