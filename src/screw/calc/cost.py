@@ -24,20 +24,26 @@ from screw.params import BoltParams, FastenerParams, NutParams
 Artifact = Literal["stl-preview", "stl-fine", "step"]
 ARTIFACTS: Final[tuple[Artifact, ...]] = get_args(Artifact)
 
-# INTERIM (Phase 1 D-01, carried from spur; Phase 7 plan 07-16 replaces all three with
-# measured values and a cited run). 30 s per build is spur's: its worst observed single build
-# was 7.39 s (a 200-tooth fine gear, ten concurrent requests, host under contention), so 30 s is
-# about 4x spur's observation -- a margin chosen for slower hardware on spur's corpus. It is
-# not a measurement of screw: M6 x 20 builds in 0.09 s (planner probe 2026-10-10), while an
-# in-cap off-row part can need minutes (03-RESEARCH Pitfall 5: d=100, pitch=5, length=1250,
-# fine STL 152.6 s and 7875 MiB peak RSS, single run, macOS arm64, not a bound). So these are
-# the backstop below the turn cap (D-01, D-18; `MAX_TURNS`), not a figure for the threads.
+# Per-build timeouts, measured on linux/amd64 `ubuntu-latest` (07 D-09, R14): ceil(2 x the max
+# cold wall, build plus export, over the 5 repetitions of each artifact's bound point, read in a
+# fresh container at the worker count R16 picked, N = 1 (load run 40909724292), so with no other
+# build beside it. Bound run 40907549180; the bound point is the slowest of the artifact's bound
+# set at that N:
+#   stl-preview  nut d 10, pitch 0.35, m 3d, s 4d, clearance 0.15   12.72 s max -> 26 s
+#   stl-fine     nut d 30, pitch 1, m 0.8d, s 1.6d, clearance 5     35.26 s max -> 71 s
+#   step         nut d 100, pitch 3.5, m 3d, s 4d, clearance 5      12.81 s max -> 26 s
+# `bench/results/phase-07/runtime.json` carries each figure with its reading, and
+# tests/test_runtime_bounds.py holds these equal to it and it equal to what `python -m
+# bench.oper_sets derive-runtime` derives from the committed records.
+#
+# A build's deadline is its own timeout plus the timeouts of the builds already queued on its
+# slot (D-14, `screw.pool`), so the wait behind another build is not counted against it.
 #
 # Code constants with no environment override (D-16): a deployer on slower hardware re-sweeps
 # and a superseding log entry records the new figure, so the number in force always cites the
 # run that set it. Read-only, so a stray assignment cannot move a bound the log cites.
 BUILD_TIMEOUT_S: Final[Mapping[Artifact, float]] = MappingProxyType(
-    {"stl-preview": 30.0, "stl-fine": 30.0, "step": 30.0})
+    {"stl-preview": 26.0, "stl-fine": 71.0, "step": 26.0})
 
 
 def artifact_of(fmt: str, quality: str) -> Artifact:
