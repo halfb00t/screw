@@ -9,7 +9,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Literal, cast, get_args, get_origin
 
@@ -70,8 +70,10 @@ def _add_args(ap: argparse.ArgumentParser, kind: str, model: type[FastenerParams
             g.add_argument(flag, dest=name, default=None, help=help_text, action=_Once,
                            choices=list(get_args(annotation)))
         else:
+            # mypy 2.4 types `field.annotation` as a TypeForm, which argparse's `type=` does not
+            # take; every other field is a float, a callable from the flag's text.
             g.add_argument(flag, dest=name, default=None, help=help_text, action=_Once,
-                           metavar="V", type=annotation)
+                           metavar="V", type=cast("Callable[[str], object]", annotation))
 
 
 def _add_preset(ap: argparse.ArgumentParser) -> None:
