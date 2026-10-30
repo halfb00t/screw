@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 07
 current_phase_name: Operability Re-sweep
 status: executing
-stopped_at: Completed 07-15-PLAN.md
-last_updated: "2026-10-30T04:27:44.304Z"
+stopped_at: Completed 07-16-PLAN.md
+last_updated: "2026-10-30T08:58:25.953Z"
 last_activity: 2026-10-30
 last_activity_desc: Phase 07 execution started
-state_head: 54965a0916bd2f1ebeeefdeb4938dcbcfb3d72cf
+state_head: 3aac68694ef6edb256be22a63c950bd96263d6ec
 progress:
   total_phases: 8
   completed_phases: 7
   total_plans: 103
-  completed_plans: 97
+  completed_plans: 98
   percent: 88
 ---
 
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-10-25)
 ## Current Position
 
 Phase: 07 (Operability Re-sweep) — EXECUTING
-Plan: 16 of 21
+Plan: 17 of 21
 Status: Ready to execute
-Last activity: 2026-10-30 — Plan 07-15 complete (Runs II read on the runner; the G28/G29 stop ruled as G30 and G31; the stl-preview bound and gzip reruns read; the envelope check widened only the nut stl-fine seconds and peak e, L22)
+Last activity: 2026-10-30 — Plan 07-16 complete (runtime.json derived by rule from committed runner records; N = 1 and the timeouts 26/71/26 s shipped; K = 4 and the arena trim kept; the R23 drift stop ruled as G32, and the 60-build plateau held, so W takes the drift peak and recycling stays unset)
 
 Progress: [█████████░] 88%
 
@@ -159,6 +159,7 @@ Progress: [█████████░] 88%
 | Phase 07 P13 | 25min | 2 tasks | 9 files |
 | Phase 07 P14 | 25 min | 2 tasks | 5 files |
 | Phase 07 P15 | 135 min | 3 tasks | 31 files |
+| Phase 07 P16 | 154 min | 3 tasks | 17 files |
 
 ## Accumulated Context
 
@@ -327,6 +328,8 @@ Recent decisions affecting current work:
 - [Phase 07]: 07-15: G30 widens the nut stl-fine seconds e to 1.7812452161769916 and peak e to 0.5976833077470993 from outband run 40909768713; no other Runs II reading exceeds its envelope (L22)
 - [Phase 07]: 07-15: G30 refuses a bolt below cost.MIN_FITTED_TURNS at every artifact (over_budget naming pitch, length, thread_length); a too-short bolt now gets it before the doorway's build_error
 - [Phase 07]: 07-15: G31 draws bound candidates from points read ok at every artifact; the 10 stl-preview contention and 2 gzip points that moved were read again (runs 40999654995, 40999657702); match bound readings to points by members, not label
+- [Phase 07]: 07-16: runtime.json derived by rule from committed runner records: N = 1, timeouts 26/71/26 s (shipped in BUILD_TIMEOUT_S), K = 4, the arena trim kept, gzip level 1, export cache 240 MiB, tmpfs 256 MiB, queue depth 2, shipped mem_limit 2415919104 B
+- [Phase 07]: 07-16 (G32): R23's 20-build drift no longer stops alone; the 60-build plateau holds at every artifact (run 41022812680), W takes the drift readings' largest peak 1758363648 B, and max_tasks_per_child stays unset
 
 ### Pending Todos
 
@@ -383,6 +386,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-30T04:27:43.982Z
-Stopped at: Completed 07-15-PLAN.md
+Last session: 2026-10-30T08:58:25.638Z
+Stopped at: Completed 07-16-PLAN.md
 Resume file: None
