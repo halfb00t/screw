@@ -36,6 +36,12 @@ jobs:
         run: >-
           .venv/bin/python -c "from importlib.metadata import version;
           print('cadquery', version('cadquery'), 'cadquery-ocp', version('cadquery-ocp'))"
+      # How far this runner's libm puts the predicted floats (edge ratios, limits) of every
+      # regenerated file from the committed ones, which macOS wrote: the evidence for the
+      # tolerance the regeneration checks allow (07-18). A record, not a gate.
+      - name: predicted-float drift on this runner
+        if: always()
+        run: .venv/bin/python -m bench.oper_sets prediction-drift
 
   vendor-bundle:
     # The committed three.js bundle must stay reproducible from web/, or nobody can

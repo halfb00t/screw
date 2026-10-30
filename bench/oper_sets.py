@@ -3045,21 +3045,28 @@ def arenas(reads: Sequence[Read]) -> dict[str, object]:
                 for artifact, sides in maxima.items()}}
 
 
+def _runtime_set_paths() -> list[Path]:
+    return [POINTS_DIR / "drift.json", POINTS_DIR / f"drift-{PLATEAU_BUILDS}.json",
+            *(POINTS_DIR / f"solid-cache-{k}.json" for k in SOLID_CACHE_KS)]
+
+
+def _regenerate_runtime_set(path: Path, text: str) -> str:
+    """The text a drift or W(K) file would have if written again from its own sources."""
+    sources = dict(str(e).split("=", 1) for e in json.loads(text).get("sources", []))
+    if path.stem.startswith("drift"):
+        builds = DRIFT_BUILDS if path.stem == "drift" else PLATEAU_BUILDS
+        return build_drift(sources["bound"], sources["runtime"], builds).text()
+    return build_solid_cache(sources["load"], int(path.stem.rsplit("-", 1)[1])).text()
+
+
 def _check_runtime_sets() -> str | None:
     """The first drift or W(K) file that is not what its generator writes from its sources."""
-    paths = [POINTS_DIR / "drift.json", POINTS_DIR / f"drift-{PLATEAU_BUILDS}.json",
-             *(POINTS_DIR / f"solid-cache-{k}.json" for k in SOLID_CACHE_KS)]
-    for path in paths:
+    for path in _runtime_set_paths():
         if not path.is_file():
             continue
         text = path.read_text()
         try:
-            sources = dict(str(e).split("=", 1) for e in json.loads(text).get("sources", []))
-            if path.stem.startswith("drift"):
-                builds = DRIFT_BUILDS if path.stem == "drift" else PLATEAU_BUILDS
-                again = build_drift(sources["bound"], sources["runtime"], builds).text()
-            else:
-                again = build_solid_cache(sources["load"], int(path.stem.rsplit("-", 1)[1])).text()
+            again = _regenerate_runtime_set(path, text)
         except (KeyError, TypeError, ValueError) as exc:  # a stop is a ValueError, too
             return f"{path} cannot be written again from its sources: {exc}"
         if text != again:
@@ -3211,6 +3218,109 @@ def boundary_text(explore_dir: str) -> str:
     return json.dumps(document, indent=1) + "\n"
 
 
+# --- how far a regeneration on this host drifts from the committed files (07-18) ----------------
+#
+# `cost.predict` is `math.exp` of a sum of `math.log` terms, and the platform's libm decides their
+# last bit: the 07-18 CI run regenerated tests/data/oper_boundary.json on the Linux runner with a
+# limit of 6801399.66316881 where macOS writes 6801399.663168809, one ulp apart. A float under
+# one of `PREDICTED` keys is a prediction (an edge ratio, a limit); every other value is copied
+# or read from a record and must regenerate exactly.
+
+PREDICTED = frozenset({"edge_ratio", "limit"})
+
+
+@dataclass(frozen=True)
+class Drift:
+    """One value a regeneration wrote differently: where, both values, and whether it is a
+    prediction-derived float."""
+
+    path: str
+    committed: object
+    fresh: object
+    predicted: bool
+
+    @property
+    def relative(self) -> float:
+        """|committed - fresh| / |committed| for a predicted float, else infinity."""
+        a, b = self.committed, self.fresh
+        if not (self.predicted and isinstance(a, float) and isinstance(b, float) and a != 0):
+            return math.inf
+        return abs(a - b) / abs(a)
+
+
+def drifts(committed: object, fresh: object, path: str = "$",
+           predicted: bool = False) -> list[Drift]:
+    """Every value of two parsed JSON documents that differs, with its path. Keys, their order
+    and list lengths must agree; a difference there is one drift at that path."""
+    if isinstance(committed, dict) and isinstance(fresh, dict):
+        if list(committed) != list(fresh):
+            return [Drift(path, list(committed), list(fresh), False)]
+        return [d for key in committed for d in drifts(
+            committed[key], fresh[key], f"{path}.{key}", predicted or key in PREDICTED)]
+    if isinstance(committed, list) and isinstance(fresh, list):
+        if len(committed) != len(fresh):
+            return [Drift(path, len(committed), len(fresh), False)]
+        return [d for i, (a, b) in enumerate(zip(committed, fresh, strict=True))
+                for d in drifts(a, b, f"{path}[{i}]", predicted)]
+    if type(committed) is type(fresh) and committed == fresh:
+        return []
+    return [Drift(path, committed, fresh,
+                  predicted and isinstance(committed, float) and isinstance(fresh, float))]
+
+
+def _predicted_count(document: object, predicted: bool = False) -> int:
+    if isinstance(document, dict):
+        return sum(_predicted_count(value, predicted or key in PREDICTED)
+                   for key, value in document.items())
+    if isinstance(document, list):
+        return sum(_predicted_count(value, predicted) for value in document)
+    return int(predicted and isinstance(document, float))
+
+
+def _regenerations() -> Iterator[tuple[Path, str, Callable[[], str]]]:
+    """Every committed file `--check` and the boundary test write again, with its text and how
+    to write it again on this host."""
+    texts = generate()
+    for name in texts:
+        yield (POINTS_DIR / f"{name}.json", (POINTS_DIR / f"{name}.json").read_text(),
+               functools.partial(texts.__getitem__, name))
+    for path in (POINTS_DIR / f"{name}.json" for name in GENERATED):
+        if path.is_file():
+            yield path, path.read_text(), functools.partial(_regenerate, path)
+    for name, path in (("tier-order", REPO_ROOT / TIER_ORDER),
+                       *((name, POINTS_DIR / f"{name}.json") for name in (*RUNS2_SETS,
+                                                                          *RERUN_SETS))):
+        if path.is_file():
+            text = path.read_text()
+            yield path, text, functools.partial(_regenerate_runs2, name, text)
+    for path in _runtime_set_paths():
+        if path.is_file():
+            text = path.read_text()
+            yield path, text, functools.partial(_regenerate_runtime_set, path, text)
+    path = REPO_ROOT / BOUNDARY
+    if path.is_file():
+        text = path.read_text()
+        explore_dir = dict(str(e).split("=", 1) for e in json.loads(text)["sources"])["explore"]
+        yield path, text, functools.partial(boundary_text, explore_dir)
+
+
+def prediction_drift_text() -> str:
+    """Per regenerable file: exact, or how many of its predicted floats differ, the largest
+    relative difference (also in units of 2^-52) and how many other values differ."""
+    lines = ["file | predicted floats | differing | largest relative difference | x 2^-52 | "
+             "other values differing"]
+    for path, text, again in _regenerations():
+        fresh = again()
+        committed = json.loads(text)
+        found = [] if fresh == text else drifts(committed, json.loads(fresh))
+        predicted = [d for d in found if d.predicted]
+        largest = max((d.relative for d in predicted), default=0.0)
+        lines.append(f"{path.relative_to(REPO_ROOT).as_posix()} | {_predicted_count(committed)} "
+                     f"| {len(predicted)} | {largest!r} | {largest / 2**-52!r} "
+                     f"| {len(found) - len(predicted)}")
+    return "\n".join(lines) + "\n"
+
+
 # --- the command ---------------------------------------------------------------------------------
 
 
@@ -3356,6 +3466,8 @@ def _run(args: argparse.Namespace) -> int:
         print(f"{name}: {len(made.points)} points in shards of {made.shard_sizes}")
     elif args.command == "envelope-check":
         _envelope_check_command(args)
+    elif args.command == "prediction-drift":
+        sys.stdout.write(prediction_drift_text())
     elif args.command == "boundary":
         Path(args.out).write_text(boundary_text(explore_dir))
         print(f"wrote {args.out}")
@@ -3427,6 +3539,8 @@ def main(argv: list[str] | None = None) -> int:
                            help="R12 over the Runs II readings that may widen e (07-15)")
     check.add_argument("--fit", required=True)
     check.add_argument("--from", dest="source", nargs="+", required=True)
+    sub.add_parser("prediction-drift", help="how far this host's regeneration of every "
+                                            "committed file drifts from it (07-18)")
     boundary = sub.add_parser("boundary", help="write R27 step 5's required tier over the "
                                                "committed tier-order.json (07-18)")
     boundary.add_argument("--explore", required=True)

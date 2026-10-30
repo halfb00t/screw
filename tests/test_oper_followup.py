@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import functools
 import json
+import math
 import random
 import re
 from collections.abc import Iterable, Mapping
@@ -2612,3 +2613,44 @@ def test_the_records_check_writes_are_read_by_the_envelope_check(
     tagged = oper_sets.runs_readings([tmp_path / "bounds-41"])
     assert tagged == [("bounds", "41", reading)]
     assert all(oper_sets.widens(name, found) for name, _, found in tagged)
+
+
+# --- the drift of a regeneration on another host (07-18) ------------------------------------------
+
+
+def test_a_last_bit_change_of_a_limit_or_an_edge_ratio_is_a_predicted_drift() -> None:
+    limit = 6801399.663168809
+    committed = {"points": [{"label": "a", "charge_s": 1.5, "limit": {"bytes": limit}}],
+                 "edge_ranking": [{"label": "a", "edge_ratio": 0.5}]}
+    fresh = {"points": [{"label": "a", "charge_s": 1.5,
+                         "limit": {"bytes": math.nextafter(limit, math.inf)}}],
+             "edge_ranking": [{"label": "a", "edge_ratio": math.nextafter(0.5, 0.0)}]}
+    found = oper_sets.drifts(committed, fresh)
+    assert [(d.path, d.predicted) for d in found] == [
+        ("$.points[0].limit.bytes", True), ("$.edge_ranking[0].edge_ratio", True)]
+    assert found[0].relative == math.ulp(limit) / limit
+
+
+@pytest.mark.parametrize("fresh", [
+    {"points": [{"label": "b", "charge_s": 1.5, "limit": {"bytes": 1.0}}]},
+    {"points": [{"label": "a", "charge_s": 1.6, "limit": {"bytes": 1.0}}]},
+    {"points": [{"charge_s": 1.5, "label": "a", "limit": {"bytes": 1.0}}]},
+    {"points": []},
+    {"points": [{"label": "a", "charge_s": 1.5, "limit": {"bytes": 1}}]},
+])
+def test_any_other_change_is_a_drift_that_is_not_predicted(fresh: Raw) -> None:
+    committed = {"points": [{"label": "a", "charge_s": 1.5, "limit": {"bytes": 1.0}}]}
+    found = oper_sets.drifts(committed, fresh)
+    assert found
+    assert not any(d.predicted for d in found)
+    assert all(d.relative == float("inf") for d in found)
+
+
+def test_the_drift_command_lists_every_regenerable_file(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    assert oper_sets.main(["prediction-drift"]) == 0
+    rows = capsys.readouterr().out.splitlines()
+    files = [row.split(" | ")[0] for row in rows[1:]]
+    for name in (oper_sets.TIER_ORDER, oper_sets.BOUNDARY, "bench/points/bound.json",
+                 "bench/points/explore.json", "bench/points/drift-60.json"):
+        assert name in files
