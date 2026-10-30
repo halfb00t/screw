@@ -656,6 +656,58 @@ in the parent, the child or the workflow) is recorded under "Harness fixes" belo
 sha, and nothing else in this file is edited. A rule change stops the phase for the owner's ruling.
 The point files change only through `bench/oper_sets.py`, so the same rule binds them.
 
+## R31 - The fine-pitch walls (D-08, L02)
+
+The pitch has no lower bound of its own, and at a fine pitch for its diameter the kernel refuses
+parts that every other wall admits: the booleans that cut the tip cone and the nut's countersinks
+and void act on a swept thread whose representation error does not shrink with the thread depth,
+and they return a wrong solid that the build's gates refuse. Each kind gets a *fine-pitch wall* W.
+A part of that kind whose `d / pitch`, taken as exact decimals (the fraction of each value's
+`repr`), is above W is refused before any build with a `422` of type `pitch_too_fine` naming `d`
+and `pitch`; a part at W is admitted.
+
+*The walk.* `bench/oper_sets.py` writes the walk set `walls-pitch` from code alone, per kind, as a
+grid around the wall:
+
+- bolts: `d` in {0.3, 0.5, 0.8, 1, 1.2, 1.5, 1.8, 2, 2.2, 2.5, 2.8, 3, 3.5, 4, 4.5, 5, 6, 8, 10,
+  12, 16, 20, 24, 30, 42, 60, 100, 150, 200, 300, 450, 600, 999.999} mm, a ratio q in {5, 8, 10,
+  12, 14} or a whole number from 15 to 31, both hands, and two forms with 3 turns of thread:
+  `thread_length = length = 3 x pitch`, and `thread_length = 3 x pitch` with `length =
+  thread_length + d` (a shank); `s = 1.6 d`, and at most 1000 mm, and `k = 0.6 d`;
+- nuts: `d` in {0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.4, 1.5, 1.6, 1.8, 2, 2.2, 2.4, 2.5, 2.6,
+  2.8, 3, 3.2, 3.5, 4, 4.5, 5, 5.5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 30, 42, 60, 100,
+  200, 300, 600} mm, q a whole number from 5 to 12, both hands, and four forms: `m = 0.8 d`, `s =
+  1.6 d` and `clearance` 0.15 mm; the same with `s = 4 d`; the same with `clearance` 0; and the
+  same with `m = d`.
+
+`s`, `k` and `m` are formed as decimals and rounded to 6 significant figures (R4). The pitch of a
+cell is `d / q` rounded up to 6 significant figures, so its exact `d / pitch` is at most q. A cell
+the parameter model refuses, the fine-pitch wall aside, is in the file's `dropped` array with its
+error type, and so is a cell the cost model admits at no artifact (R12, under the envelope the
+file records), with the type `over_budget`: a request for it is refused before any build already.
+Every other cell is read once, at `step`. A kernel refusal comes in the build, before the export,
+so its status is the same at every artifact, and `step` is the artifact whose `explore` groups R6
+charges least for both kinds. The walk has R2's deadline and is charged and cut into shards as R6
+charges a set of explore-like parts.
+
+*F and W.* Per kind, F is the smallest exact `d / pitch` over the walk's readings of that kind
+whose status is `refused` or `crashed`. W is the largest number of the ISO 3 R10 series (1, 1.25,
+1.6, 2, 2.5, 3.15, 4, 5, 6.3 and 8, times a power of ten) at or below F / 1.25, so F lies at least
+one R10 step above W. Every point of the walk must have exactly one reading. A reading that is
+`killed`, `capped` or `no_cgroup` is cost or a gap and not a wall, and it cannot support a bound
+either (R8); with such a reading, a missing reading, or no `refused` or `crashed` reading of a
+kind, W has no number and the phase stops and asks the owner. The owner ruled W = 20 for the bolt
+and W = 8 for the nut, on readings taken off the runner; the walk on the runner decides, and a W
+other than those stops the phase and asks the owner. The W that ships is written from the walk's
+records by code, never typed.
+
+*What it leaves open.* The walk reads bolts with 3 turns of thread only. A bolt with a longer
+thread can be refused by the kernel below the bolt's W, in two bands of `d`, because its tip-cone
+error grows with the number of turns at a fixed `d / pitch`. A nut can be refused at an isolated
+cell that the grid does not hold. W bounds neither of these. They are recorded and kept open as
+debt, and they are not a wall. This rule was added after the first runner reading by the owner's
+ruling that R30 asks for.
+
 ## Debt this campaign leaves open
 
 `docs/tech_debt/active/2026-10-10-spike-protocol-amendments-before-next-campaign.md` stays active.

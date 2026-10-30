@@ -2128,9 +2128,10 @@ def _protocol() -> str:
     return PROTOCOL.read_text()
 
 
-def test_the_protocol_states_thirty_rules_once_each_in_order() -> None:
+def test_the_protocol_states_thirty_one_rules_once_each_in_order() -> None:
+    """R1 to R30 as registered, and R31, which the owner's ruling added after the freeze."""
     headings = re.findall(r"^## R(\d+) ", _protocol(), re.MULTILINE)
-    assert headings == [str(n) for n in range(1, 31)]
+    assert headings == [str(n) for n in range(1, 32)]
 
 
 def test_every_point_file_names_a_rule_the_protocol_states() -> None:
@@ -3246,3 +3247,68 @@ def test_a_predicted_float_may_move_by_the_measured_libm_difference_and_nothing_
                   '"A: tolerance on limits (Recommended)"',
                   '"Shard into parallel jobs (Recommended)"'):
         assert reply in owner, reply
+
+
+# --- the owner's ruling on the in-wall parts the kernel refuses (G35): pinned by its key phrases --
+
+
+def _rule_31() -> str:
+    text = _protocol()
+    start = text.index("\n## R31 ")
+    return " ".join(text[start:text.index("\n## Debt this campaign leaves open", start)].split())
+
+
+def test_r31_refuses_a_fine_pitch_past_a_wall_per_kind_and_admits_the_wall() -> None:
+    rule = _rule_31()
+    assert ("A part of that kind whose `d / pitch`, taken as exact decimals (the fraction of each "
+            "value's `repr`), is above W is refused before any build with a `422` of type "
+            "`pitch_too_fine` naming `d` and `pitch`; a part at W is admitted") in rule
+    assert "`bench/oper_sets.py` writes the walk set `walls-pitch` from code alone" in rule
+    assert ("a ratio q in {5, 8, 10, 12, 14} or a whole number from 15 to 31, both hands, and two "
+            "forms with 3 turns of thread") in rule
+    assert "q a whole number from 5 to 12, both hands, and four forms" in rule
+    assert ("The pitch of a cell is `d / q` rounded up to 6 significant figures, so its exact "
+            "`d / pitch` is at most q") in rule
+    assert "with the type `over_budget`" in rule
+    assert "Every other cell is read once, at `step`" in rule
+    assert "charged and cut into shards as R6 charges a set of explore-like parts" in rule
+
+
+def test_r31_takes_f_from_the_runner_walk_and_w_one_r10_step_below_it() -> None:
+    rule = _rule_31()
+    assert ("F is the smallest exact `d / pitch` over the walk's readings of that kind whose "
+            "status is `refused` or `crashed`") in rule
+    assert ("W is the largest number of the ISO 3 R10 series (1, 1.25, 1.6, 2, 2.5, 3.15, 4, 5, "
+            "6.3 and 8, times a power of ten) at or below F / 1.25") in rule
+    assert "Every point of the walk must have exactly one reading" in rule
+    assert "W has no number and the phase stops and asks the owner" in rule
+    assert ("The owner ruled W = 20 for the bolt and W = 8 for the nut, on readings taken off the "
+            "runner; the walk on the runner decides, and a W other than those stops the phase and "
+            "asks the owner") in rule
+    assert "written from the walk's records by code, never typed" in rule
+    assert "The walk reads bolts with 3 turns of thread only" in rule
+    assert "They are recorded and kept open as debt, and they are not a wall" in rule
+    assert rule.count("added after the first runner reading by the owner's ruling that R30 asks "
+                      "for") == 1
+
+
+def test_the_fine_pitch_ruling_is_an_owner_ruling_after_the_freeze_and_not_a_harness_fix() -> None:
+    rulings = (PROTOCOL.parent / "07-GAP-RULINGS.md").read_text()
+    assert ("\n## Gap G35 (owner ruling on the in-wall parts the kernel refuses, 2026-10-30)\n"
+            in rulings)
+    for evidence in ('"Guard d/p wall + debt (Recommended)"', '"Nut d/p ≤ 8 (Recommended)"',
+                     '"Walk W on runner (Recommended)"', '"Must debt, don\'t block (Recommended)"',
+                     "26.999784001727985", "10.999993714289307", "10d8c49",
+                     "not a harness fix"):
+        assert evidence in rulings, evidence
+    assert re.search(r"^\| G35 \| R31 \(new\), D-08 \|", rulings, re.MULTILINE)
+    owner = (PROTOCOL.parent / "07-OWNER-RULINGS.md").read_text()
+    assert ("\n## R31: the fine-pitch walls, after the in-wall debug session (2026-10-30, G35)\n"
+            in owner)
+    for reply in ('"Guard d/p wall + debt (Recommended)"', '"Nut d/p ≤ 8 (Recommended)"',
+                  '"Walk W on runner (Recommended)"', '"Must debt, don\'t block (Recommended)"'):
+        assert reply in owner, reply
+    protocol = _protocol()
+    assert protocol[protocol.index("## Harness fixes"):].startswith("## Harness fixes\n\nNone yet.")
+    assert not re.search(r"\bG\d+\b", protocol)
+    assert not re.search(r"\b\d{11}\b", protocol)

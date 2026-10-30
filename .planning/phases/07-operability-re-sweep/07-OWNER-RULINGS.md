@@ -209,3 +209,20 @@ ruling):
 3. On the required tier's 35.5 min in one job: "Shard into parallel jobs (Recommended)". The tier
    is read in shards of about 10 minutes each, every point judged exactly once, and the shard
    jobs replace `bounds` among the jobs `make pr.land` requires (G34).
+
+## R31: the fine-pitch walls, after the in-wall debug session (2026-10-30, G35)
+
+Source: the debug session `.planning/debug/in-wall-kernel-builderror.md` on the 20 in-wall parts
+the kernel refuses (`07-GAP-RULINGS.md`, G35, holds its figures). The owner's replies, verbatim
+(the label "(Recommended)" is the orchestrator's, not part of the ruling):
+
+1. On a guard: "Guard d/p wall + debt (Recommended)". A `422` of type `pitch_too_fine` naming
+   `["d", "pitch"]` when `Fraction(repr(d)) / Fraction(repr(pitch))` is above the kind's W; W
+   itself is admitted. It is validated once, at the parameter-model boundary (L02: a direct
+   conflict is a `422` naming the fields). The kernel is not changed.
+2. On the nut: "Nut d/p ≤ 8 (Recommended)". Bolt W = 20 and nut W = 8, by one margin rule: the
+   largest ISO 3 R10 number at or below F / 1.25, F the smallest refused `d / pitch` of the kind.
+3. On the evidence: "Walk W on runner (Recommended)". W is not final until a walk on the runner
+   confirms it (R31).
+4. On the residual: "Must debt, don't block (Recommended)". Long-thread bolts in the two bands of
+   `d`, and isolated nut cells, that the wall admits and the kernel refuses, stay as debt.
