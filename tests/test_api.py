@@ -721,12 +721,18 @@ def test_every_repeated_key_is_named_in_first_seen_order() -> None:
     assert [e["loc"] for e in r.json()["detail"]] == [["query", "pitch"], ["query", "d"]]
 
 
-def test_a_saturated_service_refuses_instead_of_queueing() -> None:
-    """A queue deeper than the pool can drain is latency with no payoff."""
+@pytest.mark.parametrize(("url", "artifact"), [
+    ("/api/bolt/model.stl?quality=preview&d=7.2", "stl-preview"),
+    ("/api/bolt/model.stl?quality=fine&d=7.2", "stl-fine"),
+    ("/api/bolt/model.step?d=7.2", "step"),
+])
+def test_a_saturated_service_refuses_instead_of_queueing(url: str, artifact: Artifact) -> None:
+    """A queue deeper than the pool can drain is latency with no payoff. The refusal says when
+    to come back from the refused artifact's measured median build (R18)."""
     with _saturated():
-        r = client.get("/api/bolt/model.stl", params={"quality": "preview", "d": 7.2})
+        r = client.get(url)
     assert r.status_code == 503
-    assert r.headers["retry-after"] == "5"
+    assert r.headers["retry-after"] == app_module.retry_after(artifact)
     detail = r.json()["detail"][0]
     assert detail["type"] == "busy"
     assert "parts" in detail["msg"]
@@ -771,7 +777,7 @@ def test_max_queued_builds_is_derived_from_build_workers(
     can drain -- SCREW_MAX_QUEUED_BUILDS still overrides the derivation when set."""
     monkeypatch.delenv("SCREW_BUILD_WORKERS", raising=False)
     monkeypatch.delenv("SCREW_MAX_QUEUED_BUILDS", raising=False)
-    assert app_module._max_queued_builds() == 4  # 2 x the default 2 workers
+    assert app_module._max_queued_builds() == 2  # 2 x the default 1 worker (R16, R17)
 
     monkeypatch.setenv("SCREW_BUILD_WORKERS", "3")
     assert app_module._max_queued_builds() == 6
@@ -866,7 +872,7 @@ def test_a_cache_hit_that_still_needs_compressing_goes_through_admission_control
     with _saturated():
         r = client.get("/api/bolt/model.stl", params=params)
     assert r.status_code == 503
-    assert r.headers["retry-after"] == "5"
+    assert r.headers["retry-after"] == app_module.retry_after("stl-preview")
     assert r.json()["detail"][0]["type"] == "busy"
 
 
@@ -1016,7 +1022,7 @@ def test_a_failed_build_emits_build_failed_naming_the_class_and_the_level(
     assert r.status_code == want_status
     assert r.json()["detail"][0]["type"] == want_type
     if want_status == 503:
-        assert r.headers["retry-after"] == "5"
+        assert r.headers["retry-after"] == app_module.retry_after("stl-preview")
     assert caplog.records  # an empty caplog would pass with nothing proven
 
     failed = _event_records(caplog, "build.failed")
@@ -1068,7 +1074,7 @@ def test_an_unclassified_exception_still_emits_build_failed_and_is_not_swallowed
     ("/api/bolt/model.step?d=8.6", "step"),
 ])
 def test_a_timed_out_admitted_part_is_logged_as_a_cost_model_miss_and_never_cached(
-        caplog: pytest.LogCaptureFixture, url: str, want_artifact: str) -> None:
+        caplog: pytest.LogCaptureFixture, url: str, want_artifact: Artifact) -> None:
     """The timeout is the backstop behind the cost model (D-10): an admitted part that still
     overruns is the model's miss, so the server records the part and the seconds it was held
     to, at ERROR (the service's fault), next to the unchanged 503 `timeout` the client gets.
@@ -1087,7 +1093,7 @@ def test_a_timed_out_admitted_part_is_logged_as_a_cost_model_miss_and_never_cach
         r = client.get(url)
         assert r.status_code == 503
         assert r.json()["detail"][0]["type"] == "timeout"
-        assert r.headers["retry-after"] == "5"
+        assert r.headers["retry-after"] == app_module.retry_after(want_artifact)
         assert caplog.records  # an empty caplog would pass with nothing proven
 
         failed = _event_records(caplog, "build.failed")
@@ -1101,7 +1107,7 @@ def test_a_timed_out_admitted_part_is_logged_as_a_cost_model_miss_and_never_cach
         assert _field(miss, "params") == {"d": 8.6}
         assert _field(miss, "fmt") == ("step" if want_artifact == "step" else "stl")
         assert _field(miss, "artifact") == want_artifact
-        assert _field(miss, "timeout_s") == BUILD_TIMEOUT_S[cast(Artifact, want_artifact)]
+        assert _field(miss, "timeout_s") == BUILD_TIMEOUT_S[want_artifact]
         assert not _event_records(caplog, "export.served")
 
         client.get(url)

@@ -80,15 +80,17 @@ class BuildPool:
         # Per hash slot, the timeouts of the requests submitted and not yet finished; read
         # and written only on the event loop (see `_run_with_timeout`).
         self._pending: list[list[float]] = [[] for _ in range(workers)]
-        # `max_tasks_per_child` is deliberately absent (stays None -- no recycling). spur's
-        # memory sweep split each N's samples into an early/late half to check for drift
-        # that malloc_trim doesn't flatten: N=2 and N=4 grew late vs early, but spur's
-        # corpus was strictly ascending tooth count, so the "late" half was inherently the
-        # biggest gears -- a bounded per-worker solid cache holding increasingly large
-        # solids grows resident memory for that reason alone, with no leak required. No run
-        # showed unbounded growth. Recycling anyway would cost a respawn plus a cadquery
-        # import and wipe the warm solid cache that affinity exists to keep. Not measured
-        # for screw; Phase 7 re-sweeps (OPER-02).
+        # `max_tasks_per_child` is deliberately absent (stays None -- no recycling), by
+        # 07-SWEEP-PROTOCOL R23 under the owner's ruling G32. A worker does grow: one part
+        # built cold 20 times in a row rose up to 323194880 B from build 1 to build 20 (fine
+        # STL, run 41016507364), above R23's 10 % allowance at every artifact. Built 60 times
+        # (run 41022812680, 5 repetitions), it levels off: the worst repetition's peak over
+        # builds 41-60 is 6467584 B (preview STL), 11583488 B (fine STL) and 5222400 B
+        # (STEP) above its peak over builds 21-40, within allowances of 44044697.6,
+        # 134713753.6 and 28473344.0 B. The growth is counted in W instead, the largest
+        # peak after any drift build, 1758363648 B, so mem_limit is sized for a warm worker.
+        # Recycling would cost a respawn plus a cadquery import and wipe the warm solid
+        # cache that affinity exists to keep.
         self._executors = [
             ProcessPoolExecutor(max_workers=1, mp_context=_SPAWN, initializer=_warm)
             for _ in range(workers)
@@ -137,8 +139,9 @@ class BuildPool:
         # already dequeued into the (single, busy) worker, that 2-deep call queue is
         # exactly big enough to also make requests 2 and 3 RUNNING; a *fourth* same-slot
         # request is the first one that can still be sitting in `work_ids_queue`, genuinely
-        # PENDING -- and reachable in production, since `MAX_QUEUED_BUILDS` admits 4 builds
-        # and affinity can route all four to one hash slot. [spur verified, with and
+        # PENDING -- and reachable in production once `MAX_QUEUED_BUILDS` admits 4 builds
+        # (2 build workers or more; the measured default admits 2) and affinity routes all
+        # four to one hash slot. [spur verified, with and
         # without `cancel_futures=True`, 5 runs each: the 2nd and 3rd same-slot requests
         # always reached `BrokenProcessPool`, but the *4th* raised
         # `asyncio.CancelledError` with `cancel_futures=True` restored, in every run --

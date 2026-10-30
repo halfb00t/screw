@@ -313,7 +313,7 @@ def test_each_build_failure_mode_maps_to_its_own_status_and_type(
         detail = r.json()["detail"][0]
         assert detail["type"] == want_type
         if want_status == 503:
-            assert r.headers["retry-after"] == "5"
+            assert r.headers["retry-after"] == app_module.retry_after("stl-preview")
         # the admission slot is released on every failure path: a repeated
         # failure must never leak capacity and turn into a service that refuses
         # everything -- the failure mode hardest to diagnose from the outside.
@@ -465,8 +465,8 @@ def test_four_same_slot_requests_all_refuse_without_cancellation() -> None:
     is exactly big enough to also swallow requests 2 and 3, both becoming RUNNING; a
     *fourth* is the first request that can still be sitting in `work_ids_queue`,
     genuinely PENDING, when the incident is handled -- reachable in production, not
-    just in this test: `MAX_QUEUED_BUILDS` admits 4 builds and affinity can route
-    all four to one hash slot. [verified empirically in spur, both pre- and
+    just in this test: `MAX_QUEUED_BUILDS` admits 4 builds at 2 build workers or more and
+    affinity can route all four to one hash slot. [verified empirically in spur, both pre- and
     post-fix, 5 runs each, with `cancel_futures=True` temporarily restored on
     `recreate_for`'s `shutdown()` call and then reverted (`git diff` confirmed clean
     before committing): the second and third siblings always raised

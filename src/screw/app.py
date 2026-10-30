@@ -20,15 +20,17 @@ naming it, and so is an explicit `thread_length` longer than an explicit `length
 from __future__ import annotations
 
 import gzip
+import math
 import threading
 import time
 import uuid
 from collections import OrderedDict
-from collections.abc import AsyncIterator, Awaitable, Callable, Hashable, Iterator
+from collections.abc import AsyncIterator, Awaitable, Callable, Hashable, Iterator, Mapping
 from concurrent.futures.process import BrokenProcessPool
 from contextlib import asynccontextmanager, contextmanager
 from pathlib import Path
-from typing import Annotated, Literal
+from types import MappingProxyType
+from typing import Annotated, Final, Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.gzip import GZipMiddleware
@@ -41,7 +43,7 @@ from starlette.concurrency import run_in_threadpool
 from . import __version__, int_env
 from .build_errors import BuildError, BuildTimeout
 from .calc import PartInfo, derive_capped, download_name, download_refusal, explicit_conflict
-from .calc.cost import BUILD_TIMEOUT_S, artifact_of, cap_defaults, refused_fields
+from .calc.cost import BUILD_TIMEOUT_S, Artifact, artifact_of, cap_defaults, refused_fields
 from .calc.presets import PresetCatalogue, catalogue_document
 from .params import DEFAULT_KIND, KINDS, BoltParams, FastenerParams, NutParams
 from .pool import BuildPool
@@ -97,33 +99,61 @@ class _BlobCache:
 # caching both encodings of a hot part means this cache holds fewer distinct parts within
 # the same budget.
 #
-# INTERIM (D-01): 64 MB, carried from spur's export-cache default (same knob, renamed),
-# where it sized the cache against 160-199 tooth gears (~9 MB raw STL each). Not a screw
-# sizing, but L11 measured the fine STL plus its gzip-1 copy over it from M8 L=68
-# right-hand up (`2026-10-08-a-grid`). At that row the raw fine STL alone is 45,659,684
-# bytes, under the budget, so `put` keeps both blobs and they evict each other: such a part
-# is served but rebuilt on every repeat request. That was why D-02 and D-21 refused the fine
-# STL on the measured rows; L21's cost model now judges every artifact against its measured
-# budget (`download_refusal`, called first in `_serve`). Phase 7 re-sweeps (OPER-02).
-_EXPORTS = _BlobCache(int_env("SCREW_EXPORT_CACHE_MB", 64) * 1024 * 1024)
+# 240 MiB by 07-SWEEP-PROTOCOL R21: both encodings, raw and gzip level 1, of all three artifacts
+# of the admitted part whose sum is the largest, so the heaviest part a user can ask for is served
+# from here on a repeat. Over the 394 candidates of explore run 40646117094 that part is
+# iso4017:M20x200, 250654910 B, rounded up to a whole MiB. The gzip level-1 bytes bound any level
+# R19 could adopt, and none was. The env override stays (CODING_VALUES: limits in code with an env
+# var): the budget is part of the measured mem_limit, so a deployer who moves it re-sweeps, as
+# D-16 says for the timeouts.
+EXPORT_CACHE_MB: Final = int_env("SCREW_EXPORT_CACHE_MB", 240)
+_EXPORTS = _BlobCache(EXPORT_CACHE_MB * 1024 * 1024)
+
+# One build worker by 07-SWEEP-PROTOCOL R16: of the worker counts whose mem_limit fits the
+# runner, the one with the lowest load p95 over all requests (the max over 5 repetitions), 35.09 s
+# at N = 1 against 51.88 s at N = 2 and 69.78 s at N = 3 (load run 40909724292); all three
+# qualified, and R16 ranks latency only. A fixed number, not os.cpu_count(): a machine-dependent
+# default would make the measured mem_limit untrue somewhere. The env override stays for a
+# deployer on other hardware, who re-sweeps (D-16).
+DEFAULT_BUILD_WORKERS: Final = 1
+
+
+def _build_workers() -> int:
+    return int_env("SCREW_BUILD_WORKERS", DEFAULT_BUILD_WORKERS)
 
 
 def _max_queued_builds() -> int:
     """A queue deeper than the pool can drain is latency with no payoff.
 
-    INTERIM (D-01): 2x the build workers, carried from spur (L04's admission control),
-    where a measured load run showed deeper queues only adding latency. Not measured for
-    screw. Phase 7 re-sweeps (OPER-02).
+    2x the build workers by 07-SWEEP-PROTOCOL R17, which keeps 2N when the load run at the
+    picked N shows no timeout and a peak within mem_limit. At N = 1 (load run 40909724292) the
+    largest request wall, queue wait plus build, was 0.362 of its queue-aware deadline (rep 2,
+    pool call 26) and the end peak 1657307136 B, under the 2415919104 B mem_limit. The env
+    override stays for a deployer who re-sweeps (D-16).
 
     A function, not a bare module constant, so SCREW_BUILD_WORKERS and
     SCREW_MAX_QUEUED_BUILDS are read together, on every call -- tests exercise all three
     derivation cases via monkeypatch + a direct call, without reloading this module.
     """
-    return int_env("SCREW_MAX_QUEUED_BUILDS", 2 * int_env("SCREW_BUILD_WORKERS", 2))
+    return int_env("SCREW_MAX_QUEUED_BUILDS", 2 * _build_workers())
 
 
 MAX_QUEUED_BUILDS = _max_queued_builds()
 BUILD_QUEUE = threading.BoundedSemaphore(MAX_QUEUED_BUILDS)
+
+# The median built-request wall per artifact, queue wait plus build, over the 100 built requests
+# of each in the 5 load repetitions at N = 1 (07-SWEEP-PROTOCOL R18, load run 40909724292).
+# runtime.json carries each with its sample count; tests/test_runtime_bounds.py holds them equal.
+MEDIAN_BUILD_S: Final[Mapping[Artifact, float]] = MappingProxyType({
+    "stl-preview": 5.214082512000019, "stl-fine": 9.527734555999999, "step": 6.330915500499998})
+
+
+def retry_after(artifact: Artifact) -> str:
+    """The `Retry-After` of a 503 for `artifact`: its median build times the queue depth, rounded
+    up to whole seconds and at least 1 (R18, D-11). The product is taken here, at run time, so a
+    deployer's SCREW_MAX_QUEUED_BUILDS moves it.
+    """
+    return str(max(1, math.ceil(MEDIAN_BUILD_S[artifact] * MAX_QUEUED_BUILDS)))
 
 # A plain in-flight counter, not BUILD_QUEUE._value: threading.BoundedSemaphore's internal
 # counter is itself a private attribute, so this module keeps its own instead of reading
@@ -146,8 +176,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Build the pool eagerly at startup, tear it down at shutdown.
 
     Eager, import-only warm-up: the memory sweep then measures steady state from t=0
-    instead of a ramp. SCREW_BUILD_WORKERS defaults to a fixed 2, not os.cpu_count() -- a
-    machine-dependent default would make the measured mem_limit untrue somewhere.
+    instead of a ramp. SCREW_BUILD_WORKERS defaults to `DEFAULT_BUILD_WORKERS`, R16's pick.
     """
     # The only code that runs inside *every* spawned uvicorn worker, regardless of
     # SCREW_WORKERS: uvicorn's extra workers are `multiprocessing.spawn` children whose
@@ -158,9 +187,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # in one process, still installs exactly one handler, not two.
     configure()
     app.state.pool = BuildPool(
-        # INTERIM (D-01): 2 workers, carried from spur's default; a fixed number, not
-        # os.cpu_count(). Not measured for screw. Phase 7 re-sweeps (OPER-02).
-        int_env("SCREW_BUILD_WORKERS", 2),
+        _build_workers(),
         # The per-artifact timeouts are code constants (D-09, D-16); the module-level name,
         # not a copy, so an instrument can replace it before startup.
         BUILD_TIMEOUT_S,
@@ -240,25 +267,18 @@ app = FastAPI(
     dependencies=[Depends(refuse_repeated_keys)],
 )
 
-# spur L19 measured the real 9,062,784-byte STL of a 199-tooth fine gear at gzip levels 1/6/9
-# (host loadavg 2.68/3.07/2.78 just before measuring):
-#
-#   level | single-threaded median | output bytes (% of input) | 10-concurrent wall (median of 3)
-#   ----- | ----------------------- | -------------------------- | ---------------------------------
-#     1   |  51.5 ms                | 2,632,467 (29.0%)          |  74.4 ms
-#     6   | 147.9 ms                | 2,403,312 (26.5%)          | 198.9 ms
-#     9   | 788.0 ms                | 2,404,371 (26.5%)          | 925.5 ms
-#
-# spur's selection rule, set up front: adopt a higher level only if it shrinks output by
-# >=10% AND costs <=1.5x the 10-concurrent wall time of the level below it. Level 6 was only
-# 8.7% smaller, level 9 also missed it, so level 1 won.
-# INTERIM (D-01): level 1 carried from spur L19. That is a gear mesh, not a screw mesh:
-# nothing here is measured for screw. Phase 7 re-sweeps (OPER-02).
+# Level 1 by 07-SWEEP-PROTOCOL R19 (spur L19's rule shape, screw's thresholds): a higher level is
+# adopted only if it shrinks the bytes by at least 10 % at no more than 1.5x the seconds, at every
+# STL bound point, each the max over 5 repetitions. Over the 14 points (gzip runs 40909739628 and
+# 40999657702) levels 6 and 9 failed both tests everywhere: at best 4.9 % smaller, at 1.74x the
+# seconds or more. The largest, iso4017:M20x200 fine STL: 66239886 B in 2.01 s at level 1,
+# 63595608 B in 3.56 s at level 6.
 _GZIP_LEVEL = 1
 
-# INTERIM (D-01): `minimum_size=1024` carried from spur; not measured for screw. Phase 7
-# re-sweeps (OPER-02).
-app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=_GZIP_LEVEL)
+# 4012 B by R20: the smallest measured JSON body length from which every body measured shrinks at
+# level 1. Of the 1555 bodies of load run 40909724292, the largest that does not shrink is
+# /api/health, 95 B to 98 B; 4012 B is the smallest body above it.
+app.add_middleware(GZipMiddleware, minimum_size=4012, compresslevel=_GZIP_LEVEL)
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
@@ -333,9 +353,7 @@ def _build_slot(request_id: str, p: FastenerParams, fmt: str, quality: str) -> I
             detail=[{"loc": ["query"], "type": "busy",
                      "msg": f"Busy: {MAX_QUEUED_BUILDS} parts are already being built or "
                             "compressed. Try again in a moment."}],
-            # INTERIM (D-01): 5 s, carried from spur; a client hint, not a measurement.
-            # Phase 7 re-sweeps (OPER-02).
-            headers={"Retry-After": "5"},
+            headers={"Retry-After": retry_after(artifact_of(fmt, quality))},
         )
     _in_flight_builds += 1
     try:
@@ -573,7 +591,7 @@ async def _serve(params: FastenerParams, fmt: Literal["stl", "step"], quality: s
                             timeout_s=BUILD_TIMEOUT_S[artifact])
             raise HTTPException(503, detail=[{"loc": ["query"], "msg": str(exc),
                                               "type": "timeout"}],
-                                headers={"Retry-After": "5"}) from exc
+                                headers={"Retry-After": retry_after(artifact)}) from exc
         except BrokenProcessPool as exc:
             # 503, not 422: the worker is gone, the parameters didn't do anything wrong.
             # BuildPool.export already replaced the dead slot before this propagated here
@@ -591,7 +609,7 @@ async def _serve(params: FastenerParams, fmt: Literal["stl", "step"], quality: s
                                 "terminated after another request on the same slot "
                                 "overran its timeout). The request can be retried.",
                          "type": "pool_broken"}],
-                headers={"Retry-After": "5"},
+                headers={"Retry-After": retry_after(artifact_of(fmt, quality))},
             ) from exc
         except HTTPException:
             # _build_slot()'s own admission-control refusal (busy, 503) raises this from
