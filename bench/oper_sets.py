@@ -2053,7 +2053,21 @@ def load_table(readings: Iterable[Reading]) -> str:
 
 # R12, G5, G21: the cold isolated readings, which alone widen e. G28 and G29: an `outband` reading
 # never does, it stops the phase instead; a load request wall and a contended wall never do.
-NEVER_WIDENS = frozenset({"outband", "load"})
+NEVER_WIDENS = frozenset({"load"})
+# G30: of R11's out-of-band points only a nut reading widens e. The bolt's never does: the one bolt
+# over its envelope, G29's 2.5-turn M2, is refused since, and widening the bolt stl-fine bytes e
+# from it would refuse 6 catalogue rows B-01 keeps (C1 sets each budget at the largest row).
+OUTBAND_WIDENS = frozenset({"nut"})
+
+
+def widens(set_name: str, reading: Reading) -> bool:
+    """Whether a reading of the set `set_name` may widen e (R12, G5, G21, G30): never a load
+    reading, an out-of-band one only of a nut, every other the cold isolated rule decides."""
+    if set_name in NEVER_WIDENS:
+        return False
+    if set_name == "outband":
+        return reading.get("kind") in OUTBAND_WIDENS
+    return True
 
 
 @dataclass(frozen=True)
@@ -2186,7 +2200,7 @@ def _envelope_check_command(args: argparse.Namespace) -> None:
     fit_path = Path(args.fit)
     document = json.loads(fit_path.read_text())
     tagged = runs_readings([Path(d) for d in args.source])
-    kept = [(run, reading) for name, run, reading in tagged if name not in NEVER_WIDENS]
+    kept = [(run, reading) for name, run, reading in tagged if widens(name, reading)]
     rows = envelope_check(document, kept)
     print("kind | artifact | target | e | largest actual / enveloped prediction | reading | "
           "widened e")

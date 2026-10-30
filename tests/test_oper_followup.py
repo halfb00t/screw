@@ -1653,9 +1653,10 @@ def test_the_command_writes_only_the_widened_envelopes_and_the_widening_runs(
     alone = {**_contention(1, 1.0), "label": "nut-n1",
              "points": [{"label": "nut", "kind": "nut", "params": {}, "slot": 0}],
              **_actuals("nut", {}, "stl-fine", 1.5 * (1.0 + e))}
-    outband: Raw = {"type": "reading", "label": "outband-x", "kind": "nut", "params": {},
+    eb = cost.ENVELOPE["bolt", "stl-fine", "seconds"]
+    outband: Raw = {"type": "reading", "label": "outband-x", "kind": "bolt", "params": dict(M20),
                     "artifact": "stl-fine", "rep": 1, "status": "ok",
-                    **_actuals("nut", {}, "stl-fine", 9.0 * (1.0 + e))}
+                    **_actuals("bolt", M20, "stl-fine", 9.0 * (1.0 + eb))}
     fit = _fit_repo(tmp_path, {"bound": [alone], "outband": [outband]})
     old = json.loads(fit.read_text())
     assert oper_sets.main(["envelope-check", "--fit", str(fit), "--from",
@@ -1670,11 +1671,24 @@ def test_the_command_writes_only_the_widened_envelopes_and_the_widening_runs(
     assert changed == [key]
     model = next(m for m in after["models"] if (m["kind"], m["artifact"], m["target"]) == key)
     was = next(m for m in old["models"] if (m["kind"], m["artifact"], m["target"]) == key)
-    # the outband reading's 9x is not what set it (G28): the N = 1 reading's 1.5x did
+    # the bolt's out-of-band 9x widens nothing (G30): the nut's N = 1 reading's 1.5x set it
     assert model["envelope"] == pytest.approx(1.5 * (1.0 + e) - 1.0)
     assert {k: v for k, v in model.items() if k != "envelope"} == {
         k: v for k, v in was.items() if k != "envelope"}
     assert all(a == b for a, b in zip(after["excluded"], old["excluded"], strict=True))
+
+
+def test_an_out_of_band_nut_reading_widens_e_and_a_bolt_or_load_reading_does_not() -> None:
+    """G30: after the out-of-band stop, a nut reading of R11's out-of-band points widens e as a
+    cold isolated reading does; a bolt's never does, nor any load reading."""
+    nut: Raw = {"type": "reading", "label": "outband-nut", "kind": "nut", "params": {},
+                "artifact": "stl-fine", "rep": 1, "status": "ok"}
+    bolt: Raw = {**nut, "label": "outband-bolt", "kind": "bolt"}
+    assert oper_sets.widens("outband", nut)
+    assert not oper_sets.widens("outband", bolt)
+    assert not oper_sets.widens("load", {**nut, "kind": "load"})
+    assert all(oper_sets.widens(name, bolt) for name in ("bound", "gzip", "arenas", "bound-rerun",
+                                                         "gzip-rerun"))
 
 
 def test_a_widening_that_would_refuse_a_part_b01_keeps_stops_and_writes_nothing(
