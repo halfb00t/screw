@@ -2003,3 +2003,65 @@ model's fault, not the user's.
 Reversibility: reversible. Three constants in `calc/cost.py` and three medians in `app.py`, which
 `derive-runtime` re-derives from a new sweep; the new figures need a superseding entry. A shorter
 timeout turns slow admitted builds into `503`s, each logged as a miss.
+
+## L25 — A part finer in pitch than its kind's wall is a 422 `pitch_too_fine`: the bolt's d / pitch wall is 20, read from the fine-pitch walk; the nut's is 8 by the owner's ruling
+
+Date: 2026-10-30. Decided by the owner's rulings G35 and G36 (`07-GAP-RULINGS.md`,
+`07-OWNER-RULINGS.md`) and by R31 of `07-SWEEP-PROTOCOL.md`, added and amended by them after the
+runner readings. Supersedes nothing: L20's walls stand. It adds one 422 type, `pitch_too_fine`, to
+the parameter model's rules of L13 (D-23), L15 and L20, and it is not a cost-model refusal, so
+L21's and L22's `over_budget` is unchanged; those entries are not edited.
+
+**The rule.** A part whose exact `d / pitch`, `Fraction(repr(d)) / Fraction(repr(pitch))`, is above
+its kind's wall is refused with the 422 `pitch_too_fine`: `loc` `["query"]`, `ctx.fields`
+`["d", "pitch"]`. The text begins `d and pitch: `, prints the ratio and the wall, says why, and names
+the smallest pitch for that d, to 6 significant figures, that the wall admits. A `d / pitch` typed as
+exactly the wall is admitted, even where float division reads above it (4.7 / 0.235). It is checked
+once, at the parameter-model boundary, as the last model rule of each kind, so a part that also
+breaks an older rule (`head_too_small`, `turn_cap`, `nut_too_thin`) still gets that rule's 422. The
+API answers before the byte cache, the admission slot and the pool; the CLI exits 2 with the same
+sentence. The kernel is not changed.
+
+**The bolt's wall, 20.** Walk run 41074314305 (`bench/RESULTS.md`, `### walls-pitch, run
+41074314305`) read 2904 bolts at `step` on linux/amd64, one each: d 0.3 to 999.999 mm, d / pitch 5
+to 31, both hands, a 3-turn full thread and a 3-turn thread under a shank. 60 were refused, all at
+d 1.8 to 3 mm and d / pitch 27 to 31. F, the smallest refused d / pitch, is 26.999784001727985
+(`pitch-bolt-n3-d3-q27-right`), and W is the largest ISO 3 R10 number at or below F / 1.25: 20.
+`calc.thread.MAX_BOLT_D_PER_PITCH` is the block `python -m bench.oper_sets pitch-walls --from
+bench/results/phase-07/walls-pitch-41074314305` prints, and `tests/test_oper_pitch.py` checks it
+against the committed records.
+
+**The nut's wall, 8.** The same run read 2752 nuts in four forms. 17 were refused: 11 at d / pitch 11
+and an island of 6 at d 2.2 mm, d / pitch 7 (forms base, s4 and m1, both hands), every neighbouring
+cell ok. The margin rule would put the nut's wall at 5, which refuses 13 of the 14 nut catalogue rows
+and the default nut (d / pitch 6). The owner ruled it 8 instead (G36, reply verbatim: `Rule nut W =
+8, island to debt (Recommended)`), the catalogue's largest d / pitch. `MAX_NUT_D_PER_PITCH` is that
+ruled constant, with the ruling and the island in its comment.
+
+**What it refuses.** All 20 in-wall parts the kernel refused in explore run 40646117094
+(`tests/test_fine_pitch.py`). None of the 294 bolt and 14 nut catalogue rows, and neither default
+part, so B-01's counts and C1's budget do not move.
+
+**The sets already drawn (G36, reply verbatim: `(i)(b) old sets, drop refused (Recommended)`).** The
+point files and the sets drawn before R31 are checked under the model they were drawn under, without
+this wall (`bench.oper_lift.drawn`), and are not drawn again: fit.json, runtime.json and L21 to L24
+stand. The required tier `tests/data/oper_boundary.json` is cut as before and leaves out the 80
+points the wall refuses, with nothing drawn in their place: 435 to 355 points, every artifact keeping
+its 2 edge points, in 4 CI shards instead of 5. The local `bench.build_time` corpus keeps its fixed
+grid; its three d 100 entries are past the wall and are marked refused, not judged.
+
+**What it leaves open.** The wall does not hold every refusal. The 6 nut island cells are inside the
+nut's wall, and the debug session found long-thread bolts refused below 20 in the size bands d 0.5 to
+0.85 and 1.6 to 3.3 mm (for example d 3, pitch 0.35, 25 mm of thread, right hand) and isolated nut
+cells at d / pitch 11, 14 and 17 on macOS arm64. They stay open as must debt:
+`docs/tech_debt/active/2026-10-29-in-wall-parts-the-kernel-refuses.md`. Such a part still gets a
+build error, not a wrong part (L02 holds).
+
+Reason: a part the parameter model admits should build, or be refused with the fields to change
+(L02). The kernel's end-cut booleans break once the swept thread's representation error is not small
+against the thread depth, which grows with d / pitch; a wall one R10 step under the first refusal
+stops the parts the kernel refuses there, and keeps every catalogue row.
+
+Reversibility: costly. Links that carried a finer pitch now get a 422. A kernel fix (the debug
+session's accuracy variant: pipe tolerance 1e-6 and 56 section samples) or a new walk needs a
+superseding entry, and lifting the wall needs both.

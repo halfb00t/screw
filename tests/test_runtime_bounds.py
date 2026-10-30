@@ -326,7 +326,7 @@ def test_every_timeout_and_retry_after_median_is_in_l24_as_the_code_writes_it() 
 
 def _cited_run_ids() -> dict[str, set[str]]:
     texts = {f"{entry} (decision log)": _entries()[entry]
-             for entry in ("L20", "L21", "L22", "L23", "L24")}
+             for entry in ("L20", "L21", "L22", "L23", "L24", "L25")}
     source = REPO_ROOT / "src"
     for path in sorted([*source.rglob("*.py"), *source.rglob("*.js"),
                         REPO_ROOT / "Dockerfile", REPO_ROOT / "compose.yaml"]):
@@ -335,7 +335,7 @@ def _cited_run_ids() -> dict[str, set[str]]:
     return {name: set(re.findall(_RUN_ID, text)) for name, text in texts.items()}
 
 
-def test_every_run_id_the_code_and_l20_to_l24_cite_has_its_section_in_results() -> None:
+def test_every_run_id_the_code_and_l20_to_l25_cite_has_its_section_in_results() -> None:
     results = RESULTS.read_text()
     cited = _cited_run_ids()
     assert cited["L23 (decision log)"]
