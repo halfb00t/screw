@@ -134,3 +134,22 @@ Outcome at the implementing commit: the emitted floor is 2.9999999999999996 (the
 0.1). The d 5 and d 30, s 48, k 18 caps stay at 16.5 and 6.5. The M6 with only s=15 named is no
 longer capped: no value of thread_length or length at or above the floor fits, so its preview
 download is the `over_budget` 422 and its fine STL and STEP are served.
+
+## B-02 and B-03: a bolt below the fitted turns is refused at every artifact (2026-10-30, G30)
+
+Source: the G28/G29 stop of plan 07-15 (`07-GAP-RULINGS.md`, G30). In outband run 40909768713
+the G29 bolt `turns-below-iso4017:M2x4` (thread_length 1.0, 2.5 built turns) read 1446684 bytes
+at the fine STL in all 5 repetitions, 1.3116 x its enveloped prediction. The fit has no point below
+`cost.MIN_FITTED_TURNS`, so no reading supports a prediction there.
+
+The owner's reply, verbatim (the label "(Recommended)" is the orchestrator's, not part of the
+ruling): "1: widen nuts, guard G29 (Recommended)".
+
+Ruling: a bolt whose built thread, `calc.thread.built_thread_length(thread_length, length) /
+pitch`, has fewer turns than `MIN_FITTED_TURNS` is refused before any build at every artifact. The
+refusal is B-02's `over_budget` 422; it names the fields that set the turns, pitch, length and
+thread_length, in `msg` and in `ctx.fields`, and it prints no figure (L02). B-01 holds: none of
+the 294 bolt catalogue rows is below the floor, and a test pins it. B-03's second clarification is
+unchanged: the cap never takes a value below the floor, so it cannot cap a part into this refusal.
+The bolt stl-fine bytes e is not widened. The nut stl-fine seconds and peak e widen from the nut
+out-of-band readings, re-derived by committed code (G30).

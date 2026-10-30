@@ -2200,7 +2200,7 @@ def test_the_protocol_records_the_disposition_of_the_two_debt_items_it_leaves_op
 
 def test_contention_partners_take_one_affinity_slot_each_so_the_workers_are_distinct() -> None:
     rule = " ".join(_rule(14).split())
-    assert "on each of the other N - 1 slots, one admitted point" in rule
+    assert "on each of the other N - 1 slots, one candidate of the same artifact" in rule
     assert "`hash(p) % N`" in rule
     assert "N distinct workers" in rule
     assert "a tie going to the label that sorts first" in rule
@@ -2783,19 +2783,70 @@ def test_a_head_ratio_outside_its_band_is_predicted_no_lower_than_anywhere_in_th
     assert not re.search(r"\b\d{11}\b", protocol)
 
 
-def test_a_bolt_below_the_fitted_turns_is_read_on_the_runner_and_stops_the_phase_if_over() -> None:
+def test_a_bolt_below_the_fitted_turns_was_read_on_the_runner_and_is_now_refused() -> None:
+    """G29 had the runner read such bolts; G30, after one of them read over its envelope, refuses
+    them at every artifact instead of predicting them."""
     rule = " ".join(_rule(11).split())
     assert ("A bolt whose built thread has fewer turns than the fewest among the fitted bolt "
-            "points (computed from the records by code, never typed) is predicted by the fit as "
-            "it stands, which is an extrapolation") in rule
-    assert ("per artifact, two bolts below that count that the walls and the rule admit: the one "
-            "closest to the budget and the first in catalogue order") in rule
-    assert rule.count("stops the phase for the owner and does not widen `e`") == 2
+            "points (computed from the records by code, never typed) is refused before any build "
+            "at every artifact, with the budget's refusal (B-02) naming the fields that set its "
+            "turns: the pitch, the length and the thread length") in rule
+    assert "predicted by the fit as it stands" not in rule
+    assert ("per artifact, two bolts below that count that the walls and the fit's admission "
+            "admitted: the one closest to the budget and the first in catalogue order") in rule
+    assert "Those readings widen no `e`" in rule
+    assert rule.count("stops the phase for the owner and does not widen `e`") == 1
     assert rule.count("added after the first runner reading by the owner's ruling that R30 asks "
-                      "for") == 2
+                      "for") == 3
     rulings = (PROTOCOL.parent / "07-GAP-RULINGS.md").read_text()
     assert ("\n## Gap G29 (owner ruling on named threads below the fitted turns, 2026-10-29)\n"
             in rulings)
     for evidence in ('"Add to 07-15 (Recommended)"', "52dcf95", "40646117094", "40646125666"):
         assert evidence in rulings, evidence
     assert re.search(r"^\| G29 \| R11 \|", rulings, re.MULTILINE)
+
+
+# --- the owner's rulings after the out-of-band check (G30) and on the bound set (G31) -----------
+
+
+def test_the_out_of_band_nut_readings_widen_e_and_the_bolt_readings_do_not() -> None:
+    rule = " ".join(_rule(11).split())
+    assert ("After that stop, the owner ruled that a nut reading of these parts above its "
+            "enveloped prediction widens `e` as a cold isolated reading does (R12), and that a "
+            "bolt reading of them widens no `e`") in rule
+    rulings = (PROTOCOL.parent / "07-GAP-RULINGS.md").read_text()
+    assert "\n## Gap G30 (owner ruling after the out-of-band check, 2026-10-30)\n" in rulings
+    for evidence in ('"1: widen nuts, guard G29 (Recommended)"', "40909768713", "196ef2e",
+                     "not a harness fix", "0 of the 294 bolt catalogue rows"):
+        assert evidence in rulings, evidence
+    assert re.search(r"^\| G30 \| R11 \|", rulings, re.MULTILINE)
+    owner = (PROTOCOL.parent / "07-OWNER-RULINGS.md").read_text()
+    assert ("\n## B-02 and B-03: a bolt below the fitted turns is refused at every artifact "
+            "(2026-10-30, G30)\n") in owner
+    assert '"1: widen nuts, guard G29 (Recommended)"' in owner
+
+
+def test_every_bound_candidate_has_an_ok_explore_reading_at_every_artifact() -> None:
+    rule = " ".join(_rule(14).split())
+    assert ("The candidates are the admitted `explore` points at that artifact whose `explore` "
+            "reading is `ok` at every artifact") in rule
+    assert "for the two measured choices" not in rule
+    assert "one candidate of the same artifact" in rule
+    assert "The partner of each other slot is the candidate other than P" in rule
+    assert "A slot that holds no candidate leaves that (P, N) unrunnable" in rule
+    assert ("only the points it changed are read again, at 5 repetitions, and the earlier "
+            "readings of the points they replace are kept as records and decide nothing") in rule
+    assert "R19's gzip set takes the bound set's points, so the same holds there" in rule
+    assert rule.count("added after the first runner reading by the owner's ruling that R30 asks "
+                      "for") == 1
+    rulings = (PROTOCOL.parent / "07-GAP-RULINGS.md").read_text()
+    assert ("\n## Gap G31 (owner ruling on the kernel-refused nuts in the bound set, "
+            "2026-10-30)\n") in rulings
+    for evidence in ('"Exclude, rerun preview (Recommended)"', "40907549180", "40909739628",
+                     "not a harness fix"):
+        assert evidence in rulings, evidence
+    assert re.search(r"^\| G31 \| R14, R19 \|", rulings, re.MULTILINE)
+    protocol = _protocol()
+    assert protocol[protocol.index("## Harness fixes"):].startswith("## Harness fixes\n\nNone yet.")
+    assert not re.search(r"\bG\d+\b", protocol)
+    assert not re.search(r"\b\d{11}\b", protocol)

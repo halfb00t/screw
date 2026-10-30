@@ -202,3 +202,59 @@ Reply, verbatim: "Add to 07-15 (Recommended)".
 | Gap | Rule(s) | Owner ruling |
 |---|---|---|
 | G29 | R11 | A bolt whose built thread has fewer turns than the fewest among the fitted bolt points is predicted by the fit as it stands. Plan 07-15 reads, at 5 repetitions, per artifact, two admitted bolts below that count: the one nearest the budget (largest enveloped edge ratio, as R27 ranks) and the first in catalogue order. A reading above its enveloped prediction stops the phase for the owner and does not widen `e`. |
+
+## Gap G30 (owner ruling after the out-of-band check, 2026-10-30)
+
+Source: plan 07-15 stopped at its G28/G29 out-of-band check (`bench/RESULTS.md`, "out-of-band
+check"; `07-15-SUMMARY.md`, "Needs the owner"). Outband run 40909768713 read 7 (point, target)
+pairs above their enveloped prediction, all M2 rows at the fine STL:
+
+| point | target | actual / enveloped prediction |
+| --- | --- | --- |
+| `outband-nut-s-below-iso4032:M2` | seconds | 1.3200 |
+| `turns-below-iso4017:M2x4` (G29) | bytes | 1.3116 |
+| `outband-nut-m-below-iso4032:M2` | seconds | 1.2217 |
+| `outband-nut-s-far-iso4032:M2` | seconds | 1.1255 |
+| `outband-nut-s-above-iso4032:M2` | seconds | 1.0696 |
+| `outband-nut-s-below-iso4032:M2` | peak | 1.0260 |
+| `outband-nut-m-below-iso4032:M2` | peak | 1.0004 |
+
+The executor computed what a widening would do with committed code at 196ef2e (`envelope_check`
+over the outband readings, then `_admits_all`), and wrote none of it: nut stl-fine seconds e
+1.1069417227945801 to 1.7812452161769916 and peak e 0.5571452809681212 to 0.5976833077470993 refuse
+nothing B-01 keeps; bolt stl-fine bytes e 0.5633622849303941 to 1.0504847478595214 refuses 6
+catalogue rows at the fine STL, because C1 sets each budget component at the largest catalogue
+prediction. The orchestrator checked that 0 of the 294 bolt catalogue rows have fewer built turns
+than `cost.MIN_FITTED_TURNS`.
+
+The owner's reply, verbatim, to the SUMMARY's three options (the label "(Recommended)" is the
+orchestrator's, not part of the ruling): "1: widen nuts, guard G29 (Recommended)".
+
+This is a ruled change after R30's freeze, not a harness fix. It amends `07-SWEEP-PROTOCOL.md` R11
+on the phase branch `gsd/phase-07-operability-re-sweep`. It supersedes G28's "does not widen `e`"
+for the nut readings and G29's "predicted by the fit as it stands".
+
+| Gap | Rule(s) | Owner ruling |
+|---|---|---|
+| G30 | R11 | A nut reading of R11's out-of-band points above its enveloped prediction widens `e` as a cold isolated reading does (R12): the nut stl-fine seconds and peak e are re-derived by committed code from the outband readings and emitted with `emit-constants`, never typed. A bolt reading of those points widens no `e`, so the bolt stl-fine bytes e is not widened. A bolt whose built thread has fewer turns than `cost.MIN_FITTED_TURNS` is refused before any build at every artifact with B-02's `over_budget` 422, naming the fields that set its turns (pitch, length and thread_length); no reading supports its prediction. No catalogue row is below the floor, so B-01 holds; a test pins that. B-03's cap floor stays as it is. If the widening refuses any part B-01 keeps, or changes any set's `--check`, the phase stops for the owner again. |
+
+## Gap G31 (owner ruling on the kernel-refused nuts in the bound set, 2026-10-30)
+
+Source: `07-15-SUMMARY.md`, "Also for the owner". `nut-d30-p0.35-m0.8d-s4d-c0.15-right` and
+`nut-d30-p0.35-m0.8d-s1.6d-c0.15-left` are admitted by the cost rule, and R14 asked for an `ok`
+explore reading only for its two measured choices. They entered the stl-preview bound set as P
+(among the 5 slowest) and as the N = 3 partner of four other P. Every reading that built them was
+refused (`BuildError`, the lead-in countersink): 50 readings of bound run 40907549180 and 10 of gzip
+run 40909739628. Under R3 those (P, N) and gzip points have no max, which R16, R19 and G22 need.
+Recorded in `docs/tech_debt/active/2026-10-29-in-wall-parts-the-kernel-refuses.md`.
+
+The owner's reply, verbatim (the label "(Recommended)" is the orchestrator's, not part of the
+ruling): "Exclude, rerun preview (Recommended)".
+
+This is a ruled change after R30's freeze, not a harness fix. It amends `07-SWEEP-PROTOCOL.md` R14
+on the phase branch `gsd/phase-07-operability-re-sweep`. R19 takes the bound set's points and is not
+edited.
+
+| Gap | Rule(s) | Owner ruling |
+|---|---|---|
+| G31 | R14, R19 | Every candidate of a bound set (the 5 slowest, the two prediction extrema, the two measured extrema and every contention partner) is an admitted explore point whose explore reading is `ok` at every artifact, not only the two measured choices. `bound.json` and `gzip.json` are regenerated under their recorded envelope. Only the stl-preview contention and gzip points this changes are read again, at 5 repetitions; the records are committed before they are used and the earlier readings of the points they replace decide nothing. D(A), the load mix, the stl-fine and STEP bound sets and the arena set do not change. |

@@ -316,14 +316,19 @@ prediction is the fit's own, unchanged. The second campaign
 reads, at 5 repetitions, per kind, artifact and ratio, at least one part above the band and one below
 it, each a part this rule admits; a reading above its enveloped prediction stops the phase for the
 owner and does not widen `e`. This sentence was added after the first runner reading by the owner's
-ruling that R30 asks for.
+ruling that R30 asks for. After that stop, the owner ruled that a nut reading of these parts above its
+enveloped prediction widens `e` as a cold isolated reading does (R12), and that a bolt reading of
+them widens no `e`. This sentence was added after the first runner reading by the owner's ruling that
+R30 asks for.
 
 A bolt whose built thread has fewer turns than the fewest among the fitted bolt points (computed from
-the records by code, never typed) is predicted by the fit as it stands, which is an extrapolation.
-The second campaign reads, at 5 repetitions, per artifact, two bolts below that count that the walls
-and the rule admit: the one closest to the budget and the first in catalogue order; a reading above its
-enveloped prediction stops the phase for the owner and does not widen `e`. This sentence was added
-after the first runner reading by the owner's ruling that R30 asks for.
+the records by code, never typed) is refused before any build at every artifact, with the budget's
+refusal (B-02) naming the fields that set its turns: the pitch, the length and the thread length. No
+fitted point lies below that count, so no reading supports a prediction there. The second campaign
+read, at 5 repetitions, per artifact, two bolts below that count that the walls and the fit's
+admission admitted: the one closest to the budget and the first in catalogue order. Those readings
+widen no `e`. This sentence was added after the first runner reading by the owner's ruling that R30
+asks for.
 
 ## R12 - The envelope (D-07)
 
@@ -367,21 +372,23 @@ The bound set of an artifact is the 5 admitted points with the largest enveloped
 prediction, plus the worst measured admitted point (the largest cold wall in `explore`), plus the two
 memory extrema: the admitted point with the largest enveloped peak-bytes prediction and the admitted
 point with the largest measured peak (the largest `memory_peak_bytes` in `explore`). The candidates are
-the admitted `explore` points at that artifact (for the two measured choices, those whose reading is
-`ok`), a tie going to the label that sorts first; a point that is in two of these groups counts once, so the set holds 5 to 8 points. The set is drawn once and is not redrawn when `e` widens (R12). The
+the admitted `explore` points at that artifact whose `explore` reading is `ok` at every artifact, a
+tie going to the label that sorts first; a point that is in two of these groups counts once, so the set holds 5 to 8 points. The set is drawn once and is not redrawn when `e` widens (R12). The
 memory extrema are in it because W (R16) is read from the bound set's containers, and the heaviest
 point in memory need not be among the slowest. Contention runs, for every point P of the bound set and every N in {1, 2, 3}:
-P on one slot and, on each of the other N - 1 slots, one admitted point of the same artifact, all cold
+P on one slot and, on each of the other N - 1 slots, one candidate of the same artifact, all cold
 and submitted together. A slot is a worker of the pool, which routes a part to worker `hash(p) % N`
 with `p = KINDS[kind].model_validate(params)` (`BuildPool.executor_for`); the hash is of the field
 values and is the same in every process, so every slot is computed when the set is built, before any
-server runs. P has its own slot. The partner of each other slot is the admitted point other than P
+server runs. P has its own slot. The partner of each other slot is the candidate other than P
 whose slot at this N is that one and whose enveloped build-seconds prediction is the largest, a tie
 going to the label that sorts first. The N points are therefore on N distinct workers and none waits
-behind another. A slot that holds no admitted point leaves that (P, N) unrunnable, and the phase stops
+behind another. A slot that holds no candidate leaves that (P, N) unrunnable, and the phase stops
 and asks the owner: no rule here puts two points on one worker, which would leave a worker idle and
 measure less than N-way contention. The partners are chosen for each (P, N), since the slots depend
-on N. Every (P, N) takes 5 repetitions (R3), so no
+on N. Where this candidate rule changed a set already read, only the points it changed are read
+again, at 5 repetitions, and the earlier readings of the points they replace are kept as records and
+decide nothing; R19's gzip set takes the bound set's points, so the same holds there. This sentence was added after the first runner reading by the owner's ruling that R30 asks for. Every (P, N) takes 5 repetitions (R3), so no
 reading waits for a worker count that R16 has not yet picked. The *bound point* of an artifact is the P
 whose max cold wall over its 5 repetitions at the picked N (R16) is the largest. The timeout of the
 artifact is `ceil(2 x` that max `)` seconds. The 2 is D-09's factor.
