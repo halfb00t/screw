@@ -2661,7 +2661,7 @@
     0.06459631600519246,
     -0.07053029236008582
    ],
-   "envelope": 1.1069417227945801,
+   "envelope": 1.7812452161769916,
    "envelope_set_by": "explore:nut-d3-p1-m0.8d-s4d-c0.15-right",
    "features": [
     "intercept",
@@ -2688,7 +2688,7 @@
     0.05474164947480684,
     -0.048285431840674096
    ],
-   "envelope": 0.5571452809681212,
+   "envelope": 0.5976833077470993,
    "envelope_set_by": "explore:nut-d3-p1-m0.8d-s1.6d-c0.15-left",
    "features": [
     "intercept",
@@ -2794,5 +2794,8 @@
   "spread": [
    "40646125666"
   ]
- }
+ },
+ "widened_by": [
+  "40909768713"
+ ]
 }

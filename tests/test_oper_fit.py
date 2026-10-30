@@ -312,7 +312,12 @@ def test_the_committed_fit_json_is_what_the_code_fits_from_the_committed_records
             old.kind, old.artifact, old.target, old.n, old.rank)
         assert all(_close(a, b, 1e-9) for a, b in zip(new.coefficients, old.coefficients,
                                                       strict=True))
-        assert _close(new.envelope, old.envelope, 1e-9)
+        # R12: a later cold isolated reading only raises an e, never refits it, and fit.json
+        # names the run that did (07-15's envelope check: G30's nut stl-fine seconds and peak).
+        assert _close(new.envelope, old.envelope, 1e-9) or (
+            old.envelope > new.envelope and committed["widened_by"]), (new.kind, new.artifact,
+                                                                      new.target)
+    assert "widened_by" not in fresh
 
 
 def test_the_committed_envelopes_cover_every_fitted_point() -> None:

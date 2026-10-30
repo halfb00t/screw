@@ -1777,3 +1777,57 @@ quietly trimmed and never admitted on a figure no run supports.
 Reversibility: costly, per D-05. The model decides refusals on every front end; the refused-preset
 count, the page's offered artifacts and which links serve a capped part move with it, and a link
 that served yesterday can be refused or capped after a re-fit.
+
+Superseded in part by L22: two rows of the envelope table, the nut stl-fine seconds e
+1.1069417227945801 to 1.7812452161769916 and peak e 0.5571452809681212 to 0.5976833077470993, both
+widened by outband run 40909768713; and a bolt below `cost.MIN_FITTED_TURNS` built turns is no
+longer predicted but refused at every artifact.
+
+## L22 — The out-of-band nut readings widen the nut fine-STL envelope, and a bolt below the fitted turns is refused at every artifact
+
+Date: 2026-10-30. Decided by the owner's ruling G30 (`07-GAP-RULINGS.md`; the refusal shape in
+`07-OWNER-RULINGS.md`, "B-02 and B-03: a bolt below the fitted turns is refused at every
+artifact"), after plan 07-15's out-of-band check stopped the phase, and by R11 and R12 of
+`07-SWEEP-PROTOCOL.md` as amended by it. Supersedes in part L21 (two envelope rows; the turns floor
+as a prediction).
+
+**The envelope (D-07, R12).** Outband run 40909768713 (`bench/RESULTS.md`, `### out-of-band
+check`) read 7 (point, target) pairs above their enveloped prediction, all M2 rows at the fine STL.
+G30 rules that a nut reading of R11's out-of-band points widens e as a cold isolated reading does,
+and that a bolt reading of them widens nothing. `python -m bench.oper_sets envelope-check` over
+every Runs II directory (bound 40907549180 and its rerun 40999654995, load 40909724292, gzip
+40909739628 and its rerun 40999657702, arenas 40909754190, outband 40909768713) keeps the readings
+that may widen e and widens two models, each by whole ulps until the factor covers every kept
+reading:
+
+| kind | artifact | target | e before (L21) | e now | set by |
+| --- | --- | --- | --- | --- | --- |
+| nut | stl-fine | seconds | 1.1069417227945801 | 1.7812452161769916 | 40909768713:outband-nut-s-below-iso4032:M2 rep 3 |
+| nut | stl-fine | peak | 0.5571452809681212 | 0.5976833077470993 | 40909768713:outband-nut-s-below-iso4032:M2 rep 3 |
+
+No other kept reading is above its enveloped prediction, so the other 16 e of L21 stand. fit.json
+carries the two values and `widened_by: ["40909768713"]`; its coefficients and its `envelope_set_by`
+labels are unchanged (R12: the form is not re-fitted). `emit-constants` re-emitted the block of
+`calc/cost.py`. The widened envelope refuses none of the 294 bolt and 14 nut catalogue rows and
+neither default part, at any artifact, so B-01's C1 budget is unchanged and no preset moves. The open
+item L21's head-ratio paragraph names is resolved by this widening and the turns refusal below:
+`docs/tech_debt/resolved/2026-10-29-cost-model-admits-out-of-fit-head-heights.md`.
+
+**The turns floor (G29, G30).** A bolt whose built thread, `built_thread_length(thread_length,
+length) / pitch`, has fewer turns than `cost.MIN_FITTED_TURNS` (2.9999999999999996, the n3 points at
+pitch 0.1) is refused before any build at every artifact. The fit has no point there, and the one
+such bolt read, a 1 mm thread on the 4 mm M2 (2.5 turns), read 1446684 bytes at the fine STL in all
+5 repetitions of run 40909768713, 1.3116 x its enveloped prediction. Its bolt stl-fine bytes e is
+not widened: C1 sets each budget component at the largest catalogue prediction, so a wider e there
+would refuse 6 catalogue rows. The refusal is B-02's `over_budget` 422; `msg` and `ctx.fields` name
+pitch, length and thread_length, and it prints no figure. No catalogue row is below the floor. B-03's
+cap is unchanged: it never takes a value below the floor. A bolt whose length is too short to model
+(1e-8 mm) has fewer turns than the floor too, so it now gets this 422 (CLI exit 2) before the
+builder's doorway would return its `build_error` (exit 1).
+
+Reason: a number the tool prints is a number someone will cut metal to (L02), and a part is admitted
+only on a prediction some reading covers. The nut overruns are covered by widening, since that
+refuses nothing B-01 keeps; the bolt below the floor has no reading to cover it, so it is refused.
+
+Reversibility: costly, as L21. A wider e only refuses more. A re-fit, or a run that reads bolts below
+the floor, needs a superseding entry.

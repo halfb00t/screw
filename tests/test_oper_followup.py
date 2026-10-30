@@ -1663,8 +1663,10 @@ def test_the_command_writes_only_the_widened_envelopes_and_the_widening_runs(
                            str(tmp_path / "bound"), str(tmp_path / "outband")]) == 0
     assert "widened 1 envelopes by runs 775" in capsys.readouterr().out
     after = json.loads(fit.read_text())
-    assert after["widened_by"] == ["775"]
-    assert sorted(after.keys() ^ old.keys()) == ["widened_by"]
+    # the runs that widened the committed fit.json stay named, and the new one joins them
+    assert after["widened_by"] == sorted({*old.get("widened_by", []), "775"})
+    assert old.keys() <= after.keys()
+    assert after.keys() - old.keys() <= {"widened_by"}
     key = ("nut", "stl-fine", "seconds")
     changed = [(a["kind"], a["artifact"], a["target"]) for a, b in
                zip(after["models"], old["models"], strict=True) if a != b]
@@ -1689,6 +1691,29 @@ def test_an_out_of_band_nut_reading_widens_e_and_a_bolt_or_load_reading_does_not
     assert not oper_sets.widens("load", {**nut, "kind": "load"})
     assert all(oper_sets.widens(name, bolt) for name in ("bound", "gzip", "arenas", "bound-rerun",
                                                          "gzip-rerun"))
+
+
+def test_the_shipped_envelope_covers_every_runs_ii_reading_that_may_widen_it() -> None:
+    """07-15 Task 3 on the record: over every Runs II directory, the readings that may widen e
+    (G5, G21, G30) are all within the shipped envelope, and G30's two nut models are the ones
+    outband run 40909768713 widened, its worst readings now at their enveloped prediction."""
+    fit = json.loads(FIT.read_text())
+    assert fit["widened_by"] == ["40909768713"]
+    directories = sorted(path for path in (REPO_ROOT / "bench/results/phase-07").iterdir()
+                         if path.name.split("-")[0] in {"bound", "load", "gzip", "arenas",
+                                                        "outband"})
+    assert len(directories) == 7
+    kept = [(run, reading) for name, run, reading in oper_sets.runs_readings(directories)
+            if oper_sets.widens(name, reading)]
+    rows = oper_sets.envelope_check(fit, kept)
+    assert [r for r in rows if r.widened is not None] == []
+    for target in ("seconds", "peak"):
+        row = _e(rows, "nut", "stl-fine", target)
+        assert row.worst.startswith("40909768713:outband-nut-s-below-iso4032:M2 rep 3")
+        assert 1.0 - 1e-12 < row.ratio <= 1.0
+    assert [m["envelope"] for m in fit["models"]] == [
+        cost.ENVELOPE[m["kind"], m["artifact"], m["target"]] for m in fit["models"]]
+    assert oper_sets._admits_all(oper_sets.shipped_envelope()) == []
 
 
 def test_a_widening_that_would_refuse_a_part_b01_keeps_stops_and_writes_nothing(

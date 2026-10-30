@@ -130,6 +130,7 @@ COEFFICIENTS: Final[Mapping[ModelKey, tuple[float, ...]]] = MappingProxyType({
 })
 # R12's envelope e per model.
 # fit.json, runs explore 40646117094 and spread 40646125666.
+# Widened by run 40909768713 (R12).
 ENVELOPE: Final[Mapping[ModelKey, float]] = MappingProxyType({
     ("bolt", "stl-preview", "bytes"): 2.264581945786201,
     ("bolt", "stl-preview", "seconds"): 4.286137349093968,
@@ -144,8 +145,8 @@ ENVELOPE: Final[Mapping[ModelKey, float]] = MappingProxyType({
     ("nut", "stl-preview", "seconds"): 1.061383246630594,
     ("nut", "stl-preview", "peak"): 0.556086702674923,
     ("nut", "stl-fine", "bytes"): 0.4996608149413484,
-    ("nut", "stl-fine", "seconds"): 1.1069417227945801,
-    ("nut", "stl-fine", "peak"): 0.5571452809681212,
+    ("nut", "stl-fine", "seconds"): 1.7812452161769916,
+    ("nut", "stl-fine", "peak"): 0.5976833077470993,
     ("nut", "step", "bytes"): 0.3802587303182223,
     ("nut", "step", "seconds"): 0.8785228687431521,
     ("nut", "step", "peak"): 0.48786919655819627,

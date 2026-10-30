@@ -11610,3 +11610,32 @@ Every other pair is at or under its envelope; the largest of them is outband-nut
 Context, from explore run 40646117094 (one reading per point): the in-band row `iso4032:M2` at stl-fine read a cold wall of 1.5275360059999912 s against an enveloped prediction of 2.291821394778489 s. `outband-nut-m-below-iso4032:M2` carries 2.2918213947784887 s, one float below it: its m of 1.5 is below the band, so it is judged at the low edge, 0.7999999999999999 x d, a float under the row's own m of 1.6. Its own 5 readings at stl-fine have cold walls of 2.681797782999979, 2.4232941209999694, 2.7999014229999375, 1.7008990520000111 and 2.0332102369999916 s (repetitions 1 to 5), the first three above that prediction. `iso4017:M2x4` at stl-fine read 3196784 bytes against 4232659.607919438 enveloped; with its thread_length at 1.0 (G29, 2.5 built turns) it reads 1446684 bytes in all 5 repetitions against 1103003.1831122846 enveloped.
 
 **Outcome: the G28 and G29 check stops the phase for the owner.** Per R11, no e is widened. The envelope check over the other Runs II readings was not run, and fit.json and `calc/cost.py` are unchanged. `docs/tech_debt/active/2026-10-29-cost-model-admits-out-of-fit-head-heights.md` stays active, with these readings added.
+
+**Owner ruling after the stop, 2026-10-30 (G30).** Reply, verbatim: "1: widen nuts, guard G29 (Recommended)". A nut reading of these out-of-band points widens e as a cold isolated reading does (R12), and a bolt reading of them widens nothing. A bolt below `cost.MIN_FITTED_TURNS` built turns is refused at every artifact (bccb6f3), so `turns-below-iso4017:M2x4` is no longer admitted and its bolt stl-fine bytes e is not widened. The six nut pairs above are covered by the widening in the envelope check below. With it, every outband reading is within the shipped envelope or is of a part the shipped rule refuses, and `docs/tech_debt/resolved/2026-10-29-cost-model-admits-out-of-fit-head-heights.md` is resolved.
+
+### envelope check
+
+R12 over every Runs II directory (07-15 Task 3): `python -m bench.oper_sets envelope-check --fit bench/results/phase-07/fit.json --from` bound-40907549180, bound-rerun-40999654995, load-40909724292, gzip-40909739628, gzip-rerun-40999657702, arenas-40909754190 and outband-40909768713, all under `bench/results/phase-07/`. 775 readings; 335 of them may widen e (G5, G21, G30) and are used: the ok contention readings at N = 1 (bound 90, bound-rerun 10), the ok gzip readings (60 and 10), the arena readings (30) and the ok nut out-of-band readings (135). Load readings, contention readings at N = 2 and 3 and bolt out-of-band readings widen nothing. The readings G31 replaced are all `refused`, so none of them is used. The prediction is `cost.predict` (G28's bands included) under fit.json's e before this check (07-09), and the table is the command's output as printed:
+
+| kind | artifact | target | e | largest actual / enveloped prediction | reading | widened e |
+| --- | --- | --- | --- | --- | --- | --- |
+| bolt | stl-preview | bytes | 2.264581945786201 | 0.4115428693571629 | 40907549180:iso4017:M20x180-n1 rep 1 | |
+| bolt | stl-preview | seconds | 4.286137349093968 | 0.24122528491757056 | 40907549180:iso4017:M16x160-n1 rep 3 | |
+| bolt | stl-preview | peak | 2.040087854388461 | 0.3588734859490862 | 40907549180:iso4017:M20x200-n1 rep 3 | |
+| bolt | stl-fine | bytes | 0.5633622849303941 | 0.6840916164239862 | 40907549180:iso4017:M16x150-n1 rep 1 | |
+| bolt | stl-fine | seconds | 2.690232029900006 | 0.3623526229457311 | 40909739628:iso4017:M16x160 rep 3 | |
+| bolt | stl-fine | peak | 2.170967259675211 | 0.38007875206964803 | 40907549180:iso4017:M16x160-n1 rep 1 | |
+| bolt | step | bytes | 0.9874058238127998 | 0.5317023787688461 | 40907549180:iso4017:M16x160-n1 rep 1 | |
+| bolt | step | seconds | 2.616422482555953 | 0.3838164707093669 | 40907549180:iso4017:M20x200-n1 rep 4 | |
+| bolt | step | peak | 0.45747877720379804 | 0.7931848836730653 | 40907549180:iso4017:M16x160-n1 rep 5 | |
+| nut | stl-preview | bytes | 0.7070121785110755 | 0.9721946300680642 | 40909768713:outband-nut-s-below-iso4032:M2 rep 1 | |
+| nut | stl-preview | seconds | 1.061383246630594 | 0.9349911369651408 | 40909768713:outband-nut-s-below-iso4032:M2 rep 3 | |
+| nut | stl-preview | peak | 0.556086702674923 | 0.846383629385712 | 40909768713:outband-nut-s-below-iso4032:M2 rep 3 | |
+| nut | stl-fine | bytes | 0.4996608149413484 | 0.9981109610467054 | 40909768713:outband-nut-s-below-iso4032:M2 rep 1 | |
+| nut | stl-fine | seconds | 1.1069417227945801 | 1.3200389864072921 | 40909768713:outband-nut-s-below-iso4032:M2 rep 3 | 1.7812452161769916 |
+| nut | stl-fine | peak | 0.5571452809681212 | 1.0260335546557187 | 40909768713:outband-nut-s-below-iso4032:M2 rep 3 | 0.5976833077470993 |
+| nut | step | bytes | 0.3802587303182223 | 0.8292718955725624 | 40907549180:nut-d100-p3.5-m3d-s4d-c5-right-n1 rep 1 | |
+| nut | step | seconds | 0.8785228687431521 | 0.913267611295669 | 40907549180:nut-d100-p3.5-m3d-s4d-c5-right-n1 rep 1 | |
+| nut | step | peak | 0.48786919655819627 | 0.7976425289210423 | 40907549180:nut-d100-p3.5-m3d-s4d-c5-right-n1 rep 1 | |
+
+**Outcome: two e widen, both from outband run 40909768713, as G30 rules.** The nut stl-fine seconds e goes from 1.1069417227945801 to 1.7812452161769916 and the peak e from 0.5571452809681212 to 0.5976833077470993, each raised by whole ulps until the factor covers every kept reading. No other kept reading is above its enveloped prediction. The widened envelope refuses none of the 294 bolt and 14 nut catalogue rows and neither default part at any artifact, so B-01's budget and the refused-preset count do not move. fit.json changes only those two `envelope` values and gains `widened_by: ["40909768713"]`; `calc/cost.py`'s block is re-emitted; L22 of `docs/architecture/decision_log.md` records both. No Runs II file and not `tier-order.json` is regenerated: each still regenerates under the envelope it records (G6), and `python -m bench.oper_sets --check` exits 0.

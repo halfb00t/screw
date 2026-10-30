@@ -1,7 +1,8 @@
 # The cost model admits a part it refuses once its head height leaves the fitted band
 
 Severity: must
-Status: active
+Status: resolved
+Resolved in: this commit — `feat(calc): widen the cost model's envelope to cover every cold isolated Runs II reading (07 D-07)` (`git log --grep` finds the sha)
 Date: 2026-10-29
 Source: plan 07-11 (the cost model wired into `download_refusal`). Found while moving the tests.
 Ruled on 2026-10-29 as G28 (`07-GAP-RULINGS.md`); guarded since commit bc7b2ab. Trigger: 07-15's
@@ -84,3 +85,21 @@ their enveloped prediction, 20 readings in all, every one a first-in-file M2 row
 No nearest-the-budget point, and no point at stl-preview or step, exceeds its envelope. The figures
 and their context are in `bench/RESULTS.md`, `### out-of-band check` under `## Phase 7 Runs II`.
 Under R11 and G28 this stops the phase for the owner and widens no e. The item stays active.
+
+## Resolution (2026-10-30, G30)
+The owner ruled G30 on the stop above. Reply, verbatim: "1: widen nuts, guard G29 (Recommended)".
+
+- The six nut pairs widen e as cold isolated readings do. Over every Runs II directory, the
+  envelope check raises the nut stl-fine seconds e from 1.1069417227945801 to 1.7812452161769916
+  and the peak e from 0.5571452809681212 to 0.5976833077470993. Both are set by
+  `outband-nut-s-below-iso4032:M2` rep 3 of run 40909768713. The widening refuses no catalogue row
+  and neither default part (`bench/RESULTS.md`, `### envelope check`; L22).
+- The G29 bolt, `turns-below-iso4017:M2x4`, is no longer admitted. A bolt below
+  `cost.MIN_FITTED_TURNS` built turns is refused at every artifact (bccb6f3), and its bolt stl-fine
+  bytes e is not widened.
+
+So every outband reading is now within the shipped envelope, or is of a part the shipped rule
+refuses. The below-band ASSUMPTION was tested: the nut readings below the band overran their
+low-edge prediction only at the cheap M2 end of the fine STL, by at most 1.3200 x, and the widened
+envelope covers them. The milder relative, a preview refused while the fine STL is admitted, stays
+recorded in L21 by G28's reply 3.
