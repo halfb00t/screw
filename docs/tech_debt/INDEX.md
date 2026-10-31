@@ -32,7 +32,7 @@ Severity (grep-able `Severity:` field):
 | nice | [The M18 probe's --one entry has no deadline when started by hand during a run](active/2026-10-14-m18-probe-one-entry-has-no-deadline-during-a-run.md) | the probe is reused, or the owner wants the entry closed completely |
 | nice | [check_solid discards the volume estimator's own error estimate](active/2026-10-11-check-solid-ignores-the-volume-error-estimate.md) | when the gate or T_GATE next changes |
 | must | [Two thread spike protocol amendments wait for the owner before the next campaign](active/2026-10-10-spike-protocol-amendments-before-next-campaign.md) | before the next thread-spike campaign runs |
-| nice | [The infrastructure forked from spur is not a shared package](active/2026-10-05-shared-infra-extraction.md) | fired: the pool.py race guard (L09) — owner decides extract vs fix twice |
+| nice | [The infrastructure forked from spur is not a shared package](active/2026-10-05-shared-infra-extraction.md) | fired: the pool.py race guard (L09) and pr_land.py's full-tier rule (L27) — owner decides extract vs fix twice |
 | nice | [Enji Guard not connected](active/2026-10-05-enji-guard-not-connected.md) | first product code on `main`, or the owner decides they want continuous AI audit |
 
 ## Resolved

@@ -21,6 +21,11 @@ open `must` debt, `2026-10-02-same-slot-timeout-cleanup-race-produces-undocument
 The fix must now land in both repos, and the two copies of `pool.py` have diverged for the
 first time.
 
+2026-10-31: the trigger fired a second time. In plan 07-19 (L27), `scripts/pr_land.py` diverged
+from spur's copy: `make pr.land` also refuses a PR that touches the cost model's files or
+`src/screw/solid/` until the full operability tier is green on its head (`FULL_TIER_PATHS`,
+`check_full_tier`). spur has no such tier and no such rule.
+
 ## Why it matters
 A fix in one repo's copy is not a fix in the other's. Until the trigger fires this is
 cheaper than a third repository with a guessed API; after it fires, every shared fix is

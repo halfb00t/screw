@@ -152,6 +152,10 @@ only in the typed parameter model; the longer the fork lives, the more they dive
 
 Extended by L26: the required jobs gain the four `bounds` shards of the required operability tier.
 
+Extended by L27: `make pr.land` also requires a green full operability tier on the head of a PR
+that touches the cost model's files or `src/screw/solid/`, and `scripts/pr_land.py` is no longer
+spur's byte for byte.
+
 Date: 2026-10-06. Decided by the owner in the Phase 1 discussion (D-11, D-12, D-17, D-19).
 A port of spur's L22 and L25, which carry the evidence; this entry says what is ported,
 what is different here, and what is deferred.
@@ -2149,3 +2153,49 @@ such a change lands, at a cost no required job could carry.
 Reversibility: reversible. The `bounds` job and its 4 entries in `required-jobs.txt`, and one
 workflow file's triggers and jobs, removed in one commit. The point sets stay as records.
 
+## L27 — make pr.land also requires a green full operability tier on the head of a PR that touches the cost model's files or src/screw/solid/
+
+Date: 2026-10-31. Decided by D-13 of Phase 7. Extends L08's `make pr.land`, and that entry is not
+edited.
+
+**The rule.** Before it merges, `scripts/pr_land.py` reads the PR's changed paths with
+`gh api repos/{owner}/{repo}/pulls/<n>/files --paginate --jq '.[].filename'`. When any path is on
+`FULL_TIER_PATHS`, it reads the runs of `FULL_TIER_WORKFLOW` (`operability.yml`) for the PR's head
+sha, keeping only runs named `operability: full`. It refuses unless the newest of them completed
+with conclusion `success`, and the refusal names the paths, the workflow and the sha. A dispatch of
+another set on the same head is therefore no stand-in for the full tier. A failed or unparseable
+read of the files or the runs is itself a refusal, never "no matching path". Nothing is merged on a
+refusal. A PR that touches no listed path lands as before, with the files read the only new call.
+`WORKFLOW` stays `ci.yml`.
+
+**Why it reads the diff.** A PR author controls the workflow file in their own PR, so the
+workflow's `paths:` filter cannot be the authority: it only saves runs. The list in `pr_land.py`
+decides. Two tests in `tests/test_pr_land.py` hold it on `main`. One holds it equal to the
+workflow's `paths:`, with `/**` written as a `/` prefix, as `required-jobs.txt` is held to ci.yml.
+The other walks `src/screw/calc/cost.py`'s imports with `ast`, relative and function-level ones
+included, and holds every `src/screw` module the closure reaches to the list.
+
+**The list.** It holds `src/screw/calc/cost.py`, which carries the model, the budgets and the
+timeouts. Its import closure is `src/screw/calc/thread.py`, whose `built_thread_length` is a cost
+feature and which holds the turn and tail walls and L25's pitch walls, and `src/screw/params.py`,
+which holds the field ceilings. `src/screw/solid/` carries the tessellation constants and the build.
+
+**The two exclusions.** `src/screw/calc/__init__.py`, the admission wiring, and `src/screw/pool.py`
+and `src/screw/app.py`, the D-14 deadline and the timeout's application (L24), are not on the
+list. The tiers build each point in its own container from the set the cost module admits, never
+through `download_refusal` or `BuildPool`, so a full-tier run cannot observe them. `make verify`
+pins them on every PR through the required `test (3.12)` job. `tests/test_cost.py` holds
+`download_refusal` equal to `cost.refusal` for both kinds and every artifact (07-11), and
+`tests/test_pool.py` holds the deadline formula (07-02).
+
+**The spur port.** `scripts/pr_land.py` is no longer the byte-for-byte port of spur that L08
+recorded. This is the L07 extraction trigger firing a second time, after L09's pool guard. The
+item `docs/tech_debt/active/2026-10-05-shared-infra-extraction.md` records it and stays active,
+and whether to extract is the owner's decision. GitHub's ruleset on `main` is unchanged: L08's
+strict up-to-date policy still closes the window between this read and the merge. The full tier is
+not a required status check, so the rule binds only merges made through `make pr.land`.
+
+Reason: the full tier only protects `main` if the merge waits for the run the trigger starts, and
+one path list, held by tests, decides both.
+
+Reversibility: reversible. One rule and one constant pair in `scripts/pr_land.py`, and its tests.
