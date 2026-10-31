@@ -87,22 +87,30 @@ FULL_TIER_PATHS: tuple[str, ...] = (
 # stand in for it, so the runs read keeps only runs of this name.
 FULL_TIER_RUN_NAME = "operability: full"
 
-# What judges the full tier (screw L28, the phase 7 security audit). The run `check_full_tier`
-# reads is picked by that name, and the name, the jobs, the readings and the verdict all come from
-# the PR's own checkout: the workflow, the bench code it runs (`bench.oper` on the runner, and
-# `bench.oper_child` with `bench.oper_lift` in each container, from the mounted `bench/`) and the
-# point set whose timeouts and limits the verdict judges against. A PR that edits one of them can
-# make its own run pass, so `gate_refusals` refuses it unless the owner passes `GATE_FLAG`. Left
-# out, for the reasons L28 gives: `bench/oper_bound.py`, `bench/oper_load.py` and
-# `bench/thread_spike/` run only for bound, load and probe points, and full.json holds none. A test
-# derives this list from operability.yml and pins full.json's kinds.
+# What judges a PR's own runs (screw L28, the phase 7 security audit, T-07-71 and T-07-72). The
+# full-tier run `check_full_tier` reads is picked by that name, and the name, the jobs, the
+# readings and the verdict all come from the PR's own checkout: the workflow, the bench code it
+# runs (`bench.oper` on the runner, and `bench.oper_child` with `bench.oper_lift` in each container,
+# from the mounted `bench/`) and the point set whose timeouts and limits the verdict judges
+# against. The same holds for the required jobs `check_head` reads: ci.yml defines them, and its
+# `bounds` shards judge `tests/data/oper_boundary.json` with the same bench code. Merging also puts
+# the PR's `required-jobs.txt` on main, where every later landing reads it. A PR that edits one of
+# these files can make its own run pass, so `gate_refusals` refuses it unless the owner passes
+# `GATE_FLAG`. Left out, for the reasons L28 gives: `bench/oper_bound.py`, `bench/oper_load.py`
+# and `bench/thread_spike/` run only for bound, load and probe points, and neither point file
+# holds one. `test (3.12)` runs `make verify` on the PR's own tests, which is inherent to CI and
+# not guarded. A test derives this list from operability.yml and ci.yml's `bounds` job, and pins
+# both point files' kinds.
 GATE_PATHS: tuple[str, ...] = (
+    ".github/workflows/ci.yml",
     ".github/workflows/operability.yml",
+    ".github/workflows/required-jobs.txt",
     "bench/__init__.py",
     "bench/oper.py",
     "bench/oper_child.py",
     "bench/oper_lift.py",
     "bench/points/full.json",
+    "tests/data/oper_boundary.json",
 )
 GATE_FLAG = "--owner-approves-gate-change"
 
@@ -455,14 +463,14 @@ def full_tier_refusals(changed: list[str], run: WorkflowRun | None, sha: str) ->
 
 def gate_refusals(pr_number: int, changed: list[str], owner_approves: bool) -> list[str]:
     """A refusal naming every `changed` path on `GATE_PATHS` and `GATE_FLAG`, unless the owner
-    passed it (L28); nothing when no such path is touched. The PR's own full-tier run cannot
-    vouch for a change to what judges it, so only the owner's reading of the diff can."""
+    passed it (L28); nothing when no such path is touched. The PR's own runs cannot vouch for a
+    change to what judges them, so only the owner's reading of the diff can."""
     touched = [path for path in changed if path in GATE_PATHS]
     if not touched or owner_approves:
         return []
-    return [f"pr.land: the PR touches {', '.join(touched)}, which decide its own full "
-            f"{FULL_TIER_WORKFLOW} verdict, so that run cannot vouch for it. If the owner has "
-            f"reviewed and approves the change: make pr.land PR={pr_number} "
+    return [f"pr.land: the PR touches {', '.join(touched)}, which decide the verdict of its own "
+            f"{WORKFLOW} or {FULL_TIER_WORKFLOW} runs, so those runs cannot vouch for it. If the "
+            f"owner has reviewed and approves the change: make pr.land PR={pr_number} "
             f"PR_LAND_FLAGS={GATE_FLAG}"]
 
 

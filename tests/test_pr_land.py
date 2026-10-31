@@ -1241,28 +1241,29 @@ def test_pr_land_land_merges_a_gate_change_the_owner_approves() -> None:
     assert land(3, runner, sleep=lambda _: None, owner_approves_gate_change=True) == 0
 
 
-BENCH = REPO_ROOT / "bench"
 # Modules the full tier never runs, because full.json has no point of their kind: bound points
 # run `bench.oper_bound`, load points `bench.oper_load` and probe points `bench.thread_spike`.
 _KIND_ONLY = ("bench.oper_bound", "bench.oper_load", "bench.thread_spike")
 
 
-def full_tier_judge_files(workflow: str) -> set[str]:
-    """The files that decide a full-tier verdict, derived from the workflow text: the workflow,
-    the point set its `--set` names, and the `bench` import closure (`ast`, function-level
-    imports included, every enclosing package's `__init__.py` counted) of the modules its
-    `python -m` lines run plus `bench.oper_child`, which `bench.oper run` starts in each
-    container by name (`reading_argv`), less `_KIND_ONLY`."""
+def judge_files(name: str, workflow: str) -> set[str]:
+    """The files that decide the verdict of `workflow`'s jobs, derived from its text: the
+    workflow file `name`, the point set each `--set` names, the boundary file each
+    `bench.oper check` reads, and the `bench` import closure (`ast`, function-level imports
+    included, every enclosing package's `__init__.py` counted) of the modules its `python -m`
+    lines run plus `bench.oper_child`, which `bench.oper run` and `check` start in each container
+    by name (`reading_argv`), less `_KIND_ONLY`."""
     sets = set(re.findall(r"--set ([a-z0-9-]+)", workflow))
-    found = {f".github/workflows/{FULL_TIER_WORKFLOW}"} | {f"bench/points/{s}.json" for s in sets}
-    todo = [*re.findall(r"python -m (bench[.\w]*)", workflow), "bench.oper_child"]
+    found = ({f".github/workflows/{name}"} | {f"bench/points/{s}.json" for s in sets}
+             | set(re.findall(r"-m bench\.oper check (\S+)", workflow)))
+    todo = [*re.findall(r"python3? -m (bench[.\w]*)", workflow), "bench.oper_child"]
     seen: set[str] = set()
     while todo:
-        name = todo.pop()
-        if name in seen or name.startswith(_KIND_ONLY):
+        module_name = todo.pop()
+        if module_name in seen or module_name.startswith(_KIND_ONLY):
             continue
-        seen.add(name)
-        parts = name.split(".")
+        seen.add(module_name)
+        parts = module_name.split(".")
         for depth in range(1, len(parts) + 1):
             package = REPO_ROOT.joinpath(*parts[:depth], "__init__.py")
             if package.is_file():
@@ -1280,20 +1281,36 @@ def full_tier_judge_files(workflow: str) -> set[str]:
     return found
 
 
-def test_gate_paths_are_what_the_workflow_runs_and_the_set_its_verdict_reads() -> None:
-    """T-07 audit, L28: a bench module the full tier starts to import, or a new point set the
-    workflow reads, fails here until it is on GATE_PATHS."""
-    workflow = (REPO_ROOT / ".github" / "workflows" / FULL_TIER_WORKFLOW).read_text()
-    assert "python -m bench.oper verdict --set full --from records" in workflow
-    assert full_tier_judge_files(workflow) == set(GATE_PATHS)
+def _job_block(workflow: str, job: str) -> str:
+    """Job `job`'s lines: from its two-space id line to the next one, or the end."""
+    start = workflow.index(f"\n  {job}:\n")
+    following = re.search(r"\n  [\w-]+:\n", workflow[start + 1:])
+    return workflow[start:start + 1 + following.start()] if following else workflow[start:]
 
 
-def test_the_full_set_has_no_point_of_a_kind_the_gate_leaves_out() -> None:
+def test_gate_paths_are_what_the_full_tier_and_the_bounds_job_run_and_read() -> None:
+    """T-07-71, T-07-72, L28: a bench module either verdict starts to import, or a new point or
+    boundary file a workflow reads, fails here until it is on GATE_PATHS. ci.yml contributes only
+    its `bounds` job: `test (3.12)` runs the PR's own `make verify`, inherent to CI and unguarded,
+    and `required-jobs.txt` is guarded because merging makes it main's list."""
+    workflows = REPO_ROOT / ".github" / "workflows"
+    oper = (workflows / FULL_TIER_WORKFLOW).read_text()
+    bounds = _job_block((workflows / WORKFLOW).read_text(), "bounds")
+    assert "python -m bench.oper verdict --set full --from records" in oper
+    assert "python3 -m bench.oper check tests/data/oper_boundary.json" in bounds
+    derived = (judge_files(FULL_TIER_WORKFLOW, oper) | judge_files(WORKFLOW, bounds)
+               | {".github/workflows/required-jobs.txt"})
+    assert derived == set(GATE_PATHS)
+
+
+@pytest.mark.parametrize("points_file", ["bench/points/full.json",
+                                         "tests/data/oper_boundary.json"])
+def test_no_judged_point_is_of_a_kind_the_gate_leaves_out(points_file: str) -> None:
     """The reason `_KIND_ONLY` is not on GATE_PATHS: a bound, load or probe point added to
-    full.json would run one of them, and this fails first."""
+    either file would run one of them, and this fails first."""
     from bench.oper import BOUND_KINDS, LOAD_KIND, PROBE_KIND
 
-    points = json.loads((BENCH / "points" / "full.json").read_text())["points"]
+    points = json.loads((REPO_ROOT / points_file).read_text())["points"]
     kinds = {point["kind"] for point in points}
     assert kinds
     assert not kinds & (BOUND_KINDS | {LOAD_KIND, PROBE_KIND})

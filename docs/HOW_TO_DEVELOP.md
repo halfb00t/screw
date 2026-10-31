@@ -154,9 +154,10 @@ phase branch only if its tip is the landed commit. Any refusal means nothing was
 
 Two more refusals read the PR's diff. A PR that touches the cost model's files or
 `src/screw/solid/` needs a green full `operability.yml` run on its head (`L27`). A PR that
-touches a file that decides that run's verdict (`GATE_PATHS` in `scripts/pr_land.py`: the
-workflow, the bench code it runs and `bench/points/full.json`) is refused, because its own run
-cannot vouch for it. Read the diff, and if you approve it, run
+touches a file that decides that run's verdict or a required job's (`GATE_PATHS` in
+`scripts/pr_land.py`: `ci.yml`, `operability.yml`, `required-jobs.txt`, the bench code they run
+and the two point files they judge against) is refused, because its own runs cannot vouch for
+it. Read the diff, and if you approve it, run
 `make pr.land PR=N PR_LAND_FLAGS=--owner-approves-gate-change` (`L28`).
 
 `make pr.land` is a tool, not a wall: it checks the job list and the lag behind `main` at
