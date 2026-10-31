@@ -1809,10 +1809,13 @@ def head_ratio_points(envelope: Envelope, budget: Budget = cost.BUDGET
     on its form step strictly below the band's low edge x d (above: strictly above its high edge
     x d), the walls and the rule admit: the one nearest the budget and the first in file order.
     One far point above, the first row admitted with the field at 10 x the high edge x d on its
-    step, where one is. A side no row supplies is a stop (R11)."""
+    step, where one is. A side no row supplies is a stop (R11). G38's clearance band, in mm, came
+    after these points were read and is not a head ratio, so it draws none."""
     points: list[dict[str, object]] = []
     absent: list[str] = []
     for (kind, field), (low, high) in cost.BANDS.items():
+        if (kind, field) in cost.BANDED_IN_MM:
+            continue
         step = _form_step(kind, field)
         for artifact in cost.ARTIFACTS:
             for side in ("below", "above", "far"):

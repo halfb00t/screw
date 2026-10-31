@@ -208,11 +208,12 @@ def test_each_band_is_its_ratios_extremes_over_the_fitted_points_with_defaults_f
     points = [_point("bolt", "a", {"d": 10.0, "s": 16.0, "k": 6.0}),
               _point("bolt", "b", {"d": 20.0, "s": 40.0, "k": 11.0}),
               _point("bolt", "default", {}),          # d 6, s 10, k 4: the frozen defaults
-              _point("nut", "n", {"d": 8.0, "s": 13.0, "m": 6.5}),
-              _point("nut", "m", {"d": 4.0, "s": 16.0})]  # m takes its default 5.2
+              _point("nut", "n", {"d": 8.0, "s": 13.0, "m": 6.5, "clearance": 2.0}),
+              _point("nut", "m", {"d": 4.0, "s": 16.0})]  # m 5.2 and clearance 0.15: defaults
     assert oper_fit.head_bands(points) == {
         ("bolt", "k"): (0.55, 4.0 / 6.0), ("bolt", "s"): (1.6, 2.0),
-        ("nut", "s"): (13.0 / 8.0, 4.0), ("nut", "m"): (6.5 / 8.0, 1.3)}
+        ("nut", "s"): (13.0 / 8.0, 4.0), ("nut", "m"): (6.5 / 8.0, 1.3),
+        ("nut", "clearance"): (0.15, 2.0)}  # G38: in mm, not over d
 
 
 # ln_k -1 and ln_s +1, nothing else: a taller head predicts cheaper, a wider one dearer.

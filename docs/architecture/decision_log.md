@@ -1796,6 +1796,9 @@ Superseded in part by L22: two rows of the envelope table, the nut stl-fine seco
 widened by outband run 40909768713; and a bolt below `cost.MIN_FITTED_TURNS` built turns is no
 longer predicted but refused at every artifact.
 
+Superseded in part by L29: the head-ratio bands also carry the nut's `clearance`, banded in mm, so a
+clearance below the 0.15 mm the fit read is judged at that low edge too.
+
 ## L22 — The out-of-band nut readings widen the nut fine-STL envelope, and a bolt below the fitted turns is refused at every artifact
 
 Date: 2026-10-30. Decided by the owner's ruling G30 (`07-GAP-RULINGS.md`; the refusal shape in
@@ -2264,3 +2267,38 @@ Reason: a run cannot vouch for a change to the code that judges it.
 
 Reversibility: reversible. One constant, one rule and one flag in `scripts/pr_land.py`, the
 `PR_LAND_FLAGS` pass-through in the Makefile, and their tests.
+
+## L29 — The nut's clearance is banded like the head ratios: below the two values the fit read, it is judged at the low edge
+
+Date: 2026-10-31. Decided by the owner's ruling G38 (`07-GAP-RULINGS.md`; `07-OWNER-RULINGS.md`,
+"R11: the nut's clearance is banded like the head ratios") on finding CR-01 of the phase 7 code
+review (`07-REVIEW.md`), and by R11 of `07-SWEEP-PROTOCOL.md` as amended by it. Supersedes in part
+L21 (its head-ratio paragraph: the bands now include one field that is not a ratio).
+
+**The defect.** R11 fits a nut's `clearance` as a plain linear feature, and the fitted points of
+explore 40646117094 and spread 40646125666 hold it at two values only. The stl-fine nut coefficients
+of `clearance` are positive, so a clearance below 0.15 mm predicted a cheaper nut than any reading.
+`NutParams(d=163.65, pitch=21.743, s=387.26, m=1589.12, clearance=-30.32)` was admitted at the fine
+STL on a raw prediction of 24,513,233 bytes; the review's `solid.export` wrote 591,529,584 bytes on
+macOS arm64 (mesh bytes are geometry), past the 256 MiB export tmpfs.
+
+**The rule.** `bench.oper_fit.head_bands` computes the clearance band, the [min, max] over the
+fitted nut points with omitted fields at their defaults, in mm (`oper_fit.MM_BANDS`,
+`cost.BANDED_IN_MM`), and `emit-constants` ships it in `cost.BANDS` with the head-ratio bands:
+`("nut", "clearance"): (0.15, 5.0)`. G28's one-sided rule (L21) applies: a clearance above the band
+is predicted as the largest of raw and both edges, one below it as max(raw, low edge), combined with
+the part's other out-of-band edges. `cost.predict` and `bench.oper_fit.predict` agree bit for bit.
+ASSUMPTION, unmeasured on the runner: a smaller clearance never costs more than one at the low edge.
+
+**What moves.** The reproducer is refused at every artifact. No catalogue row moves (every one of the
+14 nut rows is at the default 0.15, and the 294 bolt rows have no clearance), so B-01's C1 budget and
+the presets are unchanged; both default parts are admitted at every artifact; a clearance inside the
+band predicts as before, bit for bit; every point file `--check` writes again, the tier files and
+`runtime.json` are unchanged, and `python -m bench.oper_fit table` writes the same bytes with the
+band as without it. `tests/test_cost.py` pins each of these.
+
+Reason: a number the tool prints is a number someone will cut metal to (L02), and a part is admitted
+only on a prediction some reading covers.
+
+Reversibility: costly, as L21. A run that reads nuts outside the band (R11's out-of-band set) needs
+a superseding entry to widen `e` or move the band.

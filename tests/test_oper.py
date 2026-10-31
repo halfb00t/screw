@@ -2890,8 +2890,9 @@ def test_a_bolt_below_the_fitted_turns_was_read_on_the_runner_and_is_now_refused
             "admitted: the one closest to the budget and the first in catalogue order") in rule
     assert "Those readings widen no `e`" in rule
     assert rule.count("stops the phase for the owner and does not widen `e`") == 1
+    # The head ratios, the nut widening, the turns floor and the clearance band (G38).
     assert rule.count("added after the first runner reading by the owner's ruling that R30 asks "
-                      "for") == 3
+                      "for") == 4
     rulings = (PROTOCOL.parent / "07-GAP-RULINGS.md").read_text()
     assert ("\n## Gap G29 (owner ruling on named threads below the fitted turns, 2026-10-29)\n"
             in rulings)

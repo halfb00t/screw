@@ -1478,6 +1478,8 @@ def test_g28_reads_each_ratio_below_and_above_its_band_with_admitted_catalogue_r
             field: getattr(part, field)}
         seen.setdefault((kind, field, side, where), []).append(row)
     for (kind, field), _band in cost.BANDS.items():
+        if (kind, field) in cost.BANDED_IN_MM:  # G38's clearance band draws no G28 point
+            continue
         first = "iso4017:M2x4" if kind == "bolt" else "iso4032:M2"
         for side in ("below", "above"):
             for artifact, nearest in zip(ARTIFACTS3, NEAREST[kind, field, side], strict=True):

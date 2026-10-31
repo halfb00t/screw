@@ -330,6 +330,16 @@ admission admitted: the one closest to the budget and the first in catalogue ord
 widen no `e`. This sentence was added after the first runner reading by the owner's ruling that R30
 asks for.
 
+The nut's `clearance` is banded as the head ratios are, in millimetres rather than over d: its band
+is its smallest and largest value over the fitted nut points, each point's fields read through the
+parameter model so that an omitted field takes its default, computed from the records by code and
+shipped with the head-ratio bands, never typed. A clearance above its band takes both edges and one
+below it the smallest only, combined with the part's other out-of-band edges, and the prediction is
+the largest of these and the raw one, target by target, as for the head ratios. Below the band this
+assumes, without a measurement, that a smaller clearance never costs more than one at the low edge.
+Inside the band the prediction is the fit's own, unchanged. This sentence was added after the first
+runner reading by the owner's ruling that R30 asks for.
+
 ## R12 - The envelope (D-07)
 
 For each (kind, artifact, target) the envelope `e` is `max(0, largest actual / predicted - 1)` over

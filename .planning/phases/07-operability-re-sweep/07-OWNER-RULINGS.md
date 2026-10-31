@@ -258,3 +258,16 @@ coarse pitch, 57 to 90 turns) that no runner has read. The owner's replies, verb
    phase stops for the owner.
 2. "R4 'dropped' list (Recommended)". The 201 nut-factorial points the parameter model refuses
    go in the full set's `dropped` array with their error type and are not judged.
+
+## R11: the nut's clearance is banded like the head ratios (2026-10-31, G38)
+
+Source: the phase 7 code review, CR-01 (`07-GAP-RULINGS.md`, G38, holds its figures). The fit read
+a nut's `clearance` at 0.15 and 5.0 mm only, and a nut at clearance -30.32 was admitted at the fine
+STL on a prediction a 591,529,584-byte build contradicts. The owner's reply, verbatim (the label
+"(Recommended)" is the orchestrator's, not part of the ruling): "Band clearance like G28
+(Recommended)".
+
+Ruling: the clearance band is the [min, max] over the fitted nut points, emitted into
+`cost.BANDS` by `emit-constants`, never typed: (0.15, 5.0) mm. G28's one-sided rule applies to
+it: above the band the largest of raw and both edges, below it max(raw, low edge). No catalogue
+row and neither default part moves, and the reproducer is refused at every artifact.

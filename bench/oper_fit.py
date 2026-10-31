@@ -71,6 +71,12 @@ FEATURES: dict[str, tuple[str, ...]] = {
 # model): outside its band a ratio is predicted no lower than anywhere in the band (R11).
 RATIOS: dict[str, tuple[str, ...]] = {"bolt": ("k", "s"), "nut": ("s", "m")}
 
+# G38's fields banded in mm, not over d: the nut's `clearance` is a plain linear feature, and the
+# fitted points hold it at two values only (0.15 and 5 mm), so below them the stl-fine nut models
+# predicted a cheaper part than any reading (a nut at clearance -30.32 predicted 24.5 MB, built
+# 591.5 MB). G28's one-sided rule bands it as it bands the head ratios.
+MM_BANDS: dict[str, tuple[str, ...]] = {"nut": ("clearance",)}
+
 # The repetitions each fitted set asked for (R3, R4): explore reads once, spread five times.
 SET_REPS: dict[str, tuple[int, ...]] = {"explore": (1,), "spread": (1, 2, 3, 4, 5)}
 
@@ -172,14 +178,24 @@ def features(kind: str, params: Params) -> list[float]:
 
 def head_bands(points: Iterable[FitPoint]) -> dict[tuple[str, str], tuple[float, float]]:
     """G28: each head ratio's [min, max] over the fitted points of its kind, an omitted field at
-    its frozen default, as `features` reads it. `emit-constants` ships these as `cost.BANDS`."""
+    its frozen default, as `features` reads it; then G38's, each `MM_BANDS` field's [min, max] in
+    mm. `emit-constants` ships these as `cost.BANDS`."""
     full = [(p.kind, _full(p.kind, p.params)) for p in points]
     found: dict[tuple[str, str], tuple[float, float]] = {}
     for kind, fields in RATIOS.items():
         for field in fields:
             ratios = [_num(q[field]) / _num(q["d"]) for k, q in full if k == kind]
             found[kind, field] = (min(ratios), max(ratios))
+    for kind, fields in MM_BANDS.items():
+        for field in fields:
+            values = [_num(q[field]) for k, q in full if k == kind]
+            found[kind, field] = (min(values), max(values))
     return found
+
+
+def _scale(kind: str, field: str, d: float) -> float:
+    # A head ratio is banded over d (G28), an `MM_BANDS` field in mm (G38).
+    return 1.0 if field in MM_BANDS.get(kind, ()) else d
 
 
 def min_turns(points: Iterable[FitPoint]) -> float:
@@ -199,16 +215,18 @@ def edges(kind: str, params: Params, bands: Bands) -> list[dict[str, float]]:
     """G28: every combination of band edges of the part's out-of-band head ratios, as the fields
     each sets (edge x d, every other field held); empty when every ratio is in its band. A ratio
     above its band takes both edges, one below it the low edge only (ruling 5): a smaller head is
-    assumed, unmeasured, never to cost more than one at the low edge."""
+    assumed, unmeasured, never to cost more than one at the low edge. G38: the nut's clearance is
+    banded the same way, its edges in mm (`MM_BANDS`)."""
     full = _full(kind, params)
     d = _num(full["d"])
     out: list[tuple[str, tuple[float, ...]]] = []
     for (k, field), (low, high) in bands.items():
-        ratio = _num(full[field]) / d if k == kind else low
+        scale = _scale(k, field, d)
+        ratio = _num(full[field]) / scale if k == kind else low
         if ratio > high:
-            out.append((field, (low * d, high * d)))
+            out.append((field, (low * scale, high * scale)))
         elif ratio < low:
-            out.append((field, (low * d,)))
+            out.append((field, (low * scale,)))
     if not out:
         return []
     names = [field for field, _ in out]
@@ -667,9 +685,10 @@ def _wrapped(head: str, items: Sequence[str], tail: str) -> list[str]:
 def emit_constants(document: Mapping[str, object], rulings: str, bands: Bands,
                    turns: float) -> str:
     """The Python block `calc/cost.py` carries between `EMIT_BEGIN` and `EMIT_END`: the
-    coefficients and envelopes of fit.json, G28's head-ratio bands and B-03's turns floor of the
-    records fit.json was fitted on, and B-01's budget, floats written with `repr`, so the shipped
-    numbers are generated from their evidence, never typed (D-05, D-07, G28, B-03)."""
+    coefficients and envelopes of fit.json, G28's head-ratio bands, G38's clearance band and
+    B-03's turns floor of the records fit.json was fitted on, and B-01's budget, floats written
+    with `repr`, so the shipped numbers are generated from their evidence, never typed (D-05,
+    D-07, G28, G38, B-03)."""
     models = models_of(document)
     runs = document["run_ids"]
     if not isinstance(runs, dict):
@@ -692,8 +711,9 @@ def emit_constants(document: Mapping[str, object], rulings: str, bands: Bands,
     lines += ["ENVELOPE: Final[Mapping[ModelKey, float]] = MappingProxyType({"]
     lines += [f'    ("{k}", "{a}", "{t}"): {m.envelope!r},' for (k, a, t), m in models.items()]
     lines += ["})",
-              "# G28's band of each head ratio, field / d: its [min, max] over the fitted",
-              "# points of its kind, an omitted field at its default (R11).",
+              "# G28's band of each head ratio, field / d, and G38's of the nut's clearance,",
+              "# in mm: its [min, max] over the fitted points of its kind, an omitted field at",
+              "# its default (R11).",
               f"# The records of runs explore {', '.join(runs['explore'])} and spread "
               f"{', '.join(runs['spread'])}.",
               "BANDS: Final[Mapping[tuple[str, str], tuple[float, float]]] = MappingProxyType({"]

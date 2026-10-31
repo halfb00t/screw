@@ -459,3 +459,45 @@ R29 judge the full tier as written. Ruling 2 is R4 as written.
 | Gap | Rule(s) | Owner ruling |
 |---|---|---|
 | G37 | R28, R29, R4 | (1) Before the full tier's trigger and merge gate are built, the 18 dense-boundary points inside the residual region are read once on the runner, as a set written by committed code and committed before it is dispatched, with its records committed before they are used. Each point is judged as the full tier judges it (R29: `ok`, a cold wall within its timeout, every target within prediction x (1 + e)); the tip piece of each distinct part is read alongside and reported against T_PIECE. If all 18 pass, the full tier judges every point as R28 and R29 write it, with no exclusion. If any is refused, or reads over its envelope or past its timeout, the phase stops for the owner before the trigger and the gate are built. (2) A full-tier combination the parameter model refuses (201 nut-factorial points: 171 `pitch_too_fine`, 30 `turn_cap`) is listed in the file's `dropped` array with its error type and is not judged (R4). |
+
+## Gap G38 (owner ruling on the nut clearance the cost model was not fitted on, 2026-10-31)
+
+Source: `07-REVIEW.md`, CR-01. R11 fits a nut's `clearance` as a plain linear feature, and the
+fitted points (explore 40646117094, spread 40646125666) hold it at two values only: computed by
+`bench.oper_fit.head_bands` over the 1529 fitted points with omitted fields at their defaults, its
+[min, max] is [0.15, 5.0] mm. The parameter model allows a clearance from about
+`-(d/2 - 5H/8 - 0.01)` up to 496.999 mm, and G28's band guard covered the head ratios only. The
+stl-fine nut coefficients of `clearance` are positive (bytes 0.112, seconds 0.065, peak 0.055 per
+mm), so below 0.15 the model predicted a cheaper nut than any reading. The reviewer's reproducer,
+`NutParams(d=163.65, pitch=21.743, s=387.26, m=1589.12, clearance=-30.32)`, was admitted at the fine
+STL on a raw prediction of 24,513,233 bytes; `solid.export(p, "stl", "fine")` wrote 591,529,584
+bytes in 26.95 s on macOS arm64 (mesh bytes are geometry; R1 counts the host as context, not a
+bound). That does not fit the 256 MiB tmpfs the export is written to.
+
+The owner's reply, verbatim (the label "(Recommended)" is the orchestrator's, not part of the
+ruling): "Band clearance like G28 (Recommended)".
+
+Measured by committed code at the implementing commit: the reproducer is refused at all three
+artifacts; 0 of the 294 bolt and 0 of the 14 nut catalogue rows change prediction at any artifact
+(every catalogue nut is at the default 0.15); both default parts are admitted at every artifact; a
+nut with clearance inside [0.15, 5.0] is predicted bit for bit as under G28 alone; every file
+`--check` and `prediction-drift` write again is unchanged, and `runtime.json` is unchanged. G28's
+out-of-band points are head-ratio points only, so `outband.json` draws none for the clearance.
+
+The reviewer's second case, `d=92.28 pitch=31.418 s=130.54 m=967.04 clearance=-21.12`, stays
+admitted at the fine STL under this rule, judged at the low edge 0.15: enveloped prediction
+76,540,259 bytes. Read by the executor with `solid.export` on macOS arm64: 121,632,684
+bytes at -21.12 and 223,951,384 bytes at 0.15. So this nut is cheaper below the band, as the rule
+assumes, but it misses its enveloped prediction by 2.93 x inside the clearance band (its m/d, 10.5,
+is above the m band; the cause is not measured). Both readings are under the 239,508,059-byte
+budget. That miss is not a clearance defect and this ruling does not answer it; it is filed as
+`docs/tech_debt/active/2026-10-31-tall-nut-misses-its-envelope-inside-the-clearance-band.md` and
+put to the owner.
+
+This is a ruled change after R30's freeze, not a harness fix. It amends `07-SWEEP-PROTOCOL.md` R11
+on the phase branch `gsd/phase-07-operability-re-sweep`. `python -m bench.oper_fit table` writes the
+same bytes with the clearance band as without it, and fit.json and B-01's budget do not move.
+
+| Gap | Rule(s) | Owner ruling |
+|---|---|---|
+| G38 | R11 | The nut's `clearance` is a banded feature as G28's head ratios are, in mm rather than over d: its band is the [min, max] over the fitted nut points with omitted fields at their defaults, computed from the records by code and emitted into `calc/cost.py` with the head-ratio bands, never typed. A clearance above its band is predicted, target by target, as the largest of the raw prediction and the predictions at both edges; one below it as max(raw, low edge), with every combination of the part's other out-of-band edges, as G28 rules. ASSUMPTION, unmeasured on the runner: a smaller clearance never costs more than one at the low edge. Inside the band the prediction is unchanged. |

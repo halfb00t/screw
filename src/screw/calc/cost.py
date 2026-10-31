@@ -83,6 +83,12 @@ FIELDS: Final[Mapping[str, tuple[str, ...]]] = MappingProxyType({
     "nut": ("d", "pitch", "s", "m", "clearance"),
 })
 
+# G38: the `BANDS` entries read in mm, not over d. The nut's `clearance` is a plain linear feature
+# the fit saw at two values only, 0.15 and 5 mm; below them the stl-fine nut models predicted a
+# cheaper part than any reading (d 163.65, clearance -30.32: 24.5 MB predicted, 591.5 MB built).
+# The same fields as `bench.oper_fit.MM_BANDS`, which tests/test_cost.py holds equal.
+BANDED_IN_MM: Final[frozenset[tuple[str, str]]] = frozenset({("nut", "clearance")})
+
 # BEGIN emit-constants: `python -m bench.oper_fit emit-constants`; not edited by hand.
 # R11's least squares: the intercept, then one coefficient per `FEATURES[kind]`.
 # fit.json, runs explore 40646117094 and spread 40646125666.
@@ -157,14 +163,16 @@ ENVELOPE: Final[Mapping[ModelKey, float]] = MappingProxyType({
     ("nut", "step", "seconds"): 0.8785228687431521,
     ("nut", "step", "peak"): 0.48786919655819627,
 })
-# G28's band of each head ratio, field / d: its [min, max] over the fitted
-# points of its kind, an omitted field at its default (R11).
+# G28's band of each head ratio, field / d, and G38's of the nut's clearance,
+# in mm: its [min, max] over the fitted points of its kind, an omitted field at
+# its default (R11).
 # The records of runs explore 40646117094 and spread 40646125666.
 BANDS: Final[Mapping[tuple[str, str], tuple[float, float]]] = MappingProxyType({
     ("bolt", "k"): (0.6, 0.7),
     ("bolt", "s"): (1.5, 2.0),
     ("nut", "s"): (1.5, 4.0),
     ("nut", "m"): (0.7999999999999999, 3.0),
+    ("nut", "clearance"): (0.15, 5.0),
 })
 # B-03's second clarification: the fewest built-thread turns, built thread over
 # the pitch, over the fitted bolt points, an omitted field at its default (R11).
@@ -227,14 +235,16 @@ def _edges(p: FastenerParams) -> list[FastenerParams]:
     """G28: `p` at every combination of band edges of its out-of-band head ratios, each such field
     set to edge x d and every other field held; empty when every ratio is in its band. A ratio
     above its band takes both edges, one below it the low edge only (ruling 5): a smaller head is
-    assumed, unmeasured, never to cost more than one at the low edge."""
+    assumed, unmeasured, never to cost more than one at the low edge. G38: the nut's clearance is
+    banded the same way, its edges in mm (`BANDED_IN_MM`)."""
     out: list[tuple[str, tuple[float, ...]]] = []
     for (kind, field), (low, high) in BANDS.items():
-        ratio = float(getattr(p, field)) / p.d if kind == p.kind else low
+        scale = 1.0 if (kind, field) in BANDED_IN_MM else p.d
+        ratio = float(getattr(p, field)) / scale if kind == p.kind else low
         if ratio > high:
-            out.append((field, (low * p.d, high * p.d)))
+            out.append((field, (low * scale, high * scale)))
         elif ratio < low:
-            out.append((field, (low * p.d,)))
+            out.append((field, (low * scale,)))
     names = [field for field, _ in out]
     # model_copy sets the fields without validating: the edge part is only ever predicted.
     return [p.model_copy(update=dict(zip(names, combo, strict=True)))
@@ -252,7 +262,13 @@ def predict(p: FastenerParams, artifact: Artifact) -> Cost:
     its band and the low edge for one below it: above, for this log-linear model, the largest
     anywhere in the band; below, max(raw, low edge). A d-only M8 (s/d 1.25) is so judged at s
     1.5 d, not at the wide-head edge 2 d that refused its preview under ruling 4. Inside every
-    band it is the raw prediction, bit for bit."""
+    band it is the raw prediction, bit for bit.
+
+    G38: the nut's `clearance` is banded the same way, in mm. The fit read it at 0.15 and 5 mm
+    only, and its stl-fine coefficients are positive, so a negative clearance predicted a cheaper
+    nut than any reading: d 163.65, pitch 21.743, s 387.26, m 1589.12 at clearance -30.32 was
+    admitted at the fine STL on 24.5 MB predicted and built 591.5 MB. Below the band it is now
+    judged at the low edge too, so that nut is refused."""
     values = _raw(p, artifact)
     for edge in _edges(p):
         values = [max(a, b) for a, b in zip(values, _raw(edge, artifact), strict=True)]

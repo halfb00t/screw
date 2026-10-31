@@ -159,7 +159,14 @@ def test_the_prediction_is_the_fits_own_for_every_artifact(part: FastenerParams)
 def test_the_shipped_bands_are_the_ones_recomputed_from_the_committed_records() -> None:
     assert dict(cost.BANDS) == _bands()
     assert {kind for kind, _ in cost.BANDS} == set(oper_fit.RATIOS)
-    assert [f for _, f in cost.BANDS] == [f for k in oper_fit.RATIOS for f in oper_fit.RATIOS[k]]
+    in_mm = [(k, f) for k in oper_fit.MM_BANDS for f in oper_fit.MM_BANDS[k]]
+    assert [f for _, f in cost.BANDS] == [
+        f for k in oper_fit.RATIOS for f in oper_fit.RATIOS[k]] + [f for _, f in in_mm]
+    assert set(in_mm) == cost.BANDED_IN_MM
+
+
+def _scale(kind: str, field: str, d: float) -> float:
+    return 1.0 if (kind, field) in cost.BANDED_IN_MM else d
 
 
 def test_every_catalogue_row_and_default_part_is_inside_every_band() -> None:
@@ -169,7 +176,8 @@ def test_every_catalogue_row_and_default_part_is_inside_every_band() -> None:
     for part in [BoltParams(), NutParams(), *rows]:
         for (kind, field), (low, high) in cost.BANDS.items():
             if kind == part.kind:
-                assert low <= getattr(part, field) / part.d <= high, (part, field)
+                scale = _scale(kind, field, part.d)
+                assert low <= getattr(part, field) / scale <= high, (part, field)
 
 
 @pytest.mark.parametrize("part", [BoltParams(), NutParams(), OVER],
@@ -191,10 +199,11 @@ def test_an_out_of_band_prediction_is_the_largest_over_raw_and_every_band_edge(
     models = oper_fit.models_of(_document())
     out: list[tuple[str, tuple[float, ...]]] = []
     for (kind, field), (low, high) in cost.BANDS.items():
-        if kind == part.kind and getattr(part, field) / part.d > high:
-            out.append((field, (low * part.d, high * part.d)))
-        elif kind == part.kind and getattr(part, field) / part.d < low:
-            out.append((field, (low * part.d,)))
+        scale = _scale(kind, field, part.d)
+        if kind == part.kind and getattr(part, field) / scale > high:
+            out.append((field, (low * scale, high * scale)))
+        elif kind == part.kind and getattr(part, field) / scale < low:
+            out.append((field, (low * scale,)))
     assert out
     params = part.model_dump()
     trials = [params] + [params | dict(zip([f for f, _ in out], combo, strict=True))
@@ -251,6 +260,94 @@ def test_a_d_only_m5_bolt_above_the_k_band_loses_its_preview_only() -> None:
     assert _admitted_under_the_rule(m5) == ["stl-fine", "step"]
     assert [a for a in ARTIFACTS if not cost.fits(m5, a)] == ["stl-preview"]
     assert cost.refusal(m5, "stl-preview") is not None
+
+
+# --- G38: a nut clearance outside the two values the fit saw ----------------------------------
+
+# 07-REVIEW.md CR-01: admitted at the fine STL on its raw prediction (24.5 MB before the
+# envelope), measured 591,529,584 B by `solid.export` (mesh bytes are geometry, so macOS counts).
+NEGATIVE_CLEARANCE = NutParams(d=163.65, pitch=21.743, s=387.26, m=1589.12, clearance=-30.32)
+
+
+def _head_ratio_bands() -> dict[tuple[str, str], tuple[float, float]]:
+    """G28's bands alone, as shipped before G38 banded the clearance."""
+    return {key: band for key, band in cost.BANDS.items() if key not in cost.BANDED_IN_MM}
+
+
+def test_the_clearance_band_is_the_two_values_the_fit_read() -> None:
+    assert cost.BANDS["nut", "clearance"] == (0.15, 5.0)
+    assert {("nut", "clearance")} == cost.BANDED_IN_MM
+
+
+def test_a_nut_below_the_clearance_band_is_refused_where_its_raw_prediction_admitted_it() -> None:
+    models = oper_fit.models_of(_document())
+    part = oper_fit.Part("p", "nut", "stl-fine", NEGATIVE_CLEARANCE.model_dump(), False)
+    assert oper_fit.admitted(models, part, cost.BUDGET["stl-fine"], _head_ratio_bands())
+    assert not oper_fit.admitted(models, part, cost.BUDGET["stl-fine"], cost.BANDS)
+    assert [a for a in ARTIFACTS if cost.fits(NEGATIVE_CLEARANCE, a)] == []
+    assert cost.refusal(NEGATIVE_CLEARANCE, "stl-fine") is not None
+
+
+def test_below_the_clearance_band_only_the_low_edge_is_tried_and_above_it_both() -> None:
+    low, high = cost.BANDS["nut", "clearance"]
+
+    def clearances(part: NutParams) -> list[float]:
+        return [e.clearance for e in cost._edges(part) if isinstance(e, NutParams)]
+
+    assert clearances(NutParams(clearance=-0.5)) == [low]
+    assert clearances(NutParams(clearance=1.0)) == []
+    assert clearances(NutParams(s=24.0, clearance=7.0)) == [low, high]
+
+
+def test_no_catalogue_row_moves_under_the_clearance_band() -> None:
+    # B-01's C1 is the largest catalogue prediction: a moved row would move the budget.
+    models = oper_fit.models_of(_document())
+    rows = ([(r.id, "bolt", dict(r.fields)) for r in catalogue()]
+            + [(r.id, "nut", dict(r.fields)) for r in nut_catalogue()])
+    assert (sum(k == "bolt" for _, k, _ in rows), sum(k == "nut" for _, k, _ in rows)) == (294, 14)
+    for row_id, kind, fields in rows:
+        part = KINDS[kind].model_validate(fields)
+        for artifact in ARTIFACTS:
+            before = tuple(oper_fit.predict(models[kind, artifact, t], part.model_dump(),
+                                            _head_ratio_bands()) for t in cost.TARGETS)
+            assert tuple(cost.predict(part, artifact)) == before, (row_id, artifact)
+
+
+def test_the_default_bolt_and_nut_are_admitted_at_every_artifact() -> None:
+    assert all(cost.fits(BoltParams(), a) for a in ARTIFACTS)
+    assert all(cost.fits(NutParams(), a) for a in ARTIFACTS)
+
+
+@pytest.mark.parametrize("part", [NutParams(), NutParams(s=20.0, clearance=5.0), WIDE_NUT,
+                                  NutParams(d=10.0, pitch=1.5, s=14.5, m=40.0, clearance=0.15)],
+                         ids=["default", "high-edge", "wide-nut", "s-and-m-out"])
+def test_inside_the_clearance_band_the_prediction_is_g28s_bit_for_bit(part: NutParams) -> None:
+    models = oper_fit.models_of(_document())
+    for artifact in ARTIFACTS:
+        before = tuple(oper_fit.predict(models["nut", artifact, t], part.model_dump(),
+                                        _head_ratio_bands()) for t in cost.TARGETS)
+        assert tuple(cost.predict(part, artifact)) == before, artifact
+
+
+def test_r11_states_the_clearance_band_with_no_gap_label_or_run_id() -> None:
+    protocol = (REPO / ".planning" / "phases" / "07-operability-re-sweep"
+                / "07-SWEEP-PROTOCOL.md").read_text()
+    r11 = protocol.split("\n## R11 ", 1)[1].split("\n## R12 ", 1)[0]
+    assert "The nut's `clearance` is banded as the head ratios are, in millimetres" in r11
+    assert "a smaller clearance never costs more than one at the low edge" in r11
+    assert re.search(r"\bG\d+\b|\b\d{11}\b", r11) is None
+
+
+def test_every_regenerable_set_still_regenerates_under_the_clearance_band() -> None:
+    # Every file `--check` writes again, as `prediction-drift` reads them: only a predicted float
+    # may move, by at most G33's 2^-51 (the runner's libm), and nothing else.
+    from bench import oper_sets
+    for path, text, again in oper_sets._regenerations():
+        fresh = again()
+        if fresh == text:
+            continue
+        found = oper_sets.drifts(json.loads(text), json.loads(fresh))
+        assert all(d.predicted and d.relative <= oper_sets.PREDICTED_REL_TOL for d in found), path
 
 
 def test_admission_at_the_budget_is_admitted_and_one_float_above_is_refused() -> None:
