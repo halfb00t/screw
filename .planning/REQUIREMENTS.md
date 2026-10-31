@@ -61,8 +61,8 @@ Requirements for the first release: the mating-pair cut (infra port, thread spik
 
 ### Operability
 
-- [ ] **OPER-01**: CAD builds run in worker processes off the event loop with a per-build timeout measured by the thread spike over the whole allowed grid (every size, every standard length, including lengths where `L/P` is an integer), recorded as a constant with its measurement cited.
-- [ ] **OPER-02**: Memory ceiling, gzip level, worker count and bytes-cache budget are re-swept for threaded parts on linux/amd64 before any is set; none of spur's figures is carried.
+- [x] **OPER-01**: CAD builds run in worker processes off the event loop with a per-build timeout measured by the thread spike over the whole allowed grid (every size, every standard length, including lengths where `L/P` is an integer), recorded as a constant with its measurement cited.
+- [x] **OPER-02**: Memory ceiling, gzip level, worker count and bytes-cache budget are re-swept for threaded parts on linux/amd64 before any is set; none of spur's figures is carried.
 - [ ] **OPER-03**: Every allowed configuration builds inside the timeout; a configuration that cannot is capped and warned or refused with a `422`, never silently shortened.
 
 ### Infrastructure Port
@@ -150,8 +150,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FRNT-04 | Phase 1 | Complete |
 | FRNT-05 | Phase 1 | Complete |
 | FRNT-06 | Phase 5 | Complete |
-| OPER-01 | Phase 7 | Pending |
-| OPER-02 | Phase 7 | Pending |
+| OPER-01 | Phase 7 | Complete |
+| OPER-02 | Phase 7 | Complete |
 | OPER-03 | Phase 7 | Pending |
 | INFR-01 | Phase 1 | Complete |
 | INFR-02 | Phase 1 | Complete |

@@ -1,7 +1,8 @@
-"""Per-part build, fine-STL and STEP export time, against `SCREW_BUILD_TIMEOUT`.
+"""Per-part build and export time, each artifact against its own timeout (L24).
 
-Measures, per part, build wall time with the solid cache cleared, fine-STL export time and
-STEP export time, in-process, through the same `screw.solid` code a worker runs. Not part of
+Measures, per part, build wall time with the solid cache cleared, then the preview-STL, fine-STL
+and STEP export times, in-process, through the same `screw.solid` code a worker runs, and judges
+each artifact's cold wall against `calc.cost.BUILD_TIMEOUT_S` for that artifact. Not part of
 `make verify`: a timing assertion on shared hardware would flap, and a threaded sweep will take
 minutes. Run it with `make bench.build`, or `make bench.build SWEEP=<json>` for a file of
 parameter sets; with no file it runs `bench.corpus`.
@@ -18,15 +19,18 @@ import platform
 import subprocess
 import sys
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass
 from importlib import metadata
 from pathlib import Path
 
 from pydantic import ValidationError
 
-from bench import machine_facts
+from bench import machine_facts, oper_lift
 from bench.corpus import corpus, label
-from screw import int_env, solid
+from screw import solid
+from screw.calc.cost import ARTIFACTS, BUILD_TIMEOUT_S, Artifact, fits
+from screw.calc.thread import pitch_too_fine_refusal
 from screw.params import BoltParams
 
 
@@ -34,25 +38,27 @@ from screw.params import BoltParams
 class Timing:
     label: str
     build: float
-    stl: float
-    step: float
+    exports: Mapping[Artifact, float]
     stl_bytes: int
     stl_triangles: int
     # No defaults on the two fields above: a default 0 would be a plausible-looking fake STL
     # size for a row nobody actually measured (L02).
+    refused: frozenset[Artifact]
+    # The artifacts the cost model refuses for this part as given. The service answers each
+    # with a 422 before any build (L21), so none is ever held to a timeout.
+    past_wall: bool = False
+    # The part is past the bolt's fine-pitch wall (L25), so the service refuses every artifact
+    # with a 422 naming d and pitch, and `refused` holds all three.
 
-    @property
-    def worst_request(self) -> float:
-        """The number `SCREW_BUILD_TIMEOUT` must fit.
+    def cold_wall(self, artifact: Artifact) -> float:
+        """What a cold request for `artifact` pays: one build and that artifact's one export,
+        the wall `BUILD_TIMEOUT_S[artifact]` bounds (07 R2, L24)."""
+        return self.build + self.exports[artifact]
 
-        The timeout wraps one worker call, and a cold request builds once and then exports
-        once, so build plus the slower of the two exports is what a request pays, not build
-        plus both exports.
-        """
-        return self.build + max(self.stl, self.step)
-
-    def inside(self, timeout: float) -> bool:
-        return self.worst_request <= timeout
+    def over_timeout(self) -> list[Artifact]:
+        """The admitted artifacts whose cold wall is past their timeout; at it is inside."""
+        return [artifact for artifact in ARTIFACTS if artifact not in self.refused
+                and self.cold_wall(artifact) > BUILD_TIMEOUT_S[artifact]]
 
 
 def load_sweep(path: Path | None = None) -> list[tuple[str, BoltParams]]:
@@ -60,17 +66,20 @@ def load_sweep(path: Path | None = None) -> list[tuple[str, BoltParams]]:
 
     With no `path` that is `bench.corpus`; with one, a JSON list of the same query
     dictionaries. A set that fails validation cannot be timed and must not be silently
-    skipped: raise, naming the file, the position and the set.
+    skipped: raise, naming the file, the position and the set. Validated as the corpus was drawn,
+    without the fine-pitch wall (L25, ruling G36), so its fixed grid still times; `main` marks
+    the sets past that wall refused at every artifact.
     """
     source = "the skeleton corpus" if path is None else str(path)
     raw: list[dict[str, object]] = corpus() if path is None else json.loads(path.read_text())
     sets: list[tuple[str, BoltParams]] = []
     for i, entry in enumerate(raw):
         try:
-            p = BoltParams.model_validate(entry)
+            p = oper_lift.drawn("bolt", entry)
         except ValidationError as exc:
             raise ValueError(
                 f"{source} set {i} ({label(entry)}) is not a buildable bolt: {exc}") from exc
+        assert isinstance(p, BoltParams)
         sets.append((label(entry), p))
     return sets
 
@@ -94,9 +103,9 @@ def stl_size(data: bytes) -> tuple[int, int]:
     return len(data), n
 
 
-def time_set(p: BoltParams) -> tuple[float, float, float, int, int]:
-    """Build wall time (cold solid cache), fine-STL export time, STEP export time, and the
-    fine STL's byte and triangle counts.
+def time_set(p: BoltParams) -> tuple[float, dict[Artifact, float], int, int]:
+    """Build wall time (cold solid cache), each artifact's export time after it, and the fine
+    STL's byte and triangle counts.
 
     The size is read after the STL clock stops, so it does not inflate the timed region.
     """
@@ -104,18 +113,40 @@ def time_set(p: BoltParams) -> tuple[float, float, float, int, int]:
     t0 = time.perf_counter()
     solid.build(p)
     build_s = time.perf_counter() - t0
+    exports: dict[Artifact, float] = {}
+    t0 = time.perf_counter()
+    solid.export(p, "stl", "preview")
+    exports["stl-preview"] = time.perf_counter() - t0
     t0 = time.perf_counter()
     data = solid.export(p, "stl", "fine")
-    stl_s = time.perf_counter() - t0
+    exports["stl-fine"] = time.perf_counter() - t0
     t0 = time.perf_counter()
     solid.export(p, "step")
-    step_s = time.perf_counter() - t0
+    exports["step"] = time.perf_counter() - t0
     stl_bytes, stl_triangles = stl_size(data)
-    return build_s, stl_s, step_s, stl_bytes, stl_triangles
+    return build_s, exports, stl_bytes, stl_triangles
 
 
-def report(path: Path | None, timings: list[Timing], timeout: int,
-           load: tuple[float, float, float]) -> str:
+def _past_wall(p: BoltParams) -> bool:
+    return pitch_too_fine_refusal(p.kind, p.d, p.pitch) is not None
+
+
+def _refused(p: BoltParams) -> frozenset[Artifact]:
+    """The artifacts the service answers with a 422 before any build: every one past the
+    fine-pitch wall (L25), else those the cost model refuses (L21)."""
+    if _past_wall(p):
+        return frozenset(ARTIFACTS)
+    return frozenset(a for a in ARTIFACTS if not fits(p, a))
+
+
+def _verdict(t: Timing, artifact: Artifact) -> str:
+    if artifact in t.refused:
+        return f"{t.cold_wall(artifact):.2f} refused ({'L25' if t.past_wall else 'L21'})"
+    inside = t.cold_wall(artifact) <= BUILD_TIMEOUT_S[artifact]
+    return f"{t.cold_wall(artifact):.2f} {'yes' if inside else '**NO**'}"
+
+
+def report(path: Path | None, timings: list[Timing], load: tuple[float, float, float]) -> str:
     if not timings:
         raise ValueError(
             "the sweep produced no timings -- an empty sweep must be refused loudly, "
@@ -137,21 +168,25 @@ def report(path: Path | None, timings: list[Timing], timeout: int,
         f"- HEAD: `{head}`",
         f"- Sweep: {sweep}",
         f"- Load averages at start: {load1:.2f}, {load5:.2f}, {load15:.2f}",
-        f"- SCREW_BUILD_TIMEOUT: {timeout} s, a cold request is one build plus one export",
+        "- Timeouts (`calc.cost.BUILD_TIMEOUT_S`, L24): "
+        + ", ".join(f"{a} {BUILD_TIMEOUT_S[a]:g} s" for a in ARTIFACTS)
+        + "; a cold request is one build plus one export",
         "",
-        "| Parameter set | Build (s) | Fine STL (s) | STEP (s) | "
-        f"Build + slower export (s) | Inside {timeout} s | Fine STL (bytes) | Triangles |",
-        "|---|---|---|---|---|---|---|---|",
+        "| Parameter set | Build (s) | Preview STL (s) | Fine STL (s) | STEP (s) | "
+        + " | ".join(f"Build + {a} (s), inside" for a in ARTIFACTS)
+        + " | Fine STL (bytes) | Triangles |",
+        "|---|---|---|---|---|---|---|---|---|---|",
     ]
     for t in timings:
-        verdict = "yes" if t.inside(timeout) else "**NO**"
-        lines.append(f"| {t.label} | {t.build:.2f} | {t.stl:.2f} | {t.step:.2f} | "
-                     f"{t.worst_request:.2f} | {verdict} | {t.stl_bytes} | "
+        exports = " | ".join(f"{t.exports[a]:.2f}" for a in ARTIFACTS)
+        verdicts = " | ".join(_verdict(t, a) for a in ARTIFACTS)
+        lines.append(f"| {t.label} | {t.build:.2f} | {exports} | {verdicts} | {t.stl_bytes} | "
                      f"{t.stl_triangles} |")
-    heaviest = max(timings, key=lambda t: t.worst_request)
     lines.append("")
-    lines.append(f"**Heaviest:** {heaviest.label} -- {heaviest.worst_request:.2f} s "
-                 f"of {timeout} s.")
+    for a in ARTIFACTS:
+        heaviest = max(timings, key=lambda t: t.cold_wall(a))
+        lines.append(f"**Heaviest {a}:** {heaviest.label} -- {heaviest.cold_wall(a):.2f} s "
+                     f"of {BUILD_TIMEOUT_S[a]:g} s.")
     largest = max(timings, key=lambda t: t.stl_bytes)
     lines.append(f"**Largest fine STL:** {largest.label} -- {largest.stl_bytes} bytes, "
                  f"{largest.stl_triangles} triangles.")
@@ -161,16 +196,12 @@ def report(path: Path | None, timings: list[Timing], timeout: int,
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="bench.build_time",
-        description="Time build, fine-STL and STEP export per part, against "
-                    "SCREW_BUILD_TIMEOUT.",
+        description="Time build and each artifact's export per part, against "
+                    "calc.cost.BUILD_TIMEOUT_S for that artifact (L24).",
     )
     parser.add_argument(
         "sweep", nargs="?", type=Path, default=None,
         help="JSON file of query-parameter sets. Default: the skeleton corpus.")
-    parser.add_argument(
-        "--timeout", type=int, default=int_env("SCREW_BUILD_TIMEOUT", 30),
-        help="Seconds a build plus its slower export must fit -- the same knob and default "
-             "the app's lifespan passes to BuildPool.")
     args = parser.parse_args(argv)
 
     sets = load_sweep(args.sweep)  # fails before any build if a set is not buildable
@@ -180,15 +211,16 @@ def main(argv: list[str] | None = None) -> int:
 
     # Time every set before deciding the exit code -- a short-circuiting generator would
     # silently skip the rest.
-    timings = [Timing(name, *time_set(p)) for name, p in sets]
+    timings = [Timing(name, *time_set(p), _refused(p), past_wall=_past_wall(p))
+               for name, p in sets]
 
-    print(report(args.sweep, timings, args.timeout, load))
+    print(report(args.sweep, timings, load))
 
-    over_budget = [t for t in timings if not t.inside(args.timeout)]
-    for t in over_budget:
-        print(f"warning: {t.label} is over budget: {t.worst_request:.2f} s of "
-              f"{args.timeout} s", file=sys.stderr)
-    return 1 if over_budget else 0
+    over = [(t, a) for t in timings for a in t.over_timeout()]
+    for t, a in over:
+        print(f"warning: {t.label} is over its {a} timeout: {t.cold_wall(a):.2f} s of "
+              f"{BUILD_TIMEOUT_S[a]:g} s", file=sys.stderr)
+    return 1 if over else 0
 
 
 if __name__ == "__main__":

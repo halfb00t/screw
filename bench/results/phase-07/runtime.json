@@ -1,0 +1,1120 @@
+{
+ "rule": "07-SWEEP-PROTOCOL.md R14 to R26 (G6 to G9, G11, G15 to G18, G20, G22, G31, G32)",
+ "sources": [
+  "bench/results/phase-07/arenas-40909754190",
+  "bench/results/phase-07/bound-40907549180",
+  "bench/results/phase-07/bound-rerun-40999654995",
+  "bench/results/phase-07/controls-40646142406",
+  "bench/results/phase-07/dense-band-41153581470",
+  "bench/results/phase-07/drift-41016507364",
+  "bench/results/phase-07/drift-60-41022812680",
+  "bench/results/phase-07/explore-40646117094",
+  "bench/results/phase-07/full-41155746591",
+  "bench/results/phase-07/full-41161227951",
+  "bench/results/phase-07/gzip-40909739628",
+  "bench/results/phase-07/gzip-rerun-40999657702",
+  "bench/results/phase-07/load-40909724292",
+  "bench/results/phase-07/outband-40909768713",
+  "bench/results/phase-07/solid-cache-4-41016510597",
+  "bench/results/phase-07/spread-40646125666",
+  "bench/results/phase-07/tracer-40645463872",
+  "bench/results/phase-07/walls-40646134133",
+  "bench/results/phase-07/walls-confirm-40678150220",
+  "bench/results/phase-07/walls-down-40652801529",
+  "bench/results/phase-07/walls-pitch-41074314305",
+  "bench/results/phase-07/walls-voids-40665307964"
+ ],
+ "sets": {
+  "arenas": "bench/points/arenas.json",
+  "bound": "bench/points/bound.json",
+  "drift": "bench/points/drift.json",
+  "drift-60": "bench/points/drift-60.json",
+  "gzip": "bench/points/gzip.json",
+  "load": "bench/points/load.json",
+  "solid-cache-4": "bench/points/solid-cache-4.json"
+ },
+ "runner": {
+  "nproc": 4,
+  "smallest_mem_total_bytes": 16758394880,
+  "headers": 355
+ },
+ "gzip": {
+  "level": 1,
+  "runs": [
+   "40909739628",
+   "40999657702"
+  ],
+  "trials": [
+   {
+    "level": 6,
+    "against": 1,
+    "adopted": false,
+    "failing": [
+     "iso4017:M20x200 at stl-preview",
+     "iso4017:M20x180 at stl-preview",
+     "iso4017:M16x160 at stl-preview",
+     "iso4017:M16x150 at stl-preview",
+     "iso4017:M20x160 at stl-preview",
+     "nut-d10-p0.35-m3d-s4d-c0.15-right at stl-preview",
+     "nut-d100-p3.5-m0.8d-s4d-c5-right at stl-preview",
+     "iso4017:M20x200 at stl-fine",
+     "iso4017:M20x180 at stl-fine",
+     "iso4017:M16x160 at stl-fine",
+     "iso4017:M20x160 at stl-fine",
+     "iso4017:M16x150 at stl-fine",
+     "nut-d30-p1-m0.8d-s1.6d-c5-right at stl-fine",
+     "nut-d30-p1-m0.8d-s4d-c5-right at stl-fine"
+    ],
+    "bytes_and_seconds_ratios": {
+     "iso4017:M20x200 at stl-preview": [
+      0.9573212919795915,
+      1.755677517049627
+     ],
+     "iso4017:M20x180 at stl-preview": [
+      0.9574795729149103,
+      1.8520839312073545
+     ],
+     "iso4017:M16x160 at stl-preview": [
+      0.9581092114768012,
+      2.003895762916234
+     ],
+     "iso4017:M16x150 at stl-preview": [
+      0.9579720288197852,
+      1.9799453575351473
+     ],
+     "iso4017:M20x160 at stl-preview": [
+      0.9575549898493328,
+      1.7457298179750544
+     ],
+     "nut-d10-p0.35-m3d-s4d-c0.15-right at stl-preview": [
+      0.95129423313575,
+      1.7839870720074573
+     ],
+     "nut-d100-p3.5-m0.8d-s4d-c5-right at stl-preview": [
+      0.9577651656565496,
+      1.7937185770770478
+     ],
+     "iso4017:M20x200 at stl-fine": [
+      0.9600802755004741,
+      1.7717123430489208
+     ],
+     "iso4017:M20x180 at stl-fine": [
+      0.9601059727542018,
+      1.7543757790813985
+     ],
+     "iso4017:M16x160 at stl-fine": [
+      0.957998323437279,
+      1.9239613365688075
+     ],
+     "iso4017:M20x160 at stl-fine": [
+      0.9601974018648064,
+      1.757550363624041
+     ],
+     "iso4017:M16x150 at stl-fine": [
+      0.9579769407095279,
+      1.8538838410471654
+     ],
+     "nut-d30-p1-m0.8d-s1.6d-c5-right at stl-fine": [
+      0.9567289344476871,
+      1.9131398253115117
+     ],
+     "nut-d30-p1-m0.8d-s4d-c5-right at stl-fine": [
+      0.9567429739118412,
+      1.9686732404288607
+     ]
+    }
+   },
+   {
+    "level": 9,
+    "against": 1,
+    "adopted": false,
+    "failing": [
+     "iso4017:M20x200 at stl-preview",
+     "iso4017:M20x180 at stl-preview",
+     "iso4017:M16x160 at stl-preview",
+     "iso4017:M16x150 at stl-preview",
+     "iso4017:M20x160 at stl-preview",
+     "nut-d10-p0.35-m3d-s4d-c0.15-right at stl-preview",
+     "nut-d100-p3.5-m0.8d-s4d-c5-right at stl-preview",
+     "iso4017:M20x200 at stl-fine",
+     "iso4017:M20x180 at stl-fine",
+     "iso4017:M16x160 at stl-fine",
+     "iso4017:M20x160 at stl-fine",
+     "iso4017:M16x150 at stl-fine",
+     "nut-d30-p1-m0.8d-s1.6d-c5-right at stl-fine",
+     "nut-d30-p1-m0.8d-s4d-c5-right at stl-fine"
+    ],
+    "bytes_and_seconds_ratios": {
+     "iso4017:M20x200 at stl-preview": [
+      0.957330017598245,
+      1.8823214718702646
+     ],
+     "iso4017:M20x180 at stl-preview": [
+      0.957476328319177,
+      2.028249593897318
+     ],
+     "iso4017:M16x160 at stl-preview": [
+      0.9580621495132794,
+      2.409785177690598
+     ],
+     "iso4017:M16x150 at stl-preview": [
+      0.9579149998352307,
+      2.4293646126934925
+     ],
+     "iso4017:M20x160 at stl-preview": [
+      0.95756288324188,
+      1.9542082027040877
+     ],
+     "nut-d10-p0.35-m3d-s4d-c0.15-right at stl-preview": [
+      0.9512877748865697,
+      1.9302463149485012
+     ],
+     "nut-d100-p3.5-m0.8d-s4d-c5-right at stl-preview": [
+      0.9578314918224207,
+      1.909228295052443
+     ],
+     "iso4017:M20x200 at stl-fine": [
+      0.9601332949153928,
+      1.8922332187630604
+     ],
+     "iso4017:M20x180 at stl-fine": [
+      0.9601486101128791,
+      1.8624101721055342
+     ],
+     "iso4017:M16x160 at stl-fine": [
+      0.9580068297344924,
+      2.128661844047847
+     ],
+     "iso4017:M20x160 at stl-fine": [
+      0.9602492469590631,
+      1.8806846768522096
+     ],
+     "iso4017:M16x150 at stl-fine": [
+      0.9579650170112548,
+      2.055424472535987
+     ],
+     "nut-d30-p1-m0.8d-s1.6d-c5-right at stl-fine": [
+      0.9565082542864779,
+      2.160251183460708
+     ],
+     "nut-d30-p1-m0.8d-s4d-c5-right at stl-fine": [
+      0.9565129290820658,
+      2.2408995210869636
+     ]
+    }
+   }
+  ],
+  "maxima": {
+   "iso4017:M20x200 at stl-preview": {
+    "1": {
+     "bytes": 10543665,
+     "seconds": 0.31931207500002756
+    },
+    "6": {
+     "bytes": 10093675,
+     "seconds": 0.5606090310000127
+    },
+    "9": {
+     "bytes": 10093767,
+     "seconds": 0.6010479750000002
+    }
+   },
+   "iso4017:M20x180 at stl-preview": {
+    "1": {
+     "bytes": 9554349,
+     "seconds": 0.28050781999999685
+    },
+    "6": {
+     "bytes": 9148094,
+     "seconds": 0.5195240259999991
+    },
+    "9": {
+     "bytes": 9148063,
+     "seconds": 0.5689398720000156
+    }
+   },
+   "iso4017:M16x160 at stl-preview": {
+    "1": {
+     "bytes": 6204586,
+     "seconds": 0.17995910300004425
+    },
+    "6": {
+     "bytes": 5944671,
+     "seconds": 0.3606192839999949
+    },
+    "9": {
+     "bytes": 5944379,
+     "seconds": 0.4336627790000023
+    }
+   },
+   "iso4017:M16x150 at stl-preview": {
+    "1": {
+     "bytes": 5856671,
+     "seconds": 0.1715083679999907
+    },
+    "6": {
+     "bytes": 5610527,
+     "seconds": 0.3395771970000112
+    },
+    "9": {
+     "bytes": 5610193,
+     "seconds": 0.4166563599999904
+    }
+   },
+   "iso4017:M20x160 at stl-preview": {
+    "1": {
+     "bytes": 8488112,
+     "seconds": 0.2560353970000051
+    },
+    "6": {
+     "bytes": 8127834,
+     "seconds": 0.44696862699998974
+    },
+    "9": {
+     "bytes": 8127901,
+     "seconds": 0.5003464730000076
+    }
+   },
+   "nut-d10-p0.35-m3d-s4d-c0.15-right at stl-preview": {
+    "1": {
+     "bytes": 3406496,
+     "seconds": 0.09556874300000118
+    },
+    "6": {
+     "bytes": 3240580,
+     "seconds": 0.1704934020000053
+    },
+    "9": {
+     "bytes": 3240558,
+     "seconds": 0.18447121400001265
+    }
+   },
+   "nut-d100-p3.5-m0.8d-s4d-c5-right at stl-preview": {
+    "1": {
+     "bytes": 12589300,
+     "seconds": 0.3718151490000139
+    },
+    "6": {
+     "bytes": 12057593,
+     "seconds": 0.6669317399999954
+    },
+    "9": {
+     "bytes": 12058428,
+     "seconds": 0.7098800029999666
+    }
+   },
+   "iso4017:M20x200 at stl-fine": {
+    "1": {
+     "bytes": 66239886,
+     "seconds": 2.007092078999989
+    },
+    "6": {
+     "bytes": 63595608,
+     "seconds": 3.55598981
+    },
+    "9": {
+     "bytes": 63599120,
+     "seconds": 3.7978863049999916
+    }
+   },
+   "iso4017:M20x180 at stl-fine": {
+    "1": {
+     "bytes": 58938923,
+     "seconds": 1.8018993539999997
+    },
+    "6": {
+     "bytes": 56587612,
+     "seconds": 3.1612085830000183
+    },
+    "9": {
+     "bytes": 56590125,
+     "seconds": 3.3558756859999903
+    }
+   },
+   "iso4017:M16x160 at stl-fine": {
+    "1": {
+     "bytes": 63247261,
+     "seconds": 1.935096336000015
+    },
+    "6": {
+     "bytes": 60590770,
+     "seconds": 3.7230505329999914
+    },
+    "9": {
+     "bytes": 60591308,
+     "seconds": 4.119165735000024
+    }
+   },
+   "iso4017:M20x160 at stl-fine": {
+    "1": {
+     "bytes": 52444692,
+     "seconds": 1.6202820299999985
+    },
+    "6": {
+     "bytes": 50357257,
+     "seconds": 2.8477272709999966
+    },
+    "9": {
+     "bytes": 50359976,
+     "seconds": 3.0472395859999892
+    }
+   },
+   "iso4017:M16x150 at stl-fine": {
+    "1": {
+     "bytes": 59545284,
+     "seconds": 1.8985410989999991
+    },
+    "6": {
+     "bytes": 57043009,
+     "seconds": 3.519674665000025
+    },
+    "9": {
+     "bytes": 57042299,
+     "seconds": 3.9023078369999666
+    }
+   },
+   "nut-d30-p1-m0.8d-s1.6d-c5-right at stl-fine": {
+    "1": {
+     "bytes": 59873982,
+     "seconds": 1.834498970000027
+    },
+    "6": {
+     "bytes": 57283171,
+     "seconds": 3.509653039
+    },
+    "9": {
+     "bytes": 57269958,
+     "seconds": 3.962978571000008
+    }
+   },
+   "nut-d30-p1-m0.8d-s4d-c5-right at stl-fine": {
+    "1": {
+     "bytes": 59897021,
+     "seconds": 1.7683263050000164
+    },
+    "6": {
+     "bytes": 57306054,
+     "seconds": 3.481256676999976
+    },
+    "9": {
+     "bytes": 57292275,
+     "seconds": 3.9626415700000166
+    }
+   }
+  }
+ },
+ "export_cache": {
+  "mib": 240,
+  "bytes": 251658240,
+  "part": "iso4017:M20x200",
+  "raw_and_gzip1_bytes": 250654910,
+  "candidates": 394,
+  "runs": [
+   "40646117094"
+  ]
+ },
+ "tmpfs_per_worker": {
+  "bytes": 239508059.14804876,
+  "rule": "the stl-fine bytes budget (B-01)"
+ },
+ "w": {
+  "bytes": 1758363648,
+  "contention": {
+   "bytes": 1533550592,
+   "reading": "40907549180:nut-d30-p1-m0.8d-s1.6d-c5-right-n1 rep 1"
+  },
+  "drift": {
+   "bytes": 1758363648,
+   "reading": "41022812680:drift-nut-d30-p1-m0.8d-s4d-c5-right rep 2 build 15"
+  }
+ },
+ "b": {
+  "bytes": 65208320,
+  "reading": "40909724292:load-n1 rep 1"
+ },
+ "per_workers": {
+  "1": {
+   "load_run": "40909724292",
+   "tmpfs_bytes": 268435456,
+   "qualifies": true,
+   "why_not": [],
+   "load_peak_bytes": 1657307136,
+   "load_peak_reading": "40909724292:load-n1 rep 3",
+   "p95_s": 35.09087210645002,
+   "p95_reading": "40909724292:load-n1 rep 2",
+   "mem_limit_bytes": 2415919104
+  },
+  "2": {
+   "load_run": "40909724292",
+   "tmpfs_bytes": 536870912,
+   "qualifies": true,
+   "why_not": [],
+   "load_peak_bytes": 2047315968,
+   "load_peak_reading": "40909724292:load-n2 rep 4",
+   "p95_s": 51.878674375850004,
+   "p95_reading": "40909724292:load-n2 rep 2",
+   "mem_limit_bytes": 4563402752
+  },
+  "3": {
+   "load_run": "40909724292",
+   "tmpfs_bytes": 805306368,
+   "qualifies": true,
+   "why_not": [],
+   "load_peak_bytes": 2333671424,
+   "load_peak_reading": "40909724292:load-n3 rep 2",
+   "p95_s": 69.78429913074984,
+   "p95_reading": "40909724292:load-n3 rep 2",
+   "mem_limit_bytes": 6442450944
+  }
+ },
+ "picked_workers": 1,
+ "mem_limit_bytes": 2415919104,
+ "tmpfs_bytes": 268435456,
+ "timeouts": {
+  "stl-preview": {
+   "seconds": 26,
+   "max_cold_wall_s": 12.724827096999945,
+   "bound_point": "nut-d10-p0.35-m3d-s4d-c0.15-right-n1",
+   "reading": "40907549180:nut-d10-p0.35-m3d-s4d-c0.15-right-n1 rep 3"
+  },
+  "stl-fine": {
+   "seconds": 71,
+   "max_cold_wall_s": 35.26048539499999,
+   "bound_point": "nut-d30-p1-m0.8d-s1.6d-c5-right-n1",
+   "reading": "40907549180:nut-d30-p1-m0.8d-s1.6d-c5-right-n1 rep 4"
+  },
+  "step": {
+   "seconds": 26,
+   "max_cold_wall_s": 12.81081261700001,
+   "bound_point": "nut-d100-p3.5-m3d-s4d-c5-right-n1",
+   "reading": "40907549180:nut-d100-p3.5-m3d-s4d-c5-right-n1 rep 1"
+  }
+ },
+ "queue_depth": {
+  "depth": 2,
+  "largest_wall_over_deadline": 0.3624844919793814,
+  "reading": "40909724292:load-n1 rep 2 pool call 26",
+  "end_peak_bytes": 1657307136,
+  "mem_limit_bytes": 2415919104
+ },
+ "retry_after": {
+  "stl-preview": {
+   "median_s": 5.214082512000019,
+   "samples": 100
+  },
+  "stl-fine": {
+   "median_s": 9.527734555999999,
+   "samples": 100
+  },
+  "step": {
+   "median_s": 6.330915500499998,
+   "samples": 100
+  }
+ },
+ "minimum_size": {
+  "bytes": 4012,
+  "level": 1,
+  "bodies": 1555,
+  "largest_not_shrinking": {
+   "bytes": 95,
+   "gzip_bytes": 98,
+   "body": "40909724292:load-n1 rep 5 /api/health"
+  },
+  "runs": [
+   "40909724292"
+  ]
+ },
+ "screw_workers": {
+  "workers": 1,
+  "health_p95_s": 0.00935187669999209,
+  "reading": "40909724292:load-n1 rep 2"
+ },
+ "healthcheck": {
+  "timeout_s": 2,
+  "max_wall_s": 0.7360738640000477,
+  "wall_reading": "40909724292:load-n1 rep 2",
+  "walls": 276,
+  "nonzero_exits": 0,
+  "start_period_s": 10,
+  "max_time_to_healthy_s": 0.9576668719999759,
+  "healthy_reading": "40909724292:load-n1 rep 2",
+  "interval_s": 30,
+  "retries": 3,
+  "interval_and_retries": "Docker's documented defaults (R25)"
+ },
+ "solid_cache_k": 4,
+ "solid_cache": {
+  "k": 4,
+  "runs": [
+   "41016510597"
+  ],
+  "w_k": {
+   "4": {
+    "w_bytes": 1652121600,
+    "reading": "41016510597:solid-cache-4 rep 1",
+    "mem_limit_bytes": 2415919104,
+    "qualifies": true,
+    "why_not": []
+   }
+  }
+ },
+ "shipped_mem_limit": {
+  "bytes": 2415919104,
+  "from_w_bytes": 2415919104,
+  "from_w_k_bytes": 2415919104
+ },
+ "arenas_kept": true,
+ "arenas": {
+  "kept": true,
+  "lower_with_trim": {
+   "stl-preview": true,
+   "stl-fine": true,
+   "step": true
+  },
+  "runs": [
+   "40909754190"
+  ],
+  "maxima": {
+   "stl-preview": {
+    "trim_on": {
+     "memory_current_bytes": 243089408,
+     "reading": "40909754190:arenas-nut-d100-p3.5-m0.8d-s4d-c5-right-trim-on rep 2"
+    },
+    "trim_off": {
+     "memory_current_bytes": 308285440,
+     "reading": "40909754190:arenas-nut-d100-p3.5-m0.8d-s4d-c5-right-trim-off rep 1"
+    }
+   },
+   "stl-fine": {
+    "trim_on": {
+     "memory_current_bytes": 377843712,
+     "reading": "40909754190:arenas-nut-d30-p1-m0.8d-s4d-c5-right-trim-on rep 5"
+    },
+    "trim_off": {
+     "memory_current_bytes": 1093894144,
+     "reading": "40909754190:arenas-nut-d30-p1-m0.8d-s4d-c5-right-trim-off rep 4"
+    }
+   },
+   "step": {
+    "trim_on": {
+     "memory_current_bytes": 217174016,
+     "reading": "40909754190:arenas-iso4017:M16x160-trim-on rep 4"
+    },
+    "trim_off": {
+     "memory_current_bytes": 283619328,
+     "reading": "40909754190:arenas-iso4017:M16x160-trim-off rep 1"
+    }
+   }
+  }
+ },
+ "drift": {
+  "stl-preview": {
+   "drift_bytes": 53616640,
+   "reading": "41016507364:drift-nut-d100-p3.5-m0.8d-s4d-c5-right rep 2",
+   "allowance_bytes": 44301516.8,
+   "above_allowance": true,
+   "repetitions": [
+    {
+     "reading": "41016507364:drift-nut-d100-p3.5-m0.8d-s4d-c5-right rep 1",
+     "drift_bytes": 50167808,
+     "peaks": [
+      445640704,
+      488284160,
+      492298240,
+      492298240,
+      492298240,
+      492298240,
+      492298240,
+      494452736,
+      494452736,
+      494452736,
+      494940160,
+      495218688,
+      495218688,
+      495218688,
+      495218688,
+      495218688,
+      495808512,
+      495808512,
+      495808512,
+      495808512
+     ]
+    },
+    {
+     "reading": "41016507364:drift-nut-d100-p3.5-m0.8d-s4d-c5-right rep 2",
+     "drift_bytes": 53616640,
+     "peaks": [
+      443015168,
+      488493056,
+      490323968,
+      492400640,
+      492400640,
+      492400640,
+      493133824,
+      495128576,
+      495128576,
+      495128576,
+      495128576,
+      496066560,
+      496066560,
+      496066560,
+      496066560,
+      496066560,
+      496066560,
+      496631808,
+      496631808,
+      496631808
+     ]
+    },
+    {
+     "reading": "41016507364:drift-nut-d100-p3.5-m0.8d-s4d-c5-right rep 3",
+     "drift_bytes": 32366592,
+     "peaks": [
+      463294464,
+      490094592,
+      491098112,
+      491565056,
+      491704320,
+      491704320,
+      492781568,
+      492781568,
+      492781568,
+      492781568,
+      492781568,
+      492781568,
+      493064192,
+      493977600,
+      495661056,
+      495661056,
+      495661056,
+      495661056,
+      495661056,
+      495661056
+     ]
+    },
+    {
+     "reading": "41016507364:drift-nut-d100-p3.5-m0.8d-s4d-c5-right rep 4",
+     "drift_bytes": 35893248,
+     "peaks": [
+      459853824,
+      490729472,
+      491986944,
+      491986944,
+      491986944,
+      491986944,
+      491986944,
+      492179456,
+      494014464,
+      494014464,
+      494014464,
+      494075904,
+      495747072,
+      495747072,
+      495747072,
+      495747072,
+      495747072,
+      495747072,
+      495747072,
+      495747072
+     ]
+    },
+    {
+     "reading": "41016507364:drift-nut-d100-p3.5-m0.8d-s4d-c5-right rep 5",
+     "drift_bytes": 42729472,
+     "peaks": [
+      453242880,
+      490229760,
+      490229760,
+      492097536,
+      492097536,
+      492097536,
+      492199936,
+      492199936,
+      492199936,
+      492199936,
+      492199936,
+      494006272,
+      494309376,
+      494309376,
+      494309376,
+      494309376,
+      495218688,
+      495218688,
+      495972352,
+      495972352
+     ]
+    }
+   ]
+  },
+  "stl-fine": {
+   "drift_bytes": 323194880,
+   "reading": "41016507364:drift-nut-d30-p1-m0.8d-s4d-c5-right rep 2",
+   "allowance_bytes": 137344204.8,
+   "above_allowance": true,
+   "repetitions": [
+    {
+     "reading": "41016507364:drift-nut-d30-p1-m0.8d-s4d-c5-right rep 1",
+     "drift_bytes": 238891008,
+     "peaks": [
+      1477869568,
+      1651019776,
+      1651019776,
+      1651019776,
+      1677312000,
+      1677312000,
+      1677312000,
+      1677312000,
+      1677312000,
+      1677312000,
+      1677312000,
+      1677312000,
+      1677312000,
+      1686175744,
+      1686175744,
+      1686175744,
+      1686175744,
+      1688829952,
+      1704722432,
+      1716760576
+     ]
+    },
+    {
+     "reading": "41016507364:drift-nut-d30-p1-m0.8d-s4d-c5-right rep 2",
+     "drift_bytes": 323194880,
+     "peaks": [
+      1373442048,
+      1589825536,
+      1696636928,
+      1696636928,
+      1696636928,
+      1696636928,
+      1696636928,
+      1696636928,
+      1696636928,
+      1696636928,
+      1696636928,
+      1696636928,
+      1696636928,
+      1696636928,
+      1696636928,
+      1696636928,
+      1696636928,
+      1696636928,
+      1696636928,
+      1696636928
+     ]
+    },
+    {
+     "reading": "41016507364:drift-nut-d30-p1-m0.8d-s4d-c5-right rep 3",
+     "drift_bytes": 238718976,
+     "peaks": [
+      1402470400,
+      1506275328,
+      1579175936,
+      1579175936,
+      1605283840,
+      1626701824,
+      1626701824,
+      1626701824,
+      1626701824,
+      1626701824,
+      1626701824,
+      1626701824,
+      1626701824,
+      1626701824,
+      1626701824,
+      1626701824,
+      1626701824,
+      1626701824,
+      1641189376,
+      1641189376
+     ]
+    },
+    {
+     "reading": "41016507364:drift-nut-d30-p1-m0.8d-s4d-c5-right rep 4",
+     "drift_bytes": 285925376,
+     "peaks": [
+      1390673920,
+      1564729344,
+      1564729344,
+      1564729344,
+      1564729344,
+      1676599296,
+      1676599296,
+      1676599296,
+      1676599296,
+      1676599296,
+      1676599296,
+      1676599296,
+      1676599296,
+      1676599296,
+      1676599296,
+      1676599296,
+      1676599296,
+      1676599296,
+      1676599296,
+      1676599296
+     ]
+    },
+    {
+     "reading": "41016507364:drift-nut-d30-p1-m0.8d-s4d-c5-right rep 5",
+     "drift_bytes": 216109056,
+     "peaks": [
+      1402695680,
+      1613074432,
+      1613074432,
+      1613074432,
+      1613074432,
+      1613074432,
+      1613074432,
+      1613074432,
+      1613074432,
+      1613074432,
+      1618804736,
+      1618804736,
+      1618804736,
+      1618804736,
+      1618804736,
+      1618804736,
+      1618804736,
+      1618804736,
+      1618804736,
+      1618804736
+     ]
+    }
+   ]
+  },
+  "step": {
+   "drift_bytes": 31100928,
+   "reading": "41016507364:drift-iso4017:M16x160 rep 3",
+   "allowance_bytes": 28473344.0,
+   "above_allowance": true,
+   "repetitions": [
+    {
+     "reading": "41016507364:drift-iso4017:M16x160 rep 1",
+     "drift_bytes": 21909504,
+     "peaks": [
+      296177664,
+      303263744,
+      310087680,
+      310087680,
+      310087680,
+      312184832,
+      312184832,
+      312184832,
+      312184832,
+      312184832,
+      312184832,
+      316264448,
+      316264448,
+      316264448,
+      316264448,
+      316264448,
+      316264448,
+      318087168,
+      318087168,
+      318087168
+     ]
+    },
+    {
+     "reading": "41016507364:drift-iso4017:M16x160 rep 2",
+     "drift_bytes": 23142400,
+     "peaks": [
+      294191104,
+      303624192,
+      303624192,
+      305205248,
+      313724928,
+      313724928,
+      313724928,
+      316030976,
+      316030976,
+      316030976,
+      316030976,
+      316030976,
+      316030976,
+      316030976,
+      316030976,
+      317333504,
+      317333504,
+      317333504,
+      317333504,
+      317333504
+     ]
+    },
+    {
+     "reading": "41016507364:drift-iso4017:M16x160 rep 3",
+     "drift_bytes": 31100928,
+     "peaks": [
+      284733440,
+      303443968,
+      305528832,
+      305528832,
+      305528832,
+      305528832,
+      305528832,
+      305602560,
+      305602560,
+      305602560,
+      312504320,
+      312504320,
+      312504320,
+      312504320,
+      312504320,
+      312504320,
+      315834368,
+      315834368,
+      315834368,
+      315834368
+     ]
+    },
+    {
+     "reading": "41016507364:drift-iso4017:M16x160 rep 4",
+     "drift_bytes": 18812928,
+     "peaks": [
+      297353216,
+      306794496,
+      306794496,
+      306794496,
+      309506048,
+      309506048,
+      309506048,
+      309506048,
+      309506048,
+      310231040,
+      316166144,
+      316166144,
+      316166144,
+      316166144,
+      316166144,
+      316166144,
+      316166144,
+      316166144,
+      316166144,
+      316166144
+     ]
+    },
+    {
+     "reading": "41016507364:drift-iso4017:M16x160 rep 5",
+     "drift_bytes": 20733952,
+     "peaks": [
+      293498880,
+      298164224,
+      300032000,
+      301428736,
+      301428736,
+      311066624,
+      311996416,
+      311996416,
+      311996416,
+      311996416,
+      311996416,
+      311996416,
+      311996416,
+      314232832,
+      314232832,
+      314232832,
+      314232832,
+      314232832,
+      314232832,
+      314232832
+     ]
+    }
+   ]
+  }
+ },
+ "plateau": {
+  "stl-preview": {
+   "difference_bytes": 6467584,
+   "reading": "41022812680:drift-nut-d100-p3.5-m0.8d-s4d-c5-right rep 4",
+   "allowance_bytes": 44044697.6,
+   "holds": true,
+   "repetitions": [
+    {
+     "reading": "41022812680:drift-nut-d100-p3.5-m0.8d-s4d-c5-right rep 1",
+     "difference_bytes": 360448
+    },
+    {
+     "reading": "41022812680:drift-nut-d100-p3.5-m0.8d-s4d-c5-right rep 2",
+     "difference_bytes": 0
+    },
+    {
+     "reading": "41022812680:drift-nut-d100-p3.5-m0.8d-s4d-c5-right rep 3",
+     "difference_bytes": 0
+    },
+    {
+     "reading": "41022812680:drift-nut-d100-p3.5-m0.8d-s4d-c5-right rep 4",
+     "difference_bytes": 6467584
+    },
+    {
+     "reading": "41022812680:drift-nut-d100-p3.5-m0.8d-s4d-c5-right rep 5",
+     "difference_bytes": 0
+    }
+   ]
+  },
+  "stl-fine": {
+   "difference_bytes": 11583488,
+   "reading": "41022812680:drift-nut-d30-p1-m0.8d-s4d-c5-right rep 1",
+   "allowance_bytes": 134713753.6,
+   "holds": true,
+   "repetitions": [
+    {
+     "reading": "41022812680:drift-nut-d30-p1-m0.8d-s4d-c5-right rep 1",
+     "difference_bytes": 11583488
+    },
+    {
+     "reading": "41022812680:drift-nut-d30-p1-m0.8d-s4d-c5-right rep 2",
+     "difference_bytes": 0
+    },
+    {
+     "reading": "41022812680:drift-nut-d30-p1-m0.8d-s4d-c5-right rep 3",
+     "difference_bytes": 0
+    },
+    {
+     "reading": "41022812680:drift-nut-d30-p1-m0.8d-s4d-c5-right rep 4",
+     "difference_bytes": 0
+    },
+    {
+     "reading": "41022812680:drift-nut-d30-p1-m0.8d-s4d-c5-right rep 5",
+     "difference_bytes": 6844416
+    }
+   ]
+  },
+  "step": {
+   "difference_bytes": 5222400,
+   "reading": "41022812680:drift-iso4017:M16x160 rep 4",
+   "allowance_bytes": 28473344.0,
+   "holds": true,
+   "repetitions": [
+    {
+     "reading": "41022812680:drift-iso4017:M16x160 rep 1",
+     "difference_bytes": 180224
+    },
+    {
+     "reading": "41022812680:drift-iso4017:M16x160 rep 2",
+     "difference_bytes": 2703360
+    },
+    {
+     "reading": "41022812680:drift-iso4017:M16x160 rep 3",
+     "difference_bytes": 434176
+    },
+    {
+     "reading": "41022812680:drift-iso4017:M16x160 rep 4",
+     "difference_bytes": 5222400
+    },
+    {
+     "reading": "41022812680:drift-iso4017:M16x160 rep 5",
+     "difference_bytes": 0
+    }
+   ]
+  }
+ },
+ "recycling": {
+  "max_tasks_per_child": null,
+  "rule": "R23: the plateau holds at every artifact, and the drift is counted in W (R16)"
+ },
+ "tessellation_kept": {
+  "kept": true,
+  "rule": "R23: the tessellation presets are kept"
+ }
+}

@@ -1,0 +1,388 @@
+"""The Runs II readings that run inside the production container (07 D-02, D-09; R14, R23).
+
+`bench.oper` (the parent) starts one fresh container per reading and runs
+`python -m bench.oper_bound '<point json>'` in it for the point kinds this module owns. Like
+`bench.oper_child` it prints exactly one JSON line, and a reading it cannot stand behind carries a
+status and no figure (L02).
+
+*Contention* is R14's experiment: the bound point P and one cold partner per other worker, built
+together in one `BuildPool` of N workers, so the timeout D-09 derives from P's wall is the wall P
+takes while every other worker is busy too, not P alone (Pitfall 2: the old memory driver never had
+more than one build in flight). Every point goes through `BuildPool.executor_for`, the server's own
+routing (`hash(p) % N`), and never to a worker chosen by index: the set file computed each slot with
+that hash (R14), and the reading checks the pool agrees before it builds anything, so a reading
+with two builds on one worker, which would leave another idle and measure less than N-way
+contention, never yields a number. Every point is submitted once: a resubmitted partner would be a
+warm second build beside a cold P, and R14 asks for all N cold.
+
+*Drift* and *arenas* are R23's: one part built and exported K times in one process (does a worker
+grow across builds?), and one part built and exported once with `_release_arenas` on or off (does
+the trim leave less memory behind?).
+"""
+
+from __future__ import annotations
+
+import concurrent.futures
+import gzip
+import json
+import os
+import sys
+import time
+from collections.abc import Callable, Mapping, Sequence
+from concurrent.futures import Future, ProcessPoolExecutor
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Literal
+
+from bench.oper import DEADLINE_S
+from bench.oper_child import (
+    _ARTIFACTS,
+    CgroupUnavailable,
+    _is_cgroup2,
+    _read_count,
+    _versions,
+    oom_kills,
+    read_peak,
+)
+from screw.build_errors import BuildError
+from screw.calc.cost import ARTIFACTS
+from screw.params import KINDS, FastenerParams
+from screw.pool import BuildPool
+
+type Fmt = Literal["stl", "step"]
+type Quality = Literal["preview", "fine"]
+type Task = Callable[[str, Mapping[str, object], Fmt, Quality], dict[str, object]]
+type Build = Callable[[FastenerParams], object]
+type Export = Callable[[FastenerParams, Fmt, Quality], bytes]
+
+# The figures one build reports and a contention record carries per build.
+_BUILD_FIGURES = ("build_s", "export_s", "bytes", "gzip1_bytes")
+
+
+def build_task(kind: str, params: Mapping[str, object], fmt: Fmt,
+               quality: Quality) -> dict[str, object]:
+    """R2's sequence inside a pool worker: a cold build, its export and a level-1 gzip, each
+    timed here so a build's figures do not include the wait for its result. The worker is warm
+    (`screw.pool._warm` imported the kernel) and new, and the cache is cleared all the same."""
+    from screw import solid
+
+    p = KINDS[kind].model_validate(dict(params))
+    solid.clear_cache()
+    try:
+        started = time.perf_counter()
+        solid.build(p)
+        build_s = time.perf_counter() - started
+        started = time.perf_counter()
+        data = solid.export(p, fmt, quality)
+        export_s = time.perf_counter() - started
+    except BuildError as exc:
+        return {"status": "refused", "error": type(exc).__name__, "message": str(exc)}
+    return {"status": "ok", "build_s": build_s, "export_s": export_s, "bytes": len(data),
+            "gzip1_bytes": len(gzip.compress(data, 1))}
+
+
+def run_member(task: Task, kind: str, params: Mapping[str, object], fmt: Fmt,
+               quality: Quality) -> tuple[int, dict[str, object]]:
+    """What a contention worker runs: `task` and the worker's pid, so the reading can show each
+    build ran in the process its slot was warmed in."""
+    return os.getpid(), task(kind, params, fmt, quality)
+
+
+@dataclass(frozen=True)
+class Member:
+    """One point of a contention reading: a part and the slot the set file computed for it."""
+
+    label: str
+    kind: str
+    params: Mapping[str, object]
+    slot: int
+
+
+def _member(raw: object) -> Member:
+    fields = raw if isinstance(raw, dict) else {}
+    label, kind, params, slot = (fields.get(key) for key in ("label", "kind", "params", "slot"))
+    if not (isinstance(label, str) and isinstance(kind, str) and kind in KINDS
+            and isinstance(params, dict) and isinstance(slot, int)
+            and not isinstance(slot, bool)):
+        raise ValueError(f"a contention point is a label, a kind of {sorted(KINDS)}, params and "
+                         f"a whole-number slot, not {raw!r}")
+    return Member(label=label, kind=kind, params=params, slot=slot)
+
+
+def _line(status: str, **fields: object) -> dict[str, object]:
+    return {"status": status, **fields}
+
+
+def _terminate(pool: BuildPool, executors: Sequence[ProcessPoolExecutor]) -> None:
+    """Stop the builds still running, as the pool's own timeout branch does: shutting an executor
+    down does not stop a build already in OCCT, terminating its process does."""
+    for executor in executors:
+        for process in executor._processes.values():
+            process.terminate()
+    pool.shutdown()
+
+
+def contention(points: Sequence[object], workers: int, deadline_s: float, *, artifact: str,
+               task: Task = build_task, read_peak: Callable[[], int] = read_peak,
+               oom_kills: Callable[[], int | None] = oom_kills) -> dict[str, object]:
+    """One contention reading (R14): `points` (P first) built together on a pool of `workers`,
+    one per worker, each submitted once and routed by `executor_for`.
+
+    The status, in order: `crashed` if the pool routes a point to another slot than the set
+    names (both slots in the message; nothing is built); `killed` if a build is still running at
+    `deadline_s` (its process terminated); `no_cgroup` if the peak cannot be read; `crashed` if a
+    build raised anything but a kernel refusal; `refused` if a build was refused (class and text
+    kept); else `ok`. The peak is the container's, read once after all N builds end. Only `ok`
+    carries figures: P's at the top and every build's in `builds`. A set that is not one point per
+    slot 0 to N - 1 is a `ValueError` naming R14: no reading is taken of it.
+    """
+    members = [_member(raw) for raw in points]
+    slots = sorted(member.slot for member in members)
+    if slots != list(range(workers)):
+        raise ValueError(f"R14: a contention reading at N = {workers} holds one point on each "
+                         f"slot 0 to {workers - 1}, not points on slots {slots}")
+    fmt, quality = _ARTIFACTS[artifact]
+    parts = [KINDS[member.kind].model_validate(dict(member.params)) for member in members]
+    routed = [hash(p) % workers for p in parts]
+    wrong = [f"{member.label}: the set names slot {member.slot}, the pool routes it to slot {slot}"
+             for member, slot in zip(members, routed, strict=True) if member.slot != slot]
+    if wrong:
+        return _line("crashed", error="SlotMismatch", message="; ".join(wrong))
+    pool = BuildPool(workers, dict.fromkeys(ARTIFACTS, deadline_s))
+    executors = [pool.executor_for(p) for p in parts]
+    try:
+        # Every worker imports the kernel before any build starts, so the N builds start together
+        # and none of them pays the import inside its own wall.
+        warm_pids = [executor.submit(os.getpid).result() for executor in executors]
+        futures: list[Future[tuple[int, dict[str, object]]]] = [
+            executor.submit(run_member, task, member.kind, dict(member.params), fmt, quality)
+            for executor, member in zip(executors, members, strict=True)]
+        _, pending = concurrent.futures.wait(futures, timeout=deadline_s)
+        if pending:
+            _terminate(pool, executors)
+            return _line("killed", message=f"{len(pending)} of {workers} builds were still "
+                                           f"running at {deadline_s:g} s")
+    finally:
+        pool.shutdown()
+    kills = oom_kills()
+    try:
+        peak = read_peak()
+    except CgroupUnavailable as exc:
+        return _line("no_cgroup", message=str(exc), oom_kills=kills)
+    builds: list[dict[str, object]] = []
+    refusal: dict[str, object] | None = None
+    for member, slot, warm_pid, future in zip(members, routed, warm_pids, futures, strict=True):
+        raised = future.exception()
+        if isinstance(raised, BuildError):
+            refusal = refusal or _line("refused", error=type(raised).__name__,
+                                       message=f"{member.label}: {raised}")
+            continue
+        if raised is not None:
+            return _line("crashed", error=type(raised).__name__,
+                         message=f"{member.label}: {raised}", memory_peak_bytes=peak,
+                         oom_kills=kills)
+        pid, result = future.result()
+        if pid != warm_pid:
+            return _line("crashed", error="SlotMismatch",
+                         message=f"{member.label} ran in pid {pid}, not in the worker of slot "
+                                 f"{slot} (pid {warm_pid})", memory_peak_bytes=peak,
+                         oom_kills=kills)
+        if result.get("status") != "ok":
+            refusal = refusal or _line("refused", error=result.get("error"),
+                                       message=f"{member.label}: {result.get('message')}")
+            continue
+        builds.append({"label": member.label, "slot": slot, "status": "ok",
+                       **{key: result[key] for key in _BUILD_FIGURES}})
+    if refusal is not None:
+        return {**refusal, "memory_peak_bytes": peak, "oom_kills": kills}
+    bound = builds[0]
+    return _line("ok", **{key: bound[key] for key in _BUILD_FIGURES}, memory_peak_bytes=peak,
+                 oom_kills=kills, builds=builds)
+
+
+def read_current(root: Path = Path("/")) -> int:
+    """The container's memory now, in bytes: cgroup v2 `memory.current`, under the mount check
+    `read_peak` makes. R23 names this file (G17); v1's `memory.usage_in_bytes` is other
+    accounting and is not taken in its place, so a v1 host is `CgroupUnavailable`."""
+    if not _is_cgroup2(root):
+        raise CgroupUnavailable("memory.current is a cgroup v2 file and /sys/fs/cgroup is not "
+                                "a cgroup2 mount")
+    return _read_count(root / "sys/fs/cgroup/memory.current")
+
+
+def vm_rss_bytes(root: Path = Path("/")) -> int:
+    """This process's resident set now, in bytes: `VmRSS` of `/proc/self/status` (kB)."""
+    for line in (root / "proc/self/status").read_text().splitlines():
+        fields = line.split()
+        if fields[:1] == ["VmRSS:"] and len(fields) == 3 and fields[2] == "kB" and (
+                fields[1].isdigit()):
+            return int(fields[1]) * 1024
+    raise RuntimeError("/proc/self/status has no VmRSS line in kB")
+
+
+def _gzip1(data: bytes) -> bytes:
+    return gzip.compress(data, 1)
+
+
+def _part(point: Mapping[str, object]) -> tuple[FastenerParams, Fmt, Quality]:
+    """The part a drift or arenas point names, validated by the production model, and the
+    `fmt, quality` of its artifact."""
+    part, artifact = point.get("part"), point.get("artifact")
+    if not (isinstance(part, dict) and part.get("kind") in KINDS
+            and isinstance(part.get("params"), dict) and isinstance(artifact, str)
+            and artifact in _ARTIFACTS):
+        raise ValueError(f"a part is a kind of {sorted(KINDS)} with params, at an artifact of "
+                         f"{sorted(_ARTIFACTS)}")
+    fmt, quality = _ARTIFACTS[artifact]
+    return KINDS[str(part["kind"])].model_validate(part["params"]), fmt, quality
+
+
+def _kernel(build: Build | None, export: Export | None,
+            clear: Callable[[], None] | None) -> tuple[Build, Export, Callable[[], None]]:
+    """The kernel's own build, export and cache clear where a test passed none; imported only
+    then, so a test with fakes never loads the kernel for them."""
+    if build is not None and export is not None and clear is not None:
+        return build, export, clear
+    from screw import solid
+
+    return build or solid.build, export or solid.export, clear or solid.clear_cache
+
+
+def drift(point: Mapping[str, object], *, build: Build | None = None,
+          export: Export | None = None, read_peak: Callable[[], int] = read_peak,
+          clear: Callable[[], None] | None = None,
+          gzip1: Callable[[bytes], bytes] = _gzip1,
+          oom_kills: Callable[[], int | None] = oom_kills) -> dict[str, object]:
+    """R23's drift reading: one process builds and exports the point's part `k` times, as a pool
+    worker would, and reads the container's peak after each.
+
+    Every build is cold: the solid cache is emptied before it, because the cache keeps at least
+    one solid (`int_env` floors `SCREW_SOLID_CACHE` at 1) and a repeat of one part would
+    otherwise be a hit and not a build. Each peak is read after the build, its export and a
+    level-1 gzip of the output (G14), as R2 reads a single reading, so the peak after build 1 and
+    the peak after build K measure the same sequence. A repetition with a build missing is no
+    drift (R23): a refusal at any build is `refused` and an unreadable cgroup `no_cgroup`, with
+    no peaks. `ok` carries the K peaks and build 1's `build_s`, `export_s` and `bytes`.
+    """
+    do_build, do_export, do_clear = _kernel(build, export, clear)
+    p, fmt, quality = _part(point)
+    k = point.get("k")
+    if not (isinstance(k, int) and not isinstance(k, bool) and k >= 2):
+        raise ValueError(f"k is a whole number of builds of at least 2, not {k!r}")
+    peaks: list[int] = []
+    first: dict[str, object] = {}
+    for number in range(1, k + 1):
+        do_clear()
+        try:
+            started = time.perf_counter()
+            do_build(p)
+            build_s = time.perf_counter() - started
+            started = time.perf_counter()
+            data = do_export(p, fmt, quality)
+            export_s = time.perf_counter() - started
+        except BuildError as exc:
+            return _line("refused", error=type(exc).__name__,
+                         message=f"build {number} of {k}: {exc}", oom_kills=oom_kills())
+        gzip1(data)
+        try:
+            peaks.append(read_peak())
+        except CgroupUnavailable as exc:
+            return _line("no_cgroup", message=str(exc), oom_kills=oom_kills())
+        if number == 1:
+            first = {"build_s": build_s, "export_s": export_s, "bytes": len(data)}
+    # `memory.peak` is a high-water mark, so the largest read is the container's peak.
+    return _line("ok", **first, memory_peak_bytes=max(peaks), peaks=peaks,
+                 oom_kills=oom_kills())
+
+
+def arenas(point: Mapping[str, object], *, build: Build | None = None,
+           export: Export | None = None, read_peak: Callable[[], int] = read_peak,
+           read_current: Callable[[], int] = read_current,
+           vm_rss: Callable[[], int] = vm_rss_bytes, clear: Callable[[], None] | None = None,
+           gzip1: Callable[[bytes], bytes] = _gzip1,
+           oom_kills: Callable[[], int | None] = oom_kills) -> dict[str, object]:
+    """R23's arena reading: one cold build and export of the point's part, with
+    `_release_arenas` as `trim` asks (off is `screw.solid._MALLOC_TRIM` set to None for the call
+    and restored after), then the memory the export left behind.
+
+    It records both candidate measures of that memory, the cgroup's `memory.current` and this
+    process's `VmRSS`, read right after the export returns (where the server would hand the bytes
+    on), before the level-1 gzip and the peak that R2 reads last. Which figure R23 compares is
+    the owner's ruling G17 (`memory.current`), applied by the set and the analysis, not here.
+    A trim-on reading where glibc's `malloc_trim` could not be loaded would be a trim-off reading
+    under the wrong name, so it is a `RuntimeError` and the parent records `crashed`.
+    """
+    from screw import solid
+
+    do_build, do_export, do_clear = _kernel(build, export, clear)
+    p, fmt, quality = _part(point)
+    trim = point.get("trim")
+    if not isinstance(trim, bool):
+        raise ValueError(f"trim is true or false, not {trim!r}")  # noqa: TRY004 -- a bad point
+    # `export()` reads the module global at call time, so the trim is exactly this one switch.
+    module = vars(solid)
+    saved = module["_MALLOC_TRIM"]
+    if trim and saved is None:
+        raise RuntimeError("malloc_trim is not loadable here, so a trim-on reading would not trim")
+    if not trim:
+        module["_MALLOC_TRIM"] = None
+    try:
+        do_clear()
+        started = time.perf_counter()
+        do_build(p)
+        build_s = time.perf_counter() - started
+        started = time.perf_counter()
+        data = do_export(p, fmt, quality)
+        export_s = time.perf_counter() - started
+        current, rss = read_current(), vm_rss()
+    except BuildError as exc:
+        return _line("refused", error=type(exc).__name__, message=str(exc),
+                     oom_kills=oom_kills())
+    except CgroupUnavailable as exc:
+        return _line("no_cgroup", message=str(exc), oom_kills=oom_kills())
+    finally:
+        module["_MALLOC_TRIM"] = saved
+    gzip1_bytes = len(gzip1(data))
+    try:
+        peak = read_peak()
+    except CgroupUnavailable as exc:
+        return _line("no_cgroup", message=str(exc), oom_kills=oom_kills())
+    return _line("ok", build_s=build_s, export_s=export_s, bytes=len(data),
+                 gzip1_bytes=gzip1_bytes, memory_current_bytes=current, vm_rss_bytes=rss,
+                 memory_peak_bytes=peak, oom_kills=oom_kills())
+
+
+def _run(point: object) -> dict[str, object]:
+    kind = point.get("kind") if isinstance(point, dict) else None
+    if isinstance(point, dict) and kind == "drift":
+        return drift(point)
+    if isinstance(point, dict) and kind == "arenas":
+        return arenas(point)
+    if isinstance(point, dict) and kind == "contention":
+        workers, points, artifact = point["workers"], point["points"], point["artifact"]
+        if not (isinstance(workers, int) and isinstance(points, list)
+                and isinstance(artifact, str) and artifact in _ARTIFACTS):
+            raise ValueError("a contention point has whole-number workers, a list of points and "
+                             f"an artifact of {sorted(_ARTIFACTS)}")
+        return contention(points, workers, DEADLINE_S, artifact=artifact)
+    raise ValueError(f"unknown kind {kind!r}")
+
+
+def main(argv: list[str]) -> int:
+    """Take one reading of the point `argv[0]` and print one JSON line. Exit 2, with a message on
+    stderr and no line, for a point it cannot read: a harness bug the parent records as
+    `crashed`, never a number."""
+    if len(argv) != 1:
+        print("usage: python -m bench.oper_bound '<point json>'", file=sys.stderr)
+        return 2
+    try:
+        record = _run(json.loads(argv[0]))
+    except (ValueError, KeyError) as exc:  # a pydantic ValidationError is a ValueError
+        print(f"bad point {argv[0]!r}: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 2
+    print(json.dumps({**record, **_versions()}, allow_nan=False))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))

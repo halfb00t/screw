@@ -12,11 +12,12 @@ import cadquery as cq
 import pytest
 from OCP.IFSelect import IFSelect_ReturnStatus
 
+from bench import oper_lift
 from bench.thread_spike.helical import naive_sweep_fuse, one_pipe
 from bench.thread_spike.maths import VOID_CLEARANCE
 from bench.thread_spike.measure import stl_check
 from screw.build_errors import BuildError
-from screw.calc import derive
+from screw.calc import derive, download_refusal
 from screw.calc.thread import (
     T_GATE,
     TIP_ANGLE_DEG,
@@ -26,7 +27,6 @@ from screw.calc.thread import (
     closed_volume,
     fillet_radius,
     fillet_ring_volume,
-    fine_stl_refusal,
     head_chamfer_depths,
     head_chamfer_kernel_bound,
     piece_refusal,
@@ -127,18 +127,19 @@ def test_a_thread_length_above_the_length_builds_to_the_full_length() -> None:
 
 
 def test_a_shank_sliver_below_the_floor_is_folded_and_one_at_the_floor_is_built() -> None:
-    # D-27, T-04-08: 0.0005 mm folds into the thread; exactly 0.001 mm keeps a shank. Both are
-    # one valid solid inside both gates (the kernel path that crashed on a sliver, Alert 6).
-    folded = build(BoltParams(thread_length=19.9995))
+    # D-27, T-04-08: 0.00005 mm folds into the thread; 0.0002 mm, past the 0.0001 mm floor of L20,
+    # keeps a shank. Both are one valid solid inside both gates (the kernel path that crashed on
+    # a sliver, Alert 6).
+    folded = build(BoltParams(length=5.0, thread_length=4.99995))
     assert len(folded.Solids()) == 1
     assert folded.isValid()
     assert precise_volume(folded) == pytest.approx(
-        bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 20.0, True, None, 30.0), rel=T_GATE)
-    kept = build(BoltParams(thread_length=19.999))
+        bolt_end_closed_volume(6.0, 1.0, 5.0, 10.0, 4.0, 5.0, True, None, 30.0), rel=T_GATE)
+    kept = build(BoltParams(length=5.0, thread_length=4.9998))
     assert len(kept.Solids()) == 1
     assert kept.isValid()
     assert precise_volume(kept) == pytest.approx(
-        bolt_end_closed_volume(6.0, 1.0, 20.0, 10.0, 4.0, 19.999, True, None, 30.0), rel=T_GATE)
+        bolt_end_closed_volume(6.0, 1.0, 5.0, 10.0, 4.0, 4.9998, True, None, 30.0), rel=T_GATE)
 
 
 def test_a_thread_below_the_floor_is_refused_naming_both_fields_before_the_kernel(
@@ -149,9 +150,9 @@ def test_a_thread_below_the_floor_is_refused_naming_both_fields_before_the_kerne
 
     monkeypatch.setattr(helical, "twist", unreachable)
     with pytest.raises(BuildError) as raised:
-        build(BoltParams(length=0.0005))
+        build(BoltParams(length=0.00005))
     assert str(raised.value).startswith("thread_length and length: ")
-    assert "0.0005" in str(raised.value)
+    assert "5e-05" in str(raised.value)
 
 
 def test_the_stl_is_binary_and_the_step_is_iso_10303() -> None:
@@ -376,11 +377,12 @@ def test_preview_has_fewer_triangles_than_fine() -> None:
 
 
 def test_a_solid_the_kernel_builds_with_the_wrong_volume_is_a_build_error() -> None:
-    # d=0.001, pitch=0.0001, length=0.01 builds one valid solid whose volume is off the closed
-    # form: +9.59e-03 in the research probe, +9.858e-03 in the run that wrote this test. The
-    # gate refuses it, naming the volume and the signed relative error.
-    with pytest.raises(BuildError, match=r"precise volume .*relative error \+\d\.\d+e-03"):
-        export(BoltParams(d=0.001, pitch=0.0001, length=0.01), "step")
+    # d=0.03, pitch=0.005, length=0.05 (a root radius of 0.0123 mm, just above the 0.01 mm floor)
+    # builds one valid solid whose volume is off the closed form: -1.829e-04 in the run that wrote
+    # this test, +9.59e-03 at d=0.001 in the research probe, a part the floor now refuses before
+    # the kernel. The gate refuses it, naming the volume and the signed relative error.
+    with pytest.raises(BuildError, match=r"precise volume .*relative error [+-]\d\.\d+e-0\d"):
+        export(BoltParams(d=0.03, pitch=0.005, length=0.05), "step")
 
 
 def _two_boxes() -> cq.Shape:
@@ -498,8 +500,12 @@ def test_the_gate_refuses_the_inverted_one_pipe_twist_by_its_sign(
     # sweep above is positive and does not exercise the sign.
     inverted = one_pipe(6.0, 1.0, 160.0)
     assert inverted.isValid()
-    error = _assert_refused_and_not_cached(
-        monkeypatch, inverted, BoltParams(d=6.0, pitch=1.0, length=160.0, thread_length=160.0))
+    # 160 turns is past the model's 90 (L20) and the twist is the kernel's, so the closed form is
+    # read from the part under the guards of the registration (250 turns, L11)
+    part = oper_lift.registered(
+        "bolt", {"d": 6.0, "pitch": 1.0, "length": 160.0, "thread_length": 160.0})
+    assert isinstance(part, BoltParams)
+    error = _assert_refused_and_not_cached(monkeypatch, inverted, part)
     assert error < -1.5
 
 
@@ -773,18 +779,17 @@ def test_a_thread_no_longer_than_the_tip_cone_builds_without_the_cone() -> None:
 
 
 def _sweep_row(size: str, standard: str, left_hand: bool) -> BoltParams:
-    """The shortest ISO 4017 row of `size`, or the longest ISO 4014 row of it whose fine STL is
-    not refused for the hand (so the part stays inside what a user can download at fine)."""
-    rows = [r for r in catalogue() if r.size == size and r.standard == standard]
+    """The shortest ISO 4017 row of `size`, or the longest ISO 4014 row of it whose fine STL the
+    shipped rule admits for the hand (so the part stays inside what a user can download at fine).
+    The row is chosen here, not typed, so a wider envelope only changes which row is read; a size
+    with no admitted ISO 4014 row fails, it is never skipped."""
+    rows = [BoltParams.model_validate({**dict(r.fields), "left_hand": left_hand})
+            for r in catalogue() if r.size == size and r.standard == standard]
     if standard == "ISO 4017":
-        row = min(rows, key=lambda r: r.length)
-    else:
-        row = max(
-            (r for r in rows if fine_stl_refusal(
-                dict(r.fields)["d"], dict(r.fields)["pitch"],
-                min(dict(r.fields)["thread_length"], r.length), left_hand) is None),
-            key=lambda r: r.length)
-    return BoltParams.model_validate({**dict(row.fields), "left_hand": left_hand})
+        return min(rows, key=lambda p: p.length)
+    admitted = [p for p in rows if download_refusal(p, "stl", "fine") is None]
+    assert admitted, (size, left_hand, "no ISO 4014 row admitted at fine STL")
+    return max(admitted, key=lambda p: p.length)
 
 
 @pytest.mark.parametrize("left_hand", [False, True], ids=["right", "left"])

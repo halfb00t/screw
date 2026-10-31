@@ -1,0 +1,95 @@
+{
+ "set": "gzip-rerun",
+ "rule": "07-SWEEP-PROTOCOL.md R19 (G24, G31)",
+ "reps": 5,
+ "shards": 1,
+ "deadline_s": 600,
+ "points": [
+  {
+   "label": "iso4017:M16x150",
+   "kind": "bolt",
+   "params": {
+    "d": 16.0,
+    "pitch": 2.0,
+    "length": 150.0,
+    "s": 24.0,
+    "k": 10.0,
+    "thread_length": 150.0
+   },
+   "artifact": "stl-preview",
+   "preset": "iso4017:M16x150",
+   "gzip_levels": [
+    1,
+    6,
+    9
+   ]
+  },
+  {
+   "label": "iso4017:M20x160",
+   "kind": "bolt",
+   "params": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "length": 160.0,
+    "s": 30.0,
+    "k": 12.5,
+    "thread_length": 160.0
+   },
+   "artifact": "stl-preview",
+   "preset": "iso4017:M20x160",
+   "gzip_levels": [
+    1,
+    6,
+    9
+   ]
+  }
+ ],
+ "dropped": [],
+ "notes": [
+  "the points of the gzip set (its notes and envelope) that no reading of bench/results/phase-07/gzip-40909739628 is of, every identity field the point carries equal in the reading; the earlier readings of the points they replace decide nothing (R14, G31)",
+  "5 repetitions; each reading charged R2's 600 s (R6, G4, G24)"
+ ],
+ "shard_sizes": [
+  2
+ ],
+ "sources": [
+  "explore=bench/results/phase-07/explore-40646117094",
+  "run=bench/results/phase-07/gzip-40909739628"
+ ],
+ "envelope": {
+  "bolt": {
+   "stl-preview": {
+    "bytes": 2.264581945786201,
+    "seconds": 4.286137349093968,
+    "peak": 2.040087854388461
+   },
+   "stl-fine": {
+    "bytes": 0.5633622849303941,
+    "seconds": 2.690232029900006,
+    "peak": 2.170967259675211
+   },
+   "step": {
+    "bytes": 0.9874058238127998,
+    "seconds": 2.616422482555953,
+    "peak": 0.45747877720379804
+   }
+  },
+  "nut": {
+   "stl-preview": {
+    "bytes": 0.7070121785110755,
+    "seconds": 1.061383246630594,
+    "peak": 0.556086702674923
+   },
+   "stl-fine": {
+    "bytes": 0.4996608149413484,
+    "seconds": 1.1069417227945801,
+    "peak": 0.5571452809681212
+   },
+   "step": {
+    "bytes": 0.3802587303182223,
+    "seconds": 0.8785228687431521,
+    "peak": 0.48786919655819627
+   }
+  }
+ }
+}

@@ -15,20 +15,44 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.config import JsonDict
 from pydantic_core import PydanticCustomError
 
-# INTERIM (D-01, D-14): the largest diameter or length a request may ask for, in mm. Not a
-# physical limit and not measured for screw's finished parts: it was taken from the
-# 01-RESEARCH.md F1 table, measured on the skeleton's plain cylinder, so one valid-looking
-# request could not outgrow compose's interim `mem_limit: 4g` (D-03) before the 30 s timeout
-# fires. F1 (macOS arm64, Apple M2 Max, one run per row, preview tessellation 0.08/0.5):
-#   d=1e5  9,932 triangles  0.10 s   553 MiB
-#   d=1e6  31,412 triangles 1.2 s  1,159 MiB
-#   d=1e7  99,344 triangles 25.1 s 6,036 MiB   <- above the interim 4g
-# Those numbers do not carry over to a thread, whose cost is set by turns and size and is
-# unmeasured at this corner: planner probe 2026-10-10, d=1e5, pitch=1, length=1 builds in
-# 0.01 s and its preview STL did not finish in 120 s. The 250-turn cap (MAX_TURNS) bounds the
-# turns; this bound stays as the INTERIM ceiling on size, and Phase 7 re-sweeps (OPER-02) and
-# sets the real cap (OPER-03). A value above it is a 422 naming the field, never a clamp (L02).
-INTERIM_MAX_MM = 1e5
+# Kernel outer walls on the size of a part, in mm (07 D-08, rule R8 of `07-SWEEP-PROTOCOL.md`, with
+# the owner's ruling G27): for each field the largest decade of 1e3, 1e4 and 1e5 mm at which the
+# kernel built the field's ceiling corner on linux/amd64 on the GitHub runner, read once in walls
+# run 40646134133 and again in 5 repetitions in confirm run 40678150220. A wall is where the kernel
+# refuses or crashes, never a budget: what a build costs is bounded by the cost model (L21) and the
+# container limit (L22), set separately. The value of a field is what its corner tested, which is
+# not always the decade: the head rule (s > d) and the thin-nut rule (s > d + 2 c) admit nothing
+# between the tested value and the decade. A value above a wall is a 422 naming the field, never a
+# clamp (L02). The F1 cylinder table the 1e5 first came from (d=1e5, 9,932 triangles, 553 MiB on
+# macOS arm64) bounded a plain cylinder and no thread; no number below comes from it.
+#
+# The value the most fields share. Bolt `s` and nut `s` are at 1e3 and so is every other field's
+# first decade, and 1e3, 1e4 and 1e5 are each the value of two fields, a tie that goes to the lower
+# (R8). Bolt `s`: `ceiling-bolt-s-1000` and `ceiling-bolt-d-1000` ok in 5 of 5 repetitions, the
+# `d` reading at 1e4 refused in 5 of 5. Nut `s`: `ceiling-nut-s-1000` and the lead-in nuts M2, M8
+# and M14 at s 1e3 ok in 5 of 5, `nutlead-M2-s10000` refused in 5 of 5. Nut `d` has no wall of its
+# own and stays under this value (G27): `ceiling-nut-d-1000` read ok once and `capped` (cost) in 5
+# of 5 repetitions, `ceiling-nut-d-10000` refused in 5 of 5, so 1e3 lies below its first refused
+# decade, 1e4, and the cost model's admission bounds a large nut.
+MAX_FIELD_MM = 1e3
+# Bolt `d`: `ceiling-bolt-d-1000` (d 999.999, the largest 6-figure value under 1e3, s 1e3) ok in 5
+# of 5; `ceiling-bolt-d-10000` refused in 5 of 5. s must exceed d, so 1e3 itself was never tested.
+MAX_BOLT_D_MM = 999.999
+# Bolt `length`: `ceiling-bolt-length-10000` and `ceiling-bolt-thread-10000` ok in 5 of 5;
+# `ceiling-bolt-length-100000` refused in 5 of 5.
+MAX_BOLT_LENGTH_MM = 1e4
+# Bolt `k`: `ceiling-bolt-k-100000` ok in 5 of 5. The lifted reading at 1e6
+# (`beyond-bolt-k-1000000`) was ok too and awards nothing: a reading past a cap raises no wall (R3).
+MAX_BOLT_K_MM = 1e5
+# Bolt `thread_length`: `ceiling-bolt-thread-100000` ok in 5 of 5. The lifted reading at 1e6 was
+# `capped` in 5 of 5 and awards nothing.
+MAX_BOLT_THREAD_LENGTH_MM = 1e5
+# Nut `m`: `ceiling-nut-m-10000` ok in 5 of 5; `ceiling-nut-m-100000` killed (cost) in 5 of 5, which
+# cannot raise a wall.
+MAX_NUT_M_MM = 1e4
+# Nut `clearance`: `ceiling-nut-clearance-1000` (d 6, s 1e3, clearance 496.999, the largest 6-figure
+# value under (1e3 - 6) / 2) ok in 5 of 5; `ceiling-nut-clearance-10000` refused in 5 of 5.
+MAX_NUT_CLEARANCE_MM = 496.999
 
 
 def _f[T](default: T, *, gt: float, le: float | None = None, title: str, group: str,
@@ -41,6 +65,13 @@ def _f[T](default: T, *, gt: float, le: float | None = None, title: str, group: 
         extra["step"] = step
     return Field(default, gt=gt, le=le, allow_inf_nan=False, title=title, description=help,
                  json_schema_extra=extra)
+
+
+def _diameter(le: float) -> float:
+    """The nominal diameter field, with its own wall. Bolt `d` is redeclared with `MAX_BOLT_D_MM`,
+    so the field is one definition and the shared base keeps `MAX_FIELD_MM`."""
+    return _f(6.0, gt=0, le=le, title="Diameter", group="Size", unit="mm", step=0.1,
+              help="Nominal (major) diameter of the shank.")
 
 
 def _free(default: float, *, le: float, title: str, group: str, unit: str = "",
@@ -94,8 +125,7 @@ class FastenerParams(BaseModel):
     # tests/test_params.py::test_the_frozen_defaults_are_the_iso_4017_m6_x_20_row (D-07). They
     # are frozen all the same: every shareable link omits fields at default, so moving one
     # silently rebuilds a different part from an old link (L02).
-    d: float = _f(6.0, gt=0, le=INTERIM_MAX_MM, title="Diameter", group="Size", unit="mm",
-                  step=0.1, help="Nominal (major) diameter of the shank.")
+    d: float = _diameter(MAX_FIELD_MM)
     pitch: float = _f(1.0, gt=0, title="Pitch", group="Size", unit="mm", step=0.05,
                       help="Thread pitch: the axial distance from one crest to the next.")
     # D-09: on the base, not on BoltParams, because the thread is every part's (THRD-01) and a
@@ -125,27 +155,40 @@ class FastenerParams(BaseModel):
         return f"{self.kind}_{fields}"
 
 
+def _pitch_too_fine(p: FastenerParams) -> None:
+    # 07 R31 (G35, G36): a pitch too fine for its d is refused before the kernel, which would accept
+    # the request and then fail the build. A direct conflict between two fields, so a 422 naming
+    # both (L02). Each kind calls it from its last validator, so a part another rule also refuses
+    # keeps the error it gave before the wall existed.
+    from screw.calc.thread import pitch_too_fine_refusal
+
+    if (msg := pitch_too_fine_refusal(p.kind, p.d, p.pitch)) is not None:
+        raise PydanticCustomError("pitch_too_fine", msg, {"fields": ["d", "pitch"]})
+
+
 class BoltParams(FastenerParams):
     """The bolt: a hex head bolt or screw of diameter d, pitch, nominal length, across flats s
     and head height k."""
 
     kind: ClassVar[str] = "bolt"
 
-    length: float = _f(20.0, gt=0, le=INTERIM_MAX_MM, title="Length", group="Size", unit="mm",
+    # Redeclared for its own wall (MAX_BOLT_D_MM), in the base's place in the field order.
+    d: float = _diameter(MAX_BOLT_D_MM)
+    length: float = _f(20.0, gt=0, le=MAX_BOLT_LENGTH_MM, title="Length", group="Size", unit="mm",
                        step=0.5, help="Nominal length l: from the tip of the thread to the "
                                       "underside of the head.")
     # D-07, L02: the ISO 4017:2022 M6 row (grade A) as the owner read it on 2026-10-11 from the
     # purchased copy and confirmed in 04-OWNER-READS.md. Frozen: every shareable link that omits
     # s or k means these values forever. Plan 04-08's row test asserts them against the cited row.
-    s: float = _f(10.0, gt=0, le=INTERIM_MAX_MM, title="Across flats", group="Head", unit="mm",
+    s: float = _f(10.0, gt=0, le=MAX_FIELD_MM, title="Across flats", group="Head", unit="mm",
                   step=0.1, help="Width across flats of the hexagon head (ISO symbol s).")
-    k: float = _f(4.0, gt=0, le=INTERIM_MAX_MM, title="Head height", group="Head", unit="mm",
+    k: float = _f(4.0, gt=0, le=MAX_BOLT_K_MM, title="Head height", group="Head", unit="mm",
                   step=0.1, help="Height of the hexagon head along the axis (ISO symbol k).")
     # D-07, L02: the ISO 4017 M6 x 20 row fills this with the full length, and the default 20.0 is
     # frozen: every shareable link that omits it means 20 forever. Measured from the tip (D-08)
     # and never rewritten: `built_thread_length` derives the thread the builder makes, so a
     # length below this default builds a full-thread screw and the info document says so.
-    thread_length: float = _f(20.0, gt=0, le=INTERIM_MAX_MM, title="Thread length",
+    thread_length: float = _f(20.0, gt=0, le=MAX_BOLT_THREAD_LENGTH_MM, title="Thread length",
                               group="Thread", unit="mm", step=0.5,
                               help="Length of the thread from the tip (ISO 4014: b; ISO 4017: "
                                    "the whole length); the rest of the length is a plain shank "
@@ -187,6 +230,11 @@ class BoltParams(FastenerParams):
             raise PydanticCustomError("head_too_small", msg, {"fields": ["s", "d"]})
         return self
 
+    @model_validator(mode="after")
+    def _fine_pitch(self) -> Self:
+        _pitch_too_fine(self)
+        return self
+
 
 class NutParams(FastenerParams):
     """The nut: a hex nut of nominal diameter d and pitch, across flats s, height m and the radial
@@ -202,9 +250,9 @@ class NutParams(FastenerParams):
     # cross-checked against GOST ISO 4032-2014 Table 1, M6, on 2026-10-20 and are pinned to that
     # row by `tests/test_params.py` (L14, 05-OWNER-READS.md). Frozen:
     # every shareable link that omits s or m means these values forever.
-    s: float = _f(10.0, gt=0, le=INTERIM_MAX_MM, title="Across flats", group="Nut", unit="mm",
+    s: float = _f(10.0, gt=0, le=MAX_FIELD_MM, title="Across flats", group="Nut", unit="mm",
                   step=0.1, help="Width across flats of the hexagon nut (ISO 4032 symbol s).")
-    m: float = _f(5.2, gt=0, le=INTERIM_MAX_MM, title="Height", group="Nut", unit="mm", step=0.1,
+    m: float = _f(5.2, gt=0, le=MAX_NUT_M_MM, title="Height", group="Nut", unit="mm", step=0.1,
                   help="Height of the nut along the axis (ISO 4032 symbol m).")
     # D-07, PAIR-02, L02, L17: 0.15 mm is the smallest Phase 6 ladder step from which every printed
     # M6 to M12 product nut threaded by hand onto its printed product bolt (run 06-print-run-1,
@@ -215,7 +263,8 @@ class NutParams(FastenerParams):
     # Frozen: every shareable link that omits clearance means 0.15 forever, so a later reading is a
     # new decision and never an edit here. No lower bound; the two refusals below stay as they were.
     clearance: float = _free(
-        0.15, le=INTERIM_MAX_MM, title="Clearance (radial)", group="Pair", unit="mm", step=0.01,
+        0.15, le=MAX_NUT_CLEARANCE_MM, title="Clearance (radial)", group="Pair", unit="mm",
+        step=0.01,
         help="Radial clearance c in mm: both thread radii of the nut grow by c, so a positive "
              "value enlarges the nut's thread and 0 is the nominal profile. The diametral value "
              "(2 c) is on the info panel.")
@@ -249,6 +298,11 @@ class NutParams(FastenerParams):
 
         if (msg := nut_turn_cap_refusal(self.m, self.pitch)) is not None:
             raise PydanticCustomError("turn_cap", msg, {"fields": ["m", "pitch"]})
+        return self
+
+    @model_validator(mode="after")
+    def _fine_pitch(self) -> Self:
+        _pitch_too_fine(self)
         return self
 
 

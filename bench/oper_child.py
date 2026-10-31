@@ -38,6 +38,11 @@ _ARTIFACTS: dict[str, tuple[Literal["stl", "step"], Literal["preview", "fine"]]]
 }
 
 
+# R19's levels: a part point may ask for its export's compressed bytes and single-thread seconds at
+# each (`gzip_levels`), taken after the R2 peak read so that peak keeps R2's meaning.
+GZIP_LEVELS = (1, 6, 9)
+
+
 class CgroupUnavailable(RuntimeError):  # noqa: N818 -- a condition, named for what is missing
     """The container's memory peak could not be read, so the reading has no peak."""
 
@@ -175,6 +180,35 @@ def _probe_one_pipe(d: float, pitch: float, turns: float, left_hand: bool) -> di
                     closed_volume(d, pitch, turns * pitch))
 
 
+def _probe_tip_piece(fields: Mapping[str, object]) -> dict[str, object]:
+    """A bolt's tip cone cut from its bare thread exactly as the build cuts it, with the piece it
+    removed as a ratio to its oracle: `volume_ratio - 1` is the relative error the build holds to
+    T_PIECE (`calc.thread.piece_refusal`), reported here and not gated. An `ok` build says only
+    that the error was inside the gate; G37 asks how far inside, for the dense boundary's bolts in
+    the in-wall residual, whose tip error the debug session saw grow with the turns (E27)."""
+    from screw.calc.thread import (
+        TIP_ANGLE_DEG,
+        built_thread_length,
+        closed_volume,
+        tip_cone_fits,
+        tip_cone_volume,
+    )
+    from screw.params import BoltParams
+    from screw.solid import bolt, check_solid, precise_volume
+
+    p = BoltParams.model_validate(dict(fields))
+    t = built_thread_length(p.thread_length, p.length)
+    if not tip_cone_fits(p.pitch, t):
+        raise ValueError("no tip cone fits this thread, so there is no piece to measure")
+    started = time.perf_counter()
+    bare = bolt.thread(p)
+    before = check_solid(bare, closed_volume(p.d, p.pitch, t), part="thread")
+    cut = bolt.tip_cut(p, bare)
+    after = precise_volume(cut)
+    build_s = time.perf_counter() - started
+    return _finding(cut, build_s, before - after, tip_cone_volume(p.d, p.pitch, TIP_ANGLE_DEG))
+
+
 def _number(args: Mapping[str, object], key: str) -> float:
     value = args[key]
     if isinstance(value, bool) or not isinstance(value, int | float):
@@ -209,6 +243,8 @@ def run_probe(point: Mapping[str, object]) -> dict[str, object]:
     elif name == "naive":
         job = partial(_probe_naive, _number(args, "d"), _number(args, "pitch"),
                       _number(args, "length"))
+    elif name == "tip_piece":
+        job = partial(_probe_tip_piece, args)
     elif name == "one_pipe":
         job = partial(_probe_one_pipe, _number(args, "d"), _number(args, "pitch"),
                       _number(args, "turns"), _flag(args, "left_hand"))
@@ -265,6 +301,12 @@ def main(argv: list[str]) -> int:
     except (KeyError, TypeError) as exc:
         print(f"bad point {argv[0]!r}: {type(exc).__name__}: {exc}", file=sys.stderr)
         return 2
+    levels = point.get("gzip_levels", [])
+    if not (isinstance(levels, list) and all(
+            isinstance(level, int) and level in GZIP_LEVELS for level in levels)):
+        print(f"bad point {argv[0]!r}: gzip_levels is {levels!r}, not levels of {GZIP_LEVELS}",
+              file=sys.stderr)
+        return 2
     # screw is imported here and not at the top so `import bench.oper_child` stays cheap and the
     # tests of the cgroup reader never pay for the kernel.
     from bench import oper_lift
@@ -284,6 +326,18 @@ def main(argv: list[str]) -> int:
 
     fmt, quality = artifact
     versions = _versions()
+    if point.get("expect") == "refused":
+        # R28, G12: a pair the shipped cost model refuses is read for its refusal and never
+        # built. The text is the info document's for this download, the one the route answers
+        # with a 422 (07-11). A pair the document serves after all is built as any part is, so
+        # its reading is `ok` and the parent fails it for not refusing.
+        from screw.calc import derive
+
+        refusal = next(d.refusal for d in derive(p).downloads
+                       if (d.format, d.quality) == (fmt, quality))
+        if refusal is not None:
+            _emit({"status": "refused", "error": "over_budget", "message": refusal, **versions})
+            return 0
     solid.clear_cache()
     try:
         started = time.perf_counter()
@@ -308,11 +362,26 @@ def main(argv: list[str]) -> int:
     except CgroupUnavailable:
         _emit({"status": "no_cgroup", **versions})
         return 0
-    _emit({"status": "ok", "build_s": build_s, "export_s": export_s, "bytes": len(data),
-           "triangles": triangles, "gzip1_bytes": gzip1_bytes,
-           "maxrss_bytes": maxrss, "memory_peak_bytes": peak, "oom_kills": oom_kills(),
-           **versions})
+    kills = oom_kills()
+    record: dict[str, object] = {
+        "status": "ok", "build_s": build_s, "export_s": export_s, "bytes": len(data),
+        "triangles": triangles, "gzip1_bytes": gzip1_bytes, "maxrss_bytes": maxrss,
+        "memory_peak_bytes": peak, "oom_kills": kills, **versions}
+    if levels:
+        record["gzip"] = gzip_levels(data, levels)
+    _emit(record)
     return 0
+
+
+def gzip_levels(data: bytes, levels: list[int]) -> list[dict[str, object]]:
+    """R19's per-level figures of `data`: the compressed bytes and the seconds of one
+    single-threaded `gzip.compress` at each level. Called after the peak read only."""
+    out: list[dict[str, object]] = []
+    for level in levels:
+        started = time.perf_counter()
+        size = len(gzip.compress(data, level))
+        out.append({"level": level, "bytes": size, "seconds": time.perf_counter() - started})
+    return out
 
 
 if __name__ == "__main__":

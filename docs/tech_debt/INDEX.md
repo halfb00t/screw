@@ -16,8 +16,14 @@ Severity (grep-able `Severity:` field):
 
 | Severity | Item | Trigger to revisit |
 |---|---|---|
+| must | [Parts inside the fine-pitch walls that the kernel still refuses](active/2026-10-29-in-wall-parts-the-kernel-refuses.md) | before the first release |
+| must | [An above-band head ratio is never priced against a below-band one at its edge](active/2026-10-31-head-ratio-edges-never-meet-a-real-out-of-band-ratio.md) | the runner reading of the d-only M2 and M3 (G39), or before the first release |
+| nice | [The full tier's follow-up job has never run on the runner](active/2026-10-31-full-tier-follow-up-job-never-run-on-the-runner.md) | the first full-tier run that selects a follow-up point |
+| nice | [The build-time corpus is mostly parts the cost model refuses, so the bench judges little](active/2026-10-30-build-time-corpus-is-mostly-refused-by-the-cost-model.md) | the next change to bench/corpus.py or bench/build_time.py |
+| nice | [The refused preview's status sentence runs under the Fit button](active/2026-10-29-status-sentence-runs-under-fit.md) | the phase 7 UAT, or the next change to the viewport overlay |
+| nice | [The shank-fold warning prints its numbers with :g, so a value near the 0.0001 mm line can read as the wrong side of it](active/2026-10-28-shank-fold-warning-rounds-the-numbers-it-compares.md) | the next change to the warning texts |
 | must | [No test holds that a nut outside the measured range is still a 200 from the API](active/2026-10-24-measured-range-nut-api-200-untested.md) | the next edit to the nut warnings, or before the first release (after Phase 7) |
-| must | [The nut's countersink cutter ends at a negative radius at a coarse pitch and the kernel refuses a valid nut](active/2026-10-21-nut-countersink-cutter-crosses-the-axis-at-a-coarse-pitch.md) | before the nut's pitch or clearance range is relied on, or with the root-radius floor item |
+| must | [The nut's countersink cutter ends at a negative radius at a coarse pitch and the kernel refuses a valid nut](active/2026-10-21-nut-countersink-cutter-crosses-the-axis-at-a-coarse-pitch.md) | before the nut's pitch or clearance range is relied on, with the root-radius floor item, on a request for a nut whose void root ratio r/d is near or below 0.12, or before a void guard is relied on |
 | nice | [Three pair and CLI tests couple to prose, internal names and a wall-clock bound](active/2026-10-21-brittle-pair-and-cli-tests.md) | the first time the 5 s assertion fails, or the next edit to the pair orchestration tests |
 | must | [screw pair's verdict exit codes 1 and 2 are also what a crash and a refused parameter return](active/2026-10-21-screw-pair-exit-codes-collide-with-failure-exits.md) | before any script, workflow or doc branches on the exit code, or the first release (after Phase 7) |
 | must | [A bolt's under-head fillet ring can overhang the head's flats with no warning](active/2026-10-21-fillet-ring-can-overhang-the-head-flats.md) | before the first release (after Phase 7), or when the fillet or the head next changes |
@@ -25,22 +31,27 @@ Severity (grep-able `Severity:` field):
 | must | [The ISO standards Phase 5 reads are not purchased: rows come from free GOST texts of older editions](active/2026-10-20-iso-standards-not-purchased.md) | before the first release (after Phase 7), or any public release that claims ISO conformance |
 | nice | [The tip cut fails in the sliver of thread_length just above the cone's axial length](active/2026-10-20-tip-cone-degenerate-boolean-at-the-cone-length.md) | revisit if a real size meets the window, or when the tip length is next changed |
 | must | [The pair tier has not run on ubuntu: pair.yml can be dispatched only once it is on main](active/2026-10-14-first-pair-yml-dispatch.md) | the Phase 5 PR's merge to `main` |
-| must | [The nut's lead-in countersink piece gate refuses a valid nut at huge s and small clearance](active/2026-10-21-nut-lead-in-gate-refuses-a-valid-nut-at-huge-s.md) | before the nut's s ceiling is relied on, or the Phase 7 operability re-sweep (OPER-02) |
-| must | [The nut's size ceilings are interim; its fine-STL caps are measured on macOS arm64 only](active/2026-10-14-nut-interim-bounds.md) | Phase 7 operability re-sweep (OPER-02, OPER-03) |
-| must | [Root radii down to about 3e-5 mm pass validation and then fail in the kernel with a generic message](active/2026-10-11-root-radius-floor-is-not-the-kernel-boundary.md) | measure the floor; before L12's boundary claim is relied on |
-| must | [A valid in-cap request (d=100, length=200, default pitch) exceeds both interim backstops and is unrecorded](active/2026-10-11-default-pitch-d100-length200-exceeds-both-interim-backstops.md) | owner severity ruling; measure at the 30 s kill point |
 | nice | [The M18 probe's --one entry has no deadline when started by hand during a run](active/2026-10-14-m18-probe-one-entry-has-no-deadline-during-a-run.md) | the probe is reused, or the owner wants the entry closed completely |
 | nice | [check_solid discards the volume estimator's own error estimate](active/2026-10-11-check-solid-ignores-the-volume-error-estimate.md) | when the gate or T_GATE next changes |
 | must | [Two thread spike protocol amendments wait for the owner before the next campaign](active/2026-10-10-spike-protocol-amendments-before-next-campaign.md) | before the next thread-spike campaign runs |
-| must | [Interim runtime bounds are spur's figures, not screw's measurements](active/2026-10-05-interim-runtime-bounds.md) | Phase 7 operability re-sweep (OPER-02) |
-| must | [bench.memory samples too coarsely to read a peak off a corpus that runs in seconds](active/2026-10-06-bench-memory-sampling-is-too-coarse-for-short-corpora.md) | before the Phase 7 memory sweep (OPER-02, OPER-03) |
-| nice | [The infrastructure forked from spur is not a shared package](active/2026-10-05-shared-infra-extraction.md) | fired: the pool.py race guard (L09) — owner decides extract vs fix twice |
+| nice | [The infrastructure forked from spur is not a shared package](active/2026-10-05-shared-infra-extraction.md) | fired: the pool.py race guard (L09) and pr_land.py's full-tier rule (L27) — owner decides extract vs fix twice |
 | nice | [Enji Guard not connected](active/2026-10-05-enji-guard-not-connected.md) | first product code on `main`, or the owner decides they want continuous AI audit |
 
 ## Resolved
 
 | Item | Resolved in |
 |---|---|
+| [A tall nut below the clearance band was admitted on a prediction that never priced its height](resolved/2026-10-31-tall-nut-misses-its-envelope-inside-the-clearance-band.md) | this commit — fix(cost): price a nut's clearance edges with its other fields real (G39, L30) |
+| [Interim runtime bounds are spur's figures, not screw's measurements](resolved/2026-10-05-interim-runtime-bounds.md) | this commit — chore(07): remove the last interim runtime labels and close the debt they tracked (07 D-16) |
+| [bench.memory samples too coarsely to read a peak off a corpus that runs in seconds](resolved/2026-10-06-bench-memory-sampling-is-too-coarse-for-short-corpora.md) | this commit — chore(07): remove the last interim runtime labels and close the debt they tracked (07 D-16) |
+| [A valid in-cap request (d=100, length=200, default pitch) exceeds both interim backstops and is unrecorded](resolved/2026-10-11-default-pitch-d100-length200-exceeds-both-interim-backstops.md) | this commit — chore(07): remove the last interim runtime labels and close the debt they tracked (07 D-16) |
+| [The pool's two dying-worker tests time out at 5 s under host load](resolved/2026-10-30-pool-dying-worker-tests-time-out-under-host-load.md) | this commit — test(pool): start the worker before the clock in the dying-worker and queued-timeout tests |
+| [The cost model admits a part it refuses once its head height leaves the fitted band](resolved/2026-10-29-cost-model-admits-out-of-fit-head-heights.md) | this commit — feat(calc): widen the cost model's envelope to cover every cold isolated Runs II reading (07 D-07) |
+| [The nut's size ceilings are interim; its fine-STL caps are measured on macOS arm64 only](resolved/2026-10-14-nut-interim-bounds.md) | this commit — refactor(calc): retire the per-row fine-STL caps the cost model replaced (07 D-08, D-17) |
+| [The default cap can pick a thread shorter than any turn count the cost model was fitted on](resolved/2026-10-29-default-cap-lands-below-the-fitted-turns.md) | this commit — feat(calc): the default cap stops at the fewest turns the cost model was fitted on (07 B-03) |
+| [The queued-request timeout test flakes under full-suite load](resolved/2026-10-28-queued-request-timeout-test-flakes-under-full-suite-load.md) | this commit — test(pool): give the queued-request timeout test twice the slack under load |
+| [The nut's lead-in countersink piece gate refuses a valid nut at huge s and small clearance](resolved/2026-10-21-nut-lead-in-gate-refuses-a-valid-nut-at-huge-s.md) | a804806 — feat(calc): re-measured MAX_TURNS, MIN_TAIL_MM and field ceilings as cited kernel walls (07 D-08) |
+| [Root radii down to about 3e-5 mm pass validation and then fail in the kernel with a generic message](resolved/2026-10-11-root-radius-floor-is-not-the-kernel-boundary.md) | 683a434 — feat(calc): refuse a root radius below the measured kernel floor (07 D-18) |
 | [The info document prints a whole head chamfer for a tiny angle the kernel refuses](resolved/2026-10-24-info-document-cannot-see-a-kernel-refused-head-chamfer.md) | this commit — fix(06.1): warn below the measured limit of the head chamfer instead of printing its rows |
 | [The nut has no fine-STL cap: its caps need their own measurement run](resolved/2026-10-14-nut-fine-stl-caps-unmeasured.md) | this commit — fix(05-19): refuse a nut's fine STL past its measured cap (plan 05-19) |
 | [The web page rounds every displayed number in the browser](resolved/2026-10-06-ui-rounds-displayed-numbers.md) | this commit — fix(ui): show the API's numbers unrounded, with the designation, groups and notes (plan 04-13) |

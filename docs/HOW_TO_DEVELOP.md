@@ -152,6 +152,14 @@ head with exactly the verified title and body, waits up to a minute for the CI r
 new `main` commit and prints its URL, switches to `main`, pulls, and deletes the local
 phase branch only if its tip is the landed commit. Any refusal means nothing was landed.
 
+Two more refusals read the PR's diff. A PR that touches the cost model's files or
+`src/screw/solid/` needs a green full `operability.yml` run on its head (`L27`). A PR that
+touches a file that decides that run's verdict or a required job's (`GATE_PATHS` in
+`scripts/pr_land.py`: `ci.yml`, `operability.yml`, `required-jobs.txt`, the bench code they run
+and the two point files they judge against) is refused, because its own runs cannot vouch for
+it. Read the diff, and if you approve it, run
+`make pr.land PR=N PR_LAND_FLAGS=--owner-approves-gate-change` (`L28`).
+
 `make pr.land` is a tool, not a wall: it checks the job list and the lag behind `main` at
 the moment of its read, and the window between that read and the merge is closed by the
 ruleset's strict up-to-date policy. The button on GitHub merges only what the ruleset

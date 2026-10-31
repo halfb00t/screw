@@ -1,0 +1,824 @@
+{
+ "set": "solid-cache-4",
+ "rule": "07-SWEEP-PROTOCOL.md R22 (G4, G9)",
+ "reps": 5,
+ "shards": 1,
+ "deadline_s": 600,
+ "points": [
+  {
+   "label": "solid-cache-4",
+   "kind": "load",
+   "workers": 1,
+   "queue": 2,
+   "clients": 2,
+   "solid_cache": 4,
+   "bodies": false,
+   "mix": [
+    {
+     "label": "iso4014:M3.5x30",
+     "kind": "bolt",
+     "params": {
+      "d": 3.5,
+      "pitch": 0.6,
+      "length": 30.0,
+      "s": 6.0,
+      "k": 2.4,
+      "thread_length": 13.0
+     },
+     "artifact": "step"
+    },
+    {
+     "label": "iso4017:M4x30",
+     "kind": "bolt",
+     "params": {
+      "d": 4.0,
+      "pitch": 0.7,
+      "length": 30.0,
+      "s": 7.0,
+      "k": 2.8,
+      "thread_length": 30.0
+     },
+     "artifact": "stl-preview"
+    },
+    {
+     "label": "bolt-d1-p0.35-n30-right",
+     "kind": "bolt",
+     "params": {
+      "d": 1.0,
+      "pitch": 0.35,
+      "length": 10.5,
+      "s": 1.6,
+      "k": 0.6,
+      "thread_length": 10.5,
+      "left_hand": false
+     },
+     "artifact": "stl-fine"
+    },
+    {
+     "label": "nut-d3-p0.35-m0.8d-s1.6d-c0.15-right",
+     "kind": "nut",
+     "params": {
+      "d": 3.0,
+      "pitch": 0.35,
+      "m": 2.4,
+      "s": 4.8,
+      "clearance": 0.15,
+      "left_hand": false
+     },
+     "artifact": "stl-preview"
+    },
+    {
+     "label": "iso4014:M12x70",
+     "kind": "bolt",
+     "params": {
+      "d": 12.0,
+      "pitch": 1.75,
+      "length": 70.0,
+      "s": 18.0,
+      "k": 7.5,
+      "thread_length": 30.0
+     },
+     "artifact": "stl-preview"
+    },
+    {
+     "label": "nut-d30-p3.5-m0.8d-s4d-c5-right",
+     "kind": "nut",
+     "params": {
+      "d": 30.0,
+      "pitch": 3.5,
+      "m": 24.0,
+      "s": 120.0,
+      "clearance": 5.0,
+      "left_hand": false
+     },
+     "artifact": "stl-preview"
+    },
+    {
+     "label": "iso4017:M20x180",
+     "kind": "bolt",
+     "params": {
+      "d": 20.0,
+      "pitch": 2.5,
+      "length": 180.0,
+      "s": 30.0,
+      "k": 12.5,
+      "thread_length": 180.0
+     },
+     "artifact": "stl-fine"
+    },
+    {
+     "label": "bolt-d3-p1-n30-left",
+     "kind": "bolt",
+     "params": {
+      "d": 3.0,
+      "pitch": 1.0,
+      "length": 30.0,
+      "s": 4.8,
+      "k": 1.8,
+      "thread_length": 30.0,
+      "left_hand": true
+     },
+     "artifact": "stl-preview"
+    },
+    {
+     "label": "bolt-d30-p0.35-n3-left",
+     "kind": "bolt",
+     "params": {
+      "d": 30.0,
+      "pitch": 0.35,
+      "length": 1.05,
+      "s": 48.0,
+      "k": 18.0,
+      "thread_length": 1.05,
+      "left_hand": true
+     },
+     "artifact": "stl-preview"
+    },
+    {
+     "label": "bolt-d10-p0.1-n30-left",
+     "kind": "bolt",
+     "params": {
+      "d": 10.0,
+      "pitch": 0.1,
+      "length": 3.0,
+      "s": 16.0,
+      "k": 6.0,
+      "thread_length": 3.0,
+      "left_hand": true
+     },
+     "artifact": "stl-preview"
+    },
+    {
+     "label": "nut-d10-p3.5-m3d-s1.6d-c0.15-left",
+     "kind": "nut",
+     "params": {
+      "d": 10.0,
+      "pitch": 3.5,
+      "m": 30.0,
+      "s": 16.0,
+      "clearance": 0.15,
+      "left_hand": true
+     },
+     "artifact": "stl-preview"
+    },
+    {
+     "label": "iso4017:M8x60",
+     "kind": "bolt",
+     "params": {
+      "d": 8.0,
+      "pitch": 1.25,
+      "length": 60.0,
+      "s": 13.0,
+      "k": 5.3,
+      "thread_length": 60.0
+     },
+     "artifact": "stl-fine"
+    },
+    {
+     "label": "bolt-d10-p3-n30-right",
+     "kind": "bolt",
+     "params": {
+      "d": 10.0,
+      "pitch": 3.0,
+      "length": 90.0,
+      "s": 16.0,
+      "k": 6.0,
+      "thread_length": 90.0,
+      "left_hand": false
+     },
+     "artifact": "stl-fine"
+    },
+    {
+     "label": "iso4014:M20x110",
+     "kind": "bolt",
+     "params": {
+      "d": 20.0,
+      "pitch": 2.5,
+      "length": 110.0,
+      "s": 30.0,
+      "k": 12.5,
+      "thread_length": 46.0
+     },
+     "artifact": "stl-preview"
+    },
+    {
+     "label": "bolt-d100-p10-n30-right",
+     "kind": "bolt",
+     "params": {
+      "d": 100.0,
+      "pitch": 10.0,
+      "length": 300.0,
+      "s": 160.0,
+      "k": 60.0,
+      "thread_length": 300.0,
+      "left_hand": false
+     },
+     "artifact": "step"
+    },
+    {
+     "label": "bolt-d3-p0.35-n3-right",
+     "kind": "bolt",
+     "params": {
+      "d": 3.0,
+      "pitch": 0.35,
+      "length": 1.05,
+      "s": 4.8,
+      "k": 1.8,
+      "thread_length": 1.05,
+      "left_hand": false
+     },
+     "artifact": "step"
+    },
+    {
+     "label": "nut-d3-p0.35-m3d-s1.6d-c0.15-right",
+     "kind": "nut",
+     "params": {
+      "d": 3.0,
+      "pitch": 0.35,
+      "m": 9.0,
+      "s": 4.8,
+      "clearance": 0.15,
+      "left_hand": false
+     },
+     "artifact": "stl-fine"
+    },
+    {
+     "label": "iso4017:M16x160",
+     "kind": "bolt",
+     "params": {
+      "d": 16.0,
+      "pitch": 2.0,
+      "length": 160.0,
+      "s": 24.0,
+      "k": 10.0,
+      "thread_length": 160.0
+     },
+     "artifact": "step"
+    },
+    {
+     "label": "bolt-d30-p0.1-n3-left",
+     "kind": "bolt",
+     "params": {
+      "d": 30.0,
+      "pitch": 0.1,
+      "length": 0.3,
+      "s": 48.0,
+      "k": 18.0,
+      "thread_length": 0.3,
+      "left_hand": true
+     },
+     "artifact": "stl-fine"
+    },
+    {
+     "label": "iso4017:M5x16",
+     "kind": "bolt",
+     "params": {
+      "d": 5.0,
+      "pitch": 0.8,
+      "length": 16.0,
+      "s": 8.0,
+      "k": 3.5,
+      "thread_length": 16.0
+     },
+     "artifact": "stl-preview"
+    },
+    {
+     "label": "iso4017:M14x55",
+     "kind": "bolt",
+     "params": {
+      "d": 14.0,
+      "pitch": 2.0,
+      "length": 55.0,
+      "s": 21.0,
+      "k": 8.8,
+      "thread_length": 55.0
+     },
+     "artifact": "stl-fine"
+    },
+    {
+     "label": "iso4014:M18x90",
+     "kind": "bolt",
+     "params": {
+      "d": 18.0,
+      "pitch": 2.5,
+      "length": 90.0,
+      "s": 27.0,
+      "k": 11.5,
+      "thread_length": 42.0
+     },
+     "artifact": "step"
+    },
+    {
+     "label": "iso4017:M14x130",
+     "kind": "bolt",
+     "params": {
+      "d": 14.0,
+      "pitch": 2.0,
+      "length": 130.0,
+      "s": 21.0,
+      "k": 8.8,
+      "thread_length": 130.0
+     },
+     "artifact": "step"
+    },
+    {
+     "label": "iso4017:M6x16",
+     "kind": "bolt",
+     "params": {
+      "d": 6.0,
+      "pitch": 1.0,
+      "length": 16.0,
+      "s": 10.0,
+      "k": 4.0,
+      "thread_length": 16.0
+     },
+     "artifact": "stl-fine"
+    },
+    {
+     "label": "iso4014:M18x180",
+     "kind": "bolt",
+     "params": {
+      "d": 18.0,
+      "pitch": 2.5,
+      "length": 180.0,
+      "s": 27.0,
+      "k": 11.5,
+      "thread_length": 48.0
+     },
+     "artifact": "stl-fine"
+    },
+    {
+     "label": "nut-d30-p3.5-m3d-s1.6d-c5-right",
+     "kind": "nut",
+     "params": {
+      "d": 30.0,
+      "pitch": 3.5,
+      "m": 90.0,
+      "s": 48.0,
+      "clearance": 5.0,
+      "left_hand": false
+     },
+     "artifact": "stl-fine"
+    },
+    {
+     "label": "iso4017:M6x20",
+     "kind": "bolt",
+     "params": {
+      "d": 6.0,
+      "pitch": 1.0,
+      "length": 20.0,
+      "s": 10.0,
+      "k": 4.0,
+      "thread_length": 20.0
+     },
+     "artifact": "step"
+    },
+    {
+     "label": "bolt-d1-p0.1-n3-right",
+     "kind": "bolt",
+     "params": {
+      "d": 1.0,
+      "pitch": 0.1,
+      "length": 0.3,
+      "s": 1.6,
+      "k": 0.6,
+      "thread_length": 0.3,
+      "left_hand": false
+     },
+     "artifact": "step"
+    },
+    {
+     "label": "bolt-d10-p3-n3-left",
+     "kind": "bolt",
+     "params": {
+      "d": 10.0,
+      "pitch": 3.0,
+      "length": 9.0,
+      "s": 16.0,
+      "k": 6.0,
+      "thread_length": 9.0,
+      "left_hand": true
+     },
+     "artifact": "stl-preview"
+    },
+    {
+     "label": "iso4017:M3x20",
+     "kind": "bolt",
+     "params": {
+      "d": 3.0,
+      "pitch": 0.5,
+      "length": 20.0,
+      "s": 5.5,
+      "k": 2.0,
+      "thread_length": 20.0
+     },
+     "artifact": "step"
+    },
+    {
+     "label": "nut-d10-p1-m0.8d-s4d-c5-right",
+     "kind": "nut",
+     "params": {
+      "d": 10.0,
+      "pitch": 1.0,
+      "m": 8.0,
+      "s": 40.0,
+      "clearance": 5.0,
+      "left_hand": false
+     },
+     "artifact": "stl-fine"
+    },
+    {
+     "label": "iso4017:M7x55",
+     "kind": "bolt",
+     "params": {
+      "d": 7.0,
+      "pitch": 1.0,
+      "length": 55.0,
+      "s": 11.0,
+      "k": 4.8,
+      "thread_length": 55.0
+     },
+     "artifact": "step"
+    },
+    {
+     "label": "iso4014:M16x120",
+     "kind": "bolt",
+     "params": {
+      "d": 16.0,
+      "pitch": 2.0,
+      "length": 120.0,
+      "s": 24.0,
+      "k": 10.0,
+      "thread_length": 38.0
+     },
+     "artifact": "step"
+    },
+    {
+     "label": "bolt-d30-p3-n3-left",
+     "kind": "bolt",
+     "params": {
+      "d": 30.0,
+      "pitch": 3.0,
+      "length": 9.0,
+      "s": 48.0,
+      "k": 18.0,
+      "thread_length": 9.0,
+      "left_hand": true
+     },
+     "artifact": "step"
+    },
+    {
+     "label": "iso4017:M2.5x8",
+     "kind": "bolt",
+     "params": {
+      "d": 2.5,
+      "pitch": 0.45,
+      "length": 8.0,
+      "s": 5.0,
+      "k": 1.7,
+      "thread_length": 8.0
+     },
+     "artifact": "stl-preview"
+    },
+    {
+     "label": "bolt-d10-p1-n3-right",
+     "kind": "bolt",
+     "params": {
+      "d": 10.0,
+      "pitch": 1.0,
+      "length": 3.0,
+      "s": 16.0,
+      "k": 6.0,
+      "thread_length": 3.0,
+      "left_hand": false
+     },
+     "artifact": "stl-fine"
+    },
+    {
+     "label": "iso4017:M10x65",
+     "kind": "bolt",
+     "params": {
+      "d": 10.0,
+      "pitch": 1.5,
+      "length": 65.0,
+      "s": 16.0,
+      "k": 6.4,
+      "thread_length": 65.0
+     },
+     "artifact": "stl-fine"
+    },
+    {
+     "label": "iso4017:M10x45",
+     "kind": "bolt",
+     "params": {
+      "d": 10.0,
+      "pitch": 1.5,
+      "length": 45.0,
+      "s": 16.0,
+      "k": 6.4,
+      "thread_length": 45.0
+     },
+     "artifact": "step"
+    },
+    {
+     "label": "iso4017:M5x35",
+     "kind": "bolt",
+     "params": {
+      "d": 5.0,
+      "pitch": 0.8,
+      "length": 35.0,
+      "s": 8.0,
+      "k": 3.5,
+      "thread_length": 35.0
+     },
+     "artifact": "stl-preview"
+    },
+    {
+     "label": "iso4017:M16x100",
+     "kind": "bolt",
+     "params": {
+      "d": 16.0,
+      "pitch": 2.0,
+      "length": 100.0,
+      "s": 24.0,
+      "k": 10.0,
+      "thread_length": 100.0
+     },
+     "artifact": "stl-preview"
+    },
+    {
+     "label": "nut-d10-p1-m3d-s1.6d-c0.15-left",
+     "kind": "nut",
+     "params": {
+      "d": 10.0,
+      "pitch": 1.0,
+      "m": 30.0,
+      "s": 16.0,
+      "clearance": 0.15,
+      "left_hand": true
+     },
+     "artifact": "stl-fine"
+    },
+    {
+     "label": "iso4017:M5x50",
+     "kind": "bolt",
+     "params": {
+      "d": 5.0,
+      "pitch": 0.8,
+      "length": 50.0,
+      "s": 8.0,
+      "k": 3.5,
+      "thread_length": 50.0
+     },
+     "artifact": "step"
+    },
+    {
+     "label": "iso4017:M20x160",
+     "kind": "bolt",
+     "params": {
+      "d": 20.0,
+      "pitch": 2.5,
+      "length": 160.0,
+      "s": 30.0,
+      "k": 12.5,
+      "thread_length": 160.0
+     },
+     "artifact": "stl-preview"
+    },
+    {
+     "label": "bolt-d30-p0.1-n3-right",
+     "kind": "bolt",
+     "params": {
+      "d": 30.0,
+      "pitch": 0.1,
+      "length": 0.3,
+      "s": 48.0,
+      "k": 18.0,
+      "thread_length": 0.3,
+      "left_hand": false
+     },
+     "artifact": "stl-fine"
+    },
+    {
+     "label": "nut-d100-p3.5-m0.8d-s1.6d-c0.15-left",
+     "kind": "nut",
+     "params": {
+      "d": 100.0,
+      "pitch": 3.5,
+      "m": 80.0,
+      "s": 160.0,
+      "clearance": 0.15,
+      "left_hand": true
+     },
+     "artifact": "stl-preview"
+    },
+    {
+     "label": "bolt-d100-p3-n30-left",
+     "kind": "bolt",
+     "params": {
+      "d": 100.0,
+      "pitch": 3.0,
+      "length": 90.0,
+      "s": 160.0,
+      "k": 60.0,
+      "thread_length": 90.0,
+      "left_hand": true
+     },
+     "artifact": "step"
+    },
+    {
+     "label": "nut-d30-p0.35-m0.8d-s4d-c5-right",
+     "kind": "nut",
+     "params": {
+      "d": 30.0,
+      "pitch": 0.35,
+      "m": 24.0,
+      "s": 120.0,
+      "clearance": 5.0,
+      "left_hand": false
+     },
+     "artifact": "step"
+    },
+    {
+     "label": "nut-d3-p0.35-m0.8d-s1.6d-c0.15-left",
+     "kind": "nut",
+     "params": {
+      "d": 3.0,
+      "pitch": 0.35,
+      "m": 2.4,
+      "s": 4.8,
+      "clearance": 0.15,
+      "left_hand": true
+     },
+     "artifact": "step"
+    },
+    {
+     "label": "iso4032:M18",
+     "kind": "nut",
+     "params": {
+      "d": 18.0,
+      "pitch": 2.5,
+      "s": 27.0,
+      "m": 15.8
+     },
+     "artifact": "stl-preview"
+    },
+    {
+     "label": "iso4017:M20x200",
+     "kind": "bolt",
+     "params": {
+      "d": 20.0,
+      "pitch": 2.5,
+      "length": 200.0,
+      "s": 30.0,
+      "k": 12.5,
+      "thread_length": 200.0
+     },
+     "artifact": "stl-fine"
+    },
+    {
+     "label": "iso4017:M3x25",
+     "kind": "bolt",
+     "params": {
+      "d": 3.0,
+      "pitch": 0.5,
+      "length": 25.0,
+      "s": 5.5,
+      "k": 2.0,
+      "thread_length": 25.0
+     },
+     "artifact": "stl-fine"
+    },
+    {
+     "label": "iso4017:M3x8",
+     "kind": "bolt",
+     "params": {
+      "d": 3.0,
+      "pitch": 0.5,
+      "length": 8.0,
+      "s": 5.5,
+      "k": 2.0,
+      "thread_length": 8.0
+     },
+     "artifact": "step"
+    },
+    {
+     "label": "bolt-d30-p3-n3-right",
+     "kind": "bolt",
+     "params": {
+      "d": 30.0,
+      "pitch": 3.0,
+      "length": 9.0,
+      "s": 48.0,
+      "k": 18.0,
+      "thread_length": 9.0,
+      "left_hand": false
+     },
+     "artifact": "step"
+    },
+    {
+     "label": "iso4014:M4x40",
+     "kind": "bolt",
+     "params": {
+      "d": 4.0,
+      "pitch": 0.7,
+      "length": 40.0,
+      "s": 7.0,
+      "k": 2.8,
+      "thread_length": 14.0
+     },
+     "artifact": "step"
+    },
+    {
+     "label": "nut-d10-p0.35-m0.8d-s1.6d-c0.15-right",
+     "kind": "nut",
+     "params": {
+      "d": 10.0,
+      "pitch": 0.35,
+      "m": 8.0,
+      "s": 16.0,
+      "clearance": 0.15,
+      "left_hand": false
+     },
+     "artifact": "stl-preview"
+    },
+    {
+     "label": "iso4017:M10x90",
+     "kind": "bolt",
+     "params": {
+      "d": 10.0,
+      "pitch": 1.5,
+      "length": 90.0,
+      "s": 16.0,
+      "k": 6.4,
+      "thread_length": 90.0
+     },
+     "artifact": "stl-fine"
+    },
+    {
+     "label": "nut-d3-p1-m3d-s1.6d-c0.15-right",
+     "kind": "nut",
+     "params": {
+      "d": 3.0,
+      "pitch": 1.0,
+      "m": 9.0,
+      "s": 4.8,
+      "clearance": 0.15,
+      "left_hand": false
+     },
+     "artifact": "stl-preview"
+    },
+    {
+     "label": "iso4017:M10x60",
+     "kind": "bolt",
+     "params": {
+      "d": 10.0,
+      "pitch": 1.5,
+      "length": 60.0,
+      "s": 16.0,
+      "k": 6.4,
+      "thread_length": 60.0
+     },
+     "artifact": "stl-fine"
+    },
+    {
+     "label": "iso4017:M16x35",
+     "kind": "bolt",
+     "params": {
+      "d": 16.0,
+      "pitch": 2.0,
+      "length": 35.0,
+      "s": 24.0,
+      "k": 10.0,
+      "thread_length": 35.0
+     },
+     "artifact": "stl-preview"
+    },
+    {
+     "label": "iso4017:M5x30",
+     "kind": "bolt",
+     "params": {
+      "d": 5.0,
+      "pitch": 0.8,
+      "length": 30.0,
+      "s": 8.0,
+      "k": 3.5,
+      "thread_length": 30.0
+     },
+     "artifact": "stl-fine"
+    }
+   ]
+  }
+ ],
+ "dropped": [],
+ "notes": [
+  "W(4): the committed R15 mix (load.json) at N = 1, queue and clients 2, SCREW_SOLID_CACHE = 4, measured after R16's pick (G9)",
+  "W(K) is the max container peak over the 5 repetitions; each reading charged R2's 600 s (R6, G4)"
+ ],
+ "shard_sizes": [
+  1
+ ],
+ "sources": [
+  "load=bench/points/load.json"
+ ]
+}

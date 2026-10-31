@@ -9,7 +9,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Literal, cast, get_args, get_origin
 
@@ -70,8 +70,10 @@ def _add_args(ap: argparse.ArgumentParser, kind: str, model: type[FastenerParams
             g.add_argument(flag, dest=name, default=None, help=help_text, action=_Once,
                            choices=list(get_args(annotation)))
         else:
+            # mypy 2.4 types `field.annotation` as a TypeForm, which argparse's `type=` does not
+            # take; every other field is a float, a callable from the flag's text.
             g.add_argument(flag, dest=name, default=None, help=help_text, action=_Once,
-                           metavar="V", type=annotation)
+                           metavar="V", type=cast("Callable[[str], object]", annotation))
 
 
 def _add_preset(ap: argparse.ArgumentParser) -> None:
@@ -81,7 +83,9 @@ def _add_preset(ap: argparse.ArgumentParser) -> None:
                          "flags given as well override it")
 
 
-def _params(kind: str, ns: argparse.Namespace) -> FastenerParams:
+def _params(kind: str, ns: argparse.Namespace) -> tuple[FastenerParams, frozenset[str]]:
+    """The part the flags describe and the fields they named: the given flags plus a preset's
+    fields, the set the conflict rule and B-03's cap read (a preset is never capped)."""
     model = KINDS[kind]
     values = {k: v for k in model.model_fields if (v := getattr(ns, k)) is not None}
     if ns.preset is not None:
@@ -104,7 +108,7 @@ def _params(kind: str, ns: argparse.Namespace) -> FastenerParams:
         print(f"error: {conflict.msg}", file=sys.stderr)
         raise SystemExit(2)
     try:
-        return model(**values)
+        return model(**values), frozenset(values)
     except ValidationError as exc:
         for err in exc.errors():
             where = ".".join(str(x) for x in err["loc"])
@@ -138,9 +142,10 @@ def cmd_presets(ns: argparse.Namespace) -> None:
 
 
 def cmd_info(ns: argparse.Namespace) -> None:
-    from .calc import derive
+    from .calc import derive_capped
 
-    print(derive(_params(ns.kind, ns)).model_dump_json(indent=2))
+    # B-03: the part as capped, the same call the API's info route makes (FRNT-05 parity).
+    print(derive_capped(*_params(ns.kind, ns))[1].model_dump_json(indent=2))
 
 
 def cmd_export(ns: argparse.Namespace) -> None:
@@ -151,9 +156,11 @@ def cmd_export(ns: argparse.Namespace) -> None:
     fmt = ns.format or out.suffix.lower().lstrip(".").replace("stp", "step")
     if fmt not in ("stl", "step"):
         raise SystemExit("error: output must end in .stl or .step (or pass --format)")
-    from .calc import derive, download_name, download_refusal
+    from .calc import derive_capped, download_name, download_refusal
 
-    p = _params(ns.kind, ns)
+    # B-03: the part as capped and its document, the same call `screw info` and the API make, so
+    # the file written, its name and the warnings are the capped part's (FRNT-05 parity).
+    p, info = derive_capped(*_params(ns.kind, ns))
     # The same kernel-free rule the API's `_serve` applies (D-02, FRNT-05 parity). Exit 2 like
     # `_params`, the CLI analogue of the 422: a parameter choice is refused, nothing failed
     # to build (a BuildError below keeps exit 1; 03-RESEARCH Open Question 5).
@@ -178,7 +185,7 @@ def cmd_export(ns: argparse.Namespace) -> None:
     out.write_bytes(data)
     detail = f", {quality}" if fmt == "stl" else ""
     print(f"wrote {out} ({len(data) / 1024:.0f} KiB{detail})", file=sys.stderr)
-    for warning in derive(p).warnings:
+    for warning in info.warnings:
         print(f"warning: {warning}", file=sys.stderr)
 
 
@@ -187,7 +194,8 @@ PAIR_EXIT = {"proven": 0, "violated": 1, "inconclusive": 2}
 
 
 def cmd_pair(ns: argparse.Namespace) -> None:
-    p = _params(ns.kind, ns)
+    # Never capped: the proof has no artifact budget to fit (B-03 caps downloads and documents).
+    p, _ = _params(ns.kind, ns)
     # The proof mates the nut with the nominal rod of its own d and pitch, a rod the nut's own
     # validator does not judge (it judges the void, which a positive clearance widens): refuse
     # here, before the kernel loads, as exit 2 like every other refused parameter.
@@ -222,8 +230,9 @@ def main(argv: list[str] | None = None) -> None:
     s = sub.add_parser("serve", help="run the web UI and API", allow_abbrev=False)
     s.add_argument("--host", default=env("SCREW_HOST", "127.0.0.1"))
     s.add_argument("--port", type=int, default=int_env("SCREW_PORT", 8000))
-    # INTERIM (spur L17): one server process, because the build pool and the caches are
-    # per process. Not measured for screw; Phase 7 re-sweeps it (OPER-02).
+    # One server process (spur L17: the build pool and the caches are per process), kept by
+    # 07-SWEEP-PROTOCOL R24: the /api/health p95 under load at the picked N = 1 was 0.0094 s
+    # (load run 40909724292, rep 2), inside the HEALTHCHECK probe's 1 s inner timeout.
     s.add_argument("--workers", type=int, default=int_env("SCREW_WORKERS", 1))
     s.add_argument("--root-path", default=env("SCREW_ROOT_PATH", ""),
                    help="URL prefix when served behind a reverse proxy, e.g. /screw")

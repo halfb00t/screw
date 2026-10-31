@@ -1,0 +1,2801 @@
+{
+ "excluded": [
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d3-p0.1-n3-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d100-p0.35-n30-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p0.1-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p0.1-n3-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "killed": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p10-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "killed"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d3-p0.1-n30-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d3-p1-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d100-p0.35-n240-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p0.35-n3-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p0.1-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "corner-d100-L200",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d3-p0.1-n30-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d3-p1-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d100-p0.35-n240-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p0.35-n30-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "capped": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p3-n30-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "capped"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p0.1-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "nut",
+   "label": "nut-d30-p0.35-m0.8d-s4d-c0.15-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d3-p0.1-n30-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d100-p0.35-n240-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p0.35-n30-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p0.1-n240-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "capped": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p3-n3-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "capped"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "nut",
+   "label": "nut-d30-p0.35-m0.8d-s4d-c0.15-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d3-p0.1-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p0.35-n30-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p0.1-n240-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "nut",
+   "label": "nut-d30-p0.35-m0.8d-s4d-c0.15-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d3-p0.1-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p0.35-n30-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "capped": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p3-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "capped"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p0.1-n240-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d3-p0.1-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p0.35-n30-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p0.35-n3-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "capped": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p3-n3-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "capped"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d3-p0.1-n240-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p0.35-n30-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p0.35-n3-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d3-p0.1-n240-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d100-p0.1-n3-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p0.35-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "capped": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p3-n240-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "capped"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p0.35-n3-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d3-p0.1-n240-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d100-p0.1-n3-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p0.35-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p0.35-n3-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "capped": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p3-n30-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "capped"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d100-p0.1-n3-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p0.35-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p0.35-n3-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d3-p0.1-n3-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d100-p0.35-n30-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p0.1-n240-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p0.1-n3-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "capped": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p10-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "capped"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p0.35-n240-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p0.35-n3-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p0.35-n240-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p0.35-n30-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "capped": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p3-n30-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "capped"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p0.35-n240-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p0.35-n30-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d100-p0.1-n30-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p1-n3-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p0.35-n30-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "killed": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p3-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "killed"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "nut",
+   "label": "nut-d30-p0.35-m0.8d-s1.6d-c0.15-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d100-p0.1-n30-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p1-n3-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p0.35-n30-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "capped": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p3-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "capped"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "nut",
+   "label": "nut-d30-p0.35-m0.8d-s1.6d-c0.15-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d100-p0.1-n30-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d100-p1-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p1-n3-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p0.35-n30-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "nut",
+   "label": "nut-d30-p0.35-m0.8d-s1.6d-c0.15-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d100-p1-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "capped": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p10-n30-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "capped"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p0.35-n30-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "killed": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p3-n240-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "killed"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d100-p1-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p0.1-n3-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p0.35-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "capped": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p3-n240-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "capped"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p0.1-n3-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p0.35-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d100-p0.1-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p0.1-n3-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p1-n30-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "capped": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p10-n30-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "capped"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p0.35-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d3-p0.1-n3-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d100-p0.35-n30-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p0.1-n240-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p0.1-n30-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "capped": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p1-n30-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "capped"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d100-p0.1-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p0.1-n3-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p1-n30-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p0.35-n240-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "capped": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p10-n3-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "capped"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d3-p0.35-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d100-p0.1-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p0.1-n3-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p1-n30-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p0.35-n240-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d3-p0.35-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p0.1-n3-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "capped": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p10-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "capped"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p0.35-n240-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d3-p0.35-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p0.1-n30-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "capped": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p1-n30-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "capped"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "capped": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p10-n3-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "capped"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d3-p0.35-n240-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p0.1-n30-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "capped": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p1-n3-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "capped"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d3-p0.35-n240-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d100-p0.35-n3-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p0.1-n30-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p1-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "capped": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p10-n240-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "capped"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d3-p0.35-n240-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d100-p0.35-n3-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p0.1-n30-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p1-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "capped": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p10-n30-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "capped"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d100-p0.35-n3-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p0.1-n30-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p1-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p0.1-n3-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "capped": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p1-n3-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "capped"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p0.1-n30-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p1-n240-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p0.1-n3-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p0.1-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p1-n240-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p0.1-n3-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "capped": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p10-n30-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "capped"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p0.1-n240-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p0.1-n30-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "killed": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p10-n240-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "killed"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p0.1-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p1-n240-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p0.1-n3-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "capped": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p1-n30-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "capped"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p0.35-n3-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p0.1-n30-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "killed": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p1-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "killed"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "capped": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p10-n240-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "capped"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "nut",
+   "label": "nut-d30-p0.35-m0.8d-s1.6d-c0.15-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p0.35-n3-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p0.1-n30-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "capped": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p1-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "capped"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "nut",
+   "label": "nut-d30-p0.35-m0.8d-s1.6d-c0.15-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d3-p0.1-n30-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d100-p0.35-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p0.35-n3-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p0.1-n30-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "nut",
+   "label": "nut-d30-p0.35-m0.8d-s1.6d-c0.15-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d3-p0.1-n30-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d100-p0.35-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p0.35-n3-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "capped": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p3-n30-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "capped"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p0.1-n30-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "killed": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p1-n240-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "killed"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d3-p0.1-n30-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d3-p1-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "step",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d100-p0.35-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d300-p0.35-n3-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-preview",
+   "counts": {
+    "refused": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p0.1-n240-right",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "refused"
+  },
+  {
+   "artifact": "stl-fine",
+   "counts": {
+    "capped": 1
+   },
+   "kind": "bolt",
+   "label": "bolt-d1000-p1-n240-left",
+   "reps": [
+    1
+   ],
+   "set": "explore",
+   "status": "capped"
+  }
+ ],
+ "fitted": {
+  "explore": 1517,
+  "spread": 12
+ },
+ "models": [
+  {
+   "artifact": "stl-preview",
+   "coefficients": [
+    8.520962322183781,
+    0.2633880404477821,
+    0.0027484416285799814,
+    1.0189385237562507,
+    -0.025601499394011976,
+    1.4650904172545873,
+    -0.7809665064607385,
+    -0.07959442210300958
+   ],
+   "envelope": 2.264581945786201,
+   "envelope_set_by": "explore:bolt-d1-p0.35-n240-left",
+   "features": [
+    "intercept",
+    "ln_d",
+    "ln_pitch",
+    "ln_turns",
+    "ln_length",
+    "ln_s",
+    "ln_k",
+    "left_hand"
+   ],
+   "kind": "bolt",
+   "n": 420,
+   "rank": 8,
+   "target": "bytes"
+  },
+  {
+   "artifact": "stl-preview",
+   "coefficients": [
+    -5.2555915925272565,
+    -0.3830930746650897,
+    -0.2759638422879909,
+    0.5299188269066086,
+    0.12348426010683368,
+    3.686170682854927,
+    -2.7685645753092394,
+    -0.057849635433456136
+   ],
+   "envelope": 4.286137349093968,
+   "envelope_set_by": "explore:bolt-d1-p0.35-n240-right",
+   "features": [
+    "intercept",
+    "ln_d",
+    "ln_pitch",
+    "ln_turns",
+    "ln_length",
+    "ln_s",
+    "ln_k",
+    "left_hand"
+   ],
+   "kind": "bolt",
+   "n": 420,
+   "rank": 8,
+   "target": "seconds"
+  },
+  {
+   "artifact": "stl-preview",
+   "coefficients": [
+    16.43533914375026,
+    -1.670428599104153,
+    -0.029807463325174147,
+    0.1834267176181396,
+    -0.024052555098778405,
+    2.638257057596685,
+    -0.5519406250653605,
+    0.03380061811599671
+   ],
+   "envelope": 2.040087854388461,
+   "envelope_set_by": "explore:bolt-d1000-p10-n30-right",
+   "features": [
+    "intercept",
+    "ln_d",
+    "ln_pitch",
+    "ln_turns",
+    "ln_length",
+    "ln_s",
+    "ln_k",
+    "left_hand"
+   ],
+   "kind": "bolt",
+   "n": 420,
+   "rank": 8,
+   "target": "peak"
+  },
+  {
+   "artifact": "stl-fine",
+   "coefficients": [
+    10.258829174407301,
+    3.886504630593928,
+    -0.06164464988483598,
+    0.9700637584459836,
+    0.03047485143663836,
+    0.5503198660144293,
+    -3.675006998315813,
+    -0.2750395081212716
+   ],
+   "envelope": 0.5633622849303941,
+   "envelope_set_by": "explore:bolt-d300-p10-n3-right",
+   "features": [
+    "intercept",
+    "ln_d",
+    "ln_pitch",
+    "ln_turns",
+    "ln_length",
+    "ln_s",
+    "ln_k",
+    "left_hand"
+   ],
+   "kind": "bolt",
+   "n": 401,
+   "rank": 8,
+   "target": "bytes"
+  },
+  {
+   "artifact": "stl-fine",
+   "coefficients": [
+    -4.770758262268293,
+    1.7967990002902046,
+    -0.10578453047034266,
+    0.7921641249141849,
+    0.01934359698858789,
+    2.2508250755707264,
+    -3.3662155284549704,
+    0.13472185645861945
+   ],
+   "envelope": 2.690232029900006,
+   "envelope_set_by": "explore:bolt-d300-p10-n3-right",
+   "features": [
+    "intercept",
+    "ln_d",
+    "ln_pitch",
+    "ln_turns",
+    "ln_length",
+    "ln_s",
+    "ln_k",
+    "left_hand"
+   ],
+   "kind": "bolt",
+   "n": 401,
+   "rank": 8,
+   "target": "seconds"
+  },
+  {
+   "artifact": "stl-fine",
+   "coefficients": [
+    15.679190629020743,
+    1.4138940073877415,
+    -0.04969747941041629,
+    0.21915129297500027,
+    0.00046229401032016034,
+    2.1778426720613884,
+    -3.0070381675011566,
+    0.03443781809827005
+   ],
+   "envelope": 2.170967259675211,
+   "envelope_set_by": "explore:bolt-d300-p10-n3-right",
+   "features": [
+    "intercept",
+    "ln_d",
+    "ln_pitch",
+    "ln_turns",
+    "ln_length",
+    "ln_s",
+    "ln_k",
+    "left_hand"
+   ],
+   "kind": "bolt",
+   "n": 401,
+   "rank": 8,
+   "target": "peak"
+  },
+  {
+   "artifact": "step",
+   "coefficients": [
+    11.120125319256811,
+    0.16079821844031625,
+    -0.0014501314331426996,
+    0.8944458686202342,
+    -0.05629377785162237,
+    0.20777637239021748,
+    -0.20691176819588397,
+    0.04482727909723022
+   ],
+   "envelope": 0.9874058238127998,
+   "envelope_set_by": "explore:bolt-d1000-p1-n3-left",
+   "features": [
+    "intercept",
+    "ln_d",
+    "ln_pitch",
+    "ln_turns",
+    "ln_length",
+    "ln_s",
+    "ln_k",
+    "left_hand"
+   ],
+   "kind": "bolt",
+   "n": 426,
+   "rank": 8,
+   "target": "bytes"
+  },
+  {
+   "artifact": "step",
+   "coefficients": [
+    -2.767722347811926,
+    1.4283863741280929,
+    -0.33801070595914673,
+    0.3883583398976484,
+    0.1581213059467766,
+    1.0520543935755158,
+    -2.338008271401886,
+    -0.04431184617745629
+   ],
+   "envelope": 2.616422482555953,
+   "envelope_set_by": "explore:bolt-d1000-p1-n3-right",
+   "features": [
+    "intercept",
+    "ln_d",
+    "ln_pitch",
+    "ln_turns",
+    "ln_length",
+    "ln_s",
+    "ln_k",
+    "left_hand"
+   ],
+   "kind": "bolt",
+   "n": 426,
+   "rank": 8,
+   "target": "seconds"
+  },
+  {
+   "artifact": "step",
+   "coefficients": [
+    18.12787996299112,
+    0.5776071852522069,
+    -0.016930333615659907,
+    0.15895114163398202,
+    -0.0007811181960355954,
+    0.3575613084027657,
+    -0.8975131474757659,
+    0.035261823080591524
+   ],
+   "envelope": 0.45747877720379804,
+   "envelope_set_by": "explore:bolt-d1000-p10-n240-right",
+   "features": [
+    "intercept",
+    "ln_d",
+    "ln_pitch",
+    "ln_turns",
+    "ln_length",
+    "ln_s",
+    "ln_k",
+    "left_hand"
+   ],
+   "kind": "bolt",
+   "n": 426,
+   "rank": 8,
+   "target": "peak"
+  },
+  {
+   "artifact": "stl-preview",
+   "coefficients": [
+    9.503685747087617,
+    0.7099886472165183,
+    -1.029614736509572,
+    0.12137488785657789,
+    1.0358929491509747,
+    0.09611459718844559,
+    -0.1606467568469765
+   ],
+   "envelope": 0.7070121785110755,
+   "envelope_set_by": "explore:nut-d10-p1-m0.8d-s4d-c5-right",
+   "features": [
+    "intercept",
+    "ln_d",
+    "ln_pitch",
+    "ln_s",
+    "ln_m",
+    "clearance",
+    "left_hand"
+   ],
+   "kind": "nut",
+   "n": 94,
+   "rank": 7,
+   "target": "bytes"
+  },
+  {
+   "artifact": "stl-preview",
+   "coefficients": [
+    -0.7486351870808057,
+    0.40936184937141784,
+    -0.7594630973345009,
+    -0.09478569519639327,
+    0.5624186749813316,
+    -0.05467467125721249,
+    -0.11733444235170201
+   ],
+   "envelope": 1.061383246630594,
+   "envelope_set_by": "explore:nut-d100-p3.5-m3d-s4d-c5-right",
+   "features": [
+    "intercept",
+    "ln_d",
+    "ln_pitch",
+    "ln_s",
+    "ln_m",
+    "clearance",
+    "left_hand"
+   ],
+   "kind": "nut",
+   "n": 94,
+   "rank": 7,
+   "target": "seconds"
+  },
+  {
+   "artifact": "stl-preview",
+   "coefficients": [
+    18.585749128971052,
+    0.30526866793652474,
+    -0.21178463442955536,
+    -0.0494831589946223,
+    0.08373326074468937,
+    0.005316238227168808,
+    -0.0569768497103201
+   ],
+   "envelope": 0.556086702674923,
+   "envelope_set_by": "explore:nut-d100-p0.35-m0.8d-s4d-c5-right",
+   "features": [
+    "intercept",
+    "ln_d",
+    "ln_pitch",
+    "ln_s",
+    "ln_m",
+    "clearance",
+    "left_hand"
+   ],
+   "kind": "nut",
+   "n": 94,
+   "rank": 7,
+   "target": "peak"
+  },
+  {
+   "artifact": "stl-fine",
+   "coefficients": [
+    12.066538321728528,
+    0.5890306349005798,
+    -0.9926241550513081,
+    0.04064085709953195,
+    1.106276190354379,
+    0.11195342153670919,
+    -0.14415026071075085
+   ],
+   "envelope": 0.4996608149413484,
+   "envelope_set_by": "explore:nut-d30-p0.35-m0.8d-s1.6d-c5-right",
+   "features": [
+    "intercept",
+    "ln_d",
+    "ln_pitch",
+    "ln_s",
+    "ln_m",
+    "clearance",
+    "left_hand"
+   ],
+   "kind": "nut",
+   "n": 94,
+   "rank": 7,
+   "target": "bytes"
+  },
+  {
+   "artifact": "stl-fine",
+   "coefficients": [
+    -1.4660150657649265,
+    0.6712639392062811,
+    -0.9284111228053379,
+    -0.1276808559264419,
+    0.8541615950406674,
+    0.06459631600519246,
+    -0.07053029236008582
+   ],
+   "envelope": 1.7812452161769916,
+   "envelope_set_by": "explore:nut-d3-p1-m0.8d-s4d-c0.15-right",
+   "features": [
+    "intercept",
+    "ln_d",
+    "ln_pitch",
+    "ln_s",
+    "ln_m",
+    "clearance",
+    "left_hand"
+   ],
+   "kind": "nut",
+   "n": 94,
+   "rank": 7,
+   "target": "seconds"
+  },
+  {
+   "artifact": "stl-fine",
+   "coefficients": [
+    18.078350444935996,
+    0.5848485472446224,
+    -0.3267687150188528,
+    0.006409924083256925,
+    0.22910166945569949,
+    0.05474164947480684,
+    -0.048285431840674096
+   ],
+   "envelope": 0.5976833077470993,
+   "envelope_set_by": "explore:nut-d3-p1-m0.8d-s1.6d-c0.15-left",
+   "features": [
+    "intercept",
+    "ln_d",
+    "ln_pitch",
+    "ln_s",
+    "ln_m",
+    "clearance",
+    "left_hand"
+   ],
+   "kind": "nut",
+   "n": 94,
+   "rank": 7,
+   "target": "peak"
+  },
+  {
+   "artifact": "step",
+   "coefficients": [
+    12.081160258367845,
+    0.09806459483254824,
+    -0.7248917540723306,
+    -0.014044923513587779,
+    0.7000299007824499,
+    4.6401078272701016e-05,
+    -0.012359019180166715
+   ],
+   "envelope": 0.3802587303182223,
+   "envelope_set_by": "explore:nut-d10-p3.5-m0.8d-s4d-c0.15-right",
+   "features": [
+    "intercept",
+    "ln_d",
+    "ln_pitch",
+    "ln_s",
+    "ln_m",
+    "clearance",
+    "left_hand"
+   ],
+   "kind": "nut",
+   "n": 94,
+   "rank": 7,
+   "target": "bytes"
+  },
+  {
+   "artifact": "step",
+   "coefficients": [
+    -0.34864039742389485,
+    0.41877320675334223,
+    -0.6998587677048579,
+    -0.24054889041832564,
+    0.5299210115671444,
+    -0.05478165043082735,
+    -0.151464723275327
+   ],
+   "envelope": 0.8785228687431521,
+   "envelope_set_by": "explore:nut-d100-p0.35-m0.8d-s4d-c5-right",
+   "features": [
+    "intercept",
+    "ln_d",
+    "ln_pitch",
+    "ln_s",
+    "ln_m",
+    "clearance",
+    "left_hand"
+   ],
+   "kind": "nut",
+   "n": 94,
+   "rank": 7,
+   "target": "seconds"
+  },
+  {
+   "artifact": "step",
+   "coefficients": [
+    19.07759822430459,
+    0.09208069717309247,
+    -0.10816512872686,
+    -0.07262131153585069,
+    0.06981771588564518,
+    0.012521043967529668,
+    -0.014383798680039622
+   ],
+   "envelope": 0.48786919655819627,
+   "envelope_set_by": "explore:nut-d30-p1-m3d-s1.6d-c5-right",
+   "features": [
+    "intercept",
+    "ln_d",
+    "ln_pitch",
+    "ln_s",
+    "ln_m",
+    "clearance",
+    "left_hand"
+   ],
+   "kind": "nut",
+   "n": 94,
+   "rank": 7,
+   "target": "peak"
+  }
+ ],
+ "rules": "R11 and R12 of 07-SWEEP-PROTOCOL.md",
+ "run_ids": {
+  "explore": [
+   "40646117094"
+  ],
+  "spread": [
+   "40646125666"
+  ]
+ },
+ "widened_by": [
+  "40909768713"
+ ]
+}

@@ -170,12 +170,12 @@ bench.memory: $(STAMP)  ## container memory sweep over the corpus at 1, 2, 4 wor
 	$(PY) -m bench.memory sweep
 
 # Needs no service: it times screw.solid in-process, the code a worker runs.
-bench.build: $(STAMP)  ## build, fine STL and STEP time per corpus part vs SCREW_BUILD_TIMEOUT; SWEEP=<json> optional
+bench.build: $(STAMP)  ## build and export time per corpus part, each artifact vs calc.cost.BUILD_TIMEOUT_S (L24); SWEEP=<json> optional
 	$(PY) -m bench.build_time $(SWEEP)
 
 # Re-measures spur L19's gzip table and L24's mesh-copy cost for one part; needs no service,
 # for the same reason bench.build needs none.
-bench.export: $(STAMP)  ## gzip level table (L19) and mesh-copy cost (L24) for one part; SET="d=100 length=200"
+bench.export: $(STAMP)  ## gzip level table (L19) and mesh-copy cost (L24) for one part; SET="d=100 length=90 s=200 k=50 thread_length=90"
 	$(PY) -m bench.export_cost $(SWEEP) --set "$(SET)"
 
 # The thread spike (Phase 2) is a measurement campaign, outside the gate for the same reason,
@@ -237,9 +237,10 @@ worktree.land:  ## SLUG=<slug> MSG="<commit>" : verify, squash-merge, remove the
 
 # --- landing on main: the merge gate (L08) ------------------------------------------
 
-pr.land: $(STAMP)  ## PR=<n> : squash-merge a PR only if its head is green and current with main
+# PR_LAND_FLAGS carries the owner's --owner-approves-gate-change (L28); empty, nothing is approved.
+pr.land: $(STAMP)  ## PR=<n> [PR_LAND_FLAGS=...] : squash-merge a PR only if its head is green and current with main
 	@test -n "$(PR)" || { echo "PR= required"; exit 1; }
-	$(PY) -m scripts.pr_land $(PR)
+	$(PY) -m scripts.pr_land $(PR) $(PR_LAND_FLAGS)
 
 # --- cleanup -----------------------------------------------------------------------
 

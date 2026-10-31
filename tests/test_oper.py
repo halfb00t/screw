@@ -11,12 +11,13 @@ from __future__ import annotations
 
 import functools
 import json
+import math
 import os
 import re
 import statistics
 import subprocess
 import sys
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import NotRequired, TypedDict
 
@@ -591,6 +592,66 @@ def test_a_shard_past_the_points_is_empty(tmp_path: Path) -> None:
     assert oper.shard_points(oper.load_set("mini", tmp_path), 7) == []
 
 
+def test_shard_sizes_cut_consecutive_slices_in_file_order(tmp_path: Path) -> None:
+    _write_set(tmp_path, shards=3, shard_sizes=[1, 3, 1])
+    spec = oper.load_set("mini", tmp_path)
+    assert spec.shard_sizes == (1, 3, 1)
+    assert [[p.label for p in oper.shard_points(spec, n)] for n in (1, 2, 3, 4)] == [
+        ["p0"], ["p1", "p2", "p3"], ["p4"], []]
+
+
+def test_a_set_without_shard_sizes_keeps_the_round_robin_split(tmp_path: Path) -> None:
+    _write_set(tmp_path)
+    assert oper.load_set("mini", tmp_path).shard_sizes is None
+
+
+@pytest.mark.parametrize(
+    "sizes",
+    [[2, 2], [3, 3, 3], [5, 0, 0], [2.5, 2.5, 0], [True, 2, 2], ["2", 2, 1], "2,2,1", 5],
+    ids=["too-few", "wrong-sum", "zero-size", "float", "bool", "text-entry", "text", "number"],
+)
+def test_shard_sizes_that_are_not_whole_numbers_summing_to_the_points_are_refused(
+        sizes: object, tmp_path: Path) -> None:
+    _write_set(tmp_path, shards=3, shard_sizes=sizes)
+    with pytest.raises(ValueError, match=r"mini.*shard_sizes"):
+        oper.load_set("mini", tmp_path)
+
+
+def test_sources_are_a_list_of_text(tmp_path: Path) -> None:
+    _write_set(tmp_path, sources=["walls=bench/results/phase-07/walls-1"])
+    assert oper.load_set("mini", tmp_path).sources == ("walls=bench/results/phase-07/walls-1",)
+    _write_set(tmp_path, sources=[3])
+    with pytest.raises(ValueError, match=r"mini.*sources"):
+        oper.load_set("mini", tmp_path)
+
+
+_ENVELOPE = {"bolt": {"stl-preview": {"bytes": 2.0, "seconds": 0.0, "peak": 1.5}}}
+
+
+def test_an_envelope_header_is_kind_artifact_target_to_an_e(tmp_path: Path) -> None:
+    _write_set(tmp_path, envelope=_ENVELOPE)
+    assert len(oper.load_set("mini", tmp_path).points) == 5
+
+
+@pytest.mark.parametrize(
+    "envelope",
+    [{}, [], {"bolt": {}}, {"bolt": {"stl-coarse": {"bytes": 1, "seconds": 1, "peak": 1}}},
+     {"bolt": {"step": {"bytes": 1, "seconds": 1}}},
+     {"bolt": {"step": {"bytes": 1, "seconds": 1, "peak": 1, "wall": 1}}},
+     {"bolt": {"step": {"bytes": -0.5, "seconds": 1, "peak": 1}}},
+     {"bolt": {"step": {"bytes": True, "seconds": 1, "peak": 1}}},
+     {"bolt": {"step": {"bytes": "1", "seconds": 1, "peak": 1}}},
+     {"": {"step": {"bytes": 1, "seconds": 1, "peak": 1}}}, 2.0],
+    ids=["empty", "list", "no-artifact", "bad-artifact", "missing-target", "extra-target",
+         "negative", "bool", "text", "empty-kind", "number"],
+)
+def test_an_envelope_header_of_any_other_shape_is_refused(envelope: object,
+                                                          tmp_path: Path) -> None:
+    _write_set(tmp_path, envelope=envelope)
+    with pytest.raises(ValueError, match=r"mini.*envelope"):
+        oper.load_set("mini", tmp_path)
+
+
 # --- the matrix ----------------------------------------------------------------------------------
 
 
@@ -727,6 +788,231 @@ def test_the_markdown_summary_of_no_readings_is_the_same_refusal(
     assert captured.out == ""
 
 
+# --- the Runs II points (07-06): contention, read by bench.oper_bound -----------------------------
+
+MEMBER_P = {"label": "default-bolt", "kind": "bolt", "params": {}, "slot": 0}
+MEMBER_NUT = {"label": "default-nut", "kind": "nut", "params": {}, "slot": 1}
+
+
+def _contention_point(**over: object) -> dict[str, object]:
+    point: dict[str, object] = {"label": "c2", "kind": "contention", "artifact": "stl-preview",
+                                "workers": 2, "points": [MEMBER_P, MEMBER_NUT]}
+    point.update(over)
+    return point
+
+
+def test_a_contention_point_reaches_the_bound_child_as_it_stands_in_the_file(
+        tmp_path: Path) -> None:
+    _write_set(tmp_path, points=[_contention_point()])
+    (point,) = oper.load_set("mini", tmp_path).points
+    assert (point.label, point.kind, point.artifact) == ("c2", "contention", "stl-preview")
+    assert json.loads(point.as_json()) == {"kind": "contention", "artifact": "stl-preview",
+                                           "workers": 2, "points": [MEMBER_P, MEMBER_NUT]}
+
+
+def test_one_worker_takes_the_bound_point_alone(tmp_path: Path) -> None:
+    _write_set(tmp_path, points=[_contention_point(workers=1, points=[MEMBER_P])])
+    (point,) = oper.load_set("mini", tmp_path).points
+    assert point.body == {"workers": 1, "points": [MEMBER_P]}
+
+
+@pytest.mark.parametrize(
+    "point",
+    [_contention_point(workers=0, points=[]), _contention_point(workers=4),
+     _contention_point(workers=2.0), _contention_point(workers=True),
+     _contention_point(points=[MEMBER_P]),
+     _contention_point(points=[MEMBER_P, {**MEMBER_NUT, "slot": 0}]),
+     _contention_point(points=[MEMBER_P, {**MEMBER_NUT, "slot": 2}]),
+     _contention_point(points=[MEMBER_P, {**MEMBER_NUT, "slot": True}]),
+     _contention_point(points=[MEMBER_P, {**MEMBER_NUT, "label": "default-bolt"}]),
+     _contention_point(points=[MEMBER_P, {**MEMBER_NUT, "params": {"d": "6"}}]),
+     _contention_point(points=[MEMBER_P, {**MEMBER_NUT, "kind": "contention"}]),
+     _contention_point(points=[MEMBER_P, {k: v for k, v in MEMBER_NUT.items() if k != "slot"}]),
+     _contention_point(points=[MEMBER_P, {**MEMBER_NUT, "artifact": "step"}]),
+     _contention_point(artifact="obj"), _contention_point(label=""),
+     _contention_point(params={}), _contention_point(points="P"),
+     {k: v for k, v in _contention_point().items() if k != "workers"},
+     {"label": "m", "kind": "memory", "artifact": "stl-preview", "part": {"kind": "bolt",
+                                                                          "params": {}},
+      "cache": 4}],
+    ids=["no-workers", "four-workers", "float-workers", "bool-workers", "fewer-points",
+         "two-on-one-slot", "slot-past-n", "bool-slot", "duplicate-label", "text-param",
+         "harness-kind", "missing-slot", "member-artifact", "bad-artifact", "empty-label",
+         "extra-key", "points-not-a-list", "missing-workers", "removed-memory-kind"])
+def test_the_matrix_refuses_a_bad_runs_ii_point_with_exit_2(
+        point: dict[str, object], tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    _write_set(tmp_path, points=[point])
+    monkeypatch.setattr(oper, "POINTS_DIR", tmp_path)
+    assert oper.main(["matrix", "--set", "mini"]) == 2
+    captured = capsys.readouterr()
+    assert "mini" in captured.err
+    assert captured.out == ""
+
+
+def _bound_line(**over: object) -> str:
+    line: dict[str, object] = {
+        "status": "ok", "build_s": 1.5, "export_s": 0.25, "bytes": 1000, "gzip1_bytes": 400,
+        "memory_peak_bytes": 120_000_000, "oom_kills": 0,
+        "builds": [{"label": "default-bolt", "slot": 0, "status": "ok", "build_s": 1.5,
+                    "export_s": 0.25, "bytes": 1000, "gzip1_bytes": 400}],
+        "cadquery": "2.8.0", "cadquery_ocp": "7.9.3.1.1"}
+    line.update(over)
+    return json.dumps(line)
+
+
+def _classify_bound(stdout: str) -> dict[str, object]:
+    return oper.classify(timed_out=False, oom_killed=False, exit_code=0, stdout=stdout,
+                         stderr="", cap=oper.CAP_BYTES, bound=True)
+
+
+def test_a_clean_contention_line_is_ok_with_every_build() -> None:
+    record = _classify_bound(_bound_line())
+    assert record["status"] == "ok"
+    assert record["build_s"] == 1.5
+    assert isinstance(record["builds"], list)
+
+
+@pytest.mark.parametrize(
+    ("line", "status"),
+    [(_bound_line(status="refused", error="BuildError", message="default-nut: no",
+                  memory_peak_bytes=oper.CAP_BYTES), "capped"),
+     (_bound_line(status="crashed", error="ArithmeticError", message="x", oom_kills=1),
+      "capped"),
+     (_bound_line(status="refused", error="BuildError", message="default-nut: no"), "refused"),
+     (json.dumps({"status": "crashed", "error": "SlotMismatch", "message": "slot 1, slot 0"}),
+      "crashed"),
+     (json.dumps({"status": "killed", "message": "1 of 2 builds"}), "killed"),
+     (json.dumps({"status": "no_cgroup"}), "no_cgroup"),
+     (_bound_line(builds=[{"label": "p", "build_s": -1.0}]), "crashed"),
+     (_bound_line(builds="none"), "crashed")],
+    ids=["refused-at-cap", "crashed-with-oom-kill", "refused", "slot-mismatch", "killed",
+         "no-cgroup", "negative-build-figure", "builds-not-a-list"])
+def test_a_contention_reading_that_is_not_ok_carries_no_number(line: str, status: str) -> None:
+    record = _classify_bound(line)
+    assert record["status"] == status
+    assert [key for key in (*NUMBER_KEYS, "builds") if key in record] == []
+
+
+def test_a_part_child_may_not_report_killed_or_crashed_itself() -> None:
+    for status in ("killed", "crashed"):
+        record = _classify(stdout=json.dumps({"status": status}))
+        assert (record["status"], "status" in str(record["problem"])) == ("crashed", True)
+
+
+def test_a_contention_reading_runs_the_bound_child(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _write_set(tmp_path, points=[_contention_point()])
+    (point,) = oper.load_set("mini", tmp_path).points
+    ran: list[tuple[list[str], float | None]] = []
+
+    def fake_run(argv: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        timeout = kwargs.get("timeout")
+        ran.append((argv, timeout if isinstance(timeout, float | int) else None))
+        return subprocess.CompletedProcess(argv, 0, _bound_line(), "")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(oper, "_docker", lambda *args, timeout=None: None)
+    monkeypatch.setattr(oper, "_inspect_exit", lambda name: (False, 0))
+    record = oper.run_reading(point, 1, "screw:ci", oper.CAP_BYTES, 600)
+    ((argv, timeout),) = ran
+    assert argv[-3:-1] == ["-m", "bench.oper_bound"]
+    assert json.loads(argv[-1])["points"] == [MEMBER_P, MEMBER_NUT]
+    assert timeout == 600
+    assert (record["status"], record["workers"], record["points"]) == (
+        "ok", 2, [MEMBER_P, MEMBER_NUT])
+
+
+PART = {"kind": "bolt", "params": {}}
+
+
+def _drift_point(**over: object) -> dict[str, object]:
+    point: dict[str, object] = {"label": "d3", "kind": "drift", "artifact": "stl-preview",
+                                "part": PART, "k": 20, "deadline_s": 1200}
+    point.update(over)
+    return point
+
+
+def _arenas_point(**over: object) -> dict[str, object]:
+    point: dict[str, object] = {"label": "a-on", "kind": "arenas", "artifact": "step",
+                                "part": PART, "trim": True}
+    point.update(over)
+    return point
+
+
+def test_drift_and_arenas_points_reach_the_bound_child_as_they_stand(tmp_path: Path) -> None:
+    _write_set(tmp_path, points=[_drift_point(), _arenas_point(), _arenas_point(
+        label="a-off", trim=False)])
+    drift, on, off = oper.load_set("mini", tmp_path).points
+    assert drift.deadline_s == 1200
+    assert json.loads(drift.as_json()) == {"kind": "drift", "artifact": "stl-preview",
+                                           "part": PART, "k": 20, "deadline_s": 1200}
+    assert (on.deadline_s, json.loads(on.as_json())) == (
+        None, {"kind": "arenas", "artifact": "step", "part": PART, "trim": True})
+    assert off.body == {"part": PART, "trim": False}
+
+
+@pytest.mark.parametrize(
+    "point",
+    [_drift_point(k=1), _drift_point(k=2.0), _drift_point(k=True), _drift_point(deadline_s=0),
+     _drift_point(deadline_s="600"), _drift_point(deadline_s=True),
+     {k: v for k, v in _drift_point().items() if k != "deadline_s"},
+     _drift_point(part={"kind": "bolt", "params": {}, "lift": {"max_mm": 1e6}}),
+     _drift_point(part={"kind": "probe", "params": {}}),
+     _drift_point(part={"kind": "bolt", "params": {"d": "6"}}), _drift_point(part="bolt"),
+     _drift_point(trim=True), _arenas_point(trim="yes"), _arenas_point(trim=1),
+     {k: v for k, v in _arenas_point().items() if k != "trim"}, _arenas_point(k=2),
+     _arenas_point(artifact="obj"), _arenas_point(label=3)],
+    ids=["one-build", "float-k", "bool-k", "zero-deadline", "text-deadline", "bool-deadline",
+         "missing-deadline", "part-extra-key", "part-probe", "part-text-param", "part-not-object",
+         "drift-extra-key", "trim-text", "trim-number", "missing-trim", "arenas-extra-key",
+         "bad-artifact", "label-not-text"])
+def test_the_matrix_refuses_a_bad_drift_or_arenas_point_with_exit_2(
+        point: dict[str, object], tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    _write_set(tmp_path, points=[point])
+    monkeypatch.setattr(oper, "POINTS_DIR", tmp_path)
+    assert oper.main(["matrix", "--set", "mini"]) == 2
+    assert "mini" in capsys.readouterr().err
+
+
+def test_a_drift_reading_runs_under_its_own_deadline(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _write_set(tmp_path, points=[_drift_point()])
+    (point,) = oper.load_set("mini", tmp_path).points
+    timeouts: list[object] = []
+
+    def fake_run(argv: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        timeouts.append(kwargs.get("timeout"))
+        return subprocess.CompletedProcess(argv, 0, _bound_line(peaks=[5, 6], builds=[]), "")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(oper, "_docker", lambda *args, timeout=None: None)
+    monkeypatch.setattr(oper, "_inspect_exit", lambda name: (False, 0))
+    record = oper.run_reading(point, 1, "screw:ci", oper.CAP_BYTES, 600)
+    assert timeouts == [1200.0]
+    assert (record["status"], record["k"], record["peaks"]) == ("ok", 20, [5, 6])
+
+
+@pytest.mark.parametrize(
+    "line",
+    [_bound_line(peaks=[1, -2]), _bound_line(peaks=[1.5]), _bound_line(peaks=[True]),
+     _bound_line(peaks="many"), _bound_line(memory_current_bytes=1.5),
+     _bound_line(vm_rss_bytes=True)],
+    ids=["negative-peak", "float-peak", "bool-peak", "peaks-not-a-list", "float-current",
+         "bool-rss"])
+def test_a_drift_or_arena_line_with_a_figure_that_cannot_be_true_is_crashed(line: str) -> None:
+    record = _classify_bound(line)
+    assert record["status"] == "crashed"
+    assert [key for key in (*NUMBER_KEYS, "peaks", "builds") if key in record] == []
+
+
+def test_an_arena_line_keeps_both_measures_of_retained_memory() -> None:
+    record = _classify_bound(_bound_line(memory_current_bytes=7, vm_rss_bytes=5, builds=[]))
+    assert (record["status"], record["memory_current_bytes"], record["vm_rss_bytes"]) == (
+        "ok", 7, 5)
+
+
 # --- the workflow's trust surface (T-3-14, T-07-02) ----------------------------------------------
 
 WORKFLOW_YML = REPO_ROOT / ".github" / "workflows" / "operability.yml"
@@ -750,16 +1036,52 @@ def _run_values(text: str) -> list[str]:
     return values
 
 
-def test_the_workflow_starts_only_on_a_dispatch() -> None:
+# 07 D-12, D-13 (07-19): the full tier runs on a dispatch, weekly and on a PR that touches the
+# cost model's files or the solid package. These pins replace 07-01's "dispatch only" pin.
+FULL_TIER_PATHS_YML = ["src/screw/calc/cost.py", "src/screw/calc/thread.py",
+                       "src/screw/params.py", "src/screw/solid/**", "Dockerfile",
+                       "requirements.txt"]
+
+
+def workflow_triggers(text: str) -> dict[str, str]:
+    """The `on:` block of a workflow, by trigger name, each with its indented body."""
+    block = text[text.index("\non:\n") + 5:]
+    end = re.search(r"^\S", block, re.MULTILINE)
+    block = block if end is None else block[:end.start()]
+    found: dict[str, str] = {}
+    for match in re.finditer(r"^  ([a-z_]+):\n((?:(?:    .*)?\n)*)", block, re.MULTILINE):
+        found[match.group(1)] = match.group(2)
+    return found
+
+
+def workflow_paths(text: str) -> list[str]:
+    """The `pull_request` trigger's `paths:` entries, in order."""
+    return re.findall(r'^      - "([^"]+)"$', workflow_triggers(text)["pull_request"],
+                      re.MULTILINE)
+
+
+def test_the_workflow_starts_on_a_dispatch_a_weekly_schedule_and_cost_model_prs() -> None:
     text = WORKFLOW_YML.read_text()
-    assert re.search(r"^on:\n  workflow_dispatch:", text, re.MULTILINE)
-    assert not re.search(r"^\s*(pull_request|pull_request_target|push|schedule)\s*:", text,
-                         re.MULTILINE)
+    triggers = workflow_triggers(text)
+    assert list(triggers) == ["workflow_dispatch", "schedule", "pull_request"]
+    assert re.findall(r'- cron: "([^"]+)"', triggers["schedule"]) == ["41 4 * * 1"]
+    assert workflow_paths(text) == FULL_TIER_PATHS_YML
+    assert "required: false" in triggers["workflow_dispatch"]
+
+
+def test_the_workflow_never_runs_in_the_base_context_or_on_a_push() -> None:
+    """T-3-14: no trigger hands a PR's code the base's token and secrets, and no push runs it."""
+    text = WORKFLOW_YML.read_text()
+    assert "pull_request_target" not in text
+    assert not re.search(r"^\s*push\s*:", text, re.MULTILINE)
 
 
 def test_the_workflow_reads_the_repository_and_names_no_secret() -> None:
     text = WORKFLOW_YML.read_text()
     assert re.search(r"^permissions:\n  contents: read$", text, re.MULTILINE)
+    assert re.findall(r"^ *permissions:.*$", text, re.MULTILINE) == ["permissions:"]
+    assert re.findall(r"^ +[a-z-]+: (?:read|write|none)$", text, re.MULTILINE) == [
+        "  contents: read"]
     assert "secrets." not in text
 
 
@@ -768,7 +1090,9 @@ def test_the_set_input_reaches_a_script_only_through_an_env_variable() -> None:
     runs = _run_values(text)
     assert runs, "no run: steps found"
     assert not [run for run in runs if "${{ inputs." in run]
-    assert re.search(r"^\s+SET: \$\{\{ inputs\.set \}\}$", text, re.MULTILINE)
+    # A schedule or a PR run has no input, so it reads the full set (R28).
+    assert re.findall(r"^\s+SET: (.*)$", text, re.MULTILINE) == [
+        "${{ inputs.set || 'full' }}"] * 2
     assert 'python -m bench.oper matrix --set "$SET"' in text
     assert 'python -m bench.oper run --set "$SET"' in text
 
@@ -787,6 +1111,40 @@ def test_the_measure_job_has_a_timeout_and_keeps_the_artifact_of_a_red_run() -> 
     assert "fail-fast: false" in text
     upload = text.index("actions/upload-artifact@v4")
     assert "if: always()" in text[upload - 200:upload + 200]
+
+
+def test_the_full_tiers_follow_up_and_verdict_jobs_run_after_measure_on_its_records() -> None:
+    """R5 and R29 (07-19): the follow-up selection and the verdict use this run's artifacts."""
+    text = WORKFLOW_YML.read_text()
+    jobs = {name: text[text.index(f"\n  {name}:"):] for name in ("followup-plan", "followup",
+                                                                  "verdict")}
+    assert "needs: measure\n    if: always() && (inputs.set || 'full') == 'full'" in jobs[
+        "followup-plan"]
+    assert "python -m bench.oper followup-matrix --set full --from records" in text
+    assert "needs.followup-plan.outputs.count != '0'" in jobs["followup"]
+    assert "matrix: ${{ fromJSON(needs.followup-plan.outputs.matrix) }}" in jobs["followup"]
+    assert "--followup-from records" in jobs["followup"]
+    assert "name: oper-full-followup-${{ env.SHARD }}-${{ env.REP }}" in jobs["followup"]
+    assert "needs: [measure, followup-plan, followup]\n    if: always()" in jobs["verdict"]
+    assert "python -m bench.oper verdict --set full --from records" in jobs["verdict"]
+    assert text.count("pattern: oper-full-*") == 3
+
+
+def test_the_child_reads_an_expected_refusal_from_the_info_document_and_builds_nothing(
+        capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch) -> None:
+    """G12: one turn of thread is below the fitted turns, refused at every artifact (G30)."""
+    from screw import solid
+
+    def no_build(*args: object) -> object:
+        raise AssertionError("an expected refusal is never built")
+
+    monkeypatch.setattr(solid, "build", no_build)
+    params = {"d": 6.0, "pitch": 1.0, "length": 20.0, "thread_length": 1.0}
+    point = {"kind": "bolt", "params": params, "artifact": "step", "expect": "refused"}
+    assert oper_child.main([json.dumps(point)]) == 0
+    line = json.loads(capsys.readouterr().out)
+    assert (line["status"], line["error"]) == ("refused", oper.REFUSAL_TYPE)
+    assert "fewer turns than any bolt the cost model was fitted on" in line["message"]
 
 
 def test_the_matrix_job_feeds_the_measure_job() -> None:
@@ -1002,6 +1360,26 @@ def test_the_tail_probe_builds_one_valid_solid_inside_the_gate() -> None:
     assert isinstance(result["build_s"], float)
 
 
+# G37: the M3 coarse bolt with 10 turns of thread, a tip cone and a build of about a second.
+TIP_ARGS: dict[str, float | bool] = {"d": 3.0, "pitch": 0.5, "length": 5.0, "thread_length": 5.0,
+                                     "s": 4.8, "k": 1.8, "left_hand": False}
+
+
+def test_the_tip_piece_probe_reports_the_tip_cone_against_its_oracle_inside_the_gate(
+        tmp_path: Path) -> None:
+    from screw.calc.thread import T_PIECE
+
+    _write_set(tmp_path, points=[_probe("tip_piece", TIP_ARGS, "tip")])
+    (point,) = oper.load_set("mini", tmp_path).points
+    result = oper_child.run_probe(json.loads(point.as_json()))
+    assert result["status"] == "ok"
+    assert (result["solids"], result["valid"]) == (1, True)
+    ratio = result["volume_ratio"]
+    assert isinstance(ratio, float)
+    assert ratio != 1.0
+    assert abs(ratio - 1) <= T_PIECE
+
+
 def _guard() -> object:
     from screw.solid import helical
 
@@ -1168,11 +1546,11 @@ def _by_label(name: str) -> dict[str, list[_Point]]:
     return labelled
 
 
-def test_the_generator_lists_the_four_sets_and_gives_the_same_text_twice() -> None:
+def test_the_generator_lists_the_four_sets_and_the_smoke_and_gives_the_same_text_twice() -> None:
     from bench import oper_sets
 
     first = oper_sets.generate()
-    assert tuple(first) == SET_NAMES
+    assert tuple(first) == (*SET_NAMES, "bound-smoke", "load-smoke")
     assert oper_sets.generate() == first
 
 
@@ -1236,7 +1614,8 @@ def test_writing_twice_gives_byte_identical_files(
     monkeypatch.setattr(oper_sets, "POINTS_DIR", tmp_path)
     assert oper_sets.main([]) == 0
     first = {p.name: p.read_bytes() for p in tmp_path.glob("*.json")}
-    assert sorted(first) == sorted(f"{name}.json" for name in SET_NAMES)
+    assert sorted(first) == sorted(
+        f"{name}.json" for name in (*SET_NAMES, "bound-smoke", "load-smoke"))
     assert oper_sets.main([]) == 0
     assert {p.name: p.read_bytes() for p in tmp_path.glob("*.json")} == first
     assert all(data.endswith(b"\n") and not data.endswith(b"\n\n") for data in first.values())
@@ -1317,8 +1696,9 @@ def test_a_corner_the_model_refuses_is_dropped_with_its_error_and_never_measured
 def test_every_part_point_validates_in_the_parameter_model(name: str) -> None:
     from bench import oper_lift
 
+    # Under the guards of the registration: the point files do not move with the walls L20 sets.
     for point in _parts(name):
-        oper_lift.validate(point["kind"], point["params"], point.get("lift"))
+        oper_lift.registered(point["kind"], point["params"], point.get("lift"))
 
 
 @pytest.mark.parametrize("name", SET_NAMES)
@@ -1331,7 +1711,7 @@ def test_every_dropped_combination_is_refused_by_the_model_with_the_error_it_nam
     for entry in _generated()[name]["dropped"]:
         assert set(entry) - {"lift"} == {"label", "kind", "params", "artifacts", "error"}
         with pytest.raises(ValidationError) as caught:
-            oper_lift.validate(entry["kind"], entry["params"], entry.get("lift"))
+            oper_lift.registered(entry["kind"], entry["params"], entry.get("lift"))
         assert caught.value.errors()[0]["type"] == entry["error"]
 
 
@@ -1409,24 +1789,26 @@ def test_the_field_ceiling_corners_sit_at_1e3_1e4_and_1e5() -> None:
 def test_the_diameter_probe_holds_the_largest_d_the_head_rule_admits_at_its_s() -> None:
     from decimal import Context, Decimal
 
-    from screw.params import BoltParams
+    from bench import oper_lift
 
     by_label = {p["label"]: p["params"] for p in _walls("ceiling-bolt-d-")}
     assert {label: params["d"] for label, params in by_label.items()} == {
         "ceiling-bolt-d-1000": 999.999, "ceiling-bolt-d-10000": 9999.99,
         "ceiling-bolt-d-100000": 99999.9}
     for params in by_label.values():
-        BoltParams.model_validate(params)
+        # under the guards of the registration, whose field bound is the 1e5 the corners were
+        # chosen under (L20 moved the model's own to the measured walls)
+        oper_lift.registered("bolt", params)
         # the next number of 6 significant figures up is no longer under s: the model refuses it
         above = float(Context(prec=6).next_plus(Decimal(repr(params["d"]))))
         with pytest.raises(ValueError, match="across-flats"):
-            BoltParams.model_validate({**params, "d": above})
+            oper_lift.registered("bolt", {**params, "d": above})
 
 
 def test_the_clearance_probe_holds_the_largest_clearance_nut_too_thin_admits_at_its_s() -> None:
     from decimal import Context, Decimal
 
-    from screw.params import NutParams
+    from bench import oper_lift
 
     by_label = {p["label"]: p["params"] for p in _walls("ceiling-nut-clearance-")}
     assert {label: params["clearance"] for label, params in by_label.items()} == {
@@ -1434,16 +1816,16 @@ def test_the_clearance_probe_holds_the_largest_clearance_nut_too_thin_admits_at_
         "ceiling-nut-clearance-100000": 49996.9}
     for x, params in zip((1e3, 1e4, 1e5), by_label.values(), strict=True):
         assert (params["d"], params["s"]) == (6.0, x)
-        NutParams.model_validate(params)
+        oper_lift.registered("nut", params)
         above = float(Context(prec=6).next_plus(Decimal(repr(params["clearance"]))))
         with pytest.raises(ValueError, match="across flats"):
-            NutParams.model_validate({**params, "clearance": above})
+            oper_lift.registered("nut", {**params, "clearance": above})
 
 
 def test_the_nut_diameter_probe_holds_the_largest_d_nut_too_thin_admits_at_its_s() -> None:
     from decimal import Context, Decimal
 
-    from screw.params import NutParams
+    from bench import oper_lift
 
     by_label = {p["label"]: p["params"] for p in _walls("ceiling-nut-d-")}
     assert {label: params["d"] for label, params in by_label.items()} == {
@@ -1452,10 +1834,10 @@ def test_the_nut_diameter_probe_holds_the_largest_d_nut_too_thin_admits_at_its_s
     for x, params in zip((1e3, 1e4, 1e5), by_label.values(), strict=True):
         assert params["s"] == x
         assert "clearance" not in params  # the default 0.15, which the protocol states
-        NutParams.model_validate(params)
+        oper_lift.registered("nut", params)
         above = float(Context(prec=6).next_plus(Decimal(repr(params["d"]))))
         with pytest.raises(ValueError, match="across flats"):
-            NutParams.model_validate({**params, "d": above})
+            oper_lift.registered("nut", {**params, "d": above})
 
 
 def test_the_protocol_ties_the_nut_diameter_ceiling_to_its_probe_and_tested_value() -> None:
@@ -1492,6 +1874,65 @@ def test_the_root_radius_walk_reaches_the_radius_it_names_at_every_size_and_hand
         assert realised > 0
         assert realised == pytest.approx(target, rel=1e-3)
     assert radii == {1e-2, 3e-3, 1e-3, 3e-4, 1e-4, 3e-5, 1e-5, 3e-6, 1e-6}
+
+
+def test_the_void_walk_is_the_group_d_nut_at_four_higher_radii() -> None:
+    from bench import oper_sets
+    from bench.thread_spike.maths import PITCH
+    from screw.calc.thread import thread_depth
+
+    walk = oper_sets._void_walk_set()
+    assert walk.dropped == []  # the parameter model refuses none of the 120
+    points: list[_Point] = json.loads(walk.text())["points"]
+    assert len(points) == 15 * 2 * 4
+    assert [p["label"] for p in points[:4]] == [
+        f"root-nut-{next(iter(PITCH))}-right-r{r:g}" for r in (0.03, 0.1, 0.3, 1.0)]
+    assert {p["label"].rsplit("-r", 1)[1] for p in points} == {"0.03", "0.1", "0.3", "1"}
+    for point in points:
+        params = point["params"]
+        assert point["kind"] == "nut"
+        assert point["artifact"] == "stl-preview"
+        assert set(point) == {"label", "kind", "params", "artifact"}  # no lift, no preset
+        assert set(params) == {"d", "pitch", "m", "s", "left_hand"}
+        assert params["pitch"] > 0
+        assert params["m"] == 3 * params["pitch"]
+        assert params["s"] == oper_sets._scaled(params["d"], "1.6")
+        target = float(point["label"].rsplit("-r", 1)[1])
+        realised = params["d"] / 2 - thread_depth(params["pitch"]) + 0.15
+        assert realised == pytest.approx(target, abs=1e-9)
+    assert min(p["params"]["pitch"] for p in points) == pytest.approx(0.277128, abs=1e-6)
+
+
+def test_the_void_walk_builds_its_nuts_as_group_d_builds_them() -> None:
+    from bench import oper_sets
+
+    nuts = _walls("root-nut-")
+    assert len(nuts) == 15 * 2 * 9
+    for point in nuts:
+        _, _, size, hand, radius = point["label"].split("-", 4)
+        built = oper_sets._void_cell(size, hand == "left", float(radius[1:]))
+        assert built == point["params"]
+
+
+def test_the_void_walk_labels_are_not_walls_labels() -> None:
+    from bench import oper_sets
+
+    walls = {p["label"] for p in _generated()["walls"]["points"]}
+    assert walls.isdisjoint(p["label"] for p in oper_sets.void_walk_points())
+
+
+def test_the_committed_void_walk_is_the_generators_from_the_explore_run() -> None:
+    from bench import oper_sets
+
+    spec = oper.load_set("walls-voids")
+    assert (spec.reps, spec.deadline_s) == (1, 600)
+    assert spec.rule == "07-SWEEP-PROTOCOL.md R10 (G25)"
+    assert spec.sources == ("explore=bench/results/phase-07/explore-40646117094",)
+    assert spec.shard_sizes is not None
+    assert sum(spec.shard_sizes) == 120 == len(spec.points)
+    expected = oper_sets.void_walk_points()
+    assert [(p.label, p.kind, dict(p.params), p.artifact) for p in spec.points] == [
+        (e["label"], e["kind"], e["params"], e["artifact"]) for e in expected]
 
 
 def test_walls_include_the_nuts_the_two_open_nut_debt_items_name() -> None:
@@ -1565,13 +2006,17 @@ SHORT_ROD = {"d": 2.0, "pitch": 0.4, "length": 104.0, "thread_length": 104.0}  #
 
 
 def _lift_error(kind: str, params: Mapping[str, float | bool],
-                lift: Mapping[str, float] | None = None) -> str | None:
+                lift: Mapping[str, float] | None = None, *,
+                registered: bool = False) -> str | None:
+    """The error type the model gives `params` with `lift` lifted: the production model, or, with
+    `registered`, the guards the point files were registered under (250 turns, 1e5 mm)."""
     from pydantic import ValidationError
 
     from bench import oper_lift
 
+    check = oper_lift.registered if registered else oper_lift.validate
     try:
-        oper_lift.validate(kind, params, lift)
+        check(kind, params, lift)
     except ValidationError as exc:
         return str(exc.errors()[0]["type"])
     return None
@@ -1596,10 +2041,11 @@ def test_a_turn_lift_admits_the_turns_it_names_and_not_one_more() -> None:
 def test_a_turn_lift_leaves_every_other_guard_in_place_and_restores_the_cap() -> None:
     from screw.calc import thread
 
+    cap = thread.MAX_TURNS
     assert _lift_error("bolt", {**SHORT_ROD, "s": 1.0}, {"max_turns": 260}) == "head_too_small"
-    assert thread.MAX_TURNS == 250
+    assert cap == thread.MAX_TURNS
     assert _lift_error("bolt", {**SHORT_ROD, "d": -1.0}, {"max_turns": 260}) == "greater_than"
-    assert thread.MAX_TURNS == 250
+    assert cap == thread.MAX_TURNS
 
 
 def test_a_field_lift_admits_the_bound_it_names_and_not_a_decade_more() -> None:
@@ -1612,14 +2058,53 @@ def test_a_field_lift_admits_the_bound_it_names_and_not_a_decade_more() -> None:
 def test_a_field_lift_leaves_every_other_guard_in_place_and_the_classes_untouched() -> None:
     from annotated_types import Le
 
-    from screw.params import BoltParams, NutParams
+    from screw.params import MAX_FIELD_MM, BoltParams, NutParams
 
     assert _lift_error("bolt", {"d": 5e5, "s": 4e5}, {"max_mm": 1e6}) == "head_too_small"
     assert _lift_error("nut", {"s": 1e5, "clearance": 5e5}, {"max_mm": 1e6}) == "nut_too_thin"
     assert _lift_error("bolt", {"length": 1e6, "pitch": 1e-3, "thread_length": 1e6},
                        {"max_mm": 1e6}) == "turn_cap"
     for model in (BoltParams, NutParams):
-        assert [m.le for m in model.model_fields["s"].metadata if isinstance(m, Le)] == [1e5]
+        assert [m.le for m in model.model_fields["s"].metadata
+                if isinstance(m, Le)] == [MAX_FIELD_MM]
+
+
+def test_the_registered_guards_are_the_ones_the_point_files_were_made_under() -> None:
+    from screw.calc import thread
+
+    cap, floor = thread.MAX_TURNS, thread.MIN_ROOT_RADIUS_MM
+    rod = {"d": 2.0, "pitch": 0.4, "length": 100.0, "thread_length": 100.0}  # 250 turns
+    assert _lift_error("bolt", rod) == "turn_cap"    # the production cap is lower since L20
+    assert _lift_error("bolt", rod, registered=True) is None
+    past = {**rod, "length": 100.4, "thread_length": 100.4}
+    assert _lift_error("bolt", past, registered=True) == "turn_cap"
+    assert _lift_error("bolt", {"length": 1e5}) == "less_than_equal"
+    assert _lift_error("bolt", {"length": 1e5}, registered=True) is None
+    assert _lift_error("bolt", {"length": 1.0000001e5}, registered=True) == "less_than_equal"
+    # a root radius above 0, as L12 had it: the floor of L20 is not a registered guard
+    thin = {"d": 2.0, "pitch": 1.84, "length": 1.84, "thread_length": 1.84}
+    assert _lift_error("bolt", thin) == "pitch_too_coarse"
+    assert _lift_error("bolt", thin, registered=True) is None
+    gone = {"d": 2.0, "pitch": 1.85, "length": 1.85, "thread_length": 1.85}
+    assert _lift_error("bolt", gone, registered=True) == "pitch_too_coarse"    # root under 0
+    # and the production constants are back after every call, errors included
+    assert (cap, floor) == (thread.MAX_TURNS, thread.MIN_ROOT_RADIUS_MM)
+
+
+def test_a_registered_lift_names_exactly_one_known_guard_and_replaces_only_that_one() -> None:
+    from bench import oper_lift
+
+    assert _lift_error("bolt", SHORT_ROD, {"max_turns": 260}, registered=True) is None
+    longer = {**SHORT_ROD, "length": 104.4, "thread_length": 104.4}
+    assert _lift_error("bolt", longer, {"max_turns": 260}, registered=True) == "turn_cap"
+    assert _lift_error("bolt", {"s": 1e6}, registered=True) == "less_than_equal"
+    assert _lift_error("bolt", {"s": 1e6}, {"max_mm": 1e6}, registered=True) is None
+    # lifting the field bound leaves the turn cap at the registered 250, not the production 90
+    rod = {"d": 2.0, "pitch": 0.4, "length": 100.0, "thread_length": 100.0}
+    assert _lift_error("bolt", rod, {"max_mm": 1e6}, registered=True) is None
+    for lift in ({"max_turns": 260, "max_mm": 1e6}, {"max_pitch": 3}):
+        with pytest.raises(ValueError, match="exactly one"):
+            oper_lift.registered("bolt", {}, lift)
 
 
 @pytest.mark.parametrize("lift", [{}, {"max_turns": 260, "max_mm": 1e6}, {"max_pitch": 3}],
@@ -1719,8 +2204,10 @@ def test_every_past_the_cap_point_is_refused_by_the_plain_model_and_by_it_alone(
     from screw.params import KINDS
 
     for point in _walls("beyond-"):
-        assert _lift_error(point["kind"], point["params"]) in {"turn_cap", "less_than_equal"}
-        assert _lift_error(point["kind"], point["params"], point["lift"]) is None
+        # past the guards of the registration, whose caps are the ones the points step past
+        plain = _lift_error(point["kind"], point["params"], registered=True)
+        assert plain in {"turn_cap", "less_than_equal"}
+        assert _lift_error(point["kind"], point["params"], point["lift"], registered=True) is None
         assert point["kind"] in KINDS
 
 
@@ -1733,9 +2220,10 @@ def _protocol() -> str:
     return PROTOCOL.read_text()
 
 
-def test_the_protocol_states_thirty_rules_once_each_in_order() -> None:
+def test_the_protocol_states_thirty_one_rules_once_each_in_order() -> None:
+    """R1 to R30 as registered, and R31, which the owner's ruling added after the freeze."""
     headings = re.findall(r"^## R(\d+) ", _protocol(), re.MULTILINE)
-    assert headings == [str(n) for n in range(1, 31)]
+    assert headings == [str(n) for n in range(1, 32)]
 
 
 def test_every_point_file_names_a_rule_the_protocol_states() -> None:
@@ -1806,7 +2294,7 @@ def test_the_protocol_records_the_disposition_of_the_two_debt_items_it_leaves_op
 
 def test_contention_partners_take_one_affinity_slot_each_so_the_workers_are_distinct() -> None:
     rule = " ".join(_rule(14).split())
-    assert "on each of the other N - 1 slots, one admitted point" in rule
+    assert "on each of the other N - 1 slots, one candidate of the same artifact" in rule
     assert "`hash(p) % N`" in rule
     assert "N distinct workers" in rule
     assert "a tie going to the label that sorts first" in rule
@@ -1932,7 +2420,8 @@ def test_the_drift_run_builds_one_fixed_part_cold_k_times_and_compares_the_first
     assert "compares the cgroup peak after build 1 with the peak after build K" in rule
     assert "the drift of the artifact is the max over its 5 repetitions" in rule
     assert "exceeds 0.10 x the smallest peak after build 1 among its 5 repetitions" in rule
-    assert "Drift adds nothing to R16's `mem_limit(N)`" in rule
+    assert "Drift adds to R16's `mem_limit(N)` only through W" in rule
+    assert "Drift adds nothing to R16's `mem_limit(N)`" not in rule
     assert "the owner fixes" not in rule
     assert "pass 2" not in rule
 
@@ -2057,7 +2546,7 @@ def test_an_above_zero_floor_is_confirmed_at_its_smallest_walked_value() -> None
     assert "the smallest walked value (tail 1e-9 mm, root radius 1e-6 mm) for every cell" in rule
     assert "Any reading there that is not `ok` awards no floor" in rule
     assert "the confirm set of R3 at 1e-9 mm, for every size and hand" in " ".join(_rule(9).split())
-    assert "the confirm set of R3 at 1e-6 mm, for every size, hand, rod and void" in " ".join(
+    assert "the confirm set of R3 at 1e-6 mm, for every size and hand, rods only" in " ".join(
         _rule(10).split())
 
 
@@ -2270,3 +2759,681 @@ def test_a_gzip_or_arena_reading_is_charged_its_deadline_and_not_an_explore_wall
     assert "a gzip reading also compresses its output at levels 6 and 9" in rule
     assert "the charge of neither set rests on a measured wall" in rule
     assert "a reading of the contention, load and drift sets is ruled below" not in rule
+
+
+# --- the owner's ruling after the first runner reading (G25): pinned by its key phrase ------------
+
+
+def test_the_nut_voids_are_walked_above_1e_2_in_a_set_of_their_own() -> None:
+    r4 = " ".join(_rule(4).split())
+    assert ("Above 1e-2 mm the nut voids are walked in a set of their own, the void walk "
+            "(`walls-voids`)") in r4
+    assert "at `r` in {3e-2, 1e-1, 3e-1, 1} mm" in r4
+    assert "added after the first runner reading by the owner's ruling that R30 asks for" in r4
+    assert "the void walk is not extended past 1 mm" in r4
+    for number in (3, 6):
+        assert "the R7 walk-down set and the void walk of R4 (d)" in " ".join(
+            _rule(number).split())
+
+
+def test_the_void_walk_ruling_is_an_owner_ruling_after_the_freeze_and_not_a_harness_fix() -> None:
+    rulings = (PROTOCOL.parent / "07-GAP-RULINGS.md").read_text()
+    assert ("\n## Gap G25 (owner ruling after the first runner reading, 2026-10-28)\n") in rulings
+    assert "40646134133" in rulings
+    assert re.search(r"^\| G25 \|", rulings, re.MULTILINE)
+    assert "not a harness fix" in rulings
+    protocol = _protocol()
+    assert protocol[protocol.index("## Harness fixes"):].startswith("## Harness fixes\n\nNone yet.")
+    assert not re.search(r"\bG\d+\b", protocol)
+
+
+# --- the owner's ruling after the void walk (G26): pinned by its key phrase ----------------------
+
+
+def test_r10_decides_on_the_rods_of_group_d_only() -> None:
+    rule = " ".join(_rule(10).split())
+    assert "Let F be the largest root radius `r` of a rod in `walls` group (d)" in rule
+    assert ("V must be a radius the rods of group (d) hold, a power of ten from 1e-2 mm down to "
+            "1e-6 mm") in rule
+    assert "every rod reading of group (d) at a radius of V or more" in rule
+    assert "The nut voids bear on no bound" in rule
+    assert "set no F, need not be `ok` for V and are not in the R3 confirm" in rule
+    assert ("The owner ruled this after the first runner reading, once the void walk had been "
+            "read, as R30 asks") in rule
+    assert "in `walls` group (d) and in the void walk of R4 (d)" not in rule
+    assert "V must be a radius the two walks hold" not in rule
+    assert "A void reading that fails at 1 mm puts V above the walk" not in rule
+    assert "for every size, hand, rod and void" not in rule
+
+
+def test_the_r10_confirm_reads_the_rods_only() -> None:
+    rule = " ".join(_rule(3).split())
+    assert ("which `walls` groups (c) and (d) already hold; for R10 the confirm reads the rods "
+            "of group (d) only") in rule
+    assert "where V lies in the void walk" not in rule
+
+
+def test_the_rods_only_ruling_is_an_owner_ruling_after_the_void_walk_and_not_a_harness_fix(
+) -> None:
+    rulings = (PROTOCOL.parent / "07-GAP-RULINGS.md").read_text()
+    assert "\n## Gap G26 (owner ruling after the void walk, 2026-10-28)\n" in rulings
+    for figure in ("40665307964", "0.1250", "0.1200", "0.7852", "0.7667", "not a harness fix"):
+        assert figure in rulings
+    assert re.search(r"^\| G26 \| R3, R10 \|", rulings, re.MULTILINE)
+    protocol = _protocol()
+    assert protocol[protocol.index("## Harness fixes"):].startswith("## Harness fixes\n\nNone yet.")
+    assert not re.search(r"\bG\d+\b", protocol)
+    assert not re.search(r"\b\d{11}\b", protocol)
+
+
+def test_the_nut_diameter_gets_no_wall_and_stays_under_the_shared_ceiling_below_its_refusal(
+) -> None:
+    rule = " ".join(_rule(8).split())
+    assert "The nut `d` gets no constant of its own" in rule
+    assert "`capped` in all 5 confirm repetitions, and its reading at 1e4 is `refused`" in rule
+    assert "the cost model's admission (R12) and the timeouts bound a large nut, not a wall" in rule
+    assert ("stays under the shared `MAX_FIELD_MM` only while that value lies below the nut `d`'s "
+            "first refused decade (1e4)") in rule
+    assert "A shared value at or above that decade stops the phase and asks the owner" in rule
+    assert "added after the first runner reading by the owner's ruling that R30 asks for" in rule
+    rulings = (PROTOCOL.parent / "07-GAP-RULINGS.md").read_text()
+    assert "\n## Gap G27 (owner ruling after the walls confirm, 2026-10-28)\n" in rulings
+    assert re.search(r"^\| G27 \| R8 \| R8 writes no `MAX_NUT_D_MM`", rulings, re.MULTILINE)
+
+
+# --- the owner's ruling on the head ratios the fit never saw (G28): pinned by its key phrases ----
+
+
+def test_a_head_ratio_outside_its_band_is_predicted_no_lower_than_anywhere_in_the_band() -> None:
+    rule = " ".join(_rule(11).split())
+    assert ("A part whose head ratio lies above the band the fit saw is predicted no lower than "
+            "anywhere in that band, and one whose ratio lies below it no lower than at the band's "
+            "low edge") in rule
+    assert "the bolt's k / d and s / d and the nut's s / d and m / d" in rule
+    assert "its smallest and largest value over the fitted points of its kind" in rule
+    assert ("computed from the records by code and shipped with the coefficients, never "
+            "typed") in rule
+    assert ("a ratio above its band taking both edges (the smallest and the largest) and a ratio "
+            "below it the smallest only") in rule
+    assert "a smaller head never costs more than one at the low edge" in rule
+    assert "the prediction is the largest of these, target by target" in rule
+    assert "Inside every band the prediction is the fit's own, unchanged" in rule
+    assert ("a reading above its enveloped prediction stops the phase for the owner and does not "
+            "widen `e`") in rule
+    assert "added after the first runner reading by the owner's ruling that R30 asks for" in rule
+    assert "nearest" not in rule
+    rulings = (PROTOCOL.parent / "07-GAP-RULINGS.md").read_text()
+    assert ("\n## Gap G28 (owner ruling on the head ratios the cost model was not fitted on, "
+            "2026-10-29)\n") in rulings
+    for reply in ('"Clamp k/d, verify on runner (Recommended)"',
+                  '"All head ratios, max-of (Recommended)"',
+                  '"B: max over the band (Recommended)"', '"2: one-sided B (Recommended)"',
+                  "22 failed, 4409 passed", "d869b87", "40646117094",
+                  "40646125666", "not a harness fix"):
+        assert reply in rulings, reply
+    assert re.search(r"^\| G28 \| R11 \|", rulings, re.MULTILINE)
+    protocol = _protocol()
+    assert protocol[protocol.index("## Harness fixes"):].startswith("## Harness fixes\n\nNone yet.")
+    assert not re.search(r"\bG\d+\b", protocol)
+    assert not re.search(r"\b\d{11}\b", protocol)
+
+
+def test_a_bolt_below_the_fitted_turns_was_read_on_the_runner_and_is_now_refused() -> None:
+    """G29 had the runner read such bolts; G30, after one of them read over its envelope, refuses
+    them at every artifact instead of predicting them."""
+    rule = " ".join(_rule(11).split())
+    assert ("A bolt whose built thread has fewer turns than the fewest among the fitted bolt "
+            "points (computed from the records by code, never typed) is refused before any build "
+            "at every artifact, with the budget's refusal (B-02) naming the fields that set its "
+            "turns: the pitch, the length and the thread length") in rule
+    assert "predicted by the fit as it stands" not in rule
+    assert ("per artifact, two bolts below that count that the walls and the fit's admission "
+            "admitted: the one closest to the budget and the first in catalogue order") in rule
+    assert "Those readings widen no `e`" in rule
+    assert rule.count("stops the phase for the owner and does not widen `e`") == 1
+    # The head ratios, the nut widening, the turns floor, the clearance band (G38) and the
+    # clearance edges against the real fields (G39).
+    assert rule.count("added after the first runner reading by the owner's ruling that R30 asks "
+                      "for") == 5
+    rulings = (PROTOCOL.parent / "07-GAP-RULINGS.md").read_text()
+    assert ("\n## Gap G29 (owner ruling on named threads below the fitted turns, 2026-10-29)\n"
+            in rulings)
+    for evidence in ('"Add to 07-15 (Recommended)"', "52dcf95", "40646117094", "40646125666"):
+        assert evidence in rulings, evidence
+    assert re.search(r"^\| G29 \| R11 \|", rulings, re.MULTILINE)
+
+
+# --- the owner's rulings after the out-of-band check (G30) and on the bound set (G31) -----------
+
+
+def test_the_out_of_band_nut_readings_widen_e_and_the_bolt_readings_do_not() -> None:
+    rule = " ".join(_rule(11).split())
+    assert ("After that stop, the owner ruled that a nut reading of these parts above its "
+            "enveloped prediction widens `e` as a cold isolated reading does (R12), and that a "
+            "bolt reading of them widens no `e`") in rule
+    rulings = (PROTOCOL.parent / "07-GAP-RULINGS.md").read_text()
+    assert "\n## Gap G30 (owner ruling after the out-of-band check, 2026-10-30)\n" in rulings
+    for evidence in ('"1: widen nuts, guard G29 (Recommended)"', "40909768713", "196ef2e",
+                     "not a harness fix", "0 of the 294 bolt catalogue rows"):
+        assert evidence in rulings, evidence
+    assert re.search(r"^\| G30 \| R11 \|", rulings, re.MULTILINE)
+    owner = (PROTOCOL.parent / "07-OWNER-RULINGS.md").read_text()
+    assert ("\n## B-02 and B-03: a bolt below the fitted turns is refused at every artifact "
+            "(2026-10-30, G30)\n") in owner
+    assert '"1: widen nuts, guard G29 (Recommended)"' in owner
+
+
+def test_every_bound_candidate_has_an_ok_explore_reading_at_every_artifact() -> None:
+    rule = " ".join(_rule(14).split())
+    assert ("The candidates are the admitted `explore` points at that artifact whose `explore` "
+            "reading is `ok` at every artifact") in rule
+    assert "for the two measured choices" not in rule
+    assert "one candidate of the same artifact" in rule
+    assert "The partner of each other slot is the candidate other than P" in rule
+    assert "A slot that holds no candidate leaves that (P, N) unrunnable" in rule
+    assert ("only the points it changed are read again, at 5 repetitions, and the earlier "
+            "readings of the points they replace are kept as records and decide nothing") in rule
+    assert "R19's gzip set takes the bound set's points, so the same holds there" in rule
+    assert rule.count("added after the first runner reading by the owner's ruling that R30 asks "
+                      "for") == 1
+    rulings = (PROTOCOL.parent / "07-GAP-RULINGS.md").read_text()
+    assert ("\n## Gap G31 (owner ruling on the kernel-refused nuts in the bound set, "
+            "2026-10-30)\n") in rulings
+    for evidence in ('"Exclude, rerun preview (Recommended)"', "40907549180", "40909739628",
+                     "not a harness fix"):
+        assert evidence in rulings, evidence
+    assert re.search(r"^\| G31 \| R14, R19 \|", rulings, re.MULTILINE)
+    protocol = _protocol()
+    assert protocol[protocol.index("## Harness fixes"):].startswith("## Harness fixes\n\nNone yet.")
+    assert not re.search(r"\bG\d+\b", protocol)
+    assert not re.search(r"\b\d{11}\b", protocol)
+
+
+# --- the owner's ruling on the drift stop (G32): pinned by its key phrases ----------------------
+
+
+def test_the_drift_is_counted_in_w_under_a_plateau_read_over_60_builds() -> None:
+    r16 = " ".join(_rule(16).split())
+    assert ("W is also at least the largest peak after any build of R23's drift readings, the "
+            "20-build and the 60-build one, once R23's plateau holds") in r16
+    assert r16.count("added after the first runner reading by the owner's ruling that R30 asks "
+                     "for") == 1
+    r23 = " ".join(_rule(23).split())
+    assert ("`max_tasks_per_child` stays unset unless the plateau (below) fails for any "
+            "artifact") in r23
+    assert "shows growth above its allowance for any artifact" not in r23
+    assert "A drift above its allowance does not stop the phase by itself" in r23
+    assert ("A second drift reading builds the same Z(A), at the same three artifacts in the "
+            "same order, K = 60 times, 5 repetitions, each with a deadline of 60 x the "
+            "artifact's timeout, which R6 charges it") in r23
+    assert ("the plateau difference is the max peak over builds 41 to 60 minus the max peak "
+            "over builds 21 to 40") in r23
+    assert ("0.10 x the smallest peak after build 1 among the repetitions of both drift "
+            "readings of that artifact") in r23
+    assert ("If any artifact misses it, the phase stops and asks the owner again, and the next "
+            "step is recycling") in r23
+    assert "This criterion was fixed before the 60-build reading was taken" in r23
+    assert r23.count("added after the first runner reading by the owner's ruling that R30 asks "
+                     "for") == 1
+    rulings = (PROTOCOL.parent / "07-GAP-RULINGS.md").read_text()
+    assert "\n## Gap G32 (owner ruling on the drift stop, 2026-10-30)\n" in rulings
+    for evidence in ('"1 + longer drift run (Recommended)"', "41016507364", "1716760576",
+                     "378d58c", "not a harness fix"):
+        assert evidence in rulings, evidence
+    assert re.search(r"^\| G32 \| R16, R23 \|", rulings, re.MULTILINE)
+    owner = (PROTOCOL.parent / "07-OWNER-RULINGS.md").read_text()
+    assert ("\n## R16 and R23: the drift is counted in W, under a plateau read over 60 builds "
+            "(2026-10-30, G32)\n") in owner
+    assert '"1 + longer drift run (Recommended)"' in owner
+    protocol = _protocol()
+    assert protocol[protocol.index("## Harness fixes"):].startswith("## Harness fixes\n\nNone yet.")
+    assert not re.search(r"\bG\d+\b", protocol)
+    assert not re.search(r"\b\d{11}\b", protocol)
+
+
+# --- the required tier (07-18): judge and check ---------------------------------------------------
+
+LIMIT = {"bytes": 1000.0, "seconds": 10.0, "peak": 5000.0}
+
+
+def _boundary_point(label: str = "b0", artifact: str = "stl-preview", timeout: float = 20.0,
+                    limit: Mapping[str, float] = LIMIT) -> dict[str, object]:
+    return {"label": label, "kind": "bolt", "params": {"d": 6.0}, "artifact": artifact,
+            "charge_s": 1.0, "timeout_s": timeout, "limit": dict(limit)}
+
+
+def _tier_reading(label: str = "b0", status: str = "ok", build: float = 4.0,
+                  export: float = 1.0, size: float = 900, peak: float = 4000) -> dict[str, object]:
+    reading: dict[str, object] = {"type": "reading", "label": label, "kind": "bolt",
+                                  "params": {"d": 6.0}, "artifact": "stl-preview", "rep": 1,
+                                  "status": status, "wall_s": 99.0}
+    if status == "ok":
+        reading.update(build_s=build, export_s=export, bytes=size, memory_peak_bytes=peak)
+    return reading
+
+
+def _loaded(tmp_path: Path, **over: object) -> oper.BoundaryPoint:
+    path = tmp_path / "boundary.json"
+    path.write_text(json.dumps({"points": [{**_boundary_point(), **over}]}))
+    return oper.load_boundary(path)[0]
+
+
+def test_an_ok_reading_under_every_limit_and_its_timeout_passes(tmp_path: Path) -> None:
+    assert oper.judge(_loaded(tmp_path), _tier_reading()) == []
+
+
+@pytest.mark.parametrize(("reading", "naming"), [
+    (_tier_reading(status="refused"), "refused, not ok"),
+    (_tier_reading(status="killed"), "killed, not ok"),
+    (_tier_reading(status="capped"), "capped, not ok"),
+    (_tier_reading(build=9.0, export=2.0), "seconds 11.0 over its limit 10.0"),
+    (_tier_reading(size=1001), "bytes 1001 over its limit 1000.0"),
+    (_tier_reading(peak=5001), "peak 5001 over its limit 5000.0"),
+])
+def test_each_failure_r29_names_fails_the_point_and_names_it(
+        reading: dict[str, object], naming: str, tmp_path: Path) -> None:
+    failures = oper.judge(_loaded(tmp_path), reading)
+    assert len(failures) == 1
+    assert failures[0].startswith("b0 at stl-preview: ")
+    assert naming in failures[0]
+
+
+def test_a_cold_wall_over_its_timeout_fails_even_under_its_seconds_limit(tmp_path: Path) -> None:
+    point = _loaded(tmp_path, timeout_s=4.5)
+    assert oper.judge(point, _tier_reading(build=4.0, export=1.0)) == [
+        "b0 at stl-preview: cold wall 5.0 s over its timeout 4.5 s"]
+
+
+def test_the_cold_wall_is_build_plus_export_and_never_the_container_wall(tmp_path: Path) -> None:
+    assert oper.judge(_loaded(tmp_path, timeout_s=5.0), {**_tier_reading(), "wall_s": 1e6}) == []
+
+
+def test_a_figure_at_its_limit_passes_and_the_next_float_above_fails(tmp_path: Path) -> None:
+    point = _loaded(tmp_path, timeout_s=10.0)
+    at = _tier_reading(build=9.0, export=1.0, size=1000.0, peak=5000.0)
+    assert oper.judge(point, at) == []
+    above = {"bytes": _tier_reading(size=math.nextafter(1000.0, math.inf)),
+             "peak": _tier_reading(peak=math.nextafter(5000.0, math.inf)),
+             "seconds": _tier_reading(build=math.nextafter(9.0, math.inf), export=1.0)}
+    for target, reading in above.items():
+        assert [f for f in oper.judge(point, reading) if f"{target} " in f], target
+
+
+@pytest.mark.parametrize("over", [
+    {"timeout_s": 0}, {"timeout_s": "26"}, {"limit": {"bytes": 1.0, "seconds": 1.0}},
+    {"limit": {"bytes": 1.0, "seconds": 1.0, "peak": float("nan")}}, {"artifact": "png"},
+])
+def test_a_boundary_point_that_breaks_the_schema_is_refused(over: dict[str, object],
+                                                            tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match=r"boundary|artifact"):
+        _loaded(tmp_path, **over)
+
+
+def _stub_tier(monkeypatch: pytest.MonkeyPatch,
+               readings: Mapping[str, dict[str, object]]) -> list[tuple[str, int, float]]:
+    """`run_reading` answers each label from `readings` and records the label, the rep and the
+    deadline it was asked for; no Docker."""
+    taken: list[tuple[str, int, float]] = []
+
+    def fake_reading(point: oper.Point, rep: int, image: str, cap: int, deadline_s: float,
+                     versions: Mapping[str, str] | None = None) -> dict[str, object]:
+        taken.append((point.label, rep, deadline_s))
+        assert cap == oper.CAP_BYTES
+        return dict(readings[point.label])
+
+    monkeypatch.setattr(oper, "run_reading", fake_reading)
+    monkeypatch.setattr(oper, "_image_versions", lambda image: {"cadquery": "2.8.0"})
+    monkeypatch.setattr(oper, "header", lambda image, versions: {
+        "type": "header", "image": image, "GITHUB_RUN_ID": "7"})
+    return taken
+
+
+def _tier_file(tmp_path: Path, labels: Iterable[str]) -> Path:
+    path = tmp_path / "boundary.json"
+    path.write_text(json.dumps({"points": [_boundary_point(label) for label in labels]}))
+    return path
+
+
+def test_check_reads_every_point_once_cold_and_exits_0_with_a_table(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    taken = _stub_tier(monkeypatch, {"b0": _tier_reading("b0"), "b1": _tier_reading("b1")})
+    assert oper.main(["check", str(_tier_file(tmp_path, ["b0", "b1"])), "--image", "i"]) == 0
+    assert taken == [("b0", 1, oper.DEADLINE_S), ("b1", 1, oper.DEADLINE_S)]
+    out = capsys.readouterr().out
+    assert "2 points, 0 failures." in out
+    assert "| b0 | stl-preview | ok | 5.000 | 20 | 10.000 | 900 | 1000 | 4000 | 5000 |" in out
+    assert "### Failures" not in out
+    assert not list(tmp_path.glob("*.jsonl"))
+
+
+def test_check_exits_1_naming_every_failing_point(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    _stub_tier(monkeypatch, {"b0": _tier_reading("b0", size=2000),
+                             "b1": _tier_reading("b1"), "b2": _tier_reading("b2", "crashed")})
+    assert oper.main(["check", str(_tier_file(tmp_path, ["b0", "b1", "b2"])),
+                      "--image", "i"]) == 1
+    out = capsys.readouterr().out
+    assert "3 points, 2 failures." in out
+    assert "- b0 at stl-preview: bytes 2000 over its limit 1000.0" in out
+    assert "- b2 at stl-preview: crashed, not ok" in out
+    assert "| b2 | stl-preview | crashed | - | 20 | 10.000 | - | 1000 | - | 5000 |" in out
+
+
+@pytest.mark.parametrize("text", ["", "\n", '{"points": []}'])
+def test_check_of_a_file_with_no_point_is_not_a_pass(
+        text: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    taken = _stub_tier(monkeypatch, {})
+    path = tmp_path / "boundary.json"
+    path.write_text(text)
+    assert oper.main(["check", str(path), "--image", "i"]) == 1
+    assert taken == []
+    assert "no reading is not a pass" in capsys.readouterr().err
+
+
+def test_check_out_writes_the_header_and_every_reading_in_the_run_format(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    readings = {"b0": _tier_reading("b0"), "b1": _tier_reading("b1", "refused")}
+    _stub_tier(monkeypatch, readings)
+    out = tmp_path / "bounds-records.jsonl"
+    assert oper.main(["check", str(_tier_file(tmp_path, ["b0", "b1"])), "--image", "i",
+                      "--out", str(out)]) == 1
+    headers, found = oper._read_records([str(out)])
+    assert headers == [{"type": "header", "image": "i", "GITHUB_RUN_ID": "7"}]
+    assert found == [readings["b0"], readings["b1"]]
+    rows = oper.summarize(found, [1])
+    assert [(row["label"], row["status"]) for row in rows] == [("b0", "ok"), ("b1", "refused")]
+
+
+# --- the bounds job in ci.yml (07-18; D-12, D-15, L08, T-07-44, T-07-45) ------------------------
+
+CI_YML = REPO_ROOT / ".github" / "workflows" / "ci.yml"
+REQUIRED_JOBS = REPO_ROOT / ".github" / "workflows" / "required-jobs.txt"
+
+
+def _ci_job(job_id: str) -> str:
+    """The text of one ci.yml job: from its two-space id line to the next one."""
+    text = CI_YML.read_text()
+    match = re.search(rf"^  {job_id}:\n((?:(?!  \S).*\n?)*)", text, re.MULTILINE)
+    assert match is not None, f"no {job_id} job in ci.yml"
+    return match.group(1)
+
+
+def _steps(job: str) -> list[str]:
+    """A job's steps, each the text from its `- ` line to the next."""
+    return re.split(r"^      - ", job, flags=re.MULTILINE)[1:]
+
+
+def test_the_prediction_drift_record_cannot_fail_the_required_test_job() -> None:
+    # A record, not a gate (WR-04): `test (3.12)` is required, and the record's own stop or
+    # traceback must not turn it red; `make verify` is what the job judges.
+    (step,) = [s for s in _steps(_ci_job("test")) if "bench.oper_sets prediction-drift" in s]
+    assert "\n        continue-on-error: true\n" in step
+    assert "\n        if: always()\n" in step
+
+
+def _step_with(job: str, *needles: str) -> str:
+    found = [step for step in _steps(job) if all(needle in step for needle in needles)]
+    assert len(found) == 1, f"{len(found)} steps hold {needles}"
+    return found[0]
+
+
+def test_the_bounds_job_checks_the_boundary_set_in_the_image_the_image_job_built() -> None:
+    job = _ci_job("bounds")
+    assert re.search(r"^    needs: image$", job, re.MULTILINE)
+    assert re.search(r"^    runs-on: ubuntu-latest$", job, re.MULTILINE)
+    download = _step_with(job, "actions/download-artifact@v4")
+    assert re.search(r"^\s+name: screw-ci-image$", download, re.MULTILINE)
+    assert "gunzip -c screw-ci.tar.gz | docker load" in _step_with(job, "docker load")
+    python = _step_with(job, "actions/setup-python@v5")
+    assert 'python-version: "3.12"' in python
+    assert "cache" not in python
+    check = _step_with(job, "bench.oper check")
+    assert ('python3 -m bench.oper check tests/data/oper_boundary.json --shard "$SHARD" '
+            '--image screw:ci --out "bounds-records-$SHARD.jsonl"') in check
+    assert re.search(r"^    env:\n      SHARD: \$\{\{ matrix\.shard \}\}$", job, re.MULTILINE)
+    assert '"$GITHUB_STEP_SUMMARY"' in check
+    # The table is piped into the summary, so the step must fail with the check, not with tee.
+    assert re.search(r"^\s+shell: bash$", check, re.MULTILINE)
+    assert ".venv" not in job
+    assert "make " not in job
+
+
+def test_the_bounds_job_reads_the_repository_and_holds_no_secret() -> None:
+    job = _ci_job("bounds")
+    permissions = re.search(r"^    permissions:\n((?:      .*\n)+)", job, re.MULTILINE)
+    assert permissions is not None
+    assert permissions.group(1).splitlines() == ["      contents: read"]
+    text = CI_YML.read_text()
+    assert "secrets." not in text
+    assert not re.search(r"^\s+github-token:", text, re.MULTILINE)
+    assert not re.search(r"^\s*pull_request_target\s*:", text, re.MULTILINE)
+    assert "\non:\n  push:\n    branches: [main]\n  pull_request:\n\n" in text
+
+
+def test_the_bounds_job_keeps_the_readings_of_a_red_run_for_seven_days() -> None:
+    upload = _step_with(_ci_job("bounds"), "actions/upload-artifact@v4")
+    assert re.search(r"^\s+if: always\(\)$", upload, re.MULTILINE)
+    assert re.search(r"^\s+name: bounds-records-\$\{\{ env\.SHARD \}\}$", upload, re.MULTILINE)
+    assert re.search(r"^\s+path: bounds-records-\$\{\{ env\.SHARD \}\}\.jsonl$", upload,
+                     re.MULTILINE)
+    assert re.search(r"^\s+retention-days: 7$", upload, re.MULTILINE)
+
+
+def test_the_image_job_hands_its_image_on_for_one_day() -> None:
+    job = _ci_job("image")
+    save = _step_with(job, "docker save")
+    assert "docker save screw:ci | gzip -1 > screw-ci.tar.gz" in save
+    assert re.search(r"^\s+shell: bash$", save, re.MULTILINE)
+    upload = _step_with(job, "actions/upload-artifact@v4")
+    assert re.search(r"^\s+name: screw-ci-image$", upload, re.MULTILINE)
+    assert re.search(r"^\s+path: screw-ci\.tar\.gz$", upload, re.MULTILINE)
+    assert re.search(r"^\s+retention-days: 1$", upload, re.MULTILINE)
+
+
+BOUNDARY_FILE = REPO_ROOT / "tests" / "data" / "oper_boundary.json"
+
+
+def _shard_list() -> list[int]:
+    match = re.search(r"^      matrix:\n        shard: \[([\d, ]+)\]$", _ci_job("bounds"),
+                      re.MULTILINE)
+    assert match is not None
+    return [int(n) for n in match.group(1).split(",")]
+
+
+def test_the_bounds_job_reads_every_shard_of_the_boundary_file() -> None:
+    sizes = json.loads(BOUNDARY_FILE.read_text())["shard_sizes"]
+    assert _shard_list() == list(range(1, len(sizes) + 1))
+    assert re.search(r"^      fail-fast: false$", _ci_job("bounds"), re.MULTILINE)
+
+
+def test_every_shard_is_a_job_make_pr_land_requires() -> None:
+    sizes = json.loads(BOUNDARY_FILE.read_text())["shard_sizes"]
+    lines = REQUIRED_JOBS.read_text().splitlines()
+    assert [line for line in lines if line.startswith("bounds")] == [
+        f"bounds ({n})" for n in range(1, len(sizes) + 1)]
+
+
+def test_the_shards_partition_the_tier_each_point_once_in_file_order() -> None:
+    whole = oper.load_boundary(BOUNDARY_FILE)
+    shards = [oper.load_boundary(BOUNDARY_FILE, n) for n in _shard_list()]
+    assert all(shards)
+    assert [p for shard in shards for p in shard] == whole
+    keys = [(p.point.label, p.point.artifact) for p in whole]
+    assert len(set(keys)) == len(keys)
+
+
+def test_each_shard_is_about_ten_minutes_and_under_half_the_job_timeout() -> None:
+    """G34 and R6's precedent: a shard's readings take at most half the job's `timeout-minutes`,
+    the other half left for a slower runner instance, the image load and the upload. A reading is
+    estimated by its explore container wall, or by its timeout where explore did not read it ok
+    (R27's charge); the estimates are recomputed here from the explore records."""
+    match = re.search(r"^    timeout-minutes: (\d+)$", _ci_job("bounds"), re.MULTILINE)
+    assert match is not None
+    document = json.loads(BOUNDARY_FILE.read_text())
+    explore = dict(str(entry).split("=", 1) for entry in document["sources"])["explore"]
+    files = sorted(str(path) for path in (REPO_ROOT / explore).glob("*/*.jsonl"))
+    walls = {(r["label"], r["artifact"]): r for r in oper._read_records(files)[1]}
+    estimates = []
+    for point in document["points"]:
+        reading = walls[point["label"], point["artifact"]]
+        wall = reading["wall_s"]
+        assert isinstance(wall, int | float)
+        estimates.append(wall if reading["status"] == "ok" else max(wall, point["timeout_s"]))
+        assert point["estimate_s"] == estimates[-1]
+    start = 0
+    for size in document["shard_sizes"]:
+        shard = sum(estimates[start:start + size])
+        assert shard < document["shard_s"] == 600
+        assert 2 * shard <= int(match.group(1)) * 60
+        start += size
+
+
+@pytest.mark.parametrize("shard", [0, 5])
+def test_a_shard_outside_the_file_is_refused(shard: int) -> None:
+    with pytest.raises(ValueError, match=f"shard {shard} is outside 1..4"):
+        oper.load_boundary(BOUNDARY_FILE, shard)
+
+
+def test_check_reads_only_its_shard(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    taken = _stub_tier(monkeypatch, {f"b{i}": _tier_reading(f"b{i}") for i in range(5)})
+    path = tmp_path / "boundary.json"
+    path.write_text(json.dumps({"shard_sizes": [2, 3],
+                                "points": [_boundary_point(f"b{i}") for i in range(5)]}))
+    assert oper.main(["check", str(path), "--shard", "2", "--image", "i"]) == 0
+    assert [label for label, _, _ in taken] == ["b2", "b3", "b4"]
+
+
+def test_the_required_tier_is_read_in_shards_each_point_once() -> None:
+    rule = " ".join(_rule(27).split())
+    assert "The tier is read in parallel shards, one job each, all on the one image" in rule
+    assert ("a shard is the longest run of consecutive points not yet placed whose summed "
+            "estimate stays under 600 s, D-12's 10 minutes, so every point is in exactly one "
+            "shard and is read once") in rule
+    assert ("A point's estimate is the container wall (`wall_s`) of its `explore` reading when "
+            "that reading is `ok`, and otherwise the larger of that wall and its artifact's "
+            "timeout") in rule
+    assert ("Each shard job's `timeout-minutes` is at least twice its shard's summed "
+            "estimate") in rule
+    assert "The 600 s of step 5 per artifact is unchanged" in rule
+    rulings = (PROTOCOL.parent / "07-GAP-RULINGS.md").read_text()
+    assert "\n## Gap G34 (owner ruling on the required tier's wall time, 2026-10-30)\n" in rulings
+    for evidence in ('"Shard into parallel jobs (Recommended)"', "41042483745", "35.5 min",
+                     "not a harness fix"):
+        assert evidence in rulings, evidence
+    assert re.search(r"^\| G34 \| R27, D-12 \|", rulings, re.MULTILINE)
+
+
+def test_a_predicted_float_may_move_by_the_measured_libm_difference_and_nothing_else() -> None:
+    rule = " ".join(_rule(27).split())
+    assert ("every value must be the same except a float computed from the cost model's "
+            "prediction (an edge ratio of step 2, a limit of R29), which may differ from the "
+            "committed one by a relative difference of at most 2^-51, that is 2 x 2^-52") in rule
+    assert ("2 of the 2559 such floats in the two files moved by one ulp from the files written "
+            "on macOS, the larger by a relative 1.459 x 2^-52, and no other value moved") in rule
+    assert rule.count("added after the first runner reading by the owner's ruling that R30 asks "
+                      "for") == 2
+    rulings = (PROTOCOL.parent / "07-GAP-RULINGS.md").read_text()
+    assert ("\n## Gap G33 (owner ruling on the regeneration checks across platforms, "
+            "2026-10-30)\n") in rulings
+    for evidence in ('"A: tolerance on limits (Recommended)"', "41048346068",
+                     "3.239877599502309e-16", "6801399.663168809", "not a harness fix"):
+        assert evidence in rulings, evidence
+    assert re.search(r"^\| G33 \| R27 \|", rulings, re.MULTILINE)
+    owner = (PROTOCOL.parent / "07-OWNER-RULINGS.md").read_text()
+    assert ("\n## R27: the required tier, after its first runner reading (2026-10-30, G33, "
+            "G34)\n") in owner
+    for reply in ('"B: fix\n   in-wall debt first (Recommended)"',
+                  '"A: tolerance on limits (Recommended)"',
+                  '"Shard into parallel jobs (Recommended)"'):
+        assert reply in owner, reply
+
+
+# --- the owner's ruling on the in-wall parts the kernel refuses (G35): pinned by its key phrases --
+
+
+def _rule_31() -> str:
+    text = _protocol()
+    start = text.index("\n## R31 ")
+    return " ".join(text[start:text.index("\n## Debt this campaign leaves open", start)].split())
+
+
+def test_r31_refuses_a_fine_pitch_past_a_wall_per_kind_and_admits_the_wall() -> None:
+    rule = _rule_31()
+    assert ("A part of that kind whose `d / pitch`, taken as exact decimals (the fraction of each "
+            "value's `repr`), is above W is refused before any build with a `422` of type "
+            "`pitch_too_fine` naming `d` and `pitch`; a part at W is admitted") in rule
+    assert "`bench/oper_sets.py` writes the walk set `walls-pitch` from code alone" in rule
+    assert ("a ratio q in {5, 8, 10, 12, 14} or a whole number from 15 to 31, both hands, and two "
+            "forms with 3 turns of thread") in rule
+    assert "q a whole number from 5 to 12, both hands, and four forms" in rule
+    assert ("The pitch of a cell is `d / q` rounded up to 6 significant figures, so its exact "
+            "`d / pitch` is at most q") in rule
+    assert "with the type `over_budget`" in rule
+    assert "Every other cell is read once, at `step`" in rule
+    assert "charged and cut into shards as R6 charges a set of explore-like parts" in rule
+
+
+def test_r31_takes_the_bolt_w_from_the_runner_walk_and_rules_the_nut_w() -> None:
+    rule = _rule_31()
+    assert ("F is the smallest exact `d / pitch` over the walk's readings of that kind whose "
+            "status is `refused` or `crashed`") in rule
+    assert ("For the bolt, W is the largest number of the ISO 3 R10 series (1, 1.25, 1.6, 2, 2.5, "
+            "3.15, 4, 5, 6.3 and 8, times a power of ten) at or below F / 1.25") in rule
+    assert "Every point of the walk must have exactly one reading" in rule
+    assert "F has no number and the phase stops and asks the owner" in rule
+    assert "a bolt W other than 20 stops the phase and asks the owner" in rule
+    assert ("The bolt's W that ships is written from the walk's records by code, never "
+            "typed") in rule
+    assert ("For the nut, W is 8, set by the owner's ruling and not by the margin rule") in rule
+    assert ("Every nut cell the walk refused at or below the nut's W is recorded and kept open "
+            "as debt") in rule
+    assert "a W other than those stops" not in rule
+    assert "The walk reads bolts with 3 turns of thread only" in rule
+    assert "They are recorded and kept open as debt, and they are not a wall" in rule
+    assert rule.count("added after the first runner reading by the owner's ruling that R30 asks "
+                      "for") == 1
+    assert "amended after the walk's runner reading by a second ruling of the owner's" in rule
+
+
+def test_r31_keeps_the_drawn_sets_and_drops_refused_points_from_the_tier() -> None:
+    rule = _rule_31()
+    assert ("are checked under the parameter model they were drawn under, without the "
+            "fine-pitch wall, and are not drawn again") in rule
+    assert ("a point the fine-pitch wall refuses is then left out of it, with nothing drawn in "
+            "its place: an artifact can keep fewer than 3 edge points") in rule
+
+
+def test_the_fine_pitch_ruling_is_an_owner_ruling_after_the_freeze_and_not_a_harness_fix() -> None:
+    rulings = (PROTOCOL.parent / "07-GAP-RULINGS.md").read_text()
+    assert ("\n## Gap G35 (owner ruling on the in-wall parts the kernel refuses, 2026-10-30)\n"
+            in rulings)
+    for evidence in ('"Guard d/p wall + debt (Recommended)"', '"Nut d/p ≤ 8 (Recommended)"',
+                     '"Walk W on runner (Recommended)"', '"Must debt, don\'t block (Recommended)"',
+                     "26.999784001727985", "10.999993714289307", "10d8c49",
+                     "not a harness fix"):
+        assert evidence in rulings, evidence
+    assert re.search(r"^\| G35 \| R31 \(new\), D-08 \|", rulings, re.MULTILINE)
+    assert "\n## Gap G36 (owner ruling after the fine-pitch walk, 2026-10-30)\n" in rulings
+    for evidence in ('"Rule nut W = 8, island to debt (Recommended)"',
+                     '"(i)(b) old sets, drop refused (Recommended)"', "41074314305",
+                     "6.999993636369421", "13 of the 14 nut catalogue rows"):
+        assert evidence in rulings, evidence
+    assert re.search(r"^\| G36 \| R31, R27 \|", rulings, re.MULTILINE)
+    owner = (PROTOCOL.parent / "07-OWNER-RULINGS.md").read_text()
+    assert ("\n## R31: the fine-pitch walls, after the in-wall debug session (2026-10-30, G35)\n"
+            in owner)
+    assert ("\n## R31: the nut's wall is ruled, and the old sets stand (2026-10-30, G36)\n"
+            in owner)
+    for reply in ('"Rule nut W = 8, island to debt (Recommended)"',
+                  '"(i)(b) old sets, drop refused (Recommended)"'):
+        assert reply in owner, reply
+    for reply in ('"Guard d/p wall + debt (Recommended)"', '"Nut d/p ≤ 8 (Recommended)"',
+                  '"Walk W on runner (Recommended)"', '"Must debt, don\'t block (Recommended)"'):
+        assert reply in owner, reply
+    protocol = _protocol()
+    assert protocol[protocol.index("## Harness fixes"):].startswith("## Harness fixes\n\nNone yet.")
+    assert not re.search(r"\bG\d+\b", protocol)
+    assert not re.search(r"\b\d{11}\b", protocol)

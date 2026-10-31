@@ -219,6 +219,22 @@ def build_failed(request: str, p: FastenerParams, fmt: str, quality: str, *,
            "exception": type(exc).__name__, "duration_ms": _ms(duration_s)})
 
 
+def cost_model_miss(request: str, p: FastenerParams, fmt: str, quality: str, *,
+                    artifact: str, timeout_s: float) -> None:
+    """`cost_model.miss` at ERROR, emitted next to `build.failed` when an admitted part
+    overruns its timeout (D-10).
+
+    The timeout is the backstop behind the cost model: a part the model admitted is one the
+    machine was expected to build in time, so an overrun is the model's miss and the
+    service's fault, not the user's. The record carries the part, the `artifact` it was
+    building and the `timeout_s` it was held to -- what is needed to reproduce the part and
+    to re-measure the model -- and never a traceback (T-01-05).
+    """
+    _emit(logging.ERROR, "cost_model.miss",
+          {"request": request, **_part_fields(p), "fmt": fmt, "quality": quality,
+           "artifact": artifact, "timeout_s": timeout_s})
+
+
 def queue_refused(request: str, p: FastenerParams, fmt: str, quality: str, *,
                    in_flight: int, max_queued: int) -> None:
     """`queue.refused` at WARNING (capacity, not breakage): one record per refused

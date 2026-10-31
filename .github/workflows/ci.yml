@@ -36,6 +36,15 @@ jobs:
         run: >-
           .venv/bin/python -c "from importlib.metadata import version;
           print('cadquery', version('cadquery'), 'cadquery-ocp', version('cadquery-ocp'))"
+      # How far this runner's libm puts the predicted floats (edge ratios, limits) of every
+      # regenerated file from the committed ones, which macOS wrote: the evidence for the
+      # tolerance the regeneration checks allow (07-18). A record, not a gate: it regenerates
+      # every point file, and a stop or a traceback there must not turn the required
+      # `test (3.12)` red for a reason the gate does not judge (code review WR-04).
+      - name: predicted-float drift on this runner
+        if: always()
+        continue-on-error: true
+        run: .venv/bin/python -m bench.oper_sets prediction-drift
 
   vendor-bundle:
     # The committed three.js bundle must stay reproducible from web/, or nobody can
@@ -74,3 +83,69 @@ jobs:
           curl -sfo /dev/null 'localhost:8000/api/bolt/model.stl?quality=preview'
           curl -sfo /dev/null 'localhost:8000/api/bolt/model.step'
           docker rm -f screw
+      # The bounds job reads the boundary set in this very image (07 D-15), so it is handed on
+      # inside the run and kept one day. `shell: bash` adds pipefail: a failed save must not
+      # upload an empty archive.
+      - name: save the image for the bounds job
+        shell: bash
+        run: docker save screw:ci | gzip -1 > screw-ci.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screw-ci-image
+          path: screw-ci.tar.gz
+          retention-days: 1
+
+  # 07 D-12's required tier: R27 step 5's boundary set (tests/data/oper_boundary.json, written by
+  # `python -m bench.oper_sets boundary` from the committed D(A) and the shipped constants), each
+  # point read once, cold, in its own container of the image the `image` job built (D-15). R29
+  # fails it on a reading that is not ok, a cold wall past its artifact's timeout, or bytes,
+  # seconds or peak above prediction x (1 + e). The records are uploaded on a red run too, because
+  # R12 widens e only from recorded readings (`python -m bench.oper_sets envelope-check --from`
+  # over `gh run download <run> -p 'bounds-records-*' -D <dir>`), never from a table. The
+  # recording tier, which sets the bounds, is operability.yml.
+  #
+  # R27 (owner ruling G34): the set is read in parallel shards, one job each, every point in
+  # exactly one: the file's `shard_sizes` cut it, in file order, into the longest runs whose
+  # summed estimate stays under 600 s, D-12's 10 minutes. In one job the 435 points took 35.5 min.
+  # timeout-minutes is at least twice the largest shard's estimate (R6's half), and
+  # tests/test_oper.py holds the shard list, the estimates and required-jobs.txt to the file.
+  # R31 (ruling G36): the points the fine-pitch wall refuses are dropped, nothing drawn in their
+  # place, so the set is 355 points in 4 shards.
+  #
+  # T-07-44: no secret, no pull_request_target, and a token that only reads the repository; it
+  # runs the PR's own code exactly as `test` does. A same-run artifact download needs no
+  # github-token (actions/download-artifact README, read 2026-10-26).
+  bounds:
+    needs: image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    env:
+      SHARD: ${{ matrix.shard }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: screw-ci-image
+      - name: load the image the image job built
+        shell: bash
+        run: gunzip -c screw-ci.tar.gz | docker load
+      # bench.oper is standard-library only, so the runner's own interpreter runs it; no venv.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # `shell: bash` adds pipefail, so the step fails with the check and not with tee.
+      - name: the boundary set builds inside its timeouts and its envelope
+        shell: bash
+        run: python3 -m bench.oper check tests/data/oper_boundary.json --shard "$SHARD" --image screw:ci --out "bounds-records-$SHARD.jsonl" | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bounds-records-${{ env.SHARD }}
+          path: bounds-records-${{ env.SHARD }}.jsonl
+          retention-days: 7

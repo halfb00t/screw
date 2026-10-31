@@ -21,20 +21,66 @@ from fractions import Fraction
 # Loosening it needs a superseding entry and a re-run of the grid block.
 T_GATE = 9e-05
 
-# The most turns a bolt may ask for (D-01): L11's construction cap. The frontier walk
-# `2026-10-08-a-frontier` reached 250 turns with no stop at every size, both hands, rod and
-# void, and nothing above 250 is measured. A refusal and not a trim, because `length` is an
-# explicit choice (L02); the INTERIM 30 s build timeout is the backstop below it. Phase 7
-# replaces it with measured per-size caps (OPER-03).
-MAX_TURNS = 250
+# The most turns a part may ask for (D-01, D-08): a kernel outer wall measured on linux/amd64 on
+# the GitHub runner, never a budget; the cost model (L21) bounds cost inside it. Rule R7 of
+# `07-SWEEP-PROTOCOL.md`. A cell is a size, a hand and a kind (a rod, or a nut's void of `m` + 2
+# pitches): the 15 L11 sizes x 2 x 2 = 60. Walls run 40646134133 read every cell at 250 turns and 9
+# were refused; the walk-down run 40652801529 read those 9 cells at every step of 10 turns from
+# 240 down to 10, and their first ok steps were 100, 100, 210, 200, 90, 180, 90, 240 and 160. The
+# smallest of all 60 is 90 turns (`bolt-M2.5-right` and `bolt-M3-right`), the candidate T. Confirm
+# run 40678150220 read every cell at 90 turns in 5 repetitions, all ok (60 of 60 points), and at
+# 100 turns two cells, `bolt-M2.5-right` and `bolt-M3-right`, were refused in 5 of 5. A refusal and
+# not a trim, because `length` is an explicit choice (L02). It replaces L11's 250 turns, a macOS
+# arm64 frontier walk that the linux/amd64 kernel does not keep at every size.
+MAX_TURNS = 90
+_TURN_RUNS = "(runs 40646134133, 40652801529 and 40678150220)"
 
-# INTERIM (D-17): the shortest length, or sewn tail, the builder accepts, in mm. Research probe
-# 2026-10-10 at d=6, pitch=1: a twist of length <= 1e-8 mm SIGSEGVs the process before any check
-# can run, 3e-8 to 1e-6 mm raises, 1e-5 mm builds; as a sewn tail, 1e-5 to 1e-2 mm built one
-# valid solid at (6, 1), (2, 0.4) and (20, 2.5). 1e-3 sits 100x above the last failing tail.
-# Phase 7 re-measures (OPER-03). One definition for the builder, the closed form, the caps and
-# the info document (D-27).
-MIN_TAIL_MM = 1e-3
+# The shortest length, or sewn tail, the builder accepts, in mm (D-17, D-08): a kernel outer wall
+# measured on linux/amd64 on the GitHub runner, never a budget. Rule R9 of `07-SWEEP-PROTOCOL.md`.
+# Walls run 40646134133, group (c): the `tail` probe at (d, pitch) in (6, 1), (2, 0.4) and (20,
+# 2.5), both hands, 3 whole turns plus a tail from 1e-2 down to 1e-9 mm, with this guard lowered
+# inside the probe only. All 6 cells built a tail of 1e-2, 1e-3, 1e-4 and 1e-5 mm; 1e-6 and 1e-7
+# mm were refused at all 6, 1e-8 mm crashed at 4 and was refused at 2, and 1e-9 mm crashed at all
+# 6. The largest failing tail F is 1e-6 mm, and the floor is the smallest power of ten at or above
+# 100 F, 1e-4 mm (100 is a margin fixed before any reading, not a measured figure). Confirm run
+# 40678150220 read all 6 cells at 1e-4 and at 1e-5 mm in 5 repetitions, all ok. One definition for
+# the builder, the closed form, the cost model and the info document (D-27).
+MIN_TAIL_MM = 1e-4
+
+# The smallest root radius d/2 - 5H/8 of a rod the kernel builds, in mm (07 D-18, rule R10 of
+# `07-SWEEP-PROTOCOL.md` as ruled by G26): a kernel outer wall measured on linux/amd64 on the
+# GitHub runner, never a budget. Walls run 40646134133, group (d), the rods of the 15 L11 sizes in
+# both hands at root radii from 1e-2 down to 1e-6 mm: every rod built at 1e-2, 3e-3 and 1e-3 mm,
+# the largest failing radius F is 3e-4 mm (root-bolt-M12-right-r0.0003, one of 30 refused, the
+# other 29 built), and every rod from 3e-5 mm down was refused. The floor is the smallest power
+# of ten at or above 10 F, 1e-2 mm. Confirm run 40678150220 read all 30 rods at 1e-2 and at 3e-3
+# mm in 5 repetitions each, all ok. The nut void's root radius is held to the same number as a
+# guard and nothing more: no void was measured against it. In the void walk (run 40665307964, one
+# repetition) the kernel refused voids with root radii far above it, and where it refused grew
+# with d: an observation, no bound, kept as debt in
+# docs/tech_debt/active/2026-10-21-nut-countersink-cutter-crosses-the-axis-at-a-coarse-pitch.md.
+MIN_ROOT_RADIUS_MM = 1e-2
+
+# The finest pitch for its diameter, as the largest exact d / pitch a part may ask for (07 R31,
+# rulings G35 and G36): above it the kernel's end-cut booleans act on a swept thread whose error
+# does not shrink with the thread depth and return a wrong solid the gates refuse
+# (.planning/debug/resolved/in-wall-kernel-builderror.md). A part above its kind's wall is a 422
+# naming d and pitch; a part at it is admitted. Bolt: walk run 41074314305 read 2904 bolts with 3
+# turns of thread on linux/amd64 on the GitHub runner, the smallest refused d / pitch F was
+# 26.999784001727985 (d 3, pitch 0.111112, right hand), and the wall is the largest ISO 3 R10
+# number at or below F / 1.25, written by the walk's judge below. Longer threads in the bands d 0.5
+# to 0.85 and 1.6 to 3.3 mm are refused below it and stay debt
+# (docs/tech_debt/active/2026-10-29-in-wall-parts-the-kernel-refuses.md).
+# BEGIN pitch-walls: written by `python -m bench.oper_sets pitch-walls --from
+# bench/results/phase-07/walls-pitch-41074314305`; not edited by hand.
+MAX_BOLT_D_PER_PITCH = Fraction("20")
+# END pitch-walls
+# Nut: 8 by the owner's ruling G36, not by the margin rule. The same walk read 2752 nuts in four
+# forms and refused an island of six at d 2.2 mm, d / pitch 7 (base, s4 and m1 forms, both hands;
+# every neighbouring cell ok), which the margin rule would turn into a wall of 5 that refuses 13 of
+# the 14 nut catalogue rows and the default nut (d / pitch 6). The island stays debt with the bolt's
+# residual; 8 is the catalogue's largest d / pitch, and every other refused nut sat at 11.
+MAX_NUT_D_PER_PITCH = Fraction(8)
 
 
 def fundamental_height(pitch: float) -> float:
@@ -161,7 +207,7 @@ def built_thread_length(thread_length: float, length: float) -> float:
     length, and the stored field is never rewritten. D-27: a shank left shorter than
     `MIN_TAIL_MM` is a sliver the builder cannot take (the kernel crashed on one, RESEARCH
     Alert 6), so it is folded into the thread, as `helical.thread` folds its own sewn tail. The
-    builder, the closed forms, both caps, the turn-cap validator and `derive` all call this and
+    builder, the closed forms, the cost model, the turn-cap validator and `derive` all call this and
     none recomputes it.
     """
     t = min(thread_length, length)
@@ -276,42 +322,94 @@ def turns_of(length: float, pitch: float) -> float:
 
 
 def _largest_accepted_pitch(d: float) -> float | None:
-    """The largest pitch of at most 6 significant figures whose root radius is above 0, or None.
+    """The largest pitch of at most 6 significant figures whose root radius is at least
+    `MIN_ROOT_RADIUS_MM`, or None.
 
-    `d / (2 * thread_depth(1.0))` is the supremum, where the root radius is exactly 0 and is
-    refused; `:g` rounds to nearest, so printing it sent back a pitch the same rule refused for
-    993 of the 1999 diameters 0.1 .. 199.9 (d 1.1 printed 1.01614 against a limit of 1.016136).
-    Truncating toward zero and re-checking with the very test the refusal uses makes the printed
-    number one the user can type. Fewer digits are tried when 6 still land on the boundary, and
-    None (no number) is the answer when none does (a subnormal d), never a plausible one (L02).
+    `(d / 2 - MIN_ROOT_RADIUS_MM) / thread_depth(1.0)` is the supremum, where the root radius is
+    exactly the floor; `:g` rounds to nearest, so printing it sent back a pitch the same rule
+    refused for 993 of the 1999 diameters 0.1 .. 199.9 (d 1.1 printed 1.01614 against a limit of
+    1.016136). Truncating toward zero and re-checking with the very test the refusal uses makes
+    the printed number one the user can type. Fewer digits are tried when 6 still land on the
+    boundary, and None (no number) is the answer when none does (a d whose radius is under the
+    floor, a subnormal d), never a plausible one (L02).
     """
-    supremum = d / (2 * thread_depth(1.0))
+    supremum = (d / 2 - MIN_ROOT_RADIUS_MM) / thread_depth(1.0)
     if not (math.isfinite(supremum) and supremum > 0):
         return None
     exact = Decimal(repr(supremum))
     for figures in range(6, 0, -1):
         candidate = float(exact.quantize(Decimal(1).scaleb(exact.adjusted() - figures + 1),
                                          rounding=ROUND_DOWN))
-        if candidate > 0 and d / 2 - thread_depth(candidate) > 0:
+        if candidate > 0 and d / 2 - thread_depth(candidate) >= MIN_ROOT_RADIUS_MM:
             return candidate
     return None
 
 
-def root_radius_refusal(d: float, pitch: float) -> str | None:
-    """None when the root radius d/2 - 5H/8 is above 0; otherwise the refusal text (D-04).
+def _floor_clause() -> str:
+    return (f"must be at least {MIN_ROOT_RADIUS_MM:g} mm, the smallest root radius the kernel "
+            f"built on linux/amd64 (runs 40646134133 and 40678150220)")
 
-    At 0 or below the root flat crosses the axis and the section is not a simple outline the
-    kernel can sweep. No braces in the text: pydantic formats a custom error from its context.
+
+def root_radius_refusal(d: float, pitch: float) -> str | None:
+    """None when the root radius d/2 - 5H/8 is at least `MIN_ROOT_RADIUS_MM`; otherwise the
+    refusal text (D-04, D-18).
+
+    Below the floor the kernel refuses the rod (`StdFail_NotDone`, or a tip cut that leaves no
+    solid), and at or below zero the root flat crosses the axis and the section is not a simple
+    outline at all. No braces in the text: pydantic formats a custom error from its context.
     """
     root = d / 2 - thread_depth(pitch)
-    if root > 0:
+    if root >= MIN_ROOT_RADIUS_MM:
         return None
     text = (f"d and pitch: the root radius d/2 - 5H/8 of the ISO 68-1:2023 basic profile is "
-            f"{root:g} mm at d {d:g} and pitch {pitch:g}, and must be above 0")
+            f"{root:g} mm at d {d:g} and pitch {pitch:g}, and {_floor_clause()}")
     largest = _largest_accepted_pitch(d)
     if largest is None:
         return text
     return f"{text}; the largest pitch for this d, to 6 significant figures, is {largest:g}"
+
+
+def _smallest_admitted_pitch(d: float, wall: Fraction) -> float | None:
+    """The smallest pitch of at most 6 significant figures whose exact d / pitch is at most
+    `wall`, or None. `d / wall` rounded up, exactly, then re-checked with the refusal's own test
+    so the printed number is one the user can type (L02)."""
+    x = _exact(d) / wall
+    scale = Fraction(1)
+    while scale > x:
+        scale /= 10
+    while scale * 10 <= x:
+        scale *= 10
+    step = scale / 10**5
+    exact = math.ceil(x / step) * step
+    candidate = float(Decimal(exact.numerator) / Decimal(exact.denominator))
+    if math.isfinite(candidate) and candidate > 0 and _exact(d) <= wall * _exact(candidate):
+        return candidate
+    return None
+
+
+def pitch_too_fine_refusal(kind: str, d: float, pitch: float) -> str | None:
+    """None when the exact d / pitch is at most the kind's fine-pitch wall (`MAX_BOLT_D_PER_PITCH`
+    or `MAX_NUT_D_PER_PITCH`, read at call time); otherwise the text (07 R31).
+
+    Exact decimals, as the walls of the turn cap: a d / pitch typed as exactly the wall is
+    admitted. The ratio prints from the fraction itself, so a subnormal pitch reads as a huge
+    number and not as an overflow. The text begins `d and pitch: `. No braces: pydantic formats a
+    custom error from its context.
+    """
+    wall = MAX_BOLT_D_PER_PITCH if kind == "bolt" else MAX_NUT_D_PER_PITCH
+    ratio = _exact(d) / _exact(pitch)
+    if ratio <= wall:
+        return None
+    why = ("the bolt's wall, one R10 step below the smallest d / pitch at which the kernel "
+           "refused a 3-turn bolt on linux/amd64 (run 41074314305)" if kind == "bolt" else
+           "the nut's wall as the owner ruled it (07 G36), below d / pitch 11, where the kernel "
+           "refused nuts on linux/amd64 (run 41074314305)")
+    text = (f"d and pitch: d / pitch is {ratio:.6g} at d {_plain(d)} and pitch {_plain(pitch)}, "
+            f"above {wall}, {why}")
+    smallest = _smallest_admitted_pitch(d, wall)
+    if smallest is None:
+        return text
+    return f"{text}; the smallest pitch for this d, to 6 significant figures, is {_plain(smallest)}"
 
 
 def turn_cap_refusal(t: float, pitch: float) -> str | None:
@@ -324,25 +422,27 @@ def turn_cap_refusal(t: float, pitch: float) -> str | None:
     if _exact(t) <= MAX_TURNS * _exact(pitch):
         return None
     return (f"thread_length, length and pitch: {turns_of(t, pitch):g} turns of built thread is "
-            f"past the {MAX_TURNS}-turn cap, the most measured (run 2026-10-08-a-frontier); "
-            f"shorten thread_length or length, or raise pitch")
+            f"past the {MAX_TURNS}-turn cap, the most the kernel built at every size and hand on "
+            f"linux/amd64 {_TURN_RUNS}; shorten thread_length or length, or raise pitch")
 
 
 def void_root_radius_refusal(d: float, pitch: float, clearance: float) -> str | None:
-    """None when the nut void's root radius d/2 - 5H/8 + clearance is above 0; else the text (D-04).
+    """None when the nut void's root radius d/2 - 5H/8 + clearance is at least
+    `MIN_ROOT_RADIUS_MM`; else the text (D-04, D-18).
 
     The nut's void grows by the clearance on both radii (L11 `section_radius`), so the rule the
     rod uses (`root_radius_refusal`, no clearance) is wrong for it: it refuses a nut a positive
     clearance would make and accepts one a negative clearance would push through the axis. The
-    text begins `d, pitch and clearance: `. No braces: pydantic formats a custom error from its
-    context.
+    floor is the rod's, applied here as a guard: it was measured on rods, and the kernel refuses
+    voids well above it. The text begins `d, pitch and clearance: `. No braces: pydantic formats a
+    custom error from its context.
     """
     root = d / 2 - thread_depth(pitch) + clearance
-    if root > 0:
+    if root >= MIN_ROOT_RADIUS_MM:
         return None
     return (f"d, pitch and clearance: the void's root radius d/2 - 5H/8 + clearance of the "
             f"ISO 68-1:2023 basic profile is {root:g} mm at d {d:g}, pitch {pitch:g} and "
-            f"clearance {clearance:g}, and must be above 0")
+            f"clearance {clearance:g}, and {_floor_clause()}")
 
 
 def nut_turn_cap_refusal(m: float, pitch: float) -> str | None:
@@ -356,131 +456,8 @@ def nut_turn_cap_refusal(m: float, pitch: float) -> str | None:
     if void <= MAX_TURNS * _exact(pitch):
         return None
     return (f"m and pitch: {float(void / _exact(pitch)):g} turns of void (m + 2 pitch, what the "
-            f"builder makes) is past the {MAX_TURNS}-turn cap, the most measured (run "
-            f"2026-10-08-a-frontier); lower m or raise pitch")
-
-
-# The fine-STL caps of the thirteen (d, pitch, left_hand) rod runs L11 measured (D-03, D-21): (d,
-# pitch, left_hand) -> the largest length in mm whose fine STL plus its gzip level-1 copy still fits
-# the INTERIM 64 MiB export budget. L11 measured rows (`2026-10-08-a-grid`), not ISO rows: each cap
-# is the longest measured length below the first grid rod row whose fine raw STL plus its gzip copy
-# exceeded that budget, at the fine preset (0.01 mm, 0.1 rad), which the D-21 rule kept
-# (bench/RESULTS.md "Mesh deviation (Phase 5, D-21)": worst deviation 0.0161 mm against the 0.025 mm
-# bound), so no cap was re-derived; tests/test_mesh.py pins the preset the caps were measured at.
-# The criterion is the sum of the two blobs, not the STL alone: at M8 right L=68 the raw fine STL is
-# 45,659,684 bytes, under the budget. The caps are keyed by hand because the left-hand rods measured
-# smaller files and fit longer (first over-budget length M10 right 57, left 73; the right-hand caps
-# applied to a left-hand part refused lengths L11 had measured inside). The keys are the campaign's
-# run keys (ISO 262 preview pitches, UNVERIFIED as table truth, exact as run keys and exactly
-# representable floats), not ISO rows. This is bench evidence, not a `tables` module, so it does not
-# pre-empt contract 6. It was measured against the 64 MiB budget only and applies unconditionally,
-# even if a deployer changes SCREW_EXPORT_CACHE_MB (03-RESEARCH Open Question 4). A part off these
-# keys gets no cap: a cap from an unmeasured mapping to the nearest row is the plausible number L02
-# forbids. Phase 7 re-measures the budget and the caps (OPER-02, OPER-03). Turns are derived from
-# the millimetres by `turns_of`, never stored.
-# D-22: the cap reads the built thread `t`, the part these rods measured. The head and the plain
-# shank add bytes no run measured, bounded and small next to the thread (the head-plus-shank fine
-# bytes are in `bench/RESULTS.md`, Head fuse probe); Phase 7 re-sweeps on the finished bolt.
-FINE_STL_ROWS: dict[tuple[float, float, bool], float] = {
-    (8.0, 1.25, False): 67.5,    # first row over budget: M8 right L=68 rod
-    (10.0, 1.5, False): 56.0,    # M10 right L=57 rod
-    (12.0, 1.75, False): 60.0,   # M12 right L=61 rod
-    (14.0, 2.0, False): 58.0,    # M14 right L=59 rod
-    (16.0, 2.0, False): 52.0,    # M16 right L=53 rod
-    (18.0, 2.5, False): 65.0,    # M18 right L=66 rod
-    (20.0, 2.5, False): 64.0,    # M20 right L=65 rod
-    # M8 left-hand: no row over budget up to 80 mm, so no cap (no measured stop).
-    (10.0, 1.5, True): 72.0,     # M10 left L=73 rod
-    (12.0, 1.75, True): 77.0,    # M12 left L=78 rod
-    (14.0, 2.0, True): 78.0,     # M14 left L=79 rod
-    (16.0, 2.0, True): 75.0,     # M16 left L=76 rod
-    (18.0, 2.5, True): 91.0,     # M18 left L=92 rod
-    (20.0, 2.5, True): 91.0,     # M20 left L=92 rod
-}
-
-
-def fine_stl_refusal(d: float, pitch: float, t: float, left_hand: bool) -> str | None:
-    """None unless (d, pitch, left_hand) is a measured run and the built thread `t` is past its
-    fine-STL cap.
-
-    The text begins `thread_length and length: ` so the CLI, which prints no `loc` for a
-    model-level error, still names the fields. No braces in the text: pydantic formats a custom
-    error from its context.
-    """
-    cap = FINE_STL_ROWS.get((d, pitch, left_hand))
-    if cap is None or t <= cap:
-        return None
-    hand = "left-hand" if left_hand else "right-hand"
-    return (f"thread_length and length: the fine STL of a {hand} thread with d {d:g} and pitch "
-            f"{pitch:g} is refused above {cap:g} mm of thread ({turns_of(cap, pitch):g} turns), "
-            f"the longest L11 measured whose fine STL plus its gzip copy fit the 64 MiB export "
-            f"budget (run 2026-10-08-a-grid); the thread built here is {t:g} mm. Shorten "
-            f"thread_length or length, or ask for the preview STL or the STEP, which are not "
-            f"capped")
-
-
-# The fine-STL caps of the thirty nut keys (the 15 ISO 262 coarse (d, pitch) by both hands), R16
-# and R17: (d, pitch, left_hand) -> the largest whole-mm nut height m whose fine STL plus its gzip
-# level-1 copy still fits the INTERIM 64 MiB export budget. Measured by bench/nut_fine_caps.py,
-# run `2026-10-21-nut-fine-caps-amended` (bench/RESULTS.md "Nut fine-STL caps, amended re-run
-# (Phase 5, R17)"), which repeated run `2026-10-20-nut-fine-caps` row for row with identical
-# bytes. The rule, fixed before any row ran: the shipped `screw.solid.export(p, "stl", "fine")` of
-# a nut at m = 1, 2, 3, ... mm, the cap the largest m that fits below the first that does not. The
-# fine preset is (0.01 mm, 0.1 rad), the one tests/test_mesh.py pins and the cap records header
-# carries (a test compares them, so a preset change fails until the caps are re-measured). The run
-# measured at clearance NUT_FINE_STL_CLEARANCE (5.0 mm, the owner's R16 answer: the largest
-# clearance any GOST ISO 4032-2014 row's own s admits) and at s 1e5 mm (INTERIM_MAX_MM, the
-# largest s the model admits). Because s adds a near-constant number of bytes that does not grow
-# with m (the planner's 05-19 probe), a cap measured at the largest s holds for every s; the run's
-# checks at clearances -0.05, 0, 0.1 and 2.5 and at the slimmest s at 5.0 all fit the budget where
-# the shipped build made the part (it refuses the others, which are no file:
-# docs/tech_debt/active/2026-10-21-nut-lead-in- gate-refuses-a-valid-nut-at-huge-s.md). A nut off
-# these 30 keys gets no cap: the rods' FINE_STL_ROWS is never applied to a nut (R12) and a cap
-# from an unmeasured mapping to the nearest row is the plausible number L02 forbids (D-03). The
-# numbers are macOS arm64 and the INTERIM budget; Phase 7 re-measures on linux/amd64 (OPER-02).
-NUT_FINE_STL_RUN = "2026-10-21-nut-fine-caps-amended"
-NUT_FINE_STL_CLEARANCE = 5.0
-NUT_FINE_STL_ROWS: dict[tuple[float, float, bool], float] = {
-    (2.0, 0.4, False): 12.0, (2.5, 0.45, False): 13.0, (3.0, 0.5, False): 15.0,
-    (3.5, 0.6, False): 18.0, (4.0, 0.7, False): 21.0, (5.0, 0.8, False): 24.0,
-    (6.0, 1.0, False): 30.0, (7.0, 1.0, False): 30.0, (8.0, 1.25, False): 38.0,
-    (10.0, 1.5, False): 36.0, (12.0, 1.75, False): 41.0, (14.0, 2.0, False): 46.0,
-    (16.0, 2.0, False): 45.0, (18.0, 2.5, False): 54.0, (20.0, 2.5, False): 36.0,
-    (2.0, 0.4, True): 15.0, (2.5, 0.45, True): 17.0, (3.0, 0.5, True): 19.0,
-    (3.5, 0.6, True): 22.0, (4.0, 0.7, True): 25.0, (5.0, 0.8, True): 30.0,
-    (6.0, 1.0, True): 38.0, (7.0, 1.0, True): 38.0, (8.0, 1.25, True): 47.0,
-    (10.0, 1.5, True): 50.0, (12.0, 1.75, True): 56.0, (14.0, 2.0, True): 61.0,
-    (16.0, 2.0, True): 59.0, (18.0, 2.5, True): 73.0, (20.0, 2.5, True): 47.0,
-}
-
-
-def nut_fine_stl_refusal(d: float, pitch: float, m: float, clearance: float,
-                         left_hand: bool) -> str | None:
-    """None unless (d, pitch, left_hand) is one of the 30 measured nut keys and either the clearance
-    is above the ceiling the run measured at or `m` is past the key's fine-STL cap.
-
-    The clearance is judged first: the cap holds only at or below `NUT_FINE_STL_CLEARANCE`, so a
-    larger clearance has no measured cap to be judged against (R16). The text begins `clearance: `
-    or `m: ` so the CLI, which prints no `loc` for a model-level error, still names the field. No
-    braces in the text: pydantic formats a custom error from its context.
-    """
-    cap = NUT_FINE_STL_ROWS.get((d, pitch, left_hand))
-    if cap is None:
-        return None
-    if clearance > NUT_FINE_STL_CLEARANCE:
-        return (f"clearance: the fine STL of a nut with d {d:g} and pitch {pitch:g} was measured "
-                f"only at a clearance of {NUT_FINE_STL_CLEARANCE:g} mm or less (run "
-                f"{NUT_FINE_STL_RUN}), and a larger clearance makes a larger file; the clearance "
-                f"asked for is {clearance:g} mm. Use a clearance of {NUT_FINE_STL_CLEARANCE:g} mm "
-                f"or less, or ask for the preview STL or the STEP, which are not capped")
-    if m <= cap:
-        return None
-    hand = "left-hand" if left_hand else "right-hand"
-    return (f"m: the fine STL of a {hand} nut with d {d:g} and pitch {pitch:g} is refused above m "
-            f"{cap:g} mm, the tallest run {NUT_FINE_STL_RUN} measured whose fine STL plus its gzip "
-            f"copy fit the 64 MiB export budget (at a clearance of {NUT_FINE_STL_CLEARANCE:g} mm "
-            f"and s 1e5 mm); the m asked for is {m:g} mm. Lower m, or ask for the preview STL or "
-            f"the STEP, which are not capped")
+            f"builder makes) is past the {MAX_TURNS}-turn cap, the most the kernel built at every "
+            f"size and hand on linux/amd64 {_TURN_RUNS}; lower m or raise pitch")
 
 
 # --- the end-cut oracles (05-RESEARCH F4, P10; probed in `bench/RESULTS.md`, End-cut probe) -----
@@ -981,9 +958,10 @@ def head_chamfer_kernel_bound(s: float, k: float) -> float:
     Kernel-free, from the head's own fields; an angle at or above it builds on both measured
     platforms. `derive` withholds the chamfer rows and the volume below it (for an angle above 0).
     """
-    # k / s / s, not k / (s * s): the model accepts s = 1e-170, whose square underflows to 0.0
-    # and raised ZeroDivisionError (a 500 on /api/bolt/info); this form overflows to inf instead,
-    # which withholds the rows as any angle below the bound does.
+    # k / s / s, not k / (s * s): the model once accepted s = 1e-170 (the root-radius floor now
+    # refuses it), whose square underflows to 0.0 and raised ZeroDivisionError (a 500 on
+    # /api/bolt/info); this form overflows to inf instead, which withholds the rows as any angle
+    # below the bound does.
     return max(HEAD_CHAMFER_KERNEL_FLOOR_DEG, HEAD_CHAMFER_KERNEL_SLOPE * k / s / s)
 
 

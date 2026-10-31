@@ -20,20 +20,22 @@ def test_the_fine_mesh_keeps_the_kernels_control_surface_deflection_on_and_absol
     """RESEARCH F1: `exportStl` never sets `ControlSurfaceDeflection`; it holds because the OCP
     struct defaults it on. A cadquery or OCP bump that flips the default would change every
     deviation in the D-21 run without a line of screw changing, so the flag is read here from the
-    same five-argument constructor `exportStl` calls."""
+    same five-argument constructor `exportStl` calls. It meshes a copy, as `_write_export` does:
+    meshing the cached solid in place left its triangulation on it, and the next test to read the
+    default bolt's box (tests/test_solid.py) read the mesh's box, not the solid's."""
     linear, angular = TESSELLATION["fine"]
-    parameters = BRepMesh_IncrementalMesh(build(BoltParams()).wrapped, linear, False, angular,
-                                          True).Parameters()
+    parameters = BRepMesh_IncrementalMesh(build(BoltParams()).copy().wrapped, linear, False,
+                                          angular, True).Parameters()
     assert parameters.ControlSurfaceDeflection is True
     assert parameters.Relative is False
     assert parameters.Deflection == pytest.approx(linear)
     assert parameters.Angle == pytest.approx(angular)
 
 
-def test_the_fine_preset_is_the_one_the_fine_stl_caps_were_measured_at() -> None:
-    """D-21 kept 0.01 mm / 0.1 rad, so `FINE_STL_ROWS` (measured at it, `2026-10-08-a-grid`) was
-    not re-derived. A different fine value would need a recorded run of the caps at it first
-    (T-05-39), not only a deviation that fits the bound."""
+def test_the_fine_preset_is_the_one_the_cost_model_was_fitted_at() -> None:
+    """R23 kept 0.01 mm / 0.1 rad, and the fine-STL cost model of L21 was fitted on runs that
+    exported at it (explore 40646117094, spread 40646125666). A different fine value would need a
+    re-fit of that model at it first, not only a deviation that fits the bound."""
     assert TESSELLATION["fine"] == (0.01, 0.1)
 
 

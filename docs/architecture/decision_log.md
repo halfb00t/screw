@@ -150,6 +150,15 @@ only in the typed parameter model; the longer the fork lives, the more they dive
 
 ## L08 — main is walled: required CI jobs on a current head, a commit-msg hook against skip tokens, and `make pr.land` (narrows L06)
 
+Extended by L26: the required jobs gain the four `bounds` shards of the required operability tier.
+
+Extended by L27: `make pr.land` also requires a green full operability tier on the head of a PR
+that touches the cost model's files or `src/screw/solid/`, and `scripts/pr_land.py` is no longer
+spur's byte for byte.
+
+Extended by L28: `make pr.land` refuses a PR that touches a file deciding the full operability
+verdict or a required job's unless the owner passes `--owner-approves-gate-change`.
+
 Date: 2026-10-06. Decided by the owner in the Phase 1 discussion (D-11, D-12, D-17, D-19).
 A port of spur's L22 and L25, which carry the evidence; this entry says what is ported,
 what is different here, and what is deferred.
@@ -210,6 +219,10 @@ Reversibility: reversible. The ruleset is one `gh api -X DELETE` call, the hook 
 config entry, `pr.land` is one Makefile target; none of them touches product code.
 
 ## L09 — Fasteners are a registry of kinds with a frozen default, per-kind URLs, interim runtime bounds, and one deliberate pool divergence from spur
+
+Superseded in part by L23 and L24: the interim runtime bounds are measured on linux/amd64 (the
+workers, the container and the caches in L23; the build timeout and `Retry-After` in L24), and L24
+records the second divergence from spur's `pool.py`, the queue-aware deadline.
 
 Date: 2026-10-06. Decided by the owner in the Phase 1 discussion (D-01 to D-19). L08 (the
 wall of `main`) lands later in the same phase.
@@ -282,6 +295,8 @@ Reversibility: reversible. Four lines in `pyproject.toml`; bumping one is a deli
 which is the point.
 
 ## L11 — The thread is a sewn twist-section at K = 3, volumes are `BRepGProp` at eps 1e-6 gated at 9e-5, and the pair proof is not falsifiable at M18 (blocks Phase 5)
+
+Superseded in part by L20: the 250-turn `MAX_TURNS` frontier figure is 90 turns, re-measured on linux/amd64.
 
 Date: 2026-10-09. Decided by the owner at the Phase 2 verdict checkpoint on the
 pre-registered rules of `02-SPIKE.md`. Every value below names the
@@ -446,6 +461,10 @@ reversible by design: Phase 7 re-measures them.
 
 ## L12 — The bolt is the L11 thread behind a gate in screw.solid; turns, root radius and the over-budget fine STL are refused, never trimmed; left_hand is on every kind
 
+Superseded in part by L20: the root-above-0 clause is a 0.01 mm floor and `MIN_TAIL_MM` is 1e-4 mm, both re-measured on linux/amd64.
+
+Superseded in part by L21: the fine-STL refusal on L11's seven bytes-cap rows and "never trimmed" for a defaulted length; the cost model judges every artifact, and a defaulted thread_length or length that pushes a part over is capped and warned (an explicit one is still a 422).
+
 Date: 2026-10-10. Decided by the owner in the Phase 3 discussion (D-01 to D-16) and in the
 planning rulings D-17 to D-19, both on 2026-10-10. Where a value comes from L11 it names the
 `bench/RESULTS.md` run id that holds it; every other figure names its source, and those are
@@ -556,6 +575,8 @@ every shareable link from this phase on. Reversible for the caps and `MIN_TAIL_M
 one validator each, which Phase 7 replaces with measured per-size values (OPER-01, OPER-03).
 
 ## L13 — The bolt is an ISO 4014 bolt or ISO 4017 screw built from explicit millimetres; presets fill fields from cited, double-entered rows; the info document traces every number
+
+Superseded in part by L21: the Caps (D-21, D-22) paragraph's hand-keyed `FINE_STL_ROWS` and its 62 fine-STL-refused presets; the cost model judges every artifact and refuses no preset.
 
 Date: 2026-10-12. Decided by the owner in the Phase 4 discussion (D-01 to D-24, 2026-10-11), in the
 planning rulings D-25 to D-28 and the D-21 clarification (2026-10-11, after `04-RESEARCH.md`'s
@@ -1186,6 +1207,8 @@ Reversibility: reversible. It is page state; no published shape changed.
 
 ## L16 — The nut's fine STL is capped on m per (d, pitch, hand) from run 2026-10-21-nut-fine-caps-amended, measured at clearance 5.0 mm and s 1e5 mm; a clearance above 5.0 mm is refused
 
+Superseded in part by L21: the m caps of `NUT_FINE_STL_ROWS` and the refusal of a clearance above `NUT_FINE_STL_CLEARANCE` (5.0 mm); the cost model judges every nut artifact.
+
 Date: 2026-10-21. Decided by the owner on 2026-10-20 (R16, `option-a`) and 2026-10-21 (R17), recorded in
 `.planning/phases/05-hex-nut-and-kernel-pair-proof/05-OWNER-READS.md`. This entry supersedes L15's nut
 fine-STL paragraph (R12; 05-05).
@@ -1532,3 +1555,840 @@ any of them changes parts people already linked). Costly for the 422 type, its `
 exit code (D-06: every client and the parity test read them) and for the warning texts, the note and the
 row labels (D-12, the published shape of the info document, L13). Reversible for where the cut runs in
 the pipeline and for its piece gate: both are internal.
+
+## L20 — The kernel's outer walls are re-measured on linux/amd64: 90 turns, a field ceiling of 1000 mm with four per-field exceptions, a 1e-4 mm tail and a 0.01 mm root-radius floor
+
+Date: 2026-10-28. Decided by D-08 and D-18 of Phase 7 and by the pre-registered rules R3 and R7 to R10
+of `07-SWEEP-PROTOCOL.md`, as ruled where they had gaps (G1, G2, G26 and G27 in `07-GAP-RULINGS.md`).
+Every constant below is recomputed from the committed records by `python -m bench.oper_sets
+derive-walls`, and `tests/test_oper_followup.py::test_the_source_constants_equal_what_derive_walls_gives_for_the_records`
+fails if a constant in `src/` drifts from what that command prints. Every run is a GitHub Actions run of
+`screw:ci` on linux/amd64 and has its entry in `bench/RESULTS.md`: walls 40646134133 (`### walls, run
+40646134133`), walls-down 40652801529, walls-confirm 40678150220, controls 40646142406 and the void walk
+40665307964.
+
+**What a wall is.** The largest request the kernel was seen to build at every size and hand the sweep
+walked, 5 repetitions in agreement (R3), and the first step past it as the model's refusal. A wall is
+not a budget: how long and how much memory a build that passes the model takes is the cost model's
+business (Phase 7 logs it separately), and a request inside every wall can still be refused for cost.
+L02 decides the branch: a request past a wall is a `422` naming the fields, never a trimmed part.
+
+**Turns, `MAX_TURNS` = 90 (R7).** T is the smallest first ok step over the 60 cells (9 of them refused
+at 250 turns in run 40646134133 and were walked down in run 40652801529). Two cells, `bolt-M2.5-right`
+and `bolt-M3-right`, first built at 90, so T = 90, resting on 148 readings. Confirm run 40678150220:
+the 60 cells at 90 turns were `ok` in all 5 repetitions (60 of 60 points), and 100 turns was refused in
+`turns100-bolt-M2.5-right` and `turns100-bolt-M3-right` (5 of 5) and ok in the other 58. The catalogue
+tops out at 80 turns. This replaces L11's 250, a macOS arm64 figure that the linux/amd64 kernel does not
+keep: 9 of 60 cells were refused at 250 there.
+
+**Field ceilings (R8).** `MAX_FIELD_MM` = 1000, the value most fields share (a tie goes to the lower).
+Each field's decided decade and tested value, with the confirm of the decade and of the one past it:
+
+| field | constant | value | past it in the confirm |
+|---|---|---|---|
+| bolt `d` | `MAX_BOLT_D_MM` | 999.999 | `ceiling-bolt-d-10000` refused 5 of 5 |
+| bolt `length` | `MAX_BOLT_LENGTH_MM` | 10000 | `ceiling-bolt-length-100000` refused 5 of 5 |
+| bolt `s` and nut `s` | `MAX_FIELD_MM` | 1000 | bolt `ceiling-bolt-s-10000` ok; nut `nutlead-M2-s10000` refused |
+| bolt `k` | `MAX_BOLT_K_MM` | 100000 | `beyond-bolt-k-1000000` ok (a lifted reading: it awards nothing) |
+| bolt `thread_length` | `MAX_BOLT_THREAD_LENGTH_MM` | 100000 | `beyond-bolt-thread-1000000` capped |
+| nut `m` | `MAX_NUT_M_MM` | 10000 | `ceiling-nut-m-100000` killed 5 of 5 |
+| nut `clearance` | `MAX_NUT_CLEARANCE_MM` | 496.999 | `ceiling-nut-clearance-10000` refused 5 of 5 |
+
+`d` 999.999 and `clearance` 496.999 are the largest 6-significant-figure values under the head rule
+(`s > d`) and the thin-nut rule (`s > d + 2 c`) at `s` = 1000. `thread_length` can exceed `length`
+because the builder caps the thread at the length (L12 D-25). In no case did the 5-repetition confirm
+make a decided decade stricter than its candidate. The nine decades are the ones `derive-walls` prints.
+
+**Nut `d` has no wall of its own (G27).** `ceiling-nut-d-1000` read `ok` once in run 40646134133, 92752773
+bytes under the capped threshold, and `capped` in all 5 confirm repetitions; `ceiling-nut-d-10000` was
+refused 5 of 5. By R8 a `capped` reading cannot raise a wall, so there is no confirmed decade and R8
+writes no number. The owner ruled that the nut `d` stays under the shared `MAX_FIELD_MM` (1000, below
+the first refused decade 1e4) and that its limit is cost. There is no `MAX_NUT_D_MM`.
+
+**Tail, `MIN_TAIL_MM` = 1e-4 mm (R9).** Tails 1e-2 to 1e-5 mm built `ok` at 6 of 6 cells; 1e-6 and 1e-7
+mm were refused, 1e-8 crashed 4 and was refused 2, and 1e-9 crashed 6 (48 readings, run 40646134133).
+F = 1e-6 mm is the largest failing tail and the floor is the smallest power of ten at or above 100 F,
+1e-4 mm. Confirm: 1e-4 and the next smaller walked value 1e-5 were `ok` at 6 of 6 points. This replaces
+L12's INTERIM 1e-3 mm.
+
+**Root radius, `MIN_ROOT_RADIUS_MM` = 0.01 mm (R10, G26).** The floor reads the rods of group (d) only: F
+= 3e-4 mm (`root-bolt-M12-right-r0.0003`, the largest failing rod, over 270 readings), and the floor is
+the smallest power of ten at or above 10 F, 0.01 mm. Confirm: 0.01 and 0.003 mm were `ok` at 30 of 30
+rod points. The model refuses a thread root below it (`pitch_too_coarse`), where L12 refused only a root
+at or below 0. The nut's void root rule uses the same constant as a guard and nothing more. It is not a
+measured void wall: the void walk (run 40665307964, 20 `ok` and 100 refused with `StdFail_NotDone`)
+puts the kernel's limit on a void's root ratio r/d, not on a length in millimetres, a ratio the sweep
+saw once and took no number from. That is the open debt
+`docs/tech_debt/active/2026-10-21-nut-countersink-cutter-crosses-the-axis-at-a-coarse-pitch.md`.
+
+**The controls (run 40646142406).** The 69 known-bad construction rows ran natively next to the builder,
+one repetition each. The one-pipe twist matches L11's macOS arm64 outcome on all 40 rows, in the 6
+digits printed, 8 of them inverted (ratio about -1) as before. The naive fuse differs in outcome on 8 of 29: 6
+rows that L11 built are refused with `Null TopoDS_Shape` on linux/amd64 and 2 that failed on macOS are
+one valid solid; the volume ratios of 2 more differ in the third or fifth decimal (`naive-M10-L20` 1.02492
+against 1.02662, `naive-M2.5-L25` 1.03572 against 1.03573). The four THRD-04 test rows of
+`tests/test_solid.py` all still do their job here: `naive-M2-L4`, `naive-M8-L10` and `naive-M20-L10` are
+one valid solid at volume ratios 0.290229, 0.231722 and 0.219346 (below the half the gate reads), and
+`one_pipe-M6-t160` is inverted at -0.999995. `naive-M6-L10`, the row swapped out of the tests, is
+`Null TopoDS_Shape` on the runner, as the L11 platform note says. No row changes.
+
+**What it supersedes.** L11's `MAX_TURNS` frontier figure of 250 turns; L12's "root above 0" clause (the
+floor is 0.01 mm) and its interim `MIN_TAIL_MM` of 1e-3 mm; L09's interim `INTERIM_MAX_MM` field ceiling
+of 1e5, renamed `MAX_FIELD_MM` and now a measured 1000 with the exceptions above. The bench tools that
+check the pre-registered point files keep the guards they were registered under
+(`bench.oper_lift.registered`), so those files do not move with the walls.
+
+**Evidence the walls came from.** The 24 failing tails and 122 failing rod roots are counted by
+`derive-walls` over run 40646134133; the T cells, by run 40652801529; the confirms, by run 40678150220.
+A reader who doubts a figure reruns `derive-walls` over `bench/results/phase-07/` and compares.
+
+Reason: the numbers the model accepts are numbers someone cuts metal to, so each is a confirmed figure
+from the platform the product runs on, and a macOS figure is no longer a stand-in (L02).
+
+Reversibility: reversible. Each wall is a constant in `src/screw/params.py` or `src/screw/calc/thread.py`
+and a re-run of the walls set (`bench/oper_sets`) re-derives it; the 422 texts cite the run ids and
+change with it. A shareable link past a lowered wall stops building, which is why the lowering is logged.
+
+## L21 — A fitted, enveloped, kernel-free cost model judges each artifact against the owner's budget; a defaulted thread length, length or nut height that pushes a part over is capped and warned; FINE_STL_ROWS and the nut caps are retired
+
+Date: 2026-10-29. Decided by D-05 to D-08 and D-17 of Phase 7, by the owner's rulings B-01, B-02 and
+B-03 of 2026-10-29 and B-03's two clarifications of the same day (`07-OWNER-RULINGS.md`), by G28
+(`07-GAP-RULINGS.md`) and by the pre-registered rules R11 to R13 of `07-SWEEP-PROTOCOL.md`. Every
+constant below is emitted from the committed records by `python -m bench.oper_fit emit-constants`
+into `src/screw/calc/cost.py`, never typed, and
+`tests/test_cost.py::test_the_shipped_constants_are_the_block_emit_constants_writes_from_the_evidence`
+fails if the block drifts. The fit reads two runs, each a GitHub Actions run of `screw:ci` on
+linux/amd64 with its entry in `bench/RESULTS.md`: explore 40646117094 (`### explore, run
+40646117094`, 1517 fitted points) and spread 40646125666 (`### spread, run 40646125666`, 12 fitted
+points); 175 points with a repetition that is not `ok` are excluded and listed in
+`bench/results/phase-07/fit.json`. The candidate table the owner ruled on is
+`07-BUDGET-TABLE.md`, regenerated byte for byte by `python -m bench.oper_fit table`.
+
+**What the model is (D-05, D-17, R11).** One ordinary least-squares model per (kind, artifact,
+target): the artifacts are the preview STL, the fine STL and the STEP (`cost.ARTIFACTS`; STEP ignores
+the quality), the targets raw bytes, cold build seconds (build plus export) and cgroup peak bytes. It
+fits the natural log of each target on, for the bolt, ln d, ln pitch, ln turns (the built thread over
+the pitch), ln length, ln s, ln k and the hand; for the nut, ln d, ln pitch, ln s, ln m, the clearance
+and the hand. `cost.predict` is a plain sum and `math.exp`, the same arithmetic as
+`bench.oper_fit.predict`, so the two agree to the last bit; `calc` imports no kernel, no numpy and no
+logger, and it runs on every keystroke through `derive`.
+
+**Head ratios the fit did not see (G28).** The fitted points hold each head ratio in a narrow band,
+the [min, max] over the fitted points of its kind with omitted fields at their defaults, emitted as
+`cost.BANDS`: bolt k/d 0.6 to 0.7 and s/d 1.5 to 2.0, nut s/d 1.5 to 4.0 and m/d 0.8 to 3.0. A part
+with a ratio outside its band is predicted, target by target, as the largest of the raw prediction
+and the predictions at every combination of band edges of its out-of-band ratios, each such field set
+to edge x d and every other field held. The rule is one-sided (G28 ruling 5, "2: one-sided B
+(Recommended)"): a ratio above its band takes both edges, which for this log-linear model is the
+largest prediction anywhere in the band, and a ratio below it takes the low edge only. ASSUMPTION,
+unmeasured: a smaller head never costs more than one at the low edge; plan 07-15 reads parts above
+and below each band. Inside every band the prediction is the fit's own. The open item
+`docs/tech_debt/active/2026-10-29-cost-model-admits-out-of-fit-head-heights.md` stays active until
+those readings.
+
+**The envelope (D-07, R12).** A part is admitted iff prediction x (1 + e) is at most the budget for
+every bounded target; at the budget is admitted, one float above is refused. e is
+`max(0, largest actual / predicted - 1)` over the fitted readings of its model, from runs explore
+40646117094 and spread 40646125666. Each e and the point that set it:
+
+| kind | artifact | target | fitted points | rank | e | set by |
+| --- | --- | --- | --- | --- | --- | --- |
+| bolt | stl-preview | bytes | 420 | 8 | 2.264581945786201 | explore:bolt-d1-p0.35-n240-left |
+| bolt | stl-preview | seconds | 420 | 8 | 4.286137349093968 | explore:bolt-d1-p0.35-n240-right |
+| bolt | stl-preview | peak | 420 | 8 | 2.040087854388461 | explore:bolt-d1000-p10-n30-right |
+| bolt | stl-fine | bytes | 401 | 8 | 0.5633622849303941 | explore:bolt-d300-p10-n3-right |
+| bolt | stl-fine | seconds | 401 | 8 | 2.690232029900006 | explore:bolt-d300-p10-n3-right |
+| bolt | stl-fine | peak | 401 | 8 | 2.170967259675211 | explore:bolt-d300-p10-n3-right |
+| bolt | step | bytes | 426 | 8 | 0.9874058238127998 | explore:bolt-d1000-p1-n3-left |
+| bolt | step | seconds | 426 | 8 | 2.616422482555953 | explore:bolt-d1000-p1-n3-right |
+| bolt | step | peak | 426 | 8 | 0.45747877720379804 | explore:bolt-d1000-p10-n240-right |
+| nut | stl-preview | bytes | 94 | 7 | 0.7070121785110755 | explore:nut-d10-p1-m0.8d-s4d-c5-right |
+| nut | stl-preview | seconds | 94 | 7 | 1.061383246630594 | explore:nut-d100-p3.5-m3d-s4d-c5-right |
+| nut | stl-preview | peak | 94 | 7 | 0.556086702674923 | explore:nut-d100-p0.35-m0.8d-s4d-c5-right |
+| nut | stl-fine | bytes | 94 | 7 | 0.4996608149413484 | explore:nut-d30-p0.35-m0.8d-s1.6d-c5-right |
+| nut | stl-fine | seconds | 94 | 7 | 1.1069417227945801 | explore:nut-d3-p1-m0.8d-s4d-c0.15-right |
+| nut | stl-fine | peak | 94 | 7 | 0.5571452809681212 | explore:nut-d3-p1-m0.8d-s1.6d-c0.15-left |
+| nut | step | bytes | 94 | 7 | 0.3802587303182223 | explore:nut-d10-p3.5-m0.8d-s4d-c0.15-right |
+| nut | step | seconds | 94 | 7 | 0.8785228687431521 | explore:nut-d100-p0.35-m0.8d-s4d-c5-right |
+| nut | step | peak | 94 | 7 | 0.48786919655819627 | explore:nut-d30-p1-m3d-s1.6d-c5-right |
+
+**The budget (B-01).** Reply, verbatim: `c1 (Recommended)`. The owner ruled C1, catalogue-complete
+(R13, G10): each component is the largest enveloped prediction over the catalogue rows of that
+artifact, so no catalogue row is refused. The triples (raw bytes, cold build seconds, cgroup peak
+bytes), as `cost.BUDGET` carries them:
+
+| artifact | budget (bytes, seconds, peak) |
+| --- | --- |
+| stl-preview | (55704726.47566052, 34.127968722622484, 1049185338.9620932) |
+| stl-fine | (239508059.14804876, 94.42979276577135, 2930457561.336711) |
+| step | (9748694.773917168, 15.000925691551677, 422239338.63724077) |
+
+The table's C1 rows keep all 294 bolt and all 14 nut catalogue rows at every artifact. The refused
+preset count is therefore 0, pinned as a literal in
+`tests/test_presets.py::test_the_refused_presets_are_counted`, where L13 counted 62 ISO 4017 fine-STL
+refusals.
+
+**Per-artifact budgets can refuse a preview while they admit the fine STL.** Each artifact has its
+own fit and its own budget, so the cheaper file is not always the one admitted. ISO 4017 M20 x 60 at
+pitch 1 (`iso4017:M20x60`'s fields with pitch 1) is refused at `stl-preview` and admitted at
+`stl-fine` and `step` by `cost.fits` at commit bc7b2ab, which the cap code since leaves unchanged;
+`tests/test_cost.py::test_a_preview_can_be_refused_while_the_fine_stl_is_admitted` holds it. The
+owner accepted this with G28's reply 3, "Accept, note it in L21 (Recommended)".
+
+**The refusal (D-06, B-02).** Reply, verbatim: `over-budget (Recommended)`. Refusal is per artifact
+and happens before the byte cache, the admission slot and the pool. One 422 type, `over_budget`,
+covers all three artifacts, with `loc` `["query"]`, `ctx.fields` the cost fields in model order (bolt
+d, pitch, length, s, k, thread_length; nut d, pitch, s, m, clearance) and `ctx.artifact` the artifact.
+Its text begins with the field names, so the CLI, which prints no `loc`, names them too; it names the
+artifact and L21, says which artifacts of the part do fit, and prints no predicted figure (L02). The
+CLI exits 2 with the same sentence, and the info document, which is always served, lists it as a
+warning and in `downloads[].refusal`. The published type `fine_stl_cap` is retired.
+
+**The default cap (D-06, B-03).** Reply, verbatim: `part-wide (Recommended)`; the clarification's
+replies, verbatim: "A: per field, guard (Recommended)" and "OK, serve it capped (Recommended)". When
+a part is over its budget at any artifact, each field the request did not name is tried on its own,
+the bolt's `thread_length` first, then its `length`, or the nut's `m`, scanning down the field's form
+step (0.5 mm, 0.5 mm, 0.1 mm) from its frozen default; the first value at which every artifact fits
+is taken, so it is the largest. `length` is never capped below a named `thread_length`, so the built
+thread stays what the user named. A bolt is never capped below `cost.MIN_FITTED_TURNS` built turns
+(the built thread over the pitch), the fewest over the fitted bolt points of runs explore 40646117094
+and spread 40646125666 with omitted fields at their defaults: 2.9999999999999996, the n3 points at
+pitch 0.1, computed by `bench.oper_fit.min_turns` and emitted, never typed. Below it `ln_turns`,
+positive on every bolt model, is an extrapolation. The owner's reply to the second clarification,
+verbatim: "Floor at fitted min turns (Recommended)". So an M6 with only s 15 named, which the cap
+took from thread_length 20 to 0.5 mm (half a turn) at 97600d7, is no longer capped: its preview is
+the `over_budget` 422 and its fine STL and STEP are served. The nut's `m` cap has no floor: the nut
+has no turns feature, and G28 judges an m/d below its band at the low edge. `d`, `pitch`, `s`, `k`, `clearance`, `head_chamfer` and the hand
+never move. One warning, first in the document's warnings, names the field, its default, the capped
+value and L21. The info document, the preview, every download and the file name all come from the
+one capped part. A part no cap admits keeps its per-artifact `over_budget` 422. A part admitted at
+every artifact is never capped. "Named" is what the request names: the raw query keys on the API (the
+set `refuse_explicit_conflict` reads) and the given flags plus a preset's fields on the CLI (the set
+passed to `explicit_conflict`), so a preset is never capped; the page writes only fields that differ
+from their defaults, so a typed default counts as not set there, as for L19's head chamfer. The code
+is `cost.cap_defaults` and `calc.derive_capped`, called by the API's info and model routes and by
+`screw info` and `screw export`; `tests/test_cost.py` holds the two front ends to the same part,
+warning and file name. A d-only M5, whose preview G28 ruling 5 refuses, is served with its defaulted
+thread_length capped, by the owner's second clarification reply.
+
+**What it retires (D-08, D-17).** `FINE_STL_ROWS` and `fine_stl_refusal` (L12, L13),
+`NUT_FINE_STL_ROWS`, `NUT_FINE_STL_CLEARANCE` and `nut_fine_stl_refusal` (L16) no longer decide any
+download: `download_refusal` reads the cost model alone. Plan 07-13 removes the code. The clearance
+above 5.0 mm is no longer refused for cost; the nut's clearance wall is L20's `MAX_NUT_CLEARANCE_MM`.
+
+**When CI finds an under-prediction (D-07, R12, R29).** A later cold isolated reading above its
+enveloped prediction fails its tier (R29) and widens that model's e, recorded with its run id; a
+widening only refuses more. A widened e is a superseding entry that names the run, never an edit of
+this one, and `emit-constants` re-emits the block. A widening that refused a catalogue row moves the
+refused-preset literal and stops the phase for the owner.
+
+Reason: the allowed space is bounded by what the platform was measured to build inside the owner's
+budget, and a number the tool prints is a number someone will cut metal to (L02): an over-budget
+part is refused or, where only a default pushed it over, capped with a warning that says so, never
+quietly trimmed and never admitted on a figure no run supports.
+
+Reversibility: costly, per D-05. The model decides refusals on every front end; the refused-preset
+count, the page's offered artifacts and which links serve a capped part move with it, and a link
+that served yesterday can be refused or capped after a re-fit.
+
+Superseded in part by L22: two rows of the envelope table, the nut stl-fine seconds e
+1.1069417227945801 to 1.7812452161769916 and peak e 0.5571452809681212 to 0.5976833077470993, both
+widened by outband run 40909768713; and a bolt below `cost.MIN_FITTED_TURNS` built turns is no
+longer predicted but refused at every artifact.
+
+Superseded in part by L29: the head-ratio bands also carry the nut's `clearance`, banded in mm, so a
+clearance below the 0.15 mm the fit read is judged at that low edge too.
+
+## L22 — The out-of-band nut readings widen the nut fine-STL envelope, and a bolt below the fitted turns is refused at every artifact
+
+Date: 2026-10-30. Decided by the owner's ruling G30 (`07-GAP-RULINGS.md`; the refusal shape in
+`07-OWNER-RULINGS.md`, "B-02 and B-03: a bolt below the fitted turns is refused at every
+artifact"), after plan 07-15's out-of-band check stopped the phase, and by R11 and R12 of
+`07-SWEEP-PROTOCOL.md` as amended by it. Supersedes in part L21 (two envelope rows; the turns floor
+as a prediction).
+
+**The envelope (D-07, R12).** Outband run 40909768713 (`bench/RESULTS.md`, `### out-of-band
+check`) read 7 (point, target) pairs above their enveloped prediction, all M2 rows at the fine STL.
+G30 rules that a nut reading of R11's out-of-band points widens e as a cold isolated reading does,
+and that a bolt reading of them widens nothing. `python -m bench.oper_sets envelope-check` over
+every Runs II directory (bound 40907549180 and its rerun 40999654995, load 40909724292, gzip
+40909739628 and its rerun 40999657702, arenas 40909754190, outband 40909768713) keeps the readings
+that may widen e and widens two models, each by whole ulps until the factor covers every kept
+reading:
+
+| kind | artifact | target | e before (L21) | e now | set by |
+| --- | --- | --- | --- | --- | --- |
+| nut | stl-fine | seconds | 1.1069417227945801 | 1.7812452161769916 | 40909768713:outband-nut-s-below-iso4032:M2 rep 3 |
+| nut | stl-fine | peak | 0.5571452809681212 | 0.5976833077470993 | 40909768713:outband-nut-s-below-iso4032:M2 rep 3 |
+
+No other kept reading is above its enveloped prediction, so the other 16 e of L21 stand. fit.json
+carries the two values and `widened_by: ["40909768713"]`; its coefficients and its `envelope_set_by`
+labels are unchanged (R12: the form is not re-fitted). `emit-constants` re-emitted the block of
+`calc/cost.py`. The widened envelope refuses none of the 294 bolt and 14 nut catalogue rows and
+neither default part, at any artifact, so B-01's C1 budget is unchanged and no preset moves. The open
+item L21's head-ratio paragraph names is resolved by this widening and the turns refusal below:
+`docs/tech_debt/resolved/2026-10-29-cost-model-admits-out-of-fit-head-heights.md`.
+
+**The turns floor (G29, G30).** A bolt whose built thread, `built_thread_length(thread_length,
+length) / pitch`, has fewer turns than `cost.MIN_FITTED_TURNS` (2.9999999999999996, the n3 points at
+pitch 0.1) is refused before any build at every artifact. The fit has no point there, and the one
+such bolt read, a 1 mm thread on the 4 mm M2 (2.5 turns), read 1446684 bytes at the fine STL in all
+5 repetitions of run 40909768713, 1.3116 x its enveloped prediction. Its bolt stl-fine bytes e is
+not widened: C1 sets each budget component at the largest catalogue prediction, so a wider e there
+would refuse 6 catalogue rows. The refusal is B-02's `over_budget` 422; `msg` and `ctx.fields` name
+pitch, length and thread_length, and it prints no figure. No catalogue row is below the floor. B-03's
+cap is unchanged: it never takes a value below the floor. A bolt whose length is too short to model
+(1e-8 mm) has fewer turns than the floor too, so it now gets this 422 (CLI exit 2) before the
+builder's doorway would return its `build_error` (exit 1).
+
+Reason: a number the tool prints is a number someone will cut metal to (L02), and a part is admitted
+only on a prediction some reading covers. The nut overruns are covered by widening, since that
+refuses nothing B-01 keeps; the bolt below the floor has no reading to cover it, so it is refused.
+
+Reversibility: costly, as L21. A wider e only refuses more. A re-fit, or a run that reads bolts below
+the floor, needs a superseding entry.
+
+## L23 — Screw's runtime is sized on the GitHub runner in the production image: 1 build worker, mem_limit 2304m, and every cache, gzip and healthcheck knob measured
+
+Date: 2026-10-30. Decided by D-01 to D-04, D-15 and D-19 of Phase 7 and by the pre-registered rules
+R1 to R6 and R14 to R26 of `07-SWEEP-PROTOCOL.md`, as ruled where they had gaps (G4, G6 to G9, G11,
+G15 to G18, G20, G22, G24, G31 and G32 in `07-GAP-RULINGS.md`). Every value below is derived from
+the committed runner records by `python -m bench.oper_sets derive-runtime` into
+`bench/results/phase-07/runtime.json`, never typed. `tests/test_runtime_bounds.py` fails if
+runtime.json is not what that command writes, if a shipped value differs from runtime.json, or if a
+value in the knob table below differs from the code. Every run is a GitHub Actions run of
+`.github/workflows/operability.yml` on linux/amd64 and has its section in `bench/RESULTS.md`.
+Timeouts, the queue-aware deadline and `Retry-After` are L24.
+
+**Where it was measured (D-01, D-15, R1, R2).** On `ubuntu-latest` runners, in the production image
+(`screw:ci`, built from the dispatched commit), one fresh container per reading under a 12 GiB
+`--memory` and `--memory-swap` cap, with the peak read from the cgroup (`memory.peak` on cgroup v2)
+after the build, the export and a level-1 gzip, never from sampled RSS. runtime.json reads 254
+runner headers over its 18 record directories: `nproc` is 4 in every one and the smallest `MemTotal`
+is 16758394880 B. The Host table of every Runs II section in `bench/RESULTS.md` records kernel
+7.0.0-1017-azure and cadquery 2.8.0 over cadquery-ocp 7.9.3.1.1. GitHub mixes CPU generations; the
+Runs II jobs ran on AMD EPYC 7763, 9V45 and 9V74 and on Intel Xeon Platinum 8370C, Platinum 8573C
+and Xeon 6973P-C. A macOS arm64 figure is context and sets nothing here.
+
+**Five repetitions, the margin and the shards (D-04, D-19, R3, R5, R6).** Every set that sets a
+bound takes 5 repetitions, each a matrix job on its own runner instance; per point the median and
+the max are recorded, a point with any repetition that is not `ok` (or not exactly repetitions 1 to
+5) has neither, and bounds use the max. The margin `m` is 0.5382691940004687, the largest `max /
+median - 1` of the cold wall over the 12 spread points, set by `iso4014:M20x200` at stl-fine (spread
+run 40646125666): a full-tier bulk row read once is re-run at 5 repetitions when its cold wall x (1
++ `m`) reaches its artifact's timeout. A shard is the longest run of consecutive points whose summed
+charge stays under half the measure job's `timeout-minutes` (350 min, so 10500 s): a point of an
+explore-like set is charged the largest explore `wall_s` of its (kind, artifact) group (explore run
+40646117094; 600.731243473 s for the bolt preview, the largest), and a contention, load, drift, gzip
+or arena reading its own deadline (G4, G24). The sets ran as: explore 40 shards, spread 12, walls 20
+and controls 4 (fixed by R4 before any timing), walls-down 6, walls-voids 6, walls-confirm 9, bound
+4, outband 2, and load, gzip, arenas, drift, solid-cache-4 and drift-60 1 each.
+
+**The worker count and mem_limit (D-02, D-03, R15, R16, G7, G20, G32).** The load run (R15) serves a
+fixed mix of 60 cold requests, 20 per artifact, from 2N clients against a queue of 2N, with
+`Accept-Encoding: identity`, a 1 MiB export cache and 4 cached solids, so it measures builds; 5
+repetitions per N, all `ok` (load run 40909724292). `mem_limit(N)` is the larger of W x N + B + the
+export cache + the tmpfs and the load peak at N, rounded up to 256 MiB; N qualifies when it is under
+16 x 10^9 B and under the smallest `MemTotal`, N is at most `nproc` - 1 and all 5 repetitions are
+`ok`.
+
+| N | load p95 over all requests s, max over 5 repetitions | reading | load peak B | tmpfs B | mem_limit(N) B | qualifies |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | 35.09087210645002 | `40909724292:load-n1 rep 2` | 1657307136 | 268435456 | 2415919104 | yes |
+| 2 | 51.878674375850004 | `40909724292:load-n2 rep 2` | 2047315968 | 536870912 | 4563402752 | yes |
+| 3 | 69.78429913074984 | `40909724292:load-n3 rep 2` | 2333671424 | 805306368 | 6442450944 | yes |
+
+R16 picks the qualifying N with the lowest p95, N = 1. It ranks latency only: throughput is not part
+of the rule, and one worker behind a queue of 2 answers fastest. W is 1758363648 B, the largest peak
+after any build of R23's drift readings once the plateau holds (G32;
+`41022812680:drift-nut-d30-p1-m0.8d-s4d-c5-right rep 2 build 15`), above the N = 1 contention W of
+1533550592 B (`40907549180:nut-d30-p1-m0.8d-s1.6d-c5-right-n1 rep 1`); B is 65208320 B, the idle
+server (`40909724292:load-n1 rep 1`); the export cache is 251658240 B and the tmpfs 268435456 B. G20
+ships the larger of that `mem_limit(N)` and the one built from W(4), 1652121600 B
+(`41016510597:solid-cache-4 rep 1`): both are 2415919104 B, which compose writes as `mem_limit:
+2304m`. That is under 16 x 10^9 B (D-02) and under the smallest `MemTotal`. D-02's headroom over W x
+N is B, the two caches and the 256 MiB rounding.
+
+**The knobs (R15 to R26).** Each value is the code's, as `compose.yaml`, the `Dockerfile` or `src/`
+writes it; each comment there names the same rule and run.
+
+| knob | where | value | rule | evidence | runs |
+| --- | --- | --- | --- | --- | --- |
+| `SCREW_BUILD_WORKERS` | app.py `DEFAULT_BUILD_WORKERS`, compose.yaml | 1 | R16 | the lowest load p95 of the qualifying N, table above | 40909724292 |
+| `mem_limit` | compose.yaml | 2304m | R16, G20, G32 | 2415919104 B from W, B, the export cache and the tmpfs at N = 1, and from W(4) alike | 40909724292, 41022812680, 41016510597 |
+| `SCREW_MAX_QUEUED_BUILDS` | app.py `_max_queued_builds`, 2N | 2 | R17, G8 | 2N kept: the largest request wall, queue wait plus build, is 0.3624844919793814 of its queue-aware deadline (`40909724292:load-n1 rep 2 pool call 26`) and the end peak 1657307136 B is under mem_limit | 40909724292 |
+| `_GZIP_LEVEL` | app.py | 1 | R19, G11, G15 | levels 6 and 9 each failed R19's test (at least 10 % smaller at no more than 1.5x the seconds) at all 14 STL bound points, maxima over 5 repetitions; `iso4017:M20x200` at stl-fine: 66239886 B in 2.007092078999989 s at level 1, 63595608 B in 3.55598981 s at level 6 | 40909739628, 40999657702 |
+| `minimum_size` | app.py `GZipMiddleware` | 4012 | R20 | over 1555 bodies the largest that does not shrink at level 1 is `/api/health`, 95 B to 98 B (`40909724292:load-n1 rep 5 /api/health`) | 40909724292 |
+| `SCREW_EXPORT_CACHE_MB` | app.py `EXPORT_CACHE_MB` | 240 | R21, G16 | both encodings of all three artifacts of `iso4017:M20x200`, 250654910 B, the largest over 394 candidates, rounded up to a whole MiB | 40646117094 |
+| `SCREW_SOLID_CACHE` | solid/__init__.py | 4 | R22, G9, G20 | W(4) 1652121600 B gives a mem_limit that qualifies at N = 1 | 41016510597 |
+| `_release_arenas` | solid/__init__.py | kept | R23, G17 | max `memory.current` after the export with the trim on against off: stl-preview 243089408 against 308285440 B, stl-fine 377843712 against 1093894144 B, step 217174016 against 283619328 B | 40909754190 |
+| `max_tasks_per_child` | pool.py | unset | R23, G32 | the plateau holds: builds 41 to 60 max minus builds 21 to 40 max at the worst repetition, 6467584 / 11583488 / 5222400 B (preview / fine / step) against allowances 44044697.6 / 134713753.6 / 28473344.0 B; the 20-build drift is counted in W | 41016507364, 41022812680 |
+| `TESSELLATION` | solid/__init__.py | kept | R23 | the presets are kept; every reading above exported at them, and L21's fit was taken at them | 40646117094 |
+| `SCREW_WORKERS` | Dockerfile `ENV`, compose.yaml, cli.py `serve` | 1 | R24 | `/api/health` p95 under load 0.00935187669999209 s (`40909724292:load-n1 rep 2`), inside the probe's 1 s `urlopen` timeout | 40909724292 |
+| `HEALTHCHECK --interval` | Dockerfile | 30s | R25 | Docker's documented default (docs.docker.com, Dockerfile reference, HEALTHCHECK), not measured | none |
+| `HEALTHCHECK --timeout` | Dockerfile | 2s | R25, G18 | ceil(2 x 0.7360738640000477 s), the max wall of the HEALTHCHECK command over 276 walls in the 5 load readings at N = 1 (`40909724292:load-n1 rep 2`), 0 non-zero exits | 40909724292 |
+| `HEALTHCHECK --start-period` | Dockerfile | 10s | R25, G18 | 2 x the max time to the first healthy response, 0.9576668719999759 s (`40909724292:load-n1 rep 2`), rounded up to 10 s | 40909724292 |
+| `HEALTHCHECK --retries` | Dockerfile | 3 | R25 | Docker's documented default, not measured | none |
+| `tmpfs /tmp` | compose.yaml | 256m | R26 | 268435456 B: the stl-fine bytes budget 239508059.14804876 B (B-01) x N = 1, rounded up to 256 MiB, inside mem_limit | none (the budget, L21) |
+
+Every environment override stays (`SCREW_BUILD_WORKERS`, `SCREW_MAX_QUEUED_BUILDS`,
+`SCREW_EXPORT_CACHE_MB`, `SCREW_SOLID_CACHE`, `SCREW_WORKERS`): CODING_VALUES keeps a limit in code
+with an env var. Only the defaults are measured; a deployer who moves one re-sweeps.
+
+**What it supersedes.** L09's "Interim runtime bounds" paragraph for the runtime knobs: every
+carried value is replaced by a measured one or re-confirmed by its rule, and no `INTERIM` label is
+left in `src/`, the `Dockerfile` or `compose.yaml` (its field ceiling went in L20, its build timeout
+and `Retry-After` in L24). For screw it also replaces the values carried from spur L17 (4g, two
+build workers, one server process), spur L19 (gzip level 1) and the rest of spur's defaults (the
+1024 B gzip threshold, the 64 MiB export cache, 4 cached solids, the healthcheck timings): spur's
+rule shapes stay, its figures are no longer used here.
+
+Reason: a number the tool prints is a number someone will cut metal to (L02), and the container's
+limits decide whether a request is served, queued or killed. Each is now a figure from the platform
+the product runs on, read by a rule fixed before its data.
+
+Reversibility: reversible (D-02). Each value is a constant in `compose.yaml`, the `Dockerfile` or
+`src/`, and `derive-runtime` re-derives runtime.json from a new sweep. A smaller deploy box, or a
+deployer who moves a default, means a new sweep and a superseding entry.
+
+## L24 — One build timeout per artifact, twice the worst admitted build with every worker busy; the deadline adds the timeouts queued ahead; Retry-After from the measured median
+
+Date: 2026-10-30. Decided by D-09, D-10, D-11, D-14 and D-16 of Phase 7 and by the pre-registered
+rules R14, R17 and R18 of `07-SWEEP-PROTOCOL.md` (G8). The values are `python -m bench.oper_sets
+derive-runtime` output in `bench/results/phase-07/runtime.json`, never typed;
+`tests/test_runtime_bounds.py` holds `calc.cost.BUILD_TIMEOUT_S` and `app.MEDIAN_BUILD_S` equal to
+it and to the table below. Supersedes L09's carried `SCREW_BUILD_TIMEOUT` of 30 s and `Retry-After`
+of 5 s.
+
+**The timeouts (D-09, R14).** Each artifact's timeout is `ceil(2 x` the max cold wall, build plus
+export, over the 5 repetitions of its bound point at the picked N `)`; 2 is D-09's factor. The bound
+point is the slowest point of the artifact's bound set (R14, G31) at N = 1 (L23), read in bound run
+40907549180. At N = 1 every worker busy is one worker busy: the bound point ran in a fresh container
+with no other build beside it, so these are single-build walls.
+
+| artifact | `BUILD_TIMEOUT_S` s | bound point | max cold wall s | reading | `MEDIAN_BUILD_S` s |
+| --- | --- | --- | --- | --- | --- |
+| `stl-preview` | 26.0 | `nut-d10-p0.35-m3d-s4d-c0.15-right-n1` | 12.724827096999945 | `40907549180:nut-d10-p0.35-m3d-s4d-c0.15-right-n1 rep 3` | 5.214082512000019 |
+| `stl-fine` | 71.0 | `nut-d30-p1-m0.8d-s1.6d-c5-right-n1` | 35.26048539499999 | `40907549180:nut-d30-p1-m0.8d-s1.6d-c5-right-n1 rep 4` | 9.527734555999999 |
+| `step` | 26.0 | `nut-d100-p3.5-m3d-s4d-c5-right-n1` | 12.81081261700001 | `40907549180:nut-d100-p3.5-m3d-s4d-c5-right-n1 rep 1` | 6.330915500499998 |
+
+**The deadline (D-14).** A build is held to its own timeout, not to the wait behind other builds on
+its worker. `screw.pool` routes a part to slot `hash(p) % N`, which runs one build at a time, and
+sets, when the request is submitted:
+
+`deadline = BUILD_TIMEOUT_S[artifact] + ` the sum of the timeouts of the requests already submitted
+on that slot and not yet finished.
+
+There is no lock, because the parent is single-threaded on the event loop and nothing awaits between
+the sum and the append; there is no new IPC, and `BuildPool`'s public shape is unchanged. Deadlines
+on a slot strictly increase in submit order, so a later request never fires before the one it queues
+behind. spur L37 saw four of ten admitted requests killed for the wait behind another build on their
+slot. This is the second divergence from spur's `pool.py`, after L09's same-slot guard. R17 checked
+it on the load records at N = 1: the largest request wall, queue wait plus build, was
+0.3624844919793814 of its deadline (`40909724292:load-n1 rep 2 pool call 26`), so no request timed
+out and the queue stays 2N (L23).
+
+**A miss (D-10).** An admitted part that still overruns its timeout gets the `503` `timeout` with
+`Retry-After`; its worker is replaced, nothing is cached and no partial file is served. The server
+logs `cost_model.miss` at ERROR next to `build.failed` (`records.cost_model_miss`), carrying the
+part's fields, the format, the quality, the artifact and the `timeout_s` it was held to, and never a
+traceback, so the part can be rebuilt and the model re-measured. The timeout is the backstop behind
+L21's cost model, not the bound.
+
+**`Retry-After` (D-11, R18).** On all three `503`s (busy, `timeout`, `pool_broken`),
+`retry_after(artifact)` is `max(1, ceil(MEDIAN_BUILD_S[artifact] x MAX_QUEUED_BUILDS))`. The medians
+are the built-request walls, queue wait plus build, pooled over the 5 load repetitions at N = 1, 100
+built requests per artifact (load run 40909724292). The product is taken at run time, so a
+deployer's `SCREW_MAX_QUEUED_BUILDS` moves it. It replaces spur's 5 s.
+
+**No override (D-16).** The three timeouts are read-only code constants in `calc/cost.py` with no
+environment override; `SCREW_BUILD_TIMEOUT` is removed from `src/` (plan 07-02) and from the bench
+harness, the Makefile help and `bench/README.md` (plan 07-17), and `bench.build_time` judges each
+export against `BUILD_TIMEOUT_S` for its artifact. A deployer on slower hardware re-sweeps, and a
+superseding entry records the new figures.
+
+Reason: a timeout that kills a build the platform was measured to finish refuses a part the cost
+model admitted, and one far above it holds a worker for nothing. Twice the measured worst, counted
+from the moment the build can start, is the backstop D-09 asks for, and a miss is logged as the
+model's fault, not the user's.
+
+Reversibility: reversible. Three constants in `calc/cost.py` and three medians in `app.py`, which
+`derive-runtime` re-derives from a new sweep; the new figures need a superseding entry. A shorter
+timeout turns slow admitted builds into `503`s, each logged as a miss.
+
+Note (2026-10-31, the phase 7 code review's WR-03; the owner's ruling "WR-03 budget vs limits",
+recorded rather than enforced, since a hard budget-under-limit rule would re-rule B-01): B-01's
+budgets are deliberately looser than the limits that enforce them. The budget is the largest
+enveloped catalogue prediction (C1); the timeouts and `mem_limit` come from the worst measured
+reading. In code: `cost.BUDGET` seconds 34.127968722622484 (stl-preview), 94.42979276577135
+(stl-fine) and 15.000925691551677 (step) against `cost.BUILD_TIMEOUT_S` 26, 71 and 26 s, so the
+preview and the fine STL budgets are above their timeouts; and the stl-fine peak budget
+2930457561.336711 B against the worker's headroom, runtime.json's `mem_limit_bytes` 2415919104
+less B 65208320, the export cache 251658240 and the tmpfs 268435456, which is 1830617088 B
+(the preview's 1049185338.9620932 B and the STEP's 422239338.63724077 B are under it). The
+measured worst readings are under every limit (12.72, 35.26 and 12.81 s; W 1758363648 B). A part
+admitted between a measured reading and its budget meets the backstop: the timeout kills the
+build, the request is a `503` `timeout`, `cost_model.miss` is logged as the model's fault, and
+nothing is cached (the cache put follows the awaited build, `app._serve`). The memory gap has no
+such record: ASSUMPTION, unmeasured, a worker past the container's limit is OOM-killed and its
+request answered as a broken pool. `tests/test_runtime_bounds.py` pins which budgets are above
+which limits, so a regenerated budget, a wider `e` or a new timeout that changes the relation fails
+there and needs this note updated.
+
+## L25 — A part finer in pitch than its kind's wall is a 422 `pitch_too_fine`: the bolt's d / pitch wall is 20, read from the fine-pitch walk; the nut's is 8 by the owner's ruling
+
+Date: 2026-10-30. Decided by the owner's rulings G35 and G36 (`07-GAP-RULINGS.md`,
+`07-OWNER-RULINGS.md`) and by R31 of `07-SWEEP-PROTOCOL.md`, added and amended by them after the
+runner readings. Supersedes nothing: L20's walls stand. It adds one 422 type, `pitch_too_fine`, to
+the parameter model's rules of L13 (D-23), L15 and L20, and it is not a cost-model refusal, so
+L21's and L22's `over_budget` is unchanged; those entries are not edited.
+
+**The rule.** A part whose exact `d / pitch`, `Fraction(repr(d)) / Fraction(repr(pitch))`, is above
+its kind's wall is refused with the 422 `pitch_too_fine`: `loc` `["query"]`, `ctx.fields`
+`["d", "pitch"]`. The text begins `d and pitch: `, prints the ratio and the wall, says why, and names
+the smallest pitch for that d, to 6 significant figures, that the wall admits. A `d / pitch` typed as
+exactly the wall is admitted, even where float division reads above it (4.7 / 0.235). It is checked
+once, at the parameter-model boundary, as the last model rule of each kind, so a part that also
+breaks an older rule (`head_too_small`, `turn_cap`, `nut_too_thin`) still gets that rule's 422. The
+API answers before the byte cache, the admission slot and the pool; the CLI exits 2 with the same
+sentence. The kernel is not changed.
+
+**The bolt's wall, 20.** Walk run 41074314305 (`bench/RESULTS.md`, `### walls-pitch, run
+41074314305`) read 2904 bolts at `step` on linux/amd64, one each: d 0.3 to 999.999 mm, d / pitch 5
+to 31, both hands, a 3-turn full thread and a 3-turn thread under a shank. 60 were refused, all at
+d 1.8 to 3 mm and d / pitch 27 to 31. F, the smallest refused d / pitch, is 26.999784001727985
+(`pitch-bolt-n3-d3-q27-right`), and W is the largest ISO 3 R10 number at or below F / 1.25: 20.
+`calc.thread.MAX_BOLT_D_PER_PITCH` is the block `python -m bench.oper_sets pitch-walls --from
+bench/results/phase-07/walls-pitch-41074314305` prints, and `tests/test_oper_pitch.py` checks it
+against the committed records.
+
+**The nut's wall, 8.** The same run read 2752 nuts in four forms. 17 were refused: 11 at d / pitch 11
+and an island of 6 at d 2.2 mm, d / pitch 7 (forms base, s4 and m1, both hands), every neighbouring
+cell ok. The margin rule would put the nut's wall at 5, which refuses 13 of the 14 nut catalogue rows
+and the default nut (d / pitch 6). The owner ruled it 8 instead (G36, reply verbatim: `Rule nut W =
+8, island to debt (Recommended)`), the catalogue's largest d / pitch. `MAX_NUT_D_PER_PITCH` is that
+ruled constant, with the ruling and the island in its comment.
+
+**What it refuses.** All 20 in-wall parts the kernel refused in explore run 40646117094
+(`tests/test_fine_pitch.py`). None of the 294 bolt and 14 nut catalogue rows, and neither default
+part, so B-01's counts and C1's budget do not move.
+
+**The sets already drawn (G36, reply verbatim: `(i)(b) old sets, drop refused (Recommended)`).** The
+point files and the sets drawn before R31 are checked under the model they were drawn under, without
+this wall (`bench.oper_lift.drawn`), and are not drawn again: fit.json, runtime.json and L21 to L24
+stand. The required tier `tests/data/oper_boundary.json` is cut as before and leaves out the 80
+points the wall refuses, with nothing drawn in their place: 435 to 355 points, every artifact keeping
+its 2 edge points, in 4 CI shards instead of 5. The local `bench.build_time` corpus keeps its fixed
+grid; its three d 100 entries are past the wall and are marked refused, not judged.
+
+**What it leaves open.** The wall does not hold every refusal. The 6 nut island cells are inside the
+nut's wall, and the debug session found long-thread bolts refused below 20 in the size bands d 0.5 to
+0.85 and 1.6 to 3.3 mm (for example d 3, pitch 0.35, 25 mm of thread, right hand) and isolated nut
+cells at d / pitch 11, 14 and 17 on macOS arm64. They stay open as must debt:
+`docs/tech_debt/active/2026-10-29-in-wall-parts-the-kernel-refuses.md`. Such a part still gets a
+build error, not a wrong part (L02 holds).
+
+Reason: a part the parameter model admits should build, or be refused with the fields to change
+(L02). The kernel's end-cut booleans break once the swept thread's representation error is not small
+against the thread depth, which grows with d / pitch; a wall one R10 step under the first refusal
+stops the parts the kernel refuses there, and keeps every catalogue row.
+
+Reversibility: costly. Links that carried a finer pitch now get a 422. A kernel fix (the debug
+session's accuracy variant: pipe tolerance 1e-6 and 56 section samples) or a new walk needs a
+superseding entry, and lifting the wall needs both.
+
+## L26 — Two operability tiers: a required bounds job on every change and a full recording tier weekly and on cost-model PRs, both in the production image
+
+Date: 2026-10-31. Decided by D-12, D-15 and D-19 of Phase 7 and by the pre-registered rules R5, R6
+and R27 to R29 of `07-SWEEP-PROTOCOL.md`, as ruled where they had gaps (G4, G12, G19, G33, G34, G36
+and G37 in `07-GAP-RULINGS.md`). Every point set is written by `bench/oper_sets.py` from committed
+records and checked by `--check` in `make verify`. Supersedes nothing. It extends L08's required
+jobs, and that entry is not edited.
+
+**The required tier (D-12, R27).** `tests/data/oper_boundary.json` is R27 step 5 over the committed
+D(A), less the 80 points L25's walls refuse (G36): 355 points (stl-preview 151, stl-fine 51, step
+153). ci.yml's `bounds` job reads it in the production image built from the commit under test
+(D-15). Each point is read once, cold, in its own container, by `python3 -m bench.oper check`. The
+job fails on R29's failures: a reading that is not `ok`, a cold wall past its artifact's timeout
+(L24), or an actual past prediction x (1 + e) for any target (L21). It runs as 4 matrix shards cut
+in file order, each under 600 s of estimates (G34). Each shard has a 20-minute timeout,
+`contents: read` and no secret. The shards `bounds (1)` to `bounds (4)` join L08's required list in
+`required-jobs.txt`. Its first green run is CI run 41089145344 at `ffa53f1`, and it was green again
+in 41094108547 at `023a3f9` (`bench/RESULTS.md`, `### bounds, runs 41089145344 and 41094108547`).
+
+**The full tier (D-12, R28).** `bench/points/full.json` is drawn under the shipped model, L25's
+walls included, and holds 1056 points:
+
+- every ISO 4017, ISO 4014 and ISO 4032 catalogue row at the 3 artifacts (882 bolt and 42 nut
+  points);
+- the nut factorial of R4 (d) as the shipped model admits it (42 points);
+- G19's dense boundary: per artifact, each of the 15 L11 sizes and both hands at the coarse pitch,
+  s 1.6 d, k 0.6 d and t = L = n pitch, n the most whole turns the shipped model admits (90 points).
+
+The 106 combinations the parameter model refuses are listed in `dropped` and not read (R4, G37
+ruling 2). A pair the cost model refuses would be read with `expect: refused` and must return its
+`over_budget` refusal (G12). It is judged by nothing else, and today the set holds none.
+`operability.yml` reads the set on `workflow_dispatch` (input `set`, `full` when empty), on a weekly
+`schedule` (`41 4 * * 1`, off grid.yml's `23 3 * * 1`) and on a `pull_request` whose `paths:` are
+`src/screw/calc/cost.py`, `src/screw/calc/thread.py`, `src/screw/params.py` and
+`src/screw/solid/**` (L27). `bench.oper run` judges each point as the required tier does and fails
+its job after writing every record.
+
+**D-19's 5-repetition policy.** The margin m is 0.5382691940004687, R5's largest max / median - 1
+of the cold wall over the spread points (spread run 40646125666, `### D-19 margin and R6 charges` in
+`bench/RESULTS.md`). The full tier reads each point once. A point whose single cold wall x (1 + m)
+reaches its timeout is read again at repetitions 1 to 5, as 5 matrix jobs of the same run, so on 5
+runner instances (R3). The selection comes from `bench.oper followup-matrix` over the committed set
+and the run's own records (`followup-plan`), and those jobs are named `followup`. A `verdict` job
+judges every reading of the run. A follow-up point that is `incomplete` or over its timeout or
+limits fails the tier. No point file is written outside `bench.oper_sets` (R30).
+
+**The shards (R6, G4).** Each full-tier point is charged the largest explore `wall_s` of its (kind,
+artifact) group (explore run 40646117094). Each shard is the longest run of consecutive points under
+half the `measure` job's 350 minutes, which gives 40 shards. The follow-up shards are cut by the
+same rule over the selection, under half the `followup` job's 350 minutes.
+
+**The first readings.** Before the trigger and the merge gate were built, G37 had the 18 dense
+points inside the in-wall debt's residual band (M2, M2.5 and M3, 57 to 90 turns) read once. That was
+run 41153581470: all `ok` inside their limits and timeouts. The closest tip piece was M3, right
+hand, 90 turns, at 0.97 of T_PIECE (`### dense-band, run 41153581470`). The first full run,
+41155746591 at `b0186b9`, read all 1056 points `ok`:
+
+- the verdict passed;
+- the largest cold wall was 0.397 of its timeout (iso4017:M20x200, stl-fine);
+- no point reached its timeout after the margin, so `followup` was skipped;
+- no reading exceeded its envelope (`### full, run 41155746591`).
+
+**T-3-14.** The PR trigger is `pull_request`, never the base-context event. A PR run executes the
+PR's code with a read-only token and no secrets: `permissions: contents: read`, no job names a
+secret, and the `set` input reaches a script only through an environment variable. That is the
+exposure ci.yml's `test` job already has. `tests/test_oper.py` pins the triggers, the cron, the
+paths, the permission and the absent secrets.
+
+**An under-prediction.** A tier reading above its prediction x (1 + e) fails the tier. It is a cold
+isolated reading, so it also widens e by R12. The widened e is re-derived by committed code
+(`envelope-check`), and the run that widened it is cited in L21 (D-07). Neither tier has widened an
+e so far.
+
+Reason: the cost model and the timeouts were fitted once on the runner, and a change to the files
+they rest on can move a prediction a user's part is admitted by. The required tier catches that on
+every change, at most 747 s a shard so far (run 41089145344). The full tier re-reads the whole grid weekly and before
+such a change lands, at a cost no required job could carry.
+
+Reversibility: reversible. The `bounds` job and its 4 entries in `required-jobs.txt`, and one
+workflow file's triggers and jobs, removed in one commit. The point sets stay as records.
+
+## L27 — make pr.land also requires a green full operability tier on the head of a PR that touches the cost model's files or src/screw/solid/
+
+Superseded in part by L28: the PR's diff decides which run is needed, but that run, its name and
+its verdict come from the PR's own checkout. A PR that touches a `GATE_PATHS` file, the workflows
+among them, is refused unless the owner passes `--owner-approves-gate-change`.
+
+Date: 2026-10-31. Decided by D-13 of Phase 7. Extends L08's `make pr.land`, and that entry is not
+edited.
+
+**The rule.** Before it merges, `scripts/pr_land.py` reads the PR's changed paths with
+`gh api repos/{owner}/{repo}/pulls/<n>/files --paginate --jq '.[].filename'`. When any path is on
+`FULL_TIER_PATHS`, it reads the runs of `FULL_TIER_WORKFLOW` (`operability.yml`) for the PR's head
+sha, keeping only runs named `operability: full`. It refuses unless the newest of them completed
+with conclusion `success`, and the refusal names the paths, the workflow and the sha. A dispatch of
+another set on the same head is therefore no stand-in for the full tier. A failed or unparseable
+read of the files or the runs is itself a refusal, never "no matching path". Nothing is merged on a
+refusal. A PR that touches no listed path lands as before, with the files read the only new call.
+`WORKFLOW` stays `ci.yml`.
+
+**Why it reads the diff.** A PR author controls the workflow file in their own PR, so the
+workflow's `paths:` filter cannot be the authority: it only saves runs. The list in `pr_land.py`
+decides. Two tests in `tests/test_pr_land.py` hold it on `main`. One holds it equal to the
+workflow's `paths:`, with `/**` written as a `/` prefix, as `required-jobs.txt` is held to ci.yml.
+The other walks `src/screw/calc/cost.py`'s imports with `ast`, relative and function-level ones
+included, and holds every `src/screw` module the closure reaches to the list.
+
+**The list.** It holds `src/screw/calc/cost.py`, which carries the model, the budgets and the
+timeouts. Its import closure is `src/screw/calc/thread.py`, whose `built_thread_length` is a cost
+feature and which holds the turn and tail walls and L25's pitch walls, and `src/screw/params.py`,
+which holds the field ceilings. `src/screw/solid/` carries the tessellation constants and the build.
+
+**The two exclusions.** `src/screw/calc/__init__.py`, the admission wiring, and `src/screw/pool.py`
+and `src/screw/app.py`, the D-14 deadline and the timeout's application (L24), are not on the
+list. The tiers build each point in its own container from the set the cost module admits, never
+through `download_refusal` or `BuildPool`, so a full-tier run cannot observe them. `make verify`
+pins them on every PR through the required `test (3.12)` job. `tests/test_cost.py` holds
+`download_refusal` equal to `cost.refusal` for both kinds and every artifact (07-11), and
+`tests/test_pool.py` holds the deadline formula (07-02).
+
+**The spur port.** `scripts/pr_land.py` is no longer the byte-for-byte port of spur that L08
+recorded. This is the L07 extraction trigger firing a second time, after L09's pool guard. The
+item `docs/tech_debt/active/2026-10-05-shared-infra-extraction.md` records it and stays active,
+and whether to extract is the owner's decision. GitHub's ruleset on `main` is unchanged: L08's
+strict up-to-date policy still closes the window between this read and the merge. The full tier is
+not a required status check, so the rule binds only merges made through `make pr.land`.
+
+Reason: the full tier only protects `main` if the merge waits for the run the trigger starts, and
+one path list, held by tests, decides both.
+
+Reversibility: reversible. One rule and one constant pair in `scripts/pr_land.py`, and its tests.
+
+## L28 — make pr.land refuses a PR that edits the files that judge its own full operability tier or required jobs, unless the owner passes --owner-approves-gate-change
+
+Date: 2026-10-31. Decided by the owner on two findings of the phase 7 security audit: T-07-71,
+"Add as threat, mitigate (Recommended)", and T-07-72, "Extend L28 guard (Recommended)".
+Supersedes L27 in part, the claim that the list in `pr_land.py` alone decides. Extends L08's
+`make pr.land`. L27's rule is unchanged; its list gains `Dockerfile` and `requirements.txt` (below,
+on the code review's WR-02, "WR-02 gate paths (Recommended)").
+
+**The findings.** T-07-71: `check_full_tier` picks the run by its name, `operability: full`, and
+the name comes from the PR's copy of `operability.yml`. So do the jobs, the bench code that takes
+and judges the readings, and the point set whose timeouts and limits the verdict judges against.
+`FULL_TIER_PATHS` covers none of them. A PR could therefore edit its own workflow or judge so that
+its own run passes, and L27's rule would read that run as green. T-07-72 is the same shape for
+the required jobs `check_head` reads. `ci.yml` defines them, and its `bounds` shards judge
+`tests/data/oper_boundary.json` with the same bench code. `required-jobs.txt` is read from the
+local checkout, but merging a PR makes the PR's copy main's list for every later landing.
+
+**The rule.** `scripts/pr_land.py` applies `gate_refusals` to the changed files `check_full_tier`
+already reads. When any path is on `GATE_PATHS`, it refuses, naming the paths and the command
+`make pr.land PR=<n> PR_LAND_FLAGS=--owner-approves-gate-change`. With the flag, this one rule is
+lifted. L27's run requirement still applies to a PR that also touches `FULL_TIER_PATHS`. No run
+can vouch for a change to what judges it, so the override is the owner's reading of the diff. The
+default refuses. One list and one flag cover both findings.
+
+**The list.** It holds the three workflow files, `ci.yml`, `operability.yml` and
+`required-jobs.txt`. It also holds `bench/__init__.py` (`host_facts`) and `bench/oper.py`, which
+runs every `python -m` step the full tier takes (`matrix`, `run`, `summarize`, `followup-matrix`
+and `verdict`) and the `bounds` job's `check`. Then `bench/oper_child.py`, the child that `run` and
+`check` start in each container from the checkout's `bench/` mounted read-only, and
+`bench/oper_lift.py`, which the child imports for a bolt or a nut. Last, the two point files the
+verdicts judge against, `bench/points/full.json` and `tests/data/oper_boundary.json`. And the merge
+gate itself, which merging puts on main as it does `required-jobs.txt`: `scripts/pr_land.py`
+(`GATE_PATHS`, `FULL_TIER_PATHS`, `check_head` and this rule), its tests `tests/test_pr_land.py`,
+and the `Makefile`, whose `pr.land` recipe runs it. A PR could otherwise delete the rule and land
+without the flag. A test in `tests/test_pr_land.py` derives the list from the workflow text: all of
+`operability.yml` and `ci.yml`'s `bounds` job. It takes the `python -m` modules and the child,
+walks their `bench` imports with `ast`, function-level ones included, and adds every package
+`__init__.py`, the set `--set` names and the file `check` reads. With `required-jobs.txt` and the
+merge gate's three files, the result must equal `GATE_PATHS`.
+
+**The image's pins.** `Dockerfile` and `requirements.txt` pin the image and the kernel pair every
+bound was measured on, so a bump of either can move every bound. They join L27's `FULL_TIER_PATHS`
+and the `paths:` filter of `operability.yml`, which a test holds equal, so a PR that touches either
+needs a green full tier on its head.
+
+**The exclusions.** `bench/oper_bound.py`, `bench/oper_load.py` and `bench/thread_spike/` run only
+for bound, load and probe points. `full.json` (972 bolt and 84 nut points) and `oper_boundary.json`
+(329 bolt and 26 nut points) hold none of those, and a test fails when such a point is added.
+`bench/oper_sets.py` and `bench/oper_fit.py` write and fit the point files, but no tier run
+imports them, and both files are guarded themselves. The image (`src/`, and now `Dockerfile` and
+`requirements.txt`) is the system under test, which L27 covers.
+
+**The limit.** `test (3.12)` runs `make verify` on the PR's own tests and `pyproject.toml` (the
+`Makefile` is guarded as the merge gate's recipe), and its `prediction-drift` step runs the PR's
+`bench/oper_sets.py`.
+`vendor-bundle` builds the PR's own `web/`. A PR can weaken any of these, and nothing here guards
+them: running the PR's own suite is inherent to CI, so guarding it would mean guarding nearly every
+PR. Review is the defence there. The rule guards only the files that pick, define or judge a run.
+
+**PR #26.** The phase 7 PR touches `ci.yml`, `required-jobs.txt`, `oper_boundary.json`,
+`operability.yml`, `oper.py`, `oper_child.py`, `oper_lift.py` and `full.json`, and the merge gate's
+`Makefile`, `scripts/pr_land.py` and `tests/test_pr_land.py`, so landing it needs the flag. It also
+touches `Dockerfile`, so it needs the full tier on its head as well.
+
+Reason: a run cannot vouch for a change to the code that judges it.
+
+Reversibility: reversible. One constant, one rule and one flag in `scripts/pr_land.py`, the
+`PR_LAND_FLAGS` pass-through in the Makefile, the two paths in `FULL_TIER_PATHS`, and their tests.
+
+## L29 — The nut's clearance is banded like the head ratios: below the two values the fit read, it is judged at the low edge
+
+Date: 2026-10-31. Decided by the owner's ruling G38 (`07-GAP-RULINGS.md`; `07-OWNER-RULINGS.md`,
+"R11: the nut's clearance is banded like the head ratios") on finding CR-01 of the phase 7 code
+review (`07-REVIEW.md`), and by R11 of `07-SWEEP-PROTOCOL.md` as amended by it. Supersedes in part
+L21 (its head-ratio paragraph: the bands now include one field that is not a ratio).
+
+**The defect.** R11 fits a nut's `clearance` as a plain linear feature, and the fitted points of
+explore 40646117094 and spread 40646125666 hold it at two values only. The stl-fine nut coefficients
+of `clearance` are positive, so a clearance below 0.15 mm predicted a cheaper nut than any reading.
+`NutParams(d=163.65, pitch=21.743, s=387.26, m=1589.12, clearance=-30.32)` was admitted at the fine
+STL on a raw prediction of 24,513,233 bytes; the review's `solid.export` wrote 591,529,584 bytes on
+macOS arm64 (mesh bytes are geometry), past the 256 MiB export tmpfs.
+
+**The rule.** `bench.oper_fit.head_bands` computes the clearance band, the [min, max] over the
+fitted nut points with omitted fields at their defaults, in mm (`oper_fit.MM_BANDS`,
+`cost.BANDED_IN_MM`), and `emit-constants` ships it in `cost.BANDS` with the head-ratio bands:
+`("nut", "clearance"): (0.15, 5.0)`. G28's one-sided rule (L21) applies: a clearance above the band
+is predicted as the largest of raw and both edges, one below it as max(raw, low edge), combined with
+the part's other out-of-band edges. `cost.predict` and `bench.oper_fit.predict` agree bit for bit.
+ASSUMPTION, unmeasured on the runner: a smaller clearance never costs more than one at the low edge.
+
+**What moves.** The reproducer is refused at every artifact. No catalogue row moves (every one of the
+14 nut rows is at the default 0.15, and the 294 bolt rows have no clearance), so B-01's C1 budget and
+the presets are unchanged; both default parts are admitted at every artifact; a clearance inside the
+band predicts as before, bit for bit; every point file `--check` writes again, the tier files and
+`runtime.json` are unchanged, and `python -m bench.oper_fit table` writes the same bytes with the
+band as without it. `tests/test_cost.py` pins each of these.
+
+Reason: a number the tool prints is a number someone will cut metal to (L02), and a part is admitted
+only on a prediction some reading covers.
+
+Reversibility: costly, as L21. A run that reads nuts outside the band (R11's out-of-band set) needs
+a superseding entry to widen `e` or move the band.
+
+Superseded in part by L30: a nut with its clearance and another field outside their bands is also
+predicted at each clearance edge with every other field at its real value.
+
+## L30 — A nut's clearance edges are also priced with the part's other fields at their real values; tall nuts and d-only M2 and M3 are read on the runner
+
+Date: 2026-10-31. Decided by the owner's ruling G39 (`07-GAP-RULINGS.md`; `07-OWNER-RULINGS.md`,
+"R11: the clearance edges are priced against the part's real fields"), after quick task
+261031-qd7 found the figure behind the tall-nut debt G38 filed to be wrong, and by R11 of
+`07-SWEEP-PROTOCOL.md` as amended by it. Supersedes in part L29 (its rule: G28's combinations alone
+for a clearance outside its band).
+
+**The defect.** Under L29 a nut whose clearance was below its band and whose m was above its band
+was predicted as the largest of the raw part, with the clearance at its own value, and the edge
+combinations, with m at 0.8 d or 3 d. The real m was never priced with the clearance at its edge,
+and the stl-fine clearance coefficients are positive (bytes 0.112 per mm), so the raw part came out
+cheap. At 3b3b8f0, with `solid.export(p, "stl", "fine")` on macOS arm64 (mesh bytes are geometry,
+R1 counts the host as context):
+
+| nut (d 92.28, pitch 31.418, s 130.54) | stl-fine at 3b3b8f0 | enveloped bytes | bytes written |
+| --- | --- | --- | --- |
+| m 967.04, clearance 0.15 | refused | 304,650,496 | 223,951,384 |
+| m 967.04, clearance -21.12 | admitted | 76,540,259 | 121,632,684 |
+| m 2764.2, clearance -21.12 | admitted | 89,999,215 | 364,438,484 |
+
+The last is past the 256 MiB export tmpfs and the 239,508,059 B budget, so it would have been a
+`build_error`, not L21's `over_budget`. G38's "2.93 x inside the clearance band" divided the first
+row's bytes by the second row's envelope; inside the band the nut is covered.
+
+**The rule.** `cost._edges` and `bench.oper_fit.edges` add, for a nut with its clearance and at
+least one other field outside their bands, the part with only its clearance moved to each of the
+clearance's edges. A clearance alone outside its band gives the same combinations as under L29, and
+no head ratio is paired with a real value. `cost.predict` and `bench.oper_fit.predict` agree bit for
+bit. Under it the three nuts above are refused at the fine STL, the second at 304,650,496 B
+enveloped and the third at 973,648,375 B.
+
+**What moves.** Nothing B-01 or a link rests on. No catalogue row, neither default part and no
+part with one field outside its band changes prediction. No link that names only d (bolt d 1.2 to
+9.9, nut d 0.9 to 8.0) changes admission at any artifact. Every point file `--check` writes again,
+`prediction-drift` is 0 in every file, `runtime.json` is unchanged, and `python -m bench.oper_fit
+table` from a fresh fit writes `07-BUDGET-TABLE.md` byte for byte. `tests/test_cost.py` pins each of
+these. Pairing every out-of-band field with the others' edges (the owner's reply "C") would have
+refused the d-only bolt's fine STL at d 1.2 to 4.0 and 8.3 to 9.9; the owner ruled the clearance
+only ("F").
+
+**What stays open.** An above-band head ratio is still priced only raw or with a below-band one at
+its edges. On the review's nut at clearance 0.15 the full pairing predicts 1.0024 x more
+(305,377,062 B against 304,650,496 B enveloped):
+`docs/tech_debt/active/2026-10-31-head-ratio-edges-never-meet-a-real-out-of-band-ratio.md`.
+
+**The readings.** R11's second campaign reads `bench/points/outband-tall.json`
+(`python -m bench.oper_sets outband-tall`): the tall nut shape scaled by 1, 0.5 and 0.25 with m at
+5, 10.5, 20 and 29.5 d, and the d-only bolts M2 and M3, at every artifact the shipped rule admits
+each, 27 points at 5 repetitions. A nut reading above its enveloped prediction widens `e` by R12
+(`envelope-check`) and needs a superseding entry; a bolt reading widens none.
+
+Reason: a number the tool prints is a number someone will cut metal to (L02), and a part is admitted
+only on a prediction some reading covers. A wider `e` could not cover a gap that grows with m / d.
+
+Reversibility: costly, as L21. Pricing more combinations only refuses more.
