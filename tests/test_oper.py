@@ -1075,6 +1075,40 @@ def test_the_measure_job_has_a_timeout_and_keeps_the_artifact_of_a_red_run() -> 
     assert "if: always()" in text[upload - 200:upload + 200]
 
 
+def test_the_full_tiers_follow_up_and_verdict_jobs_run_after_measure_on_its_records() -> None:
+    """R5 and R29 (07-19): the follow-up selection and the verdict use this run's artifacts."""
+    text = WORKFLOW_YML.read_text()
+    jobs = {name: text[text.index(f"\n  {name}:"):] for name in ("followup-plan", "followup",
+                                                                  "verdict")}
+    assert "needs: measure\n    if: always() && (inputs.set || 'full') == 'full'" in jobs[
+        "followup-plan"]
+    assert "python -m bench.oper followup-matrix --set full --from records" in text
+    assert "needs.followup-plan.outputs.count != '0'" in jobs["followup"]
+    assert "matrix: ${{ fromJSON(needs.followup-plan.outputs.matrix) }}" in jobs["followup"]
+    assert "--followup-from records" in jobs["followup"]
+    assert "name: oper-full-followup-${{ env.SHARD }}-${{ env.REP }}" in jobs["followup"]
+    assert "needs: [measure, followup-plan, followup]\n    if: always()" in jobs["verdict"]
+    assert "python -m bench.oper verdict --set full --from records" in jobs["verdict"]
+    assert text.count("pattern: oper-full-*") == 3
+
+
+def test_the_child_reads_an_expected_refusal_from_the_info_document_and_builds_nothing(
+        capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch) -> None:
+    """G12: one turn of thread is below the fitted turns, refused at every artifact (G30)."""
+    from screw import solid
+
+    def no_build(*args: object) -> object:
+        raise AssertionError("an expected refusal is never built")
+
+    monkeypatch.setattr(solid, "build", no_build)
+    params = {"d": 6.0, "pitch": 1.0, "length": 20.0, "thread_length": 1.0}
+    point = {"kind": "bolt", "params": params, "artifact": "step", "expect": "refused"}
+    assert oper_child.main([json.dumps(point)]) == 0
+    line = json.loads(capsys.readouterr().out)
+    assert (line["status"], line["error"]) == ("refused", oper.REFUSAL_TYPE)
+    assert "fewer turns than any bolt the cost model was fitted on" in line["message"]
+
+
 def test_the_matrix_job_feeds_the_measure_job() -> None:
     text = WORKFLOW_YML.read_text()
     assert "needs: plan" in text

@@ -2858,3 +2858,182 @@ def test_a_judged_point_needs_its_timeout_and_its_limit_together(tmp_path: Path)
                     "limit": {"bytes": 1.0, "seconds": 1.0, "peak": 1.0}}]}))
     with pytest.raises(ValueError, match="'p' carries timeout_s and limit together"):
         oper.load_set("half", tmp_path)
+
+
+def test_the_committed_full_set_is_what_the_generator_writes_from_its_sources() -> None:
+    text = (oper.POINTS_DIR / "full.json").read_text()
+    assert oper_sets.same_but_predicted(text, oper_sets._full_texts(text, "full"))
+    document = json.loads(text)
+    assert document["sources"] == [f"explore={EXPLORE_RUN}", f"spread={SPREAD_RUN}"]
+    assert oper_sets._check_full() is None
+    spec = oper.load_set("full")
+    assert spec.margin == document["margin"]
+    assert len(spec.points) == len(document["points"]) == sum(document["shard_sizes"])
+
+
+# --- R5's follow-up and the verdict (07-19) -------------------------------------------------------
+
+LIMIT = {"bytes": 1000.0, "seconds": 100.0, "peak": 1000.0}
+MARGIN = 0.5
+
+
+def _judged_set(directory: Path, points: list[Raw], margin: float = MARGIN) -> oper.PointSet:
+    (directory / "fset.json").write_text(json.dumps({
+        "set": "fset", "rule": "R28", "reps": 1, "shards": 1, "deadline_s": 600,
+        "margin": margin, "points": points}))
+    return oper.load_set("fset", directory)
+
+
+def _jp(label: str, timeout: float = 10.0, charge: float = 1.0) -> Raw:
+    return {"label": label, "kind": "bolt", "params": {}, "artifact": "step", "charge_s": charge,
+            "timeout_s": timeout, "limit": LIMIT}
+
+
+def _jr(label: str, wall: float, rep: int = 1, status: str = "ok",
+        followup: bool = False) -> Raw:
+    reading = _reading({"label": label, "kind": "bolt", "params": {}, "artifact": "step"},
+                       status=status, rep=rep, build=wall - 0.5, export=0.5)
+    return {**reading, "followup": True} if followup else reading
+
+
+def test_a_point_whose_cold_wall_with_the_margin_reaches_its_timeout_is_followed_up(
+        tmp_path: Path) -> None:
+    """R5: 7 s x 1.5 is 10.5 s, past a 10 s timeout; 6 s x 1.5 is 9 s, under it; 20/3 s x 1.5 is
+    the timeout itself, which reaches it."""
+    spec = _judged_set(tmp_path, [_jp("a"), _jp("b"), _jp("c"), _jp("d")])
+    readings = [_jr("a", 6.0), _jr("b", 7.0), _jr("c", 20 / 3), _jr("d", 9.0, status="killed")]
+    assert [p.label for p in oper.followup_points(spec, readings)] == ["b", "c"]
+    assert oper.followup_points(spec, [_jr("a", 6.0)]) == []
+
+
+def test_a_set_with_no_margin_selects_no_follow_up(tmp_path: Path) -> None:
+    (tmp_path / "bare.json").write_text(json.dumps({
+        "set": "bare", "rule": "R28", "reps": 1, "shards": 1, "deadline_s": 600,
+        "points": [_jp("a")]}))
+    with pytest.raises(ValueError, match="no margin"):
+        oper.followup_points(oper.load_set("bare", tmp_path), [_jr("a", 9.0)])
+
+
+def test_the_follow_up_matrix_is_the_r6_shards_of_the_selection_times_five_reps(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    half = oper.FOLLOWUP_HALF_S
+    _judged_set(tmp_path, [_jp("a", charge=half * 0.6), _jp("b", charge=half * 0.6),
+                           _jp("c", charge=1.0)])
+    monkeypatch.setattr(oper, "POINTS_DIR", tmp_path)
+    records = tmp_path / "records" / "oper-full-1-1"
+    records.mkdir(parents=True)
+    (records / "oper-full-1-1.jsonl").write_text("".join(
+        json.dumps(r) + "\n" for r in (_jr("a", 9.0), _jr("b", 9.0), _jr("c", 1.0))))
+    assert oper.main(["followup-matrix", "--set", "fset", "--from",
+                      str(tmp_path / "records")]) == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[0] == "matrix=" + json.dumps({"include": [
+        {"shard": shard, "rep": rep} for shard in (1, 2) for rep in range(1, 6)]},
+        separators=(",", ":"))
+    assert lines[1] == "count=10"
+
+
+def test_an_empty_follow_up_selection_is_an_empty_matrix(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    _judged_set(tmp_path, [_jp("a")])
+    monkeypatch.setattr(oper, "POINTS_DIR", tmp_path)
+    (tmp_path / "records").mkdir()
+    (tmp_path / "records" / "m.jsonl").write_text(json.dumps(_jr("a", 1.0)) + "\n")
+    assert oper.main(["followup-matrix", "--set", "fset", "--from",
+                      str(tmp_path / "records")]) == 0
+    assert capsys.readouterr().out.splitlines() == ['matrix={"include":[]}', "count=0"]
+
+
+def test_run_from_the_follow_up_reads_exactly_its_shards_selected_points_tagged(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _judged_set(tmp_path, [_jp("a"), _jp("b"), _jp("c")])
+    monkeypatch.setattr(oper, "POINTS_DIR", tmp_path)
+    records = tmp_path / "records"
+    records.mkdir()
+    (records / "m.jsonl").write_text("".join(
+        json.dumps(r) + "\n" for r in (_jr("a", 1.0), _jr("b", 9.0), _jr("c", 8.0))))
+    taken: list[tuple[str, int]] = []
+
+    def fake(point: oper.Point, rep: int, *args: object, **kwargs: object) -> Raw:
+        taken.append((point.label, rep))
+        return _jr(point.label, 1.0, rep=rep)
+
+    monkeypatch.setattr(oper, "run_reading", fake)
+    monkeypatch.setattr(oper, "_image_versions", lambda image: {})
+    monkeypatch.setattr(oper, "header", lambda image, versions: {"type": "header"})
+    out = tmp_path / "f.jsonl"
+    assert oper.main(["run", "--set", "fset", "--followup-from", str(records), "--shard", "1",
+                      "--rep", "4", "--image", "i", "--out", str(out)]) == 0
+    assert taken == [("b", 4), ("c", 4)]
+    readings = [json.loads(line) for line in out.read_text().splitlines()][1:]
+    assert all(r["followup"] is True for r in readings)
+    assert oper.main(["run", "--set", "fset", "--followup-from", str(records), "--shard", "2",
+                      "--rep", "1", "--image", "i", "--out", str(out)]) == 2
+
+
+def _followups(label: str, walls: Iterable[float]) -> list[Raw]:
+    return [_jr(label, wall, rep=rep, followup=True) for rep, wall in enumerate(walls, start=1)]
+
+
+def test_the_verdict_passes_a_run_whose_every_reading_passes(tmp_path: Path) -> None:
+    spec = _judged_set(tmp_path, [_jp("a"), _jp("b")])
+    readings = [_jr("a", 1.0), _jr("b", 9.0), *_followups("b", [9.0, 9.5, 8.0, 9.9, 10.0])]
+    assert oper.verdict(spec, readings) == []
+
+
+@pytest.mark.parametrize(("readings", "named"), [
+    ([_jr("a", 1.0), _jr("b", 9.0), *_followups("b", [9.0, 9.5, 8.0, 9.9])],
+     "b at step: follow-up incomplete"),
+    ([_jr("a", 1.0), _jr("b", 9.0), *_followups("b", [9.0, 9.5, 8.0, 9.9, 10.5])],
+     "b at step: cold wall 10.5 s over its timeout 10.0 s"),
+    ([_jr("a", 1.0), _jr("b", 9.0)], "b at step: follow-up unread"),
+    ([_jr("a", 1.0, status="refused"), _jr("b", 1.0)], "a at step: refused, not ok"),
+    ([_jr("b", 1.0)], "a at step: 0 measure readings, not 1"),
+], ids=["four-reps", "over-timeout", "no-follow-up", "measure-failed", "measure-missing"])
+def test_the_verdict_fails_naming_the_point(tmp_path: Path, readings: list[Raw],
+                                            named: str) -> None:
+    spec = _judged_set(tmp_path, [_jp("a"), _jp("b")])
+    failures = oper.verdict(spec, readings)
+    assert any(named in failure for failure in failures), failures
+
+
+def test_the_verdict_command_exits_1_after_naming_each_failure(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    _judged_set(tmp_path, [_jp("a")])
+    monkeypatch.setattr(oper, "POINTS_DIR", tmp_path)
+    (tmp_path / "records").mkdir()
+    (tmp_path / "records" / "m.jsonl").write_text(json.dumps(_jr("a", 1.0, status="crashed")))
+    assert oper.main(["verdict", "--set", "fset", "--from", str(tmp_path / "records")]) == 1
+    assert "a at step: crashed, not ok" in capsys.readouterr().err
+
+
+def test_an_expected_refusal_passes_on_its_refusal_and_fails_when_it_is_served(
+        tmp_path: Path) -> None:
+    """G12: a pair the cost model refuses is read for that refusal and judged by nothing else."""
+    (point,) = _judged_set(tmp_path, [{"label": "r", "kind": "bolt", "params": {},
+                                       "artifact": "step", "expect": "refused"}]).points
+    refused = {"status": "refused", "error": oper.REFUSAL_TYPE, "message": "over budget"}
+    assert oper.judged_failures(point, refused) == []
+    assert oper.judged_failures(point, _jr("r", 1.0)) == [
+        "r at step: expected its over_budget refusal, got ok"]
+    assert oper.judged_failures(point, {"status": "refused", "error": "BuildError"}) == [
+        "r at step: expected its over_budget refusal, got refused BuildError"]
+
+
+@pytest.mark.parametrize("over", [{"expect": "ok"}, {"expect": "refused", "timeout_s": 1.0,
+                                                    "limit": LIMIT}])
+def test_an_expectation_other_than_a_plain_refusal_is_refused(tmp_path: Path, over: Raw) -> None:
+    with pytest.raises(ValueError, match="only `refused` is expected"):
+        _judged_set(tmp_path, [{"label": "r", "kind": "bolt", "params": {}, "artifact": "step",
+                                **over}])
+
+
+def test_the_follow_up_jobs_timeout_is_the_workflows() -> None:
+    workflow = (REPO_ROOT / ".github" / "workflows" / "operability.yml").read_text()
+    followup = workflow[workflow.index("\n  followup:"):]
+    match = re.search(r"timeout-minutes: (\d+)", followup)
+    assert match
+    assert int(match.group(1)) == oper.FOLLOWUP_TIMEOUT_MIN

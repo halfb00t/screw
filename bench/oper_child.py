@@ -326,6 +326,18 @@ def main(argv: list[str]) -> int:
 
     fmt, quality = artifact
     versions = _versions()
+    if point.get("expect") == "refused":
+        # R28, G12: a pair the shipped cost model refuses is read for its refusal and never
+        # built. The text is the info document's for this download, the one the route answers
+        # with a 422 (07-11). A pair the document serves after all is built as any part is, so
+        # its reading is `ok` and the parent fails it for not refusing.
+        from screw.calc import derive
+
+        refusal = next(d.refusal for d in derive(p).downloads
+                       if (d.format, d.quality) == (fmt, quality))
+        if refusal is not None:
+            _emit({"status": "refused", "error": "over_budget", "message": refusal, **versions})
+            return 0
     solid.clear_cache()
     try:
         started = time.perf_counter()

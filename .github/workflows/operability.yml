@@ -86,3 +86,82 @@ jobs:
         if: always()
         continue-on-error: true
         run: python -m bench.oper summarize --markdown --reps "$REP" "oper-$SET-$SHARD-$REP.jsonl" >> "$GITHUB_STEP_SUMMARY"
+
+  # R5 (07-19): the full tier reads each point once; a point whose single cold wall x (1 + m)
+  # reaches its timeout is read again at repetitions 1 to 5, as 5 matrix jobs of this run, so on
+  # 5 runner instances (R3). The selection is `bench.oper followup-matrix` over the committed
+  # full.json and this run's measure records: no point file is written here (R30). The three jobs
+  # run for the full set only, use only this run's artifacts and keep `contents: read` (T-3-14).
+  followup-plan:
+    needs: measure
+    if: always() && (inputs.set || 'full') == 'full'
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+      count: ${{ steps.m.outputs.count }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: oper-full-*
+          path: records
+      - id: m
+        run: python -m bench.oper followup-matrix --set full --from records >> "$GITHUB_OUTPUT"
+
+  followup:
+    needs: followup-plan
+    # Skipped when the selection is empty: a matrix with no entry is an error, not an empty job.
+    if: always() && needs.followup-plan.result == 'success' && needs.followup-plan.outputs.count != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.followup-plan.outputs.matrix) }}
+    env:
+      SHARD: ${{ matrix.shard }}
+      REP: ${{ matrix.rep }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: screw:ci
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: oper-full-*
+          path: records
+      - name: take the follow-up readings
+        run: >-
+          python -m bench.oper run --set full --followup-from records --shard "$SHARD"
+          --rep "$REP" --image screw:ci --out "oper-full-followup-$SHARD-$REP.jsonl"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: oper-full-followup-${{ env.SHARD }}-${{ env.REP }}
+          path: oper-full-followup-${{ env.SHARD }}-${{ env.REP }}.jsonl
+          retention-days: 30
+
+  # R29 over every reading of the run, the follow-ups on their 5 repetitions: a miss, a missing
+  # reading or an incomplete follow-up fails the tier.
+  verdict:
+    needs: [measure, followup-plan, followup]
+    if: always() && (inputs.set || 'full') == 'full'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: oper-full-*
+          path: records
+      - run: python -m bench.oper verdict --set full --from records

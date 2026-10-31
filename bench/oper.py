@@ -24,7 +24,7 @@ import statistics
 import subprocess
 import sys
 import time
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import NoReturn, TextIO, cast
@@ -137,8 +137,13 @@ _LOAD_METRICS = ("memory_peak_bytes",)
 # `gzip_levels` asks the child for R19's per-level bytes and seconds of the export, after its peak.
 # A judged point (the full tier, R28 and R29; 07-19) carries what `judge` holds its reading to,
 # `timeout_s` and `limit`, as a required-tier point does, and its R6 `charge_s`.
+# `expect: refused` marks a pair the shipped cost model refuses, read so that it must still return
+# that refusal and never judged against the model (R28, G12).
 _POINT_OPTIONAL_KEYS = frozenset({"preset", "lift", "gzip_levels", "charge_s", "timeout_s",
-                                  "limit"})
+                                  "limit", "expect"})
+EXPECTED_REFUSAL = "refused"
+# The type of B-02's 422, which the child records as the error of an expected refusal (07-11).
+REFUSAL_TYPE = "over_budget"
 GZIP_LEVELS = (1, 6, 9)  # R19's; `bench.oper_child.GZIP_LEVELS` is the same three
 LIFT_ARGS = ("max_turns", "max_mm")
 
@@ -165,6 +170,9 @@ class Point:
     # A judged point's timeout and its limit per target (R29): `run` fails the job on a miss.
     timeout_s: float | None = None
     limit: Mapping[str, float] | None = None
+    # A judged point's R6 charge, which cuts R5's follow-up shards, and `expect: refused` (G12).
+    charge_s: float | None = None
+    expect: str | None = None
 
     def as_json(self) -> str:
         if self.body is not None:
@@ -179,6 +187,8 @@ class Point:
             part["lift"] = dict(self.lift)
         if self.gzip_levels:
             part["gzip_levels"] = list(self.gzip_levels)
+        if self.expect:
+            part["expect"] = self.expect
         return json.dumps(part, sort_keys=True, allow_nan=False)
 
 
@@ -195,6 +205,7 @@ class PointSet:
     points: tuple[Point, ...]
     shard_sizes: tuple[int, ...] | None = None
     sources: tuple[str, ...] = ()
+    margin: float | None = None  # R5's m, the full tier's (R28)
 
 
 def is_capped(peak_bytes: int, cap_bytes: int) -> bool:
@@ -751,7 +762,11 @@ def _load_point(name: str, raw: object) -> Point:
     label, kind, params, artifact = raw["label"], raw["kind"], raw["params"], raw["artifact"]
     if not (isinstance(label, str) and label and isinstance(kind, str) and kind):
         _refuse(f"set {name!r}: a point's label and kind are non-empty text")
-    timeout, limit = _load_judged(name, raw)
+    timeout, limit, charge = _load_judged(name, raw)
+    expect = raw.get("expect")
+    if expect is not None and (expect != EXPECTED_REFUSAL or limit is not None):
+        _refuse(f"set {name!r}: point {label!r} expect is {expect!r}; only `refused` is expected, "
+                "and an expected refusal carries no limit (G12)")
     if artifact not in _ARTIFACTS:
         _refuse(f"set {name!r}: artifact {artifact!r} is not one of {list(_ARTIFACTS)}")
     if not isinstance(params, dict) or not all(
@@ -760,21 +775,22 @@ def _load_point(name: str, raw: object) -> Point:
         _refuse(f"set {name!r}: point {label!r} params are names with a number or true/false")
     return Point(label=label, kind=kind, params=dict(params), artifact=str(artifact), lift=lift,
                  gzip_levels=None if levels is None else tuple(levels), timeout_s=timeout,
-                 limit=limit)
+                 limit=limit, charge_s=charge, expect=None if expect is None else str(expect))
 
 
-def _load_judged(name: str, raw: Mapping[str, object]) -> tuple[float | None,
-                                                                dict[str, float] | None]:
+def _load_judged(name: str, raw: Mapping[str, object]) -> tuple[
+        float | None, dict[str, float] | None, float | None]:
     """A judged point's `timeout_s` and `limit`, both or neither (a limit with no timeout would be
     half a judgement), with the required tier's types, and its `charge_s` seconds if any."""
     label = raw.get("label")
     charge = raw.get("charge_s", 0.0)
     if not (_is_number(charge) and isinstance(charge, int | float) and charge >= 0):
         _refuse(f"set {name!r}: point {label!r} charge_s is {charge!r}, not seconds")
+    charge_s = float(charge) if "charge_s" in raw else None
     if ("timeout_s" in raw) != ("limit" in raw):
         _refuse(f"set {name!r}: point {label!r} carries timeout_s and limit together or neither")
     if "timeout_s" not in raw:
-        return None, None
+        return None, None, charge_s
     timeout, limit = raw["timeout_s"], raw["limit"]
     if not (_is_number(timeout) and isinstance(timeout, int | float) and timeout > 0):
         _refuse(f"set {name!r}: point {label!r} timeout_s is {timeout!r}, not seconds above 0")
@@ -782,7 +798,7 @@ def _load_judged(name: str, raw: Mapping[str, object]) -> tuple[float | None,
             and all(_is_number(value) and value > 0 for value in limit.values())):
         _refuse(f"set {name!r}: point {label!r} limit is {limit!r}, not a number above 0 for "
                 f"each of {list(_TIER_TARGETS)}")
-    return float(timeout), {str(key): float(value) for key, value in limit.items()}
+    return float(timeout), {str(key): float(value) for key, value in limit.items()}, charge_s
 
 
 def load_set(name: str, directory: Path | None = None) -> PointSet:
@@ -835,7 +851,8 @@ def load_set(name: str, directory: Path | None = None) -> PointSet:
                 "of at least 0 (R12)")
     return PointSet(name=name, rule=raw["rule"], reps=raw["reps"], shards=raw["shards"],
                     deadline_s=float(raw["deadline_s"]), points=points,
-                    shard_sizes=None if sizes is None else tuple(sizes), sources=tuple(sources))
+                    shard_sizes=None if sizes is None else tuple(sizes), sources=tuple(sources),
+                    margin=None if "margin" not in raw else float(raw["margin"]))
 
 
 def shard_points(spec: PointSet, shard: int) -> list[Point]:
@@ -884,9 +901,10 @@ def _open_sink(out: str) -> TextIO:
 
 
 def _write_run(image: str, out: str, plan: list[tuple[Point, int]], deadline_s: float,
-               readings: list[dict[str, object]] | None = None) -> int:
-    """The header, then one reading per `(point, rep)` of `plan`, in plan order, each also
-    appended to `readings` when it is given."""
+               readings: list[dict[str, object]] | None = None,
+               tag: Mapping[str, object] | None = None) -> int:
+    """The header, then one reading per `(point, rep)` of `plan`, in plan order, each with the
+    keys of `tag` added and each also appended to `readings` when it is given."""
     try:
         versions = _image_versions(image)
         head = header(image, versions)
@@ -897,7 +915,8 @@ def _write_run(image: str, out: str, plan: list[tuple[Point, int]], deadline_s: 
     try:
         _emit(sink, head)
         for point, rep in plan:
-            reading = run_reading(point, rep, image, CAP_BYTES, deadline_s, versions)
+            reading = {**run_reading(point, rep, image, CAP_BYTES, deadline_s, versions),
+                       **(tag or {})}
             _emit(sink, reading)
             if readings is not None:
                 readings.append(reading)
@@ -947,16 +966,24 @@ def _cmd_matrix(args: argparse.Namespace) -> int:
 def _cmd_run(args: argparse.Namespace) -> int:
     try:
         spec = load_set(args.set)
-        if not 1 <= args.shard <= spec.shards:
-            _refuse(f"set {spec.name!r}: shard {args.shard} is outside 1..{spec.shards}")
-        if not 1 <= args.rep <= spec.reps:
-            _refuse(f"set {spec.name!r}: rep {args.rep} is outside 1..{spec.reps}")
-    except ValueError as exc:
+        if args.followup_from is None:
+            shards, reps = spec.shards, spec.reps
+            points = shard_points(spec, args.shard) if 1 <= args.shard <= shards else []
+        else:  # R5: this shard of the follow-up selection, at one of 5 repetitions
+            cut = followup_shards(followup_points(spec, read_records_under(args.followup_from)))
+            shards, reps = len(cut), len(BOUND_REPS)
+            points = cut[args.shard - 1] if 1 <= args.shard <= shards else []
+        if not 1 <= args.shard <= shards:
+            _refuse(f"set {spec.name!r}: shard {args.shard} is outside 1..{shards}")
+        if not 1 <= args.rep <= reps:
+            _refuse(f"set {spec.name!r}: rep {args.rep} is outside 1..{reps}")
+    except (OSError, ValueError) as exc:
         print(f"oper: {exc}", file=sys.stderr)
         return 2
-    plan = [(point, args.rep) for point in shard_points(spec, args.shard)]
+    plan = [(point, args.rep) for point in points]
     readings: list[dict[str, object]] = []
-    code = _write_run(args.image, args.out, plan, spec.deadline_s, readings)
+    code = _write_run(args.image, args.out, plan, spec.deadline_s, readings,
+                      None if args.followup_from is None else {"followup": True})
     if code != 0:
         return code
     # R29: a judged point's miss fails the job, after every record is written, so a red run
@@ -969,10 +996,132 @@ def _cmd_run(args: argparse.Namespace) -> int:
 
 
 def judged_failures(point: Point, reading: Mapping[str, object]) -> list[str]:
-    """R29's failures of one reading of a judged point; none for a point that carries no limit."""
+    """R29's failures of one reading of a judged point; none for a point that carries no limit.
+    An expected refusal (G12) passes only on the refusal it expects and is judged by nothing
+    else: it has no cost to judge."""
+    if point.expect == EXPECTED_REFUSAL:
+        if reading.get("status") == "refused" and reading.get("error") == REFUSAL_TYPE:
+            return []
+        return [f"{point.label} at {point.artifact}: expected its {REFUSAL_TYPE} refusal, got "
+                f"{reading.get('status')} {reading.get('error', '')}".rstrip()]
     if point.timeout_s is None or point.limit is None:
         return []
     return judge(BoundaryPoint(point, point.timeout_s, point.limit), reading)
+
+
+# --- R5's follow-up of the full tier (R3, R5, R28; 07-19) ---------------------------------------
+#
+# A full-tier point is read once. One whose cold wall x (1 + m) reaches its timeout is read again
+# at repetitions 1 to 5 as 5 matrix jobs of the same workflow run, so on 5 runner instances (R3),
+# and the `verdict` job judges every reading of the run. The selection is a filter over the
+# committed set and the run's own records, so no point file is written outside bench.oper_sets
+# (R30).
+
+# `timeout-minutes` of the `followup` job, as `measure`'s; a test pins both to the workflow.
+FOLLOWUP_TIMEOUT_MIN = 350
+FOLLOWUP_HALF_S = FOLLOWUP_TIMEOUT_MIN * 60 / 2  # R6: the other half is setup, build and upload
+
+
+def read_records_under(directory: str) -> list[dict[str, object]]:
+    """Every reading of the JSONL files under `directory`, as `gh run download` or
+    `actions/download-artifact` lay them out (one folder per artifact), in sorted path order."""
+    paths = sorted(str(path) for path in Path(directory).rglob("*.jsonl"))
+    return _read_records(paths)[1]
+
+
+def _cold_wall(reading: Mapping[str, object]) -> float:
+    return _number(reading, "build_s") + _number(reading, "export_s")
+
+
+def followup_points(spec: PointSet, readings: Iterable[Mapping[str, object]]) -> list[Point]:
+    """R5: in file order, the judged points whose single measure reading is ok with a cold wall x
+    (1 + m) at or above the point's timeout. A point that was not ok has failed already."""
+    if spec.margin is None:
+        _refuse(f"set {spec.name!r} records no margin, so R5 selects nothing it could stand by")
+    ok = {(reading.get("label"), reading.get("artifact")): reading for reading in readings
+          if reading.get("status") == "ok" and not reading.get("followup")}
+    out: list[Point] = []
+    for point in spec.points:
+        reading = ok.get((point.label, point.artifact))
+        if point.timeout_s is None or reading is None:
+            continue
+        if _cold_wall(reading) * (1 + spec.margin) >= point.timeout_s:
+            out.append(point)
+    return out
+
+
+def followup_shards(points: list[Point]) -> list[list[Point]]:
+    """R6 over the follow-up selection: consecutive shards, each the longest run of points whose
+    summed charge stays under half the follow-up job's timeout; a point not under it alone is a
+    stop, as R6 rules for every set."""
+    shards: list[list[Point]] = []
+    running = 0.0
+    for point in points:
+        charge = DEADLINE_S if point.charge_s is None else point.charge_s
+        if charge >= FOLLOWUP_HALF_S:
+            _refuse(f"{point.label} is charged {charge:g} s, not under half the follow-up job's "
+                    f"timeout ({FOLLOWUP_HALF_S:g} s)")
+        if shards and running + charge < FOLLOWUP_HALF_S:
+            shards[-1].append(point)
+            running += charge
+        else:
+            shards.append([point])
+            running = charge
+    return shards
+
+
+def verdict(spec: PointSet, readings: Sequence[Mapping[str, object]]) -> list[str]:
+    """R29 over every reading of a full-tier run: each point has exactly one measure reading and
+    it passes, and each follow-up point (R5) has repetitions 1 to 5, each once, all ok and each
+    within its timeout and limits. Every failure names its point."""
+    measure = [reading for reading in readings if not reading.get("followup")]
+    follow = [reading for reading in readings if reading.get("followup")]
+    failures: list[str] = []
+    for point in spec.points:
+        found = [r for r in measure
+                 if (r.get("label"), r.get("artifact")) == (point.label, point.artifact)]
+        if len(found) != 1:
+            failures.append(f"{point.label} at {point.artifact}: {len(found)} measure readings, "
+                            "not 1")
+            continue
+        failures += judged_failures(point, found[0])
+    for point in followup_points(spec, measure):
+        mine = [r for r in follow
+                if (r.get("label"), r.get("artifact")) == (point.label, point.artifact)]
+        for reading in mine:
+            failures += judged_failures(point, reading)
+        status = summarize(mine, BOUND_REPS)[0]["status"] if mine else "unread"
+        if status != "ok":
+            failures.append(f"{point.label} at {point.artifact}: follow-up {status}, not ok at "
+                            "repetitions 1 to 5 (R3, R5)")
+    return failures
+
+
+def _cmd_followup_matrix(args: argparse.Namespace) -> int:
+    try:
+        spec = load_set(args.set)
+        cut = followup_shards(followup_points(spec, read_records_under(args.source)))
+    except (OSError, ValueError) as exc:
+        print(f"oper: {exc}", file=sys.stderr)
+        return 2
+    include = [{"shard": shard, "rep": rep}
+               for shard in range(1, len(cut) + 1) for rep in BOUND_REPS]
+    print("matrix=" + json.dumps({"include": include}, separators=(",", ":")))
+    print(f"count={len(include)}")
+    return 0
+
+
+def _cmd_verdict(args: argparse.Namespace) -> int:
+    try:
+        spec = load_set(args.set)
+        failures = verdict(spec, read_records_under(args.source))
+    except (OSError, ValueError) as exc:
+        print(f"oper: {exc}", file=sys.stderr)
+        return 2
+    for failure in failures:
+        print(f"oper: {failure}", file=sys.stderr)
+    print(f"{spec.name}: {len(spec.points)} points, {len(failures)} failures")
+    return 1 if failures else 0
 
 
 def _read_records(paths: list[str]) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
@@ -1238,7 +1387,21 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--rep", type=int, required=True)
     run.add_argument("--image", required=True)
     run.add_argument("--out", required=True, help="a JSONL path, or - for stdout")
+    run.add_argument("--followup-from", help="the run's measure records: read this shard of R5's "
+                                             "follow-up selection instead (07-19)")
     run.set_defaults(handler=_cmd_run)
+
+    followup = commands.add_parser("followup-matrix", help="the matrix of R5's follow-up jobs "
+                                                           "from a run's measure records")
+    followup.add_argument("--set", required=True)
+    followup.add_argument("--from", dest="source", required=True)
+    followup.set_defaults(handler=_cmd_followup_matrix)
+
+    verdict_command = commands.add_parser("verdict", help="R29 over every reading of a full-tier "
+                                                          "run, its follow-ups included")
+    verdict_command.add_argument("--set", required=True)
+    verdict_command.add_argument("--from", dest="source", required=True)
+    verdict_command.set_defaults(handler=_cmd_verdict)
 
     summary = commands.add_parser("summarize", help="median and max per point from JSONL files")
     summary.add_argument("files", nargs="+")
