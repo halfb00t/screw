@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 07
 current_phase_name: Operability Re-sweep
 status: executing
-stopped_at: Completed 07-18-PLAN.md
-last_updated: "2026-10-30T16:50:09.759Z"
+stopped_at: Completed 07-19-PLAN.md
+last_updated: "2026-10-31T02:34:35.760Z"
 last_activity: 2026-10-30
 last_activity_desc: Phase 07 execution started
-state_head: ffa53f13670cc096f90487167be7acafb1593218
+state_head: 8f9a1fc2c9dcb5cb6f65bf62e54346fcf205de2a
 progress:
   total_phases: 8
   completed_phases: 7
   total_plans: 103
-  completed_plans: 101
+  completed_plans: 102
   percent: 88
 ---
 
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-10-25)
 ## Current Position
 
 Phase: 07 (Operability Re-sweep) — EXECUTING
-Plan: 20 of 21
+Plan: 21 of 21
 Status: Ready to execute
-Last activity: 2026-10-30 — Plan 07-18 complete (the required bounds tier, 355 points in 4 shards, green on draft PR #26 in CI run 41089145344; L25 the fine-pitch walls, bolt d / pitch 20 from walk run 41074314305 and nut 8 by ruling G36; the in-wall debt re-scoped to its residual and the debug session resolved; next 07-19)
+Last activity: 2026-10-31 — Plan 07-19 complete (G37: the 18 residual-band dense points read first, run 41153581470, all ok; full.json 1056 points, first full run 41155746591 and first pull_request run 41158301476 green, follow-up skipped; weekly and paths-filtered triggers; pr.land waits for a green full tier on FULL_TIER_PATHS; L26, L27; next 07-20)
 
 Progress: [█████████░] 88%
 
@@ -163,6 +163,7 @@ Progress: [█████████░] 88%
 | Phase 07 P21 | 20 min | 2 tasks | 8 files |
 | Phase 07 P17 | 32 min | 3 tasks | 15 files |
 | Phase 07 P18 | 6h03m | 3 tasks | 55 files |
+| Phase 07 P19 | 2h10m | 3 tasks | 20 files |
 
 ## Accumulated Context
 
@@ -338,6 +339,9 @@ Recent decisions affecting current work:
 - [Phase 07]: 07-17: SCREW_BUILD_TIMEOUT gone from the bench; bench.build_time judges each artifact against BUILD_TIMEOUT_S and marks cost-model-refused artifacts instead of judging them; the interim-runtime-bounds, WR-05 and bench.memory sampling debt items resolved
 - [Phase 07]: L25: a bolt above exact d / pitch 20 and a nut above 8 is a 422 pitch_too_fine naming d and pitch (bolt W from walk run 41074314305, nut W ruled by G36)
 - [Phase 07]: G36: sets drawn before R31 are checked without the fine-pitch wall; the required tier drops the 80 points it refuses, 355 points in 4 CI shards
+- [Phase 07]: G37: the 18 residual-band dense points were read on the runner first (run 41153581470), all ok; M3-right n90 tip piece 0.9687 of T_PIECE
+- [Phase 07]: L26: two operability tiers, the required bounds job and the full recording tier weekly and on cost-model PRs
+- [Phase 07]: L27: pr.land requires a green operability: full run on the head of a PR touching FULL_TIER_PATHS
 
 ### Pending Todos
 
@@ -394,6 +398,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-30T16:50:09.350Z
-Stopped at: Completed 07-18-PLAN.md
+Last session: 2026-10-31T02:34:35.406Z
+Stopped at: Completed 07-19-PLAN.md
 Resume file: None
