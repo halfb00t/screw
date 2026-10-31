@@ -175,7 +175,7 @@ bench.build: $(STAMP)  ## build and export time per corpus part, each artifact v
 
 # Re-measures spur L19's gzip table and L24's mesh-copy cost for one part; needs no service,
 # for the same reason bench.build needs none.
-bench.export: $(STAMP)  ## gzip level table (L19) and mesh-copy cost (L24) for one part; SET="d=100 length=90"
+bench.export: $(STAMP)  ## gzip level table (L19) and mesh-copy cost (L24) for one part; SET="d=100 length=90 s=200 k=50 thread_length=90"
 	$(PY) -m bench.export_cost $(SWEEP) --set "$(SET)"
 
 # The thread spike (Phase 2) is a measurement campaign, outside the gate for the same reason,

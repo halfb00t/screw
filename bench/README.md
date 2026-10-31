@@ -17,8 +17,9 @@ turns a measurement into a limit.
   `calc.cost.BUILD_TIMEOUT_S` (L24); an artifact the cost model refuses (L21) is shown and not
   judged, since the service answers it with a 422 before any build. Also the fine STL's byte and
   triangle counts.
-- **`bench.export_cost`** (`make bench.export SET="d=100 length=90"`) -- spur L19's gzip level
-  table with its selection rule, and L24's mesh-copy cost, for one part.
+- **`bench.export_cost`** (`make bench.export SET="d=100 length=90 s=200 k=50 thread_length=90"`,
+  the whole label the sweep prints) -- spur L19's gzip level table with its selection rule, and
+  L24's mesh-copy cost, for one part.
 - **`bench.latency`** (`make bench.latency`) -- does `/api/health` stay responsive while a
   build is in flight? `single` is one fine build of the heaviest corpus part; `concurrent` is
   ten fine builds of ten distinct parts at once. Reports idle p95, under-load p95, their ratio
@@ -59,7 +60,7 @@ the hardware and the weather behind it.
 
 ```
 make bench.build                          # in-process, 12 corpus parts
-make bench.export SET="d=100 length=90"  # gzip table and mesh-copy cost for one part
+make bench.export SET="d=100 length=90 s=200 k=50 thread_length=90"  # gzip table and mesh-copy cost for one part
 
 make serve                                # in one terminal, a fresh server
 make bench.latency                        # in another -- both load scenarios

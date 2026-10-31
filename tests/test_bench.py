@@ -199,6 +199,18 @@ def test_a_set_is_found_by_the_label_the_sweep_prints() -> None:
         "bolt", {"d": 100.0, "length": 90.0, "s": 200.0, "k": 50.0, "thread_length": 90.0})
 
 
+@pytest.mark.parametrize("path", ["Makefile", "bench/export_cost.py", "bench/README.md"])
+def test_the_documented_bench_export_example_names_a_set_the_sweep_has(path: str) -> None:
+    # The README's own commands are tests: `find_set` matches the whole label, so a shortened
+    # one in the docs exits 2 (code review WR-01).
+    text = (Path(__file__).resolve().parents[1] / path).read_text()
+    documented = re.findall(r'(?:SET=|--set )"([^"$]+)"', text)
+    assert documented, path
+    for name in documented:
+        assert find_set(None, name) == find_set(None, "d=100 length=90 s=200 k=50 "
+                                                      "thread_length=90"), (path, name)
+
+
 def test_an_unknown_set_label_exits_2_and_lists_the_labels(
         capsys: pytest.CaptureFixture[str]) -> None:
     with pytest.raises(SystemExit) as raised:
