@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 07
 current_phase_name: Operability Re-sweep
-status: executing
-stopped_at: Completed 07-19-PLAN.md
-last_updated: "2026-10-31T02:34:35.760Z"
-last_activity: 2026-10-30
+status: verifying
+stopped_at: Completed 07-20-PLAN.md
+last_updated: "2026-10-31T03:31:53.921Z"
+last_activity: 2026-10-31
 last_activity_desc: Phase 07 execution started
-state_head: 8f9a1fc2c9dcb5cb6f65bf62e54346fcf205de2a
+state_head: 4a2b536550ac573e790021da95e8c87fb83a2911
 progress:
   total_phases: 8
   completed_phases: 7
   total_plans: 103
-  completed_plans: 102
+  completed_plans: 103
   percent: 88
 ---
 
@@ -29,8 +29,8 @@ See: .planning/PROJECT.md (updated 2026-10-25)
 
 Phase: 07 (Operability Re-sweep) — EXECUTING
 Plan: 21 of 21
-Status: Ready to execute
-Last activity: 2026-10-31 — Plan 07-19 complete (G37: the 18 residual-band dense points read first, run 41153581470, all ok; full.json 1056 points, first full run 41155746591 and first pull_request run 41158301476 green, follow-up skipped; weekly and paths-filtered triggers; pr.land waits for a green full tier on FULL_TIER_PATHS; L26, L27; next 07-20)
+Status: Phase complete — ready for verification
+Last activity: 2026-10-31 — Plan 07-20 complete (full tier green on the phase head 95a99da, run 41161227951, 1056 of 1056 ok, recorded in 4a2b536; on 4a2b536 the full tier 41162982938 and CI 41162982868, all 7 required jobs, green; pr.land's read-only checks return no refusal; make check passes; OPER-01 and OPER-02 ticked, OPER-03 held for the owner over the in-wall residual; draft PR #26 ready for verification and ship)
 
 Progress: [█████████░] 88%
 
@@ -164,6 +164,7 @@ Progress: [█████████░] 88%
 | Phase 07 P17 | 32 min | 3 tasks | 15 files |
 | Phase 07 P18 | 6h03m | 3 tasks | 55 files |
 | Phase 07 P19 | 2h10m | 3 tasks | 20 files |
+| Phase 07 P20 | 50 min | 2 tasks | 42 files |
 
 ## Accumulated Context
 
@@ -342,6 +343,7 @@ Recent decisions affecting current work:
 - [Phase 07]: G37: the 18 residual-band dense points were read on the runner first (run 41153581470), all ok; M3-right n90 tip piece 0.9687 of T_PIECE
 - [Phase 07]: L26: two operability tiers, the required bounds job and the full recording tier weekly and on cost-model PRs
 - [Phase 07]: L27: pr.land requires a green operability: full run on the head of a PR touching FULL_TIER_PATHS
+- [Phase 07]: 07-20: full tier green on the phase head (run 41161227951 at 95a99da, recorded) and on 4a2b536 (41162982938), every required CI job green (41162982868); OPER-03 held for the owner over the in-wall residual
 
 ### Pending Todos
 
@@ -398,6 +400,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-31T02:34:35.406Z
-Stopped at: Completed 07-19-PLAN.md
+Last session: 2026-10-31T03:31:53.563Z
+Stopped at: Completed 07-20-PLAN.md
 Resume file: None
