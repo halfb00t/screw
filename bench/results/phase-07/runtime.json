@@ -5,6 +5,7 @@
   "bench/results/phase-07/bound-40907549180",
   "bench/results/phase-07/bound-rerun-40999654995",
   "bench/results/phase-07/controls-40646142406",
+  "bench/results/phase-07/dense-band-41153581470",
   "bench/results/phase-07/drift-41016507364",
   "bench/results/phase-07/drift-60-41022812680",
   "bench/results/phase-07/explore-40646117094",
@@ -33,7 +34,7 @@
  "runner": {
   "nproc": 4,
   "smallest_mem_total_bytes": 16758394880,
-  "headers": 273
+  "headers": 275
  },
  "gzip": {
   "level": 1,
