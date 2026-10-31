@@ -17,6 +17,7 @@ Severity (grep-able `Severity:` field):
 | Severity | Item | Trigger to revisit |
 |---|---|---|
 | must | [Parts inside the fine-pitch walls that the kernel still refuses](active/2026-10-29-in-wall-parts-the-kernel-refuses.md) | before the first release |
+| nice | [The full tier's follow-up job has never run on the runner](active/2026-10-31-full-tier-follow-up-job-never-run-on-the-runner.md) | the first full-tier run that selects a follow-up point |
 | nice | [The build-time corpus is mostly parts the cost model refuses, so the bench judges little](active/2026-10-30-build-time-corpus-is-mostly-refused-by-the-cost-model.md) | the next change to bench/corpus.py or bench/build_time.py |
 | nice | [The refused preview's status sentence runs under the Fit button](active/2026-10-29-status-sentence-runs-under-fit.md) | the phase 7 UAT, or the next change to the viewport overlay |
 | nice | [The shank-fold warning prints its numbers with :g, so a value near the 0.0001 mm line can read as the wrong side of it](active/2026-10-28-shank-fold-warning-rounds-the-numbers-it-compares.md) | the next change to the warning texts |
