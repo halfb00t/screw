@@ -25,7 +25,7 @@ from bench.oper_sets import ProtocolStop
 from bench.thread_spike.maths import PITCH
 from screw.calc import cost
 from screw.calc.thread import _exact, built_thread_length
-from screw.params import KINDS, BoltParams, FastenerParams
+from screw.params import KINDS, BoltParams, FastenerParams, NutParams
 from screw.tables.presets import expand, expand_nut
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -1684,6 +1684,41 @@ def test_the_command_writes_only_the_widened_envelopes_and_the_widening_runs(
     assert all(a == b for a, b in zip(after["excluded"], old["excluded"], strict=True))
 
 
+def _committed_tall() -> tuple[dict[str, object], dict[tuple[str, str, str], float]]:
+    doc = json.loads((REPO_ROOT / "bench/points/outband-tall.json").read_text())
+    return doc, oper_sets.envelope_of(doc["envelope"])
+
+
+def test_g39_reads_the_tall_nuts_and_d_only_small_bolts_at_every_artifact_they_are_admitted(
+) -> None:
+    doc, envelope = _committed_tall()
+    assert doc["set"] == "outband-tall"
+    assert doc["reps"] == 5
+    assert doc["sources"] == ["explore=bench/results/phase-07/explore-40646117094"]
+    assert envelope == oper_sets.shipped_envelope()
+    points = doc["points"]
+    assert isinstance(points, list)
+    assert points == oper_sets.tall_points(envelope)
+    for point in points:
+        part = KINDS[point["kind"]].model_validate(point["params"])  # the production walls
+        where = next(a for a in ARTIFACTS3 if a == point["artifact"])
+        assert cost.fits(part, where)
+        if isinstance(part, NutParams):
+            assert part.m / part.d > cost.BANDS["nut", "m"][1]  # above the m band
+            assert part.clearance == 0.15
+    labels = {(p["label"], p["artifact"]) for p in points}
+    # The review's nut at 10.5 d is read where it is admitted, and not at the fine STL, which
+    # G39 refuses; the d-only M2 and M3 at the fine STL and the STEP, their preview refused.
+    assert {a for label, a in labels if label == "tall-nut-x1-m10.5d"} == {"stl-preview", "step"}
+    for d in ("M2", "M3"):
+        assert {a for label, a in labels if label == f"d-only-bolt-{d}"} == {"stl-fine", "step"}
+    assert len(points) == 27
+    table = oper_sets.charge_table(oper_sets.read_readings(
+        REPO_ROOT / "bench/results/phase-07/explore-40646117094"))
+    assert doc["shard_sizes"] == oper_sets.shard_sizes(
+        oper_sets.charges(points, table, 600.0), oper_sets.HALF_JOB_S)
+
+
 def test_an_out_of_band_nut_reading_widens_e_and_a_bolt_or_load_reading_does_not() -> None:
     """G30: after the out-of-band stop, a nut reading of R11's out-of-band points widens e as a
     cold isolated reading does; a bolt's never does, nor any load reading."""
@@ -1692,6 +1727,8 @@ def test_an_out_of_band_nut_reading_widens_e_and_a_bolt_or_load_reading_does_not
     bolt: Raw = {**nut, "label": "outband-bolt", "kind": "bolt"}
     assert oper_sets.widens("outband", nut)
     assert not oper_sets.widens("outband", bolt)
+    assert oper_sets.widens("outband-tall", nut)  # G39's tall nuts are out-of-band points too
+    assert not oper_sets.widens("outband-tall", bolt)
     assert not oper_sets.widens("load", {**nut, "kind": "load"})
     assert all(oper_sets.widens(name, bolt) for name in ("bound", "gzip", "arenas", "bound-rerun",
                                                          "gzip-rerun"))

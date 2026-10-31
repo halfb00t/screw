@@ -2017,6 +2017,74 @@ def build_outband(explore_dir: str, envelope: Envelope) -> _Set:
     return out
 
 
+
+# --- the tall nuts and the d-only small bolts (R11, G39) ----------------------------------------
+
+TALL_SET = "outband-tall"
+# The phase 7 review's tall nut (07-REVIEW.md, G38 and G39), scaled whole: d 92.28, pitch 31.418
+# and s 130.54 at 1, a half and a quarter, the clearance at its default 0.15 inside its band.
+TALL_SHAPE = (("d", "92.28"), ("pitch", "31.418"), ("s", "130.54"))
+TALL_SCALES = ("1", "0.5", "0.25")
+# m / d from above the band's 3 to near the tallest m the parameter model takes for the shape,
+# 2764.2 mm at full scale (about 30 d); the review's nut is 10.5 d.
+TALL_M_FACTORS = ("5", "10.5", "20", "29.5")
+# The links that name only d at 2 and 3 mm: both head ratios above their bands (s / d 5 and 3.3,
+# k / d 2 and 1.3), the shape G39 leaves unpaired.
+D_ONLY_BOLT_D = (2.0, 3.0)
+
+
+def _production(kind: str, params: Mapping[str, object]) -> FastenerParams | None:
+    """The part the shipped parameter model makes, its walls included, or None where it refuses."""
+    try:
+        return KINDS[kind].model_validate(dict(params))
+    except ValidationError:
+        return None
+
+
+def tall_points(envelope: Envelope, budget: Budget = cost.BUDGET) -> list[dict[str, object]]:
+    """G39's points: each tall nut of `TALL_SCALES` x `TALL_M_FACTORS` (m on its 0.1 mm form step,
+    half up) and each d-only bolt of `D_ONLY_BOLT_D`, at every artifact the parameter model and
+    the shipped rule admit it, G30's turns refusal included."""
+    step = _form_step("nut", "m")
+    parts: list[tuple[str, str, dict[str, object]]] = []
+    for scale in TALL_SCALES:
+        fields: dict[str, object] = {name: float(Decimal(value) * Decimal(scale))
+                                     for name, value in TALL_SHAPE}
+        d = Decimal(repr(fields["d"]))
+        for factor in TALL_M_FACTORS:
+            n = int((Decimal(factor) * d / step).to_integral_value(ROUND_HALF_UP))
+            parts.append((f"tall-nut-x{scale}-m{factor}d", "nut",
+                          {**fields, "m": _on_step(n, step)}))
+    parts += [(f"d-only-bolt-M{d:g}", "bolt", {"d": d}) for d in D_ONLY_BOLT_D]
+    points: list[dict[str, object]] = []
+    for label, kind, params in parts:
+        part = _production(kind, params)
+        if part is None or cost.below_fitted_turns(part):
+            continue
+        points += [{"label": label, "kind": kind, "params": params, "artifact": artifact}
+                   for artifact in cost.ARTIFACTS if admits(part, artifact, envelope, budget)]
+    return points
+
+
+def build_tall(explore_dir: str, envelope: Envelope) -> _Set:
+    """`outband-tall.json`: G39's points at 5 repetitions, each charged as R6 charges an
+    explore-like part, the largest explore `wall_s` of its (kind, artifact) group (G4)."""
+    out = _Set(TALL_SET, reps=RUNS2_REPS, shards=1, rule="07-SWEEP-PROTOCOL.md R11 (G39)",
+               notes=[
+                   "G39 (tall-nut-*): the nut d 92.28, pitch 31.418, s 130.54 at the default "
+                   "clearance, scaled whole by 1, 0.5 and 0.25, with m at 5, 10.5, 20 and 29.5 d "
+                   "on its 0.1 mm form step, at every artifact the shipped rule admits it",
+                   "G39 (d-only-bolt-*): the bolts that name only d, at 2 and 3 mm, at every "
+                   "artifact the shipped rule admits them",
+                   "a nut reading above its enveloped prediction widens e (R12, G30); a bolt "
+                   "reading widens none; 5 repetitions; each point charged the largest explore "
+                   "wall_s of its (kind, artifact) group (R6, G4)"])
+    for point in tall_points(envelope):
+        out.copy(point)
+    out.sharded(charge_table(_read(explore_dir)), [f"explore={explore_dir}"])
+    out.envelope = envelope_document(envelope)
+    return out
+
 # --- the load table (07-15 Task 2) ----------------------------------------------------------------
 
 LOAD_COLUMNS = ("point", "N", "rep", "status", "p95 all s", *(f"p95 {a} s" for a in LOAD_ORDER),
@@ -2075,6 +2143,8 @@ NEVER_WIDENS = frozenset({"load"})
 # over its envelope, G29's 2.5-turn M2, is refused since, and widening the bolt stl-fine bytes e
 # from it would refuse 6 catalogue rows B-01 keeps (C1 sets each budget at the largest row).
 OUTBAND_WIDENS = frozenset({"nut"})
+# G39: the tall nuts and the d-only small bolts are out-of-band points too.
+OUTBAND_SETS = frozenset({"outband", TALL_SET})
 
 
 def widens(set_name: str, reading: Reading) -> bool:
@@ -2082,7 +2152,7 @@ def widens(set_name: str, reading: Reading) -> bool:
     reading, an out-of-band one only of a nut, every other the cold isolated rule decides."""
     if set_name in NEVER_WIDENS:
         return False
-    if set_name == "outband":
+    if set_name in OUTBAND_SETS:
         return reading.get("kind") in OUTBAND_WIDENS
     return True
 
@@ -3112,7 +3182,8 @@ def _regenerate_runs2(name: str, text: str) -> str:
     sources = dict(str(entry).split("=", 1) for entry in raw.get("sources", []))
     needs = {"bound": ("explore",), "load": ("tier-order", "explore"), "gzip": ("explore",),
              "arenas": ("explore",), "outband": ("explore",), "bound-rerun": ("explore", "run"),
-             "gzip-rerun": ("explore", "run"), PITCH_WALK: ("explore",)}[name]
+             "gzip-rerun": ("explore", "run"), PITCH_WALK: ("explore",),
+             TALL_SET: ("explore",)}[name]
     missing = [source for source in needs if source not in sources]
     if missing:
         raise ValueError(f"it names no {' and '.join(missing)} source")
@@ -3128,6 +3199,8 @@ def _regenerate_runs2(name: str, text: str) -> str:
         return build_rerun(name, sources["explore"], sources["run"], envelope).text()
     if name == PITCH_WALK:
         return build_pitch_walk(sources["explore"], envelope).text()
+    if name == TALL_SET:
+        return build_tall(sources["explore"], envelope).text()
     return build_gzip(sources["explore"], envelope).text()
 
 
@@ -3136,7 +3209,7 @@ def _check_runs2() -> str | None:
     with the reason, or None. Absent files are not checked: each is written by its own step."""
     paths = [("tier-order", REPO_ROOT / TIER_ORDER),
              *((name, POINTS_DIR / f"{name}.json") for name in (*RUNS2_SETS, *RERUN_SETS,
-                                                                PITCH_WALK))]
+                                                                PITCH_WALK, TALL_SET))]
     for name, path in paths:
         if not path.is_file():
             continue
@@ -3750,7 +3823,8 @@ def _regenerations() -> Iterator[tuple[Path, str, Callable[[], str]]]:
     for name, path in (("tier-order", REPO_ROOT / TIER_ORDER),
                        *((name, POINTS_DIR / f"{name}.json") for name in (*RUNS2_SETS,
                                                                           *RERUN_SETS,
-                                                                          PITCH_WALK))):
+                                                                          PITCH_WALK,
+                                                                          TALL_SET))):
         if path.is_file():
             text = path.read_text()
             yield path, text, functools.partial(_regenerate_runs2, name, text)
@@ -3937,6 +4011,10 @@ def _run(args: argparse.Namespace) -> int:
     elif args.command == "boundary":
         Path(args.out).write_text(boundary_text(explore_dir))
         print(f"wrote {args.out}")
+    elif args.command == TALL_SET:
+        made = build_tall(explore_dir, shipped_envelope())
+        Path(args.out).write_text(made.text())
+        print(f"{made.name}: {len(made.points)} points in shards of {made.shard_sizes}")
     elif args.command == "pitch-walk":
         made = build_pitch_walk(explore_dir, shipped_envelope())
         Path(args.out).write_text(made.text())
@@ -4021,6 +4099,9 @@ def main(argv: list[str] | None = None) -> int:
     rerun.add_argument("--explore", required=True)
     rerun.add_argument("--run", required=True)
     rerun.add_argument("--out", required=True)
+    tall = sub.add_parser(TALL_SET, help="write G39's tall nuts and d-only small bolts")
+    tall.add_argument("--explore", required=True)
+    tall.add_argument("--out", required=True)
     pitch_walk = sub.add_parser("pitch-walk", help="write R31's fine-pitch walk (G35)")
     pitch_walk.add_argument("--explore", required=True)
     pitch_walk.add_argument("--out", required=True)
