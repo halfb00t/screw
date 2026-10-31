@@ -150,6 +150,8 @@ only in the typed parameter model; the longer the fork lives, the more they dive
 
 ## L08 — main is walled: required CI jobs on a current head, a commit-msg hook against skip tokens, and `make pr.land` (narrows L06)
 
+Extended by L26: the required jobs gain the four `bounds` shards of the required operability tier.
+
 Date: 2026-10-06. Decided by the owner in the Phase 1 discussion (D-11, D-12, D-17, D-19).
 A port of spur's L22 and L25, which carry the evidence; this entry says what is ported,
 what is different here, and what is deferred.
@@ -2065,3 +2067,85 @@ stops the parts the kernel refuses there, and keeps every catalogue row.
 Reversibility: costly. Links that carried a finer pitch now get a 422. A kernel fix (the debug
 session's accuracy variant: pipe tolerance 1e-6 and 56 section samples) or a new walk needs a
 superseding entry, and lifting the wall needs both.
+
+## L26 — Two operability tiers: a required bounds job on every change and a full recording tier weekly and on cost-model PRs, both in the production image
+
+Date: 2026-10-31. Decided by D-12, D-15 and D-19 of Phase 7 and by the pre-registered rules R5, R6
+and R27 to R29 of `07-SWEEP-PROTOCOL.md`, as ruled where they had gaps (G4, G12, G19, G33, G34, G36
+and G37 in `07-GAP-RULINGS.md`). Every point set is written by `bench/oper_sets.py` from committed
+records and checked by `--check` in `make verify`. Supersedes nothing. It extends L08's required
+jobs, and that entry is not edited.
+
+**The required tier (D-12, R27).** `tests/data/oper_boundary.json` is R27 step 5 over the committed
+D(A), less the 80 points L25's walls refuse (G36): 355 points (stl-preview 151, stl-fine 51, step
+153). ci.yml's `bounds` job reads it in the production image built from the commit under test
+(D-15). Each point is read once, cold, in its own container, by `python3 -m bench.oper check`. The
+job fails on R29's failures: a reading that is not `ok`, a cold wall past its artifact's timeout
+(L24), or an actual past prediction x (1 + e) for any target (L21). It runs as 4 matrix shards cut
+in file order, each under 600 s of estimates (G34). Each shard has a 20-minute timeout,
+`contents: read` and no secret. The shards `bounds (1)` to `bounds (4)` join L08's required list in
+`required-jobs.txt`. Its first green run is CI run 41089145344 at `ffa53f1`, and it was green again
+in 41094108547 at `023a3f9` (`bench/RESULTS.md`, `### bounds, runs 41089145344 and 41094108547`).
+
+**The full tier (D-12, R28).** `bench/points/full.json` is drawn under the shipped model, L25's
+walls included, and holds 1056 points:
+
+- every ISO 4017, ISO 4014 and ISO 4032 catalogue row at the 3 artifacts (882 bolt and 42 nut
+  points);
+- the nut factorial of R4 (d) as the shipped model admits it (42 points);
+- G19's dense boundary: per artifact, each of the 15 L11 sizes and both hands at the coarse pitch,
+  s 1.6 d, k 0.6 d and t = L = n pitch, n the most whole turns the shipped model admits (90 points).
+
+The 106 combinations the parameter model refuses are listed in `dropped` and not read (R4, G37
+ruling 2). A pair the cost model refuses would be read with `expect: refused` and must return its
+`over_budget` refusal (G12). It is judged by nothing else, and today the set holds none.
+`operability.yml` reads the set on `workflow_dispatch` (input `set`, `full` when empty), on a weekly
+`schedule` (`41 4 * * 1`, off grid.yml's `23 3 * * 1`) and on a `pull_request` whose `paths:` are
+`src/screw/calc/cost.py`, `src/screw/calc/thread.py`, `src/screw/params.py` and
+`src/screw/solid/**` (L27). `bench.oper run` judges each point as the required tier does and fails
+its job after writing every record.
+
+**D-19's 5-repetition policy.** The margin m is 0.5382691940004687, R5's largest max / median - 1
+of the cold wall over the spread points (spread run 40646125666, `### D-19 margin and R6 charges` in
+`bench/RESULTS.md`). The full tier reads each point once. A point whose single cold wall x (1 + m)
+reaches its timeout is read again at repetitions 1 to 5, as 5 matrix jobs of the same run, so on 5
+runner instances (R3). The selection comes from `bench.oper followup-matrix` over the committed set
+and the run's own records (`followup-plan`), and those jobs are named `followup`. A `verdict` job
+judges every reading of the run. A follow-up point that is `incomplete` or over its timeout or
+limits fails the tier. No point file is written outside `bench.oper_sets` (R30).
+
+**The shards (R6, G4).** Each full-tier point is charged the largest explore `wall_s` of its (kind,
+artifact) group (explore run 40646117094). Each shard is the longest run of consecutive points under
+half the `measure` job's 350 minutes, which gives 40 shards. The follow-up shards are cut by the
+same rule over the selection, under half the `followup` job's 350 minutes.
+
+**The first readings.** Before the trigger and the merge gate were built, G37 had the 18 dense
+points inside the in-wall debt's residual band (M2, M2.5 and M3, 57 to 90 turns) read once. That was
+run 41153581470: all `ok` inside their limits and timeouts. The closest tip piece was M3, right
+hand, 90 turns, at 0.97 of T_PIECE (`### dense-band, run 41153581470`). The first full run,
+41155746591 at `b0186b9`, read all 1056 points `ok`:
+
+- the verdict passed;
+- the largest cold wall was 0.397 of its timeout (iso4017:M20x200, stl-fine);
+- no point reached its timeout after the margin, so `followup` was skipped;
+- no reading exceeded its envelope (`### full, run 41155746591`).
+
+**T-3-14.** The PR trigger is `pull_request`, never the base-context event. A PR run executes the
+PR's code with a read-only token and no secrets: `permissions: contents: read`, no job names a
+secret, and the `set` input reaches a script only through an environment variable. That is the
+exposure ci.yml's `test` job already has. `tests/test_oper.py` pins the triggers, the cron, the
+paths, the permission and the absent secrets.
+
+**An under-prediction.** A tier reading above its prediction x (1 + e) fails the tier. It is a cold
+isolated reading, so it also widens e by R12. The widened e is re-derived by committed code
+(`envelope-check`), and the run that widened it is cited in L21 (D-07). Neither tier has widened an
+e so far.
+
+Reason: the cost model and the timeouts were fitted once on the runner, and a change to the files
+they rest on can move a prediction a user's part is admitted by. The required tier catches that on
+every change, at most 747 s a shard so far (run 41089145344). The full tier re-reads the whole grid weekly and before
+such a change lands, at a cost no required job could carry.
+
+Reversibility: reversible. The `bounds` job and its 4 entries in `required-jobs.txt`, and one
+workflow file's triggers and jobs, removed in one commit. The point sets stay as records.
+
