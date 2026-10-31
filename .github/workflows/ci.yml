@@ -38,9 +38,12 @@ jobs:
           print('cadquery', version('cadquery'), 'cadquery-ocp', version('cadquery-ocp'))"
       # How far this runner's libm puts the predicted floats (edge ratios, limits) of every
       # regenerated file from the committed ones, which macOS wrote: the evidence for the
-      # tolerance the regeneration checks allow (07-18). A record, not a gate.
+      # tolerance the regeneration checks allow (07-18). A record, not a gate: it regenerates
+      # every point file, and a stop or a traceback there must not turn the required
+      # `test (3.12)` red for a reason the gate does not judge (code review WR-04).
       - name: predicted-float drift on this runner
         if: always()
+        continue-on-error: true
         run: .venv/bin/python -m bench.oper_sets prediction-drift
 
   vendor-bundle:

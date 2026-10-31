@@ -3165,6 +3165,14 @@ def _steps(job: str) -> list[str]:
     return re.split(r"^      - ", job, flags=re.MULTILINE)[1:]
 
 
+def test_the_prediction_drift_record_cannot_fail_the_required_test_job() -> None:
+    # A record, not a gate (WR-04): `test (3.12)` is required, and the record's own stop or
+    # traceback must not turn it red; `make verify` is what the job judges.
+    (step,) = [s for s in _steps(_ci_job("test")) if "bench.oper_sets prediction-drift" in s]
+    assert "\n        continue-on-error: true\n" in step
+    assert "\n        if: always()\n" in step
+
+
 def _step_with(job: str, *needles: str) -> str:
     found = [step for step in _steps(job) if all(needle in step for needle in needles)]
     assert len(found) == 1, f"{len(found)} steps hold {needles}"
