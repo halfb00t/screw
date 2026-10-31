@@ -1036,16 +1036,51 @@ def _run_values(text: str) -> list[str]:
     return values
 
 
-def test_the_workflow_starts_only_on_a_dispatch() -> None:
+# 07 D-12, D-13 (07-19): the full tier runs on a dispatch, weekly and on a PR that touches the
+# cost model's files or the solid package. These pins replace 07-01's "dispatch only" pin.
+FULL_TIER_PATHS_YML = ["src/screw/calc/cost.py", "src/screw/calc/thread.py",
+                       "src/screw/params.py", "src/screw/solid/**"]
+
+
+def workflow_triggers(text: str) -> dict[str, str]:
+    """The `on:` block of a workflow, by trigger name, each with its indented body."""
+    block = text[text.index("\non:\n") + 5:]
+    end = re.search(r"^\S", block, re.MULTILINE)
+    block = block if end is None else block[:end.start()]
+    found: dict[str, str] = {}
+    for match in re.finditer(r"^  ([a-z_]+):\n((?:(?:    .*)?\n)*)", block, re.MULTILINE):
+        found[match.group(1)] = match.group(2)
+    return found
+
+
+def workflow_paths(text: str) -> list[str]:
+    """The `pull_request` trigger's `paths:` entries, in order."""
+    return re.findall(r'^      - "([^"]+)"$', workflow_triggers(text)["pull_request"],
+                      re.MULTILINE)
+
+
+def test_the_workflow_starts_on_a_dispatch_a_weekly_schedule_and_cost_model_prs() -> None:
     text = WORKFLOW_YML.read_text()
-    assert re.search(r"^on:\n  workflow_dispatch:", text, re.MULTILINE)
-    assert not re.search(r"^\s*(pull_request|pull_request_target|push|schedule)\s*:", text,
-                         re.MULTILINE)
+    triggers = workflow_triggers(text)
+    assert list(triggers) == ["workflow_dispatch", "schedule", "pull_request"]
+    assert re.findall(r'- cron: "([^"]+)"', triggers["schedule"]) == ["41 4 * * 1"]
+    assert workflow_paths(text) == FULL_TIER_PATHS_YML
+    assert "required: false" in triggers["workflow_dispatch"]
+
+
+def test_the_workflow_never_runs_in_the_base_context_or_on_a_push() -> None:
+    """T-3-14: no trigger hands a PR's code the base's token and secrets, and no push runs it."""
+    text = WORKFLOW_YML.read_text()
+    assert "pull_request_target" not in text
+    assert not re.search(r"^\s*push\s*:", text, re.MULTILINE)
 
 
 def test_the_workflow_reads_the_repository_and_names_no_secret() -> None:
     text = WORKFLOW_YML.read_text()
     assert re.search(r"^permissions:\n  contents: read$", text, re.MULTILINE)
+    assert re.findall(r"^ *permissions:.*$", text, re.MULTILINE) == ["permissions:"]
+    assert re.findall(r"^ +[a-z-]+: (?:read|write|none)$", text, re.MULTILINE) == [
+        "  contents: read"]
     assert "secrets." not in text
 
 
@@ -1054,7 +1089,9 @@ def test_the_set_input_reaches_a_script_only_through_an_env_variable() -> None:
     runs = _run_values(text)
     assert runs, "no run: steps found"
     assert not [run for run in runs if "${{ inputs." in run]
-    assert re.search(r"^\s+SET: \$\{\{ inputs\.set \}\}$", text, re.MULTILINE)
+    # A schedule or a PR run has no input, so it reads the full set (R28).
+    assert re.findall(r"^\s+SET: (.*)$", text, re.MULTILINE) == [
+        "${{ inputs.set || 'full' }}"] * 2
     assert 'python -m bench.oper matrix --set "$SET"' in text
     assert 'python -m bench.oper run --set "$SET"' in text
 

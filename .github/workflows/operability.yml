@@ -11,20 +11,41 @@ name: operability
 # 07 D-15: the image is built from the commit under test, exactly as the image job in ci.yml
 # builds it, and each reading starts a new container of it under its own memory cap.
 #
-# T-3-14, T-07-02: dispatch is the only trigger for now, so no code from a fork runs with this
-# token, and the token reads the repository and nothing else. The `set` input is typed by a
-# human; it reaches a script only through an environment variable, is checked against
-# [a-z0-9-]+ and an existing file by `python -m bench.oper matrix`, and is never interpolated
-# into a shell line. tests/test_oper.py pins all of it.
+# 07 D-12, D-13: the full recording tier (bench/points/full.json, R28) runs weekly and on every
+# PR that touches a file that can move a prediction, a budget or a timeout the tiers judge:
+#   src/screw/calc/cost.py    the cost model, the budgets and the timeouts;
+#   src/screw/calc/thread.py  built_thread_length, a cost feature, and the turn and tail walls;
+#   src/screw/params.py       the field ceilings;
+#   src/screw/solid/**        the tessellation constants and the build.
+# A run with no `set` input (schedule, PR) reads the full set. The paths filter only saves runs:
+# a PR author controls this file in their own PR, so `make pr.land` decides from the PR's diff and
+# its own list (`FULL_TIER_PATHS` in scripts/pr_land.py, held equal to `paths:` by a test).
+#
+# T-3-14, T-07-02: the PR trigger is `pull_request`, which runs the PR's code with a read-only
+# token and no secrets, the exposure ci.yml's `test` job already has. The base-context PR event,
+# which hands a fork's code the base's secrets, is the case T-3-14 forbids, and it is not used.
+# The token reads the repository and nothing else, and no job names a secret. The `set` input is
+# typed by a human; it reaches a script only through an environment variable, is checked
+# against [a-z0-9-]+ and an existing file by `python -m bench.oper matrix`, and is never
+# interpolated into a shell line. tests/test_oper.py pins all of it.
 on:
   workflow_dispatch:
     inputs:
       set:
-        description: "point file name under bench/points/ (letters, digits and hyphens)"
-        required: true
+        description: "point file name under bench/points/ (letters, digits and hyphens); full if empty"
+        required: false
         type: string
+  schedule:
+    # Weekly, Monday 04:41 UTC, off grid.yml's 03:23 so the two never share a runner hour.
+    - cron: "41 4 * * 1"
+  pull_request:
+    paths:
+      - "src/screw/calc/cost.py"
+      - "src/screw/calc/thread.py"
+      - "src/screw/params.py"
+      - "src/screw/solid/**"
 
-run-name: "operability: ${{ inputs.set }}"
+run-name: "operability: ${{ inputs.set || 'full' }}"
 
 permissions:
   contents: read
@@ -42,7 +63,7 @@ jobs:
           python-version: "3.12"
       - id: m
         env:
-          SET: ${{ inputs.set }}
+          SET: ${{ inputs.set || 'full' }}
         run: python -m bench.oper matrix --set "$SET" >> "$GITHUB_OUTPUT"
 
   measure:
@@ -55,7 +76,7 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     env:
-      SET: ${{ inputs.set }}
+      SET: ${{ inputs.set || 'full' }}
       SHARD: ${{ matrix.shard }}
       REP: ${{ matrix.rep }}
     steps:
