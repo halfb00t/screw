@@ -6,8 +6,8 @@ subsystem: merge gate / pr.land
 tags: [security, pr-land, operability, L28]
 branch: gsd/phase-07-operability-re-sweep
 plan_head_before: f3b907d1ad51b0fe260d3a49475e62125ba3a8f4
-plan_head_after: a0b71fe841227facc1a02e4f12f897640a19b4e0
-commits: 2
+plan_head_after: 6d05169
+commits: 4
 ---
 
 # Quick 261031-ken: pr.land refuses a PR that edits the files judging its own full tier
@@ -85,3 +85,33 @@ is outside this ruling and was not investigated here.
 ## Self-Check: PASSED
 
 da39988 and a0b71fe are ancestors of HEAD. All the files listed above exist.
+
+## Addendum: T-07-72, the required jobs' judge (owner: "Extend L28 guard (Recommended)")
+
+The ci.yml gap noted under "Not filed" above was ruled on. It is threat T-07-72.
+
+| sha | Subject | Files |
+| --- | --- | --- |
+| 6d05169 | feat(pr-land): extend the gate-change rule to the required jobs' judge | scripts/pr_land.py, tests/test_pr_land.py, docs/HOW_TO_DEVELOP.md, docs/architecture/decision_log.md |
+
+- There is still one list and one flag. `GATE_PATHS` (scripts/pr_land.py:104) gains
+  `.github/workflows/ci.yml`, `.github/workflows/required-jobs.txt` and
+  `tests/data/oper_boundary.json`.
+- Nothing more was needed from bench: ci.yml's `bounds` job runs
+  `python3 -m bench.oper check tests/data/oper_boundary.json`, and that reaches only `bench.oper`
+  and the container child `bench.oper_child` with `bench.oper_lift`, all three already listed.
+  The boundary file holds 329 bolt points and 26 nut points, with no bound, load or probe kind.
+- The drift test `test_gate_paths_are_what_the_full_tier_and_the_bounds_job_run_and_read` derives
+  the list from all of operability.yml and ci.yml's `bounds` job, plus `required-jobs.txt`. The
+  kinds test now runs on both point files.
+- The limit is stated in L28 and is not guarded: `test (3.12)` runs the PR's own `make verify`
+  and `prediction-drift`, and `vendor-bundle` builds the PR's own `web/`.
+- L28 was rewritten in place, because it exists on this branch only.
+- PR #26 touches 8 of the 9 files, all but `bench/__init__.py`, so it still needs the flag.
+- `make verify`: `======================= 4808 passed in 171.54s (0:02:51) =======================`
+
+Final `GATE_PATHS`: `.github/workflows/ci.yml`, `.github/workflows/operability.yml`,
+`.github/workflows/required-jobs.txt`, `bench/__init__.py`, `bench/oper.py`, `bench/oper_child.py`,
+`bench/oper_lift.py`, `bench/points/full.json`, `tests/data/oper_boundary.json`.
+
+Self-check: 6d05169 is an ancestor of HEAD.
