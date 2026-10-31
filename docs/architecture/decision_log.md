@@ -2332,3 +2332,63 @@ only on a prediction some reading covers.
 
 Reversibility: costly, as L21. A run that reads nuts outside the band (R11's out-of-band set) needs
 a superseding entry to widen `e` or move the band.
+
+Superseded in part by L30: a nut with its clearance and another field outside their bands is also
+predicted at each clearance edge with every other field at its real value.
+
+## L30 — A nut's clearance edges are also priced with the part's other fields at their real values; tall nuts and d-only M2 and M3 are read on the runner
+
+Date: 2026-10-31. Decided by the owner's ruling G39 (`07-GAP-RULINGS.md`; `07-OWNER-RULINGS.md`,
+"R11: the clearance edges are priced against the part's real fields"), after quick task
+261031-qd7 found the figure behind the tall-nut debt G38 filed to be wrong, and by R11 of
+`07-SWEEP-PROTOCOL.md` as amended by it. Supersedes in part L29 (its rule: G28's combinations alone
+for a clearance outside its band).
+
+**The defect.** Under L29 a nut whose clearance was below its band and whose m was above its band
+was predicted as the largest of the raw part, with the clearance at its own value, and the edge
+combinations, with m at 0.8 d or 3 d. The real m was never priced with the clearance at its edge,
+and the stl-fine clearance coefficients are positive (bytes 0.112 per mm), so the raw part came out
+cheap. At 3b3b8f0, with `solid.export(p, "stl", "fine")` on macOS arm64 (mesh bytes are geometry,
+R1 counts the host as context):
+
+| nut (d 92.28, pitch 31.418, s 130.54) | stl-fine at 3b3b8f0 | enveloped bytes | bytes written |
+| --- | --- | --- | --- |
+| m 967.04, clearance 0.15 | refused | 304,650,496 | 223,951,384 |
+| m 967.04, clearance -21.12 | admitted | 76,540,259 | 121,632,684 |
+| m 2764.2, clearance -21.12 | admitted | 89,999,215 | 364,438,484 |
+
+The last is past the 256 MiB export tmpfs and the 239,508,059 B budget, so it would have been a
+`build_error`, not L21's `over_budget`. G38's "2.93 x inside the clearance band" divided the first
+row's bytes by the second row's envelope; inside the band the nut is covered.
+
+**The rule.** `cost._edges` and `bench.oper_fit.edges` add, for a nut with its clearance and at
+least one other field outside their bands, the part with only its clearance moved to each of the
+clearance's edges. A clearance alone outside its band gives the same combinations as under L29, and
+no head ratio is paired with a real value. `cost.predict` and `bench.oper_fit.predict` agree bit for
+bit. Under it the three nuts above are refused at the fine STL, the second at 304,650,496 B
+enveloped and the third at 973,648,375 B.
+
+**What moves.** Nothing B-01 or a link rests on. No catalogue row, neither default part and no
+part with one field outside its band changes prediction. No link that names only d (bolt d 1.2 to
+9.9, nut d 0.9 to 8.0) changes admission at any artifact. Every point file `--check` writes again,
+`prediction-drift` is 0 in every file, `runtime.json` is unchanged, and `python -m bench.oper_fit
+table` from a fresh fit writes `07-BUDGET-TABLE.md` byte for byte. `tests/test_cost.py` pins each of
+these. Pairing every out-of-band field with the others' edges (the owner's reply "C") would have
+refused the d-only bolt's fine STL at d 1.2 to 4.0 and 8.3 to 9.9; the owner ruled the clearance
+only ("F").
+
+**What stays open.** An above-band head ratio is still priced only raw or with a below-band one at
+its edges. On the review's nut at clearance 0.15 the full pairing predicts 1.0024 x more
+(305,377,062 B against 304,650,496 B enveloped):
+`docs/tech_debt/active/2026-10-31-head-ratio-edges-never-meet-a-real-out-of-band-ratio.md`.
+
+**The readings.** R11's second campaign reads `bench/points/outband-tall.json`
+(`python -m bench.oper_sets outband-tall`): the tall nut shape scaled by 1, 0.5 and 0.25 with m at
+5, 10.5, 20 and 29.5 d, and the d-only bolts M2 and M3, at every artifact the shipped rule admits
+each, 27 points at 5 repetitions. A nut reading above its enveloped prediction widens `e` by R12
+(`envelope-check`) and needs a superseding entry; a bolt reading widens none.
+
+Reason: a number the tool prints is a number someone will cut metal to (L02), and a part is admitted
+only on a prediction some reading covers. A wider `e` could not cover a gap that grows with m / d.
+
+Reversibility: costly, as L21. Pricing more combinations only refuses more.

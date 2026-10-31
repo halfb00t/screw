@@ -271,3 +271,22 @@ Ruling: the clearance band is the [min, max] over the fitted nut points, emitted
 `cost.BANDS` by `emit-constants`, never typed: (0.15, 5.0) mm. G28's one-sided rule applies to
 it: above the band the largest of raw and both edges, below it max(raw, low edge). No catalogue
 row and neither default part moves, and the reproducer is refused at every artifact.
+
+## R11: the clearance edges are priced against the part's real fields (2026-10-31, G39)
+
+Source: quick task 261031-qd7 (`07-GAP-RULINGS.md`, G39, holds its figures). The tall-nut debt
+G38 filed rested on a wrong 2.93 x: the nut misses below the clearance band, not inside it. At
+3b3b8f0, `d=92.28 pitch=31.418 s=130.54 m=2764.2 clearance=-21.12` was admitted at the fine STL on
+89,999,215 B enveloped and wrote 364,438,484 B on macOS arm64, past the 256 MiB export tmpfs. The
+owner's replies, verbatim and in order (the label "(Recommended)" is the orchestrator's, not part
+of the ruling):
+
+1. "Runner readings, widen e (Recommended)", given on the wrong 2.93 x premise and superseded.
+2. "C: fix rule, then runner (Recommended)".
+3. "F: clearance only (Recommended)", final.
+
+Ruling: when a nut has its clearance and at least one other field outside their bands, each
+clearance edge is also predicted with every other field at its real value. The prediction is the
+largest of these, the raw one and G28's edge combinations. The three nuts of G39 are refused at the
+fine STL; no catalogue row, default part, d-only link or set moves. The runner reads the tall nuts
+and the d-only M2 and M3 at 5 repetitions; only a nut reading that misses widens `e`.

@@ -350,6 +350,135 @@ def test_every_regenerable_set_still_regenerates_under_the_clearance_band() -> N
         assert all(d.predicted and d.relative <= oper_sets.PREDICTED_REL_TOL for d in found), path
 
 
+# --- G39: the clearance's edges against the part's real fields ----------------------------------
+
+# The phase 7 review's second nut, at the default clearance and below the band, and the tallest m
+# the parameter model takes at -21.12 (07-GAP-RULINGS.md, G39). Bytes written by
+# `solid.export(p, "stl", "fine")` on macOS arm64 (mesh bytes are geometry, R1 counts the host as
+# context): the last is past the 256 MiB export tmpfs. G38's rule admitted the two at -21.12 at
+# the fine STL on 76,540,259 B and 89,999,215 B enveloped, their m (10.5 d and 30 d) never priced.
+TALL_NUTS = {
+    "m967-c0.15": (NutParams(d=92.28, pitch=31.418, s=130.54, m=967.04, clearance=0.15),
+                   223951384),
+    "m967-c-21.12": (NutParams(d=92.28, pitch=31.418, s=130.54, m=967.04, clearance=-21.12),
+                     121632684),
+    "m2764.2-c-21.12": (NutParams(d=92.28, pitch=31.418, s=130.54, m=2764.2, clearance=-21.12),
+                        364438484),
+}
+
+
+def _g38_predict(p: FastenerParams, artifact: cost.Artifact) -> tuple[float, ...]:
+    """The prediction under G38's rule as shipped at 3b3b8f0: raw, then every combination of
+    edges of the out-of-band fields, and nothing else."""
+    out: list[tuple[str, tuple[float, ...]]] = []
+    for (kind, field), (low, high) in cost.BANDS.items():
+        scale = _scale(kind, field, p.d)
+        ratio = getattr(p, field) / scale if kind == p.kind else low
+        if ratio > high:
+            out.append((field, (low * scale, high * scale)))
+        elif ratio < low:
+            out.append((field, (low * scale,)))
+    values = cost._raw(p, artifact)
+    for combo in itertools.product(*(edges for _, edges in out)) if out else ():
+        moved = p.model_copy(update=dict(zip([f for f, _ in out], combo, strict=True)))
+        values = [max(a, b) for a, b in zip(values, cost._raw(moved, artifact), strict=True)]
+    return tuple(values)
+
+
+def _g38_fits(p: FastenerParams, artifact: cost.Artifact) -> bool:
+    return not cost.below_fitted_turns(p) and all(
+        cost.admitted(pred, cost.ENVELOPE[p.kind, artifact, t], budget)
+        for pred, t, budget in zip(_g38_predict(p, artifact), cost.TARGETS,
+                                   cost.BUDGET[artifact], strict=True))
+
+
+@pytest.mark.parametrize("name", list(TALL_NUTS))
+def test_a_tall_nut_is_refused_at_the_fine_stl_and_its_measured_bytes_are_enveloped(
+        name: str) -> None:
+    part, measured = TALL_NUTS[name]
+    assert not cost.fits(part, "stl-fine")
+    assert cost.refusal(part, "stl-fine") is not None
+    predicted = cost.predict(part, "stl-fine")
+    assert predicted.bytes * (1.0 + cost.ENVELOPE["nut", "stl-fine", "bytes"]) >= measured
+    models = oper_fit.models_of(_document())
+    assert tuple(predicted) == tuple(
+        oper_fit.predict(models["nut", "stl-fine", t], part.model_dump(), dict(cost.BANDS))
+        for t in cost.TARGETS)
+
+
+def test_g38s_rule_admitted_both_tall_nuts_below_the_clearance_band() -> None:
+    assert [name for name, (part, _) in TALL_NUTS.items() if _g38_fits(part, "stl-fine")] == [
+        "m967-c-21.12", "m2764.2-c-21.12"]
+
+
+def test_the_clearance_edges_are_also_tried_with_every_other_field_real() -> None:
+    part, _ = TALL_NUTS["m967-c-21.12"]
+    low = cost.BANDS["nut", "clearance"][0]
+    assert part.model_copy(update={"clearance": low}).model_dump() in [
+        e.model_dump() for e in cost._edges(part)]
+    # Alone, the clearance's edges are the combinations already: nothing is tried twice.
+    assert [e.clearance for e in cost._edges(NutParams(clearance=-0.5))
+            if isinstance(e, NutParams)] == [low]
+
+
+def test_no_d_only_link_changes_admission_under_the_clearance_pairing() -> None:
+    # A link that names only d is the commonest shared link: the pairing moves none, at d 0.1 to
+    # 999.9 mm on the 0.1 mm form step, for either kind and any artifact. At the default pitch 1
+    # the parameter model takes d 1.2 to 9.9 for the bolt (88) and 0.9 to 8.0 for the nut (72).
+    checked = 0
+    for kind in (BoltParams, NutParams):
+        for n in range(1, 10000):
+            try:
+                part = kind(d=n / 10)
+            except ValidationError:
+                continue
+            checked += 1
+            for artifact in ARTIFACTS:
+                assert cost.fits(part, artifact) == _g38_fits(part, artifact), (part, artifact)
+    assert checked == 88 + 72
+
+
+@pytest.mark.parametrize("part", [
+    BoltParams(), NutParams(), OVER, TALL_HEAD, WIDE_NUT, NutParams(clearance=-0.5),
+    NutParams(s=24.0, clearance=7.0), *[BoltParams.model_validate(dict(r.fields))
+                                        for r in catalogue()],
+    *[NutParams.model_validate(dict(r.fields)) for r in nut_catalogue()]])
+def test_the_clearance_pairing_moves_no_row_default_or_part_with_one_field_out(
+        part: FastenerParams) -> None:
+    for artifact in ARTIFACTS:
+        assert tuple(cost.predict(part, artifact)) == _g38_predict(part, artifact), artifact
+
+
+def test_r11_states_the_clearance_pairing_and_g39_quotes_the_owners_three_replies() -> None:
+    phase = REPO / ".planning" / "phases" / "07-operability-re-sweep"
+    protocol = (phase / "07-SWEEP-PROTOCOL.md").read_text()
+    r11 = " ".join(protocol.split("\n## R11 ", 1)[1].split("\n## R12 ", 1)[0].split())
+    assert ("is also predicted at each edge its clearance takes with every other field at its "
+            "real value") in r11
+    assert "no head ratio is paired with a real value" in r11
+    assert re.search(r"\bG\d+\b|\b\d{11}\b", r11) is None
+    gaps = (phase / "07-GAP-RULINGS.md").read_text()
+    replies = ['"Runner readings, widen e (Recommended)"',
+               '"C: fix rule, then runner (Recommended)"', '"F: clearance only (Recommended)"']
+    assert [gaps.index(reply) for reply in replies] == sorted(gaps.index(r) for r in replies)
+    assert re.search(r"^\| G39 \| R11 \|", gaps, re.MULTILINE)
+    owner = (phase / "07-OWNER-RULINGS.md").read_text()
+    assert ("\n## R11: the clearance edges are priced against the part's real fields "
+            "(2026-10-31, G39)\n") in owner
+    assert all(reply in owner for reply in replies)
+
+
+def test_the_budget_table_is_what_oper_fit_table_writes_from_the_committed_records() -> None:
+    # B-01's evidence: the table the owner ruled on, from a fresh fit (R12 widens fit.json's e,
+    # never the fit), byte for byte under the shipped bands and edges.
+    results = FIT.parent
+    explore_dirs, spread_dirs = sorted(results.glob("explore-*")), sorted(results.glob("spread-*"))
+    _, explore = oper_fit.load_set("explore", explore_dirs)
+    text = oper_fit.table(oper_fit.fit_document(explore_dirs, spread_dirs), list(_points()),
+                          explore, "bench/results/phase-07/fit.json")
+    assert text == (RULINGS.parent / "07-BUDGET-TABLE.md").read_text()
+
+
 def test_admission_at_the_budget_is_admitted_and_one_float_above_is_refused() -> None:
     # OPER-03 adjacency: R12's `pred x (1 + e) <= budget`, at the float boundary.
     for budget in cost.BUDGET["stl-fine"]:

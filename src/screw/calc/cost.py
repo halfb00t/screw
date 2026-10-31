@@ -236,7 +236,14 @@ def _edges(p: FastenerParams) -> list[FastenerParams]:
     set to edge x d and every other field held; empty when every ratio is in its band. A ratio
     above its band takes both edges, one below it the low edge only (ruling 5): a smaller head is
     assumed, unmeasured, never to cost more than one at the low edge. G38: the nut's clearance is
-    banded the same way, its edges in mm (`BANDED_IN_MM`)."""
+    banded the same way, its edges in mm (`BANDED_IN_MM`).
+
+    G39: each edge of an out-of-band clearance is also tried with every other field at its real
+    value. Without it a clearance below the band only ever met the head ratios at their edges:
+    d 92.28, pitch 31.418, s 130.54, m 967.04 at clearance -21.12 was admitted at the fine STL on
+    76.5 MB enveloped, its m (10.5 d) never priced, and `solid.export` wrote 121.6 MB; at m
+    2764.2 the same nut wrote 364.4 MB, past the 256 MiB export tmpfs (macOS arm64; mesh bytes
+    are geometry). Priced at its real m with clearance 0.15, each is refused."""
     out: list[tuple[str, tuple[float, ...]]] = []
     for (kind, field), (low, high) in BANDS.items():
         scale = 1.0 if (kind, field) in BANDED_IN_MM else p.d
@@ -246,9 +253,13 @@ def _edges(p: FastenerParams) -> list[FastenerParams]:
         elif ratio < low:
             out.append((field, (low * scale,)))
     names = [field for field, _ in out]
+    combos = [dict(zip(names, combo, strict=True))
+              for combo in itertools.product(*(values for _, values in out))] if out else []
+    if len(out) > 1:  # alone, the clearance's edges are already the combinations above
+        combos += [{field: edge} for field, values in out if (p.kind, field) in BANDED_IN_MM
+                   for edge in values]
     # model_copy sets the fields without validating: the edge part is only ever predicted.
-    return [p.model_copy(update=dict(zip(names, combo, strict=True)))
-            for combo in itertools.product(*(values for _, values in out))] if out else []
+    return [p.model_copy(update=combo) for combo in combos]
 
 
 def predict(p: FastenerParams, artifact: Artifact) -> Cost:

@@ -255,6 +255,24 @@ def test_outside_a_band_the_prediction_is_the_largest_anywhere_in_the_band() -> 
     assert oper_fit.predict(HEAD, both, BANDS) == pytest.approx(20.0 / 6.0, rel=1e-12)
 
 
+# ln_m +1 and clearance +1, nothing else: a taller nut and a larger clearance predict dearer.
+TALL = Model("nut", "stl-fine", "bytes", (0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0), 9, 7, 0.0, "")
+NUT_BANDS = {("nut", "m"): (0.8, 3.0), ("nut", "clearance"): (0.15, 5.0)}
+
+
+def test_the_clearance_edges_are_also_tried_with_every_other_field_real() -> None:
+    # G39: m 100 (10 d) above its band, clearance -2 below it. G38's combinations alone price m
+    # at its edges 8 and 30 only; the real m 100 at the clearance edge 0.15 is the largest.
+    tall = {"d": 10.0, "pitch": 1.5, "s": 17.0, "m": 100.0, "clearance": -2.0}
+    assert oper_fit.edges("nut", tall, NUT_BANDS) == [
+        {"m": 8.0, "clearance": 0.15}, {"m": 30.0, "clearance": 0.15}, {"clearance": 0.15}]
+    assert oper_fit.predict(TALL, tall, NUT_BANDS) == oper_fit.predict(
+        TALL, tall | {"clearance": 0.15})
+    # The clearance alone out: its edges are the combinations, none tried twice.
+    assert oper_fit.edges("nut", {"clearance": 7.0}, NUT_BANDS) == [
+        {"clearance": 0.15}, {"clearance": 5.0}]
+
+
 def _record_dir(root: Path, name: str, head: Raw, readings: list[Raw]) -> Path:
     shard = root / f"{name}-1-1"
     shard.mkdir(parents=True)

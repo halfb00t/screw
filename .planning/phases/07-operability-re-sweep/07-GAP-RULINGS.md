@@ -501,3 +501,68 @@ same bytes with the clearance band as without it, and fit.json and B-01's budget
 | Gap | Rule(s) | Owner ruling |
 |---|---|---|
 | G38 | R11 | The nut's `clearance` is a banded feature as G28's head ratios are, in mm rather than over d: its band is the [min, max] over the fitted nut points with omitted fields at their defaults, computed from the records by code and emitted into `calc/cost.py` with the head-ratio bands, never typed. A clearance above its band is predicted, target by target, as the largest of the raw prediction and the predictions at both edges; one below it as max(raw, low edge), with every combination of the part's other out-of-band edges, as G28 rules. ASSUMPTION, unmeasured on the runner: a smaller clearance never costs more than one at the low edge. Inside the band the prediction is unchanged. |
+
+## Gap G39 (owner ruling on the clearance edges the head ratios never met, 2026-10-31)
+
+Source: `docs/tech_debt/resolved/2026-10-31-tall-nut-misses-its-envelope-inside-the-clearance-band.md`,
+filed under G38, and quick task 261031-qd7. G38 stated that the review's second nut,
+`d=92.28 pitch=31.418 s=130.54 m=967.04`, missed its fine-STL bytes envelope by 2.93 x inside the
+clearance band. That figure divides the bytes of the nut at clearance 0.15 by the envelope of the
+nut at clearance -21.12, two different parts. Figures from `cost.predict` and `cost.fits` at
+3b3b8f0 (fit.json, runs explore 40646117094 and spread 40646125666), and from
+`solid.export(p, "stl", "fine")` on macOS arm64 (mesh bytes are geometry; R1 counts the host as
+context, not a bound):
+
+| nut (d 92.28, pitch 31.418, s 130.54) | stl-fine at 3b3b8f0 | enveloped bytes | bytes written | written / enveloped |
+| --- | --- | --- | --- | --- |
+| m 967.04, clearance 0.15 | refused | 304,650,496 | 223,951,384 | 0.7351 |
+| m 967.04, clearance -21.12 | admitted | 76,540,259 | 121,632,684 | 1.5891 |
+| m 2764.2 (the tallest valid), clearance -21.12 | admitted | 89,999,215 | 364,438,484 | 4.0494 |
+
+Inside the clearance band the nut is covered and refused. Below it the nut is admitted and misses,
+and at m 2764.2 its fine STL is past the 256 MiB export tmpfs (268,435,456 B) and the 239,508,059 B
+budget. The cause is the edge rule, not the fit's range: an above-band m (10.5 d, then 30 d) was
+priced either raw, with the clearance at its own -21.12 (the stl-fine clearance coefficients are
+positive, bytes 0.112 per mm), or at its band edges with the clearance at 0.15. The real m was
+never priced with the clearance at its edge. A wider `e` cannot close that: covering the m 2764.2
+nut alone needs the nut stl-fine bytes e at about 5.07, and the gap grows with m / d.
+
+The pairing of every out-of-band field's real value with the other fields' edges was measured over
+every link that names only d (d 0.1 to 999.9 mm on the 0.1 mm step) before the ruling. Paired for
+every field, above and below, it refuses the bolt's fine STL at d 1.2 to 4.0 and 8.3 to 9.9, its
+STEP at 1.2 to 3.4 and 8.4 to 9.5, and its preview at 9.8 and 9.9, leaving d-only M2 and M3 with no
+download, which undoes part of G28 ruling 5. Paired for the fields above their band only, it
+refuses the fine STL at d 1.2 to 4.0 and the STEP at 1.2 to 3.4. Paired for the clearance only, it
+moves no d-only link. All three refuse the three nuts above at the fine STL.
+
+The owner's replies, verbatim and in order (the label "(Recommended)" is the orchestrator's, not
+part of the ruling):
+
+1. "Runner readings, widen e (Recommended)". Given on the 2.93 x premise, which was wrong; it is
+   superseded by the two replies below.
+2. "C: fix rule, then runner (Recommended)": amend R11 so each out-of-band field also tries its
+   real value against the other fields' band edges, then read tall nuts on the runner at 5
+   repetitions and widen `e` only if a reading misses.
+3. "F: clearance only (Recommended)", after the d-only links above were put to the owner. This
+   reply is final: only the nut's clearance is paired with the part's real fields. The runner
+   reads tall nuts at 5 repetitions, plus the d-only M2 and M3, to test the gap that remains.
+
+Measured by committed code at the implementing commit: the three nuts above are refused at the fine
+STL, and their bytes written are under their enveloped predictions; 0 of the 294 bolt and 0 of the
+14 nut catalogue rows, neither default part and no part with one field out of band changes
+prediction; no d-only link changes admission at any artifact; `cost.predict` and
+`bench.oper_fit.predict` agree bit for bit; every file `--check` and `prediction-drift` write again
+is unchanged, `runtime.json` is unchanged, and `python -m bench.oper_fit table` from a fresh fit
+writes `07-BUDGET-TABLE.md` byte for byte.
+
+The gap that remains: an above-band head ratio is still priced only raw or at the edges of a
+below-band one. On the review's nut at clearance 0.15 (s / d 1.41 below its band, m / d 10.5 above)
+the full pairing predicts 305,377,062 B enveloped against 304,650,496 B, 1.0024 x. It is filed as
+`docs/tech_debt/active/2026-10-31-head-ratio-edges-never-meet-a-real-out-of-band-ratio.md`.
+
+This is a ruled change after R30's freeze, not a harness fix. It amends `07-SWEEP-PROTOCOL.md` R11
+on the phase branch `gsd/phase-07-operability-re-sweep`.
+
+| Gap | Rule(s) | Owner ruling |
+|---|---|---|
+| G39 | R11 | For a nut with its clearance and at least one other field outside their bands, each clearance edge is also predicted with every other field at its real value, and the prediction is the largest of these, the raw one and G28's edge combinations, target by target. A clearance alone outside its band is predicted as under G38. No head ratio is paired with a real value. The second campaign reads, at 5 repetitions on the runner, the review's tall nut shape (d 92.28, pitch 31.418, s 130.54, clearance 0.15) scaled whole by 1, 0.5 and 0.25 with m at 5, 10.5, 20 and 29.5 d, and the d-only bolts M2 and M3, each at every artifact the shipped rule admits it (`bench/points/outband-tall.json`, written by `python -m bench.oper_sets outband-tall`). A nut reading above its enveloped prediction widens `e` (R12, as G30 rules); a bolt reading widens none, and a bolt miss updates the remaining-gap debt. An admitted reading over a timeout, the tmpfs or the memory limit stops the phase for the owner. |

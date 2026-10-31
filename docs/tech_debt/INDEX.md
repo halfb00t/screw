@@ -17,7 +17,7 @@ Severity (grep-able `Severity:` field):
 | Severity | Item | Trigger to revisit |
 |---|---|---|
 | must | [Parts inside the fine-pitch walls that the kernel still refuses](active/2026-10-29-in-wall-parts-the-kernel-refuses.md) | before the first release |
-| must | [A tall nut with a coarse pitch misses its fine-STL bytes envelope inside the clearance band](active/2026-10-31-tall-nut-misses-its-envelope-inside-the-clearance-band.md) | before the first release, or an admitted nut measured over a limit |
+| must | [An above-band head ratio is never priced against a below-band one at its edge](active/2026-10-31-head-ratio-edges-never-meet-a-real-out-of-band-ratio.md) | the runner reading of the d-only M2 and M3 (G39), or before the first release |
 | nice | [The full tier's follow-up job has never run on the runner](active/2026-10-31-full-tier-follow-up-job-never-run-on-the-runner.md) | the first full-tier run that selects a follow-up point |
 | nice | [The build-time corpus is mostly parts the cost model refuses, so the bench judges little](active/2026-10-30-build-time-corpus-is-mostly-refused-by-the-cost-model.md) | the next change to bench/corpus.py or bench/build_time.py |
 | nice | [The refused preview's status sentence runs under the Fit button](active/2026-10-29-status-sentence-runs-under-fit.md) | the phase 7 UAT, or the next change to the viewport overlay |
@@ -41,6 +41,7 @@ Severity (grep-able `Severity:` field):
 
 | Item | Resolved in |
 |---|---|
+| [A tall nut below the clearance band was admitted on a prediction that never priced its height](resolved/2026-10-31-tall-nut-misses-its-envelope-inside-the-clearance-band.md) | this commit — fix(cost): price a nut's clearance edges with its other fields real (G39, L30) |
 | [Interim runtime bounds are spur's figures, not screw's measurements](resolved/2026-10-05-interim-runtime-bounds.md) | this commit — chore(07): remove the last interim runtime labels and close the debt they tracked (07 D-16) |
 | [bench.memory samples too coarsely to read a peak off a corpus that runs in seconds](resolved/2026-10-06-bench-memory-sampling-is-too-coarse-for-short-corpora.md) | this commit — chore(07): remove the last interim runtime labels and close the debt they tracked (07 D-16) |
 | [A valid in-cap request (d=100, length=200, default pitch) exceeds both interim backstops and is unrecorded](resolved/2026-10-11-default-pitch-d100-length200-exceeds-both-interim-backstops.md) | this commit — chore(07): remove the last interim runtime labels and close the debt they tracked (07 D-16) |

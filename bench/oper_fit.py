@@ -216,7 +216,8 @@ def edges(kind: str, params: Params, bands: Bands) -> list[dict[str, float]]:
     each sets (edge x d, every other field held); empty when every ratio is in its band. A ratio
     above its band takes both edges, one below it the low edge only (ruling 5): a smaller head is
     assumed, unmeasured, never to cost more than one at the low edge. G38: the nut's clearance is
-    banded the same way, its edges in mm (`MM_BANDS`)."""
+    banded the same way, its edges in mm (`MM_BANDS`). G39: each edge of an out-of-band
+    clearance is also tried with every other field at its real value, as `cost._edges` does."""
     full = _full(kind, params)
     d = _num(full["d"])
     out: list[tuple[str, tuple[float, ...]]] = []
@@ -227,11 +228,13 @@ def edges(kind: str, params: Params, bands: Bands) -> list[dict[str, float]]:
             out.append((field, (low * scale, high * scale)))
         elif ratio < low:
             out.append((field, (low * scale,)))
-    if not out:
-        return []
     names = [field for field, _ in out]
-    return [dict(zip(names, combo, strict=True))
-            for combo in itertools.product(*(values for _, values in out))]
+    combos = [dict(zip(names, combo, strict=True))
+              for combo in itertools.product(*(values for _, values in out))] if out else []
+    if len(out) > 1:  # alone, the clearance's edges are already the combinations above
+        combos += [{field: edge} for field, values in out if field in MM_BANDS.get(kind, ())
+                   for edge in values]
+    return combos
 
 
 def _raw(model: Model, params: Params) -> float:

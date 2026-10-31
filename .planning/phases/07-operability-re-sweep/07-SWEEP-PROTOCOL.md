@@ -340,6 +340,18 @@ assumes, without a measurement, that a smaller clearance never costs more than o
 Inside the band the prediction is the fit's own, unchanged. This sentence was added after the first
 runner reading by the owner's ruling that R30 asks for.
 
+A nut whose `clearance` and at least one other field lie outside their bands is also predicted at
+each edge its clearance takes with every other field at its real value, and the prediction is the
+largest of these, the raw one and the edge combinations above, target by target; a clearance alone
+outside its band is predicted as above, and no head ratio is paired with a real value. Without
+this, a clearance below its band met a nut height above its band only at that band's edges, so a
+nut many times taller than any fitted point was priced as one at the high edge. The second campaign
+reads, at 5 repetitions, the code review's tall nut (d 92.28, pitch 31.418, s 130.54, the default
+clearance) scaled whole by 1, 0.5 and 0.25, with m at 5, 10.5, 20 and 29.5 d, and the two bolts
+that name only d, at 2 and 3 mm, each at every artifact the shipped rule admits it. A nut reading
+above its enveloped prediction widens `e` (R12) and a bolt reading widens none. This sentence was
+added after the first runner reading by the owner's ruling that R30 asks for.
+
 ## R12 - The envelope (D-07)
 
 For each (kind, artifact, target) the envelope `e` is `max(0, largest actual / predicted - 1)` over
