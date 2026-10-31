@@ -17680,3 +17680,27 @@ MAX_BOLT_D_PER_PITCH = Fraction("20")
 | tip-dense-M3-n57-left | ok | 1 | True | 0.011435169937169753 | 0.3811723312389918 |
 
 All 18 points are `ok`, inside their timeouts and their limits, so G37's ruling 1 lets the full tier judge every point as R28 and R29 write it, with no exclusion. The closest to the gate is `tip-dense-M3-n90-right`, at 0.97 of T_PIECE, the debug session's +0.0291 (E27, macOS arm64), now read on linux/amd64. The kernel's result for these parts matched across platforms to 1e-9 (E29), so this margin is a property of the part and not of the runner, but it is a thin one: the residual debt (`docs/tech_debt/active/2026-10-29-in-wall-parts-the-kernel-refuses.md`) stays open.
+
+## Phase 7 full recording tier (07-19, R28, R29)
+
+### full, run 41155746591
+
+- Dispatched sha: `b0186b9af154540c783d4197140800481086efcb`
+- Records: `bench/results/phase-07/full-41155746591/` (40 artifacts, 1056 readings), run https://github.com/halfb00t/screw/actions/runs/41155746591
+- CPU models seen (jobs): AMD EPYC 7763 64-Core Processor (22); AMD EPYC 9V45 96-Core Processor (4); AMD EPYC 9V74 80-Core Processor (9); INTEL(R) XEON(R) PLATINUM 8573C (2); Intel(R) Xeon(R) 6973P-C (1); Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz (2)
+- Counts by status: ok: 1056
+- The set is `bench/points/full.json` (`python -m bench.oper_sets full`): 1056 points, every catalogue row of both kinds at the 3 artifacts (882 bolt, 42 nut), the 42 nut-factorial points the shipped model admits and the 90 dense-boundary points (G19); no pair the cost model refuses, so no `expect: refused` point; 106 combinations the parameter model refuses in `dropped` (pitch_too_fine 57, nut_too_thin 18, pitch_too_coarse 6, turn_cap 25, G37). 40 shards by R6 (explore run 40646117094's charges), m = 0.5382691940004687 (spread run 40646125666).
+- Judged in the run: every `measure` job passed (`bench.oper run` judges each point by R29), `followup-plan` selected nothing, so `followup` was skipped, and `verdict` passed. Again by committed code over the committed records: `python3 -m bench.oper verdict --set full --from bench/results/phase-07/full-41155746591` prints `full: 1056 points, 0 failures`.
+- The largest cold wall against its timeout is `iso4017:M20x200` at `stl-fine`: 28.21965351299997 s of 71 s, 0.3974599086338024; times (1 + m) it is 43.40942366441496 s, under the timeout, which is why R5 re-read no point.
+- R12: `python -m bench.oper_sets envelope-check --fit <a scratch copy of fit.json> --from bench/results/phase-07/full-41155746591 bench/results/phase-07/dense-band-41153581470` prints `no reading exceeds its envelope`; the largest ratio is 1.0, nut step bytes at `nut-d10-p3.5-m0.8d-s4d-c0.15-right`, the point that set that envelope. fit.json does not move.
+
+### bounds, runs 41089145344 and 41094108547
+
+The required tier (`tests/data/oper_boundary.json`, 355 points, R27 step 5 less the points R31's wall refuses) in ci.yml's `bounds` matrix, 4 shards, each judged in its job by `bench.oper check`. Job results as `gh run view <run> --json jobs` reports them:
+
+| run | head | bounds (1) | bounds (2) | bounds (3) | bounds (4) |
+| --- | --- | --- | --- | --- | --- |
+| 41089145344 | `ffa53f1` | success, 747 s | success, 690 s | success, 480 s | success, 315 s |
+| 41094108547 | `023a3f9` | success, 718 s | success, 728 s | success, 698 s | success, 354 s |
+
+41089145344 is the tier's first green run (07-18); every shard is under its 20-minute timeout in both.
