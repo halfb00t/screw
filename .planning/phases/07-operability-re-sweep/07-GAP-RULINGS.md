@@ -553,7 +553,8 @@ STL, and their bytes written are under their enveloped predictions; 0 of the 294
 prediction; no d-only link changes admission at any artifact; `cost.predict` and
 `bench.oper_fit.predict` agree bit for bit; every file `--check` and `prediction-drift` write again
 is unchanged, `runtime.json` is unchanged, and `python -m bench.oper_fit table` from a fresh fit
-writes `07-BUDGET-TABLE.md` byte for byte.
+writes `07-BUDGET-TABLE.md` byte for byte on macOS arm64 and, on any host, the same table as G38's
+rule (the fit's last bits are the host's, G33).
 
 The gap that remains: an above-band head ratio is still priced only raw or at the edges of a
 below-band one. On the review's nut at clearance 0.15 (s / d 1.41 below its band, m / d 10.5 above)

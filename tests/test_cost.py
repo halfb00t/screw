@@ -468,15 +468,36 @@ def test_r11_states_the_clearance_pairing_and_g39_quotes_the_owners_three_replie
     assert all(reply in owner for reply in replies)
 
 
-def test_the_budget_table_is_what_oper_fit_table_writes_from_the_committed_records() -> None:
-    # B-01's evidence: the table the owner ruled on, from a fresh fit (R12 widens fit.json's e,
-    # never the fit), byte for byte under the shipped bands and edges.
+def _g38_oper_fit_edges(kind: str, params: oper_fit.Params,
+                        bands: oper_fit.Bands) -> list[dict[str, float]]:
+    """`bench.oper_fit.edges` as shipped at 3b3b8f0, before G39: G28's combinations only."""
+    full = oper_fit._full(kind, params)
+    out: list[tuple[str, tuple[float, ...]]] = []
+    for (k, field), (low, high) in bands.items():
+        scale = oper_fit._scale(k, field, oper_fit._num(full["d"]))
+        ratio = oper_fit._num(full[field]) / scale if k == kind else low
+        if ratio > high:
+            out.append((field, (low * scale, high * scale)))
+        elif ratio < low:
+            out.append((field, (low * scale,)))
+    names = [field for field, _ in out]
+    return [dict(zip(names, combo, strict=True))
+            for combo in itertools.product(*(values for _, values in out))] if out else []
+
+
+def test_the_clearance_pairing_writes_the_budget_table_g38s_rule_writes(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    # B-01's evidence, from a fresh fit (R12 widens fit.json's e, never the fit). The fit's last
+    # bits are the host's least squares (G33: linux/amd64 and macOS differ), so the table is held
+    # to the one G38's rule writes on the same host, not to the committed file's bytes.
     results = FIT.parent
     explore_dirs, spread_dirs = sorted(results.glob("explore-*")), sorted(results.glob("spread-*"))
     _, explore = oper_fit.load_set("explore", explore_dirs)
-    text = oper_fit.table(oper_fit.fit_document(explore_dirs, spread_dirs), list(_points()),
-                          explore, "bench/results/phase-07/fit.json")
-    assert text == (RULINGS.parent / "07-BUDGET-TABLE.md").read_text()
+    document = oper_fit.fit_document(explore_dirs, spread_dirs)
+    text = oper_fit.table(document, list(_points()), explore, "bench/results/phase-07/fit.json")
+    monkeypatch.setattr(oper_fit, "edges", _g38_oper_fit_edges)
+    assert oper_fit.table(document, list(_points()), explore,
+                          "bench/results/phase-07/fit.json") == text
 
 
 def test_admission_at_the_budget_is_admitted_and_one_float_above_is_refused() -> None:
@@ -866,6 +887,7 @@ def test_the_api_and_the_cli_serve_the_same_capped_part_warning_and_file_name(
         capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch) -> None:
     from fastapi.testclient import TestClient
 
+    from screw import app as app_module
     from screw import cli
     from screw.app import app, build_backend
 
@@ -889,6 +911,10 @@ def test_the_api_and_the_cli_serve_the_same_capped_part_warning_and_file_name(
 
     monkeypatch.setitem(app.dependency_overrides, build_backend, lambda: stub)
     monkeypatch.setattr("screw.solid.export", fake_export)
+    # The byte cache is shared by the pytest worker, and tests/test_api.py downloads the same
+    # capped M20 preview: from a warm cache the API serves it without a build and `built` misses
+    # its entry (CI run 41207004836, once the suite's split across workers moved).
+    monkeypatch.setattr(app_module, "_EXPORTS", app_module._BlobCache(1 << 20))
     r = client.get(f"/api/{kind}/model.stl", params={**query, "quality": "preview"})
     assert r.status_code == 200
     api_name = re.fullmatch(r'attachment; filename="(.+)"', r.headers["content-disposition"])

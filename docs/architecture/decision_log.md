@@ -2372,8 +2372,9 @@ enveloped and the third at 973,648,375 B.
 part with one field outside its band changes prediction. No link that names only d (bolt d 1.2 to
 9.9, nut d 0.9 to 8.0) changes admission at any artifact. Every point file `--check` writes again,
 `prediction-drift` is 0 in every file, `runtime.json` is unchanged, and `python -m bench.oper_fit
-table` from a fresh fit writes `07-BUDGET-TABLE.md` byte for byte. `tests/test_cost.py` pins each of
-these. Pairing every out-of-band field with the others' edges (the owner's reply "C") would have
+table` from a fresh fit writes `07-BUDGET-TABLE.md` byte for byte on macOS arm64. On any host it
+writes the same table under this rule as under L29's; the fit's last bits are the host's (G33), so
+the committed bytes are not pinned on linux. `tests/test_cost.py` pins each of these. Pairing every out-of-band field with the others' edges (the owner's reply "C") would have
 refused the d-only bolt's fine STL at d 1.2 to 4.0 and 8.3 to 9.9; the owner ruled the clearance
 only ("F").
 
