@@ -75,12 +75,16 @@ REQUIRED_JOBS_FILE = _WORKFLOWS_DIR / "required-jobs.txt"
 # `src/screw/pool.py` / `src/screw/app.py`, the deadline and the timeout's application. The
 # tiers build each point in its own container from the set the cost module admits, never
 # through them, so no tier run observes them; `make verify` pins both in `test (3.12)`.
+# `Dockerfile` and `requirements.txt` pin the image and the kernel pair every bound was measured
+# on, so a bump of either can move them all (L28, code review WR-02).
 FULL_TIER_WORKFLOW = "operability.yml"
 FULL_TIER_PATHS: tuple[str, ...] = (
     "src/screw/calc/cost.py",
     "src/screw/calc/thread.py",
     "src/screw/params.py",
     "src/screw/solid/",
+    "Dockerfile",
+    "requirements.txt",
 )
 # The run name a full-tier run carries (operability.yml `run-name` with no `set` input, or
 # `set=full`): a dispatch of another set on the same head is not the full tier and must not
@@ -94,23 +98,28 @@ FULL_TIER_RUN_NAME = "operability: full"
 # from the mounted `bench/`) and the point set whose timeouts and limits the verdict judges
 # against. The same holds for the required jobs `check_head` reads: ci.yml defines them, and its
 # `bounds` shards judge `tests/data/oper_boundary.json` with the same bench code. Merging also puts
-# the PR's `required-jobs.txt` on main, where every later landing reads it. A PR that edits one of
-# these files can make its own run pass, so `gate_refusals` refuses it unless the owner passes
+# the PR's `required-jobs.txt` on main, where every later landing reads it, and so does this
+# script, its tests and the `pr.land` recipe in the Makefile, the merge gate itself (code review
+# WR-02). A PR that edits one of these files can make its own run pass, or remove the check that
+# reads it, so `gate_refusals` refuses it unless the owner passes
 # `GATE_FLAG`. Left out, for the reasons L28 gives: `bench/oper_bound.py`, `bench/oper_load.py`
 # and `bench/thread_spike/` run only for bound, load and probe points, and neither point file
 # holds one. `test (3.12)` runs `make verify` on the PR's own tests, which is inherent to CI and
-# not guarded. A test derives this list from operability.yml and ci.yml's `bounds` job, and pins
-# both point files' kinds.
+# not guarded. A test derives this list from operability.yml and ci.yml's `bounds` job, adds
+# required-jobs.txt and the merge gate's three files, and pins both point files' kinds.
 GATE_PATHS: tuple[str, ...] = (
     ".github/workflows/ci.yml",
     ".github/workflows/operability.yml",
     ".github/workflows/required-jobs.txt",
+    "Makefile",
     "bench/__init__.py",
     "bench/oper.py",
     "bench/oper_child.py",
     "bench/oper_lift.py",
     "bench/points/full.json",
+    "scripts/pr_land.py",
     "tests/data/oper_boundary.json",
+    "tests/test_pr_land.py",
 )
 GATE_FLAG = "--owner-approves-gate-change"
 

@@ -2215,7 +2215,8 @@ Reversibility: reversible. One rule and one constant pair in `scripts/pr_land.py
 Date: 2026-10-31. Decided by the owner on two findings of the phase 7 security audit: T-07-71,
 "Add as threat, mitigate (Recommended)", and T-07-72, "Extend L28 guard (Recommended)".
 Supersedes L27 in part, the claim that the list in `pr_land.py` alone decides. Extends L08's
-`make pr.land`. L27's rule and list are unchanged.
+`make pr.land`. L27's rule is unchanged; its list gains `Dockerfile` and `requirements.txt` (below,
+on the code review's WR-02, "WR-02 gate paths (Recommended)").
 
 **The findings.** T-07-71: `check_full_tier` picks the run by its name, `operability: full`, and
 the name comes from the PR's copy of `operability.yml`. So do the jobs, the bench code that takes
@@ -2239,34 +2240,44 @@ runs every `python -m` step the full tier takes (`matrix`, `run`, `summarize`, `
 and `verdict`) and the `bounds` job's `check`. Then `bench/oper_child.py`, the child that `run` and
 `check` start in each container from the checkout's `bench/` mounted read-only, and
 `bench/oper_lift.py`, which the child imports for a bolt or a nut. Last, the two point files the
-verdicts judge against, `bench/points/full.json` and `tests/data/oper_boundary.json`. A test in
-`tests/test_pr_land.py` derives the list from the workflow text: all of `operability.yml` and
-`ci.yml`'s `bounds` job. It takes the `python -m` modules and the child, walks their `bench`
-imports with `ast`, function-level ones included, and adds every package `__init__.py`, the set
-`--set` names and the file `check` reads. With `required-jobs.txt`, the result must equal
-`GATE_PATHS`.
+verdicts judge against, `bench/points/full.json` and `tests/data/oper_boundary.json`. And the merge
+gate itself, which merging puts on main as it does `required-jobs.txt`: `scripts/pr_land.py`
+(`GATE_PATHS`, `FULL_TIER_PATHS`, `check_head` and this rule), its tests `tests/test_pr_land.py`,
+and the `Makefile`, whose `pr.land` recipe runs it. A PR could otherwise delete the rule and land
+without the flag. A test in `tests/test_pr_land.py` derives the list from the workflow text: all of
+`operability.yml` and `ci.yml`'s `bounds` job. It takes the `python -m` modules and the child,
+walks their `bench` imports with `ast`, function-level ones included, and adds every package
+`__init__.py`, the set `--set` names and the file `check` reads. With `required-jobs.txt` and the
+merge gate's three files, the result must equal `GATE_PATHS`.
+
+**The image's pins.** `Dockerfile` and `requirements.txt` pin the image and the kernel pair every
+bound was measured on, so a bump of either can move every bound. They join L27's `FULL_TIER_PATHS`
+and the `paths:` filter of `operability.yml`, which a test holds equal, so a PR that touches either
+needs a green full tier on its head.
 
 **The exclusions.** `bench/oper_bound.py`, `bench/oper_load.py` and `bench/thread_spike/` run only
 for bound, load and probe points. `full.json` (972 bolt and 84 nut points) and `oper_boundary.json`
 (329 bolt and 26 nut points) hold none of those, and a test fails when such a point is added.
 `bench/oper_sets.py` and `bench/oper_fit.py` write and fit the point files, but no tier run
-imports them, and both files are guarded themselves. The image (`Dockerfile`, `src/`) is the
-system under test, which L27 covers.
+imports them, and both files are guarded themselves. The image (`src/`, and now `Dockerfile` and
+`requirements.txt`) is the system under test, which L27 covers.
 
-**The limit.** `test (3.12)` runs `make verify` on the PR's own tests, `Makefile` and
-`pyproject.toml`, and its `prediction-drift` step runs the PR's `bench/oper_sets.py`.
+**The limit.** `test (3.12)` runs `make verify` on the PR's own tests and `pyproject.toml` (the
+`Makefile` is guarded as the merge gate's recipe), and its `prediction-drift` step runs the PR's
+`bench/oper_sets.py`.
 `vendor-bundle` builds the PR's own `web/`. A PR can weaken any of these, and nothing here guards
 them: running the PR's own suite is inherent to CI, so guarding it would mean guarding nearly every
 PR. Review is the defence there. The rule guards only the files that pick, define or judge a run.
 
 **PR #26.** The phase 7 PR touches `ci.yml`, `required-jobs.txt`, `oper_boundary.json`,
-`operability.yml`, `oper.py`, `oper_child.py`, `oper_lift.py` and `full.json`, so landing it needs
-the flag.
+`operability.yml`, `oper.py`, `oper_child.py`, `oper_lift.py` and `full.json`, and the merge gate's
+`Makefile`, `scripts/pr_land.py` and `tests/test_pr_land.py`, so landing it needs the flag. It also
+touches `Dockerfile`, so it needs the full tier on its head as well.
 
 Reason: a run cannot vouch for a change to the code that judges it.
 
 Reversibility: reversible. One constant, one rule and one flag in `scripts/pr_land.py`, the
-`PR_LAND_FLAGS` pass-through in the Makefile, and their tests.
+`PR_LAND_FLAGS` pass-through in the Makefile, the two paths in `FULL_TIER_PATHS`, and their tests.
 
 ## L29 — The nut's clearance is banded like the head ratios: below the two values the fit read, it is judged at the low edge
 

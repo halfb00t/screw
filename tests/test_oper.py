@@ -1039,7 +1039,8 @@ def _run_values(text: str) -> list[str]:
 # 07 D-12, D-13 (07-19): the full tier runs on a dispatch, weekly and on a PR that touches the
 # cost model's files or the solid package. These pins replace 07-01's "dispatch only" pin.
 FULL_TIER_PATHS_YML = ["src/screw/calc/cost.py", "src/screw/calc/thread.py",
-                       "src/screw/params.py", "src/screw/solid/**"]
+                       "src/screw/params.py", "src/screw/solid/**", "Dockerfile",
+                       "requirements.txt"]
 
 
 def workflow_triggers(text: str) -> dict[str, str]:

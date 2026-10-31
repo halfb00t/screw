@@ -1292,14 +1292,17 @@ def test_gate_paths_are_what_the_full_tier_and_the_bounds_job_run_and_read() -> 
     """T-07-71, T-07-72, L28: a bench module either verdict starts to import, or a new point or
     boundary file a workflow reads, fails here until it is on GATE_PATHS. ci.yml contributes only
     its `bounds` job: `test (3.12)` runs the PR's own `make verify`, inherent to CI and unguarded,
-    and `required-jobs.txt` is guarded because merging makes it main's list."""
+    and `required-jobs.txt` is guarded because merging makes it main's list. So is the merge gate
+    (this script, its tests and the Makefile's `pr.land` recipe), for the same reason (WR-02)."""
     workflows = REPO_ROOT / ".github" / "workflows"
     oper = (workflows / FULL_TIER_WORKFLOW).read_text()
     bounds = _job_block((workflows / WORKFLOW).read_text(), "bounds")
     assert "python -m bench.oper verdict --set full --from records" in oper
     assert "python3 -m bench.oper check tests/data/oper_boundary.json" in bounds
     derived = (judge_files(FULL_TIER_WORKFLOW, oper) | judge_files(WORKFLOW, bounds)
-               | {".github/workflows/required-jobs.txt"})
+               | {".github/workflows/required-jobs.txt", "Makefile", "scripts/pr_land.py",
+                  "tests/test_pr_land.py"})
+    assert "-m scripts.pr_land" in (REPO_ROOT / "Makefile").read_text()
     assert derived == set(GATE_PATHS)
 
 

@@ -44,6 +44,8 @@ on:
       - "src/screw/calc/thread.py"
       - "src/screw/params.py"
       - "src/screw/solid/**"
+      - "Dockerfile"
+      - "requirements.txt"
 
 run-name: "operability: ${{ inputs.set || 'full' }}"
 
