@@ -18,12 +18,13 @@ from decimal import Decimal
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from bench import oper, oper_sets
 from bench.oper_sets import ProtocolStop
 from bench.thread_spike.maths import PITCH
 from screw.calc import cost
-from screw.calc.thread import built_thread_length
+from screw.calc.thread import _exact, built_thread_length
 from screw.params import KINDS, BoltParams, FastenerParams
 from screw.tables.presets import expand, expand_nut
 
@@ -2702,3 +2703,158 @@ def test_a_predicted_float_moved_by_one_ulp_passes_the_runs_ii_check(
     entry["edge_ratio"] = entry["edge_ratio"] * (1 + 2.0**-40)
     path.write_text(json.dumps(document, indent=1) + "\n")
     assert oper_sets._check_runs2() == f"{path} is not what the generator writes from its sources"
+
+
+# --- R28: the full tier and G37's dense-band pre-read (07-19) -------------------------------------
+
+EXPLORE_RUN = "bench/results/phase-07/explore-40646117094"
+SPREAD_RUN = "bench/results/phase-07/spread-40646125666"
+
+
+@functools.cache
+def _full() -> oper_sets._FullSet:
+    return oper_sets.full_set(EXPLORE_RUN, SPREAD_RUN)
+
+
+def _part_of(point: Mapping[str, object]) -> FastenerParams:
+    params = point["params"]
+    assert isinstance(params, dict)
+    return KINDS[str(point["kind"])].model_validate(params)
+
+
+def test_the_full_set_holds_every_catalogue_row_of_both_kinds_at_each_artifact() -> None:
+    rows = [p for p in _full().points if "preset" in p]
+    by_kind = {kind: {(p["label"], p["artifact"]) for p in rows if p["kind"] == kind}
+               for kind in ("bolt", "nut")}
+    assert (len(by_kind["bolt"]), len(by_kind["nut"])) == (294 * 3, 14 * 3)
+    assert {a for _, a in by_kind["bolt"] | by_kind["nut"]} == set(oper_sets.ARTIFACTS)
+
+
+def test_every_full_point_the_cost_model_admits_carries_its_timeout_and_enveloped_limit() -> None:
+    envelope = oper_sets.shipped_envelope()
+    for point in _full().points:
+        artifact = point["artifact"]
+        assert artifact in cost.ARTIFACTS
+        part = _part_of(point)
+        assert cost.fits(part, artifact) == ("expect" not in point)
+        if "expect" in point:
+            assert point["expect"] == "refused"
+            assert "limit" not in point
+            assert "timeout_s" not in point
+            continue
+        assert point["timeout_s"] == cost.BUILD_TIMEOUT_S[artifact]
+        assert point["limit"] == dict(zip(cost.TARGETS, oper_sets.enveloped(
+            part, artifact, envelope), strict=True))
+
+
+def test_a_full_combination_the_parameter_model_refuses_is_dropped_with_its_type() -> None:
+    """G37 ruling 2 (R4): never read and never judged."""
+    for entry in _full().dropped:
+        with pytest.raises(ValidationError) as refused:
+            KINDS[str(entry["kind"])].model_validate(entry["params"])
+        assert refused.value.errors()[0]["type"] == entry["error"]
+    errors = {str(entry["error"]) for entry in _full().dropped}
+    assert "pitch_too_fine" in errors
+    assert all(str(entry["label"]).startswith("nut-d") for entry in _full().dropped)
+
+
+def test_the_dense_boundary_is_each_size_and_hand_at_the_most_admitted_whole_turns() -> None:
+    dense = [p for p in _full().points if str(p["label"]).startswith("dense-")]
+    assert len(dense) == len(PITCH) * 2 * 3
+    for point in dense:
+        part = _part_of(point)
+        assert isinstance(part, BoltParams)
+        assert part.length == part.thread_length
+        assert (part.s, part.k) == (oper_sets._scaled(part.d, "1.6"),
+                                    oper_sets._scaled(part.d, "0.6"))
+        n = round(part.thread_length / part.pitch)
+        assert f"-n{n}-" in str(point["label"])
+        more = {**part.model_dump(include={"d", "pitch", "s", "k", "left_hand"}),
+                "length": oper_sets._dec(
+                    (n + 1) * _exact(part.pitch)),
+                "thread_length": oper_sets._dec((n + 1) * _exact(part.pitch))}
+        try:
+            longer = KINDS["bolt"].model_validate(more)
+        except ValueError:
+            continue  # n + 1 is past the turn cap
+        artifact = point["artifact"]
+        assert artifact in cost.ARTIFACTS
+        assert not cost.fits(longer, artifact)
+
+
+def test_the_full_set_records_the_margin_and_shards_every_point_by_r6() -> None:
+    full = _full()
+    document = json.loads(full.text())
+    assert document["set"] == "full"
+    assert document["margin"] == 0.5382691940004687  # R5, spread run 40646125666 (RESULTS)
+    assert sum(document["shard_sizes"]) == len(document["points"])
+    table = oper_sets.charge_table(oper_sets._read(EXPLORE_RUN))
+    assert [p["charge_s"] for p in document["points"]] == oper_sets.charges(
+        document["points"], table, oper.DEADLINE_S)
+
+
+@pytest.mark.parametrize(("d", "turns", "inside"), [
+    (2.0, 90, True), (0.5, 10, True), (0.85, 4, True), (3.3, 30, True), (0.45, 90, False),
+    (0.9, 90, False), (1.55, 90, False), (3.35, 30, False), (2.0, 3, False)])
+def test_the_residual_band_is_the_in_wall_debts_two_bands_past_three_turns(
+        d: float, turns: int, inside: bool) -> None:
+    pitch = oper_sets._dec(_exact(d) / 5)
+    thread = oper_sets._dec(turns * _exact(pitch))  # 3 turns exactly, not 3 + an ulp
+    part = BoltParams(d=d, pitch=pitch, length=thread, thread_length=thread, s=1.6 * d,
+                      k=0.6 * d)
+    assert oper_sets.in_residual_band(part) is inside
+
+
+def test_the_committed_dense_band_set_is_the_full_sets_residual_points_and_their_tips() -> None:
+    """G37 ruling 1: the 18 points read before the full tier's trigger and gate, written by code."""
+    text = (oper.POINTS_DIR / "dense-band.json").read_text()
+    assert oper_sets.same_but_predicted(text, oper_sets._full_texts(text, "dense-band"))
+    document = json.loads(text)
+    parts = [p for p in document["points"] if p["kind"] == "bolt"]
+    wanted = [p for p in _full().points if str(p["label"]).startswith("dense-")
+              and oper_sets.in_residual_band(_part_of(p))]
+    assert json.loads(json.dumps(wanted)) == parts
+    assert len(parts) == 18
+    probes = [p for p in document["points"] if p["kind"] == "probe"]
+    assert [p["label"] for p in probes] == [f"tip-{label}" for label in dict.fromkeys(
+        str(p["label"]) for p in parts)]
+    assert all(p["probe"] == "tip_piece" for p in probes)
+    loaded = oper.load_set("dense-band")
+    assert all(p.limit is not None for p in loaded.points if p.kind == "bolt")
+
+
+def test_run_fails_a_shard_whose_judged_reading_misses_after_writing_every_record(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    """R29: a miss fails the tier; the records of the red shard are all written first."""
+    limit = {"bytes": 100.0, "seconds": 10.0, "peak": 100.0}
+    points = [{"label": f"p{i}", "kind": "bolt", "params": {}, "artifact": "step",
+               "charge_s": 1.0, "timeout_s": 26.0, "limit": limit} for i in range(3)]
+    (tmp_path / "judged.json").write_text(json.dumps({
+        "set": "judged", "rule": "R29", "reps": 1, "shards": 1, "deadline_s": 600,
+        "points": points}))
+    monkeypatch.setattr(oper, "POINTS_DIR", tmp_path)
+
+    def fake(point: oper.Point, rep: int, *args: object, **kwargs: object) -> Raw:
+        over = point.label == "p1"
+        return {**_reading({"label": point.label, "kind": "bolt", "params": {},
+                            "artifact": "step"}), "bytes": 1000 if over else 10}
+
+    monkeypatch.setattr(oper, "run_reading", fake)
+    monkeypatch.setattr(oper, "_image_versions", lambda image: {})
+    monkeypatch.setattr(oper, "header", lambda image, versions: {"type": "header"})
+    out = tmp_path / "out.jsonl"
+    assert oper.main(["run", "--set", "judged", "--shard", "1", "--rep", "1", "--image", "i",
+                      "--out", str(out)]) == 1
+    assert [json.loads(line)["type"] for line in out.read_text().splitlines()] == [
+        "header", "reading", "reading", "reading"]
+    assert "p1 at step: bytes 1000 over its limit 100.0" in capsys.readouterr().err
+
+
+def test_a_judged_point_needs_its_timeout_and_its_limit_together(tmp_path: Path) -> None:
+    (tmp_path / "half.json").write_text(json.dumps({
+        "set": "half", "rule": "R29", "reps": 1, "shards": 1, "deadline_s": 600,
+        "points": [{"label": "p", "kind": "bolt", "params": {}, "artifact": "step",
+                    "limit": {"bytes": 1.0, "seconds": 1.0, "peak": 1.0}}]}))
+    with pytest.raises(ValueError, match="'p' carries timeout_s and limit together"):
+        oper.load_set("half", tmp_path)

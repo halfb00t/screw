@@ -180,6 +180,35 @@ def _probe_one_pipe(d: float, pitch: float, turns: float, left_hand: bool) -> di
                     closed_volume(d, pitch, turns * pitch))
 
 
+def _probe_tip_piece(fields: Mapping[str, object]) -> dict[str, object]:
+    """A bolt's tip cone cut from its bare thread exactly as the build cuts it, with the piece it
+    removed as a ratio to its oracle: `volume_ratio - 1` is the relative error the build holds to
+    T_PIECE (`calc.thread.piece_refusal`), reported here and not gated. An `ok` build says only
+    that the error was inside the gate; G37 asks how far inside, for the dense boundary's bolts in
+    the in-wall residual, whose tip error the debug session saw grow with the turns (E27)."""
+    from screw.calc.thread import (
+        TIP_ANGLE_DEG,
+        built_thread_length,
+        closed_volume,
+        tip_cone_fits,
+        tip_cone_volume,
+    )
+    from screw.params import BoltParams
+    from screw.solid import bolt, check_solid, precise_volume
+
+    p = BoltParams.model_validate(dict(fields))
+    t = built_thread_length(p.thread_length, p.length)
+    if not tip_cone_fits(p.pitch, t):
+        raise ValueError("no tip cone fits this thread, so there is no piece to measure")
+    started = time.perf_counter()
+    bare = bolt.thread(p)
+    before = check_solid(bare, closed_volume(p.d, p.pitch, t), part="thread")
+    cut = bolt.tip_cut(p, bare)
+    after = precise_volume(cut)
+    build_s = time.perf_counter() - started
+    return _finding(cut, build_s, before - after, tip_cone_volume(p.d, p.pitch, TIP_ANGLE_DEG))
+
+
 def _number(args: Mapping[str, object], key: str) -> float:
     value = args[key]
     if isinstance(value, bool) or not isinstance(value, int | float):
@@ -214,6 +243,8 @@ def run_probe(point: Mapping[str, object]) -> dict[str, object]:
     elif name == "naive":
         job = partial(_probe_naive, _number(args, "d"), _number(args, "pitch"),
                       _number(args, "length"))
+    elif name == "tip_piece":
+        job = partial(_probe_tip_piece, args)
     elif name == "one_pipe":
         job = partial(_probe_one_pipe, _number(args, "d"), _number(args, "pitch"),
                       _number(args, "turns"), _flag(args, "left_hand"))

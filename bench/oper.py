@@ -68,6 +68,8 @@ PROBE_ARGS: dict[str, tuple[str, ...]] = {
     "tail": ("d", "pitch", "turns", "tail", "left_hand"),
     "naive": ("d", "pitch", "length"),
     "one_pipe": ("d", "pitch", "turns", "left_hand"),
+    # G37: a bolt's tip cone cut and measured as the build does, its piece reported and not gated.
+    "tip_piece": ("d", "pitch", "length", "thread_length", "s", "k", "left_hand"),
 }
 _PROBE_FLAGS = frozenset({"left_hand"})
 _PROBE_POINT_KEYS = frozenset({"label", "kind", "probe", "args"})
@@ -94,7 +96,9 @@ _SET_KEYS = frozenset({"set", "rule", "reps", "shards", "deadline_s", "points"})
 # `envelope` is the R12 envelope a Runs II set was drawn under, kind -> artifact -> target -> e,
 # as fit.json keys its models: R12 never redraws a set after a widening, so `bench.oper_sets
 # --check` regenerates the file under the envelope it names (G6).
-_SET_OPTIONAL_KEYS = frozenset({"dropped", "notes", "shard_sizes", "sources", "envelope"})
+# `margin` is R5's m, which the full tier (R28) re-reads a near-timeout point by (07-19).
+_SET_OPTIONAL_KEYS = frozenset({"dropped", "notes", "shard_sizes", "sources", "envelope",
+                                "margin"})
 _ENVELOPE_TARGETS = frozenset({"bytes", "seconds", "peak"})
 _POINT_KEYS = frozenset({"label", "kind", "params", "artifact"})
 # The Runs II kinds (07-06), read by `bench.oper_bound` in the container: a contention reading of
@@ -131,7 +135,10 @@ _LOAD_METRICS = ("memory_peak_bytes",)
 # `preset` is the catalogue row id a point was expanded from; `lift` names the one validator guard
 # a past-the-cap point lifts (`bench.oper_lift`), as `{"max_turns": 260}` or `{"max_mm": 1e6}`.
 # `gzip_levels` asks the child for R19's per-level bytes and seconds of the export, after its peak.
-_POINT_OPTIONAL_KEYS = frozenset({"preset", "lift", "gzip_levels"})
+# A judged point (the full tier, R28 and R29; 07-19) carries what `judge` holds its reading to,
+# `timeout_s` and `limit`, as a required-tier point does, and its R6 `charge_s`.
+_POINT_OPTIONAL_KEYS = frozenset({"preset", "lift", "gzip_levels", "charge_s", "timeout_s",
+                                  "limit"})
 GZIP_LEVELS = (1, 6, 9)  # R19's; `bench.oper_child.GZIP_LEVELS` is the same three
 LIFT_ARGS = ("max_turns", "max_mm")
 
@@ -155,6 +162,9 @@ class Point:
     deadline_s: float | None = None
     # R19's levels for a part point, computed by the child after its peak read.
     gzip_levels: tuple[int, ...] | None = None
+    # A judged point's timeout and its limit per target (R29): `run` fails the job on a miss.
+    timeout_s: float | None = None
+    limit: Mapping[str, float] | None = None
 
     def as_json(self) -> str:
         if self.body is not None:
@@ -741,6 +751,7 @@ def _load_point(name: str, raw: object) -> Point:
     label, kind, params, artifact = raw["label"], raw["kind"], raw["params"], raw["artifact"]
     if not (isinstance(label, str) and label and isinstance(kind, str) and kind):
         _refuse(f"set {name!r}: a point's label and kind are non-empty text")
+    timeout, limit = _load_judged(name, raw)
     if artifact not in _ARTIFACTS:
         _refuse(f"set {name!r}: artifact {artifact!r} is not one of {list(_ARTIFACTS)}")
     if not isinstance(params, dict) or not all(
@@ -748,7 +759,30 @@ def _load_point(name: str, raw: object) -> Point:
             for key, value in params.items()):
         _refuse(f"set {name!r}: point {label!r} params are names with a number or true/false")
     return Point(label=label, kind=kind, params=dict(params), artifact=str(artifact), lift=lift,
-                 gzip_levels=None if levels is None else tuple(levels))
+                 gzip_levels=None if levels is None else tuple(levels), timeout_s=timeout,
+                 limit=limit)
+
+
+def _load_judged(name: str, raw: Mapping[str, object]) -> tuple[float | None,
+                                                                dict[str, float] | None]:
+    """A judged point's `timeout_s` and `limit`, both or neither (a limit with no timeout would be
+    half a judgement), with the required tier's types, and its `charge_s` seconds if any."""
+    label = raw.get("label")
+    charge = raw.get("charge_s", 0.0)
+    if not (_is_number(charge) and isinstance(charge, int | float) and charge >= 0):
+        _refuse(f"set {name!r}: point {label!r} charge_s is {charge!r}, not seconds")
+    if ("timeout_s" in raw) != ("limit" in raw):
+        _refuse(f"set {name!r}: point {label!r} carries timeout_s and limit together or neither")
+    if "timeout_s" not in raw:
+        return None, None
+    timeout, limit = raw["timeout_s"], raw["limit"]
+    if not (_is_number(timeout) and isinstance(timeout, int | float) and timeout > 0):
+        _refuse(f"set {name!r}: point {label!r} timeout_s is {timeout!r}, not seconds above 0")
+    if not (isinstance(limit, dict) and set(limit) == set(_TIER_TARGETS)
+            and all(_is_number(value) and value > 0 for value in limit.values())):
+        _refuse(f"set {name!r}: point {label!r} limit is {limit!r}, not a number above 0 for "
+                f"each of {list(_TIER_TARGETS)}")
+    return float(timeout), {str(key): float(value) for key, value in limit.items()}
 
 
 def load_set(name: str, directory: Path | None = None) -> PointSet:
@@ -794,6 +828,8 @@ def load_set(name: str, directory: Path | None = None) -> PointSet:
     sources = raw.get("sources", [])
     if not (isinstance(sources, list) and all(isinstance(source, str) for source in sources)):
         _refuse(f"set {name!r}: sources is a list of text")
+    if "margin" in raw and not (_is_number(raw["margin"]) and raw["margin"] >= 0):
+        _refuse(f"set {name!r}: margin is R5's m, a number of at least 0")
     if "envelope" in raw and not _is_envelope(raw["envelope"]):
         _refuse(f"set {name!r}: envelope is kind -> artifact -> bytes, seconds and peak -> an e "
                 "of at least 0 (R12)")
@@ -847,8 +883,10 @@ def _open_sink(out: str) -> TextIO:
     return sys.stdout if out == "-" else Path(out).open("w")
 
 
-def _write_run(image: str, out: str, plan: list[tuple[Point, int]], deadline_s: float) -> int:
-    """The header, then one reading per `(point, rep)` of `plan`, in plan order."""
+def _write_run(image: str, out: str, plan: list[tuple[Point, int]], deadline_s: float,
+               readings: list[dict[str, object]] | None = None) -> int:
+    """The header, then one reading per `(point, rep)` of `plan`, in plan order, each also
+    appended to `readings` when it is given."""
     try:
         versions = _image_versions(image)
         head = header(image, versions)
@@ -859,7 +897,10 @@ def _write_run(image: str, out: str, plan: list[tuple[Point, int]], deadline_s: 
     try:
         _emit(sink, head)
         for point, rep in plan:
-            _emit(sink, run_reading(point, rep, image, CAP_BYTES, deadline_s, versions))
+            reading = run_reading(point, rep, image, CAP_BYTES, deadline_s, versions)
+            _emit(sink, reading)
+            if readings is not None:
+                readings.append(reading)
     finally:
         if sink is not sys.stdout:
             sink.close()
@@ -914,7 +955,24 @@ def _cmd_run(args: argparse.Namespace) -> int:
         print(f"oper: {exc}", file=sys.stderr)
         return 2
     plan = [(point, args.rep) for point in shard_points(spec, args.shard)]
-    return _write_run(args.image, args.out, plan, spec.deadline_s)
+    readings: list[dict[str, object]] = []
+    code = _write_run(args.image, args.out, plan, spec.deadline_s, readings)
+    if code != 0:
+        return code
+    # R29: a judged point's miss fails the job, after every record is written, so a red run
+    # keeps all its readings (07-19). A point with no limit is a recording and judged by nothing.
+    failures = [failure for (point, _), reading in zip(plan, readings, strict=True)
+                for failure in judged_failures(point, reading)]
+    for failure in failures:
+        print(f"oper: {failure}", file=sys.stderr)
+    return 1 if failures else 0
+
+
+def judged_failures(point: Point, reading: Mapping[str, object]) -> list[str]:
+    """R29's failures of one reading of a judged point; none for a point that carries no limit."""
+    if point.timeout_s is None or point.limit is None:
+        return []
+    return judge(BoundaryPoint(point, point.timeout_s, point.limit), reading)
 
 
 def _read_records(paths: list[str]) -> tuple[list[dict[str, object]], list[dict[str, object]]]:

@@ -1288,6 +1288,26 @@ def test_the_tail_probe_builds_one_valid_solid_inside_the_gate() -> None:
     assert isinstance(result["build_s"], float)
 
 
+# G37: the M3 coarse bolt with 10 turns of thread, a tip cone and a build of about a second.
+TIP_ARGS: dict[str, float | bool] = {"d": 3.0, "pitch": 0.5, "length": 5.0, "thread_length": 5.0,
+                                     "s": 4.8, "k": 1.8, "left_hand": False}
+
+
+def test_the_tip_piece_probe_reports_the_tip_cone_against_its_oracle_inside_the_gate(
+        tmp_path: Path) -> None:
+    from screw.calc.thread import T_PIECE
+
+    _write_set(tmp_path, points=[_probe("tip_piece", TIP_ARGS, "tip")])
+    (point,) = oper.load_set("mini", tmp_path).points
+    result = oper_child.run_probe(json.loads(point.as_json()))
+    assert result["status"] == "ok"
+    assert (result["solids"], result["valid"]) == (1, True)
+    ratio = result["volume_ratio"]
+    assert isinstance(ratio, float)
+    assert ratio != 1.0
+    assert abs(ratio - 1) <= T_PIECE
+
+
 def _guard() -> object:
     from screw.solid import helical
 

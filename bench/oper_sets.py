@@ -32,6 +32,7 @@ from dataclasses import dataclass
 from decimal import ROUND_CEILING, ROUND_FLOOR, ROUND_HALF_UP, Context, Decimal
 from fractions import Fraction
 from pathlib import Path
+from typing import cast
 
 from pydantic import ValidationError
 
@@ -39,6 +40,7 @@ from bench import oper_lift
 from bench.oper import CONTENTION_WORKERS, DEADLINE_S, POINTS_DIR, _read_records
 from bench.thread_spike.maths import PITCH, SAMPLE_SIZES, standard_max
 from screw.calc import cost
+from screw.calc import thread as calc_thread
 from screw.calc.thread import (
     MAX_NUT_D_PER_PITCH,
     _exact,
@@ -119,6 +121,7 @@ class _Set:
         self.shard_sizes: list[int] | None = None  # only the sets generated from records (R6)
         self.sources: list[str] | None = None
         self.envelope: dict[str, dict[str, dict[str, float]]] | None = None  # Runs II (G6)
+        self.margin: float | None = None  # R5's m, by which the full tier re-reads (R28)
         self.points: list[dict[str, object]] = []
         self.dropped: list[dict[str, object]] = []
         self._seen: set[tuple[str, str]] = set()
@@ -176,6 +179,8 @@ class _Set:
             document["sources"] = self.sources
         if self.envelope is not None:
             document["envelope"] = self.envelope
+        if self.margin is not None:
+            document["margin"] = self.margin
         return json.dumps(document, indent=1) + "\n"
 
 
@@ -3484,6 +3489,178 @@ def pitch_walls_block(walls: Mapping[str, PitchWall], source: str) -> str:
             "# END pitch-walls\n")
 
 
+# --- R28: the full recording tier (07-19) -------------------------------------------------------
+#
+# The full grid as a judged set (D-12): every catalogue row of both kinds at each artifact, the
+# nut factorial of R4 (d) and the dense boundary of G19. It is drawn under the shipped model, L25's
+# walls included: it is drawn after R31, so G36's rule for the sets drawn before it does not apply.
+# A combination the parameter model refuses is in `dropped` with its type (R4, G37 ruling 2); a
+# pair the cost model refuses is read with `expect: refused` and must return that refusal (G12);
+# every other point carries what R29 judges it by, its artifact's timeout and its enveloped
+# prediction, as a required-tier point does, under the shipped envelope and timeouts, so a
+# widening moves its limits and the regeneration check fails until the file is written again.
+
+FULL = "full"
+FULL_RULE = "07-SWEEP-PROTOCOL.md R28, judged by R29 (D-12, D-19, G4, G12, G19, G37)"
+DENSE_BAND = "dense-band"
+DENSE_BAND_RULE = ("07 G37: the dense boundary's points in the in-wall residual, read once before "
+                   "the full tier's trigger and gate")
+# docs/tech_debt/active/2026-10-29-in-wall-parts-the-kernel-refuses.md: below the bolt's wall the
+# kernel can still refuse a bolt whose thread is longer than the 3 turns R31's walk read, in two
+# bands of d (debug session E30, at d / pitch 20: 0.5 to 0.85 and 1.6 to 3.3 mm in; 0.45, 0.9,
+# 1.55 and 3.35 out).
+RESIDUAL_BOLT_D_BANDS = ((0.5, 0.85), (1.6, 3.3))
+TIP_PROBE = "tip_piece"
+
+
+def in_residual_band(part: FastenerParams) -> bool:
+    """Whether `part` is a bolt in the in-wall debt's residual: d in one of its bands and more
+    turns of thread than the walk read."""
+    return (isinstance(part, BoltParams)
+            and any(low <= part.d <= high for low, high in RESIDUAL_BOLT_D_BANDS)
+            and _exact(built_thread_length(part.thread_length, part.length))
+            > PITCH_TURNS * _exact(part.pitch))
+
+
+class _FullSet(_Set):
+    """The full set being written: each part judged under the shipped model at each artifact."""
+
+    def __init__(self, table: Table, envelope: Envelope,
+                 timeouts: Mapping[cost.Artifact, float]) -> None:
+        super().__init__(FULL, reps=1, shards=1, rule=FULL_RULE, notes=[
+            "R28: every ISO 4017, ISO 4014 and ISO 4032 catalogue row at all three artifacts, the "
+            "nut factorial of R4 (d), and the dense boundary: per artifact, each of the 15 L11 "
+            "sizes and both hands at the coarse pitch, s 1.6 d, k 0.6 d and t = L = n pitch, n "
+            "the most whole turns the shipped model admits at that artifact (G19)",
+            "drawn under the shipped model, L25's walls included; a combination the parameter "
+            "model refuses is in `dropped` with its type and is not judged (R4, G37); a pair the "
+            "cost model refuses carries `expect: refused` (G12); every other point carries its "
+            "timeout and its enveloped prediction per target (R29)",
+            "1 repetition; a point whose cold wall x (1 + margin) reaches its timeout is read "
+            "again at repetitions 1 to 5 (R5)"])
+        self.table, self.judge_envelope, self.timeouts = table, envelope, timeouts
+
+    def part(self, label: str, kind: str, params: Params, artifacts: tuple[str, ...] = ARTIFACTS,
+             preset: str | None = None, lift: Lift | None = None) -> None:
+        if lift is not None:
+            raise ValueError("the full tier reads no point past a guard")
+        try:
+            validated = KINDS[kind].model_validate(dict(params))
+        except ValidationError as exc:
+            self.dropped.append({"label": label, "kind": kind, "params": dict(params),
+                                 "artifacts": list(artifacts),
+                                 "error": str(exc.errors()[0]["type"])})
+            return
+        for artifact in artifacts:
+            point: dict[str, object] = {"label": label, "kind": kind, "params": dict(params),
+                                        "artifact": artifact}
+            if preset is not None:
+                point["preset"] = preset
+            point["charge_s"] = self.table.get((kind, artifact), DEADLINE_S)
+            name = cast("cost.Artifact", artifact)  # one of ARTIFACTS, the callers' tuples
+            if cost.below_fitted_turns(validated) or not admits(validated, name,
+                                                               self.judge_envelope, cost.BUDGET):
+                point["expect"] = "refused"
+            else:
+                limit = enveloped(validated, name, self.judge_envelope)
+                point["timeout_s"] = float(self.timeouts[name])
+                point["limit"] = dict(zip(cost.TARGETS, limit, strict=True))
+            self._add(point)
+
+
+def dense_parts() -> Iterator[tuple[str, dict[str, float | bool], cost.Artifact]]:
+    """G19's dense boundary: per L11 size, hand and artifact, the bolt at the coarse pitch, s 1.6
+    d, k 0.6 d and t = L = n pitch with n the most whole turns the shipped model admits there.
+    A size with no admitted n has no boundary point, and R28 no rule for it: `ProtocolStop`."""
+    for size, (d_exact, pitch_exact) in PITCH.items():
+        for left in (False, True):
+            for artifact in cost.ARTIFACTS:
+                for n in range(calc_thread.MAX_TURNS, 0, -1):
+                    thread = _dec(n * pitch_exact)
+                    params: dict[str, float | bool] = {
+                        "d": _dec(d_exact), "pitch": _dec(pitch_exact), "length": thread,
+                        "thread_length": thread, "s": _scaled(_dec(d_exact), "1.6"),
+                        "k": _scaled(_dec(d_exact), "0.6"), "left_hand": left}
+                    try:
+                        part = KINDS["bolt"].model_validate(params)
+                    except ValidationError:
+                        continue
+                    if cost.fits(part, artifact):
+                        yield f"dense-{size}-n{n}-{_hand(left)}", params, artifact
+                        break
+                else:
+                    raise ProtocolStop("R28", f"no whole number of turns of {size} "
+                                              f"{_hand(left)} is admitted at {artifact}")
+
+
+def full_set(explore_dir: str, spread_dir: str) -> _FullSet:
+    """R28's full set, sharded by R6 from the explore run, with R5's m from the spread run."""
+    out = _FullSet(charge_table(_read(explore_dir)), shipped_envelope(), cost.BUILD_TIMEOUT_S)
+    for row in catalogue():
+        out.part(row.id, "bolt", dict(expand(row.id) or {}), preset=row.id)
+    for nut_row in nut_catalogue():
+        out.part(nut_row.id, "nut", dict(expand_nut(nut_row.id) or {}), preset=nut_row.id)
+    _nut_factorial(out)
+    for label, params, artifact in dense_parts():
+        out.part(label, "bolt", params, (artifact,))
+    spread_points = {(str(p["label"]), str(p["artifact"])) for p in spread().points}
+    out.margin = margin(_read(spread_dir), spread_points).m
+    out.envelope = envelope_document(out.judge_envelope)
+    out.sharded(out.table, [f"explore={explore_dir}", f"spread={spread_dir}"])
+    return out
+
+
+def dense_band_set(explore_dir: str, spread_dir: str) -> _Set:
+    """G37 ruling 1: the full set's dense-boundary points in the in-wall residual, judged as the
+    full tier judges them, and one `tip_piece` probe per distinct part, read once."""
+    full = full_set(explore_dir, spread_dir)
+    out = _Set(DENSE_BAND, reps=1, shards=1, rule=DENSE_BAND_RULE, notes=[
+        "the points of full.json's dense boundary whose bolt lies in the residual of the in-wall "
+        "debt (d in 0.5 to 0.85 or 1.6 to 3.3 mm, more than 3 turns), copied with their limits",
+        "then one tip_piece probe per distinct part: the tip cone cut as the build cuts it, its "
+        "piece reported as a ratio to its oracle against T_PIECE"])
+    probes: dict[str, Mapping[str, object]] = {}
+    for point in full.points:
+        label, params = str(point["label"]), point["params"]
+        assert isinstance(params, dict)
+        if not label.startswith("dense-") or not in_residual_band(
+                KINDS["bolt"].model_validate(params)):
+            continue
+        out.copy(point)
+        probes.setdefault(label, params)
+    for label, params in probes.items():
+        out.probe(f"tip-{label}", TIP_PROBE, {str(k): v for k, v in params.items()
+                                              if isinstance(v, float | bool)})
+    out.margin, out.envelope = full.margin, full.envelope
+    out.sharded(full.table, list(full.sources or []))
+    return out
+
+
+def _full_texts(text: str, name: str) -> str:
+    """The text a full-tier file would have if written again from its own `sources`."""
+    sources = dict(str(e).split("=", 1) for e in json.loads(text).get("sources", []))
+    if "explore" not in sources or "spread" not in sources:
+        raise ValueError("it names no explore and spread sources")
+    made = (full_set if name == FULL else dense_band_set)(sources["explore"], sources["spread"])
+    return made.text()
+
+
+def _check_full() -> str | None:
+    """The first full-tier file that is not what its generator writes from its sources, or None."""
+    for name in (FULL, DENSE_BAND):
+        path = POINTS_DIR / f"{name}.json"
+        if not path.is_file():
+            continue
+        text = path.read_text()
+        try:
+            same = same_but_predicted(text, _full_texts(text, name))
+        except (KeyError, TypeError, ValueError) as exc:  # a stop is a ValueError, too
+            return f"{path} cannot be written again from its sources: {exc}"
+        if not same:
+            return f"{path} is not what the generator writes from its sources"
+    return None
+
+
 # --- how far a regeneration on this host drifts from the committed files (07-18) ----------------
 #
 # `cost.predict` is `math.exp` of a sum of `math.log` terms, and the platform's libm decides their
@@ -3583,6 +3760,11 @@ def _regenerations() -> Iterator[tuple[Path, str, Callable[[], str]]]:
         text = path.read_text()
         explore_dir = dict(str(e).split("=", 1) for e in json.loads(text)["sources"])["explore"]
         yield path, text, functools.partial(boundary_text, explore_dir)
+    for name in (FULL, DENSE_BAND):
+        path = POINTS_DIR / f"{name}.json"
+        if path.is_file():
+            text = path.read_text()
+            yield path, text, functools.partial(_full_texts, text, name)
 
 
 def prediction_drift_text() -> str:
@@ -3768,6 +3950,12 @@ def _run(args: argparse.Namespace) -> int:
         if walls["bolt"].w != EXPECTED_BOLT_PITCH_W:
             raise ProtocolStop("R31", f"the bolt W is {walls['bolt'].w}, not "
                                       f"{EXPECTED_BOLT_PITCH_W}")
+    elif args.command in (FULL, DENSE_BAND):
+        made = (full_set if args.command == FULL else dense_band_set)(
+            explore_dir, _relative(args.spread))
+        Path(args.out).write_text(made.text())
+        print(f"{made.name}: {len(made.points)} points in shards of {made.shard_sizes}, "
+              f"{len(made.dropped)} dropped, margin {made.margin!r}")
     elif args.command == "load-table":
         sys.stdout.write(load_table(read_readings(Path(args.source))))
     elif args.command in ("drift", "solid-cache"):
@@ -3836,6 +4024,12 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("pitch-walls", help="R31's F and W per kind from the walk's records, exit 3 "
                                        "if the bolt W is not 20 (G35, G36)").add_argument(
         "--from", dest="source", required=True)
+    for name, helptext in ((FULL, "write R28's full tier (07-19)"),
+                           (DENSE_BAND, "write G37's dense-band pre-read of the full tier")):
+        command = sub.add_parser(name, help=helptext)
+        command.add_argument("--explore", required=True)
+        command.add_argument("--spread", required=True)
+        command.add_argument("--out", required=True)
     sub.add_parser("load-table", help="the per-N table of a load run's readings").add_argument(
         "--from", dest="source", required=True)
     check = sub.add_parser("envelope-check",
@@ -3896,7 +4090,7 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"oper_sets: {path} is not what the generator writes from its sources",
                       file=sys.stderr)
                 return 1
-        failure = _check_runs2() or _check_runtime_sets()
+        failure = _check_runs2() or _check_runtime_sets() or _check_full()
         if failure is not None:
             print(f"oper_sets: {failure}", file=sys.stderr)
             return 1

@@ -1,0 +1,605 @@
+{
+ "set": "dense-band",
+ "rule": "07 G37: the dense boundary's points in the in-wall residual, read once before the full tier's trigger and gate",
+ "reps": 1,
+ "shards": 2,
+ "deadline_s": 600,
+ "points": [
+  {
+   "label": "dense-M2-n90-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 36.0,
+    "thread_length": 36.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview",
+   "charge_s": 600.731243473,
+   "timeout_s": 26.0,
+   "limit": {
+    "bytes": 8361616.958033021,
+    "seconds": 20.219851941554918,
+    "peak": 549180473.5258126
+   }
+  },
+  {
+   "label": "dense-M2-n90-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 36.0,
+    "thread_length": 36.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   },
+   "artifact": "stl-fine",
+   "charge_s": 571.832342047,
+   "timeout_s": 71.0,
+   "limit": {
+    "bytes": 59438553.61016798,
+    "seconds": 33.633678797548725,
+    "peak": 1114318248.5204682
+   }
+  },
+  {
+   "label": "dense-M2-n60-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 24.0,
+    "thread_length": 24.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   },
+   "artifact": "step",
+   "charge_s": 29.94342979000004,
+   "timeout_s": 26.0,
+   "limit": {
+    "bytes": 5998120.795276042,
+    "seconds": 14.99295585583414,
+    "peak": 405668945.02822375
+   }
+  },
+  {
+   "label": "dense-M2-n90-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 36.0,
+    "thread_length": 36.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview",
+   "charge_s": 600.731243473,
+   "timeout_s": 26.0,
+   "limit": {
+    "bytes": 7721876.483595897,
+    "seconds": 19.083331462970282,
+    "peak": 568060391.982442
+   }
+  },
+  {
+   "label": "dense-M2-n90-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 36.0,
+    "thread_length": 36.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   },
+   "artifact": "stl-fine",
+   "charge_s": 571.832342047,
+   "timeout_s": 71.0,
+   "limit": {
+    "bytes": 45146084.69487284,
+    "seconds": 38.48427693499368,
+    "peak": 1153361358.867545
+   }
+  },
+  {
+   "label": "dense-M2-n61-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 24.4,
+    "thread_length": 24.4,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   },
+   "artifact": "step",
+   "charge_s": 29.94342979000004,
+   "timeout_s": 26.0,
+   "limit": {
+    "bytes": 6360630.880436425,
+    "seconds": 14.47324195343681,
+    "peak": 421328866.2805958
+   }
+  },
+  {
+   "label": "dense-M2.5-n90-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 40.5,
+    "thread_length": 40.5,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   },
+   "artifact": "stl-preview",
+   "charge_s": 600.731243473,
+   "timeout_s": 26.0,
+   "limit": {
+    "bytes": 10302548.621640865,
+    "seconds": 22.375766476455983,
+    "peak": 598775065.2591981
+   }
+  },
+  {
+   "label": "dense-M2.5-n90-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 40.5,
+    "thread_length": 40.5,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   },
+   "artifact": "stl-fine",
+   "charge_s": 571.832342047,
+   "timeout_s": 71.0,
+   "limit": {
+    "bytes": 70194253.94475344,
+    "seconds": 38.760378714679085,
+    "peak": 1262274704.5619407
+   }
+  },
+  {
+   "label": "dense-M2.5-n58-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 26.1,
+    "thread_length": 26.1,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   },
+   "artifact": "step",
+   "charge_s": 29.94342979000004,
+   "timeout_s": 26.0,
+   "limit": {
+    "bytes": 6003270.033788235,
+    "seconds": 14.874509062244348,
+    "peak": 406056231.21125036
+   }
+  },
+  {
+   "label": "dense-M2.5-n90-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 40.5,
+    "thread_length": 40.5,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   },
+   "artifact": "stl-preview",
+   "charge_s": 600.731243473,
+   "timeout_s": 26.0,
+   "limit": {
+    "bytes": 9514309.053121988,
+    "seconds": 21.118066029488013,
+    "peak": 619359963.9417353
+   }
+  },
+  {
+   "label": "dense-M2.5-n90-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 40.5,
+    "thread_length": 40.5,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   },
+   "artifact": "stl-fine",
+   "charge_s": 571.832342047,
+   "timeout_s": 71.0,
+   "limit": {
+    "bytes": 53315492.070472255,
+    "seconds": 44.35034173751042,
+    "peak": 1306501863.763516
+   }
+  },
+  {
+   "label": "dense-M2.5-n59-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 26.55,
+    "thread_length": 26.55,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   },
+   "artifact": "step",
+   "charge_s": 29.94342979000004,
+   "timeout_s": 26.0,
+   "limit": {
+    "bytes": 6369107.440627014,
+    "seconds": 14.363336168931152,
+    "peak": 421768801.65929055
+   }
+  },
+  {
+   "label": "dense-M3-n90-right",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 45.0,
+    "thread_length": 45.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview",
+   "charge_s": 600.731243473,
+   "timeout_s": 26.0,
+   "limit": {
+    "bytes": 12215862.93463799,
+    "seconds": 24.273044149882637,
+    "peak": 642287876.1615055
+   }
+  },
+  {
+   "label": "dense-M3-n90-right",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 45.0,
+    "thread_length": 45.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   },
+   "artifact": "stl-fine",
+   "charge_s": 571.832342047,
+   "timeout_s": 71.0,
+   "limit": {
+    "bytes": 80389063.53808896,
+    "seconds": 43.489805903520214,
+    "peak": 1397005633.5077534
+   }
+  },
+  {
+   "label": "dense-M3-n58-right",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 29.0,
+    "thread_length": 29.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   },
+   "artifact": "step",
+   "charge_s": 29.94342979000004,
+   "timeout_s": 26.0,
+   "limit": {
+    "bytes": 6145345.806208015,
+    "seconds": 14.979224701644771,
+    "peak": 408091308.28124505
+   }
+  },
+  {
+   "label": "dense-M3-n90-left",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 45.0,
+    "thread_length": 45.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview",
+   "charge_s": 600.731243473,
+   "timeout_s": 26.0,
+   "limit": {
+    "bytes": 11281237.252944173,
+    "seconds": 22.908701234134803,
+    "peak": 664368673.4807513
+   }
+  },
+  {
+   "label": "dense-M3-n90-left",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 45.0,
+    "thread_length": 45.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   },
+   "artifact": "stl-fine",
+   "charge_s": 571.832342047,
+   "timeout_s": 71.0,
+   "limit": {
+    "bytes": 61058879.30643106,
+    "seconds": 49.761839741484806,
+    "peak": 1445953449.9658885
+   }
+  },
+  {
+   "label": "dense-M3-n57-left",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 28.5,
+    "thread_length": 28.5,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   },
+   "artifact": "step",
+   "charge_s": 29.94342979000004,
+   "timeout_s": 26.0,
+   "limit": {
+    "bytes": 6334085.0111013325,
+    "seconds": 14.194408814480783,
+    "peak": 421576777.9308817
+   }
+  },
+  {
+   "label": "tip-dense-M2-n90-right",
+   "kind": "probe",
+   "probe": "tip_piece",
+   "args": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 36.0,
+    "thread_length": 36.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "tip-dense-M2-n60-right",
+   "kind": "probe",
+   "probe": "tip_piece",
+   "args": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 24.0,
+    "thread_length": 24.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "tip-dense-M2-n90-left",
+   "kind": "probe",
+   "probe": "tip_piece",
+   "args": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 36.0,
+    "thread_length": 36.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   }
+  },
+  {
+   "label": "tip-dense-M2-n61-left",
+   "kind": "probe",
+   "probe": "tip_piece",
+   "args": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 24.4,
+    "thread_length": 24.4,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   }
+  },
+  {
+   "label": "tip-dense-M2.5-n90-right",
+   "kind": "probe",
+   "probe": "tip_piece",
+   "args": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 40.5,
+    "thread_length": 40.5,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "tip-dense-M2.5-n58-right",
+   "kind": "probe",
+   "probe": "tip_piece",
+   "args": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 26.1,
+    "thread_length": 26.1,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "tip-dense-M2.5-n90-left",
+   "kind": "probe",
+   "probe": "tip_piece",
+   "args": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 40.5,
+    "thread_length": 40.5,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   }
+  },
+  {
+   "label": "tip-dense-M2.5-n59-left",
+   "kind": "probe",
+   "probe": "tip_piece",
+   "args": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 26.55,
+    "thread_length": 26.55,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   }
+  },
+  {
+   "label": "tip-dense-M3-n90-right",
+   "kind": "probe",
+   "probe": "tip_piece",
+   "args": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 45.0,
+    "thread_length": 45.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "tip-dense-M3-n58-right",
+   "kind": "probe",
+   "probe": "tip_piece",
+   "args": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 29.0,
+    "thread_length": 29.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   }
+  },
+  {
+   "label": "tip-dense-M3-n90-left",
+   "kind": "probe",
+   "probe": "tip_piece",
+   "args": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 45.0,
+    "thread_length": 45.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   }
+  },
+  {
+   "label": "tip-dense-M3-n57-left",
+   "kind": "probe",
+   "probe": "tip_piece",
+   "args": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 28.5,
+    "thread_length": 28.5,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   }
+  }
+ ],
+ "dropped": [],
+ "notes": [
+  "the points of full.json's dense boundary whose bolt lies in the residual of the in-wall debt (d in 0.5 to 0.85 or 1.6 to 3.3 mm, more than 3 turns), copied with their limits",
+  "then one tip_piece probe per distinct part: the tip cone cut as the build cuts it, its piece reported as a ratio to its oracle against T_PIECE"
+ ],
+ "shard_sizes": [
+  23,
+  7
+ ],
+ "sources": [
+  "explore=bench/results/phase-07/explore-40646117094",
+  "spread=bench/results/phase-07/spread-40646125666"
+ ],
+ "envelope": {
+  "bolt": {
+   "stl-preview": {
+    "bytes": 2.264581945786201,
+    "seconds": 4.286137349093968,
+    "peak": 2.040087854388461
+   },
+   "stl-fine": {
+    "bytes": 0.5633622849303941,
+    "seconds": 2.690232029900006,
+    "peak": 2.170967259675211
+   },
+   "step": {
+    "bytes": 0.9874058238127998,
+    "seconds": 2.616422482555953,
+    "peak": 0.45747877720379804
+   }
+  },
+  "nut": {
+   "stl-preview": {
+    "bytes": 0.7070121785110755,
+    "seconds": 1.061383246630594,
+    "peak": 0.556086702674923
+   },
+   "stl-fine": {
+    "bytes": 0.4996608149413484,
+    "seconds": 1.7812452161769916,
+    "peak": 0.5976833077470993
+   },
+   "step": {
+    "bytes": 0.3802587303182223,
+    "seconds": 0.8785228687431521,
+    "peak": 0.48786919655819627
+   }
+  }
+ },
+ "margin": 0.5382691940004687
+}
