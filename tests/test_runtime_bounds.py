@@ -383,3 +383,23 @@ def test_no_build_timeout_is_read_from_the_environment_by_the_service_or_the_ben
              and not (path == history and "(history: removed by L24)" in line)}
     assert found == {}
     assert "(history: removed by L24)" in history.read_text()
+
+
+def test_the_budgets_are_looser_than_the_limits_exactly_where_l24_records_it() -> None:
+    # WR-03, recorded in L24's note, not enforced (it would re-rule B-01): the budget is the
+    # largest enveloped catalogue prediction, the limits the worst measured reading, and the
+    # timeout (a 503, `cost_model.miss`, nothing cached) is the backstop for the gap. A change to
+    # either side that moves which budget is above which limit fails here, and the note with it.
+    runtime = json.loads(RUNTIME.read_text())
+    headroom = (runtime["mem_limit_bytes"] - runtime["b"]["bytes"]
+                - runtime["export_cache"]["bytes"] - runtime["tmpfs_bytes"])
+    assert headroom == 1830617088
+    seconds_over = {a for a in cost.ARTIFACTS
+                    if (cost.BUDGET[a][1] or math.inf) > cost.BUILD_TIMEOUT_S[a]}
+    peak_over = {a for a in cost.ARTIFACTS if (cost.BUDGET[a][2] or math.inf) > headroom}
+    assert seconds_over == {"stl-preview", "stl-fine"}
+    assert peak_over == {"stl-fine"}
+    # The measured worst readings stay under every limit: the gap is the budget's, not a reading's.
+    for artifact in cost.ARTIFACTS:
+        assert runtime["timeouts"][artifact]["max_cold_wall_s"] < cost.BUILD_TIMEOUT_S[artifact]
+    assert runtime["w"]["bytes"] <= headroom

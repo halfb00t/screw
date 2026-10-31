@@ -2016,6 +2016,25 @@ Reversibility: reversible. Three constants in `calc/cost.py` and three medians i
 `derive-runtime` re-derives from a new sweep; the new figures need a superseding entry. A shorter
 timeout turns slow admitted builds into `503`s, each logged as a miss.
 
+Note (2026-10-31, the phase 7 code review's WR-03; the owner's ruling "WR-03 budget vs limits",
+recorded rather than enforced, since a hard budget-under-limit rule would re-rule B-01): B-01's
+budgets are deliberately looser than the limits that enforce them. The budget is the largest
+enveloped catalogue prediction (C1); the timeouts and `mem_limit` come from the worst measured
+reading. In code: `cost.BUDGET` seconds 34.127968722622484 (stl-preview), 94.42979276577135
+(stl-fine) and 15.000925691551677 (step) against `cost.BUILD_TIMEOUT_S` 26, 71 and 26 s, so the
+preview and the fine STL budgets are above their timeouts; and the stl-fine peak budget
+2930457561.336711 B against the worker's headroom, runtime.json's `mem_limit_bytes` 2415919104
+less B 65208320, the export cache 251658240 and the tmpfs 268435456, which is 1830617088 B
+(the preview's 1049185338.9620932 B and the STEP's 422239338.63724077 B are under it). The
+measured worst readings are under every limit (12.72, 35.26 and 12.81 s; W 1758363648 B). A part
+admitted between a measured reading and its budget meets the backstop: the timeout kills the
+build, the request is a `503` `timeout`, `cost_model.miss` is logged as the model's fault, and
+nothing is cached (the cache put follows the awaited build, `app._serve`). The memory gap has no
+such record: ASSUMPTION, unmeasured, a worker past the container's limit is OOM-killed and its
+request answered as a broken pool. `tests/test_runtime_bounds.py` pins which budgets are above
+which limits, so a regenerated budget, a wider `e` or a new timeout that changes the relation fails
+there and needs this note updated.
+
 ## L25 — A part finer in pitch than its kind's wall is a 422 `pitch_too_fine`: the bolt's d / pitch wall is 20, read from the fine-pitch walk; the nut's is 8 by the owner's ruling
 
 Date: 2026-10-30. Decided by the owner's rulings G35 and G36 (`07-GAP-RULINGS.md`,
