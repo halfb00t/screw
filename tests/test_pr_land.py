@@ -30,6 +30,8 @@ from scripts.pr_land import (
     FULL_TIER_PATHS,
     FULL_TIER_RUN_NAME,
     FULL_TIER_WORKFLOW,
+    GATE_FLAG,
+    GATE_PATHS,
     WORKFLOW,
     PullRequest,
     WorkflowRun,
@@ -37,6 +39,7 @@ from scripts.pr_land import (
     check_head,
     full_tier_path,
     full_tier_refusals,
+    gate_refusals,
     head_refusals,
     land,
     message_refusals,
@@ -217,6 +220,10 @@ PR_A_FILES = (
     "pyproject.toml\n"
     "tests/test_oper.py\n"
 )
+# PR A's paths less the GATE_PATHS files it touched, which the L28 rule now refuses on their own:
+# the fixture for every test that is about something else.
+PR_A_FILES_NO_GATE = "".join(line for line in PR_A_FILES.splitlines(keepends=True)
+                             if line.strip() not in GATE_PATHS)
 
 # `gh api 'repos/{owner}/{repo}/actions/workflows/operability.yml/runs?head_sha=<sha>&per_page=100'
 # --jq '[.workflow_runs[] | select(.display_title == "operability: full") | {id, status,
@@ -754,7 +761,7 @@ def _happy_runner(pr_json: str = PR3_VIEW_JSON.replace('"MERGED"', '"OPEN"')) ->
     return (
         FakeRunner()
         .on("pr view 3 --json number", cp(0, pr_json))
-        .on("pulls/3/files", cp(0, PR_A_FILES))
+        .on("pulls/3/files", cp(0, PR_A_FILES_NO_GATE))
         .on("git diff --quiet", cp(0))
         .on("git diff --cached --quiet", cp(0))
         .on(f"compare/main...{PR3_HEAD_SHA}", cp(0, CURRENT_COMPARE_JSON))
@@ -969,7 +976,7 @@ def test_land_refuses_a_token_hidden_below_a_git_cut_line_in_the_pr_body(
     runner = (
         FakeRunner()
         .on("pr view 3 --json number", cp(0, pr_json))
-        .on("pulls/3/files", cp(0, PR_A_FILES))
+        .on("pulls/3/files", cp(0, PR_A_FILES_NO_GATE))
         .on("git diff --quiet", cp(0))
         .on("git diff --cached --quiet", cp(0))
         .on(f"compare/main...{PR3_HEAD_SHA}", cp(0, CURRENT_COMPARE_JSON))
@@ -990,7 +997,7 @@ def test_land_gh_pr_merge_failure_returns_1_no_poll_no_follow_up(
     runner = (
         FakeRunner()
         .on("pr view 3 --json number", cp(0, PR3_VIEW_JSON.replace('"MERGED"', '"OPEN"')))
-        .on("pulls/3/files", cp(0, PR_A_FILES))
+        .on("pulls/3/files", cp(0, PR_A_FILES_NO_GATE))
         .on("git diff --quiet", cp(0))
         .on("git diff --cached --quiet", cp(0))
         .on(f"compare/main...{PR3_HEAD_SHA}", cp(0, CURRENT_COMPARE_JSON))
@@ -1030,7 +1037,7 @@ def test_land_several_problems_at_once_prints_all_then_one_nothing_was_merged_li
     runner = (
         FakeRunner()
         .on("pr view 3 --json number", cp(0, pr_json))
-        .on("pulls/3/files", cp(0, PR_A_FILES))
+        .on("pulls/3/files", cp(0, PR_A_FILES_NO_GATE))
         .on("git diff --quiet", cp(0))
         .on("git diff --cached --quiet", cp(0))
         .on(f"compare/main...{PR3_HEAD_SHA}", cp(0, behind_compare))
@@ -1110,7 +1117,7 @@ def test_full_tier_refusals_is_empty_for_a_pr_that_touches_no_listed_path() -> N
 
 def test_check_full_tier_reads_no_runs_for_a_pr_that_touches_no_listed_path() -> None:
     """The empty edge: such a PR lands exactly as before, the files read its only new call."""
-    runner = FakeRunner().on("pulls/3/files", cp(0, PR_A_FILES))
+    runner = FakeRunner().on("pulls/3/files", cp(0, PR_A_FILES_NO_GATE))
     assert check_full_tier(3, PR3_HEAD_SHA, runner) == []
     assert [" ".join(call) for call in runner.calls] == [
         "gh api repos/{owner}/{repo}/pulls/3/files --paginate --jq .[].filename"]
@@ -1118,7 +1125,7 @@ def test_check_full_tier_reads_no_runs_for_a_pr_that_touches_no_listed_path() ->
 
 def test_check_full_tier_reads_only_full_runs_of_the_full_tier_workflow_for_the_head() -> None:
     """The recorded tracer head has a green operability run, but not a full one: refused."""
-    files = PR_A_FILES + "src/screw/solid/bolt.py\n"
+    files = PR_A_FILES_NO_GATE + "src/screw/solid/bolt.py\n"
     runner = (FakeRunner().on("pulls/3/files", cp(0, files))
               .on(f"{FULL_TIER_WORKFLOW}/runs?head_sha={TRACER_HEAD_SHA}",
                   cp(0, TRACER_FULL_RUNS_JSON)))
@@ -1161,7 +1168,7 @@ def test_check_full_tier_unparseable_files_or_a_failed_runs_read_is_a_refusal() 
 def test_land_refuses_a_pr_that_touches_the_solid_package_with_no_full_run(
         capsys: pytest.CaptureFixture[str]) -> None:
     runner = (_happy_runner()
-              .replace("pulls/3/files", cp(0, PR_A_FILES + "src/screw/solid/bolt.py\n")))
+              .replace("pulls/3/files", cp(0, PR_A_FILES_NO_GATE + "src/screw/solid/bolt.py\n")))
     assert land(3, runner, sleep=lambda _: None) == 1
     out = capsys.readouterr().out
     assert "src/screw/solid/bolt.py" in out
@@ -1176,6 +1183,120 @@ def test_land_merges_a_pr_that_touches_a_listed_path_once_its_full_run_is_green(
     runner = (_happy_runner().replace("pulls/3/files", cp(0, "src/screw/calc/cost.py\n"))
               .replace(f"{FULL_TIER_WORKFLOW}/runs", cp(0, green)))
     assert land(3, runner, sleep=lambda _: None) == 0
+
+
+# --- the gate-change rule (L28) ----------------------------------------------------------------
+
+
+def test_pr_land_refuses_a_pr_that_edits_its_own_full_tier_judge_without_the_flag() -> None:
+    """PR A (#22) is the recorded case: it touched the workflow and the bench judge at once."""
+    (line,) = gate_refusals(22, parse_changed_files(PR_A_FILES), owner_approves=False)
+    for path in (".github/workflows/operability.yml", "bench/__init__.py", "bench/oper.py",
+                 "bench/oper_child.py", "bench/oper_lift.py"):
+        assert path in line
+    assert "bench/oper_sets.py" not in line
+    assert f"make pr.land PR=22 PR_LAND_FLAGS={GATE_FLAG}" in line
+
+
+@pytest.mark.parametrize("path", GATE_PATHS)
+def test_pr_land_refuses_each_gate_file_on_its_own(path: str) -> None:
+    (line,) = gate_refusals(3, ["README.md", path], owner_approves=False)
+    assert path in line
+    assert "README.md" not in line
+
+
+def test_pr_land_allows_a_gate_change_the_owner_approves_with_the_flag() -> None:
+    assert gate_refusals(22, parse_changed_files(PR_A_FILES), owner_approves=True) == []
+
+
+def test_pr_land_gate_rule_is_unaffected_by_a_diff_that_touches_no_gate_file() -> None:
+    changed = [*parse_changed_files(PR_A_FILES_NO_GATE), "bench/oper_sets.py",
+               "bench/oper_bound.py", "bench/points/tracer.json"]
+    assert gate_refusals(3, changed, owner_approves=False) == []
+
+
+def test_pr_land_check_full_tier_keeps_the_full_run_refusal_beside_the_gate_refusal() -> None:
+    """The flag lifts only the gate rule: a PR touching both still needs its green full run."""
+    runner = (FakeRunner().on("pulls/3/files", cp(0, "bench/oper.py\nsrc/screw/params.py\n"))
+              .on("operability.yml/runs", cp(0, TRACER_FULL_RUNS_JSON)))
+    gate, full = check_full_tier(3, PR3_HEAD_SHA, runner)
+    assert GATE_FLAG in gate
+    assert "there is none" in full
+    (line,) = check_full_tier(3, PR3_HEAD_SHA, runner, owner_approves_gate_change=True)
+    assert "there is none" in line
+
+
+def test_pr_land_land_refuses_a_gate_change_with_no_merge_call(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    runner = _happy_runner().replace("pulls/3/files", cp(0, PR_A_FILES))
+    assert land(3, runner, sleep=lambda _: None) == 1
+    out = capsys.readouterr().out
+    assert f"PR_LAND_FLAGS={GATE_FLAG}" in out
+    assert out.strip().endswith("pr.land: nothing was merged.")
+    assert not [call for call in runner.calls if call[:3] == ["gh", "pr", "merge"]]
+
+
+def test_pr_land_land_merges_a_gate_change_the_owner_approves() -> None:
+    runner = _happy_runner().replace("pulls/3/files", cp(0, PR_A_FILES))
+    assert land(3, runner, sleep=lambda _: None, owner_approves_gate_change=True) == 0
+
+
+BENCH = REPO_ROOT / "bench"
+# Modules the full tier never runs, because full.json has no point of their kind: bound points
+# run `bench.oper_bound`, load points `bench.oper_load` and probe points `bench.thread_spike`.
+_KIND_ONLY = ("bench.oper_bound", "bench.oper_load", "bench.thread_spike")
+
+
+def full_tier_judge_files(workflow: str) -> set[str]:
+    """The files that decide a full-tier verdict, derived from the workflow text: the workflow,
+    the point set its `--set` names, and the `bench` import closure (`ast`, function-level
+    imports included, every enclosing package's `__init__.py` counted) of the modules its
+    `python -m` lines run plus `bench.oper_child`, which `bench.oper run` starts in each
+    container by name (`reading_argv`), less `_KIND_ONLY`."""
+    sets = set(re.findall(r"--set ([a-z0-9-]+)", workflow))
+    found = {f".github/workflows/{FULL_TIER_WORKFLOW}"} | {f"bench/points/{s}.json" for s in sets}
+    todo = [*re.findall(r"python -m (bench[.\w]*)", workflow), "bench.oper_child"]
+    seen: set[str] = set()
+    while todo:
+        name = todo.pop()
+        if name in seen or name.startswith(_KIND_ONLY):
+            continue
+        seen.add(name)
+        parts = name.split(".")
+        for depth in range(1, len(parts) + 1):
+            package = REPO_ROOT.joinpath(*parts[:depth], "__init__.py")
+            if package.is_file():
+                found.add(package.relative_to(REPO_ROOT).as_posix())
+        module = REPO_ROOT.joinpath(*parts).with_suffix(".py")
+        if not module.is_file():
+            continue
+        found.add(module.relative_to(REPO_ROOT).as_posix())
+        for node in ast.walk(ast.parse(module.read_text())):
+            if isinstance(node, ast.Import):
+                todo += [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom) and node.module and not node.level:
+                todo += [node.module, *(f"{node.module}.{alias.name}" for alias in node.names)]
+        todo = [n for n in todo if n.split(".")[0] == "bench"]
+    return found
+
+
+def test_gate_paths_are_what_the_workflow_runs_and_the_set_its_verdict_reads() -> None:
+    """T-07 audit, L28: a bench module the full tier starts to import, or a new point set the
+    workflow reads, fails here until it is on GATE_PATHS."""
+    workflow = (REPO_ROOT / ".github" / "workflows" / FULL_TIER_WORKFLOW).read_text()
+    assert "python -m bench.oper verdict --set full --from records" in workflow
+    assert full_tier_judge_files(workflow) == set(GATE_PATHS)
+
+
+def test_the_full_set_has_no_point_of_a_kind_the_gate_leaves_out() -> None:
+    """The reason `_KIND_ONLY` is not on GATE_PATHS: a bound, load or probe point added to
+    full.json would run one of them, and this fails first."""
+    from bench.oper import BOUND_KINDS, LOAD_KIND, PROBE_KIND
+
+    points = json.loads((BENCH / "points" / "full.json").read_text())["points"]
+    kinds = {point["kind"] for point in points}
+    assert kinds
+    assert not kinds & (BOUND_KINDS | {LOAD_KIND, PROBE_KIND})
 
 
 def _workflow_paths() -> list[str]:

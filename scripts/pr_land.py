@@ -28,7 +28,8 @@ Steps, in order: (1) read and parse the PR, refuse on its state/base; (2) refuse
 dirty working tree; (3) `check_head` -- refuse a behind, run-less, unfinished or
 non-green head; `check_full_tier` -- when the PR's diff touches a `FULL_TIER_PATHS`
 path, refuse unless the newest full operability run for its head is green (screw
-L27); and refuse a skip token in the checked subject/body (`message_refusals`); (4)
+L27), and when it touches a `GATE_PATHS` file, refuse unless the owner passed `GATE_FLAG`
+(screw L28); and refuse a skip token in the checked subject/body (`message_refusals`); (4)
 squash-merge with the exact subject and body just checked; (5) poll for a run on the
 squash commit (~60 s, `POLL_ATTEMPTS * POLL_INTERVAL_S`) and print its URL, or, when
 none is observed, what was observed (`no_run_report`); (6) the local follow-up --
@@ -85,6 +86,25 @@ FULL_TIER_PATHS: tuple[str, ...] = (
 # `set=full`): a dispatch of another set on the same head is not the full tier and must not
 # stand in for it, so the runs read keeps only runs of this name.
 FULL_TIER_RUN_NAME = "operability: full"
+
+# What judges the full tier (screw L28, the phase 7 security audit). The run `check_full_tier`
+# reads is picked by that name, and the name, the jobs, the readings and the verdict all come from
+# the PR's own checkout: the workflow, the bench code it runs (`bench.oper` on the runner, and
+# `bench.oper_child` with `bench.oper_lift` in each container, from the mounted `bench/`) and the
+# point set whose timeouts and limits the verdict judges against. A PR that edits one of them can
+# make its own run pass, so `gate_refusals` refuses it unless the owner passes `GATE_FLAG`. Left
+# out, for the reasons L28 gives: `bench/oper_bound.py`, `bench/oper_load.py` and
+# `bench/thread_spike/` run only for bound, load and probe points, and full.json holds none. A test
+# derives this list from operability.yml and pins full.json's kinds.
+GATE_PATHS: tuple[str, ...] = (
+    ".github/workflows/operability.yml",
+    "bench/__init__.py",
+    "bench/oper.py",
+    "bench/oper_child.py",
+    "bench/oper_lift.py",
+    "bench/points/full.json",
+)
+GATE_FLAG = "--owner-approves-gate-change"
 
 # D-05's own "~60 s". The observation behind the number (flagged assumption 6,
 # 05-02-PLAN.md): the recent runs read via `gh api .../actions/workflows/ci.yml/runs`
@@ -433,10 +453,25 @@ def full_tier_refusals(changed: list[str], run: WorkflowRun | None, sha: str) ->
     return []
 
 
-def check_full_tier(pr_number: int, sha: str, run: Runner) -> list[str]:
-    """Read the PR's changed files; only if one is on `FULL_TIER_PATHS`, read the full-tier runs
-    of `FULL_TIER_WORKFLOW` for `sha`; then decide via `full_tier_refusals`. A failed or
-    unparseable read is itself a refusal, never "no matching path" (prohibition 1)."""
+def gate_refusals(pr_number: int, changed: list[str], owner_approves: bool) -> list[str]:
+    """A refusal naming every `changed` path on `GATE_PATHS` and `GATE_FLAG`, unless the owner
+    passed it (L28); nothing when no such path is touched. The PR's own full-tier run cannot
+    vouch for a change to what judges it, so only the owner's reading of the diff can."""
+    touched = [path for path in changed if path in GATE_PATHS]
+    if not touched or owner_approves:
+        return []
+    return [f"pr.land: the PR touches {', '.join(touched)}, which decide its own full "
+            f"{FULL_TIER_WORKFLOW} verdict, so that run cannot vouch for it. If the owner has "
+            f"reviewed and approves the change: make pr.land PR={pr_number} "
+            f"PR_LAND_FLAGS={GATE_FLAG}"]
+
+
+def check_full_tier(pr_number: int, sha: str, run: Runner, *,
+                    owner_approves_gate_change: bool = False) -> list[str]:
+    """Read the PR's changed files and decide `gate_refusals` on them; only if one is on
+    `FULL_TIER_PATHS`, read the full-tier runs of `FULL_TIER_WORKFLOW` for `sha` and decide via
+    `full_tier_refusals` too. A failed or unparseable read is itself a refusal, never "no matching
+    path" (prohibition 1)."""
     files_result = run(
         [
             "gh",
@@ -456,8 +491,9 @@ def check_full_tier(pr_number: int, sha: str, run: Runner) -> list[str]:
         changed = parse_changed_files(files_result.stdout)
     except ValueError as exc:
         return [f"pr.land: {exc}"]
+    refusals = gate_refusals(pr_number, changed, owner_approves_gate_change)
     if not any(full_tier_path(path) for path in changed):
-        return []
+        return refusals
 
     runs_result = run(
         [
@@ -472,14 +508,15 @@ def check_full_tier(pr_number: int, sha: str, run: Runner) -> list[str]:
     )
     if runs_result.returncode != 0:
         return [
+            *refusals,
             f"pr.land: reading {FULL_TIER_WORKFLOW} runs for {sha} failed: "
-            f"{runs_result.stderr.strip()}"
+            f"{runs_result.stderr.strip()}",
         ]
     try:
         runs = parse_runs(runs_result.stdout)
     except ValueError as exc:
-        return [f"pr.land: {exc}"]
-    return full_tier_refusals(changed, newest_run(runs), sha)
+        return [*refusals, f"pr.land: {exc}"]
+    return refusals + full_tier_refusals(changed, newest_run(runs), sha)
 
 
 def no_run_report(
@@ -536,6 +573,7 @@ def land(
     attempts: int = POLL_ATTEMPTS,
     interval_s: float = POLL_INTERVAL_S,
     sleep: Callable[[float], None] = time.sleep,
+    owner_approves_gate_change: bool = False,
 ) -> int:
     """Land PR `pr_number`, in the order the module docstring lists. Every gh/git
     call goes through `run`. Titles, bodies and branch names travel only as separate
@@ -577,7 +615,8 @@ def land(
 
     subject = squash_subject(pr)
     refusals = check_head(pr.head_sha, run, required_jobs())
-    refusals += check_full_tier(pr.number, pr.head_sha, run)
+    refusals += check_full_tier(pr.number, pr.head_sha, run,
+                                owner_approves_gate_change=owner_approves_gate_change)
     refusals += message_refusals(subject, pr.body)
     if refusals:
         for line in refusals:
@@ -696,8 +735,11 @@ def main(argv: list[str] | None = None) -> int:
         description="Squash-merge a PR only if its head is green and current with main.",
     )
     parser.add_argument("pr", type=int, help="PR number")
+    parser.add_argument(GATE_FLAG, dest="owner_approves_gate_change", action="store_true",
+                        help="the owner has reviewed and approves a change to a file that "
+                             "decides the full operability verdict (GATE_PATHS, L28)")
     args = parser.parse_args(argv)
-    return land(args.pr, _real_runner)
+    return land(args.pr, _real_runner, owner_approves_gate_change=args.owner_approves_gate_change)
 
 
 if __name__ == "__main__":

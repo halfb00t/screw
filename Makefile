@@ -237,9 +237,10 @@ worktree.land:  ## SLUG=<slug> MSG="<commit>" : verify, squash-merge, remove the
 
 # --- landing on main: the merge gate (L08) ------------------------------------------
 
-pr.land: $(STAMP)  ## PR=<n> : squash-merge a PR only if its head is green and current with main
+# PR_LAND_FLAGS carries the owner's --owner-approves-gate-change (L28); empty, nothing is approved.
+pr.land: $(STAMP)  ## PR=<n> [PR_LAND_FLAGS=...] : squash-merge a PR only if its head is green and current with main
 	@test -n "$(PR)" || { echo "PR= required"; exit 1; }
-	$(PY) -m scripts.pr_land $(PR)
+	$(PY) -m scripts.pr_land $(PR) $(PR_LAND_FLAGS)
 
 # --- cleanup -----------------------------------------------------------------------
 
