@@ -1695,14 +1695,16 @@ def test_g39_reads_the_tall_nuts_and_d_only_small_bolts_at_every_artifact_they_a
     assert doc["set"] == "outband-tall"
     assert doc["reps"] == 5
     assert doc["sources"] == ["explore=bench/results/phase-07/explore-40646117094"]
-    assert envelope == oper_sets.shipped_envelope()
+    # Drawn at ab72cf8, before its own run widened two nut seconds e (G41, R12: never redrawn).
+    widened = {("nut", "stl-preview", "seconds"), ("nut", "step", "seconds")}
+    assert {key for key, e in oper_sets.shipped_envelope().items() if envelope[key] != e} == widened
     points = doc["points"]
     assert isinstance(points, list)
     assert points == oper_sets.tall_points(envelope)
     for point in points:
         part = KINDS[point["kind"]].model_validate(point["params"])  # the production walls
         where = next(a for a in ARTIFACTS3 if a == point["artifact"])
-        assert cost.fits(part, where)
+        assert oper_sets.admits(part, where, envelope, cost.BUDGET)
         if isinstance(part, NutParams):
             assert part.m / part.d > cost.BANDS["nut", "m"][1]  # above the m band
             assert part.clearance == 0.15
@@ -1736,21 +1738,26 @@ def test_an_out_of_band_nut_reading_widens_e_and_a_bolt_or_load_reading_does_not
 
 def test_the_shipped_envelope_covers_every_runs_ii_reading_that_may_widen_it() -> None:
     """07-15 Task 3 on the record: over every Runs II directory, the readings that may widen e
-    (G5, G21, G30) are all within the shipped envelope, and G30's two nut models are the ones
-    outband run 40909768713 widened, its worst readings now at their enveloped prediction."""
+    (G5, G21, G30) are all within the shipped envelope. G30's two nut models are the ones
+    outband run 40909768713 widened and G41's the two outband-tall run 41206999278 widened, each
+    worst reading now at its enveloped prediction."""
     fit = json.loads(FIT.read_text())
-    assert fit["widened_by"] == ["40909768713"]
+    assert fit["widened_by"] == ["40909768713", "41206999278"]
     directories = sorted(path for path in (REPO_ROOT / "bench/results/phase-07").iterdir()
                          if path.name.split("-")[0] in {"bound", "load", "gzip", "arenas",
                                                         "outband"})
-    assert len(directories) == 7
+    assert len(directories) == 8
     kept = [(run, reading) for name, run, reading in oper_sets.runs_readings(directories)
             if oper_sets.widens(name, reading)]
     rows = oper_sets.envelope_check(fit, kept)
     assert [r for r in rows if r.widened is not None] == []
-    for target in ("seconds", "peak"):
-        row = _e(rows, "nut", "stl-fine", target)
-        assert row.worst.startswith("40909768713:outband-nut-s-below-iso4032:M2 rep 3")
+    for artifact, target, worst in (
+            ("stl-fine", "seconds", "40909768713:outband-nut-s-below-iso4032:M2 rep 3"),
+            ("stl-fine", "peak", "40909768713:outband-nut-s-below-iso4032:M2 rep 3"),
+            ("stl-preview", "seconds", "41206999278:tall-nut-x1-m5d rep 1"),
+            ("step", "seconds", "41206999278:tall-nut-x1-m5d rep 1")):
+        row = _e(rows, "nut", artifact, target)
+        assert row.worst == worst
         assert 1.0 - 1e-12 < row.ratio <= 1.0
     assert [m["envelope"] for m in fit["models"]] == [
         cost.ENVELOPE[m["kind"], m["artifact"], m["target"]] for m in fit["models"]]

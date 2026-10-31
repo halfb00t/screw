@@ -567,3 +567,29 @@ on the phase branch `gsd/phase-07-operability-re-sweep`.
 | Gap | Rule(s) | Owner ruling |
 |---|---|---|
 | G39 | R11 | For a nut with its clearance and at least one other field outside their bands, each clearance edge is also predicted with every other field at its real value, and the prediction is the largest of these, the raw one and G28's edge combinations, target by target. A clearance alone outside its band is predicted as under G38. No head ratio is paired with a real value. The second campaign reads, at 5 repetitions on the runner, the review's tall nut shape (d 92.28, pitch 31.418, s 130.54, clearance 0.15) scaled whole by 1, 0.5 and 0.25 with m at 5, 10.5, 20 and 29.5 d, and the d-only bolts M2 and M3, each at every artifact the shipped rule admits it (`bench/points/outband-tall.json`, written by `python -m bench.oper_sets outband-tall`). A nut reading above its enveloped prediction widens `e` (R12, as G30 rules); a bolt reading widens none, and a bolt miss updates the remaining-gap debt. An admitted reading over a timeout, the tmpfs or the memory limit stops the phase for the owner. |
+
+## Gap G41 (owner ruling on the tier files after the tall-nut widening, 2026-10-31)
+
+Source: quick task 261031-qd7, after outband-tall run 41206999278 (`bench/RESULTS.md`,
+`### outband-tall, run 41206999278`). R12 widens the nut stl-preview seconds e from
+1.061383246630594 to 1.0971665633647603 and the nut step seconds e from 0.8785228687431521 to
+1.0534097750071423, both on `tall-nut-x1-m5d` rep 1 (1.0173588859774887 and 1.093098098071598 of
+its enveloped prediction). The widening moves no admission. But `full.json`, `oper_boundary.json`
+and `dense-band.json` carry enveloped limits and record their envelope, so
+`python -m bench.oper_sets --check` failed: 56 and 24 nut seconds limits, by at most 9.31 %, and the
+recorded envelope of all three. All three are `GATE_PATHS` files (L28).
+
+The owner's reply, verbatim (the label "(Recommended)" is the orchestrator's, not part of the
+ruling): "1: regenerate the files (Recommended)".
+
+Measured by committed code at the implementing commit: the three files are written again by their
+own commands, `--check` exits 0, `prediction-drift` is 0 in every file, no point is added or
+dropped, 0 of the 294 bolt and 14 nut catalogue rows, neither default part and no d-only link
+changes admission, and `runtime.json` moves only its sources and header count. L31 records it.
+
+This is a ruled application of R12 after R30's freeze, not a harness fix; no protocol text changes.
+
+| Gap | Rule(s) | Owner ruling |
+|---|---|---|
+| G41 | R12, R27, R28 | When R12 widens an `e`, the tier files that carry enveloped limits (`full.json`, `oper_boundary.json`, `dense-band.json`) are drawn again by their own commands under the widened envelope, in the same commit as the widening; D(A), the bound set and the load mix stay as drawn. |
+

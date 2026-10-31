@@ -17716,3 +17716,99 @@ The required tier (`tests/data/oper_boundary.json`, 355 points, R27 step 5 less 
 | 41094108547 | `023a3f9` | success, 718 s | success, 728 s | success, 698 s | success, 354 s |
 
 41089145344 is the tier's first green run (07-18); every shard is under its 20-minute timeout in both.
+
+## Phase 7 tall nuts and d-only small bolts (G39, G40, G41)
+
+### outband-tall, run 41206999278
+
+- Dispatched sha: `ab72cf8850c51a960eefec473f621b221a9472c9`
+- Records: `bench/results/phase-07/outband-tall-41206999278/` (5 artifacts, 135 readings), run https://github.com/halfb00t/screw/actions/runs/41206999278
+- CPU models seen (jobs): AMD EPYC 7763 64-Core Processor (4); Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz (1)
+- Counts by status: ok: 135
+- The set is `bench/points/outband-tall.json` (`python -m bench.oper_sets outband-tall`, G39): the code review's tall nut (d 92.28, pitch 31.418, s 130.54, the default clearance) scaled by 1, 0.5 and 0.25 with m at 5, 10.5, 20 and 29.5 d, and the d-only bolts M2 and M3, at every artifact the shipped rule at ab72cf8 admitted each: 27 points, 1 shard x 5 repetitions = 5 jobs.
+- Summary: `python -m bench.oper summarize --markdown --reps 1,2,3,4,5` over the directory, as printed.
+
+### Host
+
+| fact | value |
+| --- | --- |
+| image | screw:ci |
+| image_id | sha256:0c8b01eaba699df9930af6f38147605e16f8225e5cc7ad782786fef6972912e7, sha256:802057cb5862dacf1780b0527d97ec19781635b79b4919f7d9e94b60cd2304a1, sha256:61b3749640f76943a03e2adde475730555aa34c1e46110c69638ad60c7aa65a1, sha256:64b5159cd5fb983a9eaa7b2bcd84395bbda3edfb1e9deb8a511c9c4155a7a82b, sha256:1bfb2feed704297c91f7deffa33e706d67d1dd126b88cc708b0eaaa5f395ee04 |
+| versions | {"cadquery": "2.8.0", "cadquery_ocp": "7.9.3.1.1"} |
+| nproc | 4 |
+| mem_total_bytes | 16759443456, 16758407168, 16763777024 |
+| cpu_model | AMD EPYC 7763 64-Core Processor, Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz |
+| kernel | 7.0.0-1017-azure |
+| machine | x86_64 |
+| GITHUB_RUN_ID | 41206999278 |
+| GITHUB_JOB | measure |
+| GITHUB_SHA | ab72cf8850c51a960eefec473f621b221a9472c9 |
+
+### Readings
+
+Status counts: ok: 135
+
+| point | artifact | n | status | counts | median build s | max build s | median export s | max export s | median bytes | max bytes | median peak bytes | max peak bytes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| tall-nut-x1-m5d | stl-preview | 5 | ok | ok: 5 | 6.714 | 6.750 | 2.302 | 2.367 | 16559884 | 16559884 | 352481280 | 355315712 |
+| tall-nut-x1-m5d | stl-fine | 5 | ok | ok: 5 | 6.733 | 6.772 | 26.574 | 27.604 | 104299084 | 104299084 | 1900462080 | 2040320000 |
+| tall-nut-x1-m5d | step | 5 | ok | ok: 5 | 6.740 | 6.781 | 0.065 | 0.069 | 1443691 | 1443691 | 231038976 | 232964096 |
+| tall-nut-x1-m10.5d | stl-preview | 5 | ok | ok: 5 | 6.918 | 6.980 | 4.852 | 5.047 | 35859884 | 35859884 | 383803392 | 387448832 |
+| tall-nut-x1-m10.5d | step | 5 | ok | ok: 5 | 6.932 | 6.944 | 0.113 | 0.121 | 2580848 | 2580848 | 237928448 | 238084096 |
+| tall-nut-x1-m20d | step | 5 | ok | ok: 5 | 9.106 | 9.153 | 0.194 | 0.202 | 4508051 | 4508051 | 248451072 | 250118144 |
+| tall-nut-x0.5-m5d | stl-preview | 5 | ok | ok: 5 | 4.401 | 4.465 | 0.837 | 0.858 | 6554184 | 6554184 | 255279104 | 262221824 |
+| tall-nut-x0.5-m5d | stl-fine | 5 | ok | ok: 5 | 4.395 | 4.473 | 12.588 | 14.070 | 65949984 | 65949984 | 1305944064 | 1431654400 |
+| tall-nut-x0.5-m5d | step | 5 | ok | ok: 5 | 4.397 | 4.426 | 0.063 | 0.067 | 1388926 | 1388926 | 232456192 | 233115648 |
+| tall-nut-x0.5-m10.5d | stl-preview | 5 | ok | ok: 5 | 6.035 | 6.089 | 1.818 | 1.859 | 14175884 | 14175884 | 269053952 | 273661952 |
+| tall-nut-x0.5-m10.5d | stl-fine | 5 | ok | ok: 5 | 6.060 | 6.126 | 26.641 | 30.442 | 142657184 | 142657184 | 1456418816 | 1483145216 |
+| tall-nut-x0.5-m10.5d | step | 5 | ok | ok: 5 | 6.086 | 6.167 | 0.115 | 0.116 | 2491024 | 2491024 | 238063616 | 238551040 |
+| tall-nut-x0.5-m20d | stl-preview | 5 | ok | ok: 5 | 8.636 | 8.734 | 3.503 | 3.538 | 27267984 | 27267984 | 309018624 | 323424256 |
+| tall-nut-x0.5-m20d | step | 5 | ok | ok: 5 | 8.716 | 8.820 | 0.200 | 0.206 | 4300214 | 4300214 | 248705024 | 260141056 |
+| tall-nut-x0.25-m5d | stl-preview | 5 | ok | ok: 5 | 4.669 | 4.718 | 0.469 | 0.488 | 4061784 | 4061784 | 240484352 | 242634752 |
+| tall-nut-x0.25-m5d | stl-fine | 5 | ok | ok: 5 | 4.707 | 4.748 | 5.045 | 5.563 | 28250884 | 28250884 | 587759616 | 612651008 |
+| tall-nut-x0.25-m5d | step | 5 | ok | ok: 5 | 4.693 | 4.710 | 0.059 | 0.063 | 1300265 | 1300265 | 238714880 | 243408896 |
+| tall-nut-x0.25-m10.5d | stl-preview | 5 | ok | ok: 5 | 6.575 | 6.683 | 0.985 | 1.019 | 8795084 | 8795084 | 255979520 | 263827456 |
+| tall-nut-x0.25-m10.5d | stl-fine | 5 | ok | ok: 5 | 6.562 | 6.671 | 10.711 | 11.348 | 60885084 | 60885084 | 627044352 | 663826432 |
+| tall-nut-x0.25-m10.5d | step | 5 | ok | ok: 5 | 6.572 | 6.638 | 0.102 | 0.105 | 2350948 | 2350948 | 257085440 | 265125888 |
+| tall-nut-x0.25-m20d | stl-preview | 5 | ok | ok: 5 | 9.733 | 9.765 | 1.855 | 1.949 | 16976084 | 16976084 | 302690304 | 319553536 |
+| tall-nut-x0.25-m20d | step | 5 | ok | ok: 5 | 9.696 | 9.800 | 0.176 | 0.181 | 4058858 | 4058858 | 291258368 | 292143104 |
+| tall-nut-x0.25-m29.5d | stl-preview | 5 | ok | ok: 5 | 12.782 | 12.990 | 2.792 | 3.091 | 25126484 | 25126484 | 369152000 | 373051392 |
+| d-only-bolt-M2 | stl-fine | 5 | ok | ok: 5 | 2.165 | 2.219 | 1.172 | 1.308 | 6141884 | 6141884 | 275177472 | 279330816 |
+| d-only-bolt-M2 | step | 5 | ok | ok: 5 | 2.166 | 2.218 | 0.052 | 0.056 | 1117537 | 1117537 | 216653824 | 217702400 |
+| d-only-bolt-M3 | stl-fine | 5 | ok | ok: 5 | 2.220 | 2.240 | 1.598 | 1.628 | 7635684 | 7635684 | 306655232 | 309829632 |
+| d-only-bolt-M3 | step | 5 | ok | ok: 5 | 2.218 | 2.264 | 0.053 | 0.055 | 1159911 | 1159911 | 216834048 | 218202112 |
+
+### tall-nut check
+
+Every reading is `ok` and inside its artifact's timeout: the largest cold wall is `tall-nut-x0.5-m10.5d` at stl-fine, 36.568146296000066 s (rep 1) of 71 s. The largest fine STL is 142,657,184 B (`tall-nut-x0.5-m10.5d`), under the 268,435,456 B export tmpfs.
+
+**Memory.** `tall-nut-x1-m5d` (d 92.28, pitch 31.418, s 130.54, m 461.4) at stl-fine, admitted at ab72cf8 against B-01's peak of 2,930,457,561 B on an enveloped 2,199,633,004 B, read peaks of 1,830,440,960, 2,040,320,000, 1,943,306,240, 1,900,462,080 and 1,885,163,520 B (repetitions 1 to 5), above W (1,758,363,648 B). The reading holds the export in memory, so its peak does not count the tmpfs file; with `runtime.json`'s B (65,208,320 B), export cache (251,658,240 B) and tmpfs (268,435,456 B), repetitions 2 to 5 come to 2,470,465,536 to 2,625,622,016 B, past the 2,415,919,104 B `mem_limit`. No reading was OOM-killed (12 GiB cap). The owner ruled G40 on this reading: the nut's fine-STL peak budget is capped at that headroom, 1,830,617,088 B, which refuses this nut at the fine STL (L32).
+
+**d-only bolts.** The M2 and M3 that name only d read at most 0.5992 of their enveloped prediction (M2, step, peak; `cost.predict` x (1 + e) over every bolt reading), so the head-ratio pairing gap G39 left open shows nothing here. Bolt readings of out-of-band points widen no e (G30).
+
+### envelope check (outband-tall)
+
+R12 over every Runs II directory: `python -m bench.oper_sets envelope-check --fit bench/results/phase-07/fit.json --from` bound-40907549180, bound-rerun-40999654995, load-40909724292, gzip-40909739628, gzip-rerun-40999657702, arenas-40909754190, outband-40909768713 and outband-tall-41206999278, all under `bench/results/phase-07/`. The nut out-of-band readings widen e (G30); the prediction is `cost.predict` at ab72cf8 (G39's rule) under fit.json's e before this check. The table is the command's output as printed:
+
+| kind | artifact | target | e | largest actual / enveloped prediction | reading | widened e |
+| --- | --- | --- | --- | --- | --- | --- |
+| bolt | stl-preview | bytes | 2.264581945786201 | 0.4115428693571629 | 40907549180:iso4017:M20x180-n1 rep 1 | |
+| bolt | stl-preview | seconds | 4.286137349093968 | 0.24122528491757056 | 40907549180:iso4017:M16x160-n1 rep 3 | |
+| bolt | stl-preview | peak | 2.040087854388461 | 0.3588734859490862 | 40907549180:iso4017:M20x200-n1 rep 3 | |
+| bolt | stl-fine | bytes | 0.5633622849303941 | 0.6840916164239862 | 40907549180:iso4017:M16x150-n1 rep 1 | |
+| bolt | stl-fine | seconds | 2.690232029900006 | 0.3623526229457311 | 40909739628:iso4017:M16x160 rep 3 | |
+| bolt | stl-fine | peak | 2.170967259675211 | 0.38007875206964803 | 40907549180:iso4017:M16x160-n1 rep 1 | |
+| bolt | step | bytes | 0.9874058238127998 | 0.5317023787688461 | 40907549180:iso4017:M16x160-n1 rep 1 | |
+| bolt | step | seconds | 2.616422482555953 | 0.3838164707093669 | 40907549180:iso4017:M20x200-n1 rep 4 | |
+| bolt | step | peak | 0.45747877720379804 | 0.7931848836730653 | 40907549180:iso4017:M16x160-n1 rep 5 | |
+| nut | stl-preview | bytes | 0.7070121785110755 | 0.9721946300680642 | 40909768713:outband-nut-s-below-iso4032:M2 rep 1 | |
+| nut | stl-preview | seconds | 1.061383246630594 | 1.0173588859774887 | 41206999278:tall-nut-x1-m5d rep 1 | 1.0971665633647603 |
+| nut | stl-preview | peak | 0.556086702674923 | 0.846383629385712 | 40909768713:outband-nut-s-below-iso4032:M2 rep 3 | |
+| nut | stl-fine | bytes | 0.4996608149413484 | 0.9981109610467054 | 40909768713:outband-nut-s-below-iso4032:M2 rep 1 | |
+| nut | stl-fine | seconds | 1.7812452161769916 | 1.0 | 40909768713:outband-nut-s-below-iso4032:M2 rep 3 | |
+| nut | stl-fine | peak | 0.5976833077470993 | 0.9999999999999999 | 40909768713:outband-nut-s-below-iso4032:M2 rep 3 | |
+| nut | step | bytes | 0.3802587303182223 | 0.8292718955725624 | 40907549180:nut-d100-p3.5-m3d-s4d-c5-right-n1 rep 1 | |
+| nut | step | seconds | 0.8785228687431521 | 1.093098098071598 | 41206999278:tall-nut-x1-m5d rep 1 | 1.0534097750071423 |
+| nut | step | peak | 0.48786919655819627 | 0.7982808182696558 | 41206999278:tall-nut-x0.25-m20d rep 3 | |
+
+**Outcome: two e widen, both from outband-tall run 41206999278 (G41).** The nut stl-preview seconds e goes from 1.061383246630594 to 1.0971665633647603 and the nut step seconds e from 0.8785228687431521 to 1.0534097750071423, both set by `tall-nut-x1-m5d` rep 1, each raised by whole ulps until the factor covers every kept reading. The widened envelope refuses none of the 294 bolt and 14 nut catalogue rows, neither default part and no link that names only d, at any artifact. fit.json changes only those two `envelope` values and gains `41206999278` in `widened_by`; `calc/cost.py`'s block is re-emitted. The tier files are regenerated by their own commands: `full.json` (56 nut seconds limits and its recorded envelope), `tests/data/oper_boundary.json` (24 limits and its envelope) and `dense-band.json` (its envelope only); each limit loosens by at most 9.31 %, no point is added or dropped, and `python -m bench.oper_sets --check` exits 0. `derive-runtime` moves only `runtime.json`'s sources (this folder) and header count (355 to 360); no derived value moves, W included. L31 of `docs/architecture/decision_log.md` records the widening.

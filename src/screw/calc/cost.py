@@ -143,6 +143,7 @@ COEFFICIENTS: Final[Mapping[ModelKey, tuple[float, ...]]] = MappingProxyType({
 # R12's envelope e per model.
 # fit.json, runs explore 40646117094 and spread 40646125666.
 # Widened by run 40909768713 (R12).
+# Widened by run 41206999278 (R12).
 ENVELOPE: Final[Mapping[ModelKey, float]] = MappingProxyType({
     ("bolt", "stl-preview", "bytes"): 2.264581945786201,
     ("bolt", "stl-preview", "seconds"): 4.286137349093968,
@@ -154,13 +155,13 @@ ENVELOPE: Final[Mapping[ModelKey, float]] = MappingProxyType({
     ("bolt", "step", "seconds"): 2.616422482555953,
     ("bolt", "step", "peak"): 0.45747877720379804,
     ("nut", "stl-preview", "bytes"): 0.7070121785110755,
-    ("nut", "stl-preview", "seconds"): 1.061383246630594,
+    ("nut", "stl-preview", "seconds"): 1.0971665633647603,
     ("nut", "stl-preview", "peak"): 0.556086702674923,
     ("nut", "stl-fine", "bytes"): 0.4996608149413484,
     ("nut", "stl-fine", "seconds"): 1.7812452161769916,
     ("nut", "stl-fine", "peak"): 0.5976833077470993,
     ("nut", "step", "bytes"): 0.3802587303182223,
-    ("nut", "step", "seconds"): 0.8785228687431521,
+    ("nut", "step", "seconds"): 1.0534097750071423,
     ("nut", "step", "peak"): 0.48786919655819627,
 })
 # G28's band of each head ratio, field / d, and G38's of the nut's clearance,

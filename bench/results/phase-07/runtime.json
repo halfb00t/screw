@@ -15,6 +15,7 @@
   "bench/results/phase-07/gzip-rerun-40999657702",
   "bench/results/phase-07/load-40909724292",
   "bench/results/phase-07/outband-40909768713",
+  "bench/results/phase-07/outband-tall-41206999278",
   "bench/results/phase-07/solid-cache-4-41016510597",
   "bench/results/phase-07/spread-40646125666",
   "bench/results/phase-07/tracer-40645463872",
@@ -36,7 +37,7 @@
  "runner": {
   "nproc": 4,
   "smallest_mem_total_bytes": 16758394880,
-  "headers": 355
+  "headers": 360
  },
  "gzip": {
   "level": 1,

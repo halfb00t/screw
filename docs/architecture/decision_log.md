@@ -1799,6 +1799,10 @@ longer predicted but refused at every artifact.
 Superseded in part by L29: the head-ratio bands also carry the nut's `clearance`, banded in mm, so a
 clearance below the 0.15 mm the fit read is judged at that low edge too.
 
+Superseded in part by L31: two more envelope rows, the nut stl-preview seconds e 1.061383246630594
+to 1.0971665633647603 and the nut step seconds e 0.8785228687431521 to 1.0534097750071423, both
+widened by outband-tall run 41206999278.
+
 ## L22 — The out-of-band nut readings widen the nut fine-STL envelope, and a bolt below the fitted turns is refused at every artifact
 
 Date: 2026-10-30. Decided by the owner's ruling G30 (`07-GAP-RULINGS.md`; the refusal shape in
@@ -2393,3 +2397,51 @@ Reason: a number the tool prints is a number someone will cut metal to (L02), an
 only on a prediction some reading covers. A wider `e` could not cover a gap that grows with m / d.
 
 Reversibility: costly, as L21. Pricing more combinations only refuses more.
+
+## L31 — The tall-nut readings widen the nut preview and STEP seconds envelopes, and the tier files are drawn again under them
+
+Date: 2026-10-31. Decided by R12 of `07-SWEEP-PROTOCOL.md` and G30 (a nut reading of the
+out-of-band points widens `e`), on the readings G39 asked for, and by the owner's ruling G41
+(`07-GAP-RULINGS.md`; `07-OWNER-RULINGS.md`, "R12: the tier files are drawn again under the
+widened envelope"). Supersedes in part L21 (two envelope rows).
+
+**The envelope (D-07, R12).** Outband-tall run 41206999278 (`bench/RESULTS.md`, `### outband-tall,
+run 41206999278`) read `bench/points/outband-tall.json` at 5 repetitions on linux/amd64: 135
+readings, all `ok`. `python -m bench.oper_sets envelope-check` over every Runs II directory (the
+seven of L22 and outband-tall 41206999278) widens two models, each by whole ulps until the factor
+covers every kept reading:
+
+| kind | artifact | target | e before (L21) | e now | set by |
+| --- | --- | --- | --- | --- | --- |
+| nut | stl-preview | seconds | 1.061383246630594 | 1.0971665633647603 | 41206999278:tall-nut-x1-m5d rep 1 |
+| nut | step | seconds | 0.8785228687431521 | 1.0534097750071423 | 41206999278:tall-nut-x1-m5d rep 1 |
+
+The readings were 1.0173588859774887 and 1.093098098071598 of their enveloped predictions. No other
+kept reading is above its enveloped prediction, and the d-only bolts M2 and M3 read at most 0.5992
+of theirs (a bolt reading widens nothing, G30). fit.json carries the two values and
+`widened_by: ["40909768713", "41206999278"]`; its coefficients and its `envelope_set_by` labels are
+unchanged (R12). `emit-constants` re-emitted the block of `calc/cost.py`. The widened envelope
+refuses none of the 294 bolt and 14 nut catalogue rows, neither default part and no link that names
+only d at any artifact, so B-01's budget and the refused-preset count do not move.
+
+**The tier files (G41).** R12 fixes D(A), the bound set and the load mix and changes "admission and
+the final numbers only". The tier files carry those final numbers as each point's enveloped limit
+and record the envelope they were drawn under, so `--check` failed until they were drawn again. The
+owner ruled that they be, by their own commands (`python -m bench.oper_sets full`, `boundary` and
+`dense-band`):
+
+- `bench/points/full.json`: 56 nut seconds limits loosen, and its recorded envelope changes;
+- `tests/data/oper_boundary.json`: 24 nut seconds limits loosen, and its recorded envelope changes;
+- `bench/points/dense-band.json`: only its recorded envelope changes (its points are bolts).
+
+Each limit loosens by at most 9.31 %, where the runner showed the old one was too tight. No point is
+added or dropped, and `prediction-drift` is 0 in every file. These are `GATE_PATHS` files (L28), so
+landing needs `--owner-approves-gate-change`, which PR #26 needs already. `derive-runtime` moves
+only `runtime.json`'s sources and its header count (355 to 360); W and every timeout stand.
+
+Reason: a number the tool prints is a number someone will cut metal to (L02), and a part is admitted
+only on a prediction some reading covers. A wider `e` only refuses more, and here it refuses nothing
+B-01 keeps.
+
+Reversibility: costly, as L21. A re-fit, or a later reading over these envelopes, needs a
+superseding entry.

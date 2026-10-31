@@ -290,3 +290,15 @@ clearance edge is also predicted with every other field at its real value. The p
 largest of these, the raw one and G28's edge combinations. The three nuts of G39 are refused at the
 fine STL; no catalogue row, default part, d-only link or set moves. The runner reads the tall nuts
 and the d-only M2 and M3 at 5 repetitions; only a nut reading that misses widens `e`.
+
+## R12: the tier files are drawn again under the widened envelope (2026-10-31, G41)
+
+Source: quick task 261031-qd7 (`07-GAP-RULINGS.md`, G41, holds its figures). Outband-tall run
+41206999278 widened the nut stl-preview and step seconds e, and the tier files' limits and recorded
+envelopes no longer regenerated. The owner's reply, verbatim (the label "(Recommended)" is the
+orchestrator's, not part of the ruling): "1: regenerate the files (Recommended)".
+
+Ruling: one commit holds the records, the widened fit.json and `calc/cost.py`, and `full.json`,
+`oper_boundary.json` and `dense-band.json` drawn again by their own commands, with L31. No admission
+moves; the limits loosen only where the runner read them too tight.
+
