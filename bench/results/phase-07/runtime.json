@@ -10,6 +10,7 @@
   "bench/results/phase-07/drift-60-41022812680",
   "bench/results/phase-07/explore-40646117094",
   "bench/results/phase-07/full-41155746591",
+  "bench/results/phase-07/full-41161227951",
   "bench/results/phase-07/gzip-40909739628",
   "bench/results/phase-07/gzip-rerun-40999657702",
   "bench/results/phase-07/load-40909724292",
@@ -35,7 +36,7 @@
  "runner": {
   "nproc": 4,
   "smallest_mem_total_bytes": 16758394880,
-  "headers": 315
+  "headers": 355
  },
  "gzip": {
   "level": 1,

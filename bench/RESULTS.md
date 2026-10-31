@@ -17694,6 +17694,18 @@ All 18 points are `ok`, inside their timeouts and their limits, so G37's ruling 
 - The largest cold wall against its timeout is `iso4017:M20x200` at `stl-fine`: 28.21965351299997 s of 71 s, 0.3974599086338024; times (1 + m) it is 43.40942366441496 s, under the timeout, which is why R5 re-read no point.
 - R12: `python -m bench.oper_sets envelope-check --fit <a scratch copy of fit.json> --from bench/results/phase-07/full-41155746591 bench/results/phase-07/dense-band-41153581470` prints `no reading exceeds its envelope`; the largest ratio is 1.0, nut step bytes at `nut-d10-p3.5-m0.8d-s4d-c0.15-right`, the point that set that envelope. fit.json does not move.
 
+### full, run 41161227951
+
+- Head sha: `95a99daf6b0d757bc6d9d2c25ee7ecedf876c222`, the phase branch's head, read by the `pull_request` trigger of draft PR #26 (07-20). The records' `GITHUB_SHA` is `769ebaca36bb3836bad9a35c7dcca516eed3e855`, the PR's merge commit of that head onto `main` at `67a9d0291d1484e57425511a8f2a2cb1a11e0252`, which is what a `pull_request` run checks out.
+- Records: `bench/results/phase-07/full-41161227951/` (40 artifacts, 1056 readings), run https://github.com/halfb00t/screw/actions/runs/41161227951
+- CPU models seen (jobs): AMD EPYC 7763 64-Core Processor (19); AMD EPYC 9V45 96-Core Processor (10); AMD EPYC 9V74 80-Core Processor (7); INTEL(R) XEON(R) PLATINUM 8573C (4)
+- Counts by status: ok: 1056
+- The set is `bench/points/full.json` as for run 41155746591: 1056 points in 40 shards, m = 0.5382691940004687. The longest `measure` job took 453 s.
+- Judged in the run: every `measure` job passed, `followup-plan` selected nothing, so `followup` was skipped, and `verdict` passed. Again by committed code over the committed records: `python3 -m bench.oper verdict --set full --from bench/results/phase-07/full-41161227951` prints `full: 1056 points, 0 failures`.
+- The largest cold wall against its timeout is `iso4017:M16x160` at `stl-fine`: 28.791969977000008 s of 71 s, 0.40552070390140854; times (1 + m) it is 44.2898004502055 s, under the timeout, which is why R5 re-read no point, so no follow-up point and no 5-repetition max exist for this run.
+- R12: `python -m bench.oper_sets envelope-check --fit <a scratch copy of fit.json> --from bench/results/phase-07/full-41161227951` prints `no reading exceeds its envelope`; the largest ratio is 1.0, nut step bytes at `nut-d10-p3.5-m0.8d-s4d-c0.15-right`, the point that set that envelope. fit.json does not move.
+- `python -m bench.oper_sets derive-runtime` over every record folder moves only `runtime.json`'s `sources` (this folder) and its header count (315 to 355); no derived value moves.
+
 ### bounds, runs 41089145344 and 41094108547
 
 The required tier (`tests/data/oper_boundary.json`, 355 points, R27 step 5 less the points R31's wall refuses) in ci.yml's `bounds` matrix, 4 shards, each judged in its job by `bench.oper check`. Job results as `gh run view <run> --json jobs` reports them:
