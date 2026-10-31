@@ -186,6 +186,9 @@ BUDGET: Final[Mapping[Artifact, Budget]] = MappingProxyType({
     "stl-fine": (239508059.14804876, 94.42979276577135, 2930457561.336711),
     "step": (9748694.773917168, 15.000925691551677, 422239338.63724077),
 })
+# G40: the memory one build may use, runtime.json's mem_limit_bytes less B, the
+# export cache and the tmpfs (L23); it caps the nut's fine-STL peak budget.
+WORKER_HEADROOM_BYTES: Final[int] = 1830617088
 # END emit-constants
 
 # How the refusal text names an artifact: the page's words, then the id the 422's `ctx.artifact`
@@ -308,15 +311,35 @@ def below_fitted_turns(p: FastenerParams) -> bool:
         p.thread_length, p.length) / p.pitch < MIN_FITTED_TURNS
 
 
+# G40 (L32): the (kind, artifact) whose peak budget is B-01's capped at the worker's headroom.
+# Outband-tall run 41206999278 read the nut d 92.28, pitch 31.418, s 130.54, m 461.4 at the fine
+# STL at up to 2,040,320,000 B peak, admitted against B-01's 2,930,457,561 B; with B, the export
+# cache and the tmpfs that is 2,625,622,016 B, past the 2,415,919,104 B mem_limit. Capping every
+# artifact would refuse the fine STL of 110 bolt catalogue rows the full tier read at 904,486,912
+# B at most (runs 41155746591, 41161227951), so only the nut's is capped; the preview's and the
+# STEP's peak budgets are under the headroom already.
+HEADROOM_CAPPED: Final[frozenset[tuple[str, Artifact]]] = frozenset({("nut", "stl-fine")})
+
+
+def budget(kind: str, artifact: Artifact) -> Budget:
+    """B-01's budget of `artifact` for `kind`, its peak capped at `WORKER_HEADROOM_BYTES` where
+    `HEADROOM_CAPPED` names the pair (G40)."""
+    found = BUDGET[artifact]
+    raw_bytes, seconds, peak = found
+    if (kind, artifact) not in HEADROOM_CAPPED or peak is None:
+        return found
+    return raw_bytes, seconds, min(peak, float(WORKER_HEADROOM_BYTES))
+
+
 def fits(p: FastenerParams, artifact: Artifact) -> bool:
-    """Whether every target of `p`'s `artifact` is admitted against B-01's budget (R12); never for a
-    bolt below the fitted turns (G30), whose prediction no reading supports."""
+    """Whether every target of `p`'s `artifact` is admitted against its budget (R12, B-01, G40);
+    never for a bolt below the fitted turns (G30), whose prediction no reading supports."""
     if below_fitted_turns(p):
         return False
     kind = p.kind
-    return all(admitted(pred, ENVELOPE[kind, artifact, target], budget)
-               for pred, target, budget in zip(predict(p, artifact), TARGETS, BUDGET[artifact],
-                                               strict=True))
+    return all(admitted(pred, ENVELOPE[kind, artifact, target], component)
+               for pred, target, component in zip(predict(p, artifact), TARGETS,
+                                                  budget(kind, artifact), strict=True))
 
 
 def _listed(names: list[str]) -> str:

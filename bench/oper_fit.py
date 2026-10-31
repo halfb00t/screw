@@ -685,13 +685,26 @@ def _wrapped(head: str, items: Sequence[str], tail: str) -> list[str]:
     return [*lines, line]
 
 
+def worker_headroom(runtime: Mapping[str, object]) -> int:
+    """G40: the memory one build may use in the shipped container, runtime.json's `mem_limit` less
+    B, the export cache and the tmpfs, the sum R16 sizes `mem_limit` by at N = 1 (L23)."""
+    def number(key: str) -> int:
+        value = runtime[key]
+        found = value.get("bytes") if isinstance(value, dict) else value
+        if not isinstance(found, int) or isinstance(found, bool):
+            raise TypeError(f"runtime.json's {key} is not a byte count")
+        return found
+    return (number("mem_limit_bytes") - number("b") - number("export_cache")
+            - number("tmpfs_bytes"))
+
+
 def emit_constants(document: Mapping[str, object], rulings: str, bands: Bands,
-                   turns: float) -> str:
+                   turns: float, headroom: int) -> str:
     """The Python block `calc/cost.py` carries between `EMIT_BEGIN` and `EMIT_END`: the
     coefficients and envelopes of fit.json, G28's head-ratio bands, G38's clearance band and
-    B-03's turns floor of the records fit.json was fitted on, and B-01's budget, floats written
-    with `repr`, so the shipped numbers are generated from their evidence, never typed (D-05,
-    D-07, G28, G38, B-03)."""
+    B-03's turns floor of the records fit.json was fitted on, B-01's budget and G40's worker
+    headroom (`worker_headroom` of runtime.json), floats written with `repr`, so the shipped
+    numbers are generated from their evidence, never typed (D-05, D-07, G28, G38, G40, B-03)."""
     models = models_of(document)
     runs = document["run_ids"]
     if not isinstance(runs, dict):
@@ -733,7 +746,11 @@ def emit_constants(document: Mapping[str, object], rulings: str, bands: Bands,
               "BUDGET: Final[Mapping[Artifact, Budget]] = MappingProxyType({"]
     for artifact in ARTIFACTS:
         lines += _wrapped(f'    "{artifact}": (', [repr(v) for v in budget[artifact]], "),")
-    return "\n".join([*lines, "})", EMIT_END]) + "\n"
+    lines += ["})",
+              "# G40: the memory one build may use, runtime.json's mem_limit_bytes less B, the",
+              "# export cache and the tmpfs (L23); it caps the nut's fine-STL peak budget.",
+              f"WORKER_HEADROOM_BYTES: Final[int] = {headroom!r}"]
+    return "\n".join([*lines, EMIT_END]) + "\n"
 
 
 def _dump(document: Mapping[str, object]) -> str:
@@ -756,6 +773,7 @@ def main(argv: list[str] | None = None) -> int:
     p_emit.add_argument("--rulings", required=True)
     p_emit.add_argument("--explore", nargs="+", type=Path, required=True)
     p_emit.add_argument("--spread", nargs="+", type=Path, required=True)
+    p_emit.add_argument("--runtime", required=True)
     args = parser.parse_args(argv)
     try:
         if args.command == "emit-constants":
@@ -763,7 +781,9 @@ def main(argv: list[str] | None = None) -> int:
                                    load_set("spread", args.spread)[1])
             sys.stdout.write(emit_constants(json.loads(Path(args.fit).read_text()),
                                             Path(args.rulings).read_text(),
-                                            head_bands(points), min_turns(points)))
+                                            head_bands(points), min_turns(points),
+                                            worker_headroom(json.loads(
+                                                Path(args.runtime).read_text()))))
             return 0
         if args.command == "fit":
             text = _dump(fit_document(args.explore, args.spread))

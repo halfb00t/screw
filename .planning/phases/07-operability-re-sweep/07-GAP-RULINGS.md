@@ -568,6 +568,48 @@ on the phase branch `gsd/phase-07-operability-re-sweep`.
 |---|---|---|
 | G39 | R11 | For a nut with its clearance and at least one other field outside their bands, each clearance edge is also predicted with every other field at its real value, and the prediction is the largest of these, the raw one and G28's edge combinations, target by target. A clearance alone outside its band is predicted as under G38. No head ratio is paired with a real value. The second campaign reads, at 5 repetitions on the runner, the review's tall nut shape (d 92.28, pitch 31.418, s 130.54, clearance 0.15) scaled whole by 1, 0.5 and 0.25 with m at 5, 10.5, 20 and 29.5 d, and the d-only bolts M2 and M3, each at every artifact the shipped rule admits it (`bench/points/outband-tall.json`, written by `python -m bench.oper_sets outband-tall`). A nut reading above its enveloped prediction widens `e` (R12, as G30 rules); a bolt reading widens none, and a bolt miss updates the remaining-gap debt. An admitted reading over a timeout, the tmpfs or the memory limit stops the phase for the owner. |
 
+## Gap G40 (owner ruling on the nut fine-STL peak past mem_limit, 2026-10-31)
+
+Source: quick task 261031-qd7, outband-tall run 41206999278 (`bench/RESULTS.md`, `### outband-tall,
+run 41206999278`). The nut d 92.28, pitch 31.418, s 130.54, m 461.4, admitted at the fine STL against
+B-01's 2,930,457,561 B peak on an enveloped 2,199,633,004 B, read peaks of 1,830,440,960 to
+2,040,320,000 B over 5 repetitions, above W (1,758,363,648 B). With runtime.json's B (65,208,320 B),
+export cache (251,658,240 B) and tmpfs (268,435,456 B), repetitions 2 to 5 need 2,470,465,536 to
+2,625,622,016 B, past the 2,415,919,104 B `mem_limit`. The worker's headroom, `mem_limit` less those
+three, is 1,830,617,088 B.
+
+The owner's replies, verbatim and in order (the label "(Recommended)" is the orchestrator's, not
+part of the ruling):
+
+1. "1: budget peak to headroom (Recommended)": cap the peak budget at the headroom, with the
+   catalogue and default impact checked first. The check stopped it before anything was written:
+   capping every artifact's peak refuses the fine STL of 110 bolt catalogue rows (77 ISO 4017 and
+   33 ISO 4014, M10 to M20) and of 33 links that name only d (bolt d 3.9 to 5.4 and 8.3 to 9.9),
+   whose enveloped peaks reach 2,930,457,561 B (bolt stl-fine peak e 2.170967259675211) but which
+   the full tier read at 904,486,912 B at most, 0.4941 of the headroom (runs 41155746591 and
+   41161227951).
+2. "1: nut stl-fine only (Recommended)", final: the headroom caps the nut's stl-fine peak budget
+   only. It moves 0 rows, 0 defaults and 0 d-only links, and refuses the tall nut.
+3. Asked whether the cap may refuse the d 30 clearance-5 grid nuts the runner built under the
+   headroom (the 71 s timeout's bound point and W's drift part): "Keep cap, file must debt
+   (Recommended)". Measured after the reply: those grid nuts (d / pitch 30 and 8.57) are past the
+   nut's wall of 8 (G36), so no request reaches them; the one production part the cap refuses that
+   the runner read under the headroom is `tall-nut-x0.5-m10.5d`, read at 0.8102 of it and enveloped
+   at 1.0116 x. The debt carries it.
+
+Measured by committed code at the implementing commit: the tall nut m 461.4 is refused at the fine
+STL; the capped peak plus B, the cache and the tmpfs is exactly `mem_limit`; 0 of the 294 bolt and 14
+nut catalogue rows, neither default part and no d-only link changes admission at any artifact; the
+refused-preset count stays 0; every point set keeps the B-01 budget it was drawn under, so `--check`
+exits 0; and `runtime.json` moves only R21's candidate count, 394 to 390 (4 explore nuts the cap
+refuses), with its 240 MiB, its part, W and every timeout unchanged. L32 records it.
+
+This is a ruled change to B-01 after R30's freeze, not a harness fix; no protocol text changes.
+
+| Gap | Rule(s) | Owner ruling |
+|---|---|---|
+| G40 | R13 (B-01) | The nut's fine-STL peak budget is B-01's capped at the worker's headroom, runtime.json's `mem_limit` less B, the export cache and the tmpfs, computed by code and emitted with the constants, never typed. Every other budget, the bolt's fine-STL peak included, stays B-01's. The point sets keep the budget they were drawn under. |
+
 ## Gap G41 (owner ruling on the tier files after the tall-nut widening, 2026-10-31)
 
 Source: quick task 261031-qd7, after outband-tall run 41206999278 (`bench/RESULTS.md`,

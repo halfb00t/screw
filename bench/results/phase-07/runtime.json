@@ -409,7 +409,7 @@
   "bytes": 251658240,
   "part": "iso4017:M20x200",
   "raw_and_gzip1_bytes": 250654910,
-  "candidates": 394,
+  "candidates": 390,
   "runs": [
    "40646117094"
   ]

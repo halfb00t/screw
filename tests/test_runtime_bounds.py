@@ -396,9 +396,11 @@ def test_the_budgets_are_looser_than_the_limits_exactly_where_l24_records_it() -
     assert headroom == 1830617088
     seconds_over = {a for a in cost.ARTIFACTS
                     if (cost.BUDGET[a][1] or math.inf) > cost.BUILD_TIMEOUT_S[a]}
-    peak_over = {a for a in cost.ARTIFACTS if (cost.BUDGET[a][2] or math.inf) > headroom}
+    # G40 (L32) caps the nut's fine-STL peak budget at the headroom; the bolt's stays B-01's.
+    peak_over = {(kind, a) for kind in ("bolt", "nut") for a in cost.ARTIFACTS
+                 if (cost.budget(kind, a)[2] or math.inf) > headroom}
     assert seconds_over == {"stl-preview", "stl-fine"}
-    assert peak_over == {"stl-fine"}
+    assert peak_over == {("bolt", "stl-fine")}
     # The measured worst readings stay under every limit: the gap is the budget's, not a reading's.
     for artifact in cost.ARTIFACTS:
         assert runtime["timeouts"][artifact]["max_cold_wall_s"] < cost.BUILD_TIMEOUT_S[artifact]

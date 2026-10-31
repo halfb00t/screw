@@ -291,6 +291,22 @@ largest of these, the raw one and G28's edge combinations. The three nuts of G39
 fine STL; no catalogue row, default part, d-only link or set moves. The runner reads the tall nuts
 and the d-only M2 and M3 at 5 repetitions; only a nut reading that misses widens `e`.
 
+## B-01: the nut's fine-STL peak is capped at the worker's headroom (2026-10-31, G40)
+
+Source: quick task 261031-qd7 (`07-GAP-RULINGS.md`, G40, holds its figures). Outband-tall run
+41206999278 read an admitted nut's fine-STL peak at up to 2,040,320,000 B, which with B, the export
+cache and the tmpfs is past the 2,415,919,104 B `mem_limit`. The owner's replies, verbatim and in
+order (the label "(Recommended)" is the orchestrator's, not part of the ruling):
+
+1. "1: budget peak to headroom (Recommended)", stopped by its own catalogue check: on every
+   artifact it refuses the fine STL of 110 bolt rows and 33 d-only bolt links.
+2. "1: nut stl-fine only (Recommended)", final.
+3. "Keep cap, file must debt (Recommended)", on the parts the runner built under the headroom that
+   the cap refuses.
+
+Ruling: the nut's stl-fine peak budget is B-01's capped at the headroom, 1,830,617,088 B; the bolt's
+and every other artifact's budget stay B-01's. No row, default or d-only link moves.
+
 ## R12: the tier files are drawn again under the widened envelope (2026-10-31, G41)
 
 Source: quick task 261031-qd7 (`07-GAP-RULINGS.md`, G41, holds its figures). Outband-tall run

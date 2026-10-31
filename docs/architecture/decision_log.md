@@ -1799,6 +1799,9 @@ longer predicted but refused at every artifact.
 Superseded in part by L29: the head-ratio bands also carry the nut's `clearance`, banded in mm, so a
 clearance below the 0.15 mm the fit read is judged at that low edge too.
 
+Superseded in part by L32: B-01's stl-fine peak budget is capped, for the nut only, at the worker's
+memory headroom, 1,830,617,088 B.
+
 Superseded in part by L31: two more envelope rows, the nut stl-preview seconds e 1.061383246630594
 to 1.0971665633647603 and the nut step seconds e 0.8785228687431521 to 1.0534097750071423, both
 widened by outband-tall run 41206999278.
@@ -2038,6 +2041,9 @@ such record: ASSUMPTION, unmeasured, a worker past the container's limit is OOM-
 request answered as a broken pool. `tests/test_runtime_bounds.py` pins which budgets are above
 which limits, so a regenerated budget, a wider `e` or a new timeout that changes the relation fails
 there and needs this note updated.
+
+Superseded in part by L32: the nut's stl-fine peak budget is capped at that headroom, so of the
+peak budgets only the bolt's fine STL is above it now.
 
 ## L25 — A part finer in pitch than its kind's wall is a 422 `pitch_too_fine`: the bolt's d / pitch wall is 20, read from the fine-pitch walk; the nut's is 8 by the owner's ruling
 
@@ -2445,3 +2451,62 @@ B-01 keeps.
 
 Reversibility: costly, as L21. A re-fit, or a later reading over these envelopes, needs a
 superseding entry.
+
+## L32 — The nut's fine-STL peak budget is B-01's capped at the worker's memory headroom; the bolt's stays B-01's
+
+Date: 2026-10-31. Decided by the owner's ruling G40 (`07-GAP-RULINGS.md`; `07-OWNER-RULINGS.md`,
+"B-01: the nut's fine-STL peak is capped at the worker's headroom") after outband-tall run
+41206999278. Supersedes in part L21 (B-01's peak component, for one kind and one artifact) and the
+WR-03 note of L24 (which budgets are above which limits).
+
+**The reading.** The nut d 92.28, pitch 31.418, s 130.54, m 461.4 was admitted at the fine STL
+against B-01's 2,930,457,561 B peak on an enveloped 2,199,633,004 B. Run 41206999278 read its peak
+at 1,830,440,960 to 2,040,320,000 B over 5 repetitions, above W (1,758,363,648 B). With runtime.json's
+B (65,208,320 B), export cache (251,658,240 B) and tmpfs (268,435,456 B), which R16 adds to W to size
+`mem_limit`, repetitions 2 to 5 need 2,470,465,536 to 2,625,622,016 B, past the 2,415,919,104 B
+`mem_limit` (L23). L24's note had left that gap as an unmeasured ASSUMPTION.
+
+**The rule.** `cost.budget(kind, artifact)` is B-01's budget, its peak capped at
+`cost.WORKER_HEADROOM_BYTES` where `cost.HEADROOM_CAPPED` names the pair, today
+`("nut", "stl-fine")` only. `cost.fits`, and through it every refusal and the default cap, reads it.
+The headroom is `bench.oper_fit.worker_headroom` of runtime.json, `mem_limit_bytes` less B, the
+export cache and the tmpfs, emitted by `emit-constants --runtime`, never typed: 1,830,617,088 B. The
+capped budget plus B, the cache and the tmpfs is exactly `mem_limit`, and `tests/test_cost.py` pins
+that relation.
+
+**Why per kind, and only the fine STL.** The owner was first asked to cap every artifact's peak:
+"1: budget peak to headroom (Recommended)". Before anything was written, the catalogue check found
+that it refuses the fine STL of 110 bolt catalogue rows (77 ISO 4017 and 33 ISO 4014, M10 to M20)
+and of 33 links that name only d (bolt d 3.9 to 5.4 and 8.3 to 9.9). The bolt stl-fine peak e is
+2.170967259675211, so their enveloped peaks reach B-01's 2,930,457,561 B, but the full tier read
+their stl-fine peaks at 904,486,912 B at most, 0.4941 of the headroom (runs 41155746591 and
+41161227951). The owner then ruled "1: nut stl-fine only (Recommended)". The preview's and the
+STEP's peak budgets (1,049,185,338.9620932 and 422,239,338.63724077 B) are under the headroom
+already, so capping them would change nothing. A budget per kind is new: B-01's C1 was the largest
+enveloped prediction over both kinds' catalogue rows, and the bolt's rows set it.
+
+**What moves.** The tall nut above is refused at the fine STL. No catalogue row, neither default part
+and no link that names only d changes admission at any artifact, so the refused-preset count stays 0.
+The point sets keep the B-01 budget they were drawn under (G6, R12: never redrawn), so `--check`
+and the tier files do not move. `runtime.json` moves one count: R21's export cache counts its
+candidates with `cost.fits`, and 4 explore nuts drop out, 394 to 390; its 240 MiB and the part that
+sets it (iso4017:M20x200) stand, and so do W and every timeout. The cap does refuse, at the fine STL, a nut the
+runner built under the headroom: `tall-nut-x0.5-m10.5d` (d 46.14, pitch 15.709, s 65.27, m 484.5)
+read at most 1,483,145,216 B, 0.8102 of the headroom, against an enveloped 1.0116 x
+(`41206999278:tall-nut-x0.5-m10.5d rep 5`), because the nut stl-fine peak e (0.5976833077470993) is
+looser than its readings. The grid nuts at d 30, pitch 1 or 3.5, clearance 5, which include the
+bound point that set the 71 s stl-fine timeout and the drift part that set W, are refused by the cap
+in the model the sets were drawn under as well (enveloped 1.14 to 1.27 x the headroom, read at 0.74
+to 0.84 x), but no request reaches them: their d / pitch of 30 and 8.57 is past the nut's wall of 8
+(L25, G36). The timeout and W stand as derived. The owner was asked about these grid nuts and ruled
+"Keep cap, file must debt (Recommended)"; the question named the grid nuts, which the wall already
+refuses, so the debt carries the one production part above:
+`docs/tech_debt/active/2026-10-31-nut-peak-envelope-refuses-parts-read-under-the-headroom.md`. The
+bolt side, whose stl-fine peak budget stays above the headroom, is
+`docs/tech_debt/active/2026-10-31-bolt-fine-peak-budget-above-the-worker-headroom.md`.
+
+Reason: a part the model admits must build inside the container it is served from (L21's clean
+`over_budget` refusal, L02), and the one admitted part read past that limit is a nut at the fine STL.
+
+Reversibility: reversible. One constant pair and one function in `calc/cost.py`, one emitted value,
+and their tests. A re-fit of the nut peak model, or a new `mem_limit`, needs a superseding entry.

@@ -17,6 +17,8 @@ Severity (grep-able `Severity:` field):
 | Severity | Item | Trigger to revisit |
 |---|---|---|
 | must | [Parts inside the fine-pitch walls that the kernel still refuses](active/2026-10-29-in-wall-parts-the-kernel-refuses.md) | before the first release |
+| must | [The bolt's fine-STL peak budget is above the memory a worker has](active/2026-10-31-bolt-fine-peak-budget-above-the-worker-headroom.md) | a re-fit of the bolt peak model, an admitted bolt read above the headroom, or before the first release |
+| must | [The nut's fine-STL peak envelope refuses a nut the runner built under the headroom](active/2026-10-31-nut-peak-envelope-refuses-parts-read-under-the-headroom.md) | the next re-fit of the nut peak model, or before the first release |
 | must | [An above-band head ratio is never priced against a below-band one at its edge](active/2026-10-31-head-ratio-edges-never-meet-a-real-out-of-band-ratio.md) | the runner reading of the d-only M2 and M3 (G39), or before the first release |
 | nice | [The full tier's follow-up job has never run on the runner](active/2026-10-31-full-tier-follow-up-job-never-run-on-the-runner.md) | the first full-tier run that selects a follow-up point |
 | nice | [The build-time corpus is mostly parts the cost model refuses, so the bench judges little](active/2026-10-30-build-time-corpus-is-mostly-refused-by-the-cost-model.md) | the next change to bench/corpus.py or bench/build_time.py |

@@ -89,6 +89,11 @@ def _points() -> tuple[oper_fit.FitPoint, ...]:
     return tuple(points)
 
 
+def _headroom() -> int:
+    """G40's worker headroom, from the committed runtime.json."""
+    return oper_fit.worker_headroom(json.loads((FIT.parent / "runtime.json").read_text()))
+
+
 def _bands() -> dict[tuple[str, str], tuple[float, float]]:
     """G28's bands, recomputed from the committed runner records fit.json was fitted on."""
     return oper_fit.head_bands(_points())
@@ -97,7 +102,7 @@ def _bands() -> dict[tuple[str, str], tuple[float, float]]:
 def test_the_shipped_constants_are_the_block_emit_constants_writes_from_the_evidence() -> None:
     # T-07-29: generated from fit.json, the committed records and B-01's table, never typed.
     block = oper_fit.emit_constants(_document(), RULINGS.read_text(), _bands(),
-                                    oper_fit.min_turns(_points()))
+                                    oper_fit.min_turns(_points()), _headroom())
     assert block in COST_PY.read_text()
     assert COST_PY.read_text().count(oper_fit.EMIT_BEGIN) == 1
 
@@ -466,6 +471,58 @@ def test_r11_states_the_clearance_pairing_and_g39_quotes_the_owners_three_replie
     assert ("\n## R11: the clearance edges are priced against the part's real fields "
             "(2026-10-31, G39)\n") in owner
     assert all(reply in owner for reply in replies)
+
+
+# --- G40: the nut's fine-STL peak budget is capped at the worker's headroom -----------------------
+
+# Outband-tall run 41206999278: admitted against B-01, read at up to 2,040,320,000 B peak at the
+# fine STL, 2,625,622,016 B with B, the export cache and the tmpfs, past the 2,415,919,104 B
+# mem_limit.
+TALL_PEAK_NUT = NutParams(d=92.28, pitch=31.418, s=130.54, m=461.4)
+
+
+def _b01_fits(p: FastenerParams, artifact: cost.Artifact) -> bool:
+    """`cost.fits` against B-01's budget alone, as shipped before G40."""
+    return not cost.below_fitted_turns(p) and all(
+        cost.admitted(pred, cost.ENVELOPE[p.kind, artifact, t], component)
+        for pred, t, component in zip(cost.predict(p, artifact), cost.TARGETS,
+                                      cost.BUDGET[artifact], strict=True))
+
+
+def test_the_tall_nut_read_past_the_memory_limit_is_refused_at_the_fine_stl() -> None:
+    assert _b01_fits(TALL_PEAK_NUT, "stl-fine")
+    assert not cost.fits(TALL_PEAK_NUT, "stl-fine")
+    assert cost.refusal(TALL_PEAK_NUT, "stl-fine") is not None
+    assert [a for a in ARTIFACTS if cost.fits(TALL_PEAK_NUT, a)] == ["stl-preview", "step"]
+
+
+def test_the_capped_peak_budget_with_b_the_cache_and_the_tmpfs_fits_mem_limit() -> None:
+    runtime = json.loads((FIT.parent / "runtime.json").read_text())
+    assert cost.WORKER_HEADROOM_BYTES == _headroom() == 1830617088
+    peak = cost.budget("nut", "stl-fine")[2]
+    assert peak == float(cost.WORKER_HEADROOM_BYTES) < cost.BUDGET["stl-fine"][2]  # type: ignore[operator]
+    assert (peak + runtime["b"]["bytes"] + runtime["export_cache"]["bytes"]
+            + runtime["tmpfs_bytes"]) <= runtime["mem_limit_bytes"]
+    # Only the nut's fine STL is capped: every other budget is B-01's, unchanged.
+    assert {("nut", "stl-fine")} == cost.HEADROOM_CAPPED
+    assert {(kind, a) for kind in ("bolt", "nut") for a in ARTIFACTS
+            if cost.budget(kind, a) != cost.BUDGET[a]} == {("nut", "stl-fine")}
+
+
+def test_the_headroom_cap_moves_no_catalogue_row_default_part_or_d_only_link() -> None:
+    parts: list[FastenerParams] = [BoltParams(), NutParams()]
+    parts += [BoltParams.model_validate(dict(r.fields)) for r in catalogue()]
+    parts += [NutParams.model_validate(dict(r.fields)) for r in nut_catalogue()]
+    for kind in (BoltParams, NutParams):
+        for n in range(1, 10000):
+            try:
+                parts.append(kind(d=n / 10))
+            except ValidationError:
+                continue
+    assert len(parts) == 2 + 294 + 14 + 88 + 72
+    for part in parts:
+        for artifact in ARTIFACTS:
+            assert cost.fits(part, artifact) == _b01_fits(part, artifact), (part, artifact)
 
 
 def _g38_oper_fit_edges(kind: str, params: oper_fit.Params,
