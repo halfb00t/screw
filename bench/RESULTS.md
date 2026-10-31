@@ -17629,3 +17629,54 @@ MAX_BOLT_D_PER_PITCH = Fraction("20")
 **The nut.** 17 nuts were refused: 11 at d / pitch 11 (d 0.5, 0.6, 0.7, 0.8, 3.5 and 9 mm) and an island of 6 at d 2.2 mm, d / pitch 7 (forms base, s4 and m1, both hands), every neighbouring cell ok. The margin rule puts F at the island and gives W = 5, which would refuse 13 of the 14 nut catalogue rows and the default nut (d / pitch 6). The owner ruled the nut's W at 8 instead (G36), the catalogue's largest d / pitch; `calc.thread.MAX_NUT_D_PER_PITCH` is that ruled constant. The 6 island cells are the only refused readings at or below a shipped wall, and they stay open as debt (`docs/tech_debt/active/2026-10-29-in-wall-parts-the-kernel-refuses.md`).
 
 **What the walls refuse.** All 20 in-wall parts of explore run 40646117094 (d / pitch 30 and above), none of the 294 bolt and 14 nut catalogue rows, and no default part. The sets drawn before R31 are checked under the model they were drawn under, without the wall (G36). The required tier (`tests/data/oper_boundary.json`) drops the 80 points the wall refuses with nothing drawn in their place: 435 to 355 points (stl-preview 151, stl-fine 51, step 153), in 4 shards instead of 5. runtime.json and L22 to L24 do not move.
+
+## Phase 7 full tier, G37's pre-read of the residual band (07-19)
+
+### dense-band, run 41153581470
+
+- Dispatched sha: `5e5c07dacafb06456e51fdaf450745b382650c5a`
+- Records: `bench/results/phase-07/dense-band-41153581470/` (2 artifacts, 30 readings), run https://github.com/halfb00t/screw/actions/runs/41153581470
+- CPU models seen (jobs): AMD EPYC 7763 64-Core Processor (1); AMD EPYC 9V74 80-Core Processor (1)
+- Counts by status: ok: 30
+- The set is `bench/points/dense-band.json` (`python -m bench.oper_sets dense-band`): the 18 points of full.json's dense boundary whose bolt lies in the in-wall residual (d 0.5 to 0.85 or 1.6 to 3.3 mm, more than 3 turns), with their timeouts and limits, and one `tip_piece` probe per distinct part, 1 repetition, 2 shards by R6.
+- Judged by committed code: `python3 -m bench.oper verdict --set dense-band --from bench/results/phase-07/dense-band-41153581470` prints `dense-band: 30 points, 0 failures` (exit 0). No point's cold wall x (1 + m), m = 0.5382691940004687, reaches its timeout, so R5 selects no follow-up.
+
+| point | artifact | status | cold wall s | timeout s | cold wall x (1 + m) s | bytes / limit | seconds / limit | peak / limit |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| dense-M2-n90-right | stl-preview | ok | 10.293364515999997 | 26 | 15.83396553758034 | 0.4104808934954379 | 0.5090722002195053 | 0.4735180155449887 |
+| dense-M2-n90-right | stl-fine | ok | 14.209317115000005 | 71 | 21.85775478578812 | 0.46741352729093577 | 0.42247287906060405 | 0.2969597316021355 |
+| dense-M2-n60-right | step | ok | 6.094614344000007 | 26 | 9.375157494688587 | 0.5436867831285348 | 0.4064985185445229 | 0.6086312177108409 |
+| dense-M2-n90-left | stl-preview | ok | 9.702776586000027 | 26 | 14.92548231851288 | 0.3784551599871116 | 0.5084424910203708 | 0.458991648916193 |
+| dense-M2-n90-left | stl-fine | ok | 14.188602548000006 | 71 | 21.825890205504965 | 0.5473782315126542 | 0.36868569914843163 | 0.2782809234350808 |
+| dense-M2-n61-left | step | ok | 6.147792464999981 | 26 | 9.456959760017675 | 0.5231216938297946 | 0.42476954954381374 | 0.5913079400405513 |
+| dense-M2.5-n90-right | stl-preview | ok | 9.720226604999993 | 26 | 14.952325145175251 | 0.36197684058161184 | 0.4344086543461078 | 0.42918126506947485 |
+| dense-M2.5-n90-right | stl-fine | ok | 14.836152880999975 | 71 | 22.821996934323565 | 0.4788067699451928 | 0.38276594225797184 | 0.3006238044924548 |
+| dense-M2.5-n58-right | step | ok | 5.743190904999977 | 26 | 8.834573644425138 | 0.523485530771121 | 0.38610961080912565 | 0.6025329823659686 |
+| dense-M2.5-n90-left | stl-preview | ok | 9.720386289999993 | 26 | 14.952570783691495 | 0.32170323487606767 | 0.46028771178322025 | 0.4152411504987008 |
+| dense-M2.5-n90-left | stl-fine | ok | 14.006877410000044 | 71 | 21.54634802394414 | 0.5028179044951003 | 0.3158234381349394 | 0.25804919943154747 |
+| dense-M2.5-n59-left | step | ok | 5.871473240999933 | 26 | 9.031906410028286 | 0.49968963935183475 | 0.40878199688038486 | 0.5803193006146535 |
+| dense-M3-n90-right | stl-preview | ok | 9.659545191999996 | 26 | 14.858980796908936 | 0.32475675449427965 | 0.3979535954515495 | 0.4028989143412223 |
+| dense-M3-n90-right | stl-fine | ok | 15.424686105999967 | 71 | 23.7273194639868 | 0.4303195295167181 | 0.35467360190612945 | 0.2663180899749286 |
+| dense-M3-n58-right | step | ok | 5.6250406670000075 | 26 | 8.65282677304596 | 0.5242377079489203 | 0.3755228177051352 | 0.6030813472517929 |
+| dense-M3-n90-left | stl-preview | ok | 9.799805803000027 | 26 | 15.074739373941966 | 0.3017296705741789 | 0.4277765772420986 | 0.3888054243236139 |
+| dense-M3-n90-left | stl-fine | ok | 14.505194007 | 71 | 22.31289309396832 | 0.4504420047077932 | 0.2914923178555132 | 0.23813652922791062 |
+| dense-M3-n57-left | step | ok | 5.6943149189999644 | 26 | 8.759389220834919 | 0.4979666351922822 | 0.4011660501979319 | 0.5799423801281688 |
+
+**Tip pieces.** `volume_ratio - 1` of each `tip_piece` reading is the relative error the build holds to T_PIECE 0.03 (`calc.thread.piece_refusal`).
+
+| probe | status | solids | valid | relative error | / T_PIECE |
+| --- | --- | --- | --- | --- | --- |
+| tip-dense-M2-n90-right | ok | 1 | True | 0.023528196292283754 | 0.7842732097427918 |
+| tip-dense-M2-n60-right | ok | 1 | True | 0.015630880188136187 | 0.5210293396045396 |
+| tip-dense-M2-n90-left | ok | 1 | True | 0.012323693044363537 | 0.41078976814545126 |
+| tip-dense-M2-n61-left | ok | 1 | True | 0.009515256393833216 | 0.31717521312777386 |
+| tip-dense-M2.5-n90-right | ok | 1 | True | 0.027694910644404436 | 0.9231636881468146 |
+| tip-dense-M2.5-n58-right | ok | 1 | True | 0.018614317740836883 | 0.6204772580278961 |
+| tip-dense-M2.5-n90-left | ok | 1 | True | 0.015340948358366857 | 0.5113649452788953 |
+| tip-dense-M2.5-n59-left | ok | 1 | True | 0.010506989226926722 | 0.3502329742308907 |
+| tip-dense-M3-n90-right | ok | 1 | True | 0.029060678245931948 | 0.9686892748643983 |
+| tip-dense-M3-n58-right | ok | 1 | True | 0.019604015312427725 | 0.6534671770809242 |
+| tip-dense-M3-n90-left | ok | 1 | True | 0.015776484400520596 | 0.5258828133506865 |
+| tip-dense-M3-n57-left | ok | 1 | True | 0.011435169937169753 | 0.3811723312389918 |
+
+All 18 points are `ok`, inside their timeouts and their limits, so G37's ruling 1 lets the full tier judge every point as R28 and R29 write it, with no exclusion. The closest to the gate is `tip-dense-M3-n90-right`, at 0.97 of T_PIECE, the debug session's +0.0291 (E27, macOS arm64), now read on linux/amd64. The kernel's result for these parts matched across platforms to 1e-9 (E29), so this margin is a property of the part and not of the runner, but it is a thin one: the residual debt (`docs/tech_debt/active/2026-10-29-in-wall-parts-the-kernel-refuses.md`) stays open.
