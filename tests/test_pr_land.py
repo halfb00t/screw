@@ -18,6 +18,7 @@ pass `required`/`REQUIRED` explicitly, and `land()` tests see `required_jobs()` 
 
 from __future__ import annotations
 
+import ast
 import json
 import re
 import subprocess
@@ -26,14 +27,22 @@ from pathlib import Path
 import pytest
 
 from scripts.pr_land import (
+    FULL_TIER_PATHS,
+    FULL_TIER_RUN_NAME,
+    FULL_TIER_WORKFLOW,
+    WORKFLOW,
     PullRequest,
     WorkflowRun,
+    check_full_tier,
     check_head,
+    full_tier_path,
+    full_tier_refusals,
     head_refusals,
     land,
     message_refusals,
     newest_run,
     no_run_report,
+    parse_changed_files,
     parse_compare,
     parse_jobs,
     parse_pull_request,
@@ -184,6 +193,41 @@ SQUASH_COMMIT_READ = (
     "## Summary\n"
     "\n"
     "Typed DerivedDimensions contract.\n"
+)
+
+# `gh api 'repos/{owner}/{repo}/pulls/22/files' --paginate --jq '.[].filename'` (2026-10-31,
+# plan 07-19): PR A, the phase 7 harness and pre-registration, which touched no FULL_TIER_PATHS
+# path. The variants below change the paths, never the shape: one path per line.
+PR_A_FILES = (
+    ".github/workflows/operability.yml\n"
+    ".planning/phases/07-operability-re-sweep/07-SWEEP-PROTOCOL.md\n"
+    "Makefile\n"
+    "bench/__init__.py\n"
+    "bench/oper.py\n"
+    "bench/oper_child.py\n"
+    "bench/oper_lift.py\n"
+    "bench/oper_sets.py\n"
+    "bench/points/controls.json\n"
+    "bench/points/explore.json\n"
+    "bench/points/spread.json\n"
+    "bench/points/tracer.json\n"
+    "bench/points/walls.json\n"
+    "docs/tech_debt/active/2026-10-10-spike-protocol-amendments-before-next-campaign.md\n"
+    "docs/tech_debt/active/2026-10-14-m18-probe-one-entry-has-no-deadline-during-a-run.md\n"
+    "pyproject.toml\n"
+    "tests/test_oper.py\n"
+)
+
+# `gh api 'repos/{owner}/{repo}/actions/workflows/operability.yml/runs?head_sha=<sha>&per_page=100'
+# --jq '[.workflow_runs[] | select(.display_title == "operability: full") | {id, status,
+# conclusion, html_url}]'` (2026-10-31, plan 07-19). For a142c27, the 07-05 tracer's head, it
+# is `[]`: that head's one operability run (40645463872, success) is "operability: tracer",
+# not the full tier. For b0186b9 it is the first full run, still queued when read.
+TRACER_HEAD_SHA = "a142c278f8bba48df8a2405ec7e092d42b725421"
+TRACER_FULL_RUNS_JSON = "[]"
+FULL_QUEUED_RUNS_JSON = (
+    '[{"conclusion":null,"html_url":"https://github.com/halfb00t/screw/actions/runs/41155746591",'
+    '"id":41155746591,"status":"queued"}]'
 )
 
 REQUIRED = frozenset({"test (3.12)", "vendor-bundle", "image"})
@@ -710,9 +754,13 @@ def _happy_runner(pr_json: str = PR3_VIEW_JSON.replace('"MERGED"', '"OPEN"')) ->
     return (
         FakeRunner()
         .on("pr view 3 --json number", cp(0, pr_json))
+        .on("pulls/3/files", cp(0, PR_A_FILES))
         .on("git diff --quiet", cp(0))
         .on("git diff --cached --quiet", cp(0))
         .on(f"compare/main...{PR3_HEAD_SHA}", cp(0, CURRENT_COMPARE_JSON))
+        # Read only for a PR that touches a FULL_TIER_PATHS path, which PR A's files do not;
+        # ahead of the ci.yml runs handler, whose substring the operability query also holds.
+        .on(f"{FULL_TIER_WORKFLOW}/runs", cp(0, TRACER_FULL_RUNS_JSON))
         .on(f"runs?head_sha={PR3_HEAD_SHA}", cp(0, PR3_RUNS_JSON))
         .on("runs/36088409707/jobs", cp(0, PR3_JOBS_JSON))
         .on("pr merge 3 --squash", cp(0))
@@ -921,6 +969,7 @@ def test_land_refuses_a_token_hidden_below_a_git_cut_line_in_the_pr_body(
     runner = (
         FakeRunner()
         .on("pr view 3 --json number", cp(0, pr_json))
+        .on("pulls/3/files", cp(0, PR_A_FILES))
         .on("git diff --quiet", cp(0))
         .on("git diff --cached --quiet", cp(0))
         .on(f"compare/main...{PR3_HEAD_SHA}", cp(0, CURRENT_COMPARE_JSON))
@@ -941,6 +990,7 @@ def test_land_gh_pr_merge_failure_returns_1_no_poll_no_follow_up(
     runner = (
         FakeRunner()
         .on("pr view 3 --json number", cp(0, PR3_VIEW_JSON.replace('"MERGED"', '"OPEN"')))
+        .on("pulls/3/files", cp(0, PR_A_FILES))
         .on("git diff --quiet", cp(0))
         .on("git diff --cached --quiet", cp(0))
         .on(f"compare/main...{PR3_HEAD_SHA}", cp(0, CURRENT_COMPARE_JSON))
@@ -980,6 +1030,7 @@ def test_land_several_problems_at_once_prints_all_then_one_nothing_was_merged_li
     runner = (
         FakeRunner()
         .on("pr view 3 --json number", cp(0, pr_json))
+        .on("pulls/3/files", cp(0, PR_A_FILES))
         .on("git diff --quiet", cp(0))
         .on("git diff --cached --quiet", cp(0))
         .on(f"compare/main...{PR3_HEAD_SHA}", cp(0, behind_compare))
@@ -994,3 +1045,213 @@ def test_land_several_problems_at_once_prints_all_then_one_nothing_was_merged_li
     assert "[ci skip]" in out
     assert out.count("nothing was merged") == 1
     assert not any(c[:3] == ["gh", "pr", "merge"] for c in runner.calls)
+
+
+# --- the full-tier rule (07 D-13, L27) ---------------------------------------------------------
+
+FULL_RUN = WorkflowRun(41155746591, "completed", "success",
+                       "https://github.com/halfb00t/screw/actions/runs/41155746591")
+
+
+def test_parse_changed_files_reads_the_recorded_shape() -> None:
+    paths = parse_changed_files(PR_A_FILES)
+    assert len(paths) == 17
+    assert paths[0] == ".github/workflows/operability.yml"
+    assert parse_changed_files("") == []
+
+
+@pytest.mark.parametrize("text", ["a.py\n\nb.py\n", "a.py\n \n", b"a.py\n", None])
+def test_parse_changed_files_refuses_a_blank_line_or_output_that_is_not_text(
+        text: object) -> None:
+    with pytest.raises(ValueError, match="changed files output"):
+        parse_changed_files(text)
+
+
+@pytest.mark.parametrize(("path", "listed"), [
+    ("src/screw/calc/cost.py", True), ("src/screw/calc/thread.py", True),
+    ("src/screw/params.py", True), ("src/screw/solid/bolt.py", True),
+    ("src/screw/solid/__init__.py", True), ("README.md", False),
+    ("src/screw/solidx.py", False), ("src/screw/calc/__init__.py", False),
+    ("src/screw/pool.py", False), ("src/screw/app.py", False),
+    (".github/workflows/operability.yml", False)])
+def test_full_tier_paths_match_the_cost_models_files_and_the_solid_package_only(
+        path: str, listed: bool) -> None:
+    """calc/__init__.py and pool.py / app.py are L27's exclusions: no tier run observes them."""
+    assert full_tier_path(path) is listed
+
+
+def test_full_tier_refusals_without_a_run_names_the_path_the_workflow_and_the_sha() -> None:
+    (line,) = full_tier_refusals(["README.md", "src/screw/calc/cost.py"], None, PR3_HEAD_SHA)
+    assert "src/screw/calc/cost.py" in line
+    assert "README.md" not in line
+    assert FULL_TIER_WORKFLOW in line
+    assert PR3_HEAD_SHA in line
+
+
+def test_full_tier_refusals_passes_a_completed_green_run() -> None:
+    assert full_tier_refusals(["src/screw/solid/nut.py"], FULL_RUN, PR3_HEAD_SHA) == []
+
+
+@pytest.mark.parametrize("run", [
+    WorkflowRun(41155746591, "queued", None, FULL_RUN.html_url),
+    WorkflowRun(41155746591, "in_progress", None, FULL_RUN.html_url),
+    WorkflowRun(41155746591, "completed", "failure", FULL_RUN.html_url),
+    WorkflowRun(41155746591, "completed", "cancelled", FULL_RUN.html_url)])
+def test_full_tier_refusals_refuses_an_unfinished_or_red_run_with_its_url(
+        run: WorkflowRun) -> None:
+    (line,) = full_tier_refusals(["src/screw/params.py"], run, PR3_HEAD_SHA)
+    assert run.html_url in line
+    assert "src/screw/params.py" in line
+
+
+def test_full_tier_refusals_is_empty_for_a_pr_that_touches_no_listed_path() -> None:
+    assert full_tier_refusals(parse_changed_files(PR_A_FILES), None, PR3_HEAD_SHA) == []
+
+
+def test_check_full_tier_reads_no_runs_for_a_pr_that_touches_no_listed_path() -> None:
+    """The empty edge: such a PR lands exactly as before, the files read its only new call."""
+    runner = FakeRunner().on("pulls/3/files", cp(0, PR_A_FILES))
+    assert check_full_tier(3, PR3_HEAD_SHA, runner) == []
+    assert [" ".join(call) for call in runner.calls] == [
+        "gh api repos/{owner}/{repo}/pulls/3/files --paginate --jq .[].filename"]
+
+
+def test_check_full_tier_reads_only_full_runs_of_the_full_tier_workflow_for_the_head() -> None:
+    """The recorded tracer head has a green operability run, but not a full one: refused."""
+    files = PR_A_FILES + "src/screw/solid/bolt.py\n"
+    runner = (FakeRunner().on("pulls/3/files", cp(0, files))
+              .on(f"{FULL_TIER_WORKFLOW}/runs?head_sha={TRACER_HEAD_SHA}",
+                  cp(0, TRACER_FULL_RUNS_JSON)))
+    (line,) = check_full_tier(3, TRACER_HEAD_SHA, runner)
+    assert "src/screw/solid/bolt.py" in line
+    assert "there is none" in line
+    runs_call = runner.calls[1]
+    assert f'select(.display_title == "{FULL_TIER_RUN_NAME}")' in runs_call[-1]
+    assert WORKFLOW not in " ".join(runs_call)
+
+
+def test_check_full_tier_refuses_the_recorded_queued_full_run_with_its_url() -> None:
+    runner = (FakeRunner().on("pulls/3/files", cp(0, "src/screw/calc/cost.py\n"))
+              .on("operability.yml/runs", cp(0, FULL_QUEUED_RUNS_JSON)))
+    (line,) = check_full_tier(3, PR3_HEAD_SHA, runner)
+    assert "still running" in line
+    assert "actions/runs/41155746591" in line
+
+
+def test_check_full_tier_a_failed_files_read_is_a_refusal_showing_stderr() -> None:
+    runner = FakeRunner().on("pulls/3/files", cp(1, "", "HTTP 502: Bad Gateway"))
+    (line,) = check_full_tier(3, PR3_HEAD_SHA, runner)
+    assert "HTTP 502: Bad Gateway" in line
+    assert len(runner.calls) == 1
+
+
+def test_check_full_tier_unparseable_files_or_a_failed_runs_read_is_a_refusal() -> None:
+    blank = FakeRunner().on("pulls/3/files", cp(0, "src/screw/params.py\n\nREADME.md\n"))
+    assert len(check_full_tier(3, PR3_HEAD_SHA, blank)) == 1
+    runs = (FakeRunner().on("pulls/3/files", cp(0, "src/screw/params.py\n"))
+            .on("operability.yml/runs", cp(0, "not json")))
+    (line,) = check_full_tier(3, PR3_HEAD_SHA, runs)
+    assert "does not parse" in line
+    failed = (FakeRunner().on("pulls/3/files", cp(0, "src/screw/params.py\n"))
+              .on("operability.yml/runs", cp(1, "", "HTTP 403")))
+    (line,) = check_full_tier(3, PR3_HEAD_SHA, failed)
+    assert "HTTP 403" in line
+
+
+def test_land_refuses_a_pr_that_touches_the_solid_package_with_no_full_run(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    runner = (_happy_runner()
+              .replace("pulls/3/files", cp(0, PR_A_FILES + "src/screw/solid/bolt.py\n")))
+    assert land(3, runner, sleep=lambda _: None) == 1
+    out = capsys.readouterr().out
+    assert "src/screw/solid/bolt.py" in out
+    assert f"head {PR3_HEAD_SHA} needs a green full {FULL_TIER_WORKFLOW} run" in out
+    assert out.strip().endswith("pr.land: nothing was merged.")
+    assert not [call for call in runner.calls if call[:3] == ["gh", "pr", "merge"]]
+
+
+def test_land_merges_a_pr_that_touches_a_listed_path_once_its_full_run_is_green() -> None:
+    green = FULL_QUEUED_RUNS_JSON.replace('"conclusion":null', '"conclusion":"success"').replace(
+        '"status":"queued"', '"status":"completed"')
+    runner = (_happy_runner().replace("pulls/3/files", cp(0, "src/screw/calc/cost.py\n"))
+              .replace(f"{FULL_TIER_WORKFLOW}/runs", cp(0, green)))
+    assert land(3, runner, sleep=lambda _: None) == 0
+
+
+def _workflow_paths() -> list[str]:
+    text = (REPO_ROOT / ".github" / "workflows" / FULL_TIER_WORKFLOW).read_text()
+    block = text[text.index("  pull_request:\n    paths:\n"):]
+    return re.findall(r'^      - "([^"]+)"$', block.split("\n\n", 1)[0], re.MULTILINE)
+
+
+def test_full_tier_paths_equal_the_workflows_paths_filter() -> None:
+    """T-07-50: the list decides and the filter only saves runs, so the two are held together on
+    main, as required-jobs.txt is held to ci.yml."""
+    paths = _workflow_paths()
+    assert paths
+    assert tuple(p[:-2] if p.endswith("/**") else p for p in paths) == FULL_TIER_PATHS
+
+
+def test_the_full_tier_run_name_is_the_workflows_run_name_with_no_set() -> None:
+    text = (REPO_ROOT / ".github" / "workflows" / FULL_TIER_WORKFLOW).read_text()
+    assert "run-name: \"operability: ${{ inputs.set || 'full' }}\"" in text
+    assert FULL_TIER_RUN_NAME == "operability: full"
+
+
+SRC = REPO_ROOT / "src"
+
+
+def _module_file(name: str) -> Path | None:
+    """The file of module `name` under src/, a package's `__init__.py` not counted: importing
+    `screw.calc.thread` runs `screw/calc/__init__.py`, which L27 leaves off the list on purpose."""
+    path = SRC.joinpath(*name.split(".")).with_suffix(".py")
+    return path if path.is_file() else None
+
+
+def cost_model_files() -> set[str]:
+    """`src/screw/calc/cost.py` and every `src/screw` module it imports, directly or through
+    another, found with `ast`: absolute and relative imports, function-level ones included, and
+    `from P import n` as module `P.n` when that is a module."""
+    found: set[Path] = set()
+    todo = [SRC / "screw" / "calc" / "cost.py"]
+    while todo:
+        path = todo.pop()
+        if path in found:
+            continue
+        found.add(path)
+        package = path.relative_to(SRC).with_suffix("").parts[:-1]
+        for node in ast.walk(ast.parse(path.read_text())):
+            names: list[str] = []
+            if isinstance(node, ast.Import):
+                names = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                parts = list(package[:len(package) - node.level + 1]) if node.level else []
+                base = ".".join([*parts, *([node.module] if node.module else [])])
+                names = [base, *(f"{base}.{alias.name}" for alias in node.names)]
+            for name in names:
+                module = _module_file(name) if name.split(".")[0] == "screw" else None
+                if module is not None:
+                    todo.append(module)
+    return {path.relative_to(REPO_ROOT).as_posix() for path in found}
+
+
+def test_cost_model_files_follows_relative_and_function_level_imports(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    calc = tmp_path / "src" / "screw" / "calc"
+    calc.mkdir(parents=True)
+    (calc / "cost.py").write_text("from .thread import x\nfrom screw import params\n")
+    (calc / "thread.py").write_text("def f():\n    from screw.calc import extra\n")
+    (calc / "extra.py").write_text("import math\n")
+    (tmp_path / "src" / "screw" / "params.py").write_text("")
+    monkeypatch.setattr(f"{__name__}.SRC", tmp_path / "src")
+    monkeypatch.setattr(f"{__name__}.REPO_ROOT", tmp_path)
+    assert cost_model_files() == {"src/screw/calc/cost.py", "src/screw/calc/thread.py",
+                                  "src/screw/calc/extra.py", "src/screw/params.py"}
+
+
+def test_every_module_the_cost_model_imports_is_on_the_full_tier_paths() -> None:
+    """T-07-55: a prediction-moving module cost.py reaches and the list misses fails here."""
+    files = cost_model_files()
+    assert files == {"src/screw/calc/cost.py", "src/screw/calc/thread.py",
+                     "src/screw/params.py"}
+    assert all(full_tier_path(path) for path in files)

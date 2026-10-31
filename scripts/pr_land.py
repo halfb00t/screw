@@ -26,11 +26,12 @@ appearing at all; and the local follow-up.
 
 Steps, in order: (1) read and parse the PR, refuse on its state/base; (2) refuse a
 dirty working tree; (3) `check_head` -- refuse a behind, run-less, unfinished or
-non-green head, and refuse a skip token in the checked subject/body
-(`message_refusals`); (4) squash-merge with the exact subject and body just
-checked; (5) poll for a run on the squash commit (~60 s,
-`POLL_ATTEMPTS * POLL_INTERVAL_S`) and print its URL, or, when none is observed,
-what was observed (`no_run_report`); (6) the local follow-up --
+non-green head; `check_full_tier` -- when the PR's diff touches a `FULL_TIER_PATHS`
+path, refuse unless the newest full operability run for its head is green (screw
+L27); and refuse a skip token in the checked subject/body (`message_refusals`); (4)
+squash-merge with the exact subject and body just checked; (5) poll for a run on the
+squash commit (~60 s, `POLL_ATTEMPTS * POLL_INTERVAL_S`) and print its URL, or, when
+none is observed, what was observed (`no_run_report`); (6) the local follow-up --
 switch to the PR's base, pull, delete the local branch only when its tip equals
 the merged head.
 
@@ -61,6 +62,29 @@ WORKFLOW = "ci.yml"
 # this must not silently depend on that.
 _WORKFLOWS_DIR = Path(__file__).resolve().parent.parent / ".github" / "workflows"
 REQUIRED_JOBS_FILE = _WORKFLOWS_DIR / "required-jobs.txt"
+
+# The full recording tier (screw 07 D-13, L27): a PR that touches a file that can move a
+# prediction, a budget or a timeout the operability tiers judge lands only once the newest
+# full-tier run of `FULL_TIER_WORKFLOW` for its head is green. The rule reads the PR's diff
+# against this list, not the workflow's `paths:` filter: a PR author controls the workflow file
+# in their own PR, so the filter only saves runs and this list is the authority. Two tests hold
+# it equal to the filter (`/**` written `/` here, a directory prefix) and to the cost model's
+# import closure (`src/screw/calc/cost.py` and every `src/screw` module it imports). Left out,
+# for the reason L27 gives: `src/screw/calc/__init__.py`, the admission wiring, and
+# `src/screw/pool.py` / `src/screw/app.py`, the deadline and the timeout's application. The
+# tiers build each point in its own container from the set the cost module admits, never
+# through them, so no tier run observes them; `make verify` pins both in `test (3.12)`.
+FULL_TIER_WORKFLOW = "operability.yml"
+FULL_TIER_PATHS: tuple[str, ...] = (
+    "src/screw/calc/cost.py",
+    "src/screw/calc/thread.py",
+    "src/screw/params.py",
+    "src/screw/solid/",
+)
+# The run name a full-tier run carries (operability.yml `run-name` with no `set` input, or
+# `set=full`): a dispatch of another set on the same head is not the full tier and must not
+# stand in for it, so the runs read keeps only runs of this name.
+FULL_TIER_RUN_NAME = "operability: full"
 
 # D-05's own "~60 s". The observation behind the number (flagged assumption 6,
 # 05-02-PLAN.md): the recent runs read via `gh api .../actions/workflows/ci.yml/runs`
@@ -370,6 +394,94 @@ def check_head(sha: str, run: Runner, required: frozenset[str]) -> list[str]:
     return head_refusals(sha, compare, newest, jobs, required)
 
 
+def parse_changed_files(text: object) -> list[str]:
+    """Parse `gh api repos/{owner}/{repo}/pulls/N/files --paginate --jq '.[].filename'`'s
+    stdout: one path per line. A blank line inside the list, or output that is not text, is
+    not a list of paths and is refused, never read as fewer paths (prohibition 1)."""
+    try:
+        paths = _as_str(text, "changed files output").splitlines()
+    except TypeError as exc:
+        raise ValueError(f"changed files output does not parse: {exc}") from exc
+    if any(not path.strip() for path in paths):
+        raise ValueError(f"changed files output has a blank line: {text!r}")
+    return paths
+
+
+def full_tier_path(path: str) -> bool:
+    """Whether `path` is on `FULL_TIER_PATHS`: equal to a file entry, or under a directory
+    entry (one ending in `/`)."""
+    return any(path == entry or (entry.endswith("/") and path.startswith(entry))
+               for entry in FULL_TIER_PATHS)
+
+
+def full_tier_refusals(changed: list[str], run: WorkflowRun | None, sha: str) -> list[str]:
+    """The decision core of `check_full_tier`: nothing when no `changed` path is on
+    `FULL_TIER_PATHS`; otherwise a refusal naming those paths and `sha` unless `run`, the
+    newest full-tier run for `sha`, completed with conclusion success."""
+    touched = [path for path in changed if full_tier_path(path)]
+    if not touched:
+        return []
+    why = (f"pr.land: the PR touches {', '.join(touched)}, so its head {sha} needs a green "
+           f"full {FULL_TIER_WORKFLOW} run")
+    if run is None:
+        return [f"{why}, and there is none. Run it: gh workflow run {FULL_TIER_WORKFLOW} "
+                "--ref <the PR branch>"]
+    if run.status != "completed":
+        return [f"{why}; the newest is still running: {run.html_url}"]
+    if run.conclusion != "success":
+        return [f"{why}; the newest concluded {run.conclusion!r}, not success: {run.html_url}"]
+    return []
+
+
+def check_full_tier(pr_number: int, sha: str, run: Runner) -> list[str]:
+    """Read the PR's changed files; only if one is on `FULL_TIER_PATHS`, read the full-tier runs
+    of `FULL_TIER_WORKFLOW` for `sha`; then decide via `full_tier_refusals`. A failed or
+    unparseable read is itself a refusal, never "no matching path" (prohibition 1)."""
+    files_result = run(
+        [
+            "gh",
+            "api",
+            f"repos/{{owner}}/{{repo}}/pulls/{pr_number}/files",
+            "--paginate",
+            "--jq",
+            ".[].filename",
+        ]
+    )
+    if files_result.returncode != 0:
+        return [
+            f"pr.land: reading the changed files of PR #{pr_number} failed: "
+            f"{files_result.stderr.strip()}"
+        ]
+    try:
+        changed = parse_changed_files(files_result.stdout)
+    except ValueError as exc:
+        return [f"pr.land: {exc}"]
+    if not any(full_tier_path(path) for path in changed):
+        return []
+
+    runs_result = run(
+        [
+            "gh",
+            "api",
+            f"repos/{{owner}}/{{repo}}/actions/workflows/{FULL_TIER_WORKFLOW}/runs"
+            f"?head_sha={sha}&per_page=100",
+            "--jq",
+            f'[.workflow_runs[] | select(.display_title == "{FULL_TIER_RUN_NAME}")'
+            " | {id, status, conclusion, html_url}]",
+        ]
+    )
+    if runs_result.returncode != 0:
+        return [
+            f"pr.land: reading {FULL_TIER_WORKFLOW} runs for {sha} failed: "
+            f"{runs_result.stderr.strip()}"
+        ]
+    try:
+        runs = parse_runs(runs_result.stdout)
+    except ValueError as exc:
+        return [f"pr.land: {exc}"]
+    return full_tier_refusals(changed, newest_run(runs), sha)
+
+
 def no_run_report(
     pr_number: int,
     squash_sha: str,
@@ -465,6 +577,7 @@ def land(
 
     subject = squash_subject(pr)
     refusals = check_head(pr.head_sha, run, required_jobs())
+    refusals += check_full_tier(pr.number, pr.head_sha, run)
     refusals += message_refusals(subject, pr.body)
     if refusals:
         for line in refusals:
