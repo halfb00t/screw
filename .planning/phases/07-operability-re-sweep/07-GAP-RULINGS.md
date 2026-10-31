@@ -427,3 +427,35 @@ G35's ruling 2 for the nut (its W is not taken from the margin rule); G35 stands
 | Gap | Rule(s) | Owner ruling |
 |---|---|---|
 | G36 | R31, R27 | The nut's W is 8 by ruling, not by the margin rule; the bolt's W stays the margin rule's, written by code from the walk's records (20). The 6 island cells (`d` 2.2, `d / pitch` 7) and any nut cell the walk refused at or below 8 join the residual must debt; the nut's constant is a ruled value whose comment cites this ruling and the island. The committed point files and the sets drawn from runner records are checked under the model they were drawn under, without the fine-pitch wall (as `bench.oper_lift.registered` does for the walls), so `runtime.json` and L22 to L24 do not move. The required tier is R27 step 5 over the committed D(A) with the points the fine-pitch wall refuses dropped and nothing drawn in their place: 355 points, each artifact keeping 2 edge points. |
+
+## Gap G37 (owner ruling on the full tier's residual points, 2026-10-31)
+
+Source: plan 07-19's checkpoint, raised before anything was dispatched. The full grid of R28 was
+drawn under the shipped model (the parameter model with L25's walls, admission by `cost.fits`) and
+checked against the explore records (run 40646117094) and the fine-pitch walk (run 41074314305):
+1056 points. These are 924 catalogue points, all admitted; 42 nut-factorial points (14 parts), all
+admitted, with 201 refused by the parameter model (171 `pitch_too_fine`, 30 `turn_cap`); and 90
+dense-boundary points, admitted by construction. No pair is refused by the cost model. 114
+admitted points lie in the residual region of
+`docs/tech_debt/active/2026-10-29-in-wall-parts-the-kernel-refuses.md` (a bolt with d in 0.5 to
+0.85 or 1.6 to 3.3 mm, exact d / pitch at most 20 and more than 3 turns). No point is at the nut
+island (d 2.2, d / pitch 7). 96 of the 114 are catalogue points, each `ok` at explore. The other
+18 are dense-boundary points with no runner reading: M2, M2.5 and M3 at their coarse pitch, both
+hands, 90 turns at stl-preview and stl-fine and 57 to 61 turns at step. Their only evidence is
+the debug session's text (E27, E29: d 2 and 3 at d / pitch 5 and 6 built at 90 turns, both
+hands, on macOS arm64 and the emulated linux/amd64 image; M3-right at 90 turns read a tip piece
+of +0.0291 against T_PIECE 0.03), which R1 counts as context.
+
+The owner's replies, verbatim (the label "(Recommended)" is the orchestrator's, not part of the
+ruling):
+
+1. "2: read the 18 first (Recommended)"
+2. "R4 'dropped' list (Recommended)"
+
+Neither changes a rule, so `07-SWEEP-PROTOCOL.md` is not amended. Ruling 1 adds one reading of
+the 18 points before the full tier's trigger and gate are built. It sets no figure, and R28 and
+R29 judge the full tier as written. Ruling 2 is R4 as written.
+
+| Gap | Rule(s) | Owner ruling |
+|---|---|---|
+| G37 | R28, R29, R4 | (1) Before the full tier's trigger and merge gate are built, the 18 dense-boundary points inside the residual region are read once on the runner, as a set written by committed code and committed before it is dispatched, with its records committed before they are used. Each point is judged as the full tier judges it (R29: `ok`, a cold wall within its timeout, every target within prediction x (1 + e)); the tip piece of each distinct part is read alongside and reported against T_PIECE. If all 18 pass, the full tier judges every point as R28 and R29 write it, with no exclusion. If any is refused, or reads over its envelope or past its timeout, the phase stops for the owner before the trigger and the gate are built. (2) A full-tier combination the parameter model refuses (201 nut-factorial points: 171 `pitch_too_fine`, 30 `turn_cap`) is listed in the file's `dropped` array with its error type and is not judged (R4). |

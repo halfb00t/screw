@@ -242,3 +242,19 @@ verbatim (the label "(Recommended)" is the orchestrator's, not part of the rulin
    they were drawn under, without the `d / pitch` wall, as `bench.oper_lift.registered` does, so
    `runtime.json` and L22 to L24 do not move. The required tier drops the points the guard refuses
    and does not refill: 355 points, each artifact keeping 2 edge points.
+
+## R28: the full tier's residual points are read first (2026-10-31, G37)
+
+Source: plan 07-19's stop before any dispatch (`07-GAP-RULINGS.md`, G37, holds its figures). The
+full grid holds 114 admitted points inside the residual region of the in-wall debt. 96 are
+catalogue points that are `ok` at explore. 18 are dense-boundary bolts (M2, M2.5 and M3 at their
+coarse pitch, 57 to 90 turns) that no runner has read. The owner's replies, verbatim (the label
+"(Recommended)" is the orchestrator's, not part of the ruling):
+
+1. "2: read the 18 first (Recommended)". The 18 are read once on the runner before the trigger
+   and the gate are built. The set is written and committed by code before it is dispatched, and
+   its records are committed before they are used. If all 18 pass R29, the full tier judges
+   every point with no exclusion. If any is refused, over its envelope or past its timeout, the
+   phase stops for the owner.
+2. "R4 'dropped' list (Recommended)". The 201 nut-factorial points the parameter model refuses
+   go in the full set's `dropped` array with their error type and are not judged.
