@@ -97,6 +97,13 @@ mating pair out.
       UI, API and CLI. An explicit angle deeper than `k / 2` is a 422 naming `head_chamfer` and
       `k`; a cut trimmed by another field is capped and warned; an angle below the kernel bound
       warns and prints no chamfer or volume rows. UAT 6/6 passed 2026-10-24.
+- ✓ CAD builds run in worker processes off the event loop with a per-build timeout per
+      artifact (`BUILD_TIMEOUT_S`, no env override) measured on linux/amd64 over the full
+      grid and cited in L24 — Phase 7 (OPER-01).
+- ✓ Memory ceiling, gzip level, worker count and bytes-cache budget re-swept for threaded
+      parts on linux/amd64, each derived by rule from committed runner records
+      (`bench/results/phase-07/runtime.json`) and cited in L23; no spur figure and no INTERIM
+      value remains in the shipped code — Phase 7 (OPER-02).
 
 
 ### Active
@@ -126,9 +133,13 @@ All hypotheses until shipped and validated. Grouped by the owner's decisions of
       without an edit.
 
 **Operability (inherited shape)**
-- [ ] Every allowed configuration builds inside a measured per-build timeout, with the bound
-      that keeps it there recorded (the Phase 2 spike left every seconds cap "not
-      established"; Phase 3 caps on construction and bytes until a decisive run exists).
+- [ ] Every allowed configuration builds inside the timeout; one that cannot is capped and
+      warned or refused with a `422`, never silently shortened (OPER-03). The timeout and
+      every runtime bound shipped in Phase 7 (Validated above), but an admitted in-wall part
+      can still get a kernel `422 build_error` that names no field. Owner ruling 2026-11-01:
+      Phase 7 closes with OPER-03 Pending, carried by the must debt
+      `docs/tech_debt/active/2026-10-29-in-wall-parts-the-kernel-refuses.md`, before first
+      release.
 
 ### Out of Scope
 
@@ -266,6 +277,12 @@ table cites it. `cq_warehouse.fastener` is likewise unverified.
 | Clearance default 0.15 mm read by the pre-registered D-07 rule from run `06-print-run-1` (L17); printability threshold M4 read by the D-10 rule from run `06-print-run-2` (L18) | Rules, records and protocol landed on main (PR #19) before the first print, so no value is tuned toward a pass; a frozen default is what every link omitting the field means (L02) | Phase 6: both values pinned by digest and re-derived in `make verify`; owner accepted 0.15 as permanent 2026-10-23; the acceptance pair printed and passed; UAT 1/1, security 22/22 closed |
 | Limits are refusals, never trims (L12): root radius at or below zero, more than 250 turns, and the fine STL L11 measured over the export budget are 422s naming the fields; a repeated parameter is a 422/exit 2 naming it | L02: a parameter the user set is never silently changed; a number printed is one someone cuts metal to | Phase 3: on API, CLI and page; five review findings deferred into tech-debt items with owner rulings (2026-10-11) |
 | Bolt head chamfered on the top face by a `head_chamfer` angle, default 30, cone from `s / 2`, cut at most `k / 2` (L19, supersedes L13 D-01) | Owner ruling 2026-10-24: the Phase 7 re-sweep should measure the head a user will print; the 15 to 30 degree band is a stated model from the nut's R4 a read, not a cited ISO 4014/4017 figure | Phase 06.1: shipped on UI, API and CLI; UAT 6/6; security `threats_open: 0`; UI audit 23/24 (advisory) |
+| A fitted, enveloped, kernel-free cost model judges each artifact against the owner's budget; an unnamed default that pushes a part over is capped and warned (L21); out-of-band nut readings widen its envelope and a bolt below the fitted turns is refused (L22) | L02: a refusal or cap comes from measured readings, never a hand-keyed table; `FINE_STL_ROWS` and the nut caps are retired | Phase 7: `src/screw/calc/cost.py` constants emitted from `fit.json`; refusal and cap on UI, API and CLI |
+| Runtime sized on the GitHub runner in the production image: 1 build worker, `mem_limit` 2304m, every cache, gzip and healthcheck knob measured (L23) | Measurement before knobs; spur's figures and the Phase 1 INTERIM bounds are replaced | Phase 7: OPER-02 validated; `runtime.json` equals `derive-runtime` |
+| One build timeout per artifact, twice the worst admitted build with every worker busy; queue-aware deadline; `Retry-After` from the measured median (L24) | A timeout is a measured constant citing its run, not a round figure | Phase 7: OPER-01 validated |
+| A part finer in pitch than its kind's wall is a `422 pitch_too_fine` naming d and pitch: bolt d / pitch 20 from the walk, nut 8 by owner ruling (L25) | Refuse at the model rather than let the kernel fail in the worker | Phase 7: shipped; in-wall kernel refusals remain (OPER-03 Pending, must debt) |
+| Two operability tiers: a required bounds job on every change and a full recording tier weekly and on cost-model PRs (L26); `make pr.land` requires a green full tier on such PRs (L27) and refuses a PR that edits its own gate files without `--owner-approves-gate-change` (L28) | A bound stays true only if CI keeps reading it; a PR must not grade its own gate | Phase 7: full tier green on the phase head; the follow-up job has never run on the runner (nice debt) |
+| Nut clearance banded like the head ratios (L29) and its edges priced with the other fields at real values (L30); tall-nut readings widen the nut preview and STEP seconds envelopes (L31); the nut's fine-STL peak budget is capped at the worker's memory headroom, the bolt's stays B-01's (L32) | Code-review CR-01 (G38) and quick task 261031-qd7 (G39): a clearance outside the fitted values predicted a cheaper nut than any reading | Phase 7: shipped; bolt peak budget above the headroom, head-ratio edges and nut peak envelope stay must debt |
 
 ## Evolution
 
@@ -285,4 +302,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-10-25 after Phase 06.1*
+*Last updated: 2026-11-01 after Phase 7*

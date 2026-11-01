@@ -29,7 +29,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4: ISO Hex Bolts and Screws** - ISO 4014 and 4017 presets from cited, tested table rows fill explicit mm fields; a traceable info panel for the bolt (completed 2026-10-12)
 - [x] **Phase 5: Hex Nut and Kernel Pair Proof** - ISO 4032 nut with a clearance field, matching-part derivation and a kernel pair proof that can fail (completed 2026-10-22)
 - [x] **Phase 6: Printed Pair Acceptance** - the owner's printed test sets the clearance default and the printability threshold; a printed pair threads together by hand (completed 2026-10-24)
-- [ ] **Phase 7: Operability Re-sweep** - every runtime bound measured on the full grid on linux/amd64 and cited; every allowed configuration builds inside the timeout
+- [x] **Phase 7: Operability Re-sweep** - every runtime bound measured on the full grid on linux/amd64 and cited; every allowed configuration builds inside the timeout (completed 2026-11-01)
 
 ## Phase Details
 
@@ -392,14 +392,14 @@ Plans:
 **Goal**: Every configuration a user is allowed to ask for builds inside a per-build timeout measured on linux/amd64 over the full grid, or is capped and warned or refused with a `422`, and every runtime bound cites the run that set it.
 **Mode:** mvp
 **Depends on**: Phase 6.1 (the sweep runs on the final grid, clearance default and chamfered head included)
-**Requirements**: OPER-01, OPER-02, OPER-03
+**Requirements**: OPER-01, OPER-02, OPER-03 (OPER-03 held Pending at phase close by owner ruling 2026-11-01; carried by `docs/tech_debt/active/2026-10-29-in-wall-parts-the-kernel-refuses.md`, before first release)
 **Success Criteria** (what must be TRUE):
   1. The per-build timeout is measured over the whole allowed grid on linux/amd64 (every size, every standard length, including lengths where `L/P` is an integer) and recorded as a constant whose decision entry cites the run.
   2. The memory ceiling, gzip level, worker count and bytes-cache budget are each re-swept for threaded parts on linux/amd64 and each cited in a decision entry; no spur figure and no interim value remains in the code.
   3. A CI job builds every allowed configuration inside the timeout; a configuration that cannot is capped and warned or refused with a `422` naming the fields, never silently shortened.
   4. With the measured bounds in place, CAD builds still run in worker processes off the event loop, and `make check` (in-image smoke test, vendored-bundle byte check) passes.
 
-**Plans**: 21/21 plans executed (sequential waves 1-15; the pre-registration lands on main as its own PR, A, before any runner reading; 07-05 to 07-20 revised 2026-10-27 against PR A2's protocol, and 07-21 split out of 07-16)
+**Plans**: 21/21 plans complete (sequential waves 1-15; the pre-registration lands on main as its own PR, A, before any runner reading; 07-05 to 07-20 revised 2026-10-27 against PR A2's protocol, and 07-21 split out of 07-16)
 
 Plans:
 **Wave 1**
@@ -467,4 +467,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 2 
 | 5. Hex Nut and Kernel Pair Proof | 25/25 | Complete    | 2026-10-22 |
 | 6. Printed Pair Acceptance | 10/10 | Complete    | 2026-10-24 |
 | 6.1. Bolt head chamfer (INSERTED) | 5/5 | Complete    | 2026-10-25 |
-| 7. Operability Re-sweep | 21/21 | In Progress | - |
+| 7. Operability Re-sweep | 21/21 | Complete    | 2026-11-01 |
