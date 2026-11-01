@@ -28,8 +28,8 @@ See: .planning/PROJECT.md (updated 2026-11-01)
 
 Phase: 07
 Plan: Not started
-Status: All phases complete
-Last activity: 2026-11-01 — Phase 07 complete
+Status: All phases complete — PR #26 open as a draft; the owner lands it with `make pr.land PR=26 PR_LAND_FLAGS=--owner-approves-gate-change`
+Last activity: 2026-11-01 — Phase 07 complete, PR #26 body regenerated for ship
 
 Progress: [████████████████████] 103/103 plans (100%)
 
