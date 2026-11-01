@@ -1,0 +1,7585 @@
+{
+ "rule": "07-SWEEP-PROTOCOL.md R27 steps 1 to 4 (G6)",
+ "seed": 20261026,
+ "budget": "B-01 (C1), calc.cost.BUDGET",
+ "sources": [
+  "explore-points=bench/points/explore.json"
+ ],
+ "envelope": {
+  "bolt": {
+   "stl-preview": {
+    "bytes": 2.264581945786201,
+    "seconds": 4.286137349093968,
+    "peak": 2.040087854388461
+   },
+   "stl-fine": {
+    "bytes": 0.5633622849303941,
+    "seconds": 2.690232029900006,
+    "peak": 2.170967259675211
+   },
+   "step": {
+    "bytes": 0.9874058238127998,
+    "seconds": 2.616422482555953,
+    "peak": 0.45747877720379804
+   }
+  },
+  "nut": {
+   "stl-preview": {
+    "bytes": 0.7070121785110755,
+    "seconds": 1.061383246630594,
+    "peak": 0.556086702674923
+   },
+   "stl-fine": {
+    "bytes": 0.4996608149413484,
+    "seconds": 1.1069417227945801,
+    "peak": 0.5571452809681212
+   },
+   "step": {
+    "bytes": 0.3802587303182223,
+    "seconds": 0.8785228687431521,
+    "peak": 0.48786919655819627
+   }
+  }
+ },
+ "artifacts": {
+  "stl-preview": {
+   "candidates": [
+    "iso4017:M2x4",
+    "iso4017:M2x5",
+    "iso4017:M2x6",
+    "iso4017:M2x8",
+    "iso4017:M2x10",
+    "iso4017:M2x12",
+    "iso4017:M2x16",
+    "iso4017:M2x20",
+    "iso4017:M2.5x5",
+    "iso4017:M2.5x6",
+    "iso4017:M2.5x8",
+    "iso4017:M2.5x10",
+    "iso4017:M2.5x12",
+    "iso4017:M2.5x16",
+    "iso4017:M2.5x20",
+    "iso4017:M2.5x25",
+    "iso4017:M3x6",
+    "iso4017:M3x8",
+    "iso4017:M3x10",
+    "iso4017:M3x12",
+    "iso4017:M3x16",
+    "iso4017:M3x20",
+    "iso4017:M3x25",
+    "iso4017:M3x30",
+    "iso4017:M3.5x8",
+    "iso4017:M3.5x10",
+    "iso4017:M3.5x12",
+    "iso4017:M3.5x16",
+    "iso4017:M3.5x20",
+    "iso4017:M3.5x25",
+    "iso4017:M3.5x30",
+    "iso4017:M3.5x35",
+    "iso4017:M4x8",
+    "iso4017:M4x10",
+    "iso4017:M4x12",
+    "iso4017:M4x16",
+    "iso4017:M4x20",
+    "iso4017:M4x25",
+    "iso4017:M4x30",
+    "iso4017:M4x35",
+    "iso4017:M4x40",
+    "iso4017:M5x10",
+    "iso4017:M5x12",
+    "iso4017:M5x16",
+    "iso4017:M5x20",
+    "iso4017:M5x25",
+    "iso4017:M5x30",
+    "iso4017:M5x35",
+    "iso4017:M5x40",
+    "iso4017:M5x45",
+    "iso4017:M5x50",
+    "iso4017:M6x12",
+    "iso4017:M6x16",
+    "iso4017:M6x20",
+    "iso4017:M6x25",
+    "iso4017:M6x30",
+    "iso4017:M6x35",
+    "iso4017:M6x40",
+    "iso4017:M6x45",
+    "iso4017:M6x50",
+    "iso4017:M6x55",
+    "iso4017:M6x60",
+    "iso4017:M7x16",
+    "iso4017:M7x20",
+    "iso4017:M7x25",
+    "iso4017:M7x30",
+    "iso4017:M7x35",
+    "iso4017:M7x40",
+    "iso4017:M7x45",
+    "iso4017:M7x50",
+    "iso4017:M7x55",
+    "iso4017:M7x60",
+    "iso4017:M7x65",
+    "iso4017:M7x70",
+    "iso4017:M8x16",
+    "iso4017:M8x20",
+    "iso4017:M8x25",
+    "iso4017:M8x30",
+    "iso4017:M8x35",
+    "iso4017:M8x40",
+    "iso4017:M8x45",
+    "iso4017:M8x50",
+    "iso4017:M8x55",
+    "iso4017:M8x60",
+    "iso4017:M8x65",
+    "iso4017:M8x70",
+    "iso4017:M8x80",
+    "iso4017:M10x20",
+    "iso4017:M10x25",
+    "iso4017:M10x30",
+    "iso4017:M10x35",
+    "iso4017:M10x40",
+    "iso4017:M10x45",
+    "iso4017:M10x50",
+    "iso4017:M10x55",
+    "iso4017:M10x60",
+    "iso4017:M10x65",
+    "iso4017:M10x70",
+    "iso4017:M10x80",
+    "iso4017:M10x90",
+    "iso4017:M10x100",
+    "iso4017:M12x25",
+    "iso4017:M12x30",
+    "iso4017:M12x35",
+    "iso4017:M12x40",
+    "iso4017:M12x45",
+    "iso4017:M12x50",
+    "iso4017:M12x55",
+    "iso4017:M12x60",
+    "iso4017:M12x65",
+    "iso4017:M12x70",
+    "iso4017:M12x80",
+    "iso4017:M12x90",
+    "iso4017:M12x100",
+    "iso4017:M12x110",
+    "iso4017:M12x120",
+    "iso4017:M14x30",
+    "iso4017:M14x35",
+    "iso4017:M14x40",
+    "iso4017:M14x45",
+    "iso4017:M14x50",
+    "iso4017:M14x55",
+    "iso4017:M14x60",
+    "iso4017:M14x65",
+    "iso4017:M14x70",
+    "iso4017:M14x80",
+    "iso4017:M14x90",
+    "iso4017:M14x100",
+    "iso4017:M14x110",
+    "iso4017:M14x120",
+    "iso4017:M14x130",
+    "iso4017:M14x140",
+    "iso4017:M16x30",
+    "iso4017:M16x35",
+    "iso4017:M16x40",
+    "iso4017:M16x45",
+    "iso4017:M16x50",
+    "iso4017:M16x55",
+    "iso4017:M16x60",
+    "iso4017:M16x65",
+    "iso4017:M16x70",
+    "iso4017:M16x80",
+    "iso4017:M16x90",
+    "iso4017:M16x100",
+    "iso4017:M16x110",
+    "iso4017:M16x120",
+    "iso4017:M16x130",
+    "iso4017:M16x140",
+    "iso4017:M16x150",
+    "iso4017:M16x160",
+    "iso4017:M18x35",
+    "iso4017:M18x40",
+    "iso4017:M18x45",
+    "iso4017:M18x50",
+    "iso4017:M18x55",
+    "iso4017:M18x60",
+    "iso4017:M18x65",
+    "iso4017:M18x70",
+    "iso4017:M18x80",
+    "iso4017:M18x90",
+    "iso4017:M18x100",
+    "iso4017:M18x110",
+    "iso4017:M18x120",
+    "iso4017:M18x130",
+    "iso4017:M18x140",
+    "iso4017:M18x150",
+    "iso4017:M18x160",
+    "iso4017:M18x180",
+    "iso4017:M20x40",
+    "iso4017:M20x45",
+    "iso4017:M20x50",
+    "iso4017:M20x55",
+    "iso4017:M20x60",
+    "iso4017:M20x65",
+    "iso4017:M20x70",
+    "iso4017:M20x80",
+    "iso4017:M20x90",
+    "iso4017:M20x100",
+    "iso4017:M20x110",
+    "iso4017:M20x120",
+    "iso4017:M20x130",
+    "iso4017:M20x140",
+    "iso4017:M20x150",
+    "iso4017:M20x160",
+    "iso4017:M20x180",
+    "iso4017:M20x200",
+    "iso4014:M2x16",
+    "iso4014:M2x20",
+    "iso4014:M2.5x16",
+    "iso4014:M2.5x20",
+    "iso4014:M2.5x25",
+    "iso4014:M3x20",
+    "iso4014:M3x25",
+    "iso4014:M3x30",
+    "iso4014:M3.5x20",
+    "iso4014:M3.5x25",
+    "iso4014:M3.5x30",
+    "iso4014:M3.5x35",
+    "iso4014:M4x25",
+    "iso4014:M4x30",
+    "iso4014:M4x35",
+    "iso4014:M4x40",
+    "iso4014:M5x25",
+    "iso4014:M5x30",
+    "iso4014:M5x35",
+    "iso4014:M5x40",
+    "iso4014:M5x45",
+    "iso4014:M5x50",
+    "iso4014:M6x30",
+    "iso4014:M6x35",
+    "iso4014:M6x40",
+    "iso4014:M6x45",
+    "iso4014:M6x50",
+    "iso4014:M6x55",
+    "iso4014:M6x60",
+    "iso4014:M7x35",
+    "iso4014:M7x40",
+    "iso4014:M7x45",
+    "iso4014:M7x50",
+    "iso4014:M7x55",
+    "iso4014:M7x60",
+    "iso4014:M7x65",
+    "iso4014:M7x70",
+    "iso4014:M8x40",
+    "iso4014:M8x45",
+    "iso4014:M8x50",
+    "iso4014:M8x55",
+    "iso4014:M8x60",
+    "iso4014:M8x65",
+    "iso4014:M8x70",
+    "iso4014:M8x80",
+    "iso4014:M10x45",
+    "iso4014:M10x50",
+    "iso4014:M10x55",
+    "iso4014:M10x60",
+    "iso4014:M10x65",
+    "iso4014:M10x70",
+    "iso4014:M10x80",
+    "iso4014:M10x90",
+    "iso4014:M10x100",
+    "iso4014:M12x50",
+    "iso4014:M12x55",
+    "iso4014:M12x60",
+    "iso4014:M12x65",
+    "iso4014:M12x70",
+    "iso4014:M12x80",
+    "iso4014:M12x90",
+    "iso4014:M12x100",
+    "iso4014:M12x110",
+    "iso4014:M12x120",
+    "iso4014:M14x55",
+    "iso4014:M14x60",
+    "iso4014:M14x65",
+    "iso4014:M14x70",
+    "iso4014:M14x80",
+    "iso4014:M14x90",
+    "iso4014:M14x100",
+    "iso4014:M14x110",
+    "iso4014:M14x120",
+    "iso4014:M14x130",
+    "iso4014:M14x140",
+    "iso4014:M16x65",
+    "iso4014:M16x70",
+    "iso4014:M16x80",
+    "iso4014:M16x90",
+    "iso4014:M16x100",
+    "iso4014:M16x110",
+    "iso4014:M16x120",
+    "iso4014:M16x130",
+    "iso4014:M16x140",
+    "iso4014:M16x150",
+    "iso4014:M16x160",
+    "iso4014:M18x70",
+    "iso4014:M18x80",
+    "iso4014:M18x90",
+    "iso4014:M18x100",
+    "iso4014:M18x110",
+    "iso4014:M18x120",
+    "iso4014:M18x130",
+    "iso4014:M18x140",
+    "iso4014:M18x150",
+    "iso4014:M18x160",
+    "iso4014:M18x180",
+    "iso4014:M20x80",
+    "iso4014:M20x90",
+    "iso4014:M20x100",
+    "iso4014:M20x110",
+    "iso4014:M20x120",
+    "iso4014:M20x130",
+    "iso4014:M20x140",
+    "iso4014:M20x150",
+    "iso4014:M20x160",
+    "iso4014:M20x180",
+    "iso4014:M20x200",
+    "iso4032:M2",
+    "iso4032:M2.5",
+    "iso4032:M3",
+    "iso4032:M3.5",
+    "iso4032:M4",
+    "iso4032:M5",
+    "iso4032:M6",
+    "iso4032:M8",
+    "iso4032:M10",
+    "iso4032:M12",
+    "iso4032:M14",
+    "iso4032:M16",
+    "iso4032:M18",
+    "iso4032:M20",
+    "bolt-d1-p0.1-n3-right",
+    "bolt-d1-p0.1-n3-left",
+    "bolt-d1-p0.1-n30-right",
+    "bolt-d1-p0.1-n30-left",
+    "bolt-d1-p0.35-n3-right",
+    "bolt-d1-p0.35-n3-left",
+    "bolt-d1-p0.35-n30-right",
+    "bolt-d1-p0.35-n30-left",
+    "bolt-d3-p0.1-n3-right",
+    "bolt-d3-p0.1-n3-left",
+    "bolt-d3-p0.1-n30-right",
+    "bolt-d3-p0.1-n30-left",
+    "bolt-d3-p0.35-n3-right",
+    "bolt-d3-p0.35-n3-left",
+    "bolt-d3-p0.35-n30-right",
+    "bolt-d3-p0.35-n30-left",
+    "bolt-d3-p1-n3-right",
+    "bolt-d3-p1-n3-left",
+    "bolt-d3-p1-n30-right",
+    "bolt-d3-p1-n30-left",
+    "bolt-d10-p0.1-n3-right",
+    "bolt-d10-p0.1-n3-left",
+    "bolt-d10-p0.1-n30-right",
+    "bolt-d10-p0.1-n30-left",
+    "bolt-d10-p0.35-n3-right",
+    "bolt-d10-p0.35-n3-left",
+    "bolt-d10-p0.35-n30-right",
+    "bolt-d10-p0.35-n30-left",
+    "bolt-d10-p1-n3-right",
+    "bolt-d10-p1-n3-left",
+    "bolt-d10-p1-n30-right",
+    "bolt-d10-p1-n30-left",
+    "bolt-d10-p3-n3-right",
+    "bolt-d10-p3-n3-left",
+    "bolt-d10-p3-n30-right",
+    "bolt-d10-p3-n30-left",
+    "bolt-d30-p0.35-n3-right",
+    "bolt-d30-p0.35-n3-left",
+    "bolt-d30-p1-n3-right",
+    "bolt-d30-p1-n3-left",
+    "bolt-d30-p3-n3-right",
+    "bolt-d30-p3-n3-left",
+    "bolt-d30-p10-n3-right",
+    "bolt-d30-p10-n3-left",
+    "nut-d3-p0.35-m0.8d-s1.6d-c0.15-right",
+    "nut-d3-p0.35-m0.8d-s4d-c0.15-right",
+    "nut-d3-p0.35-m3d-s1.6d-c0.15-right",
+    "nut-d3-p0.35-m3d-s4d-c0.15-right",
+    "nut-d3-p1-m0.8d-s1.6d-c0.15-right",
+    "nut-d3-p1-m0.8d-s4d-c0.15-right",
+    "nut-d3-p1-m3d-s1.6d-c0.15-right",
+    "nut-d3-p1-m3d-s4d-c0.15-right",
+    "nut-d10-p0.35-m0.8d-s1.6d-c0.15-right",
+    "nut-d10-p0.35-m0.8d-s4d-c0.15-right",
+    "nut-d10-p0.35-m0.8d-s4d-c5-right",
+    "nut-d10-p0.35-m3d-s1.6d-c0.15-right",
+    "nut-d10-p0.35-m3d-s4d-c0.15-right",
+    "nut-d10-p0.35-m3d-s4d-c5-right",
+    "nut-d10-p1-m0.8d-s1.6d-c0.15-right",
+    "nut-d10-p1-m0.8d-s4d-c0.15-right",
+    "nut-d10-p1-m0.8d-s4d-c5-right",
+    "nut-d10-p1-m3d-s1.6d-c0.15-right",
+    "nut-d10-p1-m3d-s4d-c0.15-right",
+    "nut-d10-p1-m3d-s4d-c5-right",
+    "nut-d10-p3.5-m0.8d-s1.6d-c0.15-right",
+    "nut-d10-p3.5-m0.8d-s4d-c0.15-right",
+    "nut-d10-p3.5-m0.8d-s4d-c5-right",
+    "nut-d10-p3.5-m3d-s1.6d-c0.15-right",
+    "nut-d10-p3.5-m3d-s4d-c0.15-right",
+    "nut-d10-p3.5-m3d-s4d-c5-right",
+    "nut-d30-p0.35-m0.8d-s1.6d-c5-right",
+    "nut-d30-p0.35-m0.8d-s4d-c0.15-right",
+    "nut-d30-p1-m0.8d-s1.6d-c0.15-right",
+    "nut-d30-p1-m0.8d-s1.6d-c5-right",
+    "nut-d30-p1-m0.8d-s4d-c0.15-right",
+    "nut-d30-p1-m0.8d-s4d-c5-right",
+    "nut-d30-p3.5-m0.8d-s1.6d-c0.15-right",
+    "nut-d30-p3.5-m0.8d-s1.6d-c5-right",
+    "nut-d30-p3.5-m0.8d-s4d-c0.15-right",
+    "nut-d30-p3.5-m0.8d-s4d-c5-right",
+    "nut-d30-p3.5-m3d-s1.6d-c0.15-right",
+    "nut-d30-p3.5-m3d-s1.6d-c5-right",
+    "nut-d30-p3.5-m3d-s4d-c0.15-right",
+    "nut-d30-p3.5-m3d-s4d-c5-right",
+    "nut-d100-p3.5-m0.8d-s1.6d-c0.15-right",
+    "nut-d100-p3.5-m0.8d-s1.6d-c5-right",
+    "nut-d100-p3.5-m0.8d-s4d-c0.15-right",
+    "nut-d100-p3.5-m0.8d-s4d-c5-right",
+    "nut-d3-p0.35-m0.8d-s1.6d-c0.15-left",
+    "nut-d3-p0.35-m3d-s1.6d-c0.15-left",
+    "nut-d3-p1-m0.8d-s1.6d-c0.15-left",
+    "nut-d3-p1-m3d-s1.6d-c0.15-left",
+    "nut-d10-p0.35-m0.8d-s1.6d-c0.15-left",
+    "nut-d10-p0.35-m3d-s1.6d-c0.15-left",
+    "nut-d10-p1-m0.8d-s1.6d-c0.15-left",
+    "nut-d10-p1-m3d-s1.6d-c0.15-left",
+    "nut-d10-p3.5-m0.8d-s1.6d-c0.15-left",
+    "nut-d10-p3.5-m3d-s1.6d-c0.15-left",
+    "nut-d30-p0.35-m0.8d-s1.6d-c0.15-left",
+    "nut-d30-p1-m0.8d-s1.6d-c0.15-left",
+    "nut-d30-p3.5-m0.8d-s1.6d-c0.15-left",
+    "nut-d30-p3.5-m3d-s1.6d-c0.15-left",
+    "nut-d100-p3.5-m0.8d-s1.6d-c0.15-left"
+   ],
+   "edge_ranking": [
+    {
+     "label": "iso4017:M20x200",
+     "edge_ratio": 1.0
+    },
+    {
+     "label": "iso4017:M20x180",
+     "edge_ratio": 0.9833484515808426
+    },
+    {
+     "label": "bolt-d30-p0.35-n3-left",
+     "edge_ratio": 0.9780765036423507
+    },
+    {
+     "label": "iso4017:M20x160",
+     "edge_ratio": 0.9650616278625626
+    },
+    {
+     "label": "nut-d30-p0.35-m0.8d-s4d-c0.15-right",
+     "edge_ratio": 0.9604592794177848
+    },
+    {
+     "label": "bolt-d10-p0.1-n30-left",
+     "edge_ratio": 0.9563603856357341
+    },
+    {
+     "label": "iso4017:M20x150",
+     "edge_ratio": 0.9551860990516353
+    },
+    {
+     "label": "bolt-d30-p0.35-n3-right",
+     "edge_ratio": 0.9455693883888661
+    },
+    {
+     "label": "iso4017:M20x140",
+     "edge_ratio": 0.9447407096298902
+    },
+    {
+     "label": "nut-d30-p0.35-m0.8d-s1.6d-c5-right",
+     "edge_ratio": 0.9428404125032351
+    },
+    {
+     "label": "iso4017:M20x130",
+     "edge_ratio": 0.933648111075932
+    },
+    {
+     "label": "nut-d100-p3.5-m0.8d-s4d-c5-right",
+     "edge_ratio": 0.9321205960380228
+    },
+    {
+     "label": "nut-d30-p0.35-m0.8d-s1.6d-c0.15-left",
+     "edge_ratio": 0.9316231596574416
+    },
+    {
+     "label": "iso4017:M18x180",
+     "edge_ratio": 0.9298416724143294
+    },
+    {
+     "label": "bolt-d10-p0.1-n30-right",
+     "edge_ratio": 0.92457502205328
+    },
+    {
+     "label": "bolt-d30-p1-n3-left",
+     "edge_ratio": 0.9243071710434638
+    },
+    {
+     "label": "iso4017:M16x160",
+     "edge_ratio": 0.9223927478549339
+    },
+    {
+     "label": "iso4017:M20x120",
+     "edge_ratio": 0.9218134516624622
+    },
+    {
+     "label": "iso4017:M16x150",
+     "edge_ratio": 0.9129538520440998
+    },
+    {
+     "label": "iso4017:M18x160",
+     "edge_ratio": 0.9125498866571858
+    },
+    {
+     "label": "iso4017:M20x110",
+     "edge_ratio": 0.9091185535892315
+    },
+    {
+     "label": "iso4017:M18x150",
+     "edge_ratio": 0.9032117133873108
+    },
+    {
+     "label": "iso4017:M16x140",
+     "edge_ratio": 0.9029702912299777
+    },
+    {
+     "label": "iso4017:M20x100",
+     "edge_ratio": 0.8954134147781314
+    },
+    {
+     "label": "bolt-d10-p0.35-n30-left",
+     "edge_ratio": 0.8939599521107742
+    },
+    {
+     "label": "bolt-d30-p1-n3-right",
+     "edge_ratio": 0.893587120386037
+    },
+    {
+     "label": "iso4017:M18x140",
+     "edge_ratio": 0.8933346872392312
+    },
+    {
+     "label": "iso4017:M16x130",
+     "edge_ratio": 0.8923681367502699
+    },
+    {
+     "label": "iso4017:M2.5x25",
+     "edge_ratio": 0.8885697764388778
+    },
+    {
+     "label": "iso4017:M18x130",
+     "edge_ratio": 0.8828456684440608
+    },
+    {
+     "label": "iso4017:M16x120",
+     "edge_ratio": 0.881056730617073
+    },
+    {
+     "label": "iso4017:M20x90",
+     "edge_ratio": 0.8805033949467905
+    },
+    {
+     "label": "iso4017:M10x100",
+     "edge_ratio": 0.8757832477547594
+    },
+    {
+     "label": "iso4017:M18x120",
+     "edge_ratio": 0.8716549664260894
+    },
+    {
+     "label": "bolt-d30-p3-n3-left",
+     "edge_ratio": 0.8712013964162761
+    },
+    {
+     "label": "iso4017:M16x110",
+     "edge_ratio": 0.8689231200999525
+    },
+    {
+     "label": "bolt-d10-p0.35-n30-right",
+     "edge_ratio": 0.8642485143172632
+    },
+    {
+     "label": "iso4017:M20x80",
+     "edge_ratio": 0.8641291276757564
+    },
+    {
+     "label": "iso4017:M10x90",
+     "edge_ratio": 0.8612001006000841
+    },
+    {
+     "label": "iso4017:M18x110",
+     "edge_ratio": 0.8596508337744688
+    },
+    {
+     "label": "iso4017:M2.5x20",
+     "edge_ratio": 0.8575245949195737
+    },
+    {
+     "label": "iso4017:M16x100",
+     "edge_ratio": 0.8558239352575239
+    },
+    {
+     "label": "iso4017:M14x140",
+     "edge_ratio": 0.8515094532238519
+    },
+    {
+     "label": "iso4017:M18x100",
+     "edge_ratio": 0.8466914304497368
+    },
+    {
+     "label": "iso4017:M20x70",
+     "edge_ratio": 0.8459335048896123
+    },
+    {
+     "label": "iso4017:M10x80",
+     "edge_ratio": 0.84518480673297
+    },
+    {
+     "label": "bolt-d10-p1-n30-left",
+     "edge_ratio": 0.8448148905372443
+    },
+    {
+     "label": "bolt-d30-p3-n3-right",
+     "edge_ratio": 0.8422463565018768
+    },
+    {
+     "label": "iso4017:M16x90",
+     "edge_ratio": 0.8415731415613095
+    },
+    {
+     "label": "iso4017:M14x130",
+     "edge_ratio": 0.8415115221161588
+    },
+    {
+     "label": "nut-d10-p0.35-m3d-s1.6d-c0.15-right",
+     "edge_ratio": 0.8406418539539204
+    },
+    {
+     "label": "iso4017:M20x65",
+     "edge_ratio": 0.8360010433396496
+    },
+    {
+     "label": "nut-d100-p3.5-m0.8d-s1.6d-c5-right",
+     "edge_ratio": 0.8340117711769036
+    },
+    {
+     "label": "iso4017:M18x90",
+     "edge_ratio": 0.8325927070995174
+    },
+    {
+     "label": "iso4017:M14x120",
+     "edge_ratio": 0.8308447600474402
+    },
+    {
+     "label": "iso4017:M2.5x16",
+     "edge_ratio": 0.8275640815052684
+    },
+    {
+     "label": "iso4017:M10x70",
+     "edge_ratio": 0.8273880869658015
+    },
+    {
+     "label": "iso4017:M16x80",
+     "edge_ratio": 0.8259228401233705
+    },
+    {
+     "label": "iso4017:M20x60",
+     "edge_ratio": 0.8254041305414986
+    },
+    {
+     "label": "iso4017:M14x110",
+     "edge_ratio": 0.8194026515335592
+    },
+    {
+     "label": "iso4017:M8x80",
+     "edge_ratio": 0.8184914705071917
+    },
+    {
+     "label": "iso4017:M10x65",
+     "edge_ratio": 0.8176733749781733
+    },
+    {
+     "label": "iso4017:M18x80",
+     "edge_ratio": 0.8171094101671048
+    },
+    {
+     "label": "bolt-d10-p1-n30-right",
+     "edge_ratio": 0.8167368261810474
+    },
+    {
+     "label": "bolt-d30-p10-n3-left",
+     "edge_ratio": 0.816500216086219
+    },
+    {
+     "label": "iso4017:M20x55",
+     "edge_ratio": 0.8140369485074868
+    },
+    {
+     "label": "iso4017:M16x70",
+     "edge_ratio": 0.8085317119134384
+    },
+    {
+     "label": "iso4017:M10x60",
+     "edge_ratio": 0.8073087785209732
+    },
+    {
+     "label": "iso4017:M14x100",
+     "edge_ratio": 0.8070499973751802
+    },
+    {
+     "label": "iso4017:M12x120",
+     "edge_ratio": 0.8042836460911756
+    },
+    {
+     "label": "iso4017:M20x50",
+     "edge_ratio": 0.8017651833646314
+    },
+    {
+     "label": "iso4017:M8x70",
+     "edge_ratio": 0.8012568216867278
+    },
+    {
+     "label": "iso4017:M18x70",
+     "edge_ratio": 0.7999038628406313
+    },
+    {
+     "label": "iso4017:M16x65",
+     "edge_ratio": 0.799038400566755
+    },
+    {
+     "label": "bolt-d10-p3-n30-left",
+     "edge_ratio": 0.7962763196118289
+    },
+    {
+     "label": "iso4017:M10x55",
+     "edge_ratio": 0.7961907994564866
+    },
+    {
+     "label": "iso4017:M14x90",
+     "edge_ratio": 0.7936113652672065
+    },
+    {
+     "label": "iso4017:M12x110",
+     "edge_ratio": 0.7932073281109163
+    },
+    {
+     "label": "iso4017:M8x65",
+     "edge_ratio": 0.7918489278900522
+    },
+    {
+     "label": "iso4017:M18x65",
+     "edge_ratio": 0.790511854703573
+    },
+    {
+     "label": "iso4017:M2.5x12",
+     "edge_ratio": 0.7904777067282669
+    },
+    {
+     "label": "bolt-d30-p10-n3-right",
+     "edge_ratio": 0.789363211434776
+    },
+    {
+     "label": "iso4014:M20x130",
+     "edge_ratio": 0.7892060271609311
+    },
+    {
+     "label": "iso4017:M16x60",
+     "edge_ratio": 0.7889100157750897
+    },
+    {
+     "label": "iso4017:M2x20",
+     "edge_ratio": 0.7886819564569431
+    },
+    {
+     "label": "iso4017:M20x45",
+     "edge_ratio": 0.7884145515930406
+    },
+    {
+     "label": "iso4014:M20x140",
+     "edge_ratio": 0.7878005314109567
+    },
+    {
+     "label": "iso4014:M20x150",
+     "edge_ratio": 0.7864942961228931
+    },
+    {
+     "label": "iso4014:M20x160",
+     "edge_ratio": 0.7852743552911331
+    },
+    {
+     "label": "iso4017:M10x50",
+     "edge_ratio": 0.7841880684775687
+    },
+    {
+     "label": "iso4014:M20x180",
+     "edge_ratio": 0.7830528346785353
+    },
+    {
+     "label": "iso4017:M8x60",
+     "edge_ratio": 0.7818116748207983
+    },
+    {
+     "label": "iso4017:M12x100",
+     "edge_ratio": 0.7812495735421362
+    },
+    {
+     "label": "iso4014:M20x200",
+     "edge_ratio": 0.7810709426280844
+    },
+    {
+     "label": "iso4014:M20x80",
+     "edge_ratio": 0.7807200018063287
+    },
+    {
+     "label": "iso4017:M18x60",
+     "edge_ratio": 0.7804915499958996
+    },
+    {
+     "label": "iso4017:M14x80",
+     "edge_ratio": 0.7788529842333682
+    },
+    {
+     "label": "iso4014:M20x90",
+     "edge_ratio": 0.7785113653406195
+    },
+    {
+     "label": "iso4017:M16x55",
+     "edge_ratio": 0.7780454181483643
+    },
+    {
+     "label": "iso4014:M20x100",
+     "edge_ratio": 0.7765409676639575
+    },
+    {
+     "label": "iso4017:M3x30",
+     "edge_ratio": 0.7754169400271992
+    },
+    {
+     "label": "iso4017:M6x60",
+     "edge_ratio": 0.7750183267911567
+    },
+    {
+     "label": "iso4014:M20x110",
+     "edge_ratio": 0.7747628226562473
+    },
+    {
+     "label": "iso4017:M20x40",
+     "edge_ratio": 0.7737528130213945
+    },
+    {
+     "label": "iso4014:M20x120",
+     "edge_ratio": 0.7731430589780945
+    },
+    {
+     "label": "iso4014:M2.5x16",
+     "edge_ratio": 0.7725971447555022
+    },
+    {
+     "label": "iso4017:M10x45",
+     "edge_ratio": 0.7711301228855919
+    },
+    {
+     "label": "iso4017:M8x55",
+     "edge_ratio": 0.7710448331063362
+    },
+    {
+     "label": "nut-d10-p0.35-m3d-s4d-c0.15-right",
+     "edge_ratio": 0.7707117648991151
+    },
+    {
+     "label": "bolt-d10-p3-n30-right",
+     "edge_ratio": 0.7698114715157466
+    },
+    {
+     "label": "iso4017:M18x55",
+     "edge_ratio": 0.7697428885868651
+    },
+    {
+     "label": "iso4014:M2.5x20",
+     "edge_ratio": 0.7684615906019495
+    },
+    {
+     "label": "iso4017:M12x90",
+     "edge_ratio": 0.7682405584408533
+    },
+    {
+     "label": "iso4017:M2.5x10",
+     "edge_ratio": 0.7678390257931695
+    },
+    {
+     "label": "iso4017:M16x50",
+     "edge_ratio": 0.7663162323177981
+    },
+    {
+     "label": "iso4014:M2.5x25",
+     "edge_ratio": 0.7643481732221026
+    },
+    {
+     "label": "iso4017:M6x55",
+     "edge_ratio": 0.7643450407312135
+    },
+    {
+     "label": "iso4017:M14x70",
+     "edge_ratio": 0.7624529872270287
+    },
+    {
+     "label": "iso4017:M2x16",
+     "edge_ratio": 0.7611266927641654
+    },
+    {
+     "label": "iso4017:M8x50",
+     "edge_ratio": 0.759421182455292
+    },
+    {
+     "label": "iso4017:M18x50",
+     "edge_ratio": 0.7581388650023799
+    },
+    {
+     "label": "iso4017:M10x40",
+     "edge_ratio": 0.7567898139153614
+    },
+    {
+     "label": "iso4017:M12x80",
+     "edge_ratio": 0.7539539852095067
+    },
+    {
+     "label": "iso4017:M16x45",
+     "edge_ratio": 0.753555880470972
+    },
+    {
+     "label": "iso4017:M14x65",
+     "edge_ratio": 0.7535007055931702
+    },
+    {
+     "label": "iso4017:M3x25",
+     "edge_ratio": 0.7532095880076188
+    },
+    {
+     "label": "iso4017:M6x50",
+     "edge_ratio": 0.7528223907517997
+    },
+    {
+     "label": "nut-d10-p0.35-m3d-s1.6d-c0.15-left",
+     "edge_ratio": 0.7475724843178407
+    },
+    {
+     "label": "iso4017:M8x45",
+     "edge_ratio": 0.746775643865104
+    },
+    {
+     "label": "iso4017:M18x45",
+     "edge_ratio": 0.7455146789833478
+    },
+    {
+     "label": "iso4017:M14x60",
+     "edge_ratio": 0.7439495437445959
+    },
+    {
+     "label": "iso4017:M2.5x8",
+     "edge_ratio": 0.7410119801683605
+    },
+    {
+     "label": "iso4017:M10x35",
+     "edge_ratio": 0.7408543922967887
+    },
+    {
+     "label": "iso4017:M6x45",
+     "edge_ratio": 0.7402867322611704
+    },
+    {
+     "label": "iso4017:M16x40",
+     "edge_ratio": 0.7395423906181172
+    },
+    {
+     "label": "iso4017:M12x70",
+     "edge_ratio": 0.7380782765062469
+    },
+    {
+     "label": "iso4014:M18x130",
+     "edge_ratio": 0.7353865151433623
+    },
+    {
+     "label": "iso4014:M18x140",
+     "edge_ratio": 0.7340768664761533
+    },
+    {
+     "label": "iso4017:M14x55",
+     "edge_ratio": 0.733704126287917
+    },
+    {
+     "label": "iso4017:M4x40",
+     "edge_ratio": 0.7332487623469338
+    },
+    {
+     "label": "iso4017:M8x40",
+     "edge_ratio": 0.7328882425736136
+    },
+    {
+     "label": "iso4014:M18x150",
+     "edge_ratio": 0.7328597092530869
+    },
+    {
+     "label": "iso4014:M18x160",
+     "edge_ratio": 0.7317229616788518
+    },
+    {
+     "label": "iso4017:M18x40",
+     "edge_ratio": 0.7316507272050723
+    },
+    {
+     "label": "iso4014:M16x130",
+     "edge_ratio": 0.7315491237718657
+    },
+    {
+     "label": "iso4014:M16x140",
+     "edge_ratio": 0.7302463091088053
+    },
+    {
+     "label": "iso4014:M18x180",
+     "edge_ratio": 0.7296529365581663
+    },
+    {
+     "label": "iso4017:M12x65",
+     "edge_ratio": 0.7294121886164903
+    },
+    {
+     "label": "iso4014:M16x150",
+     "edge_ratio": 0.7290355032513558
+    },
+    {
+     "label": "iso4014:M18x70",
+     "edge_ratio": 0.7283578514076475
+    },
+    {
+     "label": "iso4014:M16x160",
+     "edge_ratio": 0.7279046874493807
+    },
+    {
+     "label": "iso4017:M2x12",
+     "edge_ratio": 0.7270176365454785
+    },
+    {
+     "label": "iso4017:M3x20",
+     "edge_ratio": 0.7268936711243201
+    },
+    {
+     "label": "iso4017:M6x40",
+     "edge_ratio": 0.7265200019103181
+    },
+    {
+     "label": "iso4014:M18x80",
+     "edge_ratio": 0.7260222853124905
+    },
+    {
+     "label": "iso4014:M16x65",
+     "edge_ratio": 0.7241114664669424
+    },
+    {
+     "label": "iso4017:M16x35",
+     "edge_ratio": 0.7239701411208153
+    },
+    {
+     "label": "iso4014:M18x90",
+     "edge_ratio": 0.7239683872561493
+    },
+    {
+     "label": "iso4017:M10x30",
+     "edge_ratio": 0.7228751101558271
+    },
+    {
+     "label": "iso4014:M16x70",
+     "edge_ratio": 0.7228218975158686
+    },
+    {
+     "label": "iso4017:M14x50",
+     "edge_ratio": 0.7226433940463922
+    },
+    {
+     "label": "iso4014:M18x100",
+     "edge_ratio": 0.7221360368349012
+    },
+    {
+     "label": "iso4014:M16x80",
+     "edge_ratio": 0.7205040831154138
+    },
+    {
+     "label": "iso4014:M18x110",
+     "edge_ratio": 0.7204824697441058
+    },
+    {
+     "label": "iso4017:M12x60",
+     "edge_ratio": 0.7201663659967006
+    },
+    {
+     "label": "iso4014:M18x120",
+     "edge_ratio": 0.7189761876909243
+    },
+    {
+     "label": "iso4014:M16x90",
+     "edge_ratio": 0.7184657959087618
+    },
+    {
+     "label": "iso4017:M4x35",
+     "edge_ratio": 0.7178090352728566
+    },
+    {
+     "label": "iso4017:M8x35",
+     "edge_ratio": 0.7174561068207803
+    },
+    {
+     "label": "iso4014:M16x100",
+     "edge_ratio": 0.7166473724431001
+    },
+    {
+     "label": "iso4017:M18x35",
+     "edge_ratio": 0.7162446493203455
+    },
+    {
+     "label": "iso4014:M16x110",
+     "edge_ratio": 0.7150063734479927
+    },
+    {
+     "label": "iso4017:M7x70",
+     "edge_ratio": 0.713925552289038
+    },
+    {
+     "label": "iso4014:M16x120",
+     "edge_ratio": 0.7135115400364047
+    },
+    {
+     "label": "iso4017:M6x35",
+     "edge_ratio": 0.7112219596641233
+    },
+    {
+     "label": "iso4017:M14x45",
+     "edge_ratio": 0.7106102625806445
+    },
+    {
+     "label": "iso4017:M12x55",
+     "edge_ratio": 0.7102484822908309
+    },
+    {
+     "label": "iso4017:M2.5x6",
+     "edge_ratio": 0.7078043426875414
+    },
+    {
+     "label": "iso4017:M16x30",
+     "edge_ratio": 0.7064006111778377
+    },
+    {
+     "label": "iso4017:M2x10",
+     "edge_ratio": 0.7061964038050066
+    },
+    {
+     "label": "iso4017:M7x65",
+     "edge_ratio": 0.7055430517063545
+    },
+    {
+     "label": "iso4017:M10x25",
+     "edge_ratio": 0.7021725162237646
+    },
+    {
+     "label": "iso4017:M3x16",
+     "edge_ratio": 0.7014971895382281
+    },
+    {
+     "label": "iso4017:M4x30",
+     "edge_ratio": 0.700389024940605
+    },
+    {
+     "label": "iso4017:M8x30",
+     "edge_ratio": 0.7000446614646987
+    },
+    {
+     "label": "iso4017:M12x50",
+     "edge_ratio": 0.6995413484393233
+    },
+    {
+     "label": "iso4014:M2x16",
+     "edge_ratio": 0.6982579588028586
+    },
+    {
+     "label": "iso4017:M14x40",
+     "edge_ratio": 0.697395410222536
+    },
+    {
+     "label": "iso4014:M10x45",
+     "edge_ratio": 0.6973137681475376
+    },
+    {
+     "label": "iso4017:M7x60",
+     "edge_ratio": 0.6965997875156732
+    },
+    {
+     "label": "iso4014:M10x50",
+     "edge_ratio": 0.6955488800677583
+    },
+    {
+     "label": "iso4014:M2x20",
+     "edge_ratio": 0.6945203270741106
+    },
+    {
+     "label": "iso4017:M6x30",
+     "edge_ratio": 0.6939618065077034
+    },
+    {
+     "label": "iso4014:M10x55",
+     "edge_ratio": 0.6939561929846396
+    },
+    {
+     "label": "iso4014:M10x60",
+     "edge_ratio": 0.6925053682899623
+    },
+    {
+     "label": "iso4014:M10x65",
+     "edge_ratio": 0.6911734176146312
+    },
+    {
+     "label": "iso4014:M10x70",
+     "edge_ratio": 0.6899425079820132
+    },
+    {
+     "label": "iso4017:M12x45",
+     "edge_ratio": 0.6878929018045833
+    },
+    {
+     "label": "iso4014:M10x80",
+     "edge_ratio": 0.6877301252553935
+    },
+    {
+     "label": "iso4017:M2.5x5",
+     "edge_ratio": 0.6875333640853734
+    },
+    {
+     "label": "iso4017:M7x55",
+     "edge_ratio": 0.687006454629939
+    },
+    {
+     "label": "iso4014:M10x90",
+     "edge_ratio": 0.6857845547183383
+    },
+    {
+     "label": "iso4014:M10x100",
+     "edge_ratio": 0.6840488468616953
+    },
+    {
+     "label": "iso4017:M14x35",
+     "edge_ratio": 0.6827106329007362
+    },
+    {
+     "label": "iso4017:M2x8",
+     "edge_ratio": 0.6815230510467474
+    },
+    {
+     "label": "iso4017:M4x25",
+     "edge_ratio": 0.6803304154047299
+    },
+    {
+     "label": "iso4017:M8x25",
+     "edge_ratio": 0.6799959142371371
+    },
+    {
+     "label": "iso4014:M14x130",
+     "edge_ratio": 0.6779021043888158
+    },
+    {
+     "label": "iso4017:M10x20",
+     "edge_ratio": 0.677639751547258
+    },
+    {
+     "label": "iso4014:M14x140",
+     "edge_ratio": 0.6766948296166672
+    },
+    {
+     "label": "iso4017:M7x50",
+     "edge_ratio": 0.6766496988606807
+    },
+    {
+     "label": "iso4017:M12x40",
+     "edge_ratio": 0.675100512482023
+    },
+    {
+     "label": "iso4017:M6x25",
+     "edge_ratio": 0.6740872676245035
+    },
+    {
+     "label": "iso4017:M3.5x35",
+     "edge_ratio": 0.6721767459514775
+    },
+    {
+     "label": "iso4014:M14x55",
+     "edge_ratio": 0.6717475586982736
+    },
+    {
+     "label": "iso4014:M14x60",
+     "edge_ratio": 0.6703431646506363
+    },
+    {
+     "label": "iso4017:M3x12",
+     "edge_ratio": 0.6700603639707082
+    },
+    {
+     "label": "iso4014:M14x65",
+     "edge_ratio": 0.66905384030494
+    },
+    {
+     "label": "iso4014:M14x70",
+     "edge_ratio": 0.6678623233921315
+    },
+    {
+     "label": "iso4017:M14x30",
+     "edge_ratio": 0.6661424013869769
+    },
+    {
+     "label": "iso4014:M14x80",
+     "edge_ratio": 0.6657207434040352
+    },
+    {
+     "label": "iso4017:M7x45",
+     "edge_ratio": 0.6653824336372939
+    },
+    {
+     "label": "iso4014:M14x90",
+     "edge_ratio": 0.6638374368325916
+    },
+    {
+     "label": "bolt-d10-p0.1-n3-left",
+     "edge_ratio": 0.6625938734605413
+    },
+    {
+     "label": "iso4014:M14x100",
+     "edge_ratio": 0.6621572767200339
+    },
+    {
+     "label": "iso4014:M3x20",
+     "edge_ratio": 0.6618779294573945
+    },
+    {
+     "label": "iso4017:M12x35",
+     "edge_ratio": 0.6608851899400141
+    },
+    {
+     "label": "iso4014:M14x110",
+     "edge_ratio": 0.6606410506547707
+    },
+    {
+     "label": "iso4014:M14x120",
+     "edge_ratio": 0.6592598765110754
+    },
+    {
+     "label": "iso4014:M3x25",
+     "edge_ratio": 0.6583350325687728
+    },
+    {
+     "label": "iso4014:M8x40",
+     "edge_ratio": 0.6567700424667239
+    },
+    {
+     "label": "iso4017:M4x20",
+     "edge_ratio": 0.6565607781749021
+    },
+    {
+     "label": "iso4017:M8x20",
+     "edge_ratio": 0.6562379639335831
+    },
+    {
+     "label": "iso4017:M3.5x30",
+     "edge_ratio": 0.6558641540444627
+    },
+    {
+     "label": "iso4014:M3x30",
+     "edge_ratio": 0.655454357345542
+    },
+    {
+     "label": "iso4014:M8x45",
+     "edge_ratio": 0.6549120571941301
+    },
+    {
+     "label": "iso4014:M8x50",
+     "edge_ratio": 0.6532544870501793
+    },
+    {
+     "label": "iso4017:M7x40",
+     "edge_ratio": 0.6530086598751991
+    },
+    {
+     "label": "iso4014:M8x55",
+     "edge_ratio": 0.6517586468391919
+    },
+    {
+     "label": "iso4017:M2x6",
+     "edge_ratio": 0.6509813445431089
+    },
+    {
+     "label": "iso4017:M3x10",
+     "edge_ratio": 0.6508703442420373
+    },
+    {
+     "label": "iso4017:M6x20",
+     "edge_ratio": 0.6505357558151302
+    },
+    {
+     "label": "iso4014:M8x60",
+     "edge_ratio": 0.6503960427593313
+    },
+    {
+     "label": "iso4014:M8x65",
+     "edge_ratio": 0.6491450843003037
+    },
+    {
+     "label": "iso4014:M8x70",
+     "edge_ratio": 0.6479890228591829
+    },
+    {
+     "label": "iso4014:M8x80",
+     "edge_ratio": 0.6459111689733484
+    },
+    {
+     "label": "iso4017:M12x30",
+     "edge_ratio": 0.6448466249854634
+    },
+    {
+     "label": "bolt-d10-p0.1-n3-right",
+     "edge_ratio": 0.6405720629675754
+    },
+    {
+     "label": "iso4017:M5x50",
+     "edge_ratio": 0.6396733512704392
+    },
+    {
+     "label": "iso4017:M7x35",
+     "edge_ratio": 0.6392585166724866
+    },
+    {
+     "label": "iso4017:M3.5x25",
+     "edge_ratio": 0.6370807029821494
+    },
+    {
+     "label": "iso4014:M12x50",
+     "edge_ratio": 0.6369720877589853
+    },
+    {
+     "label": "iso4014:M12x55",
+     "edge_ratio": 0.6355135314367006
+    },
+    {
+     "label": "iso4014:M12x60",
+     "edge_ratio": 0.634184890328615
+    },
+    {
+     "label": "iso4017:M4x16",
+     "edge_ratio": 0.633621613376182
+    },
+    {
+     "label": "iso4017:M8x16",
+     "edge_ratio": 0.6333100777389552
+    },
+    {
+     "label": "iso4014:M12x65",
+     "edge_ratio": 0.632965112068926
+    },
+    {
+     "label": "iso4017:M2x5",
+     "edge_ratio": 0.632337733435075
+    },
+    {
+     "label": "iso4014:M6x30",
+     "edge_ratio": 0.6318915982627579
+    },
+    {
+     "label": "iso4014:M12x70",
+     "edge_ratio": 0.6318378655144423
+    },
+    {
+     "label": "iso4014:M12x80",
+     "edge_ratio": 0.629811802235957
+    },
+    {
+     "label": "iso4014:M6x35",
+     "edge_ratio": 0.6295530605845377
+    },
+    {
+     "label": "iso4017:M5x45",
+     "edge_ratio": 0.6290217994893149
+    },
+    {
+     "label": "iso4017:M3x8",
+     "edge_ratio": 0.6281299939416871
+    },
+    {
+     "label": "iso4014:M12x90",
+     "edge_ratio": 0.6280300811198946
+    },
+    {
+     "label": "iso4017:M6x16",
+     "edge_ratio": 0.62780709548975
+    },
+    {
+     "label": "iso4014:M6x40",
+     "edge_ratio": 0.6275343238048602
+    },
+    {
+     "label": "iso4014:M12x100",
+     "edge_ratio": 0.6264405487536315
+    },
+    {
+     "label": "iso4017:M12x25",
+     "edge_ratio": 0.6263787075845487
+    },
+    {
+     "label": "iso4014:M6x45",
+     "edge_ratio": 0.6257590456157128
+    },
+    {
+     "label": "iso4014:M12x110",
+     "edge_ratio": 0.6250061078409461
+    },
+    {
+     "label": "iso4014:M6x50",
+     "edge_ratio": 0.6241752611977527
+    },
+    {
+     "label": "iso4017:M7x30",
+     "edge_ratio": 0.6237447944731275
+    },
+    {
+     "label": "iso4014:M12x120",
+     "edge_ratio": 0.6236994341564304
+    },
+    {
+     "label": "iso4014:M6x55",
+     "edge_ratio": 0.6227460074032314
+    },
+    {
+     "label": "iso4014:M6x60",
+     "edge_ratio": 0.6214440588145654
+    },
+    {
+     "label": "bolt-d10-p0.35-n3-left",
+     "edge_ratio": 0.6193610654355249
+    },
+    {
+     "label": "iso4017:M5x40",
+     "edge_ratio": 0.6173242056773486
+    },
+    {
+     "label": "nut-d100-p3.5-m0.8d-s1.6d-c0.15-right",
+     "edge_ratio": 0.6149125877960302
+    },
+    {
+     "label": "iso4017:M3.5x20",
+     "edge_ratio": 0.6148221402997766
+    },
+    {
+     "label": "iso4014:M4x25",
+     "edge_ratio": 0.6116892436659832
+    },
+    {
+     "label": "iso4017:M2x4",
+     "edge_ratio": 0.6102448823877767
+    },
+    {
+     "label": "iso4014:M4x30",
+     "edge_ratio": 0.6090126763235598
+    },
+    {
+     "label": "iso4014:M4x35",
+     "edge_ratio": 0.6067588101635858
+    },
+    {
+     "label": "iso4017:M7x25",
+     "edge_ratio": 0.6058812174654322
+    },
+    {
+     "label": "iso4017:M4x12",
+     "edge_ratio": 0.6052265571555987
+    },
+    {
+     "label": "iso4014:M4x40",
+     "edge_ratio": 0.6048131658594632
+    },
+    {
+     "label": "iso4017:M5x35",
+     "edge_ratio": 0.6043254558105626
+    },
+    {
+     "label": "iso4017:M3x6",
+     "edge_ratio": 0.5999810386104875
+    },
+    {
+     "label": "iso4017:M6x12",
+     "edge_ratio": 0.5996726104977917
+    },
+    {
+     "label": "bolt-d10-p0.35-n3-right",
+     "edge_ratio": 0.5987761301440054
+    },
+    {
+     "label": "iso4017:M3.5x16",
+     "edge_ratio": 0.5933412555636473
+    },
+    {
+     "label": "nut-d10-p0.35-m3d-s4d-c5-right",
+     "edge_ratio": 0.591192865824695
+    },
+    {
+     "label": "iso4017:M5x30",
+     "edge_ratio": 0.5896594998710961
+    },
+    {
+     "label": "iso4017:M4x10",
+     "edge_ratio": 0.5878933283949764
+    },
+    {
+     "label": "nut-d100-p3.5-m0.8d-s4d-c0.15-right",
+     "edge_ratio": 0.5876544846622634
+    },
+    {
+     "label": "bolt-d10-p1-n3-left",
+     "edge_ratio": 0.5853119588450049
+    },
+    {
+     "label": "iso4017:M7x20",
+     "edge_ratio": 0.5847127140185414
+    },
+    {
+     "label": "nut-d100-p3.5-m0.8d-s1.6d-c0.15-left",
+     "edge_ratio": 0.580856230445299
+    },
+    {
+     "label": "bolt-d3-p0.1-n30-left",
+     "edge_ratio": 0.5796457687006936
+    },
+    {
+     "label": "iso4014:M7x35",
+     "edge_ratio": 0.5768951013465432
+    },
+    {
+     "label": "iso4014:M7x40",
+     "edge_ratio": 0.575045218577295
+    },
+    {
+     "label": "iso4014:M7x45",
+     "edge_ratio": 0.5734184306940039
+    },
+    {
+     "label": "iso4017:M5x25",
+     "edge_ratio": 0.5727720998036332
+    },
+    {
+     "label": "iso4014:M7x50",
+     "edge_ratio": 0.5719671193915667
+    },
+    {
+     "label": "iso4014:M7x55",
+     "edge_ratio": 0.5706574132456309
+    },
+    {
+     "label": "iso4014:M7x60",
+     "edge_ratio": 0.5694643640651392
+    },
+    {
+     "label": "iso4014:M7x65",
+     "edge_ratio": 0.5683690679432238
+    },
+    {
+     "label": "iso4014:M3.5x20",
+     "edge_ratio": 0.5681104913966225
+    },
+    {
+     "label": "iso4014:M7x70",
+     "edge_ratio": 0.5673568603802825
+    },
+    {
+     "label": "iso4017:M4x8",
+     "edge_ratio": 0.5673532925103961
+    },
+    {
+     "label": "iso4017:M3.5x12",
+     "edge_ratio": 0.5667513193082397
+    },
+    {
+     "label": "bolt-d10-p1-n3-right",
+     "edge_ratio": 0.565858671464558
+    },
+    {
+     "label": "iso4014:M3.5x25",
+     "edge_ratio": 0.5650695123840536
+    },
+    {
+     "label": "iso4017:M7x16",
+     "edge_ratio": 0.5642838036226706
+    },
+    {
+     "label": "iso4014:M3.5x30",
+     "edge_ratio": 0.5625969389021649
+    },
+    {
+     "label": "iso4014:M3.5x35",
+     "edge_ratio": 0.5605148505457267
+    },
+    {
+     "label": "bolt-d3-p0.1-n30-right",
+     "edge_ratio": 0.5603808014520395
+    },
+    {
+     "label": "iso4017:M5x20",
+     "edge_ratio": 0.5527603750307505
+    },
+    {
+     "label": "bolt-d10-p3-n3-left",
+     "edge_ratio": 0.5516830463505469
+    },
+    {
+     "label": "iso4017:M3.5x10",
+     "edge_ratio": 0.5505199921270225
+    },
+    {
+     "label": "nut-d30-p1-m0.8d-s1.6d-c5-right",
+     "edge_ratio": 0.5466498456313517
+    },
+    {
+     "label": "bolt-d3-p0.35-n30-left",
+     "edge_ratio": 0.5418251439643539
+    },
+    {
+     "label": "iso4017:M5x16",
+     "edge_ratio": 0.5334478273450968
+    },
+    {
+     "label": "bolt-d10-p3-n3-right",
+     "edge_ratio": 0.5333474414113362
+    },
+    {
+     "label": "nut-d30-p1-m0.8d-s1.6d-c0.15-right",
+     "edge_ratio": 0.5327353150070759
+    },
+    {
+     "label": "iso4017:M3.5x8",
+     "edge_ratio": 0.5312857197729877
+    },
+    {
+     "label": "iso4014:M5x25",
+     "edge_ratio": 0.5277522381597184
+    },
+    {
+     "label": "iso4014:M5x30",
+     "edge_ratio": 0.5254429537964961
+    },
+    {
+     "label": "bolt-d3-p0.35-n30-right",
+     "edge_ratio": 0.5238171738960682
+    },
+    {
+     "label": "iso4014:M5x35",
+     "edge_ratio": 0.523498366863254
+    },
+    {
+     "label": "nut-d30-p1-m0.8d-s4d-c5-right",
+     "edge_ratio": 0.5224177219669398
+    },
+    {
+     "label": "iso4014:M5x40",
+     "edge_ratio": 0.5218197070751389
+    },
+    {
+     "label": "iso4014:M5x45",
+     "edge_ratio": 0.5203434927717968
+    },
+    {
+     "label": "iso4014:M5x50",
+     "edge_ratio": 0.519026513142636
+    },
+    {
+     "label": "bolt-d3-p1-n30-left",
+     "edge_ratio": 0.5120385411088864
+    },
+    {
+     "label": "iso4017:M5x12",
+     "edge_ratio": 0.5095419492493333
+    },
+    {
+     "label": "nut-d30-p1-m0.8d-s4d-c0.15-right",
+     "edge_ratio": 0.5091200004930082
+    },
+    {
+     "label": "nut-d30-p1-m0.8d-s1.6d-c0.15-left",
+     "edge_ratio": 0.5032302688894423
+    },
+    {
+     "label": "bolt-d3-p1-n30-right",
+     "edge_ratio": 0.4950205514035135
+    },
+    {
+     "label": "iso4017:M5x10",
+     "edge_ratio": 0.4949490549603232
+    },
+    {
+     "label": "nut-d30-p3.5-m3d-s1.6d-c5-right",
+     "edge_ratio": 0.4683273141041778
+    },
+    {
+     "label": "nut-d10-p0.35-m0.8d-s1.6d-c0.15-right",
+     "edge_ratio": 0.4582254941832516
+    },
+    {
+     "label": "nut-d30-p3.5-m3d-s1.6d-c0.15-right",
+     "edge_ratio": 0.45640642030650164
+    },
+    {
+     "label": "nut-d10-p0.35-m0.8d-s4d-c5-right",
+     "edge_ratio": 0.4493509479753747
+    },
+    {
+     "label": "nut-d30-p3.5-m3d-s4d-c5-right",
+     "edge_ratio": 0.4475671044718356
+    },
+    {
+     "label": "nut-d10-p0.35-m0.8d-s4d-c0.15-right",
+     "edge_ratio": 0.43791308226184944
+    },
+    {
+     "label": "nut-d30-p3.5-m3d-s4d-c0.15-right",
+     "edge_ratio": 0.43617464505496856
+    },
+    {
+     "label": "nut-d10-p0.35-m0.8d-s1.6d-c0.15-left",
+     "edge_ratio": 0.4328471046579152
+    },
+    {
+     "label": "nut-d30-p3.5-m3d-s1.6d-c0.15-left",
+     "edge_ratio": 0.4311287784829095
+    },
+    {
+     "label": "nut-d30-p3.5-m0.8d-s1.6d-c5-right",
+     "edge_ratio": 0.4192605289575147
+    },
+    {
+     "label": "nut-d10-p1-m3d-s1.6d-c0.15-right",
+     "edge_ratio": 0.40981266468050204
+    },
+    {
+     "label": "nut-d30-p3.5-m0.8d-s1.6d-c0.15-right",
+     "edge_ratio": 0.4085885905743772
+    },
+    {
+     "label": "nut-d10-p1-m3d-s4d-c5-right",
+     "edge_ratio": 0.4018757395738737
+    },
+    {
+     "label": "bolt-d3-p0.1-n3-left",
+     "edge_ratio": 0.401595194538613
+    },
+    {
+     "label": "nut-d30-p3.5-m0.8d-s4d-c5-right",
+     "edge_ratio": 0.400675372359562
+    },
+    {
+     "label": "nut-d10-p1-m3d-s4d-c0.15-right",
+     "edge_ratio": 0.3916463169733866
+    },
+    {
+     "label": "nut-d30-p3.5-m0.8d-s4d-c0.15-right",
+     "edge_ratio": 0.3904765041377094
+    },
+    {
+     "label": "bolt-d3-p0.1-n3-right",
+     "edge_ratio": 0.388247873316299
+    },
+    {
+     "label": "iso4032:M20",
+     "edge_ratio": 0.38736264494200695
+    },
+    {
+     "label": "nut-d10-p1-m3d-s1.6d-c0.15-left",
+     "edge_ratio": 0.3871155743424457
+    },
+    {
+     "label": "nut-d30-p3.5-m0.8d-s1.6d-c0.15-left",
+     "edge_ratio": 0.3859592944334299
+    },
+    {
+     "label": "iso4032:M16",
+     "edge_ratio": 0.37734220381966005
+    },
+    {
+     "label": "bolt-d3-p0.35-n3-left",
+     "edge_ratio": 0.3753919822170446
+    },
+    {
+     "label": "iso4032:M18",
+     "edge_ratio": 0.37296926175478196
+    },
+    {
+     "label": "bolt-d1-p0.1-n30-left",
+     "edge_ratio": 0.36705719802153075
+    },
+    {
+     "label": "nut-d10-p1-m0.8d-s1.6d-c0.15-right",
+     "edge_ratio": 0.36687647590252553
+    },
+    {
+     "label": "bolt-d3-p0.35-n3-right",
+     "edge_ratio": 0.36291554465237574
+    },
+    {
+     "label": "iso4032:M14",
+     "edge_ratio": 0.3602652334886844
+    },
+    {
+     "label": "nut-d10-p1-m0.8d-s4d-c5-right",
+     "edge_ratio": 0.3597711046839659
+    },
+    {
+     "label": "bolt-d1-p0.1-n30-right",
+     "edge_ratio": 0.35485777333821367
+    },
+    {
+     "label": "bolt-d3-p1-n3-left",
+     "edge_ratio": 0.35475497041723764
+    },
+    {
+     "label": "iso4032:M12",
+     "edge_ratio": 0.3512382283868582
+    },
+    {
+     "label": "nut-d10-p1-m0.8d-s4d-c0.15-right",
+     "edge_ratio": 0.3506134215823217
+    },
+    {
+     "label": "nut-d10-p1-m0.8d-s1.6d-c0.15-left",
+     "edge_ratio": 0.3465573661381669
+    },
+    {
+     "label": "bolt-d1-p0.35-n30-left",
+     "edge_ratio": 0.3431075147964421
+    },
+    {
+     "label": "bolt-d3-p1-n3-right",
+     "edge_ratio": 0.34296441960944873
+    },
+    {
+     "label": "nut-d3-p0.35-m3d-s1.6d-c0.15-right",
+     "edge_ratio": 0.340108596968138
+    },
+    {
+     "label": "iso4032:M10",
+     "edge_ratio": 0.33806537479063065
+    },
+    {
+     "label": "bolt-d1-p0.35-n30-right",
+     "edge_ratio": 0.3317040760201406
+    },
+    {
+     "label": "iso4032:M8",
+     "edge_ratio": 0.3258100409855324
+    },
+    {
+     "label": "nut-d3-p0.35-m3d-s4d-c0.15-right",
+     "edge_ratio": 0.3250321204138585
+    },
+    {
+     "label": "nut-d3-p0.35-m3d-s1.6d-c0.15-left",
+     "edge_ratio": 0.3212720010904735
+    },
+    {
+     "label": "nut-d10-p3.5-m3d-s1.6d-c0.15-right",
+     "edge_ratio": 0.3143113931899036
+    },
+    {
+     "label": "iso4032:M6",
+     "edge_ratio": 0.3099070958755224
+    },
+    {
+     "label": "nut-d10-p3.5-m3d-s4d-c5-right",
+     "edge_ratio": 0.3082240606037982
+    },
+    {
+     "label": "iso4032:M5",
+     "edge_ratio": 0.30810807639648297
+    },
+    {
+     "label": "nut-d3-p0.35-m0.8d-s1.6d-c0.15-right",
+     "edge_ratio": 0.30447532307743985
+    },
+    {
+     "label": "nut-d10-p3.5-m3d-s4d-c0.15-right",
+     "edge_ratio": 0.30037846590605005
+    },
+    {
+     "label": "nut-d10-p3.5-m3d-s1.6d-c0.15-left",
+     "edge_ratio": 0.296903551265171
+    },
+    {
+     "label": "nut-d3-p0.35-m0.8d-s4d-c0.15-right",
+     "edge_ratio": 0.29097841323554086
+    },
+    {
+     "label": "iso4032:M4",
+     "edge_ratio": 0.28859701158910356
+    },
+    {
+     "label": "nut-d3-p0.35-m0.8d-s1.6d-c0.15-left",
+     "edge_ratio": 0.28761224267706886
+    },
+    {
+     "label": "iso4032:M3.5",
+     "edge_ratio": 0.28524884228462727
+    },
+    {
+     "label": "nut-d10-p3.5-m0.8d-s1.6d-c0.15-right",
+     "edge_ratio": 0.28138089963477697
+    },
+    {
+     "label": "iso4032:M3",
+     "edge_ratio": 0.28042758297837844
+    },
+    {
+     "label": "nut-d10-p3.5-m0.8d-s4d-c5-right",
+     "edge_ratio": 0.27593133860528063
+    },
+    {
+     "label": "nut-d3-p1-m3d-s1.6d-c0.15-right",
+     "edge_ratio": 0.27230663737343735
+    },
+    {
+     "label": "nut-d10-p3.5-m0.8d-s4d-c0.15-right",
+     "edge_ratio": 0.26890772908283345
+    },
+    {
+     "label": "iso4032:M2.5",
+     "edge_ratio": 0.2683848801583736
+    },
+    {
+     "label": "nut-d10-p3.5-m0.8d-s1.6d-c0.15-left",
+     "edge_ratio": 0.26579688223162234
+    },
+    {
+     "label": "nut-d3-p1-m3d-s4d-c0.15-right",
+     "edge_ratio": 0.2602357145254627
+    },
+    {
+     "label": "nut-d3-p1-m3d-s1.6d-c0.15-left",
+     "edge_ratio": 0.25722518948081124
+    },
+    {
+     "label": "iso4032:M2",
+     "edge_ratio": 0.25508715814683386
+    },
+    {
+     "label": "bolt-d1-p0.1-n3-left",
+     "edge_ratio": 0.25430774242806686
+    },
+    {
+     "label": "bolt-d1-p0.1-n3-right",
+     "edge_ratio": 0.2458556315122264
+    },
+    {
+     "label": "nut-d3-p1-m0.8d-s1.6d-c0.15-right",
+     "edge_ratio": 0.2437769939645949
+    },
+    {
+     "label": "bolt-d1-p0.35-n3-left",
+     "edge_ratio": 0.23771471576718559
+    },
+    {
+     "label": "nut-d3-p1-m0.8d-s4d-c0.15-right",
+     "edge_ratio": 0.23297074511718846
+    },
+    {
+     "label": "nut-d3-p1-m0.8d-s1.6d-c0.15-left",
+     "edge_ratio": 0.2302756336328738
+    },
+    {
+     "label": "bolt-d1-p0.35-n3-right",
+     "edge_ratio": 0.22981408669152914
+    }
+   ],
+   "draw": [
+    "iso4017:M8x60",
+    "nut-d3-p1-m3d-s1.6d-c0.15-right",
+    "iso4017:M5x35",
+    "nut-d100-p3.5-m0.8d-s1.6d-c0.15-left",
+    "iso4017:M3x25",
+    "nut-d3-p0.35-m0.8d-s1.6d-c0.15-right",
+    "iso4017:M2.5x8",
+    "iso4017:M5x16",
+    "nut-d30-p3.5-m0.8d-s4d-c5-right",
+    "iso4014:M20x110",
+    "iso4017:M16x35",
+    "nut-d10-p0.35-m0.8d-s1.6d-c0.15-right",
+    "iso4017:M6x20",
+    "iso4017:M16x100",
+    "iso4032:M18",
+    "iso4017:M14x55",
+    "iso4017:M4x30",
+    "bolt-d10-p3-n3-left",
+    "iso4014:M12x70",
+    "bolt-d3-p1-n30-left",
+    "nut-d10-p3.5-m3d-s1.6d-c0.15-left",
+    "bolt-d3-p0.1-n3-right",
+    "iso4017:M16x30",
+    "nut-d30-p0.35-m0.8d-s1.6d-c5-right",
+    "iso4014:M5x40",
+    "iso4017:M12x30",
+    "nut-d10-p0.35-m3d-s4d-c0.15-right",
+    "iso4014:M8x45",
+    "iso4017:M6x16",
+    "iso4017:M14x80",
+    "nut-d3-p1-m0.8d-s1.6d-c0.15-right",
+    "bolt-d3-p1-n3-right",
+    "iso4032:M2.5",
+    "iso4017:M10x45",
+    "nut-d10-p3.5-m0.8d-s4d-c0.15-right",
+    "iso4014:M18x120",
+    "iso4017:M2.5x25",
+    "iso4014:M10x60",
+    "iso4017:M10x20",
+    "iso4017:M6x50",
+    "iso4017:M2.5x12",
+    "iso4017:M7x55",
+    "bolt-d3-p1-n30-right",
+    "iso4017:M18x50",
+    "nut-d10-p0.35-m3d-s1.6d-c0.15-right",
+    "iso4017:M3.5x12",
+    "iso4017:M20x110",
+    "iso4014:M4x25",
+    "iso4017:M7x65",
+    "iso4017:M12x100",
+    "iso4014:M12x120",
+    "nut-d30-p1-m0.8d-s4d-c5-right",
+    "bolt-d10-p3-n30-left",
+    "iso4017:M2x6",
+    "iso4017:M14x110",
+    "bolt-d10-p0.35-n30-right",
+    "iso4014:M14x120",
+    "iso4014:M6x30",
+    "iso4017:M7x16",
+    "nut-d10-p3.5-m3d-s1.6d-c0.15-right",
+    "iso4017:M2.5x6",
+    "iso4032:M6",
+    "iso4017:M3x8",
+    "iso4014:M7x40",
+    "nut-d10-p0.35-m3d-s4d-c5-right",
+    "bolt-d10-p0.1-n3-left",
+    "iso4017:M18x60",
+    "iso4014:M10x70",
+    "iso4014:M7x35",
+    "iso4017:M12x90",
+    "bolt-d3-p0.35-n3-left",
+    "iso4017:M12x35",
+    "iso4017:M2.5x5",
+    "iso4014:M6x40",
+    "iso4014:M14x60",
+    "iso4032:M20",
+    "iso4017:M7x40",
+    "iso4014:M18x180",
+    "iso4014:M7x45",
+    "iso4017:M14x130",
+    "iso4017:M6x60",
+    "iso4032:M2",
+    "iso4017:M10x60",
+    "bolt-d3-p1-n3-left",
+    "iso4017:M8x45",
+    "bolt-d1-p0.35-n30-right",
+    "iso4014:M8x55",
+    "iso4014:M14x90",
+    "nut-d10-p1-m0.8d-s1.6d-c0.15-right",
+    "iso4017:M3.5x30",
+    "bolt-d30-p10-n3-right",
+    "iso4017:M8x30",
+    "iso4017:M18x180",
+    "iso4017:M14x140",
+    "iso4017:M6x55",
+    "nut-d30-p1-m0.8d-s1.6d-c0.15-right",
+    "iso4017:M20x100",
+    "iso4017:M7x50",
+    "iso4017:M5x20",
+    "iso4014:M20x140",
+    "iso4017:M16x80",
+    "iso4014:M14x65",
+    "bolt-d30-p3-n3-left",
+    "iso4014:M3.5x30",
+    "iso4017:M5x50",
+    "bolt-d30-p3-n3-right",
+    "iso4017:M14x100",
+    "iso4017:M10x100",
+    "iso4017:M8x16",
+    "nut-d100-p3.5-m0.8d-s1.6d-c0.15-right",
+    "iso4017:M2x20",
+    "nut-d3-p0.35-m0.8d-s4d-c0.15-right",
+    "bolt-d10-p3-n30-right",
+    "iso4017:M2x5",
+    "bolt-d1-p0.35-n3-right",
+    "iso4014:M2.5x16",
+    "nut-d3-p0.35-m3d-s4d-c0.15-right",
+    "bolt-d10-p1-n3-left",
+    "iso4017:M12x50",
+    "nut-d30-p1-m0.8d-s1.6d-c5-right",
+    "iso4014:M8x80",
+    "nut-d10-p3.5-m3d-s4d-c0.15-right",
+    "iso4017:M2x8",
+    "iso4017:M10x35",
+    "iso4017:M2.5x16",
+    "iso4014:M16x90",
+    "iso4017:M14x40",
+    "iso4014:M16x100",
+    "iso4014:M12x60",
+    "iso4017:M5x30",
+    "iso4017:M3x16",
+    "iso4017:M16x140",
+    "iso4017:M10x65",
+    "iso4014:M12x50",
+    "iso4017:M14x70",
+    "nut-d30-p3.5-m3d-s4d-c5-right",
+    "iso4017:M14x90",
+    "iso4017:M18x130",
+    "iso4014:M16x130",
+    "iso4017:M10x70",
+    "nut-d30-p0.35-m0.8d-s4d-c0.15-right",
+    "iso4017:M10x30",
+    "iso4014:M10x65",
+    "iso4017:M12x65",
+    "iso4017:M3x12",
+    "iso4014:M18x80",
+    "iso4014:M18x90",
+    "nut-d10-p0.35-m0.8d-s1.6d-c0.15-left",
+    "iso4014:M20x160",
+    "bolt-d10-p0.35-n3-right",
+    "iso4017:M3x6",
+    "iso4017:M2.5x10",
+    "iso4017:M6x30",
+    "iso4014:M20x180",
+    "iso4017:M7x20",
+    "nut-d10-p1-m0.8d-s4d-c5-right",
+    "iso4014:M18x110",
+    "bolt-d10-p3-n3-right",
+    "bolt-d10-p0.1-n30-right",
+    "iso4017:M20x60",
+    "bolt-d10-p1-n3-right",
+    "iso4017:M7x70",
+    "iso4014:M12x110",
+    "iso4017:M8x70",
+    "iso4014:M12x65",
+    "iso4017:M2x4",
+    "bolt-d30-p1-n3-right",
+    "bolt-d30-p0.35-n3-right",
+    "iso4017:M14x45",
+    "nut-d30-p0.35-m0.8d-s1.6d-c0.15-left",
+    "iso4017:M2.5x20",
+    "iso4032:M14",
+    "nut-d10-p1-m0.8d-s1.6d-c0.15-left",
+    "nut-d10-p0.35-m3d-s1.6d-c0.15-left",
+    "iso4014:M16x120",
+    "nut-d10-p3.5-m0.8d-s1.6d-c0.15-left",
+    "nut-d10-p1-m3d-s1.6d-c0.15-left",
+    "iso4017:M4x12",
+    "iso4017:M16x65",
+    "iso4014:M12x100",
+    "iso4017:M20x120",
+    "iso4017:M14x50",
+    "bolt-d10-p0.1-n30-left",
+    "iso4014:M18x70",
+    "iso4014:M4x30",
+    "bolt-d3-p0.35-n30-right",
+    "iso4014:M18x150",
+    "nut-d100-p3.5-m0.8d-s1.6d-c5-right",
+    "iso4017:M3x30",
+    "iso4014:M14x140",
+    "bolt-d1-p0.1-n30-right",
+    "iso4014:M10x100",
+    "iso4017:M3.5x10",
+    "bolt-d10-p1-n30-right",
+    "nut-d10-p1-m0.8d-s4d-c0.15-right",
+    "iso4017:M16x110",
+    "iso4017:M16x45",
+    "iso4014:M2x16",
+    "iso4017:M14x65",
+    "iso4014:M8x65",
+    "nut-d3-p0.35-m3d-s1.6d-c0.15-right",
+    "iso4017:M8x80",
+    "nut-d30-p3.5-m3d-s1.6d-c0.15-right",
+    "iso4014:M3.5x20",
+    "iso4017:M4x10",
+    "nut-d3-p1-m3d-s4d-c0.15-right",
+    "iso4017:M4x8",
+    "iso4017:M10x40",
+    "iso4014:M16x80",
+    "iso4014:M3.5x25",
+    "iso4014:M16x70",
+    "iso4017:M20x40",
+    "iso4017:M18x160",
+    "iso4017:M7x60",
+    "iso4014:M18x130",
+    "iso4014:M20x130",
+    "iso4032:M12",
+    "nut-d30-p1-m0.8d-s4d-c0.15-right",
+    "iso4017:M16x150",
+    "iso4017:M16x160",
+    "nut-d10-p3.5-m0.8d-s1.6d-c0.15-right",
+    "iso4017:M20x90",
+    "nut-d3-p1-m0.8d-s1.6d-c0.15-left",
+    "iso4017:M5x45",
+    "iso4017:M10x50",
+    "iso4017:M12x120",
+    "iso4017:M18x90",
+    "iso4014:M7x70",
+    "iso4017:M7x25",
+    "nut-d30-p3.5-m3d-s1.6d-c0.15-left",
+    "iso4014:M6x60",
+    "iso4014:M18x160",
+    "iso4017:M4x20",
+    "iso4017:M12x55",
+    "iso4014:M5x45",
+    "iso4017:M16x55",
+    "iso4014:M20x120",
+    "bolt-d3-p0.1-n3-left",
+    "iso4014:M16x140",
+    "iso4014:M4x40",
+    "bolt-d1-p0.1-n3-right",
+    "iso4017:M6x25",
+    "iso4017:M3x20",
+    "iso4017:M14x35",
+    "iso4017:M8x25",
+    "iso4014:M8x60",
+    "nut-d10-p1-m3d-s4d-c5-right",
+    "iso4032:M3.5",
+    "iso4017:M4x25",
+    "nut-d10-p0.35-m0.8d-s4d-c0.15-right",
+    "iso4014:M7x60",
+    "iso4017:M8x55",
+    "iso4017:M20x55",
+    "nut-d100-p3.5-m0.8d-s4d-c0.15-right",
+    "iso4017:M12x60",
+    "iso4014:M2.5x20",
+    "iso4017:M10x90",
+    "iso4014:M10x80",
+    "iso4014:M6x50",
+    "iso4032:M4",
+    "iso4017:M20x80",
+    "nut-d3-p1-m3d-s1.6d-c0.15-left",
+    "iso4017:M8x50",
+    "iso4017:M18x45",
+    "iso4017:M16x40",
+    "iso4014:M20x100",
+    "iso4017:M18x65",
+    "nut-d3-p0.35-m0.8d-s1.6d-c0.15-left",
+    "iso4017:M20x160",
+    "iso4014:M3x20",
+    "nut-d10-p0.35-m0.8d-s4d-c5-right",
+    "bolt-d1-p0.1-n3-left",
+    "iso4017:M4x35",
+    "iso4017:M20x50",
+    "iso4017:M18x120",
+    "nut-d30-p1-m0.8d-s1.6d-c0.15-left",
+    "bolt-d3-p0.1-n30-right",
+    "bolt-d10-p0.35-n30-left",
+    "iso4014:M16x110",
+    "nut-d30-p3.5-m0.8d-s1.6d-c0.15-left",
+    "iso4014:M7x65",
+    "iso4014:M10x50",
+    "iso4014:M3.5x35",
+    "bolt-d1-p0.35-n30-left",
+    "iso4014:M2x20",
+    "iso4017:M10x25",
+    "iso4014:M8x50",
+    "iso4014:M14x70",
+    "iso4017:M18x110",
+    "iso4014:M20x90",
+    "iso4017:M16x130",
+    "iso4014:M8x70",
+    "iso4017:M5x12",
+    "iso4017:M12x70",
+    "iso4017:M3x10",
+    "iso4014:M14x80",
+    "nut-d100-p3.5-m0.8d-s4d-c5-right",
+    "iso4032:M10",
+    "iso4014:M10x45",
+    "iso4017:M10x55",
+    "iso4017:M20x130",
+    "iso4017:M6x35",
+    "iso4017:M3.5x25",
+    "iso4014:M14x130",
+    "iso4017:M2x16",
+    "iso4017:M3.5x8",
+    "bolt-d10-p0.1-n3-right",
+    "iso4032:M3",
+    "iso4017:M16x50",
+    "iso4014:M20x200",
+    "bolt-d3-p0.35-n3-right",
+    "iso4017:M18x100",
+    "iso4014:M16x160",
+    "iso4017:M18x55",
+    "bolt-d10-p1-n30-left",
+    "iso4017:M18x40",
+    "iso4017:M4x40",
+    "iso4014:M6x55",
+    "iso4017:M5x10",
+    "iso4014:M10x90",
+    "iso4017:M18x35",
+    "iso4017:M14x120",
+    "iso4032:M16",
+    "iso4017:M5x40",
+    "iso4017:M20x150",
+    "iso4017:M6x12",
+    "bolt-d1-p0.1-n30-left",
+    "iso4017:M16x70",
+    "iso4017:M16x90",
+    "nut-d30-p3.5-m3d-s4d-c0.15-right",
+    "iso4017:M8x65",
+    "nut-d10-p3.5-m0.8d-s4d-c5-right",
+    "iso4017:M7x30",
+    "iso4014:M10x55",
+    "nut-d10-p1-m3d-s4d-c0.15-right",
+    "nut-d30-p3.5-m3d-s1.6d-c5-right",
+    "iso4014:M16x65",
+    "iso4017:M2x12",
+    "iso4014:M18x100",
+    "bolt-d3-p0.35-n30-left",
+    "iso4017:M18x80",
+    "iso4014:M5x35",
+    "iso4017:M6x40",
+    "iso4014:M5x30",
+    "iso4014:M7x55",
+    "iso4017:M3.5x35",
+    "iso4017:M14x60",
+    "iso4014:M12x80",
+    "iso4017:M12x110",
+    "iso4017:M8x40",
+    "iso4014:M20x150",
+    "iso4017:M12x40",
+    "iso4014:M20x80",
+    "iso4017:M8x35",
+    "iso4017:M3.5x20",
+    "iso4017:M12x25",
+    "nut-d10-p1-m3d-s1.6d-c0.15-right",
+    "iso4014:M12x55",
+    "iso4014:M2.5x25",
+    "iso4014:M12x90",
+    "iso4032:M8",
+    "nut-d10-p3.5-m3d-s4d-c5-right",
+    "iso4017:M18x140",
+    "iso4014:M7x50",
+    "iso4017:M8x20",
+    "nut-d30-p3.5-m0.8d-s1.6d-c5-right",
+    "iso4017:M20x65",
+    "iso4017:M4x16",
+    "iso4017:M16x120",
+    "iso4017:M18x150",
+    "iso4014:M8x40",
+    "iso4014:M5x25",
+    "iso4014:M16x150",
+    "nut-d30-p3.5-m0.8d-s4d-c0.15-right",
+    "iso4017:M18x70",
+    "iso4014:M6x45",
+    "iso4014:M4x35",
+    "iso4017:M7x35",
+    "nut-d30-p3.5-m0.8d-s1.6d-c0.15-right",
+    "iso4017:M12x45",
+    "bolt-d3-p0.1-n30-left",
+    "iso4014:M14x100",
+    "iso4014:M3x30",
+    "iso4017:M12x80",
+    "iso4017:M3.5x16",
+    "iso4014:M3x25",
+    "bolt-d30-p10-n3-left",
+    "nut-d3-p1-m0.8d-s4d-c0.15-right",
+    "nut-d3-p0.35-m3d-s1.6d-c0.15-left",
+    "iso4014:M14x110",
+    "iso4017:M16x60",
+    "bolt-d1-p0.35-n3-left",
+    "bolt-d10-p0.35-n3-left",
+    "iso4017:M10x80",
+    "iso4017:M20x70",
+    "iso4017:M20x45",
+    "iso4017:M20x140",
+    "iso4032:M5",
+    "iso4014:M5x50",
+    "iso4017:M2x10",
+    "iso4017:M5x25",
+    "iso4014:M18x140",
+    "iso4014:M6x35",
+    "iso4014:M14x55",
+    "iso4017:M7x45",
+    "bolt-d30-p1-n3-left",
+    "iso4017:M14x30",
+    "iso4017:M6x45"
+   ]
+  },
+  "stl-fine": {
+   "candidates": [
+    "iso4017:M2x4",
+    "iso4017:M2x5",
+    "iso4017:M2x6",
+    "iso4017:M2x8",
+    "iso4017:M2x10",
+    "iso4017:M2x12",
+    "iso4017:M2x16",
+    "iso4017:M2x20",
+    "iso4017:M2.5x5",
+    "iso4017:M2.5x6",
+    "iso4017:M2.5x8",
+    "iso4017:M2.5x10",
+    "iso4017:M2.5x12",
+    "iso4017:M2.5x16",
+    "iso4017:M2.5x20",
+    "iso4017:M2.5x25",
+    "iso4017:M3x6",
+    "iso4017:M3x8",
+    "iso4017:M3x10",
+    "iso4017:M3x12",
+    "iso4017:M3x16",
+    "iso4017:M3x20",
+    "iso4017:M3x25",
+    "iso4017:M3x30",
+    "iso4017:M3.5x8",
+    "iso4017:M3.5x10",
+    "iso4017:M3.5x12",
+    "iso4017:M3.5x16",
+    "iso4017:M3.5x20",
+    "iso4017:M3.5x25",
+    "iso4017:M3.5x30",
+    "iso4017:M3.5x35",
+    "iso4017:M4x8",
+    "iso4017:M4x10",
+    "iso4017:M4x12",
+    "iso4017:M4x16",
+    "iso4017:M4x20",
+    "iso4017:M4x25",
+    "iso4017:M4x30",
+    "iso4017:M4x35",
+    "iso4017:M4x40",
+    "iso4017:M5x10",
+    "iso4017:M5x12",
+    "iso4017:M5x16",
+    "iso4017:M5x20",
+    "iso4017:M5x25",
+    "iso4017:M5x30",
+    "iso4017:M5x35",
+    "iso4017:M5x40",
+    "iso4017:M5x45",
+    "iso4017:M5x50",
+    "iso4017:M6x12",
+    "iso4017:M6x16",
+    "iso4017:M6x20",
+    "iso4017:M6x25",
+    "iso4017:M6x30",
+    "iso4017:M6x35",
+    "iso4017:M6x40",
+    "iso4017:M6x45",
+    "iso4017:M6x50",
+    "iso4017:M6x55",
+    "iso4017:M6x60",
+    "iso4017:M7x16",
+    "iso4017:M7x20",
+    "iso4017:M7x25",
+    "iso4017:M7x30",
+    "iso4017:M7x35",
+    "iso4017:M7x40",
+    "iso4017:M7x45",
+    "iso4017:M7x50",
+    "iso4017:M7x55",
+    "iso4017:M7x60",
+    "iso4017:M7x65",
+    "iso4017:M7x70",
+    "iso4017:M8x16",
+    "iso4017:M8x20",
+    "iso4017:M8x25",
+    "iso4017:M8x30",
+    "iso4017:M8x35",
+    "iso4017:M8x40",
+    "iso4017:M8x45",
+    "iso4017:M8x50",
+    "iso4017:M8x55",
+    "iso4017:M8x60",
+    "iso4017:M8x65",
+    "iso4017:M8x70",
+    "iso4017:M8x80",
+    "iso4017:M10x20",
+    "iso4017:M10x25",
+    "iso4017:M10x30",
+    "iso4017:M10x35",
+    "iso4017:M10x40",
+    "iso4017:M10x45",
+    "iso4017:M10x50",
+    "iso4017:M10x55",
+    "iso4017:M10x60",
+    "iso4017:M10x65",
+    "iso4017:M10x70",
+    "iso4017:M10x80",
+    "iso4017:M10x90",
+    "iso4017:M10x100",
+    "iso4017:M12x25",
+    "iso4017:M12x30",
+    "iso4017:M12x35",
+    "iso4017:M12x40",
+    "iso4017:M12x45",
+    "iso4017:M12x50",
+    "iso4017:M12x55",
+    "iso4017:M12x60",
+    "iso4017:M12x65",
+    "iso4017:M12x70",
+    "iso4017:M12x80",
+    "iso4017:M12x90",
+    "iso4017:M12x100",
+    "iso4017:M12x110",
+    "iso4017:M12x120",
+    "iso4017:M14x30",
+    "iso4017:M14x35",
+    "iso4017:M14x40",
+    "iso4017:M14x45",
+    "iso4017:M14x50",
+    "iso4017:M14x55",
+    "iso4017:M14x60",
+    "iso4017:M14x65",
+    "iso4017:M14x70",
+    "iso4017:M14x80",
+    "iso4017:M14x90",
+    "iso4017:M14x100",
+    "iso4017:M14x110",
+    "iso4017:M14x120",
+    "iso4017:M14x130",
+    "iso4017:M14x140",
+    "iso4017:M16x30",
+    "iso4017:M16x35",
+    "iso4017:M16x40",
+    "iso4017:M16x45",
+    "iso4017:M16x50",
+    "iso4017:M16x55",
+    "iso4017:M16x60",
+    "iso4017:M16x65",
+    "iso4017:M16x70",
+    "iso4017:M16x80",
+    "iso4017:M16x90",
+    "iso4017:M16x100",
+    "iso4017:M16x110",
+    "iso4017:M16x120",
+    "iso4017:M16x130",
+    "iso4017:M16x140",
+    "iso4017:M16x150",
+    "iso4017:M16x160",
+    "iso4017:M18x35",
+    "iso4017:M18x40",
+    "iso4017:M18x45",
+    "iso4017:M18x50",
+    "iso4017:M18x55",
+    "iso4017:M18x60",
+    "iso4017:M18x65",
+    "iso4017:M18x70",
+    "iso4017:M18x80",
+    "iso4017:M18x90",
+    "iso4017:M18x100",
+    "iso4017:M18x110",
+    "iso4017:M18x120",
+    "iso4017:M18x130",
+    "iso4017:M18x140",
+    "iso4017:M18x150",
+    "iso4017:M18x160",
+    "iso4017:M18x180",
+    "iso4017:M20x40",
+    "iso4017:M20x45",
+    "iso4017:M20x50",
+    "iso4017:M20x55",
+    "iso4017:M20x60",
+    "iso4017:M20x65",
+    "iso4017:M20x70",
+    "iso4017:M20x80",
+    "iso4017:M20x90",
+    "iso4017:M20x100",
+    "iso4017:M20x110",
+    "iso4017:M20x120",
+    "iso4017:M20x130",
+    "iso4017:M20x140",
+    "iso4017:M20x150",
+    "iso4017:M20x160",
+    "iso4017:M20x180",
+    "iso4017:M20x200",
+    "iso4014:M2x16",
+    "iso4014:M2x20",
+    "iso4014:M2.5x16",
+    "iso4014:M2.5x20",
+    "iso4014:M2.5x25",
+    "iso4014:M3x20",
+    "iso4014:M3x25",
+    "iso4014:M3x30",
+    "iso4014:M3.5x20",
+    "iso4014:M3.5x25",
+    "iso4014:M3.5x30",
+    "iso4014:M3.5x35",
+    "iso4014:M4x25",
+    "iso4014:M4x30",
+    "iso4014:M4x35",
+    "iso4014:M4x40",
+    "iso4014:M5x25",
+    "iso4014:M5x30",
+    "iso4014:M5x35",
+    "iso4014:M5x40",
+    "iso4014:M5x45",
+    "iso4014:M5x50",
+    "iso4014:M6x30",
+    "iso4014:M6x35",
+    "iso4014:M6x40",
+    "iso4014:M6x45",
+    "iso4014:M6x50",
+    "iso4014:M6x55",
+    "iso4014:M6x60",
+    "iso4014:M7x35",
+    "iso4014:M7x40",
+    "iso4014:M7x45",
+    "iso4014:M7x50",
+    "iso4014:M7x55",
+    "iso4014:M7x60",
+    "iso4014:M7x65",
+    "iso4014:M7x70",
+    "iso4014:M8x40",
+    "iso4014:M8x45",
+    "iso4014:M8x50",
+    "iso4014:M8x55",
+    "iso4014:M8x60",
+    "iso4014:M8x65",
+    "iso4014:M8x70",
+    "iso4014:M8x80",
+    "iso4014:M10x45",
+    "iso4014:M10x50",
+    "iso4014:M10x55",
+    "iso4014:M10x60",
+    "iso4014:M10x65",
+    "iso4014:M10x70",
+    "iso4014:M10x80",
+    "iso4014:M10x90",
+    "iso4014:M10x100",
+    "iso4014:M12x50",
+    "iso4014:M12x55",
+    "iso4014:M12x60",
+    "iso4014:M12x65",
+    "iso4014:M12x70",
+    "iso4014:M12x80",
+    "iso4014:M12x90",
+    "iso4014:M12x100",
+    "iso4014:M12x110",
+    "iso4014:M12x120",
+    "iso4014:M14x55",
+    "iso4014:M14x60",
+    "iso4014:M14x65",
+    "iso4014:M14x70",
+    "iso4014:M14x80",
+    "iso4014:M14x90",
+    "iso4014:M14x100",
+    "iso4014:M14x110",
+    "iso4014:M14x120",
+    "iso4014:M14x130",
+    "iso4014:M14x140",
+    "iso4014:M16x65",
+    "iso4014:M16x70",
+    "iso4014:M16x80",
+    "iso4014:M16x90",
+    "iso4014:M16x100",
+    "iso4014:M16x110",
+    "iso4014:M16x120",
+    "iso4014:M16x130",
+    "iso4014:M16x140",
+    "iso4014:M16x150",
+    "iso4014:M16x160",
+    "iso4014:M18x70",
+    "iso4014:M18x80",
+    "iso4014:M18x90",
+    "iso4014:M18x100",
+    "iso4014:M18x110",
+    "iso4014:M18x120",
+    "iso4014:M18x130",
+    "iso4014:M18x140",
+    "iso4014:M18x150",
+    "iso4014:M18x160",
+    "iso4014:M18x180",
+    "iso4014:M20x80",
+    "iso4014:M20x90",
+    "iso4014:M20x100",
+    "iso4014:M20x110",
+    "iso4014:M20x120",
+    "iso4014:M20x130",
+    "iso4014:M20x140",
+    "iso4014:M20x150",
+    "iso4014:M20x160",
+    "iso4014:M20x180",
+    "iso4014:M20x200",
+    "iso4032:M2",
+    "iso4032:M2.5",
+    "iso4032:M3",
+    "iso4032:M3.5",
+    "iso4032:M4",
+    "iso4032:M5",
+    "iso4032:M6",
+    "iso4032:M8",
+    "iso4032:M10",
+    "iso4032:M12",
+    "iso4032:M14",
+    "iso4032:M16",
+    "iso4032:M18",
+    "iso4032:M20",
+    "bolt-d1-p0.1-n3-right",
+    "bolt-d1-p0.1-n3-left",
+    "bolt-d1-p0.1-n30-right",
+    "bolt-d1-p0.1-n30-left",
+    "bolt-d1-p0.35-n3-right",
+    "bolt-d1-p0.35-n3-left",
+    "bolt-d1-p0.35-n30-right",
+    "bolt-d1-p0.35-n30-left",
+    "bolt-d3-p0.1-n3-right",
+    "bolt-d3-p0.1-n3-left",
+    "bolt-d3-p0.1-n30-right",
+    "bolt-d3-p0.1-n30-left",
+    "bolt-d3-p0.35-n3-right",
+    "bolt-d3-p0.35-n3-left",
+    "bolt-d3-p0.35-n30-right",
+    "bolt-d3-p0.35-n30-left",
+    "bolt-d3-p1-n3-right",
+    "bolt-d3-p1-n3-left",
+    "bolt-d3-p1-n30-right",
+    "bolt-d3-p1-n30-left",
+    "bolt-d10-p0.1-n3-right",
+    "bolt-d10-p0.1-n3-left",
+    "bolt-d10-p0.1-n30-right",
+    "bolt-d10-p0.1-n30-left",
+    "bolt-d10-p0.35-n3-right",
+    "bolt-d10-p0.35-n3-left",
+    "bolt-d10-p0.35-n30-right",
+    "bolt-d10-p0.35-n30-left",
+    "bolt-d10-p1-n3-right",
+    "bolt-d10-p1-n3-left",
+    "bolt-d10-p1-n30-right",
+    "bolt-d10-p1-n30-left",
+    "bolt-d10-p3-n3-right",
+    "bolt-d10-p3-n3-left",
+    "bolt-d10-p3-n30-right",
+    "bolt-d10-p3-n30-left",
+    "bolt-d30-p0.1-n3-right",
+    "bolt-d30-p0.1-n3-left",
+    "bolt-d30-p0.35-n3-right",
+    "bolt-d30-p0.35-n3-left",
+    "bolt-d30-p1-n3-right",
+    "bolt-d30-p1-n3-left",
+    "bolt-d30-p3-n3-right",
+    "bolt-d30-p3-n3-left",
+    "bolt-d30-p10-n3-right",
+    "bolt-d30-p10-n3-left",
+    "nut-d3-p0.35-m0.8d-s1.6d-c0.15-right",
+    "nut-d3-p0.35-m0.8d-s4d-c0.15-right",
+    "nut-d3-p0.35-m3d-s1.6d-c0.15-right",
+    "nut-d3-p0.35-m3d-s4d-c0.15-right",
+    "nut-d3-p1-m0.8d-s1.6d-c0.15-right",
+    "nut-d3-p1-m0.8d-s4d-c0.15-right",
+    "nut-d3-p1-m3d-s1.6d-c0.15-right",
+    "nut-d3-p1-m3d-s4d-c0.15-right",
+    "nut-d10-p0.35-m0.8d-s1.6d-c0.15-right",
+    "nut-d10-p0.35-m0.8d-s4d-c0.15-right",
+    "nut-d10-p0.35-m0.8d-s4d-c5-right",
+    "nut-d10-p0.35-m3d-s1.6d-c0.15-right",
+    "nut-d10-p0.35-m3d-s4d-c0.15-right",
+    "nut-d10-p1-m0.8d-s1.6d-c0.15-right",
+    "nut-d10-p1-m0.8d-s4d-c0.15-right",
+    "nut-d10-p1-m0.8d-s4d-c5-right",
+    "nut-d10-p1-m3d-s1.6d-c0.15-right",
+    "nut-d10-p1-m3d-s4d-c0.15-right",
+    "nut-d10-p1-m3d-s4d-c5-right",
+    "nut-d10-p3.5-m0.8d-s1.6d-c0.15-right",
+    "nut-d10-p3.5-m0.8d-s4d-c0.15-right",
+    "nut-d10-p3.5-m0.8d-s4d-c5-right",
+    "nut-d10-p3.5-m3d-s1.6d-c0.15-right",
+    "nut-d10-p3.5-m3d-s4d-c0.15-right",
+    "nut-d10-p3.5-m3d-s4d-c5-right",
+    "nut-d30-p1-m0.8d-s1.6d-c0.15-right",
+    "nut-d30-p1-m0.8d-s1.6d-c5-right",
+    "nut-d30-p1-m0.8d-s4d-c0.15-right",
+    "nut-d30-p1-m0.8d-s4d-c5-right",
+    "nut-d30-p3.5-m0.8d-s1.6d-c0.15-right",
+    "nut-d30-p3.5-m0.8d-s1.6d-c5-right",
+    "nut-d30-p3.5-m0.8d-s4d-c0.15-right",
+    "nut-d30-p3.5-m0.8d-s4d-c5-right",
+    "nut-d30-p3.5-m3d-s1.6d-c0.15-right",
+    "nut-d30-p3.5-m3d-s1.6d-c5-right",
+    "nut-d30-p3.5-m3d-s4d-c0.15-right",
+    "nut-d30-p3.5-m3d-s4d-c5-right",
+    "nut-d3-p0.35-m0.8d-s1.6d-c0.15-left",
+    "nut-d3-p0.35-m3d-s1.6d-c0.15-left",
+    "nut-d3-p1-m0.8d-s1.6d-c0.15-left",
+    "nut-d3-p1-m3d-s1.6d-c0.15-left",
+    "nut-d10-p0.35-m0.8d-s1.6d-c0.15-left",
+    "nut-d10-p0.35-m3d-s1.6d-c0.15-left",
+    "nut-d10-p1-m0.8d-s1.6d-c0.15-left",
+    "nut-d10-p1-m3d-s1.6d-c0.15-left",
+    "nut-d10-p3.5-m0.8d-s1.6d-c0.15-left",
+    "nut-d10-p3.5-m3d-s1.6d-c0.15-left",
+    "nut-d30-p1-m0.8d-s1.6d-c0.15-left",
+    "nut-d30-p3.5-m0.8d-s1.6d-c0.15-left",
+    "nut-d30-p3.5-m3d-s1.6d-c0.15-left"
+   ],
+   "edge_ranking": [
+    {
+     "label": "iso4017:M20x200",
+     "edge_ratio": 1.0
+    },
+    {
+     "label": "iso4017:M20x180",
+     "edge_ratio": 0.9771270438265582
+    },
+    {
+     "label": "bolt-d30-p0.1-n3-left",
+     "edge_ratio": 0.9726025592265042
+    },
+    {
+     "label": "iso4017:M20x160",
+     "edge_ratio": 0.9521760300997275
+    },
+    {
+     "label": "bolt-d30-p0.1-n3-right",
+     "edge_ratio": 0.9396784207925492
+    },
+    {
+     "label": "iso4017:M20x150",
+     "edge_ratio": 0.9387755193843929
+    },
+    {
+     "label": "iso4017:M20x140",
+     "edge_ratio": 0.9246586248287543
+    },
+    {
+     "label": "bolt-d30-p0.35-n3-left",
+     "edge_ratio": 0.9144250547150462
+    },
+    {
+     "label": "iso4017:M20x130",
+     "edge_ratio": 0.9097314968509723
+    },
+    {
+     "label": "iso4017:M20x120",
+     "edge_ratio": 0.8938795472022408
+    },
+    {
+     "label": "iso4017:M16x160",
+     "edge_ratio": 0.8873771512996934
+    },
+    {
+     "label": "bolt-d30-p0.35-n3-right",
+     "edge_ratio": 0.8834703170338517
+    },
+    {
+     "label": "iso4017:M20x110",
+     "edge_ratio": 0.8769606748348742
+    },
+    {
+     "label": "iso4017:M16x150",
+     "edge_ratio": 0.8748885917806177
+    },
+    {
+     "label": "bolt-d30-p1-n3-left",
+     "edge_ratio": 0.8683608250443497
+    },
+    {
+     "label": "iso4017:M16x140",
+     "edge_ratio": 0.861732400824345
+    },
+    {
+     "label": "iso4017:M18x180",
+     "edge_ratio": 0.8599903171922527
+    },
+    {
+     "label": "iso4017:M20x100",
+     "edge_ratio": 0.8587954263405082
+    },
+    {
+     "label": "bolt-d10-p0.1-n30-left",
+     "edge_ratio": 0.8483536004232208
+    },
+    {
+     "label": "iso4017:M16x130",
+     "edge_ratio": 0.8478211156383274
+    },
+    {
+     "label": "iso4017:M20x90",
+     "edge_ratio": 0.8391522361918695
+    },
+    {
+     "label": "bolt-d30-p1-n3-right",
+     "edge_ratio": 0.8389654345601619
+    },
+    {
+     "label": "iso4017:M18x160",
+     "edge_ratio": 0.8380303987304991
+    },
+    {
+     "label": "iso4017:M16x120",
+     "edge_ratio": 0.8330479461012127
+    },
+    {
+     "label": "nut-d10-p0.35-m3d-s1.6d-c0.15-right",
+     "edge_ratio": 0.8290538146150925
+    },
+    {
+     "label": "iso4017:M18x150",
+     "edge_ratio": 0.8262363239134816
+    },
+    {
+     "label": "bolt-d30-p3-n3-left",
+     "edge_ratio": 0.8226385724753926
+    },
+    {
+     "label": "bolt-d10-p0.1-n30-right",
+     "edge_ratio": 0.8196354862086216
+    },
+    {
+     "label": "iso4017:M20x80",
+     "edge_ratio": 0.8177244197207081
+    },
+    {
+     "label": "iso4017:M16x110",
+     "edge_ratio": 0.8172804616340973
+    },
+    {
+     "label": "iso4017:M18x140",
+     "edge_ratio": 0.8138117444246905
+    },
+    {
+     "label": "iso4017:M18x130",
+     "edge_ratio": 0.800674061248806
+    },
+    {
+     "label": "iso4017:M16x100",
+     "edge_ratio": 0.8003514212549817
+    },
+    {
+     "label": "bolt-d10-p0.35-n30-left",
+     "edge_ratio": 0.7976082112118406
+    },
+    {
+     "label": "bolt-d30-p3-n3-right",
+     "edge_ratio": 0.7947909527212036
+    },
+    {
+     "label": "iso4017:M20x70",
+     "edge_ratio": 0.7940925979292324
+    },
+    {
+     "label": "iso4017:M18x120",
+     "edge_ratio": 0.7867224228281341
+    },
+    {
+     "label": "iso4017:M14x140",
+     "edge_ratio": 0.7834717531837908
+    },
+    {
+     "label": "iso4017:M16x90",
+     "edge_ratio": 0.7820450182732648
+    },
+    {
+     "label": "iso4017:M20x65",
+     "edge_ratio": 0.7812732486935194
+    },
+    {
+     "label": "bolt-d30-p10-n3-left",
+     "edge_ratio": 0.7752915261413549
+    },
+    {
+     "label": "nut-d30-p1-m0.8d-s4d-c5-right",
+     "edge_ratio": 0.7744971656973919
+    },
+    {
+     "label": "nut-d10-p0.35-m3d-s1.6d-c0.15-left",
+     "edge_ratio": 0.7725948433238103
+    },
+    {
+     "label": "iso4017:M18x110",
+     "edge_ratio": 0.7718317630048556
+    },
+    {
+     "label": "iso4017:M14x130",
+     "edge_ratio": 0.7708238604234573
+    },
+    {
+     "label": "bolt-d10-p0.35-n30-right",
+     "edge_ratio": 0.7706079088654407
+    },
+    {
+     "label": "nut-d30-p1-m0.8d-s1.6d-c5-right",
+     "edge_ratio": 0.7699616021718927
+    },
+    {
+     "label": "iso4017:M20x60",
+     "edge_ratio": 0.7676596668366089
+    },
+    {
+     "label": "iso4017:M16x80",
+     "edge_ratio": 0.7620754389752459
+    },
+    {
+     "label": "bolt-d10-p1-n30-left",
+     "edge_ratio": 0.757428638660709
+    },
+    {
+     "label": "iso4017:M14x120",
+     "edge_ratio": 0.757392357759463
+    },
+    {
+     "label": "iso4017:M18x100",
+     "edge_ratio": 0.7558441410131738
+    },
+    {
+     "label": "iso4017:M20x55",
+     "edge_ratio": 0.7531298166286702
+    },
+    {
+     "label": "bolt-d30-p10-n3-right",
+     "edge_ratio": 0.7490466789617932
+    },
+    {
+     "label": "iso4014:M20x200",
+     "edge_ratio": 0.7443730699781741
+    },
+    {
+     "label": "iso4014:M20x180",
+     "edge_ratio": 0.7443368142835517
+    },
+    {
+     "label": "iso4014:M20x160",
+     "edge_ratio": 0.74429628595571
+    },
+    {
+     "label": "iso4014:M20x150",
+     "edge_ratio": 0.7442740796328767
+    },
+    {
+     "label": "iso4014:M20x140",
+     "edge_ratio": 0.7442503413961901
+    },
+    {
+     "label": "iso4014:M20x130",
+     "edge_ratio": 0.7442248440606407
+    },
+    {
+     "label": "iso4017:M14x110",
+     "edge_ratio": 0.7430568416677718
+    },
+    {
+     "label": "iso4017:M16x70",
+     "edge_ratio": 0.7400518445573704
+    },
+    {
+     "label": "iso4017:M18x90",
+     "edge_ratio": 0.7385557511018243
+    },
+    {
+     "label": "iso4017:M20x50",
+     "edge_ratio": 0.7375295843033701
+    },
+    {
+     "label": "nut-d10-p0.35-m3d-s4d-c0.15-right",
+     "edge_ratio": 0.7375193190565927
+    },
+    {
+     "label": "bolt-d10-p1-n30-right",
+     "edge_ratio": 0.7317884785392512
+    },
+    {
+     "label": "iso4017:M12x120",
+     "edge_ratio": 0.729809594129335
+    },
+    {
+     "label": "iso4017:M16x65",
+     "edge_ratio": 0.7281048964650977
+    },
+    {
+     "label": "iso4017:M14x100",
+     "edge_ratio": 0.7276652596257607
+    },
+    {
+     "label": "iso4014:M20x120",
+     "edge_ratio": 0.7244681056781221
+    },
+    {
+     "label": "iso4014:M20x110",
+     "edge_ratio": 0.7244389646517401
+    },
+    {
+     "label": "iso4014:M20x100",
+     "edge_ratio": 0.7244070456140991
+    },
+    {
+     "label": "iso4014:M20x90",
+     "edge_ratio": 0.7243717623916298
+    },
+    {
+     "label": "iso4014:M20x80",
+     "edge_ratio": 0.7243323211390917
+    },
+    {
+     "label": "iso4017:M20x45",
+     "edge_ratio": 0.7206601024449824
+    },
+    {
+     "label": "iso4017:M18x80",
+     "edge_ratio": 0.7196966735640625
+    },
+    {
+     "label": "nut-d30-p3.5-m3d-s4d-c5-right",
+     "edge_ratio": 0.7188759278140493
+    },
+    {
+     "label": "bolt-d10-p3-n30-left",
+     "edge_ratio": 0.7175473559945575
+    },
+    {
+     "label": "iso4017:M12x110",
+     "edge_ratio": 0.7159961497852947
+    },
+    {
+     "label": "iso4017:M16x60",
+     "edge_ratio": 0.7154177660340757
+    },
+    {
+     "label": "iso4017:M14x90",
+     "edge_ratio": 0.7110214040334046
+    },
+    {
+     "label": "iso4017:M10x100",
+     "edge_ratio": 0.7040305159616812
+    },
+    {
+     "label": "iso4017:M20x40",
+     "edge_ratio": 0.7022579916630902
+    },
+    {
+     "label": "iso4017:M16x55",
+     "edge_ratio": 0.7018767224888194
+    },
+    {
+     "label": "iso4017:M12x100",
+     "edge_ratio": 0.7011650993686862
+    },
+    {
+     "label": "iso4017:M18x70",
+     "edge_ratio": 0.6988978040141098
+    },
+    {
+     "label": "bolt-d10-p3-n30-right",
+     "edge_ratio": 0.6932572405125754
+    },
+    {
+     "label": "iso4017:M14x80",
+     "edge_ratio": 0.6928654181519492
+    },
+    {
+     "label": "nut-d30-p3.5-m3d-s1.6d-c5-right",
+     "edge_ratio": 0.6925981355346008
+    },
+    {
+     "label": "iso4017:M10x90",
+     "edge_ratio": 0.6879272568253241
+    },
+    {
+     "label": "iso4017:M18x65",
+     "edge_ratio": 0.687615221789952
+    },
+    {
+     "label": "iso4017:M16x50",
+     "edge_ratio": 0.6873381400389037
+    },
+    {
+     "label": "iso4017:M12x90",
+     "edge_ratio": 0.6851273807804793
+    },
+    {
+     "label": "iso4017:M18x60",
+     "edge_ratio": 0.6756336185243227
+    },
+    {
+     "label": "iso4017:M14x70",
+     "edge_ratio": 0.6728419583012143
+    },
+    {
+     "label": "iso4017:M16x45",
+     "edge_ratio": 0.671616684885459
+    },
+    {
+     "label": "iso4017:M10x80",
+     "edge_ratio": 0.6703609817574564
+    },
+    {
+     "label": "iso4014:M16x160",
+     "edge_ratio": 0.6687091673327983
+    },
+    {
+     "label": "iso4014:M16x150",
+     "edge_ratio": 0.6686892161763417
+    },
+    {
+     "label": "iso4014:M16x140",
+     "edge_ratio": 0.6686678886797701
+    },
+    {
+     "label": "iso4014:M16x130",
+     "edge_ratio": 0.668644980729877
+    },
+    {
+     "label": "iso4017:M12x80",
+     "edge_ratio": 0.6676326007613564
+    },
+    {
+     "label": "iso4017:M18x55",
+     "edge_ratio": 0.6628455879728964
+    },
+    {
+     "label": "iso4017:M14x65",
+     "edge_ratio": 0.6619800058457946
+    },
+    {
+     "label": "iso4017:M16x40",
+     "edge_ratio": 0.654466901518374
+    },
+    {
+     "label": "iso4017:M10x70",
+     "edge_ratio": 0.6509878887266065
+    },
+    {
+     "label": "iso4017:M14x60",
+     "edge_ratio": 0.6504450927890807
+    },
+    {
+     "label": "iso4017:M18x50",
+     "edge_ratio": 0.6491154913283815
+    },
+    {
+     "label": "iso4017:M12x70",
+     "edge_ratio": 0.6483383565601661
+    },
+    {
+     "label": "iso4014:M16x120",
+     "edge_ratio": 0.6474799990052359
+    },
+    {
+     "label": "iso4014:M16x110",
+     "edge_ratio": 0.6474539547507178
+    },
+    {
+     "label": "iso4014:M16x100",
+     "edge_ratio": 0.647425427699909
+    },
+    {
+     "label": "iso4014:M16x90",
+     "edge_ratio": 0.6473938939709977
+    },
+    {
+     "label": "iso4014:M16x80",
+     "edge_ratio": 0.6473586440794511
+    },
+    {
+     "label": "iso4014:M16x70",
+     "edge_ratio": 0.6473186833698321
+    },
+    {
+     "label": "iso4014:M16x65",
+     "edge_ratio": 0.6472965068241737
+    },
+    {
+     "label": "iso4014:M18x180",
+     "edge_ratio": 0.6437153522461887
+    },
+    {
+     "label": "iso4014:M18x160",
+     "edge_ratio": 0.6436803026472252
+    },
+    {
+     "label": "iso4014:M18x150",
+     "edge_ratio": 0.6436610982351227
+    },
+    {
+     "label": "iso4014:M18x140",
+     "edge_ratio": 0.6436405689974234
+    },
+    {
+     "label": "iso4014:M18x130",
+     "edge_ratio": 0.6436185184605974
+    },
+    {
+     "label": "iso4017:M10x65",
+     "edge_ratio": 0.6404787351145826
+    },
+    {
+     "label": "iso4017:M14x55",
+     "edge_ratio": 0.638133817135301
+    },
+    {
+     "label": "iso4017:M12x65",
+     "edge_ratio": 0.6378719753883356
+    },
+    {
+     "label": "iso4017:M16x35",
+     "edge_ratio": 0.6355531393607241
+    },
+    {
+     "label": "iso4017:M18x45",
+     "edge_ratio": 0.6342683011437255
+    },
+    {
+     "label": "iso4017:M10x60",
+     "edge_ratio": 0.6293184788243876
+    },
+    {
+     "label": "iso4017:M12x60",
+     "edge_ratio": 0.6267571415376955
+    },
+    {
+     "label": "iso4014:M18x120",
+     "edge_ratio": 0.6250337244112857
+    },
+    {
+     "label": "iso4014:M18x110",
+     "edge_ratio": 0.6250085830363769
+    },
+    {
+     "label": "iso4014:M18x100",
+     "edge_ratio": 0.624981044936604
+    },
+    {
+     "label": "iso4014:M18x90",
+     "edge_ratio": 0.6249506043916354
+    },
+    {
+     "label": "iso4014:M18x80",
+     "edge_ratio": 0.6249165765127321
+    },
+    {
+     "label": "iso4017:M14x50",
+     "edge_ratio": 0.6249155968734817
+    },
+    {
+     "label": "iso4014:M18x70",
+     "edge_ratio": 0.6248780011263083
+    },
+    {
+     "label": "iso4017:M18x40",
+     "edge_ratio": 0.6180722116092947
+    },
+    {
+     "label": "iso4017:M10x55",
+     "edge_ratio": 0.6174070763821006
+    },
+    {
+     "label": "iso4017:M12x55",
+     "edge_ratio": 0.6148942187130246
+    },
+    {
+     "label": "iso4017:M16x30",
+     "edge_ratio": 0.6143975053928036
+    },
+    {
+     "label": "iso4017:M14x45",
+     "edge_ratio": 0.6106219298140946
+    },
+    {
+     "label": "iso4017:M10x50",
+     "edge_ratio": 0.60461818711204
+    },
+    {
+     "label": "iso4017:M12x50",
+     "edge_ratio": 0.6021573804474156
+    },
+    {
+     "label": "iso4017:M18x35",
+     "edge_ratio": 0.6002102375667424
+    },
+    {
+     "label": "iso4014:M14x140",
+     "edge_ratio": 0.5953743603255632
+    },
+    {
+     "label": "iso4014:M14x130",
+     "edge_ratio": 0.5953539633448723
+    },
+    {
+     "label": "iso4017:M14x40",
+     "edge_ratio": 0.5950296521783937
+    },
+    {
+     "label": "nut-d30-p1-m0.8d-s4d-c0.15-right",
+     "edge_ratio": 0.5939035903441938
+    },
+    {
+     "label": "iso4017:M10x45",
+     "edge_ratio": 0.5907887818165606
+    },
+    {
+     "label": "nut-d30-p1-m0.8d-s1.6d-c0.15-right",
+     "edge_ratio": 0.590425608007612
+    },
+    {
+     "label": "iso4017:M12x45",
+     "edge_ratio": 0.5883842610749275
+    },
+    {
+     "label": "iso4017:M14x35",
+     "edge_ratio": 0.5778335964390738
+    },
+    {
+     "label": "iso4017:M8x80",
+     "edge_ratio": 0.5760686971228767
+    },
+    {
+     "label": "iso4017:M10x40",
+     "edge_ratio": 0.5757029451304365
+    },
+    {
+     "label": "iso4014:M14x120",
+     "edge_ratio": 0.5745016034072503
+    },
+    {
+     "label": "iso4014:M14x110",
+     "edge_ratio": 0.5744784946378606
+    },
+    {
+     "label": "iso4014:M14x100",
+     "edge_ratio": 0.5744531829116986
+    },
+    {
+     "label": "iso4014:M14x90",
+     "edge_ratio": 0.5744252033944182
+    },
+    {
+     "label": "iso4014:M14x80",
+     "edge_ratio": 0.5743939265685014
+    },
+    {
+     "label": "iso4014:M14x70",
+     "edge_ratio": 0.5743584698875465
+    },
+    {
+     "label": "iso4014:M14x65",
+     "edge_ratio": 0.574338792892028
+    },
+    {
+     "label": "iso4014:M14x60",
+     "edge_ratio": 0.5743175408750621
+    },
+    {
+     "label": "iso4014:M14x55",
+     "edge_ratio": 0.5742944395094092
+    },
+    {
+     "label": "iso4017:M12x40",
+     "edge_ratio": 0.5733598240096714
+    },
+    {
+     "label": "nut-d30-p1-m0.8d-s1.6d-c0.15-left",
+     "edge_ratio": 0.5625939905897241
+    },
+    {
+     "label": "iso4017:M8x70",
+     "edge_ratio": 0.5594206033864786
+    },
+    {
+     "label": "iso4017:M10x35",
+     "edge_ratio": 0.5590654214414693
+    },
+    {
+     "label": "iso4017:M14x30",
+     "edge_ratio": 0.5585992707728861
+    },
+    {
+     "label": "iso4017:M12x35",
+     "edge_ratio": 0.5567900153349884
+    },
+    {
+     "label": "iso4017:M8x65",
+     "edge_ratio": 0.5503896564878819
+    },
+    {
+     "label": "iso4017:M8x60",
+     "edge_ratio": 0.540799190342619
+    },
+    {
+     "label": "iso4017:M10x30",
+     "edge_ratio": 0.5404558313259463
+    },
+    {
+     "label": "iso4014:M12x120",
+     "edge_ratio": 0.5386012323719077
+    },
+    {
+     "label": "iso4014:M12x110",
+     "edge_ratio": 0.5385795676600983
+    },
+    {
+     "label": "iso4014:M12x100",
+     "edge_ratio": 0.5385558376533873
+    },
+    {
+     "label": "iso4014:M12x90",
+     "edge_ratio": 0.5385296065647375
+    },
+    {
+     "label": "iso4014:M12x80",
+     "edge_ratio": 0.5385002842149241
+    },
+    {
+     "label": "iso4014:M12x70",
+     "edge_ratio": 0.5384670432075103
+    },
+    {
+     "label": "iso4014:M12x65",
+     "edge_ratio": 0.5384485958194217
+    },
+    {
+     "label": "iso4014:M12x60",
+     "edge_ratio": 0.5384286718323339
+    },
+    {
+     "label": "iso4014:M12x55",
+     "edge_ratio": 0.5384070140616046
+    },
+    {
+     "label": "iso4014:M12x50",
+     "edge_ratio": 0.5383832916576702
+    },
+    {
+     "label": "iso4017:M12x30",
+     "edge_ratio": 0.5382561665788196
+    },
+    {
+     "label": "nut-d30-p3.5-m3d-s4d-c0.15-right",
+     "edge_ratio": 0.533879268520921
+    },
+    {
+     "label": "nut-d30-p3.5-m3d-s1.6d-c0.15-right",
+     "edge_ratio": 0.530752796992593
+    },
+    {
+     "label": "iso4017:M8x55",
+     "edge_ratio": 0.5305632334886785
+    },
+    {
+     "label": "iso4014:M10x100",
+     "edge_ratio": 0.5240613565247145
+    },
+    {
+     "label": "iso4014:M10x90",
+     "edge_ratio": 0.524035831409323
+    },
+    {
+     "label": "iso4014:M10x80",
+     "edge_ratio": 0.5240072982297614
+    },
+    {
+     "label": "iso4014:M10x70",
+     "edge_ratio": 0.5239749518578171
+    },
+    {
+     "label": "iso4014:M10x65",
+     "edge_ratio": 0.5239570009555147
+    },
+    {
+     "label": "iso4014:M10x60",
+     "edge_ratio": 0.523937613194821
+    },
+    {
+     "label": "iso4014:M10x55",
+     "edge_ratio": 0.5239165383128606
+    },
+    {
+     "label": "iso4014:M10x50",
+     "edge_ratio": 0.5238934543644216
+    },
+    {
+     "label": "iso4014:M10x45",
+     "edge_ratio": 0.5238679374269313
+    },
+    {
+     "label": "iso4017:M8x50",
+     "edge_ratio": 0.5195732161995784
+    },
+    {
+     "label": "iso4017:M10x25",
+     "edge_ratio": 0.5192433337741096
+    },
+    {
+     "label": "iso4017:M12x25",
+     "edge_ratio": 0.5171300042654219
+    },
+    {
+     "label": "nut-d30-p3.5-m0.8d-s4d-c5-right",
+     "edge_ratio": 0.5143223736193935
+    },
+    {
+     "label": "bolt-d10-p0.1-n3-left",
+     "edge_ratio": 0.511638621729567
+    },
+    {
+     "label": "nut-d30-p3.5-m0.8d-s1.6d-c5-right",
+     "edge_ratio": 0.5113104299978364
+    },
+    {
+     "label": "iso4017:M8x45",
+     "edge_ratio": 0.5076890407965514
+    },
+    {
+     "label": "nut-d30-p3.5-m3d-s1.6d-c0.15-left",
+     "edge_ratio": 0.5057340501953144
+    },
+    {
+     "label": "iso4017:M6x60",
+     "edge_ratio": 0.5032654953986487
+    },
+    {
+     "label": "iso4017:M8x40",
+     "edge_ratio": 0.494725162347062
+    },
+    {
+     "label": "iso4017:M10x20",
+     "edge_ratio": 0.4944110562087759
+    },
+    {
+     "label": "bolt-d10-p0.1-n3-right",
+     "edge_ratio": 0.4943188433162972
+    },
+    {
+     "label": "iso4017:M6x55",
+     "edge_ratio": 0.4937399561800805
+    },
+    {
+     "label": "iso4017:M6x50",
+     "edge_ratio": 0.4835126914315246
+    },
+    {
+     "label": "bolt-d10-p0.35-n3-left",
+     "edge_ratio": 0.48103428294643613
+    },
+    {
+     "label": "iso4017:M8x35",
+     "edge_ratio": 0.4804278555889518
+    },
+    {
+     "label": "iso4017:M6x45",
+     "edge_ratio": 0.47245332683110847
+    },
+    {
+     "label": "bolt-d10-p0.35-n3-right",
+     "edge_ratio": 0.46475050991606076
+    },
+    {
+     "label": "iso4017:M8x30",
+     "edge_ratio": 0.4644358712348879
+    },
+    {
+     "label": "iso4017:M7x70",
+     "edge_ratio": 0.46046960883463667
+    },
+    {
+     "label": "iso4017:M6x40",
+     "edge_ratio": 0.4603891950301052
+    },
+    {
+     "label": "bolt-d10-p1-n3-left",
+     "edge_ratio": 0.4568021454138218
+    },
+    {
+     "label": "iso4017:M7x65",
+     "edge_ratio": 0.45303606677231584
+    },
+    {
+     "label": "iso4017:M6x35",
+     "edge_ratio": 0.4470841803463233
+    },
+    {
+     "label": "iso4017:M8x25",
+     "edge_ratio": 0.4462071017212228
+    },
+    {
+     "label": "iso4017:M7x60",
+     "edge_ratio": 0.44514197390602195
+    },
+    {
+     "label": "nut-d10-p0.35-m0.8d-s4d-c5-right",
+     "edge_ratio": 0.4431929796408362
+    },
+    {
+     "label": "bolt-d10-p1-n3-right",
+     "edge_ratio": 0.4413386686525709
+    },
+    {
+     "label": "iso4017:M7x55",
+     "edge_ratio": 0.4367165655101734
+    },
+    {
+     "label": "iso4014:M8x80",
+     "edge_ratio": 0.43411352006901965
+    },
+    {
+     "label": "iso4014:M8x70",
+     "edge_ratio": 0.43408672273731513
+    },
+    {
+     "label": "iso4014:M8x65",
+     "edge_ratio": 0.43407185132347564
+    },
+    {
+     "label": "iso4014:M8x60",
+     "edge_ratio": 0.43405578954519625
+    },
+    {
+     "label": "iso4014:M8x55",
+     "edge_ratio": 0.4340383300723533
+    },
+    {
+     "label": "iso4014:M8x50",
+     "edge_ratio": 0.4340192061896399
+    },
+    {
+     "label": "iso4014:M8x45",
+     "edge_ratio": 0.43399806669865815
+    },
+    {
+     "label": "iso4014:M8x40",
+     "edge_ratio": 0.4339744359771993
+    },
+    {
+     "label": "bolt-d10-p3-n3-left",
+     "edge_ratio": 0.4327499053031679
+    },
+    {
+     "label": "iso4017:M2.5x25",
+     "edge_ratio": 0.43231996819639845
+    },
+    {
+     "label": "iso4017:M6x30",
+     "edge_ratio": 0.43220210568334805
+    },
+    {
+     "label": "iso4017:M7x50",
+     "edge_ratio": 0.4276704758031383
+    },
+    {
+     "label": "iso4017:M3x30",
+     "edge_ratio": 0.4273201663112662
+    },
+    {
+     "label": "nut-d10-p1-m3d-s4d-c5-right",
+     "edge_ratio": 0.42571611953994387
+    },
+    {
+     "label": "iso4017:M8x20",
+     "edge_ratio": 0.4248677067192192
+    },
+    {
+     "label": "bolt-d3-p0.1-n30-left",
+     "edge_ratio": 0.419614496118322
+    },
+    {
+     "label": "bolt-d10-p3-n3-right",
+     "edge_ratio": 0.4181006349981282
+    },
+    {
+     "label": "iso4017:M7x45",
+     "edge_ratio": 0.4178883877534182
+    },
+    {
+     "label": "iso4017:M6x25",
+     "edge_ratio": 0.4152384879789828
+    },
+    {
+     "label": "iso4017:M2.5x20",
+     "edge_ratio": 0.41164471105008715
+    },
+    {
+     "label": "iso4017:M3x25",
+     "edge_ratio": 0.41054816116980813
+    },
+    {
+     "label": "iso4017:M7x40",
+     "edge_ratio": 0.4072175758410952
+    },
+    {
+     "label": "bolt-d3-p0.1-n30-right",
+     "edge_ratio": 0.40540988023690677
+    },
+    {
+     "label": "iso4017:M8x16",
+     "edge_ratio": 0.40454884630148435
+    },
+    {
+     "label": "iso4017:M7x35",
+     "edge_ratio": 0.3954491940359889
+    },
+    {
+     "label": "iso4017:M6x20",
+     "edge_ratio": 0.3953801350284398
+    },
+    {
+     "label": "bolt-d3-p0.35-n30-left",
+     "edge_ratio": 0.39451470174762715
+    },
+    {
+     "label": "nut-d30-p3.5-m0.8d-s4d-c0.15-right",
+     "edge_ratio": 0.39439512217176115
+    },
+    {
+     "label": "nut-d30-p3.5-m0.8d-s1.6d-c0.15-right",
+     "edge_ratio": 0.39208548927704767
+    },
+    {
+     "label": "iso4017:M2.5x16",
+     "edge_ratio": 0.39195822677922276
+    },
+    {
+     "label": "iso4017:M3x20",
+     "edge_ratio": 0.390914118267411
+    },
+    {
+     "label": "iso4014:M6x60",
+     "edge_ratio": 0.38655171325626814
+    },
+    {
+     "label": "iso4014:M6x55",
+     "edge_ratio": 0.38653616458878687
+    },
+    {
+     "label": "iso4014:M6x50",
+     "edge_ratio": 0.38651913366832547
+    },
+    {
+     "label": "iso4014:M6x45",
+     "edge_ratio": 0.38650030773245914
+    },
+    {
+     "label": "iso4014:M6x40",
+     "edge_ratio": 0.38647926321218
+    },
+    {
+     "label": "iso4014:M6x35",
+     "edge_ratio": 0.3864554062887385
+    },
+    {
+     "label": "iso4014:M6x30",
+     "edge_ratio": 0.38642786732312956
+    },
+    {
+     "label": "iso4017:M4x40",
+     "edge_ratio": 0.3839193095107952
+    },
+    {
+     "label": "iso4017:M7x30",
+     "edge_ratio": 0.38228589126267615
+    },
+    {
+     "label": "bolt-d3-p0.35-n30-right",
+     "edge_ratio": 0.3811597536947459
+    },
+    {
+     "label": "iso4017:M6x16",
+     "edge_ratio": 0.3764714873516754
+    },
+    {
+     "label": "bolt-d3-p1-n30-left",
+     "edge_ratio": 0.3746409945082383
+    },
+    {
+     "label": "nut-d30-p3.5-m0.8d-s1.6d-c0.15-left",
+     "edge_ratio": 0.3736032737622297
+    },
+    {
+     "label": "iso4017:M4x35",
+     "edge_ratio": 0.3728242358088698
+    },
+    {
+     "label": "iso4017:M3x16",
+     "edge_ratio": 0.37221905324179877
+    },
+    {
+     "label": "iso4017:M2.5x12",
+     "edge_ratio": 0.3679607879216492
+    },
+    {
+     "label": "iso4017:M7x25",
+     "edge_ratio": 0.36728144860060413
+    },
+    {
+     "label": "iso4017:M3.5x35",
+     "edge_ratio": 0.3656118039049936
+    },
+    {
+     "label": "iso4017:M5x50",
+     "edge_ratio": 0.3646173775378334
+    },
+    {
+     "label": "bolt-d3-p1-n30-right",
+     "edge_ratio": 0.3619588029499172
+    },
+    {
+     "label": "iso4014:M2.5x25",
+     "edge_ratio": 0.36113326008024405
+    },
+    {
+     "label": "iso4014:M2.5x20",
+     "edge_ratio": 0.3610960082431291
+    },
+    {
+     "label": "iso4014:M2.5x16",
+     "edge_ratio": 0.3610587602486396
+    },
+    {
+     "label": "iso4017:M4x30",
+     "edge_ratio": 0.36041404918769177
+    },
+    {
+     "label": "iso4017:M5x45",
+     "edge_ratio": 0.3562775002413353
+    },
+    {
+     "label": "iso4017:M2.5x10",
+     "edge_ratio": 0.35351859512707495
+    },
+    {
+     "label": "iso4017:M3.5x30",
+     "edge_ratio": 0.35344169723925467
+    },
+    {
+     "label": "iso4017:M6x12",
+     "edge_ratio": 0.35342221607198393
+    },
+    {
+     "label": "iso4014:M7x70",
+     "edge_ratio": 0.34991918686948775
+    },
+    {
+     "label": "iso4014:M7x65",
+     "edge_ratio": 0.34990719895839595
+    },
+    {
+     "label": "iso4014:M7x60",
+     "edge_ratio": 0.3498942514893746
+    },
+    {
+     "label": "iso4014:M7x55",
+     "edge_ratio": 0.3498801773327134
+    },
+    {
+     "label": "iso4014:M7x50",
+     "edge_ratio": 0.3498647614880471
+    },
+    {
+     "label": "iso4014:M7x45",
+     "edge_ratio": 0.34984772085282906
+    },
+    {
+     "label": "iso4014:M7x40",
+     "edge_ratio": 0.349828672025936
+    },
+    {
+     "label": "iso4014:M7x35",
+     "edge_ratio": 0.3498070775016223
+    },
+    {
+     "label": "iso4017:M7x20",
+     "edge_ratio": 0.3497165916577991
+    },
+    {
+     "label": "iso4014:M3x30",
+     "edge_ratio": 0.3495781834945812
+    },
+    {
+     "label": "iso4014:M3x25",
+     "edge_ratio": 0.349548720132291
+    },
+    {
+     "label": "iso4014:M3x20",
+     "edge_ratio": 0.34951266327066705
+    },
+    {
+     "label": "iso4017:M3x12",
+     "edge_ratio": 0.3494301350318366
+    },
+    {
+     "label": "iso4017:M5x40",
+     "edge_ratio": 0.3471799270493502
+    },
+    {
+     "label": "iso4017:M4x25",
+     "edge_ratio": 0.34626806038915114
+    },
+    {
+     "label": "iso4017:M2x20",
+     "edge_ratio": 0.34178713051140514
+    },
+    {
+     "label": "nut-d10-p0.35-m0.8d-s4d-c0.15-right",
+     "edge_ratio": 0.3398513428864833
+    },
+    {
+     "label": "iso4017:M3.5x25",
+     "edge_ratio": 0.33956936817396915
+    },
+    {
+     "label": "nut-d10-p0.35-m0.8d-s1.6d-c0.15-right",
+     "edge_ratio": 0.33786112597781215
+    },
+    {
+     "label": "iso4017:M5x35",
+     "edge_ratio": 0.33714660290279974
+    },
+    {
+     "label": "iso4017:M2.5x8",
+     "edge_ratio": 0.3366119324745311
+    },
+    {
+     "label": "iso4017:M3x10",
+     "edge_ratio": 0.3357152568599851
+    },
+    {
+     "label": "iso4017:M7x16",
+     "edge_ratio": 0.3329917559047318
+    },
+    {
+     "label": "iso4017:M4x20",
+     "edge_ratio": 0.3297081470916746
+    },
+    {
+     "label": "nut-d10-p1-m3d-s4d-c0.15-right",
+     "edge_ratio": 0.3264496541243082
+    },
+    {
+     "label": "iso4017:M5x30",
+     "edge_ratio": 0.32592401633558704
+    },
+    {
+     "label": "iso4017:M2x16",
+     "edge_ratio": 0.3254415130695283
+    },
+    {
+     "label": "nut-d10-p1-m3d-s1.6d-c0.15-right",
+     "edge_ratio": 0.3245379193759626
+    },
+    {
+     "label": "iso4017:M3.5x20",
+     "edge_ratio": 0.3233298129313627
+    },
+    {
+     "label": "iso4032:M20",
+     "edge_ratio": 0.3222641952304487
+    },
+    {
+     "label": "nut-d10-p0.35-m0.8d-s1.6d-c0.15-left",
+     "edge_ratio": 0.3219349509084035
+    },
+    {
+     "label": "iso4017:M3x8",
+     "edge_ratio": 0.3196600205208509
+    },
+    {
+     "label": "iso4017:M2.5x6",
+     "edge_ratio": 0.31600304173976096
+    },
+    {
+     "label": "nut-d10-p1-m0.8d-s4d-c5-right",
+     "edge_ratio": 0.3144912546269152
+    },
+    {
+     "label": "iso4017:M4x16",
+     "edge_ratio": 0.31394019458928774
+    },
+    {
+     "label": "iso4017:M5x25",
+     "edge_ratio": 0.31313173619376167
+    },
+    {
+     "label": "nut-d10-p1-m3d-s1.6d-c0.15-left",
+     "edge_ratio": 0.3092397766681133
+    },
+    {
+     "label": "iso4017:M3.5x16",
+     "edge_ratio": 0.3078668976898724
+    },
+    {
+     "label": "iso4017:M2x12",
+     "edge_ratio": 0.30551652546108915
+    },
+    {
+     "label": "iso4014:M4x40",
+     "edge_ratio": 0.30501547805681806
+    },
+    {
+     "label": "iso4014:M4x35",
+     "edge_ratio": 0.30499664979977786
+    },
+    {
+     "label": "iso4014:M4x30",
+     "edge_ratio": 0.30497491561748047
+    },
+    {
+     "label": "iso4014:M4x25",
+     "edge_ratio": 0.30494921153509635
+    },
+    {
+     "label": "iso4017:M2.5x5",
+     "edge_ratio": 0.30360015262145273
+    },
+    {
+     "label": "iso4017:M3x6",
+     "edge_ratio": 0.3000890017908875
+    },
+    {
+     "label": "iso4017:M5x20",
+     "edge_ratio": 0.2981565334672111
+    },
+    {
+     "label": "iso4017:M4x12",
+     "edge_ratio": 0.29471936923119596
+    },
+    {
+     "label": "iso4014:M3.5x35",
+     "edge_ratio": 0.29427802063184366
+    },
+    {
+     "label": "iso4014:M3.5x30",
+     "edge_ratio": 0.2942570502633143
+    },
+    {
+     "label": "iso4014:M3.5x25",
+     "edge_ratio": 0.29423224951061383
+    },
+    {
+     "label": "iso4014:M3.5x20",
+     "edge_ratio": 0.2942018986871259
+    },
+    {
+     "label": "iso4032:M18",
+     "edge_ratio": 0.29389139187099206
+    },
+    {
+     "label": "iso4014:M2x20",
+     "edge_ratio": 0.2936192961106817
+    },
+    {
+     "label": "iso4014:M2x16",
+     "edge_ratio": 0.2935890085149347
+    },
+    {
+     "label": "iso4017:M2x10",
+     "edge_ratio": 0.29352522446524104
+    },
+    {
+     "label": "iso4032:M16",
+     "edge_ratio": 0.2904719744951647
+    },
+    {
+     "label": "iso4017:M3.5x12",
+     "edge_ratio": 0.2890179067800717
+    },
+    {
+     "label": "iso4014:M5x50",
+     "edge_ratio": 0.2840470878234924
+    },
+    {
+     "label": "iso4014:M5x45",
+     "edge_ratio": 0.28403325292686615
+    },
+    {
+     "label": "iso4014:M5x40",
+     "edge_ratio": 0.2840177876259813
+    },
+    {
+     "label": "iso4014:M5x35",
+     "edge_ratio": 0.2840002555323856
+    },
+    {
+     "label": "iso4014:M5x30",
+     "edge_ratio": 0.28398001756147784
+    },
+    {
+     "label": "iso4014:M5x25",
+     "edge_ratio": 0.2839560829839337
+    },
+    {
+     "label": "iso4017:M5x16",
+     "edge_ratio": 0.28389750438510564
+    },
+    {
+     "label": "iso4017:M4x10",
+     "edge_ratio": 0.2831518487495337
+    },
+    {
+     "label": "nut-d10-p3.5-m3d-s4d-c5-right",
+     "edge_ratio": 0.28270642526194933
+    },
+    {
+     "label": "iso4017:M2x8",
+     "edge_ratio": 0.2794876829654447
+    },
+    {
+     "label": "iso4017:M3.5x10",
+     "edge_ratio": 0.2776741645449864
+    },
+    {
+     "label": "iso4017:M4x8",
+     "edge_ratio": 0.26961040325772945
+    },
+    {
+     "label": "iso4017:M5x12",
+     "edge_ratio": 0.26651602713106054
+    },
+    {
+     "label": "iso4017:M3.5x8",
+     "edge_ratio": 0.2643946836577036
+    },
+    {
+     "label": "iso4017:M2x6",
+     "edge_ratio": 0.2623761947374249
+    },
+    {
+     "label": "iso4032:M14",
+     "edge_ratio": 0.259639489607091
+    },
+    {
+     "label": "iso4017:M5x10",
+     "edge_ratio": 0.2560554672751816
+    },
+    {
+     "label": "bolt-d3-p0.1-n3-left",
+     "edge_ratio": 0.25306780373728766
+    },
+    {
+     "label": "iso4017:M2x5",
+     "edge_ratio": 0.2520781202863201
+    },
+    {
+     "label": "bolt-d3-p0.1-n3-right",
+     "edge_ratio": 0.24450105740870534
+    },
+    {
+     "label": "nut-d10-p1-m0.8d-s4d-c0.15-right",
+     "edge_ratio": 0.24115967562849913
+    },
+    {
+     "label": "iso4017:M2x4",
+     "edge_ratio": 0.24002274384922984
+    },
+    {
+     "label": "nut-d10-p1-m0.8d-s1.6d-c0.15-right",
+     "edge_ratio": 0.2397474109010774
+    },
+    {
+     "label": "iso4032:M12",
+     "edge_ratio": 0.23814052097322025
+    },
+    {
+     "label": "bolt-d3-p0.35-n3-left",
+     "edge_ratio": 0.23793021937257072
+    },
+    {
+     "label": "bolt-d3-p0.35-n3-right",
+     "edge_ratio": 0.22987590427137078
+    },
+    {
+     "label": "nut-d10-p1-m0.8d-s1.6d-c0.15-left",
+     "edge_ratio": 0.2284461425844059
+    },
+    {
+     "label": "bolt-d3-p1-n3-left",
+     "edge_ratio": 0.22594446699815368
+    },
+    {
+     "label": "bolt-d1-p0.1-n30-left",
+     "edge_ratio": 0.22073865672579085
+    },
+    {
+     "label": "bolt-d3-p1-n3-right",
+     "edge_ratio": 0.21829588861506832
+    },
+    {
+     "label": "nut-d10-p3.5-m3d-s4d-c0.15-right",
+     "edge_ratio": 0.21678628200693184
+    },
+    {
+     "label": "nut-d10-p3.5-m3d-s1.6d-c0.15-right",
+     "edge_ratio": 0.21551675127518996
+    },
+    {
+     "label": "bolt-d1-p0.1-n30-right",
+     "edge_ratio": 0.2132663032728604
+    },
+    {
+     "label": "iso4032:M10",
+     "edge_ratio": 0.2123573587955525
+    },
+    {
+     "label": "nut-d10-p3.5-m0.8d-s4d-c5-right",
+     "edge_ratio": 0.20884503614239724
+    },
+    {
+     "label": "bolt-d1-p0.35-n30-left",
+     "edge_ratio": 0.20753488291737018
+    },
+    {
+     "label": "nut-d10-p3.5-m3d-s1.6d-c0.15-left",
+     "edge_ratio": 0.20535767333668725
+    },
+    {
+     "label": "bolt-d1-p0.35-n30-right",
+     "edge_ratio": 0.20050949813894617
+    },
+    {
+     "label": "iso4032:M8",
+     "edge_ratio": 0.18821785414263853
+    },
+    {
+     "label": "nut-d3-p0.35-m3d-s4d-c0.15-right",
+     "edge_ratio": 0.17133718644119497
+    },
+    {
+     "label": "nut-d3-p0.35-m3d-s1.6d-c0.15-right",
+     "edge_ratio": 0.1703338119579784
+    },
+    {
+     "label": "nut-d3-p0.35-m3d-s1.6d-c0.15-left",
+     "edge_ratio": 0.1623045777522632
+    },
+    {
+     "label": "iso4032:M6",
+     "edge_ratio": 0.16063336269370274
+    },
+    {
+     "label": "nut-d10-p3.5-m0.8d-s4d-c0.15-right",
+     "edge_ratio": 0.16014754124871078
+    },
+    {
+     "label": "nut-d10-p3.5-m0.8d-s1.6d-c0.15-right",
+     "edge_ratio": 0.15920969488986395
+    },
+    {
+     "label": "nut-d10-p3.5-m0.8d-s1.6d-c0.15-left",
+     "edge_ratio": 0.15170483186004732
+    },
+    {
+     "label": "iso4032:M5",
+     "edge_ratio": 0.15153531942369292
+    },
+    {
+     "label": "bolt-d1-p0.1-n3-left",
+     "edge_ratio": 0.13312659017805512
+    },
+    {
+     "label": "bolt-d1-p0.1-n3-right",
+     "edge_ratio": 0.12862004406352665
+    },
+    {
+     "label": "iso4032:M4",
+     "edge_ratio": 0.1271060962173078
+    },
+    {
+     "label": "nut-d3-p0.35-m0.8d-s4d-c0.15-right",
+     "edge_ratio": 0.1265727188962627
+    },
+    {
+     "label": "nut-d3-p0.35-m0.8d-s1.6d-c0.15-right",
+     "edge_ratio": 0.12583149138430375
+    },
+    {
+     "label": "bolt-d1-p0.35-n3-left",
+     "edge_ratio": 0.12516344765163837
+    },
+    {
+     "label": "nut-d3-p1-m3d-s4d-c0.15-right",
+     "edge_ratio": 0.12158145368594273
+    },
+    {
+     "label": "bolt-d1-p0.35-n3-right",
+     "edge_ratio": 0.12092646653508557
+    },
+    {
+     "label": "nut-d3-p1-m3d-s1.6d-c0.15-right",
+     "edge_ratio": 0.12086945571985774
+    },
+    {
+     "label": "nut-d3-p0.35-m0.8d-s1.6d-c0.15-left",
+     "edge_ratio": 0.11990001774929666
+    },
+    {
+     "label": "iso4032:M3.5",
+     "edge_ratio": 0.11978731082787608
+    },
+    {
+     "label": "nut-d3-p1-m3d-s1.6d-c0.15-left",
+     "edge_ratio": 0.11517188365746839
+    },
+    {
+     "label": "iso4032:M3",
+     "edge_ratio": 0.11208595425930998
+    },
+    {
+     "label": "iso4032:M2.5",
+     "edge_ratio": 0.09995128770323179
+    },
+    {
+     "label": "nut-d3-p1-m0.8d-s4d-c0.15-right",
+     "edge_ratio": 0.08981643436564468
+    },
+    {
+     "label": "nut-d3-p1-m0.8d-s1.6d-c0.15-right",
+     "edge_ratio": 0.08929045678723431
+    },
+    {
+     "label": "iso4032:M2",
+     "edge_ratio": 0.08649725509070215
+    },
+    {
+     "label": "nut-d3-p1-m0.8d-s1.6d-c0.15-left",
+     "edge_ratio": 0.08508146280278178
+    }
+   ],
+   "draw": [
+    "iso4017:M10x65",
+    "nut-d10-p1-m0.8d-s4d-c5-right",
+    "iso4017:M3x25",
+    "iso4014:M18x180",
+    "iso4017:M5x30",
+    "iso4017:M10x90",
+    "nut-d30-p3.5-m3d-s1.6d-c5-right",
+    "iso4017:M14x55",
+    "nut-d3-p0.35-m3d-s1.6d-c0.15-right",
+    "bolt-d30-p0.1-n3-right",
+    "bolt-d10-p1-n3-right",
+    "iso4017:M10x60",
+    "bolt-d3-p0.1-n3-right",
+    "bolt-d10-p3-n30-right",
+    "iso4017:M6x16",
+    "nut-d10-p1-m3d-s1.6d-c0.15-left",
+    "bolt-d1-p0.35-n30-right",
+    "iso4017:M8x60",
+    "iso4017:M7x16",
+    "iso4017:M20x120",
+    "iso4032:M2",
+    "iso4017:M4x30",
+    "iso4014:M4x30",
+    "nut-d30-p3.5-m3d-s1.6d-c0.15-left",
+    "nut-d30-p1-m0.8d-s4d-c5-right",
+    "iso4014:M4x25",
+    "bolt-d3-p0.35-n3-right",
+    "iso4014:M14x60",
+    "iso4017:M18x180",
+    "nut-d30-p3.5-m0.8d-s1.6d-c5-right",
+    "nut-d3-p1-m0.8d-s1.6d-c0.15-left",
+    "bolt-d10-p0.1-n30-left",
+    "iso4017:M20x60",
+    "iso4017:M5x35",
+    "iso4017:M3.5x12",
+    "iso4017:M12x100",
+    "bolt-d3-p1-n30-left",
+    "iso4017:M12x35",
+    "iso4017:M18x130",
+    "iso4017:M10x45",
+    "iso4017:M2x6",
+    "iso4017:M16x80",
+    "bolt-d30-p10-n3-left",
+    "iso4014:M2.5x16",
+    "iso4014:M3.5x30",
+    "bolt-d10-p1-n30-right",
+    "iso4014:M3.5x20",
+    "iso4017:M2.5x6",
+    "bolt-d30-p1-n3-left",
+    "iso4017:M3x8",
+    "iso4017:M14x100",
+    "iso4017:M6x50",
+    "bolt-d10-p0.1-n30-right",
+    "iso4017:M6x20",
+    "iso4017:M7x55",
+    "iso4017:M7x65",
+    "bolt-d1-p0.1-n3-left",
+    "iso4017:M16x100",
+    "iso4017:M2.5x12",
+    "bolt-d3-p0.35-n30-right",
+    "iso4017:M2.5x25",
+    "iso4017:M5x16",
+    "bolt-d30-p1-n3-right",
+    "iso4017:M8x45",
+    "nut-d10-p1-m0.8d-s4d-c0.15-right",
+    "iso4017:M2.5x5",
+    "iso4014:M8x45",
+    "iso4017:M14x40",
+    "iso4032:M6",
+    "iso4017:M7x40",
+    "iso4017:M12x30",
+    "iso4014:M5x40",
+    "iso4017:M3x16",
+    "iso4017:M6x60",
+    "iso4014:M20x120",
+    "bolt-d30-p0.35-n3-right",
+    "iso4017:M14x130",
+    "nut-d3-p1-m0.8d-s4d-c0.15-right",
+    "iso4017:M14x140",
+    "iso4014:M14x120",
+    "nut-d10-p0.35-m3d-s4d-c0.15-right",
+    "iso4017:M3.5x30",
+    "nut-d10-p3.5-m3d-s1.6d-c0.15-right",
+    "iso4017:M8x30",
+    "bolt-d10-p3-n3-left",
+    "iso4017:M20x110",
+    "iso4017:M6x55",
+    "nut-d10-p3.5-m0.8d-s1.6d-c0.15-right",
+    "iso4014:M8x65",
+    "iso4017:M7x50",
+    "iso4017:M5x20",
+    "iso4014:M10x100",
+    "iso4017:M14x110",
+    "nut-d10-p1-m3d-s4d-c0.15-right",
+    "iso4014:M20x130",
+    "iso4014:M16x80",
+    "iso4017:M5x50",
+    "bolt-d10-p3-n3-right",
+    "iso4014:M6x30",
+    "iso4017:M8x16",
+    "iso4014:M12x70",
+    "iso4017:M2x20",
+    "iso4014:M10x65",
+    "iso4017:M2x5",
+    "bolt-d3-p0.1-n3-left",
+    "iso4017:M12x90",
+    "bolt-d10-p0.35-n30-left",
+    "iso4017:M12x50",
+    "nut-d10-p3.5-m0.8d-s1.6d-c0.15-left",
+    "iso4014:M7x45",
+    "iso4017:M2x8",
+    "nut-d10-p3.5-m0.8d-s4d-c0.15-right",
+    "iso4017:M2.5x16",
+    "nut-d30-p3.5-m0.8d-s4d-c0.15-right",
+    "nut-d30-p1-m0.8d-s1.6d-c5-right",
+    "nut-d30-p3.5-m0.8d-s1.6d-c0.15-right",
+    "iso4017:M16x35",
+    "iso4014:M18x160",
+    "iso4014:M14x65",
+    "iso4014:M18x120",
+    "iso4017:M18x50",
+    "iso4017:M2.5x8",
+    "iso4014:M10x80",
+    "iso4014:M20x160",
+    "nut-d10-p1-m0.8d-s1.6d-c0.15-left",
+    "iso4017:M14x80",
+    "bolt-d3-p0.1-n30-right",
+    "iso4014:M18x70",
+    "iso4017:M14x70",
+    "iso4017:M16x140",
+    "iso4017:M14x90",
+    "iso4017:M18x60",
+    "iso4014:M6x50",
+    "iso4017:M10x70",
+    "iso4014:M2.5x20",
+    "iso4017:M10x30",
+    "iso4014:M7x70",
+    "iso4017:M12x65",
+    "iso4017:M3x12",
+    "iso4014:M18x80",
+    "iso4014:M16x120",
+    "iso4014:M16x130",
+    "bolt-d3-p1-n3-left",
+    "iso4017:M3x6",
+    "iso4017:M2.5x10",
+    "iso4017:M6x30",
+    "iso4014:M20x100",
+    "iso4017:M7x20",
+    "iso4014:M6x40",
+    "iso4014:M16x140",
+    "bolt-d10-p0.35-n30-right",
+    "nut-d3-p1-m0.8d-s1.6d-c0.15-right",
+    "bolt-d10-p0.1-n3-left",
+    "iso4017:M7x70",
+    "iso4014:M10x60",
+    "iso4017:M8x70",
+    "iso4014:M20x110",
+    "iso4017:M2x4",
+    "nut-d3-p1-m3d-s4d-c0.15-right",
+    "bolt-d10-p1-n3-left",
+    "iso4017:M14x45",
+    "iso4014:M10x70",
+    "iso4017:M2.5x20",
+    "iso4032:M3.5",
+    "nut-d10-p0.35-m0.8d-s1.6d-c0.15-left",
+    "iso4014:M14x140",
+    "nut-d3-p1-m3d-s1.6d-c0.15-left",
+    "nut-d10-p0.35-m3d-s1.6d-c0.15-left",
+    "iso4017:M4x12",
+    "iso4017:M16x65",
+    "iso4014:M7x35",
+    "iso4017:M14x50",
+    "bolt-d3-p1-n3-right",
+    "iso4014:M18x110",
+    "bolt-d1-p0.35-n30-left",
+    "iso4014:M12x120",
+    "nut-d30-p3.5-m0.8d-s4d-c5-right",
+    "iso4017:M3x30",
+    "nut-d10-p1-m3d-s4d-c5-right",
+    "iso4032:M12",
+    "iso4014:M8x55",
+    "iso4017:M3.5x10",
+    "iso4014:M16x90",
+    "nut-d3-p1-m3d-s1.6d-c0.15-right",
+    "iso4017:M16x110",
+    "iso4017:M16x45",
+    "iso4014:M2x16",
+    "iso4017:M14x65",
+    "iso4014:M7x40",
+    "nut-d30-p1-m0.8d-s1.6d-c0.15-left",
+    "iso4017:M8x80",
+    "nut-d30-p1-m0.8d-s4d-c0.15-right",
+    "iso4017:M4x10",
+    "bolt-d30-p10-n3-right",
+    "iso4017:M4x8",
+    "iso4017:M10x40",
+    "nut-d3-p0.35-m3d-s1.6d-c0.15-left",
+    "iso4014:M3.5x25",
+    "iso4017:M20x80",
+    "iso4017:M20x40",
+    "iso4017:M18x160",
+    "iso4017:M7x60",
+    "iso4032:M20",
+    "bolt-d1-p0.35-n3-right",
+    "iso4032:M10",
+    "iso4014:M12x110",
+    "iso4017:M16x150",
+    "iso4017:M16x160",
+    "nut-d10-p0.35-m3d-s1.6d-c0.15-right",
+    "iso4017:M20x90",
+    "nut-d3-p0.35-m0.8d-s1.6d-c0.15-left",
+    "iso4014:M16x100",
+    "iso4014:M12x65",
+    "iso4017:M12x120",
+    "iso4017:M18x90",
+    "iso4017:M7x25",
+    "nut-d30-p3.5-m0.8d-s1.6d-c0.15-left",
+    "iso4014:M6x60",
+    "iso4014:M18x90",
+    "iso4017:M4x20",
+    "iso4017:M12x55",
+    "iso4014:M5x45",
+    "iso4017:M16x55",
+    "iso4014:M18x150",
+    "bolt-d1-p0.1-n30-right",
+    "iso4014:M16x70",
+    "iso4014:M4x40",
+    "iso4017:M6x25",
+    "iso4017:M3x20",
+    "iso4014:M12x100",
+    "iso4017:M8x25",
+    "iso4014:M8x60",
+    "nut-d10-p0.35-m0.8d-s4d-c5-right",
+    "iso4014:M12x50",
+    "iso4017:M4x25",
+    "nut-d3-p0.35-m0.8d-s1.6d-c0.15-right",
+    "iso4014:M7x60",
+    "iso4017:M8x55",
+    "iso4017:M20x55",
+    "iso4032:M18",
+    "iso4017:M12x60",
+    "iso4017:M10x50",
+    "iso4017:M16x30",
+    "iso4014:M8x80",
+    "iso4017:M5x45",
+    "iso4017:M14x35",
+    "nut-d10-p3.5-m0.8d-s4d-c5-right",
+    "iso4032:M4",
+    "iso4014:M12x60",
+    "iso4017:M10x100",
+    "iso4017:M20x100",
+    "iso4014:M14x90",
+    "iso4017:M10x20",
+    "iso4014:M20x180",
+    "iso4017:M10x35",
+    "iso4017:M8x50",
+    "iso4017:M18x45",
+    "iso4017:M16x40",
+    "iso4014:M18x130",
+    "iso4017:M18x65",
+    "nut-d30-p3.5-m3d-s4d-c0.15-right",
+    "iso4017:M20x160",
+    "iso4014:M3x20",
+    "nut-d3-p0.35-m0.8d-s4d-c0.15-right",
+    "iso4014:M20x140",
+    "iso4017:M4x35",
+    "iso4017:M20x50",
+    "iso4017:M18x120",
+    "nut-d10-p3.5-m3d-s1.6d-c0.15-left",
+    "bolt-d3-p0.35-n3-left",
+    "bolt-d10-p0.1-n3-right",
+    "iso4014:M16x110",
+    "bolt-d10-p1-n30-left",
+    "iso4014:M7x65",
+    "iso4014:M10x50",
+    "iso4014:M3.5x35",
+    "bolt-d1-p0.1-n3-right",
+    "iso4014:M2x20",
+    "iso4017:M10x25",
+    "iso4014:M8x50",
+    "iso4014:M14x70",
+    "iso4017:M18x110",
+    "iso4014:M20x90",
+    "iso4017:M16x130",
+    "iso4014:M8x70",
+    "iso4017:M5x12",
+    "iso4017:M12x70",
+    "iso4017:M3x10",
+    "iso4014:M14x80",
+    "bolt-d3-p1-n30-right",
+    "iso4032:M2.5",
+    "iso4014:M10x45",
+    "iso4017:M10x55",
+    "iso4017:M20x130",
+    "iso4017:M6x35",
+    "iso4017:M3.5x25",
+    "iso4014:M14x130",
+    "iso4017:M2x16",
+    "iso4017:M3.5x8",
+    "iso4032:M14",
+    "iso4032:M3",
+    "iso4017:M16x50",
+    "iso4014:M20x200",
+    "nut-d30-p3.5-m3d-s1.6d-c0.15-right",
+    "iso4017:M18x100",
+    "iso4014:M16x160",
+    "iso4017:M18x55",
+    "bolt-d10-p0.35-n3-right",
+    "iso4017:M18x40",
+    "iso4017:M4x40",
+    "iso4014:M6x55",
+    "iso4017:M5x10",
+    "iso4014:M10x90",
+    "iso4017:M18x35",
+    "iso4017:M14x120",
+    "iso4032:M16",
+    "iso4017:M5x40",
+    "iso4017:M20x150",
+    "iso4017:M6x12",
+    "bolt-d1-p0.1-n30-left",
+    "iso4017:M16x70",
+    "iso4017:M16x90",
+    "bolt-d30-p3-n3-right",
+    "iso4017:M8x65",
+    "nut-d10-p1-m0.8d-s1.6d-c0.15-right",
+    "iso4017:M7x30",
+    "iso4014:M10x55",
+    "nut-d10-p0.35-m0.8d-s4d-c0.15-right",
+    "bolt-d10-p3-n30-left",
+    "iso4014:M16x65",
+    "iso4017:M2x12",
+    "iso4014:M18x100",
+    "bolt-d3-p0.35-n30-left",
+    "iso4017:M18x80",
+    "iso4014:M5x35",
+    "iso4017:M6x40",
+    "iso4014:M5x30",
+    "iso4014:M7x55",
+    "iso4017:M3.5x35",
+    "iso4017:M14x60",
+    "iso4014:M12x80",
+    "iso4017:M12x110",
+    "iso4017:M8x40",
+    "iso4014:M20x150",
+    "iso4017:M12x40",
+    "iso4014:M20x80",
+    "iso4017:M8x35",
+    "iso4017:M3.5x20",
+    "iso4017:M12x25",
+    "nut-d10-p0.35-m0.8d-s1.6d-c0.15-right",
+    "iso4014:M12x55",
+    "iso4014:M2.5x25",
+    "iso4014:M12x90",
+    "iso4032:M8",
+    "nut-d10-p1-m3d-s1.6d-c0.15-right",
+    "iso4017:M18x140",
+    "iso4014:M7x50",
+    "iso4017:M8x20",
+    "nut-d10-p3.5-m3d-s4d-c5-right",
+    "iso4017:M20x65",
+    "iso4017:M4x16",
+    "iso4017:M16x120",
+    "iso4017:M18x150",
+    "iso4014:M8x40",
+    "iso4014:M5x25",
+    "iso4014:M16x150",
+    "nut-d30-p1-m0.8d-s1.6d-c0.15-right",
+    "iso4017:M18x70",
+    "iso4014:M6x45",
+    "iso4014:M4x35",
+    "iso4017:M7x35",
+    "nut-d10-p3.5-m3d-s4d-c0.15-right",
+    "iso4017:M12x45",
+    "bolt-d3-p0.1-n30-left",
+    "iso4014:M14x100",
+    "iso4014:M3x30",
+    "iso4017:M12x80",
+    "iso4017:M3.5x16",
+    "iso4014:M3x25",
+    "bolt-d30-p3-n3-left",
+    "nut-d3-p0.35-m3d-s4d-c0.15-right",
+    "nut-d30-p3.5-m3d-s4d-c5-right",
+    "iso4014:M14x110",
+    "iso4017:M16x60",
+    "bolt-d1-p0.35-n3-left",
+    "bolt-d10-p0.35-n3-left",
+    "iso4017:M10x80",
+    "iso4017:M20x70",
+    "iso4017:M20x45",
+    "iso4017:M20x140",
+    "iso4032:M5",
+    "iso4014:M5x50",
+    "iso4017:M2x10",
+    "iso4017:M5x25",
+    "iso4014:M18x140",
+    "iso4014:M6x35",
+    "iso4014:M14x55",
+    "iso4017:M7x45",
+    "bolt-d30-p0.35-n3-left",
+    "iso4017:M14x30",
+    "iso4017:M6x45"
+   ]
+  },
+  "step": {
+   "candidates": [
+    "iso4017:M2x4",
+    "iso4017:M2x5",
+    "iso4017:M2x6",
+    "iso4017:M2x8",
+    "iso4017:M2x10",
+    "iso4017:M2x12",
+    "iso4017:M2x16",
+    "iso4017:M2x20",
+    "iso4017:M2.5x5",
+    "iso4017:M2.5x6",
+    "iso4017:M2.5x8",
+    "iso4017:M2.5x10",
+    "iso4017:M2.5x12",
+    "iso4017:M2.5x16",
+    "iso4017:M2.5x20",
+    "iso4017:M2.5x25",
+    "iso4017:M3x6",
+    "iso4017:M3x8",
+    "iso4017:M3x10",
+    "iso4017:M3x12",
+    "iso4017:M3x16",
+    "iso4017:M3x20",
+    "iso4017:M3x25",
+    "iso4017:M3x30",
+    "iso4017:M3.5x8",
+    "iso4017:M3.5x10",
+    "iso4017:M3.5x12",
+    "iso4017:M3.5x16",
+    "iso4017:M3.5x20",
+    "iso4017:M3.5x25",
+    "iso4017:M3.5x30",
+    "iso4017:M3.5x35",
+    "iso4017:M4x8",
+    "iso4017:M4x10",
+    "iso4017:M4x12",
+    "iso4017:M4x16",
+    "iso4017:M4x20",
+    "iso4017:M4x25",
+    "iso4017:M4x30",
+    "iso4017:M4x35",
+    "iso4017:M4x40",
+    "iso4017:M5x10",
+    "iso4017:M5x12",
+    "iso4017:M5x16",
+    "iso4017:M5x20",
+    "iso4017:M5x25",
+    "iso4017:M5x30",
+    "iso4017:M5x35",
+    "iso4017:M5x40",
+    "iso4017:M5x45",
+    "iso4017:M5x50",
+    "iso4017:M6x12",
+    "iso4017:M6x16",
+    "iso4017:M6x20",
+    "iso4017:M6x25",
+    "iso4017:M6x30",
+    "iso4017:M6x35",
+    "iso4017:M6x40",
+    "iso4017:M6x45",
+    "iso4017:M6x50",
+    "iso4017:M6x55",
+    "iso4017:M6x60",
+    "iso4017:M7x16",
+    "iso4017:M7x20",
+    "iso4017:M7x25",
+    "iso4017:M7x30",
+    "iso4017:M7x35",
+    "iso4017:M7x40",
+    "iso4017:M7x45",
+    "iso4017:M7x50",
+    "iso4017:M7x55",
+    "iso4017:M7x60",
+    "iso4017:M7x65",
+    "iso4017:M7x70",
+    "iso4017:M8x16",
+    "iso4017:M8x20",
+    "iso4017:M8x25",
+    "iso4017:M8x30",
+    "iso4017:M8x35",
+    "iso4017:M8x40",
+    "iso4017:M8x45",
+    "iso4017:M8x50",
+    "iso4017:M8x55",
+    "iso4017:M8x60",
+    "iso4017:M8x65",
+    "iso4017:M8x70",
+    "iso4017:M8x80",
+    "iso4017:M10x20",
+    "iso4017:M10x25",
+    "iso4017:M10x30",
+    "iso4017:M10x35",
+    "iso4017:M10x40",
+    "iso4017:M10x45",
+    "iso4017:M10x50",
+    "iso4017:M10x55",
+    "iso4017:M10x60",
+    "iso4017:M10x65",
+    "iso4017:M10x70",
+    "iso4017:M10x80",
+    "iso4017:M10x90",
+    "iso4017:M10x100",
+    "iso4017:M12x25",
+    "iso4017:M12x30",
+    "iso4017:M12x35",
+    "iso4017:M12x40",
+    "iso4017:M12x45",
+    "iso4017:M12x50",
+    "iso4017:M12x55",
+    "iso4017:M12x60",
+    "iso4017:M12x65",
+    "iso4017:M12x70",
+    "iso4017:M12x80",
+    "iso4017:M12x90",
+    "iso4017:M12x100",
+    "iso4017:M12x110",
+    "iso4017:M12x120",
+    "iso4017:M14x30",
+    "iso4017:M14x35",
+    "iso4017:M14x40",
+    "iso4017:M14x45",
+    "iso4017:M14x50",
+    "iso4017:M14x55",
+    "iso4017:M14x60",
+    "iso4017:M14x65",
+    "iso4017:M14x70",
+    "iso4017:M14x80",
+    "iso4017:M14x90",
+    "iso4017:M14x100",
+    "iso4017:M14x110",
+    "iso4017:M14x120",
+    "iso4017:M14x130",
+    "iso4017:M14x140",
+    "iso4017:M16x30",
+    "iso4017:M16x35",
+    "iso4017:M16x40",
+    "iso4017:M16x45",
+    "iso4017:M16x50",
+    "iso4017:M16x55",
+    "iso4017:M16x60",
+    "iso4017:M16x65",
+    "iso4017:M16x70",
+    "iso4017:M16x80",
+    "iso4017:M16x90",
+    "iso4017:M16x100",
+    "iso4017:M16x110",
+    "iso4017:M16x120",
+    "iso4017:M16x130",
+    "iso4017:M16x140",
+    "iso4017:M16x150",
+    "iso4017:M16x160",
+    "iso4017:M18x35",
+    "iso4017:M18x40",
+    "iso4017:M18x45",
+    "iso4017:M18x50",
+    "iso4017:M18x55",
+    "iso4017:M18x60",
+    "iso4017:M18x65",
+    "iso4017:M18x70",
+    "iso4017:M18x80",
+    "iso4017:M18x90",
+    "iso4017:M18x100",
+    "iso4017:M18x110",
+    "iso4017:M18x120",
+    "iso4017:M18x130",
+    "iso4017:M18x140",
+    "iso4017:M18x150",
+    "iso4017:M18x160",
+    "iso4017:M18x180",
+    "iso4017:M20x40",
+    "iso4017:M20x45",
+    "iso4017:M20x50",
+    "iso4017:M20x55",
+    "iso4017:M20x60",
+    "iso4017:M20x65",
+    "iso4017:M20x70",
+    "iso4017:M20x80",
+    "iso4017:M20x90",
+    "iso4017:M20x100",
+    "iso4017:M20x110",
+    "iso4017:M20x120",
+    "iso4017:M20x130",
+    "iso4017:M20x140",
+    "iso4017:M20x150",
+    "iso4017:M20x160",
+    "iso4017:M20x180",
+    "iso4017:M20x200",
+    "iso4014:M2x16",
+    "iso4014:M2x20",
+    "iso4014:M2.5x16",
+    "iso4014:M2.5x20",
+    "iso4014:M2.5x25",
+    "iso4014:M3x20",
+    "iso4014:M3x25",
+    "iso4014:M3x30",
+    "iso4014:M3.5x20",
+    "iso4014:M3.5x25",
+    "iso4014:M3.5x30",
+    "iso4014:M3.5x35",
+    "iso4014:M4x25",
+    "iso4014:M4x30",
+    "iso4014:M4x35",
+    "iso4014:M4x40",
+    "iso4014:M5x25",
+    "iso4014:M5x30",
+    "iso4014:M5x35",
+    "iso4014:M5x40",
+    "iso4014:M5x45",
+    "iso4014:M5x50",
+    "iso4014:M6x30",
+    "iso4014:M6x35",
+    "iso4014:M6x40",
+    "iso4014:M6x45",
+    "iso4014:M6x50",
+    "iso4014:M6x55",
+    "iso4014:M6x60",
+    "iso4014:M7x35",
+    "iso4014:M7x40",
+    "iso4014:M7x45",
+    "iso4014:M7x50",
+    "iso4014:M7x55",
+    "iso4014:M7x60",
+    "iso4014:M7x65",
+    "iso4014:M7x70",
+    "iso4014:M8x40",
+    "iso4014:M8x45",
+    "iso4014:M8x50",
+    "iso4014:M8x55",
+    "iso4014:M8x60",
+    "iso4014:M8x65",
+    "iso4014:M8x70",
+    "iso4014:M8x80",
+    "iso4014:M10x45",
+    "iso4014:M10x50",
+    "iso4014:M10x55",
+    "iso4014:M10x60",
+    "iso4014:M10x65",
+    "iso4014:M10x70",
+    "iso4014:M10x80",
+    "iso4014:M10x90",
+    "iso4014:M10x100",
+    "iso4014:M12x50",
+    "iso4014:M12x55",
+    "iso4014:M12x60",
+    "iso4014:M12x65",
+    "iso4014:M12x70",
+    "iso4014:M12x80",
+    "iso4014:M12x90",
+    "iso4014:M12x100",
+    "iso4014:M12x110",
+    "iso4014:M12x120",
+    "iso4014:M14x55",
+    "iso4014:M14x60",
+    "iso4014:M14x65",
+    "iso4014:M14x70",
+    "iso4014:M14x80",
+    "iso4014:M14x90",
+    "iso4014:M14x100",
+    "iso4014:M14x110",
+    "iso4014:M14x120",
+    "iso4014:M14x130",
+    "iso4014:M14x140",
+    "iso4014:M16x65",
+    "iso4014:M16x70",
+    "iso4014:M16x80",
+    "iso4014:M16x90",
+    "iso4014:M16x100",
+    "iso4014:M16x110",
+    "iso4014:M16x120",
+    "iso4014:M16x130",
+    "iso4014:M16x140",
+    "iso4014:M16x150",
+    "iso4014:M16x160",
+    "iso4014:M18x70",
+    "iso4014:M18x80",
+    "iso4014:M18x90",
+    "iso4014:M18x100",
+    "iso4014:M18x110",
+    "iso4014:M18x120",
+    "iso4014:M18x130",
+    "iso4014:M18x140",
+    "iso4014:M18x150",
+    "iso4014:M18x160",
+    "iso4014:M18x180",
+    "iso4014:M20x80",
+    "iso4014:M20x90",
+    "iso4014:M20x100",
+    "iso4014:M20x110",
+    "iso4014:M20x120",
+    "iso4014:M20x130",
+    "iso4014:M20x140",
+    "iso4014:M20x150",
+    "iso4014:M20x160",
+    "iso4014:M20x180",
+    "iso4014:M20x200",
+    "iso4032:M2",
+    "iso4032:M2.5",
+    "iso4032:M3",
+    "iso4032:M3.5",
+    "iso4032:M4",
+    "iso4032:M5",
+    "iso4032:M6",
+    "iso4032:M8",
+    "iso4032:M10",
+    "iso4032:M12",
+    "iso4032:M14",
+    "iso4032:M16",
+    "iso4032:M18",
+    "iso4032:M20",
+    "bolt-d1-p0.1-n3-right",
+    "bolt-d1-p0.1-n3-left",
+    "bolt-d1-p0.1-n30-right",
+    "bolt-d1-p0.1-n30-left",
+    "bolt-d1-p0.35-n3-right",
+    "bolt-d1-p0.35-n3-left",
+    "bolt-d1-p0.35-n30-right",
+    "bolt-d1-p0.35-n30-left",
+    "bolt-d3-p0.1-n3-right",
+    "bolt-d3-p0.1-n3-left",
+    "bolt-d3-p0.1-n30-right",
+    "bolt-d3-p0.1-n30-left",
+    "bolt-d3-p0.35-n3-right",
+    "bolt-d3-p0.35-n3-left",
+    "bolt-d3-p0.35-n30-right",
+    "bolt-d3-p0.35-n30-left",
+    "bolt-d3-p1-n3-right",
+    "bolt-d3-p1-n3-left",
+    "bolt-d3-p1-n30-right",
+    "bolt-d3-p1-n30-left",
+    "bolt-d10-p0.1-n3-right",
+    "bolt-d10-p0.1-n3-left",
+    "bolt-d10-p0.35-n3-right",
+    "bolt-d10-p0.35-n3-left",
+    "bolt-d10-p0.35-n30-right",
+    "bolt-d10-p0.35-n30-left",
+    "bolt-d10-p1-n3-right",
+    "bolt-d10-p1-n3-left",
+    "bolt-d10-p1-n30-right",
+    "bolt-d10-p1-n30-left",
+    "bolt-d10-p3-n3-right",
+    "bolt-d10-p3-n3-left",
+    "bolt-d10-p3-n30-right",
+    "bolt-d10-p3-n30-left",
+    "bolt-d30-p0.1-n3-right",
+    "bolt-d30-p0.1-n3-left",
+    "bolt-d30-p0.35-n3-right",
+    "bolt-d30-p0.35-n3-left",
+    "bolt-d30-p0.35-n30-left",
+    "bolt-d30-p1-n3-right",
+    "bolt-d30-p1-n3-left",
+    "bolt-d30-p1-n30-right",
+    "bolt-d30-p1-n30-left",
+    "bolt-d30-p3-n3-right",
+    "bolt-d30-p3-n3-left",
+    "bolt-d30-p3-n30-right",
+    "bolt-d30-p3-n30-left",
+    "bolt-d30-p10-n3-right",
+    "bolt-d30-p10-n3-left",
+    "bolt-d30-p10-n30-right",
+    "bolt-d30-p10-n30-left",
+    "bolt-d100-p0.1-n3-right",
+    "bolt-d100-p0.1-n3-left",
+    "bolt-d100-p0.35-n3-right",
+    "bolt-d100-p0.35-n3-left",
+    "bolt-d100-p1-n3-right",
+    "bolt-d100-p1-n3-left",
+    "bolt-d100-p3-n3-right",
+    "bolt-d100-p3-n3-left",
+    "bolt-d100-p3-n30-right",
+    "bolt-d100-p3-n30-left",
+    "bolt-d100-p10-n3-right",
+    "bolt-d100-p10-n3-left",
+    "bolt-d100-p10-n30-right",
+    "bolt-d100-p10-n30-left",
+    "bolt-d300-p0.1-n3-right",
+    "bolt-d300-p0.1-n3-left",
+    "bolt-d300-p0.35-n3-right",
+    "bolt-d300-p0.35-n3-left",
+    "bolt-d300-p1-n3-right",
+    "bolt-d300-p1-n3-left",
+    "bolt-d300-p3-n3-right",
+    "bolt-d300-p3-n3-left",
+    "bolt-d300-p10-n3-right",
+    "bolt-d300-p10-n3-left",
+    "bolt-d300-p10-n30-right",
+    "nut-d3-p0.35-m0.8d-s1.6d-c0.15-right",
+    "nut-d3-p0.35-m0.8d-s4d-c0.15-right",
+    "nut-d3-p0.35-m3d-s1.6d-c0.15-right",
+    "nut-d3-p0.35-m3d-s4d-c0.15-right",
+    "nut-d3-p1-m0.8d-s1.6d-c0.15-right",
+    "nut-d3-p1-m0.8d-s4d-c0.15-right",
+    "nut-d3-p1-m3d-s1.6d-c0.15-right",
+    "nut-d3-p1-m3d-s4d-c0.15-right",
+    "nut-d10-p0.35-m0.8d-s1.6d-c0.15-right",
+    "nut-d10-p0.35-m0.8d-s4d-c0.15-right",
+    "nut-d10-p0.35-m0.8d-s4d-c5-right",
+    "nut-d10-p0.35-m3d-s4d-c5-right",
+    "nut-d10-p1-m0.8d-s1.6d-c0.15-right",
+    "nut-d10-p1-m0.8d-s4d-c0.15-right",
+    "nut-d10-p1-m0.8d-s4d-c5-right",
+    "nut-d10-p1-m3d-s1.6d-c0.15-right",
+    "nut-d10-p1-m3d-s4d-c0.15-right",
+    "nut-d10-p1-m3d-s4d-c5-right",
+    "nut-d10-p3.5-m0.8d-s1.6d-c0.15-right",
+    "nut-d10-p3.5-m0.8d-s4d-c0.15-right",
+    "nut-d10-p3.5-m0.8d-s4d-c5-right",
+    "nut-d10-p3.5-m3d-s1.6d-c0.15-right",
+    "nut-d10-p3.5-m3d-s4d-c0.15-right",
+    "nut-d10-p3.5-m3d-s4d-c5-right",
+    "nut-d30-p0.35-m0.8d-s4d-c5-right",
+    "nut-d30-p1-m0.8d-s1.6d-c0.15-right",
+    "nut-d30-p1-m0.8d-s1.6d-c5-right",
+    "nut-d30-p1-m0.8d-s4d-c0.15-right",
+    "nut-d30-p1-m0.8d-s4d-c5-right",
+    "nut-d30-p3.5-m0.8d-s1.6d-c0.15-right",
+    "nut-d30-p3.5-m0.8d-s1.6d-c5-right",
+    "nut-d30-p3.5-m0.8d-s4d-c0.15-right",
+    "nut-d30-p3.5-m0.8d-s4d-c5-right",
+    "nut-d30-p3.5-m3d-s1.6d-c0.15-right",
+    "nut-d30-p3.5-m3d-s1.6d-c5-right",
+    "nut-d30-p3.5-m3d-s4d-c0.15-right",
+    "nut-d30-p3.5-m3d-s4d-c5-right",
+    "nut-d100-p3.5-m0.8d-s1.6d-c0.15-right",
+    "nut-d100-p3.5-m0.8d-s1.6d-c5-right",
+    "nut-d100-p3.5-m0.8d-s4d-c0.15-right",
+    "nut-d100-p3.5-m0.8d-s4d-c5-right",
+    "nut-d100-p3.5-m3d-s4d-c5-right",
+    "nut-d3-p0.35-m0.8d-s1.6d-c0.15-left",
+    "nut-d3-p0.35-m3d-s1.6d-c0.15-left",
+    "nut-d3-p1-m0.8d-s1.6d-c0.15-left",
+    "nut-d3-p1-m3d-s1.6d-c0.15-left",
+    "nut-d10-p0.35-m0.8d-s1.6d-c0.15-left",
+    "nut-d10-p1-m0.8d-s1.6d-c0.15-left",
+    "nut-d10-p1-m3d-s1.6d-c0.15-left",
+    "nut-d10-p3.5-m0.8d-s1.6d-c0.15-left",
+    "nut-d10-p3.5-m3d-s1.6d-c0.15-left",
+    "nut-d30-p1-m0.8d-s1.6d-c0.15-left",
+    "nut-d30-p3.5-m0.8d-s1.6d-c0.15-left",
+    "nut-d30-p3.5-m3d-s1.6d-c0.15-left",
+    "nut-d100-p3.5-m0.8d-s1.6d-c0.15-left"
+   ],
+   "edge_ranking": [
+    {
+     "label": "iso4017:M16x160",
+     "edge_ratio": 1.0
+    },
+    {
+     "label": "iso4017:M20x200",
+     "edge_ratio": 1.0
+    },
+    {
+     "label": "bolt-d100-p3-n30-left",
+     "edge_ratio": 0.9972174328074246
+    },
+    {
+     "label": "nut-d30-p0.35-m0.8d-s4d-c5-right",
+     "edge_ratio": 0.9914115185545779
+    },
+    {
+     "label": "bolt-d30-p0.35-n30-left",
+     "edge_ratio": 0.9899799724693683
+    },
+    {
+     "label": "iso4017:M16x150",
+     "edge_ratio": 0.9854485006650343
+    },
+    {
+     "label": "iso4017:M20x180",
+     "edge_ratio": 0.9834732156490028
+    },
+    {
+     "label": "bolt-d300-p10-n30-right",
+     "edge_ratio": 0.9821573501750618
+    },
+    {
+     "label": "bolt-d100-p10-n30-left",
+     "edge_ratio": 0.9761777853511012
+    },
+    {
+     "label": "iso4017:M16x140",
+     "edge_ratio": 0.9747531544931062
+    },
+    {
+     "label": "nut-d10-p0.35-m3d-s4d-c5-right",
+     "edge_ratio": 0.9720150035014896
+    },
+    {
+     "label": "bolt-d30-p1-n30-left",
+     "edge_ratio": 0.9717424878125066
+    },
+    {
+     "label": "iso4017:M20x160",
+     "edge_ratio": 0.9653209707777588
+    },
+    {
+     "label": "iso4017:M14x140",
+     "edge_ratio": 0.9649169586123675
+    },
+    {
+     "label": "iso4017:M16x130",
+     "edge_ratio": 0.9633941330816161
+    },
+    {
+     "label": "iso4017:M12x120",
+     "edge_ratio": 0.963386978317583
+    },
+    {
+     "label": "bolt-d100-p3-n30-right",
+     "edge_ratio": 0.9626664730048586
+    },
+    {
+     "label": "iso4017:M18x180",
+     "edge_ratio": 0.9604449429369374
+    },
+    {
+     "label": "iso4017:M10x100",
+     "edge_ratio": 0.9568578315679214
+    },
+    {
+     "label": "iso4017:M20x150",
+     "edge_ratio": 0.9555170416468108
+    },
+    {
+     "label": "iso4017:M14x130",
+     "edge_ratio": 0.9536725606407729
+    },
+    {
+     "label": "bolt-d30-p3-n30-left",
+     "edge_ratio": 0.9530170749219712
+    },
+    {
+     "label": "iso4017:M16x120",
+     "edge_ratio": 0.951274103313458
+    },
+    {
+     "label": "iso4017:M12x110",
+     "edge_ratio": 0.9502190967719153
+    },
+    {
+     "label": "bolt-d10-p0.35-n30-left",
+     "edge_ratio": 0.9498614074416765
+    },
+    {
+     "label": "iso4017:M20x140",
+     "edge_ratio": 0.9451465499096041
+    },
+    {
+     "label": "iso4017:M18x160",
+     "edge_ratio": 0.9427177374450888
+    },
+    {
+     "label": "bolt-d100-p10-n30-right",
+     "edge_ratio": 0.942355793965661
+    },
+    {
+     "label": "iso4017:M14x120",
+     "edge_ratio": 0.9416748336180127
+    },
+    {
+     "label": "iso4017:M10x90",
+     "edge_ratio": 0.9410440485310387
+    },
+    {
+     "label": "iso4017:M16x110",
+     "edge_ratio": 0.9382717844199937
+    },
+    {
+     "label": "bolt-d30-p1-n30-right",
+     "edge_ratio": 0.9380741678149971
+    },
+    {
+     "label": "iso4017:M12x100",
+     "edge_ratio": 0.9360017749701566
+    },
+    {
+     "label": "nut-d100-p3.5-m3d-s4d-c5-right",
+     "edge_ratio": 0.9351053963893278
+    },
+    {
+     "label": "iso4017:M20x130",
+     "edge_ratio": 0.9341325410316313
+    },
+    {
+     "label": "iso4017:M18x150",
+     "edge_ratio": 0.9331433697806706
+    },
+    {
+     "label": "bolt-d30-p10-n30-left",
+     "edge_ratio": 0.9329099823095118
+    },
+    {
+     "label": "nut-d30-p1-m0.8d-s1.6d-c5-right",
+     "edge_ratio": 0.9327696481425787
+    },
+    {
+     "label": "bolt-d10-p1-n30-left",
+     "edge_ratio": 0.9323629899725303
+    },
+    {
+     "label": "bolt-d3-p0.1-n30-right",
+     "edge_ratio": 0.9303530063316765
+    },
+    {
+     "label": "iso4017:M14x110",
+     "edge_ratio": 0.9288037206149324
+    },
+    {
+     "label": "bolt-d3-p0.1-n30-left",
+     "edge_ratio": 0.92812676647251
+    },
+    {
+     "label": "iso4017:M3x30",
+     "edge_ratio": 0.9281090867764142
+    },
+    {
+     "label": "iso4017:M2.5x25",
+     "edge_ratio": 0.9245580470948304
+    },
+    {
+     "label": "iso4017:M16x100",
+     "edge_ratio": 0.9242332201121155
+    },
+    {
+     "label": "iso4017:M10x80",
+     "edge_ratio": 0.9236749308654504
+    },
+    {
+     "label": "iso4017:M18x140",
+     "edge_ratio": 0.9230157057159238
+    },
+    {
+     "label": "iso4017:M20x120",
+     "edge_ratio": 0.9223806382371883
+    },
+    {
+     "label": "iso4017:M8x80",
+     "edge_ratio": 0.9220109691131282
+    },
+    {
+     "label": "iso4017:M12x90",
+     "edge_ratio": 0.9205326754830773
+    },
+    {
+     "label": "bolt-d30-p3-n30-right",
+     "edge_ratio": 0.9199975412039453
+    },
+    {
+     "label": "bolt-d10-p0.35-n30-right",
+     "edge_ratio": 0.9169512092974932
+    },
+    {
+     "label": "iso4017:M14x100",
+     "edge_ratio": 0.9149068189093039
+    },
+    {
+     "label": "bolt-d10-p3-n30-left",
+     "edge_ratio": 0.9143964173773651
+    },
+    {
+     "label": "iso4017:M18x130",
+     "edge_ratio": 0.9122595926261221
+    },
+    {
+     "label": "iso4017:M20x110",
+     "edge_ratio": 0.909773244471564
+    },
+    {
+     "label": "iso4017:M6x60",
+     "edge_ratio": 0.9094991813416146
+    },
+    {
+     "label": "iso4017:M16x90",
+     "edge_ratio": 0.9089586169932978
+    },
+    {
+     "label": "bolt-d3-p0.35-n30-left",
+     "edge_ratio": 0.9077600434168726
+    },
+    {
+     "label": "nut-d100-p3.5-m0.8d-s1.6d-c5-right",
+     "edge_ratio": 0.9069979692674833
+    },
+    {
+     "label": "iso4017:M10x70",
+     "edge_ratio": 0.904370878260406
+    },
+    {
+     "label": "iso4017:M12x80",
+     "edge_ratio": 0.9035421420639
+    },
+    {
+     "label": "iso4017:M8x70",
+     "edge_ratio": 0.902741691951402
+    },
+    {
+     "label": "iso4017:M3x25",
+     "edge_ratio": 0.9017266914960121
+    },
+    {
+     "label": "iso4017:M18x120",
+     "edge_ratio": 0.900782863591503
+    },
+    {
+     "label": "bolt-d30-p10-n30-right",
+     "edge_ratio": 0.9005871064373518
+    },
+    {
+     "label": "bolt-d10-p1-n30-right",
+     "edge_ratio": 0.9000590659453999
+    },
+    {
+     "label": "iso4017:M14x90",
+     "edge_ratio": 0.8997863512119362
+    },
+    {
+     "label": "iso4017:M6x55",
+     "edge_ratio": 0.8970678554514661
+    },
+    {
+     "label": "iso4017:M20x100",
+     "edge_ratio": 0.8961610796274553
+    },
+    {
+     "label": "iso4017:M7x70",
+     "edge_ratio": 0.8949410883749749
+    },
+    {
+     "label": "iso4017:M10x65",
+     "edge_ratio": 0.8938320376085591
+    },
+    {
+     "label": "nut-d30-p3.5-m3d-s1.6d-c5-right",
+     "edge_ratio": 0.8933111769260264
+    },
+    {
+     "label": "iso4017:M2.5x20",
+     "edge_ratio": 0.8924952715619737
+    },
+    {
+     "label": "iso4017:M8x65",
+     "edge_ratio": 0.8922218365801687
+    },
+    {
+     "label": "iso4017:M16x80",
+     "edge_ratio": 0.8921817092636845
+    },
+    {
+     "label": "nut-d10-p0.35-m0.8d-s1.6d-c0.15-right",
+     "edge_ratio": 0.8914991089350397
+    },
+    {
+     "label": "bolt-d3-p1-n30-left",
+     "edge_ratio": 0.8910372204059862
+    },
+    {
+     "label": "bolt-d1-p0.1-n30-left",
+     "edge_ratio": 0.8905147792908049
+    },
+    {
+     "label": "iso4017:M18x110",
+     "edge_ratio": 0.8884706751219695
+    },
+    {
+     "label": "nut-d10-p0.35-m0.8d-s4d-c5-right",
+     "edge_ratio": 0.8863299331537494
+    },
+    {
+     "label": "iso4017:M12x70",
+     "edge_ratio": 0.8846588483223121
+    },
+    {
+     "label": "iso4017:M7x65",
+     "edge_ratio": 0.8845121352210248
+    },
+    {
+     "label": "iso4017:M6x50",
+     "edge_ratio": 0.8836457905589673
+    },
+    {
+     "label": "iso4017:M14x80",
+     "edge_ratio": 0.8831787386007237
+    },
+    {
+     "label": "bolt-d10-p3-n30-right",
+     "edge_ratio": 0.8827149878104227
+    },
+    {
+     "label": "iso4017:M10x60",
+     "edge_ratio": 0.8825871373838745
+    },
+    {
+     "label": "iso4017:M3.5x35",
+     "edge_ratio": 0.8818118897539537
+    },
+    {
+     "label": "iso4017:M20x90",
+     "edge_ratio": 0.8813504187206953
+    },
+    {
+     "label": "iso4017:M8x60",
+     "edge_ratio": 0.8809971935728822
+    },
+    {
+     "label": "iso4017:M2x20",
+     "edge_ratio": 0.8803484778225321
+    },
+    {
+     "label": "nut-d10-p0.35-m0.8d-s1.6d-c0.15-left",
+     "edge_ratio": 0.8787677474017054
+    },
+    {
+     "label": "nut-d3-p0.35-m3d-s1.6d-c0.15-right",
+     "edge_ratio": 0.8780461976937444
+    },
+    {
+     "label": "nut-d30-p1-m0.8d-s1.6d-c0.15-right",
+     "edge_ratio": 0.8778109165024032
+    },
+    {
+     "label": "bolt-d3-p0.35-n30-right",
+     "edge_ratio": 0.8763085467436001
+    },
+    {
+     "label": "iso4017:M18x100",
+     "edge_ratio": 0.8751772425414791
+    },
+    {
+     "label": "iso4017:M12x65",
+     "edge_ratio": 0.8743497164629893
+    },
+    {
+     "label": "iso4017:M16x70",
+     "edge_ratio": 0.8735358393008097
+    },
+    {
+     "label": "iso4017:M7x60",
+     "edge_ratio": 0.8733844845108375
+    },
+    {
+     "label": "nut-d10-p1-m3d-s1.6d-c0.15-right",
+     "edge_ratio": 0.8727352683442585
+    },
+    {
+     "label": "nut-d30-p1-m0.8d-s4d-c5-right",
+     "edge_ratio": 0.8727211089135275
+    },
+    {
+     "label": "iso4017:M4x40",
+     "edge_ratio": 0.8712090152331993
+    },
+    {
+     "label": "bolt-d1-p0.35-n30-left",
+     "edge_ratio": 0.870973410005982
+    },
+    {
+     "label": "iso4017:M10x55",
+     "edge_ratio": 0.8705236539235761
+    },
+    {
+     "label": "iso4017:M3x20",
+     "edge_ratio": 0.8704556852111502
+    },
+    {
+     "label": "iso4017:M6x45",
+     "edge_ratio": 0.8690419671357359
+    },
+    {
+     "label": "iso4017:M8x55",
+     "edge_ratio": 0.8689554419734443
+    },
+    {
+     "label": "nut-d10-p1-m3d-s4d-c5-right",
+     "edge_ratio": 0.8676748908661565
+    },
+    {
+     "label": "nut-d3-p0.35-m3d-s1.6d-c0.15-left",
+     "edge_ratio": 0.8655069551148457
+    },
+    {
+     "label": "nut-d30-p1-m0.8d-s1.6d-c0.15-left",
+     "edge_ratio": 0.8652750339379778
+    },
+    {
+     "label": "iso4017:M20x80",
+     "edge_ratio": 0.8650830833592226
+    },
+    {
+     "label": "iso4017:M14x70",
+     "edge_ratio": 0.8647210233808996
+    },
+    {
+     "label": "iso4017:M16x65",
+     "edge_ratio": 0.8633563264091774
+    },
+    {
+     "label": "iso4017:M12x60",
+     "edge_ratio": 0.8633499145881169
+    },
+    {
+     "label": "iso4017:M2.5x16",
+     "edge_ratio": 0.861544401958764
+    },
+    {
+     "label": "iso4017:M7x55",
+     "edge_ratio": 0.8614467858552567
+    },
+    {
+     "label": "iso4017:M5x50",
+     "edge_ratio": 0.8609630161762218
+    },
+    {
+     "label": "iso4017:M18x90",
+     "edge_ratio": 0.8607133769850954
+    },
+    {
+     "label": "iso4017:M3.5x30",
+     "edge_ratio": 0.8605715312130039
+    },
+    {
+     "label": "nut-d10-p1-m3d-s1.6d-c0.15-left",
+     "edge_ratio": 0.8602718703298114
+    },
+    {
+     "label": "bolt-d3-p1-n30-right",
+     "edge_ratio": 0.8601651255428165
+    },
+    {
+     "label": "bolt-d1-p0.1-n30-right",
+     "edge_ratio": 0.8596607856374376
+    },
+    {
+     "label": "iso4017:M10x50",
+     "edge_ratio": 0.8574987473878941
+    },
+    {
+     "label": "iso4017:M8x50",
+     "edge_ratio": 0.8559539992620813
+    },
+    {
+     "label": "iso4017:M14x65",
+     "edge_ratio": 0.8546442315549146
+    },
+    {
+     "label": "nut-d100-p3.5-m0.8d-s1.6d-c0.15-right",
+     "edge_ratio": 0.8535577033986088
+    },
+    {
+     "label": "iso4017:M6x40",
+     "edge_ratio": 0.8530018123660656
+    },
+    {
+     "label": "iso4017:M4x35",
+     "edge_ratio": 0.8530014574679473
+    },
+    {
+     "label": "iso4017:M16x60",
+     "edge_ratio": 0.8524948274470279
+    },
+    {
+     "label": "iso4017:M12x55",
+     "edge_ratio": 0.8515493716457451
+    },
+    {
+     "label": "iso4017:M2x16",
+     "edge_ratio": 0.849818847234369
+    },
+    {
+     "label": "nut-d100-p3.5-m0.8d-s4d-c5-right",
+     "edge_ratio": 0.8486085231199967
+    },
+    {
+     "label": "iso4017:M7x50",
+     "edge_ratio": 0.8485576887920644
+    },
+    {
+     "label": "iso4017:M20x70",
+     "edge_ratio": 0.8470035525731555
+    },
+    {
+     "label": "iso4017:M5x45",
+     "edge_ratio": 0.8467340660736963
+    },
+    {
+     "label": "iso4017:M18x80",
+     "edge_ratio": 0.8448269453727457
+    },
+    {
+     "label": "iso4017:M14x60",
+     "edge_ratio": 0.8438923355531226
+    },
+    {
+     "label": "iso4017:M10x45",
+     "edge_ratio": 0.8433270505085672
+    },
+    {
+     "label": "iso4017:M8x45",
+     "edge_ratio": 0.8418078321019031
+    },
+    {
+     "label": "nut-d100-p3.5-m0.8d-s1.6d-c0.15-left",
+     "edge_ratio": 0.8413681772368704
+    },
+    {
+     "label": "iso4017:M16x55",
+     "edge_ratio": 0.8408426553098034
+    },
+    {
+     "label": "bolt-d1-p0.35-n30-right",
+     "edge_ratio": 0.8407964733739167
+    },
+    {
+     "label": "nut-d30-p3.5-m3d-s1.6d-c0.15-right",
+     "edge_ratio": 0.8406773360397904
+    },
+    {
+     "label": "iso4017:M3x16",
+     "edge_ratio": 0.8402691270670468
+    },
+    {
+     "label": "iso4017:M12x50",
+     "edge_ratio": 0.8388083611904728
+    },
+    {
+     "label": "iso4017:M20x65",
+     "edge_ratio": 0.8371332264860448
+    },
+    {
+     "label": "iso4017:M3.5x25",
+     "edge_ratio": 0.8361089560405319
+    },
+    {
+     "label": "nut-d30-p3.5-m3d-s4d-c5-right",
+     "edge_ratio": 0.8358028399446401
+    },
+    {
+     "label": "iso4017:M6x35",
+     "edge_ratio": 0.8351747702889527
+    },
+    {
+     "label": "iso4017:M7x45",
+     "edge_ratio": 0.8345337588600202
+    },
+    {
+     "label": "nut-d10-p0.35-m0.8d-s4d-c0.15-right",
+     "edge_ratio": 0.8341074267312358
+    },
+    {
+     "label": "iso4017:M4x30",
+     "edge_ratio": 0.8324550608916549
+    },
+    {
+     "label": "iso4017:M14x55",
+     "edge_ratio": 0.8323577450282782
+    },
+    {
+     "label": "iso4017:M5x40",
+     "edge_ratio": 0.8311056545789807
+    },
+    {
+     "label": "nut-d30-p3.5-m3d-s1.6d-c0.15-left",
+     "edge_ratio": 0.8286717524214419
+    },
+    {
+     "label": "iso4017:M16x50",
+     "edge_ratio": 0.8282618403632328
+    },
+    {
+     "label": "iso4017:M10x40",
+     "edge_ratio": 0.827761523269197
+    },
+    {
+     "label": "iso4017:M18x70",
+     "edge_ratio": 0.8271707513474799
+    },
+    {
+     "label": "iso4017:M20x60",
+     "edge_ratio": 0.8266016285901029
+    },
+    {
+     "label": "iso4017:M8x40",
+     "edge_ratio": 0.8262703455087802
+    },
+    {
+     "label": "iso4017:M12x45",
+     "edge_ratio": 0.8249455562932644
+    },
+    {
+     "label": "iso4017:M2.5x12",
+     "edge_ratio": 0.8232203582070089
+    },
+    {
+     "label": "nut-d3-p0.35-m3d-s4d-c0.15-right",
+     "edge_ratio": 0.8215205681858303
+    },
+    {
+     "label": "nut-d30-p1-m0.8d-s4d-c0.15-right",
+     "edge_ratio": 0.8213004335978106
+    },
+    {
+     "label": "iso4017:M14x50",
+     "edge_ratio": 0.8199038825922826
+    },
+    {
+     "label": "iso4017:M7x40",
+     "edge_ratio": 0.8191305319056899
+    },
+    {
+     "label": "iso4017:M18x65",
+     "edge_ratio": 0.8175315414283282
+    },
+    {
+     "label": "nut-d10-p1-m3d-s4d-c0.15-right",
+     "edge_ratio": 0.8165515384146812
+    },
+    {
+     "label": "iso4017:M20x55",
+     "edge_ratio": 0.8153033729818125
+    },
+    {
+     "label": "iso4017:M6x30",
+     "edge_ratio": 0.815057768271388
+    },
+    {
+     "label": "iso4017:M16x45",
+     "edge_ratio": 0.8145733355413923
+    },
+    {
+     "label": "nut-d30-p3.5-m0.8d-s1.6d-c5-right",
+     "edge_ratio": 0.8145640066029382
+    },
+    {
+     "label": "iso4017:M5x35",
+     "edge_ratio": 0.8137362243387228
+    },
+    {
+     "label": "iso4017:M2x12",
+     "edge_ratio": 0.8120163908450873
+    },
+    {
+     "label": "iso4014:M2.5x16",
+     "edge_ratio": 0.8117307068752232
+    },
+    {
+     "label": "iso4014:M2.5x20",
+     "edge_ratio": 0.8115892333348328
+    },
+    {
+     "label": "iso4014:M2.5x25",
+     "edge_ratio": 0.8114477844513394
+    },
+    {
+     "label": "iso4014:M16x130",
+     "edge_ratio": 0.810996476119427
+    },
+    {
+     "label": "iso4014:M16x140",
+     "edge_ratio": 0.8109495312558201
+    },
+    {
+     "label": "iso4014:M16x150",
+     "edge_ratio": 0.8109058290759501
+    },
+    {
+     "label": "iso4014:M16x160",
+     "edge_ratio": 0.810864950548802
+    },
+    {
+     "label": "iso4017:M10x35",
+     "edge_ratio": 0.8104619826454783
+    },
+    {
+     "label": "iso4017:M12x40",
+     "edge_ratio": 0.809719301520891
+    },
+    {
+     "label": "iso4017:M8x35",
+     "edge_ratio": 0.809001969283884
+    },
+    {
+     "label": "iso4017:M4x25",
+     "edge_ratio": 0.808791723486035
+    },
+    {
+     "label": "iso4014:M20x130",
+     "edge_ratio": 0.8075240816646831
+    },
+    {
+     "label": "iso4014:M20x140",
+     "edge_ratio": 0.8074773378020533
+    },
+    {
+     "label": "iso4014:M20x150",
+     "edge_ratio": 0.8074338227391576
+    },
+    {
+     "label": "iso4014:M20x160",
+     "edge_ratio": 0.8073931192391217
+    },
+    {
+     "label": "iso4014:M20x180",
+     "edge_ratio": 0.8073188404929715
+    },
+    {
+     "label": "iso4014:M20x200",
+     "edge_ratio": 0.8072524016808226
+    },
+    {
+     "label": "iso4017:M18x60",
+     "edge_ratio": 0.807246543546075
+    },
+    {
+     "label": "iso4017:M3.5x20",
+     "edge_ratio": 0.8071135091210276
+    },
+    {
+     "label": "iso4017:M14x45",
+     "edge_ratio": 0.8063535079361374
+    },
+    {
+     "label": "iso4017:M20x50",
+     "edge_ratio": 0.8031046806390463
+    },
+    {
+     "label": "iso4017:M3x12",
+     "edge_ratio": 0.8028914704822527
+    },
+    {
+     "label": "iso4014:M3x20",
+     "edge_ratio": 0.8025711684967582
+    },
+    {
+     "label": "iso4014:M3x25",
+     "edge_ratio": 0.8024312913384062
+    },
+    {
+     "label": "iso4014:M3x30",
+     "edge_ratio": 0.802317021475428
+    },
+    {
+     "label": "iso4017:M7x35",
+     "edge_ratio": 0.8020113719610872
+    },
+    {
+     "label": "nut-d3-p0.35-m0.8d-s1.6d-c0.15-right",
+     "edge_ratio": 0.8006446658789744
+    },
+    {
+     "label": "iso4017:M2.5x10",
+     "edge_ratio": 0.7998195261253772
+    },
+    {
+     "label": "iso4017:M16x40",
+     "edge_ratio": 0.7995385237976118
+    },
+    {
+     "label": "nut-d100-p3.5-m0.8d-s4d-c0.15-right",
+     "edge_ratio": 0.7986085599108714
+    },
+    {
+     "label": "iso4017:M18x55",
+     "edge_ratio": 0.7962128394346412
+    },
+    {
+     "label": "nut-d10-p1-m0.8d-s1.6d-c0.15-right",
+     "edge_ratio": 0.7958019055940434
+    },
+    {
+     "label": "iso4017:M5x30",
+     "edge_ratio": 0.794135616359241
+    },
+    {
+     "label": "iso4017:M12x35",
+     "edge_ratio": 0.7927968286145044
+    },
+    {
+     "label": "iso4014:M16x65",
+     "edge_ratio": 0.792745589045804
+    },
+    {
+     "label": "iso4014:M16x70",
+     "edge_ratio": 0.79269970064228
+    },
+    {
+     "label": "iso4014:M16x80",
+     "edge_ratio": 0.7926170233626847
+    },
+    {
+     "label": "iso4014:M16x90",
+     "edge_ratio": 0.7925441039913528
+    },
+    {
+     "label": "iso4014:M16x100",
+     "edge_ratio": 0.7924788810754443
+    },
+    {
+     "label": "iso4014:M16x110",
+     "edge_ratio": 0.7924198843951504
+    },
+    {
+     "label": "iso4014:M16x120",
+     "edge_ratio": 0.7923660284809217
+    },
+    {
+     "label": "iso4014:M20x80",
+     "edge_ratio": 0.7922399689915041
+    },
+    {
+     "label": "iso4014:M20x90",
+     "edge_ratio": 0.7921670843085107
+    },
+    {
+     "label": "iso4014:M20x100",
+     "edge_ratio": 0.7921018924196743
+    },
+    {
+     "label": "iso4014:M20x110",
+     "edge_ratio": 0.7920429238045816
+    },
+    {
+     "label": "iso4014:M20x120",
+     "edge_ratio": 0.79198909351005
+    },
+    {
+     "label": "iso4017:M6x25",
+     "edge_ratio": 0.7918889656755804
+    },
+    {
+     "label": "iso4017:M14x40",
+     "edge_ratio": 0.7914704118884386
+    },
+    {
+     "label": "nut-d10-p1-m0.8d-s4d-c5-right",
+     "edge_ratio": 0.7911876105309611
+    },
+    {
+     "label": "iso4017:M10x30",
+     "edge_ratio": 0.7909402419032381
+    },
+    {
+     "label": "iso4014:M14x130",
+     "edge_ratio": 0.7907420650576189
+    },
+    {
+     "label": "iso4014:M14x140",
+     "edge_ratio": 0.7906962926289026
+    },
+    {
+     "label": "iso4017:M20x45",
+     "edge_ratio": 0.789831942770851
+    },
+    {
+     "label": "iso4017:M8x30",
+     "edge_ratio": 0.7895153961410352
+    },
+    {
+     "label": "nut-d3-p0.35-m0.8d-s1.6d-c0.15-left",
+     "edge_ratio": 0.7892107826603838
+    },
+    {
+     "label": "iso4017:M2x10",
+     "edge_ratio": 0.7889340423338272
+    },
+    {
+     "label": "iso4014:M2x16",
+     "edge_ratio": 0.7886444554124515
+    },
+    {
+     "label": "iso4014:M2x20",
+     "edge_ratio": 0.7885070054893779
+    },
+    {
+     "label": "nut-d30-p3.5-m3d-s4d-c0.15-right",
+     "edge_ratio": 0.786557386819012
+    },
+    {
+     "label": "nut-d10-p1-m0.8d-s1.6d-c0.15-left",
+     "edge_ratio": 0.7844371810895658
+    },
+    {
+     "label": "iso4017:M18x50",
+     "edge_ratio": 0.7842997825413511
+    },
+    {
+     "label": "nut-d3-p1-m3d-s1.6d-c0.15-right",
+     "edge_ratio": 0.7837930855130012
+    },
+    {
+     "label": "iso4017:M16x35",
+     "edge_ratio": 0.7828288208410917
+    },
+    {
+     "label": "iso4017:M7x30",
+     "edge_ratio": 0.7826931825691005
+    },
+    {
+     "label": "iso4032:M16",
+     "edge_ratio": 0.7814566269919527
+    },
+    {
+     "label": "iso4017:M4x20",
+     "edge_ratio": 0.7807436116725587
+    },
+    {
+     "label": "iso4017:M3x10",
+     "edge_ratio": 0.7800685066266808
+    },
+    {
+     "label": "iso4017:M3.5x16",
+     "edge_ratio": 0.779123596152554
+    },
+    {
+     "label": "iso4014:M18x130",
+     "edge_ratio": 0.778645796861452
+    },
+    {
+     "label": "iso4014:M18x140",
+     "edge_ratio": 0.7786007246301808
+    },
+    {
+     "label": "iso4014:M18x150",
+     "edge_ratio": 0.778558765731873
+    },
+    {
+     "label": "iso4014:M18x160",
+     "edge_ratio": 0.7785195178506763
+    },
+    {
+     "label": "iso4014:M18x180",
+     "edge_ratio": 0.7784478954250432
+    },
+    {
+     "label": "iso4032:M20",
+     "edge_ratio": 0.7766827558532399
+    },
+    {
+     "label": "iso4017:M20x40",
+     "edge_ratio": 0.7752537899506488
+    },
+    {
+     "label": "iso4032:M5",
+     "edge_ratio": 0.7750006329072726
+    },
+    {
+     "label": "iso4017:M14x35",
+     "edge_ratio": 0.7749293258895877
+    },
+    {
+     "label": "iso4017:M12x30",
+     "edge_ratio": 0.7737005915535611
+    },
+    {
+     "label": "iso4014:M12x50",
+     "edge_ratio": 0.773391934848684
+    },
+    {
+     "label": "iso4014:M12x55",
+     "edge_ratio": 0.773334359110312
+    },
+    {
+     "label": "iso4014:M12x60",
+     "edge_ratio": 0.7732818003220554
+    },
+    {
+     "label": "iso4014:M12x65",
+     "edge_ratio": 0.7732334540781717
+    },
+    {
+     "label": "iso4014:M12x70",
+     "edge_ratio": 0.773188695142582
+    },
+    {
+     "label": "iso4014:M12x80",
+     "edge_ratio": 0.7731080528288831
+    },
+    {
+     "label": "iso4014:M12x90",
+     "edge_ratio": 0.773036928248509
+    },
+    {
+     "label": "iso4014:M12x100",
+     "edge_ratio": 0.7729733106879071
+    },
+    {
+     "label": "iso4014:M12x110",
+     "edge_ratio": 0.7729157661143226
+    },
+    {
+     "label": "iso4014:M10x45",
+     "edge_ratio": 0.7729077171598477
+    },
+    {
+     "label": "iso4014:M12x120",
+     "edge_ratio": 0.7728632357752617
+    },
+    {
+     "label": "iso4014:M10x50",
+     "edge_ratio": 0.7728441102327537
+    },
+    {
+     "label": "iso4014:M10x55",
+     "edge_ratio": 0.7727865752775933
+    },
+    {
+     "label": "iso4014:M10x60",
+     "edge_ratio": 0.7727340537188404
+    },
+    {
+     "label": "iso4014:M10x65",
+     "edge_ratio": 0.7726857417205457
+    },
+    {
+     "label": "iso4014:M10x70",
+     "edge_ratio": 0.7726410144895106
+    },
+    {
+     "label": "nut-d3-p1-m3d-s1.6d-c0.15-left",
+     "edge_ratio": 0.7725998571194094
+    },
+    {
+     "label": "iso4014:M10x80",
+     "edge_ratio": 0.7725604292980061
+    },
+    {
+     "label": "iso4014:M10x90",
+     "edge_ratio": 0.7724893550980332
+    },
+    {
+     "label": "iso4014:M10x100",
+     "edge_ratio": 0.7724257826003085
+    },
+    {
+     "label": "iso4017:M2.5x8",
+     "edge_ratio": 0.7720825614063562
+    },
+    {
+     "label": "iso4032:M14",
+     "edge_ratio": 0.7715680968673024
+    },
+    {
+     "label": "iso4017:M5x25",
+     "edge_ratio": 0.7715615460957933
+    },
+    {
+     "label": "iso4017:M18x45",
+     "edge_ratio": 0.7713378291687588
+    },
+    {
+     "label": "iso4032:M12",
+     "edge_ratio": 0.771245494601774
+    },
+    {
+     "label": "iso4014:M14x55",
+     "edge_ratio": 0.7710946871947959
+    },
+    {
+     "label": "iso4014:M14x60",
+     "edge_ratio": 0.7710422806232883
+    },
+    {
+     "label": "iso4014:M14x65",
+     "edge_ratio": 0.7709940743961039
+    },
+    {
+     "label": "iso4014:M14x70",
+     "edge_ratio": 0.7709494450879257
+    },
+    {
+     "label": "iso4014:M14x80",
+     "edge_ratio": 0.7708690363243375
+    },
+    {
+     "label": "iso4014:M14x90",
+     "edge_ratio": 0.7707981177295417
+    },
+    {
+     "label": "iso4014:M14x100",
+     "edge_ratio": 0.7707346844132608
+    },
+    {
+     "label": "iso4014:M14x110",
+     "edge_ratio": 0.7706773064958757
+    },
+    {
+     "label": "iso4014:M14x120",
+     "edge_ratio": 0.7706249282911716
+    },
+    {
+     "label": "iso4017:M10x25",
+     "edge_ratio": 0.7684570032383258
+    },
+    {
+     "label": "iso4032:M18",
+     "edge_ratio": 0.7680694495040118
+    },
+    {
+     "label": "iso4017:M8x25",
+     "edge_ratio": 0.7670726600901449
+    },
+    {
+     "label": "bolt-d300-p0.1-n3-left",
+     "edge_ratio": 0.7669162967439265
+    },
+    {
+     "label": "nut-d30-p3.5-m0.8d-s1.6d-c0.15-right",
+     "edge_ratio": 0.7665699442620566
+    },
+    {
+     "label": "iso4017:M6x20",
+     "edge_ratio": 0.7644270250941493
+    },
+    {
+     "label": "iso4032:M10",
+     "edge_ratio": 0.7642534880375156
+    },
+    {
+     "label": "iso4017:M16x30",
+     "edge_ratio": 0.7639726849417496
+    },
+    {
+     "label": "iso4032:M8",
+     "edge_ratio": 0.7638711097188028
+    },
+    {
+     "label": "iso4032:M3",
+     "edge_ratio": 0.7627660359536715
+    },
+    {
+     "label": "iso4014:M18x70",
+     "edge_ratio": 0.7626619111508841
+    },
+    {
+     "label": "iso4014:M18x80",
+     "edge_ratio": 0.762582366763503
+    },
+    {
+     "label": "iso4014:M18x90",
+     "edge_ratio": 0.7625122105277241
+    },
+    {
+     "label": "iso4014:M18x100",
+     "edge_ratio": 0.762449459105392
+    },
+    {
+     "label": "iso4014:M18x110",
+     "edge_ratio": 0.7623926979877733
+    },
+    {
+     "label": "iso4014:M18x120",
+     "edge_ratio": 0.7623408828370434
+    },
+    {
+     "label": "iso4032:M6",
+     "edge_ratio": 0.7623220572621061
+    },
+    {
+     "label": "nut-d10-p3.5-m3d-s1.6d-c0.15-right",
+     "edge_ratio": 0.7621375098362173
+    },
+    {
+     "label": "nut-d30-p3.5-m0.8d-s4d-c5-right",
+     "edge_ratio": 0.7621251447655373
+    },
+    {
+     "label": "iso4032:M3.5",
+     "edge_ratio": 0.7619404345137463
+    },
+    {
+     "label": "iso4017:M2x8",
+     "edge_ratio": 0.7615745756253116
+    },
+    {
+     "label": "iso4017:M7x25",
+     "edge_ratio": 0.7604443745140745
+    },
+    {
+     "label": "nut-d10-p3.5-m3d-s4d-c5-right",
+     "edge_ratio": 0.7577184109068148
+    },
+    {
+     "label": "iso4032:M4",
+     "edge_ratio": 0.7571932846168029
+    },
+    {
+     "label": "iso4017:M18x40",
+     "edge_ratio": 0.7571010274636049
+    },
+    {
+     "label": "iso4017:M14x30",
+     "edge_ratio": 0.756263466518621
+    },
+    {
+     "label": "nut-d30-p3.5-m0.8d-s1.6d-c0.15-left",
+     "edge_ratio": 0.755622676897262
+    },
+    {
+     "label": "iso4032:M2.5",
+     "edge_ratio": 0.7542709552342326
+    },
+    {
+     "label": "iso4014:M3.5x20",
+     "edge_ratio": 0.7536973370954428
+    },
+    {
+     "label": "iso4017:M4x16",
+     "edge_ratio": 0.753668181148288
+    },
+    {
+     "label": "iso4014:M3.5x25",
+     "edge_ratio": 0.753565977976266
+    },
+    {
+     "label": "iso4014:M3.5x30",
+     "edge_ratio": 0.7534586667560061
+    },
+    {
+     "label": "iso4014:M3.5x35",
+     "edge_ratio": 0.7533679483343843
+    },
+    {
+     "label": "iso4017:M3x8",
+     "edge_ratio": 0.753016488090024
+    },
+    {
+     "label": "iso4017:M12x25",
+     "edge_ratio": 0.7517074065649905
+    },
+    {
+     "label": "iso4014:M6x30",
+     "edge_ratio": 0.7514935873102486
+    },
+    {
+     "label": "iso4014:M6x35",
+     "edge_ratio": 0.7514031054894034
+    },
+    {
+     "label": "iso4014:M8x40",
+     "edge_ratio": 0.7513676963970459
+    },
+    {
+     "label": "iso4014:M6x40",
+     "edge_ratio": 0.7513247353770001
+    },
+    {
+     "label": "iso4014:M8x45",
+     "edge_ratio": 0.7512985718912056
+    },
+    {
+     "label": "iso4014:M6x45",
+     "edge_ratio": 0.751255614823498
+    },
+    {
+     "label": "nut-d10-p3.5-m3d-s1.6d-c0.15-left",
+     "edge_ratio": 0.7512535413851094
+    },
+    {
+     "label": "iso4014:M8x50",
+     "edge_ratio": 0.7512367433023236
+    },
+    {
+     "label": "iso4014:M6x50",
+     "edge_ratio": 0.7511937897697949
+    },
+    {
+     "label": "iso4014:M8x55",
+     "edge_ratio": 0.7511808169236807
+    },
+    {
+     "label": "iso4014:M6x55",
+     "edge_ratio": 0.7511378665888598
+    },
+    {
+     "label": "iso4014:M8x60",
+     "edge_ratio": 0.7511297637756676
+    },
+    {
+     "label": "iso4014:M6x60",
+     "edge_ratio": 0.7510868163599175
+    },
+    {
+     "label": "iso4014:M8x65",
+     "edge_ratio": 0.7510828024961796
+    },
+    {
+     "label": "iso4014:M8x70",
+     "edge_ratio": 0.7510393257601408
+    },
+    {
+     "label": "iso4014:M8x80",
+     "edge_ratio": 0.750960993589367
+    },
+    {
+     "label": "bolt-d300-p0.35-n3-left",
+     "edge_ratio": 0.7500871604805653
+    },
+    {
+     "label": "nut-d3-p0.35-m0.8d-s4d-c0.15-right",
+     "edge_ratio": 0.7491018838820438
+    },
+    {
+     "label": "iso4032:M2",
+     "edge_ratio": 0.7488734931556175
+    },
+    {
+     "label": "iso4017:M5x20",
+     "edge_ratio": 0.7448045406919823
+    },
+    {
+     "label": "nut-d10-p1-m0.8d-s4d-c0.15-right",
+     "edge_ratio": 0.7445708840424976
+    },
+    {
+     "label": "iso4017:M3.5x12",
+     "edge_ratio": 0.744465873672913
+    },
+    {
+     "label": "iso4017:M10x20",
+     "edge_ratio": 0.7418076603669905
+    },
+    {
+     "label": "iso4017:M18x35",
+     "edge_ratio": 0.7412782335638107
+    },
+    {
+     "label": "iso4017:M8x20",
+     "edge_ratio": 0.740471324895299
+    },
+    {
+     "label": "bolt-d300-p0.1-n3-right",
+     "edge_ratio": 0.740344665253155
+    },
+    {
+     "label": "iso4017:M6x16",
+     "edge_ratio": 0.7379174379526384
+    },
+    {
+     "label": "iso4017:M2.5x6",
+     "edge_ratio": 0.7377380449820935
+    },
+    {
+     "label": "iso4014:M4x25",
+     "edge_ratio": 0.7375829989378211
+    },
+    {
+     "label": "iso4014:M4x30",
+     "edge_ratio": 0.7374779637664196
+    },
+    {
+     "label": "iso4014:M4x35",
+     "edge_ratio": 0.7373891694638179
+    },
+    {
+     "label": "iso4014:M4x40",
+     "edge_ratio": 0.7373122609819742
+    },
+    {
+     "label": "bolt-d300-p1-n3-left",
+     "edge_ratio": 0.7362689990419544
+    },
+    {
+     "label": "bolt-d100-p0.1-n3-left",
+     "edge_ratio": 0.7358373030497687
+    },
+    {
+     "label": "iso4017:M7x20",
+     "edge_ratio": 0.7340729018284148
+    },
+    {
+     "label": "iso4014:M7x35",
+     "edge_ratio": 0.7337520895450759
+    },
+    {
+     "label": "iso4014:M7x40",
+     "edge_ratio": 0.7336755604047067
+    },
+    {
+     "label": "iso4014:M7x45",
+     "edge_ratio": 0.7336080635442439
+    },
+    {
+     "label": "iso4014:M7x50",
+     "edge_ratio": 0.7335476908068815
+    },
+    {
+     "label": "iso4014:M7x55",
+     "edge_ratio": 0.7334930813029209
+    },
+    {
+     "label": "iso4014:M7x60",
+     "edge_ratio": 0.7334432302816988
+    },
+    {
+     "label": "iso4014:M7x65",
+     "edge_ratio": 0.7333973747795113
+    },
+    {
+     "label": "iso4014:M7x70",
+     "edge_ratio": 0.7333549217717085
+    },
+    {
+     "label": "nut-d3-p1-m3d-s4d-c0.15-right",
+     "edge_ratio": 0.7333351509772768
+    },
+    {
+     "label": "iso4017:M2x6",
+     "edge_ratio": 0.7276974854949231
+    },
+    {
+     "label": "bolt-d300-p0.35-n3-right",
+     "edge_ratio": 0.7240986142743243
+    },
+    {
+     "label": "iso4017:M3.5x10",
+     "edge_ratio": 0.723303713715804
+    },
+    {
+     "label": "bolt-d300-p3-n3-left",
+     "edge_ratio": 0.7220811445656131
+    },
+    {
+     "label": "iso4017:M4x12",
+     "edge_ratio": 0.7201427908341448
+    },
+    {
+     "label": "bolt-d100-p0.35-n3-left",
+     "edge_ratio": 0.7196901611866149
+    },
+    {
+     "label": "iso4017:M3x6",
+     "edge_ratio": 0.7195200870110507
+    },
+    {
+     "label": "iso4017:M5x16",
+     "edge_ratio": 0.7189754422604671
+    },
+    {
+     "label": "iso4014:M5x25",
+     "edge_ratio": 0.7187248489625735
+    },
+    {
+     "label": "iso4014:M5x30",
+     "edge_ratio": 0.7186224992774398
+    },
+    {
+     "label": "iso4014:M5x35",
+     "edge_ratio": 0.7185359752227666
+    },
+    {
+     "label": "iso4014:M5x40",
+     "edge_ratio": 0.7184610330981832
+    },
+    {
+     "label": "iso4014:M5x45",
+     "edge_ratio": 0.7183949359474586
+    },
+    {
+     "label": "iso4014:M5x50",
+     "edge_ratio": 0.7183358151840077
+    },
+    {
+     "label": "nut-d30-p3.5-m0.8d-s4d-c0.15-right",
+     "edge_ratio": 0.7172207770142865
+    },
+    {
+     "label": "iso4017:M2.5x5",
+     "edge_ratio": 0.7167671300396401
+    },
+    {
+     "label": "iso4017:M8x16",
+     "edge_ratio": 0.7147924981810233
+    },
+    {
+     "label": "nut-d3-p1-m0.8d-s1.6d-c0.15-right",
+     "edge_ratio": 0.7147001544076936
+    },
+    {
+     "label": "nut-d10-p3.5-m3d-s4d-c0.15-right",
+     "edge_ratio": 0.7130736876498222
+    },
+    {
+     "label": "bolt-d300-p1-n3-right",
+     "edge_ratio": 0.7107592157661475
+    },
+    {
+     "label": "bolt-d100-p0.1-n3-right",
+     "edge_ratio": 0.7103424769040542
+    },
+    {
+     "label": "iso4017:M7x16",
+     "edge_ratio": 0.7086159662146516
+    },
+    {
+     "label": "iso4017:M2x5",
+     "edge_ratio": 0.7070119831327352
+    },
+    {
+     "label": "bolt-d300-p10-n3-left",
+     "edge_ratio": 0.7068464202048977
+    },
+    {
+     "label": "bolt-d100-p1-n3-left",
+     "edge_ratio": 0.7064319755289865
+    },
+    {
+     "label": "iso4017:M6x12",
+     "edge_ratio": 0.7050926872920991
+    },
+    {
+     "label": "nut-d3-p1-m0.8d-s1.6d-c0.15-left",
+     "edge_ratio": 0.7044936315267413
+    },
+    {
+     "label": "bolt-d30-p0.1-n3-left",
+     "edge_ratio": 0.7032222774091698
+    },
+    {
+     "label": "iso4017:M4x10",
+     "edge_ratio": 0.6996720379487189
+    },
+    {
+     "label": "iso4017:M3.5x8",
+     "edge_ratio": 0.6982202430912982
+    },
+    {
+     "label": "bolt-d300-p3-n3-right",
+     "edge_ratio": 0.6970629331111257
+    },
+    {
+     "label": "nut-d10-p3.5-m0.8d-s1.6d-c0.15-right",
+     "edge_ratio": 0.6949535611217181
+    },
+    {
+     "label": "bolt-d100-p0.35-n3-right",
+     "edge_ratio": 0.6947547910141775
+    },
+    {
+     "label": "bolt-d100-p3-n3-left",
+     "edge_ratio": 0.6928190785045522
+    },
+    {
+     "label": "nut-d10-p3.5-m0.8d-s4d-c5-right",
+     "edge_ratio": 0.6909240146182304
+    },
+    {
+     "label": "bolt-d30-p0.35-n3-left",
+     "edge_ratio": 0.6877908364811363
+    },
+    {
+     "label": "iso4017:M5x12",
+     "edge_ratio": 0.686993287605429
+    },
+    {
+     "label": "nut-d10-p3.5-m0.8d-s1.6d-c0.15-left",
+     "edge_ratio": 0.6850290362996038
+    },
+    {
+     "label": "iso4017:M2x4",
+     "edge_ratio": 0.6824934939092003
+    },
+    {
+     "label": "bolt-d300-p10-n3-right",
+     "edge_ratio": 0.6823560518583154
+    },
+    {
+     "label": "bolt-d100-p1-n3-right",
+     "edge_ratio": 0.6819559665997857
+    },
+    {
+     "label": "bolt-d30-p0.1-n3-right",
+     "edge_ratio": 0.6788574760732857
+    },
+    {
+     "label": "bolt-d100-p10-n3-left",
+     "edge_ratio": 0.6782017356030012
+    },
+    {
+     "label": "iso4017:M4x8",
+     "edge_ratio": 0.6754080908987102
+    },
+    {
+     "label": "bolt-d30-p1-n3-left",
+     "edge_ratio": 0.6751203025549127
+    },
+    {
+     "label": "bolt-d10-p0.1-n3-left",
+     "edge_ratio": 0.6747244598272747
+    },
+    {
+     "label": "bolt-d100-p3-n3-right",
+     "edge_ratio": 0.6688147206340012
+    },
+    {
+     "label": "nut-d3-p1-m0.8d-s4d-c0.15-right",
+     "edge_ratio": 0.6686901879122985
+    },
+    {
+     "label": "iso4017:M5x10",
+     "edge_ratio": 0.6674648412979578
+    },
+    {
+     "label": "bolt-d30-p0.35-n3-right",
+     "edge_ratio": 0.6639606939645423
+    },
+    {
+     "label": "bolt-d30-p3-n3-left",
+     "edge_ratio": 0.6621107793790948
+    },
+    {
+     "label": "bolt-d10-p0.35-n3-left",
+     "edge_ratio": 0.659918372223105
+    },
+    {
+     "label": "bolt-d100-p10-n3-right",
+     "edge_ratio": 0.6547038301974759
+    },
+    {
+     "label": "bolt-d30-p1-n3-right",
+     "edge_ratio": 0.651729160695507
+    },
+    {
+     "label": "bolt-d10-p0.1-n3-right",
+     "edge_ratio": 0.6513470328766952
+    },
+    {
+     "label": "nut-d10-p3.5-m0.8d-s4d-c0.15-right",
+     "edge_ratio": 0.6502148131784428
+    },
+    {
+     "label": "bolt-d30-p10-n3-left",
+     "edge_ratio": 0.6481413310753767
+    },
+    {
+     "label": "bolt-d10-p1-n3-left",
+     "edge_ratio": 0.6477613069057355
+    },
+    {
+     "label": "bolt-d3-p0.1-n3-left",
+     "edge_ratio": 0.644818180998517
+    },
+    {
+     "label": "bolt-d30-p3-n3-right",
+     "edge_ratio": 0.6391703832623027
+    },
+    {
+     "label": "bolt-d10-p0.35-n3-right",
+     "edge_ratio": 0.6370539372448023
+    },
+    {
+     "label": "bolt-d10-p3-n3-left",
+     "edge_ratio": 0.6352789897502618
+    },
+    {
+     "label": "bolt-d3-p0.35-n3-left",
+     "edge_ratio": 0.6306683538541602
+    },
+    {
+     "label": "bolt-d30-p10-n3-right",
+     "edge_ratio": 0.6256849395807733
+    },
+    {
+     "label": "bolt-d10-p1-n3-right",
+     "edge_ratio": 0.6253180822485512
+    },
+    {
+     "label": "bolt-d3-p0.1-n3-right",
+     "edge_ratio": 0.6224769279089855
+    },
+    {
+     "label": "bolt-d3-p1-n3-left",
+     "edge_ratio": 0.6190501345498931
+    },
+    {
+     "label": "bolt-d1-p0.1-n3-left",
+     "edge_ratio": 0.6186871673974077
+    },
+    {
+     "label": "bolt-d10-p3-n3-right",
+     "edge_ratio": 0.6132682445344642
+    },
+    {
+     "label": "bolt-d3-p0.35-n3-right",
+     "edge_ratio": 0.6088173550389665
+    },
+    {
+     "label": "bolt-d1-p0.35-n3-left",
+     "edge_ratio": 0.6051107566616734
+    },
+    {
+     "label": "bolt-d3-p1-n3-right",
+     "edge_ratio": 0.597601676459473
+    },
+    {
+     "label": "bolt-d1-p0.1-n3-right",
+     "edge_ratio": 0.597251285163649
+    },
+    {
+     "label": "bolt-d1-p0.35-n3-right",
+     "edge_ratio": 0.584145261332677
+    }
+   ],
+   "draw": [
+    "iso4017:M10x45",
+    "iso4017:M3x20",
+    "bolt-d30-p3-n3-right",
+    "bolt-d30-p0.1-n3-left",
+    "bolt-d100-p10-n30-right",
+    "iso4014:M18x90",
+    "iso4017:M14x130",
+    "iso4017:M6x20",
+    "bolt-d3-p0.35-n3-right",
+    "iso4014:M4x40",
+    "bolt-d1-p0.1-n3-right",
+    "bolt-d100-p0.35-n3-right",
+    "iso4017:M7x55",
+    "iso4017:M3x8",
+    "iso4014:M16x120",
+    "iso4014:M3.5x30",
+    "nut-d3-p0.35-m0.8d-s1.6d-c0.15-left",
+    "iso4017:M5x50",
+    "bolt-d30-p3-n3-left",
+    "nut-d30-p3.5-m3d-s1.6d-c0.15-right",
+    "iso4017:M18x140",
+    "iso4014:M14x120",
+    "iso4017:M10x20",
+    "nut-d3-p0.35-m0.8d-s1.6d-c0.15-right",
+    "iso4017:M10x35",
+    "bolt-d10-p0.35-n3-left",
+    "iso4017:M14x40",
+    "nut-d3-p0.35-m3d-s1.6d-c0.15-right",
+    "iso4017:M16x80",
+    "iso4017:M16x30",
+    "nut-d10-p1-m0.8d-s4d-c5-right",
+    "bolt-d10-p1-n3-right",
+    "iso4017:M2x8",
+    "iso4014:M20x160",
+    "iso4017:M14x100",
+    "iso4014:M5x40",
+    "iso4017:M2.5x8",
+    "nut-d100-p3.5-m0.8d-s1.6d-c0.15-left",
+    "iso4014:M16x80",
+    "iso4014:M14x90",
+    "bolt-d3-p0.35-n3-left",
+    "iso4014:M20x110",
+    "iso4014:M12x110",
+    "iso4014:M12x50",
+    "iso4014:M16x130",
+    "iso4017:M12x60",
+    "iso4017:M14x110",
+    "bolt-d10-p1-n30-left",
+    "iso4014:M6x60",
+    "iso4017:M8x60",
+    "iso4017:M16x35",
+    "iso4017:M5x35",
+    "iso4017:M4x20",
+    "bolt-d100-p0.1-n3-right",
+    "iso4017:M12x30",
+    "iso4017:M2.5x12",
+    "iso4014:M18x130",
+    "iso4017:M16x55",
+    "bolt-d100-p0.35-n3-left",
+    "iso4014:M12x120",
+    "bolt-d10-p0.1-n3-right",
+    "iso4014:M20x180",
+    "iso4017:M2.5x6",
+    "iso4017:M6x16",
+    "iso4017:M10x60",
+    "iso4014:M10x100",
+    "nut-d10-p1-m0.8d-s1.6d-c0.15-left",
+    "iso4017:M6x50",
+    "iso4014:M18x80",
+    "iso4017:M20x110",
+    "iso4017:M2x5",
+    "iso4017:M3x25",
+    "iso4032:M2",
+    "nut-d30-p3.5-m0.8d-s1.6d-c0.15-left",
+    "bolt-d3-p0.1-n3-right",
+    "nut-d10-p0.35-m0.8d-s1.6d-c0.15-left",
+    "nut-d30-p3.5-m0.8d-s1.6d-c0.15-right",
+    "bolt-d1-p0.1-n30-right",
+    "bolt-d300-p10-n3-right",
+    "bolt-d30-p0.1-n3-right",
+    "bolt-d100-p10-n3-left",
+    "iso4017:M20x40",
+    "iso4014:M8x80",
+    "bolt-d300-p0.35-n3-left",
+    "bolt-d300-p1-n3-right",
+    "iso4017:M12x100",
+    "iso4014:M7x60",
+    "bolt-d3-p1-n3-right",
+    "iso4017:M12x90",
+    "iso4017:M14x35",
+    "iso4017:M2.5x5",
+    "nut-d10-p3.5-m3d-s4d-c5-right",
+    "nut-d10-p3.5-m0.8d-s4d-c0.15-right",
+    "bolt-d3-p0.35-n30-right",
+    "iso4017:M7x40",
+    "bolt-d300-p3-n3-right",
+    "bolt-d300-p0.1-n3-right",
+    "iso4017:M12x50",
+    "iso4014:M12x60",
+    "iso4017:M16x140",
+    "iso4032:M10",
+    "iso4017:M6x60",
+    "iso4017:M14x80",
+    "bolt-d1-p0.1-n3-left",
+    "iso4017:M14x55",
+    "bolt-d10-p3-n30-left",
+    "iso4017:M8x45",
+    "nut-d3-p0.35-m3d-s1.6d-c0.15-left",
+    "bolt-d100-p3-n30-right",
+    "iso4014:M2.5x16",
+    "iso4017:M20x120",
+    "iso4014:M12x65",
+    "iso4017:M14x140",
+    "iso4017:M3.5x30",
+    "bolt-d3-p1-n30-left",
+    "iso4017:M12x35",
+    "iso4017:M8x30",
+    "iso4014:M14x60",
+    "nut-d3-p0.35-m0.8d-s4d-c0.15-right",
+    "iso4017:M2.5x16",
+    "iso4017:M6x55",
+    "nut-d10-p3.5-m3d-s4d-c0.15-right",
+    "nut-d30-p3.5-m0.8d-s4d-c5-right",
+    "iso4017:M7x50",
+    "iso4017:M5x20",
+    "bolt-d1-p0.35-n3-right",
+    "iso4017:M18x65",
+    "iso4017:M4x30",
+    "iso4014:M6x40",
+    "iso4017:M10x100",
+    "iso4017:M7x16",
+    "nut-d10-p1-m3d-s4d-c0.15-right",
+    "iso4014:M16x140",
+    "iso4017:M2.5x25",
+    "iso4017:M2x6",
+    "iso4017:M8x55",
+    "iso4014:M4x30",
+    "bolt-d10-p3-n3-left",
+    "iso4017:M2x20",
+    "iso4017:M3.5x12",
+    "iso4014:M18x70",
+    "iso4014:M20x100",
+    "iso4017:M5x30",
+    "iso4017:M3x16",
+    "bolt-d10-p3-n30-right",
+    "iso4017:M10x65",
+    "iso4032:M18",
+    "iso4017:M16x100",
+    "iso4017:M14x70",
+    "iso4017:M20x60",
+    "iso4017:M14x90",
+    "iso4014:M10x60",
+    "iso4032:M12",
+    "iso4017:M10x70",
+    "iso4014:M8x45",
+    "iso4017:M10x30",
+    "iso4017:M12x55",
+    "iso4014:M16x70",
+    "iso4017:M3x12",
+    "iso4014:M20x130",
+    "iso4014:M20x140",
+    "nut-d10-p3.5-m0.8d-s4d-c5-right",
+    "iso4014:M20x120",
+    "iso4014:M16x100",
+    "iso4032:M3.5",
+    "bolt-d30-p1-n30-right",
+    "iso4017:M3x6",
+    "iso4017:M2.5x10",
+    "iso4017:M6x30",
+    "iso4032:M20",
+    "iso4017:M7x20",
+    "bolt-d300-p0.1-n3-left",
+    "iso4014:M7x35",
+    "bolt-d1-p0.35-n30-right",
+    "bolt-d300-p10-n3-left",
+    "bolt-d30-p1-n3-right",
+    "iso4014:M8x65",
+    "nut-d3-p1-m3d-s1.6d-c0.15-right",
+    "bolt-d100-p3-n3-right",
+    "iso4017:M7x70",
+    "nut-d10-p0.35-m0.8d-s4d-c5-right",
+    "iso4017:M8x70",
+    "iso4017:M6x25",
+    "iso4017:M2x4",
+    "iso4014:M8x60",
+    "bolt-d100-p1-n3-right",
+    "iso4017:M14x45",
+    "iso4017:M4x25",
+    "iso4017:M2.5x20",
+    "nut-d30-p1-m0.8d-s1.6d-c0.15-right",
+    "iso4017:M20x65",
+    "nut-d3-p1-m0.8d-s1.6d-c0.15-left",
+    "bolt-d1-p0.35-n30-left",
+    "iso4014:M18x180",
+    "iso4014:M12x70",
+    "nut-d3-p1-m3d-s1.6d-c0.15-left",
+    "iso4017:M4x12",
+    "iso4017:M16x65",
+    "iso4014:M14x65",
+    "nut-d30-p3.5-m3d-s1.6d-c5-right",
+    "iso4017:M20x130",
+    "iso4017:M14x50",
+    "bolt-d30-p1-n3-left",
+    "iso4017:M8x25",
+    "nut-d10-p3.5-m0.8d-s1.6d-c0.15-right",
+    "bolt-d10-p3-n3-right",
+    "bolt-d100-p1-n3-left",
+    "iso4014:M18x160",
+    "nut-d30-p3.5-m3d-s4d-c0.15-right",
+    "iso4017:M3x30",
+    "iso4014:M16x90",
+    "iso4014:M6x30",
+    "bolt-d3-p1-n3-left",
+    "bolt-d30-p0.35-n3-right",
+    "iso4017:M3.5x10",
+    "iso4014:M7x45",
+    "iso4014:M8x55",
+    "nut-d10-p1-m3d-s1.6d-c0.15-right",
+    "iso4014:M5x45",
+    "iso4017:M16x110",
+    "iso4017:M16x45",
+    "iso4014:M2x16",
+    "iso4017:M14x65",
+    "iso4032:M14",
+    "bolt-d300-p0.35-n3-right",
+    "iso4017:M8x80",
+    "nut-d30-p3.5-m0.8d-s1.6d-c5-right",
+    "iso4014:M3.5x20",
+    "iso4017:M4x10",
+    "bolt-d300-p3-n3-left",
+    "iso4017:M4x8",
+    "iso4017:M10x40",
+    "iso4014:M18x120",
+    "iso4014:M3.5x25",
+    "iso4014:M18x110",
+    "iso4017:M20x45",
+    "iso4032:M4",
+    "iso4017:M18x180",
+    "iso4017:M7x60",
+    "bolt-d100-p0.1-n3-left",
+    "nut-d10-p1-m3d-s1.6d-c0.15-left",
+    "bolt-d3-p0.1-n30-right",
+    "nut-d30-p0.35-m0.8d-s4d-c5-right",
+    "iso4017:M16x150",
+    "iso4017:M18x35",
+    "nut-d10-p0.35-m3d-s4d-c5-right",
+    "iso4014:M14x140",
+    "nut-d100-p3.5-m0.8d-s4d-c5-right",
+    "iso4017:M5x45",
+    "iso4017:M10x50",
+    "iso4017:M12x120",
+    "iso4017:M18x100",
+    "iso4014:M7x70",
+    "iso4014:M12x100",
+    "iso4017:M7x25",
+    "iso4014:M10x65",
+    "iso4017:M7x65",
+    "iso4014:M7x40",
+    "iso4017:M20x100",
+    "iso4014:M4x25",
+    "iso4017:M12x65",
+    "iso4017:M5x16",
+    "iso4014:M10x70",
+    "iso4017:M18x55",
+    "iso4017:M8x16",
+    "nut-d3-p1-m3d-s4d-c0.15-right",
+    "nut-d3-p1-m0.8d-s1.6d-c0.15-right",
+    "iso4014:M2.5x20",
+    "iso4014:M18x150",
+    "iso4017:M10x90",
+    "iso4014:M10x80",
+    "iso4014:M6x50",
+    "bolt-d10-p0.1-n3-left",
+    "nut-d30-p3.5-m3d-s4d-c5-right",
+    "iso4017:M20x90",
+    "nut-d100-p3.5-m3d-s4d-c5-right",
+    "iso4017:M8x50",
+    "iso4017:M18x50",
+    "iso4032:M2.5",
+    "iso4017:M16x40",
+    "iso4032:M6",
+    "iso4017:M18x70",
+    "nut-d100-p3.5-m0.8d-s1.6d-c5-right",
+    "iso4017:M20x180",
+    "iso4014:M3x20",
+    "bolt-d300-p10-n30-right",
+    "bolt-d30-p10-n30-right",
+    "iso4017:M4x35",
+    "iso4017:M20x55",
+    "iso4017:M18x130",
+    "nut-d10-p3.5-m3d-s1.6d-c0.15-left",
+    "bolt-d10-p1-n30-right",
+    "bolt-d30-p3-n30-right",
+    "iso4014:M16x110",
+    "bolt-d100-p3-n3-left",
+    "iso4014:M7x65",
+    "iso4014:M10x50",
+    "iso4014:M3.5x35",
+    "bolt-d10-p0.35-n3-right",
+    "iso4014:M2x20",
+    "iso4017:M10x25",
+    "iso4014:M8x50",
+    "iso4014:M14x70",
+    "iso4017:M18x120",
+    "iso4014:M20x90",
+    "iso4017:M16x130",
+    "iso4014:M8x70",
+    "iso4017:M5x12",
+    "iso4017:M12x70",
+    "iso4017:M3x10",
+    "iso4014:M14x80",
+    "nut-d30-p3.5-m0.8d-s4d-c0.15-right",
+    "bolt-d3-p0.1-n3-left",
+    "iso4014:M10x45",
+    "iso4017:M10x55",
+    "iso4017:M20x140",
+    "iso4017:M6x35",
+    "iso4017:M3.5x25",
+    "iso4014:M14x130",
+    "iso4017:M2x16",
+    "iso4017:M3.5x8",
+    "bolt-d3-p1-n30-right",
+    "iso4032:M3",
+    "iso4017:M16x50",
+    "iso4014:M20x200",
+    "bolt-d10-p1-n3-left",
+    "iso4017:M18x110",
+    "iso4014:M16x160",
+    "iso4017:M18x60",
+    "bolt-d30-p10-n30-left",
+    "iso4017:M18x45",
+    "iso4017:M4x40",
+    "iso4014:M6x55",
+    "iso4017:M5x10",
+    "nut-d100-p3.5-m0.8d-s1.6d-c0.15-right",
+    "iso4014:M10x90",
+    "iso4017:M18x40",
+    "iso4017:M14x120",
+    "iso4032:M16",
+    "iso4017:M5x40",
+    "iso4017:M20x160",
+    "iso4017:M6x12",
+    "bolt-d10-p0.35-n30-right",
+    "bolt-d1-p0.1-n30-left",
+    "iso4017:M16x70",
+    "iso4017:M16x90",
+    "bolt-d300-p1-n3-left",
+    "iso4017:M8x65",
+    "nut-d10-p3.5-m3d-s1.6d-c0.15-right",
+    "iso4017:M7x30",
+    "nut-d30-p1-m0.8d-s1.6d-c0.15-left",
+    "iso4014:M10x55",
+    "nut-d10-p0.35-m0.8d-s4d-c0.15-right",
+    "bolt-d100-p10-n30-left",
+    "iso4014:M16x65",
+    "bolt-d30-p0.35-n3-left",
+    "iso4017:M2x12",
+    "iso4014:M18x100",
+    "bolt-d3-p0.35-n30-left",
+    "iso4017:M18x90",
+    "iso4014:M5x35",
+    "iso4017:M6x40",
+    "iso4014:M5x30",
+    "bolt-d30-p3-n30-left",
+    "iso4014:M7x55",
+    "iso4017:M3.5x35",
+    "iso4017:M14x60",
+    "bolt-d30-p10-n3-right",
+    "iso4014:M12x80",
+    "iso4017:M12x110",
+    "iso4017:M8x40",
+    "iso4014:M20x150",
+    "iso4017:M12x40",
+    "iso4014:M20x80",
+    "iso4017:M8x35",
+    "iso4017:M3.5x20",
+    "iso4017:M12x25",
+    "nut-d10-p0.35-m0.8d-s1.6d-c0.15-right",
+    "iso4014:M12x55",
+    "iso4014:M2.5x25",
+    "iso4014:M12x90",
+    "bolt-d100-p10-n3-right",
+    "iso4032:M8",
+    "nut-d10-p1-m3d-s4d-c5-right",
+    "iso4017:M18x150",
+    "iso4014:M7x50",
+    "iso4017:M8x20",
+    "nut-d30-p1-m0.8d-s4d-c0.15-right",
+    "nut-d3-p0.35-m3d-s4d-c0.15-right",
+    "iso4017:M20x70",
+    "iso4017:M4x16",
+    "iso4017:M16x120",
+    "iso4017:M18x160",
+    "iso4014:M8x40",
+    "iso4014:M5x25",
+    "iso4014:M16x150",
+    "nut-d3-p1-m0.8d-s4d-c0.15-right",
+    "nut-d30-p3.5-m3d-s1.6d-c0.15-left",
+    "iso4017:M18x80",
+    "nut-d10-p1-m0.8d-s1.6d-c0.15-right",
+    "iso4014:M6x45",
+    "iso4014:M4x35",
+    "nut-d10-p1-m0.8d-s4d-c0.15-right",
+    "iso4017:M7x35",
+    "nut-d30-p1-m0.8d-s1.6d-c5-right",
+    "iso4017:M12x45",
+    "bolt-d3-p0.1-n30-left",
+    "iso4014:M14x100",
+    "iso4014:M3x30",
+    "iso4017:M12x80",
+    "iso4017:M3.5x16",
+    "iso4014:M3x25",
+    "bolt-d30-p1-n30-left",
+    "bolt-d30-p10-n3-left",
+    "nut-d10-p3.5-m0.8d-s1.6d-c0.15-left",
+    "iso4014:M14x110",
+    "iso4017:M16x60",
+    "bolt-d1-p0.35-n3-left",
+    "bolt-d10-p0.35-n30-left",
+    "iso4017:M10x80",
+    "iso4017:M20x80",
+    "iso4017:M20x50",
+    "iso4017:M20x150",
+    "iso4032:M5",
+    "iso4014:M5x50",
+    "iso4017:M2x10",
+    "iso4017:M5x25",
+    "iso4014:M18x140",
+    "iso4014:M6x35",
+    "iso4014:M14x55",
+    "nut-d100-p3.5-m0.8d-s4d-c0.15-right",
+    "iso4017:M7x45",
+    "bolt-d30-p0.35-n30-left",
+    "iso4017:M14x30",
+    "nut-d30-p1-m0.8d-s4d-c5-right",
+    "iso4017:M6x45"
+   ]
+  }
+ }
+}

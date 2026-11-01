@@ -17,8 +17,8 @@ import pytest
 from pydantic import Field
 
 from screw import __version__, cli
-from screw.calc import derive, download_refusal
-from screw.params import KINDS, BoltParams, FastenerParams
+from screw.calc import cost, derive, download_name, download_refusal
+from screw.params import KINDS, BoltParams, FastenerParams, NutParams
 
 WARNING = ("warning: ends modelled per L15 and L19: bolt tip chamfer, hex head chamfer, "
            "under-head fillet on an ISO 4014 plain shank, nut lead-in countersinks and face "
@@ -156,6 +156,9 @@ def test_a_head_value_that_is_text_exits_2_naming_the_flag(
 
 @pytest.mark.parametrize(("argv", "prefix"), [
     (["info", "bolt", "--pitch", "6"], "error: d and pitch:"),
+    # 5.53 mm leaves a root radius of 0.0069 mm: above 0 (the old rule built it) and under the
+    # 0.01 mm floor the kernel was measured to build down to (07 D-18, L20).
+    (["info", "bolt", "--pitch", "5.53"], "error: d and pitch:"),
     (["info", "bolt", "--length", "300", "--thread-length", "300"],
      "error: thread_length, length and pitch:"),
     # head_too_small (D-23): the CLI prints no type, so the text names both fields.
@@ -163,7 +166,7 @@ def test_a_head_value_that_is_text_exits_2_naming_the_flag(
     (["export", "bolt", "-o", "unused.stl", "--s", "5"], "error: s and d: "),
     # length / pitch is past the float range: exit 2, not the OverflowError traceback (CR-01)
     (["info", "bolt", "--pitch", "5e-324"], "error: thread_length, length and pitch: inf turns"),
-    (["info", "bolt", "--pitch", "1e-310", "--length", "1e5"],
+    (["info", "bolt", "--pitch", "1e-310", "--length", "1e4"],
      "error: thread_length, length and pitch: inf turns"),
     (["export", "bolt", "-o", "unused.stl", "--pitch", "1e300"], "error: d and pitch:"),
 ])
@@ -250,33 +253,36 @@ def test_an_unknown_output_extension_exits_1_from_the_real_process(tmp_path: Pat
 
 
 def test_a_kernel_failure_stops_the_export_and_writes_nothing(tmp_path: Path) -> None:
-    # These pass the model (all positive) and the kernel builds one valid solid of them whose
-    # volume is off the closed form (+9.59e-03 in the research probe): the gate refuses it.
+    # These pass the model (a root radius of 0.0123 mm, above the 0.01 mm floor) and the kernel
+    # builds one valid solid of them whose volume is off the closed form (-1.829e-04): the gate
+    # refuses it.
     out = tmp_path / "b.stl"
-    code = _exit_code(["export", "bolt", "-o", str(out), "--d", "0.001", "--pitch", "0.0001",
-                       "--length", "0.01"])
+    code = _exit_code(["export", "bolt", "-o", str(out), "--d", "0.03", "--pitch", "0.005",
+                       "--length", "0.05"])
     assert isinstance(code, str)
     assert code.startswith("error: ")
     assert not out.exists()
 
 
 def test_a_length_too_short_to_model_ends_with_an_error_naming_it_and_writes_nothing(
-        tmp_path: Path) -> None:
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    # Since G30 refused before the build, like any download over its budget (exit 2): fewer
+    # turns than any fitted bolt. The builder's doorway (D-17) is no longer reached.
     out = tmp_path / "b.stl"
-    code = _exit_code(["export", "bolt", "-o", str(out), "--length", "1e-9"])
-    assert isinstance(code, str)
-    assert code.startswith("error: ")
-    assert "length" in code
+    assert _exit_code(["export", "bolt", "-o", str(out), "--length", "1e-9"]) == 2
+    err = capsys.readouterr().err
+    assert err.startswith("error: pitch, length and thread_length: ")
     assert not out.exists()
 
 
-def test_a_length_too_short_to_model_exits_1_from_the_real_process(tmp_path: Path) -> None:
-    """Not a worker death: the process says why and returns 1 instead of dying on a signal."""
+def test_a_length_too_short_to_model_exits_2_from_the_real_process(tmp_path: Path) -> None:
+    """Not a worker death: the process says why and returns instead of dying on a signal; 2, the
+    refusal before the build, since G30."""
     out = tmp_path / "b.stl"
     result = subprocess.run(
         [sys.executable, "-m", "screw.cli", "export", "bolt", "-o", str(out), "--length", "1e-9"],
         capture_output=True, text=True, check=False)
-    assert result.returncode == 1
+    assert result.returncode == 2
     assert "error: " in result.stderr
     assert "length" in result.stderr
     assert not out.exists()
@@ -345,76 +351,190 @@ def test_readme_cli_examples_run(tmp_path: Path, capsys: pytest.CaptureFixture[s
             assert json.loads(capsys.readouterr().out)["kind"] == "bolt"
 
 
-CAPPED = ["--d", "8", "--pitch", "1.25", "--length", "67.6", "--thread-length", "67.6"]
+# The explore point `bolt-d30-p3-n30-right` (run 40646117094), refused at stl-preview and stl-fine
+# by the shipped cost model under C1 (B-01); an R12 widening only refuses more. Its d / pitch is 10,
+# inside the bolt's fine-pitch wall (07 R31); the first pick, `bolt-d30-p1-n30-right`, is past it.
+OVER = ["--d", "30", "--pitch", "3", "--length", "90", "--thread-length", "90", "--s", "48",
+        "--k", "18"]
+OVER_PART = BoltParams(d=30.0, pitch=3.0, length=90.0, thread_length=90.0, s=48.0, k=18.0)
 
 
-def test_a_fine_stl_l11_measured_over_budget_exits_2_and_writes_nothing(
+def test_a_fine_stl_over_its_budget_exits_2_and_writes_nothing(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     out = tmp_path / "x.stl"
-    assert _exit_code(["export", "bolt", *CAPPED, "-o", str(out)]) == 2
+    refusal = cost.refusal(OVER_PART, "stl-fine")
+    assert refusal is not None
+    assert _exit_code(["export", "bolt", *OVER, "-o", str(out)]) == 2
     err = capsys.readouterr().err
-    assert "error: thread_length and length:" in err
-    assert "2026-10-08-a-grid" in err
+    assert err == f"error: {refusal}\n"
+    assert err.startswith("error: d, pitch, length, s, k and thread_length: ")
+    assert "L21" in err
     assert not out.exists()
 
 
-def test_a_nut_fine_stl_past_its_measured_cap_exits_2_and_writes_nothing(
+def test_a_nut_fine_stl_over_its_budget_exits_2_and_writes_nothing(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    # A nut the shipped cost model refuses at every artifact under C1 (B-01), inside the nut's
+    # fine-pitch wall (07 R31, d / pitch 8); a widening only refuses more.
     out = tmp_path / "x.stl"
-    argv = ["export", "nut", "--d", "10", "--pitch", "1.5", "--s", "16", "--m", "37",
-            "--clearance", "0.1", "-o", str(out)]
+    argv = ["export", "nut", "--d", "50", "--pitch", "6.25", "--s", "80", "--m", "500",
+            "-o", str(out)]
+    refusal = cost.refusal(NutParams(d=50.0, pitch=6.25, s=80.0, m=500.0), "stl-fine")
+    assert refusal is not None
     assert _exit_code(argv) == 2
     err = capsys.readouterr().err
-    assert "error: m: " in err
-    assert "2026-10-21-nut-fine-caps-amended" in err
+    assert err == f"error: {refusal}\n"
+    assert err.startswith("error: d, pitch, s, m and clearance: ")
+    assert "L21" in err
     assert not out.exists()
 
 
-def test_the_same_part_is_exported_as_a_step_and_as_a_preview_stl(tmp_path: Path) -> None:
-    step = tmp_path / "x.step"
-    cli.main(["export", "bolt", *CAPPED, "-o", str(step)])
-    assert step.read_bytes().startswith(b"ISO-10303-21;")
-    stl = tmp_path / "x.stl"
-    cli.main(["export", "bolt", *CAPPED, "-o", str(stl), "--quality", "preview"])
-    assert len(stl.read_bytes()) > 84
+@pytest.mark.parametrize(("suffix", "quality"), [
+    ("stl", "fine"), ("stl", "preview"), ("step", "fine"), ("step", "preview")])
+def test_each_download_of_a_refused_part_is_judged_on_its_own(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch,
+        suffix: str, quality: str) -> None:
+    """A refusal is per artifact (D-06): the export exits 2 exactly where the shared rule refuses.
+
+    The kernel is stubbed, so only the rule is under test, not a d 30 build.
+    """
+    monkeypatch.setattr("screw.solid.export", lambda p, fmt, q: b"solid")
+    out = tmp_path / f"x.{suffix}"
+    refusal = download_refusal(OVER_PART, suffix, quality)
+    argv = ["export", "bolt", *OVER, "-o", str(out), "--quality", quality]
+    capsys.readouterr()
+    if refusal is None:
+        cli.main(argv)
+        assert out.read_bytes() == b"solid"
+    else:
+        assert _exit_code(argv) == 2
+        assert capsys.readouterr().err == f"error: {refusal}\n"
+        assert not out.exists()
+
+
+# B-03 (07-OWNER-RULINGS.md, 2026-10-29): bolt d 20, s 32, k 12 with pitch, length and
+# thread_length at their defaults is over its budget at stl-preview and stl-fine; its defaulted
+# thread_length is capped. The clarification's evidence part, d 30 at the default pitch 1, is
+# past the bolt's fine-pitch wall (07 R31) and never reaches the cost model now.
+CAPPED = ["--d", "20", "--s", "32", "--k", "12"]
+CAPPED_PART = BoltParams(d=20.0, s=32.0, k=12.0)
+
+
+def test_info_prints_the_capped_part_with_its_warning_first(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    capped, (warning,) = cost.cap_defaults(CAPPED_PART, frozenset({"d", "s", "k"}))
+    assert isinstance(capped, BoltParams)
+    cli.main(["info", "bolt", *CAPPED])
+    doc = json.loads(capsys.readouterr().out)
+    assert doc["warnings"][0] == warning
+    assert warning.startswith("thread_length: the default 20 mm ")
+    rows = {r["key"]: r["value"] for r in doc["rows"]}
+    assert rows["thread_length"] == capped.thread_length < 20.0
+
+
+def test_export_writes_the_capped_part_under_its_name_and_warns(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str],
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    built: list[FastenerParams] = []
+
+    def fake_export(p: FastenerParams, fmt: str, quality: str) -> bytes:
+        built.append(p)
+        return b"solid"
+
+    monkeypatch.setattr("screw.solid.export", fake_export)
+    capped, (warning,) = cost.cap_defaults(CAPPED_PART, frozenset({"d", "s", "k"}))
+    assert isinstance(capped, BoltParams)
+    cli.main(["export", "bolt", *CAPPED, "-o", str(tmp_path), "--format", "stl"])
+    assert [f.name for f in tmp_path.iterdir()] == [download_name(capped, "stl", "fine")]
+    assert built == [capped]
+    assert f"warning: {warning}\n" in capsys.readouterr().err
+
+
+def test_a_presets_fields_count_as_given_so_a_preset_is_never_capped(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    # iso4017:M6x20 carries length and thread_length 20, the defaults. With --s 13 its preview is
+    # over the budget; the same values left unnamed would be capped (thread_length 4.5, above B-03's
+    # turns floor, where --s 15 no longer caps), the preset's are refused.
+    p = BoltParams(s=13.0)
+    assert cost.cap_defaults(p, frozenset({"s"}))[1] != ()
+    named = frozenset({"d", "pitch", "length", "s", "k", "thread_length"})
+    assert cost.cap_defaults(p, named) == (p, ())
+    cli.main(["info", "bolt", "--preset", "iso4017:M6x20", "--s", "13"])
+    doc = json.loads(capsys.readouterr().out)
+    assert doc == json.loads(derive(p).model_dump_json())
+    out = tmp_path / "x.stl"
+    assert _exit_code(["export", "bolt", "--preset", "iso4017:M6x20", "--s", "13", "-o", str(out),
+                       "--quality", "preview"]) == 2
+    assert capsys.readouterr().err == f"error: {cost.refusal(p, 'stl-preview')}\n"
+    assert not out.exists()
+
+
+def test_an_export_of_a_bolt_below_the_fitted_turns_is_refused_with_the_apis_text(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    # G30: the CLI's refusal is the API's msg, word for word (FRNT-05 parity).
+    p = BoltParams(d=2.0, pitch=0.4, length=4.0, s=4.0, k=1.4, thread_length=1.0)
+    out = tmp_path / "x.step"
+    assert _exit_code(["export", "bolt", "--d", "2", "--pitch", "0.4", "--length", "4", "--s",
+                       "4", "--k", "1.4", "--thread-length", "1", "-o", str(out)]) == 2
+    assert capsys.readouterr().err == f"error: {cost.refusal(p, 'step')}\n"
+    assert not out.exists()
+
+
+def test_a_nut_with_a_defaulted_m_over_the_budget_is_capped_on_m(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    # Inside the nut's fine-pitch wall (07 R31) the m cap is reached by d 0.5 at d / pitch 8 with
+    # s named; the first pick, d 2 at pitch 0.1, is past the wall.
+    nut = NutParams(d=0.5, pitch=0.0625, s=1.0)
+    capped, (warning,) = cost.cap_defaults(nut, frozenset({"d", "pitch", "s"}))
+    assert isinstance(capped, NutParams)
+    cli.main(["info", "nut", "--d", "0.5", "--pitch", "0.0625", "--s", "1"])
+    doc = json.loads(capsys.readouterr().out)
+    assert doc["warnings"][0] == warning
+    assert warning.startswith("m: ")
+    assert {r["key"]: r["value"] for r in doc["rows"]}["m"] == capped.m < 5.2
+
+
+def test_a_bolt_only_a_coarser_pitch_would_admit_keeps_its_refusal(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    # B-03 is part-wide, not part-wide-pitch: the pitch never moves, so the 422 analogue stands.
+    # d 12 at the default pitch 1, inside the bolt's fine-pitch wall (07 R31), over at both STLs
+    # with no thread_length or length cap that admits it.
+    p = BoltParams(d=12.0, s=24.0, k=8.4)
+    argv = ["--d", "12", "--s", "24", "--k", "8.4"]
+    cli.main(["info", "bolt", *argv])
+    assert json.loads(capsys.readouterr().out) == json.loads(derive(p).model_dump_json())
+    out = tmp_path / "x.stl"
+    assert _exit_code(["export", "bolt", *argv, "-o", str(out), "--quality", "preview"]) == 2
+    assert capsys.readouterr().err == f"error: {cost.refusal(p, 'stl-preview')}\n"
+    assert not out.exists()
 
 
 def test_the_over_budget_fine_stl_exits_2_from_the_real_process(tmp_path: Path) -> None:
     """Like a bad parameter, not a build failure (exit 1): the shell sees the same code."""
     out = tmp_path / "x.stl"
     result = subprocess.run(
-        [sys.executable, "-m", "screw.cli", "export", "bolt", *CAPPED, "-o", str(out)],
+        [sys.executable, "-m", "screw.cli", "export", "bolt", *OVER, "-o", str(out)],
         capture_output=True, text=True, check=False)
     assert result.returncode == 2
-    assert "error: thread_length and length:" in result.stderr
+    assert result.stderr == f"error: {cost.refusal(OVER_PART, 'stl-fine')}\n"
     assert not out.exists()
 
 
-def test_the_left_hand_part_l11_measured_inside_the_budget_is_not_refused(
+def test_either_hand_of_m10_x_60_is_judged_by_the_shared_rule(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """D-21: M10 x 60 is over the budget right-hand and inside it left-hand.
+    """D-21: the hand is a feature of the cost model, so each hand reads its own outcome.
 
-    A real fine export of the left-hand part would write a large STL, so its side is asked of the
-    rule `screw export` shares with the API; the right-hand side is the real command.
+    A real fine export would write a large STL, so the outcome is asked of the rule `screw export`
+    shares with the API, and the command is held to it.
     """
     mirror = ["--d", "10", "--pitch", "1.5", "--length", "60", "--thread-length", "60", "--s", "16",
               "--k", "6.4"]
-    left = BoltParams(d=10.0, pitch=1.5, length=60.0, thread_length=60.0, left_hand=True, s=16.0,
-                      k=6.4)
-    assert download_refusal(left, "stl", "fine") is None
-    cli.main(["info", "bolt", *mirror, "--left-hand"])
-    assert json.loads(capsys.readouterr().out)["warnings"] == [derive(left).warnings[0]]
-
-    cli.main(["info", "bolt", *mirror])
-    warnings = json.loads(capsys.readouterr().out)["warnings"]
-    assert len(warnings) == 2
-    assert warnings[1].startswith("thread_length and length: ")
-    assert "right-hand" in warnings[1]
-
-    out = tmp_path / "x.stl"
-    assert _exit_code(["export", "bolt", *mirror, "-o", str(out)]) == 2
-    assert "error: thread_length and length:" in capsys.readouterr().err
-    assert not out.exists()
+    for hand in ([], ["--left-hand"]):
+        p = BoltParams(d=10.0, pitch=1.5, length=60.0, thread_length=60.0, left_hand=bool(hand),
+                       s=16.0, k=6.4)
+        assert download_refusal(p, "stl", "fine") == cost.refusal(p, "stl-fine")
+        cli.main(["info", "bolt", *mirror, *hand])
+        assert json.loads(capsys.readouterr().out)["warnings"] == derive(p).warnings
 
 
 def test_an_explicit_thread_length_above_an_explicit_length_exits_2_naming_both(

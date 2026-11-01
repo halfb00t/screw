@@ -15,6 +15,8 @@ from typing import Literal, NamedTuple
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from screw.calc import cost
+from screw.calc.cost import artifact_of
 from screw.calc.printability import measured_range_warning, printability_warning
 from screw.calc.thread import (
     MIN_TAIL_MM,
@@ -25,7 +27,6 @@ from screw.calc.thread import (
     built_thread_length,
     end_depths,
     fillet_radius,
-    fine_stl_refusal,
     flank_normal_gap,
     head_chamfer_conflict,
     head_chamfer_depths,
@@ -33,7 +34,6 @@ from screw.calc.thread import (
     head_chamfer_volume,
     head_chamfer_warnings,
     nut_end_closed_volume,
-    nut_fine_stl_refusal,
     pitch_diameter,
     thread_depth,
     thread_length_conflict,
@@ -63,7 +63,8 @@ SHARP_HEAD_NOTE = "sharp hex head corners: head_chamfer 0 cuts no top chamfer (L
 # The standing entry on every info document (D-04, D-18, 06.1 D-12): it names the ends the builder
 # models (L15 and L19: the bolt tip cone, the hex head chamfer, the under-head fillet and the nut's
 # countersinks and chamfers) and says they are nominal, so nobody should cut metal to it as a
-# product. The first release, after Phase 7, removes the last clause (06 D-15).
+# product. The first release, once the runtime bounds are measured, removes the last clause
+# (06 D-15).
 STANDING_WARNING = (
     "ends modelled per L15 and L19: bolt tip chamfer, hex head chamfer, under-head fillet on an "
     "ISO 4014 plain shank, nut lead-in countersinks and face chamfers; nominal, not toleranced; "
@@ -520,26 +521,33 @@ def derive(p: FastenerParams) -> PartInfo:
     raise TypeError(f"no info document for kind {p.kind!r}")
 
 
+def derive_capped(p: FastenerParams, explicit: frozenset[str]) -> tuple[FastenerParams, PartInfo]:
+    """The part a request is served as and its info document: `p` with a defaulted field capped
+    when the part is over its budget, the cap's warning first (D-06, B-03, L02).
+
+    The one call the API's info route and `screw info` / `screw export` share, so the capped part,
+    the warning and the file name cannot differ between them. `explicit` is the request's named
+    fields, as `cost.cap_defaults` reads them.
+    """
+    capped, cap_warnings = cost.cap_defaults(p, explicit)
+    info = derive(capped)
+    if cap_warnings:
+        info = info.model_copy(update={"warnings": [*cap_warnings, *info.warnings]})
+    return capped, info
+
+
 def download_refusal(p: FastenerParams, fmt: str, quality: str) -> str | None:
     """The reason a download of `p` is refused before any build, or None.
 
     The one rule `app._serve` and `screw export` share (FRNT-05 parity). Kernel-free, so a
-    refused request never reaches the cache, the admission slot or the pool. Only the fine
-    STL is ever refused (D-02): the preview STL and the STEP of the same part are served.
-    Dispatches with `isinstance` like `derive`: a registered kind without an entry raises
-    TypeError, whatever `fmt` and `quality` say, so the registry test catches it.
+    refused request never reaches the cache, the admission slot or the pool. Every artifact is
+    judged against its own measured budget (D-06, L21): STEP ignores the quality, so both its
+    qualities are one artifact and one answer. A kind with no cost model raises TypeError,
+    whatever `fmt` and `quality` say, so the registry test catches it.
     """
-    if isinstance(p, BoltParams):
-        if fmt == "stl" and quality == "fine":
-            return fine_stl_refusal(
-                p.d, p.pitch, built_thread_length(p.thread_length, p.length), p.left_hand)
-        return None
-    if isinstance(p, NutParams):
-        # The nut's own caps (run 2026-10-21-nut-fine-caps-amended, R16 and R17), never the rods'.
-        if fmt == "stl" and quality == "fine":
-            return nut_fine_stl_refusal(p.d, p.pitch, p.m, p.clearance, p.left_hand)
-        return None
-    raise TypeError(f"no download rule for kind {p.kind!r}")
+    if not isinstance(p, BoltParams | NutParams):
+        raise TypeError(f"no download rule for kind {p.kind!r}")
+    return cost.refusal(p, artifact_of(fmt, quality))
 
 
 def download_name(p: FastenerParams, fmt: str, quality: str) -> str:
@@ -547,19 +555,21 @@ def download_name(p: FastenerParams, fmt: str, quality: str) -> str:
     `screw export` share (D-22, R9).
 
     A preview STL carries `_preview` before its extension, because the mesh it holds is the
-    coarse one (INTERIM 0.08 mm deflection against the fine 0.01 mm, `solid.TESSELLATION`) and a
-    file opened a month later has only its name to say so (L02). The fine STL and the STEP keep
-    `<slug>.<ext>`: the STEP has no tessellation, and `quality` does not change it. `slug()` holds
-    only letters, digits and `_.+-` (T-01-06), so the name is filename-safe by construction.
+    coarse one (0.08 mm deflection against the fine 0.01 mm, `solid.TESSELLATION`, kept by
+    R23) and a file opened a month later has only its name to say so (L02). The fine STL and
+    the STEP keep `<slug>.<ext>`: the STEP has no tessellation, and `quality` does not change
+    it. `slug()` holds only letters, digits and `_.+-` (T-01-06), so the name is filename-safe
+    by construction.
     """
     suffix = "_preview" if fmt == "stl" and quality == "preview" else ""
     return f"{p.slug()}{suffix}.{fmt}"
 
 
 # The page's preference: per format the route's default quality first, then the coarser preview it
-# falls back to (`solid.TESSELLATION`, INTERIM: preview 0.08 mm and 0.5 rad, fine 0.01 mm and
-# 0.1 rad). STEP ignores quality in `solid._write_export`, but the route accepts both, so both are
-# listed and both are true. tests/test_api.py pins the set and the first quality to the route.
+# falls back to (`solid.TESSELLATION`, kept by 07-SWEEP-PROTOCOL R23: preview 0.08 mm and 0.5 rad,
+# fine 0.01 mm and 0.1 rad). STEP ignores quality in `solid._write_export`, but the route accepts
+# both, so both are listed and both are true. tests/test_api.py pins the set and the first quality
+# to the route.
 _DOWNLOADS: tuple[tuple[DownloadFormat, DownloadQuality], ...] = (
     ("stl", "fine"), ("stl", "preview"), ("step", "fine"), ("step", "preview"))
 

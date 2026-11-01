@@ -29,15 +29,16 @@ from fastapi.testclient import TestClient
 from screw import app as app_module
 from screw.app import app, build_backend
 from screw.build_errors import BuildError, BuildTimeout
-from screw.calc import STANDING_WARNING
-from screw.calc.presets import expand
+from screw.calc import STANDING_WARNING, download_name, download_refusal
+from screw.calc import cost as cost_model
+from screw.calc.cost import BUILD_TIMEOUT_S, Artifact
 from screw.calc.thread import (
     T_GATE,
     bolt_end_closed_volume,
     head_chamfer_depths,
     head_chamfer_warnings,
 )
-from screw.params import DEFAULT_KIND, INTERIM_MAX_MM, KINDS, BoltParams, FastenerParams
+from screw.params import DEFAULT_KIND, KINDS, BoltParams, FastenerParams, NutParams
 from screw.solid import Format, Quality, export, precise_volume
 from screw.tables.presets import catalogue
 
@@ -445,75 +446,89 @@ def test_quality_is_a_foreign_field_on_the_info_route() -> None:
     assert detail["loc"] == ["query", "quality"]
 
 
-def test_the_interim_bound_is_inclusive_and_the_next_value_is_refused() -> None:
-    # The number D-14 pinned. Phase 7 replaces it from the sweep and edits this line on
-    # purpose: the bound is a contract, not an accident of whichever constant is imported.
-    assert INTERIM_MAX_MM == 100000.0
-    bound = INTERIM_MAX_MM
-    just_over = math.nextafter(bound, math.inf)
-    assert just_over > bound
+# The walls of L20 (typed from the records: tests/test_oper_followup.py recomputes them): the field,
+# the value at the wall, and the other fields that make that corner a valid part. The bolt at its d
+# wall takes pitch 50, the smallest the bolt's fine-pitch wall admits there (07 R31).
+WALLS: list[tuple[str, str, float, Params]] = [
+    ("bolt", "d", 999.999, {"s": 1000.0, "pitch": 50.0}),
+    ("bolt", "length", 1e4, {}),
+    ("bolt", "s", 1000.0, {}),
+    ("bolt", "k", 1e5, {}),
+    ("bolt", "thread_length", 1e5, {}),
+    ("nut", "s", 1000.0, {}),
+    ("nut", "m", 1e4, {"d": 200.0, "pitch": 114.0, "s": 300.0}),
+    ("nut", "clearance", 496.999, {"s": 1000.0}),
+]
 
+
+@pytest.mark.parametrize(("kind", "field", "bound", "extra"), WALLS)
+def test_each_field_wall_is_inclusive_and_the_next_float_is_a_422_naming_the_field(
+        kind: str, field: str, bound: float, extra: Params) -> None:
+    assert client.get(f"/api/{kind}/info", params={**extra, field: bound}).status_code == 200
+    refused = client.get(f"/api/{kind}/info",
+                         params={**extra, field: math.nextafter(bound, math.inf)})
+    assert refused.status_code == 422
+    [detail] = refused.json()["detail"]
+    assert detail["loc"] == ["query", field]
+    assert detail["type"] == "less_than_equal"
+
+
+def test_the_nut_d_has_no_wall_of_its_own_and_stays_under_the_shared_one() -> None:
+    # G27: nut d is bounded by MAX_FIELD_MM (1e3) and by the cost model, not by a measured wall.
+    # Pitch 124.963 is the smallest the nut's fine-pitch wall admits at that d (07 R31).
+    assert client.get("/api/nut/info", params={"d": 999.699, "s": 1000.0, "pitch": 124.963}
+                      ).status_code == 200
+    refused = client.get("/api/nut/info", params={"d": math.nextafter(1000.0, math.inf)})
+    assert refused.status_code == 422
+    assert refused.json()["detail"][0]["loc"] == ["query", "d"]
+
+
+def test_a_part_at_the_walls_is_taken_and_judged_by_the_cost_model_and_one_past_is_not() -> None:
     seen: list[FastenerParams] = []
 
     async def stub(p: FastenerParams, fmt: str, quality: str) -> bytes:
-        # A thread at d=1e5 does not mesh in 120 s (planner probe 2026-10-10), so the model
-        # route is exercised with a backend that records what it was asked for and returns
-        # the default part's preview.
+        # The model route is exercised with a backend that records what it was asked for and
+        # returns the default part's preview: these parts are walls, not meshes to build.
         seen.append(p)
         return export(BoltParams(), "stl", "preview")
 
-    # A length at the bound is 250 turns only at a coarse pitch (D-01); d = 1000 keeps its root
-    # radius above 0 there (research built d=1e5, pitch=400 at 1e5 mm in 1.74 s) and a head
-    # wider than d keeps head_too_small quiet (D-23).
-    at_bound: Params = {"pitch": 400.0, "d": 1000.0, "s": 1500.0, "k": 600.0, "length": bound}
-    assert client.get("/api/bolt/info", params=at_bound).status_code == 200
+    # Pitch 50 is the smallest the bolt's fine-pitch wall admits at d 999.999 (07 R31).
+    at_wall: Params = {"length": 1e4, "s": 1000.0, "d": 999.999, "k": 1e5, "pitch": 50.0}
+    part = BoltParams.model_validate(at_wall)
+    assert (part.length, part.s, part.d, part.k) == (1e4, 1000.0, 999.999, 1e5)
+    assert client.get("/api/bolt/info", params=at_wall).status_code == 200
     with _backend(stub):
-        r = client.get("/api/bolt/model.stl", params={**at_bound, "quality": "preview"})
-    assert r.status_code == 200
-    assert len(r.content) > 84
-    assert isinstance(seen[-1], BoltParams)
-    assert seen[-1].length == bound
-    over: Params = {**at_bound, "length": just_over}
+        r = client.get("/api/bolt/model.stl", params={**at_wall, "quality": "preview"})
+    # The walls take it and the cost model judges it. Until G28 its raw prediction admitted it,
+    # k/d 100 making the head look cheap; now k/d is judged at the band's own heads and s/d 1.0
+    # at its low edge, so the route answers as the rule does, never with a wall's 422.
+    assert r.status_code == _status(part, "stl", "preview")
+    assert r.status_code == 200 or r.json()["detail"][0]["type"] == "over_budget"
+    assert seen == ([part] if r.status_code == 200 else [])
+    over: Params = {**at_wall, "length": math.nextafter(1e4, math.inf)}
     for route in ("/api/bolt/info", "/api/bolt/model.stl"):
-        refused = client.get(route, params=over)
+        refused = client.get(route, params={**over, "quality": "preview"}
+                             if route.endswith(".stl") else over)
         assert refused.status_code == 422
         assert refused.json()["detail"][0]["loc"] == ["query", "length"]
 
-    # thread_length shares the bound (D-23): a 250-turn thread of 1e5 mm is served, one float
-    # above names the field. `length` is left out of the refused request: an explicit length at
-    # the bound with a thread_length past it is also the D-25 conflict, which is checked first.
-    thread_at_bound: Params = {**at_bound, "thread_length": bound}
-    assert client.get("/api/bolt/info", params=thread_at_bound).status_code == 200
-    no_length: Params = {k: v for k, v in thread_at_bound.items() if k != "length"}
+
+def test_a_bolt_at_the_d_wall_with_a_default_head_is_head_too_small() -> None:
+    # s is bounded by 1e3, which is above the d wall, so the head must be wider than the shank
+    # (D-23); the 422 names both fields and does not hide behind the field wall.
     for route in ("/api/bolt/info", "/api/bolt/model.stl"):
-        refused = client.get(route, params={**no_length, "thread_length": just_over})
-        assert refused.status_code == 422
-        assert refused.json()["detail"][0]["loc"] == ["query", "thread_length"]
+        query: Params = {"d": 999.999}
+        refused = client.get(route, params={**query, "quality": "preview"}
+                             if route.endswith(".stl") else query)
+        assert refused.status_code == 422, route
+        detail = refused.json()["detail"][0]
+        assert detail["type"] == "head_too_small"
+        assert detail["ctx"]["fields"] == ["s", "d"]
+        assert detail["msg"].startswith("s and d: ")
 
-    # d at the bound is refused outright: s cannot exceed the same bound, so no head is wider
-    # than d there (D-23). One float above is the bound itself, named on the field.
-    for route in ("/api/bolt/info", "/api/bolt/model.stl"):
-        for query in ({"d": bound}, {"d": bound, "length": 1e-7}):
-            refused = client.get(route, params={**query, "quality": "preview"}
-                                 if route.endswith(".stl") else query)
-            assert refused.status_code == 422, (route, query)
-            detail = refused.json()["detail"][0]
-            assert detail["type"] == "head_too_small"
-            assert detail["loc"] == ["query"]
-            assert detail["ctx"]["fields"] == ["s", "d"]
-            assert detail["msg"].startswith("s and d: ")
-        over_d = client.get(route, params={"d": just_over})
-        assert over_d.status_code == 422
-        assert over_d.json()["detail"][0]["loc"] == ["query", "d"]
 
-    # s and k at the bound are served; one float above names the field.
-    for field in ("s", "k"):
-        assert client.get("/api/bolt/info", params={field: bound}).status_code == 200
-        over_head = client.get("/api/bolt/info", params={field: just_over})
-        assert over_head.status_code == 422
-        assert over_head.json()["detail"][0]["loc"] == ["query", field]
-
-    # 1e200 overflows a float on the way to a volume (F2); the bound refuses it first.
+def test_a_huge_d_is_refused_before_it_overflows_a_volume() -> None:
+    # 1e200 overflows a float on the way to a volume (F2); the wall refuses it first.
     huge = client.get("/api/bolt/info", params={"d": 1e200})
     assert huge.status_code == 422
     assert huge.json()["detail"][0]["loc"] == ["query", "d"]
@@ -522,11 +537,12 @@ def test_the_interim_bound_is_inclusive_and_the_next_value_is_refused() -> None:
 @pytest.mark.parametrize("route", ["/api/bolt/info", "/api/bolt/model.stl"])
 @pytest.mark.parametrize(("query", "kind", "fields"), [
     ({"pitch": 6}, "pitch_too_coarse", ["d", "pitch"]),
+    ({"pitch": 5.53}, "pitch_too_coarse", ["d", "pitch"]),   # root 0.0069 mm, under the floor
     ({"pitch": 1e300}, "pitch_too_coarse", ["d", "pitch"]),
     ({"length": 300, "thread_length": 300}, "turn_cap", ["thread_length", "length", "pitch"]),
     # length / pitch is past the float range: a 422, not the 500 an OverflowError gave (CR-01)
     ({"pitch": 5e-324}, "turn_cap", ["thread_length", "length", "pitch"]),
-    ({"pitch": 1e-310, "length": 1e5}, "turn_cap", ["thread_length", "length", "pitch"]),
+    ({"pitch": 1e-310, "length": 1e4}, "turn_cap", ["thread_length", "length", "pitch"]),
 ])
 def test_a_thread_that_cannot_be_made_or_was_never_measured_is_a_422_naming_both_fields(
         route: str, query: Params, kind: str, fields: list[str]) -> None:
@@ -541,6 +557,25 @@ def test_a_thread_that_cannot_be_made_or_was_never_measured_is_a_422_naming_both
     assert detail["ctx"]["fields"] == fields
     named = ", ".join(fields[:-1]) + " and " + fields[-1]
     assert detail["msg"].startswith(named + ": ")
+
+
+def test_a_pitch_one_float_past_the_root_floor_is_a_422_naming_d_and_pitch() -> None:
+    from screw.calc.thread import MIN_ROOT_RADIUS_MM, root_radius_refusal, thread_depth
+
+    pitch = (6.0 / 2 - MIN_ROOT_RADIUS_MM) / thread_depth(1.0)
+    while root_radius_refusal(6.0, pitch) is not None:
+        pitch = math.nextafter(pitch, 0.0)
+    while root_radius_refusal(6.0, math.nextafter(pitch, math.inf)) is None:
+        pitch = math.nextafter(pitch, math.inf)
+    # exactly at the floor: served (OPER-03, the adjacency edge); one float above: refused
+    assert client.get("/api/bolt/info", params={"pitch": pitch}).status_code == 200
+    r = client.get("/api/bolt/info", params={"pitch": math.nextafter(pitch, math.inf)})
+    assert r.status_code == 422
+    [detail] = r.json()["detail"]
+    assert detail["type"] == "pitch_too_coarse"
+    assert detail["ctx"]["fields"] == ["d", "pitch"]
+    assert detail["msg"].startswith("d and pitch: ")
+    assert "must be at least 0.01 mm" in detail["msg"]
 
 
 @pytest.mark.parametrize("route", ["/api/bolt/info", "/api/bolt/model.stl"])
@@ -561,12 +596,15 @@ def test_a_head_one_ulp_wider_than_the_shank_is_served() -> None:
     assert client.get("/api/bolt/info", params={"s": s}).status_code == 200
 
 
-def test_a_solid_the_kernel_gets_wrong_is_a_422_build_error() -> None:
-    """These parameters pass validation (positive, finite) and build one valid solid whose
-    volume is off the closed form (+9.59e-03 in the research probe); the gate turns that
-    into a BuildError, not a served file."""
+def test_a_solid_the_kernel_gets_wrong_is_a_422_build_error(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    """These parameters pass validation (a root radius of 0.0123 mm, above the 0.01 mm floor) and
+    build one valid solid whose volume is off the closed form (-1.829e-04); the gate turns that
+    into a BuildError, not a served file. The download rule is switched off, so the kernel's gate
+    is what answers whatever the cost model says of this part (L21)."""
+    monkeypatch.setattr(app_module, "download_refusal", lambda p, fmt, quality: None)
     r = client.get("/api/bolt/model.stl", params={
-        "d": 0.001, "pitch": 0.0001, "length": 0.01, "quality": "preview"})
+        "d": 0.03, "pitch": 0.005, "length": 0.05, "quality": "preview"})
     assert r.status_code == 422
     detail = r.json()["detail"][0]
     assert detail["type"] == "build_error"
@@ -687,12 +725,18 @@ def test_every_repeated_key_is_named_in_first_seen_order() -> None:
     assert [e["loc"] for e in r.json()["detail"]] == [["query", "pitch"], ["query", "d"]]
 
 
-def test_a_saturated_service_refuses_instead_of_queueing() -> None:
-    """A queue deeper than the pool can drain is latency with no payoff."""
+@pytest.mark.parametrize(("url", "artifact"), [
+    ("/api/bolt/model.stl?quality=preview&d=7.2", "stl-preview"),
+    ("/api/bolt/model.stl?quality=fine&d=7.2", "stl-fine"),
+    ("/api/bolt/model.step?d=7.2", "step"),
+])
+def test_a_saturated_service_refuses_instead_of_queueing(url: str, artifact: Artifact) -> None:
+    """A queue deeper than the pool can drain is latency with no payoff. The refusal says when
+    to come back from the refused artifact's measured median build (R18)."""
     with _saturated():
-        r = client.get("/api/bolt/model.stl", params={"quality": "preview", "d": 7.2})
+        r = client.get(url)
     assert r.status_code == 503
-    assert r.headers["retry-after"] == "5"
+    assert r.headers["retry-after"] == app_module.retry_after(artifact)
     detail = r.json()["detail"][0]
     assert detail["type"] == "busy"
     assert "parts" in detail["msg"]
@@ -737,7 +781,7 @@ def test_max_queued_builds_is_derived_from_build_workers(
     can drain -- SCREW_MAX_QUEUED_BUILDS still overrides the derivation when set."""
     monkeypatch.delenv("SCREW_BUILD_WORKERS", raising=False)
     monkeypatch.delenv("SCREW_MAX_QUEUED_BUILDS", raising=False)
-    assert app_module._max_queued_builds() == 4  # 2 x the default 2 workers
+    assert app_module._max_queued_builds() == 2  # 2 x the default 1 worker (R16, R17)
 
     monkeypatch.setenv("SCREW_BUILD_WORKERS", "3")
     assert app_module._max_queued_builds() == 6
@@ -832,7 +876,7 @@ def test_a_cache_hit_that_still_needs_compressing_goes_through_admission_control
     with _saturated():
         r = client.get("/api/bolt/model.stl", params=params)
     assert r.status_code == 503
-    assert r.headers["retry-after"] == "5"
+    assert r.headers["retry-after"] == app_module.retry_after("stl-preview")
     assert r.json()["detail"][0]["type"] == "busy"
 
 
@@ -982,7 +1026,7 @@ def test_a_failed_build_emits_build_failed_naming_the_class_and_the_level(
     assert r.status_code == want_status
     assert r.json()["detail"][0]["type"] == want_type
     if want_status == 503:
-        assert r.headers["retry-after"] == "5"
+        assert r.headers["retry-after"] == app_module.retry_after("stl-preview")
     assert caplog.records  # an empty caplog would pass with nothing proven
 
     failed = _event_records(caplog, "build.failed")
@@ -1028,20 +1072,85 @@ def test_an_unclassified_exception_still_emits_build_failed_and_is_not_swallowed
     assert not _event_records(caplog, "export.served")
 
 
+@pytest.mark.parametrize(("url", "want_artifact"), [
+    ("/api/bolt/model.stl?quality=preview&d=8.6", "stl-preview"),
+    ("/api/bolt/model.stl?quality=fine&d=8.6", "stl-fine"),
+    ("/api/bolt/model.step?d=8.6", "step"),
+])
+def test_a_timed_out_admitted_part_is_logged_as_a_cost_model_miss_and_never_cached(
+        caplog: pytest.LogCaptureFixture, url: str, want_artifact: Artifact) -> None:
+    """The timeout is the backstop behind the cost model (D-10): an admitted part that still
+    overruns is the model's miss, so the server records the part and the seconds it was held
+    to, at ERROR (the service's fault), next to the unchanged 503 `timeout` the client gets.
+    Nothing is cached for it, so the same request builds again.
+    """
+    caplog.set_level(logging.INFO)
+    calls = 0
+
+    async def backend(p: FastenerParams, fmt: str, quality: str) -> bytes:
+        nonlocal calls
+        calls += 1
+        raise BuildTimeout("Build exceeded its 30s per-build timeout.")
+
+    # d=8.6: a diameter no other test in this suite downloads (see the d=8.3 comment above).
+    with _backend(backend):
+        r = client.get(url)
+        assert r.status_code == 503
+        assert r.json()["detail"][0]["type"] == "timeout"
+        assert r.headers["retry-after"] == app_module.retry_after(want_artifact)
+        assert caplog.records  # an empty caplog would pass with nothing proven
+
+        failed = _event_records(caplog, "build.failed")
+        misses = _event_records(caplog, "cost_model.miss")
+        assert len(failed) == 1
+        assert len(misses) == 1
+        miss = misses[0]
+        assert miss.levelno == logging.ERROR
+        assert _field(miss, "request") == _field(failed[0], "request")
+        assert _field(miss, "kind") == "bolt"
+        assert _field(miss, "params") == {"d": 8.6}
+        assert _field(miss, "fmt") == ("step" if want_artifact == "step" else "stl")
+        assert _field(miss, "artifact") == want_artifact
+        assert _field(miss, "timeout_s") == BUILD_TIMEOUT_S[want_artifact]
+        assert not _event_records(caplog, "export.served")
+
+        client.get(url)
+    assert calls == 2
+
+
+@pytest.mark.parametrize("exc", [
+    BuildError("flank too small for this bore"),
+    BrokenProcessPool("worker died"),
+], ids=["build_error", "broken_pool"])
+def test_a_failure_other_than_a_timeout_is_not_a_cost_model_miss(
+        caplog: pytest.LogCaptureFixture, exc: Exception) -> None:
+    caplog.set_level(logging.INFO)
+
+    async def backend(p: FastenerParams, fmt: str, quality: str) -> bytes:
+        raise exc
+
+    with _backend(backend):
+        client.get("/api/bolt/model.stl", params={"quality": "fine", "d": 8.7})
+    assert _event_records(caplog, "build.failed")  # the failure was logged, as a failure
+    assert not _event_records(caplog, "cost_model.miss")
+
+
 @pytest.mark.parametrize(("route", "query"), [
     ("model.stl", {"length": 1e-8, "quality": "preview"}),
     ("model.stl", {"length": 1e-9, "quality": "preview"}),
     ("model.step", {"length": 1e-8}),
 ])
-def test_a_length_too_short_to_model_is_a_422_build_error_not_a_served_file(
+def test_a_length_too_short_to_model_is_a_422_not_a_served_file(
         route: str, query: Params) -> None:
     # The collapsed-solid blocker's own reproductions. They used to be a 134-byte STL as a 200,
-    # a non-watertight mesh, a one-face STEP and a 500; the builder's doorway now refuses them
-    # (D-17) before the kernel runs, so no worker dies on them either.
+    # a non-watertight mesh, a one-face STEP and a 500; the builder's doorway refused them (D-17)
+    # as a `build_error` before the kernel ran. Since G30 a bolt below the fitted turns is refused
+    # before the build, so these never reach the doorway: an `over_budget` 422 naming the length.
     r = client.get(f"/api/bolt/{route}", params=query)
     assert r.status_code == 422
     detail = r.json()["detail"][0]
-    assert detail["type"] == "build_error"
+    assert detail["type"] == "over_budget"
+    assert detail["ctx"]["fields"] == ["pitch", "length", "thread_length"]
     assert "length" in detail["msg"]
 
 
@@ -1089,10 +1198,19 @@ def test_a_failed_export_is_a_422_and_never_enters_the_bytes_cache(
     assert app_module._EXPORTS.get(key) is not None
 
 
-CAPPED: Params = {"d": 8, "pitch": 1.25, "length": 67.6, "thread_length": 67.6}
+# The explore point `bolt-d30-p3-n30-right` (run 40646117094), refused at stl-preview and stl-fine
+# by the shipped cost model under C1 (B-01); an R12 widening only refuses more. Its d / pitch is 10,
+# inside the bolt's fine-pitch wall (07 R31); the first pick, `bolt-d30-p1-n30-right`, is past it.
+OVER: Params = {"d": 30, "pitch": 3, "length": 90, "thread_length": 90, "s": 48, "k": 18}
+OVER_PART = BoltParams.model_validate(OVER)
 
 
-def test_a_fine_stl_l11_measured_over_budget_is_a_422_and_never_reaches_the_backend() -> None:
+def _status(p: FastenerParams, fmt: str, quality: str) -> int:
+    """The status the shared rule gives a download that reaches a stub backend."""
+    return 200 if download_refusal(p, fmt, quality) is None else 422
+
+
+def test_a_fine_stl_over_its_budget_is_a_422_and_never_reaches_the_backend() -> None:
     """D-02: refused before the bytes cache, the admission slot and the pool."""
     calls = 0
 
@@ -1102,22 +1220,30 @@ def test_a_fine_stl_l11_measured_over_budget_is_a_422_and_never_reaches_the_back
         return b"never served"
 
     with _backend(counting_backend):
-        r = client.get("/api/bolt/model.stl", params=CAPPED)    # quality defaults to fine
+        r = client.get("/api/bolt/model.stl", params=OVER)    # quality defaults to fine
     assert r.status_code == 422
     (detail,) = r.json()["detail"]
-    assert detail["type"] == "fine_stl_cap"
+    # B-02 (07-OWNER-RULINGS.md, 2026-10-29): one type for every artifact, its fields and artifact.
+    assert detail["type"] == "over_budget"
     assert detail["loc"] == ["query"]
-    for fragment in ("thread_length and length", "right-hand", "67.5", "54",
-                     "fine STL plus its gzip copy", "64 MiB export budget", "2026-10-08-a-grid"):
-        assert fragment in detail["msg"]
+    assert detail["ctx"] == {"fields": ["d", "pitch", "length", "s", "k", "thread_length"],
+                             "artifact": "stl-fine"}
+    assert detail["msg"] == download_refusal(OVER_PART, "stl", "fine")
+    assert detail["msg"] == cost_model.refusal(OVER_PART, "stl-fine")
+    assert detail["msg"].startswith("d, pitch, length, s, k and thread_length: ")
+    assert "L21" in detail["msg"]
     assert calls == 0
 
 
-NUT_CAPPED: Params = {"d": 10, "pitch": 1.5, "s": 16, "m": 37, "clearance": 0.1}
+# A nut the shipped cost model refuses at every artifact under C1 (B-01): d 50, d / pitch 8 at the
+# nut's fine-pitch wall (07 R31), m 10 d. An R12 widening only refuses more. The first pick, the
+# explore point `nut-d100-p1-m0.8d-s1.6d-c5-right`, is past that wall and no explore nut inside it
+# is refused by the cost model.
+NUT_OVER: Params = {"d": 50, "pitch": 6.25, "s": 80, "m": 500}
 
 
-def test_a_nut_fine_stl_past_its_measured_cap_is_a_422_and_never_reaches_the_backend() -> None:
-    """R16, R17: refused before the cache, the admission slot and the pool, like the rod's."""
+def test_a_nut_fine_stl_over_its_budget_is_a_422_and_never_reaches_the_backend() -> None:
+    """D-06, L21: refused before the cache, the admission slot and the pool, like the bolt's."""
     calls = 0
 
     async def counting_backend(p: FastenerParams, fmt: str, quality: str) -> bytes:
@@ -1125,32 +1251,136 @@ def test_a_nut_fine_stl_past_its_measured_cap_is_a_422_and_never_reaches_the_bac
         calls += 1
         return b"served"
 
+    part = NutParams.model_validate(NUT_OVER)
     with _backend(counting_backend):
-        r = client.get("/api/nut/model.stl", params=NUT_CAPPED)    # quality defaults to fine
+        r = client.get("/api/nut/model.stl", params=NUT_OVER)    # quality defaults to fine
         assert r.status_code == 422
         (detail,) = r.json()["detail"]
-        assert detail["type"] == "fine_stl_cap"
+        assert detail["type"] == "over_budget"
         assert detail["loc"] == ["query"]
-        assert detail["msg"].startswith("m: ")
-        for fragment in ("right-hand", "above m 36 mm", "fine STL plus its gzip copy",
-                         "64 MiB export budget", "2026-10-21-nut-fine-caps-amended"):
-            assert fragment in detail["msg"]
+        assert detail["ctx"] == {"fields": ["d", "pitch", "s", "m", "clearance"],
+                                 "artifact": "stl-fine"}
+        assert detail["msg"] == cost_model.refusal(part, "stl-fine")
+        assert detail["msg"].startswith("d, pitch, s, m and clearance: ")
+        assert "L21" in detail["msg"]
         assert calls == 0
-        preview = client.get("/api/nut/model.stl", params={**NUT_CAPPED, "quality": "preview"})
-        assert preview.status_code == 200
-        assert calls == 1
+        preview = client.get("/api/nut/model.stl", params={**NUT_OVER, "quality": "preview"})
+        assert preview.status_code == _status(part, "stl", "preview")
+        assert calls == (1 if preview.status_code == 200 else 0)
 
 
-def test_the_same_part_is_served_on_the_preview_stl_the_step_and_the_info_route() -> None:
-    preview = client.get("/api/bolt/model.stl", params={**CAPPED, "quality": "preview"})
-    assert preview.status_code == 200
-    step = client.get("/api/bolt/model.step", params=CAPPED)
-    assert step.status_code == 200
-    assert step.content.startswith(b"ISO-10303-21;")
-    assert client.get("/api/bolt/info", params=CAPPED).status_code == 200
+def test_a_nut_step_over_its_budget_is_the_same_422_naming_the_step() -> None:
+    """B-02: the STEP is judged as its own artifact and refused with the same type."""
+    calls = 0
+
+    async def counting_backend(p: FastenerParams, fmt: str, quality: str) -> bytes:
+        nonlocal calls
+        calls += 1
+        return b"served"
+
+    part = NutParams.model_validate(NUT_OVER)
+    refusal = cost_model.refusal(part, "step")
+    assert refusal is not None
+    with _backend(counting_backend):
+        for quality in ("fine", "preview"):
+            r = client.get("/api/nut/model.step", params={**NUT_OVER, "quality": quality})
+            assert r.status_code == 422
+            assert r.json()["detail"] == [{
+                "loc": ["query"], "type": "over_budget", "msg": refusal,
+                "ctx": {"fields": ["d", "pitch", "s", "m", "clearance"], "artifact": "step"}}]
+    assert calls == 0
 
 
-def test_the_cap_itself_and_an_off_row_part_reach_the_backend_as_asked() -> None:
+def test_a_bolt_below_the_fitted_turns_is_the_422_naming_the_thread_fields_at_every_artifact(
+) -> None:
+    """G30: no reading supports a prediction below the fewest fitted turns, so every artifact is
+    refused before any build, naming the fields that set the turns."""
+    calls = 0
+
+    async def counting_backend(p: FastenerParams, fmt: str, quality: str) -> bytes:
+        nonlocal calls
+        calls += 1
+        return b"served"
+
+    fields = {"d": 2.0, "pitch": 0.4, "length": 4.0, "s": 4.0, "k": 1.4, "thread_length": 1.0}
+    part = BoltParams.model_validate(fields)
+    with _backend(counting_backend):
+        downloads: list[tuple[str, str, cost_model.Artifact]] = [
+            ("stl", "preview", "stl-preview"), ("stl", "fine", "stl-fine"),
+            ("step", "fine", "step")]
+        for fmt, quality, artifact in downloads:
+            r = client.get(f"/api/bolt/model.{fmt}", params={**fields, "quality": quality})
+            assert r.status_code == 422
+            assert r.json()["detail"] == [{
+                "loc": ["query"], "type": "over_budget",
+                "msg": cost_model.refusal(part, artifact),
+                "ctx": {"fields": ["pitch", "length", "thread_length"], "artifact": artifact}}]
+        assert client.get("/api/bolt/info", params=fields).status_code == 200
+    assert calls == 0
+
+
+def test_each_download_of_a_refused_part_is_judged_on_its_own_and_its_info_is_served() -> None:
+    """A refusal is per artifact (D-06); a stub stands in for the kernel, so only the rule runs.
+
+    The left hand of OVER, `bolt-d30-p1-n30-left`, also refused at stl-fine in the same table:
+    the byte cache is session-wide, and OVER's own stub bytes would answer the document test.
+    """
+    async def stub(p: FastenerParams, fmt: str, quality: str) -> bytes:
+        return b"stub"
+
+    left: Params = {**OVER, "left_hand": "true"}
+    part = OVER_PART.model_copy(update={"left_hand": True})
+    assert cost_model.refusal(part, "stl-fine") is not None
+    with _backend(stub):
+        for fmt, quality in (("stl", "preview"), ("step", "fine"), ("step", "preview")):
+            r = client.get(f"/api/bolt/model.{fmt}", params={**left, "quality": quality})
+            assert r.status_code == _status(part, fmt, quality), (fmt, quality)
+    assert client.get("/api/bolt/info", params=left).status_code == 200
+
+
+def test_a_part_the_rule_admits_reaches_the_backend_as_asked() -> None:
+    seen: list[FastenerParams] = []
+
+    async def stub(p: FastenerParams, fmt: str, quality: str) -> bytes:
+        seen.append(p)
+        return b"stub"
+
+    asked: list[Params] = [
+        {"d": 8, "pitch": 1.25, "length": 67.5, "thread_length": 67.5},
+        {"d": 8, "pitch": 1, "length": 100},
+        # D-22: the rule reads the built thread, 60 mm of this 100 mm bolt.
+        {"d": 8, "pitch": 1.25, "length": 100, "thread_length": 60}]
+    parts = [BoltParams.model_validate(q) for q in asked]
+    with _backend(stub):
+        for query, p in zip(asked, parts, strict=True):
+            r = client.get("/api/bolt/model.stl", params=query)
+            assert r.status_code == _status(p, "stl", "fine"), query
+    admitted = [p for p in parts if download_refusal(p, "stl", "fine") is None]
+    bolts = [p for p in seen if isinstance(p, BoltParams)]
+    assert [(p.d, p.pitch, p.length, p.thread_length) for p in bolts] == [
+        (p.d, p.pitch, p.length, p.thread_length) for p in admitted]
+    assert len(bolts) == len(seen)
+
+
+# B-03 (07-OWNER-RULINGS.md, 2026-10-29): bolt d 20, s 32, k 12 at the default pitch, length and
+# thread_length is over its budget at stl-preview and stl-fine, and its defaulted thread_length is
+# capped. The clarification's evidence part, d 30 at the default pitch 1, is past the bolt's
+# fine-pitch wall (07 R31) and never reaches the cost model now.
+CAPPED: Params = {"d": 20, "s": 32, "k": 12}
+
+
+def test_a_defaulted_thread_length_over_the_budget_is_served_capped_and_warned() -> None:
+    part = BoltParams.model_validate(CAPPED)
+    capped, (warning,) = cost_model.cap_defaults(part, frozenset(CAPPED))
+    assert isinstance(capped, BoltParams)
+    assert capped.thread_length < part.thread_length
+    doc = client.get("/api/bolt/info", params=CAPPED).json()
+    assert doc["warnings"][0] == warning
+    assert doc["warnings"][1] == STANDING_WARNING
+    rows = {r["key"]: r["value"] for r in doc["rows"]}
+    assert rows["thread_length"] == capped.thread_length
+    assert rows["length"] == part.length
+    assert [e["refusal"] for e in doc["downloads"]] == [None] * 4
     seen: list[FastenerParams] = []
 
     async def stub(p: FastenerParams, fmt: str, quality: str) -> bytes:
@@ -1158,28 +1388,47 @@ def test_the_cap_itself_and_an_off_row_part_reach_the_backend_as_asked() -> None
         return b"stub"
 
     with _backend(stub):
-        at_cap = client.get("/api/bolt/model.stl", params={
-            **CAPPED, "length": 67.5, "thread_length": 67.5})
-        off_row = client.get("/api/bolt/model.stl", params={"d": 8, "pitch": 1, "length": 100})
-        # D-22: the cap reads the thread; 100 mm of bolt with 60 mm of it is inside 67.5.
-        short_thread = client.get("/api/bolt/model.stl", params={
-            "d": 8, "pitch": 1.25, "length": 100, "thread_length": 60})
-    assert at_cap.status_code == off_row.status_code == short_thread.status_code == 200
-    bolts = [p for p in seen if isinstance(p, BoltParams)]
-    assert [(p.d, p.pitch, p.length, p.thread_length) for p in bolts] == [
-        (8.0, 1.25, 67.5, 67.5), (8.0, 1.0, 100.0, 20.0), (8.0, 1.25, 100.0, 60.0)]
-    assert len(bolts) == len(seen)
+        for fmt, quality in (("stl", "fine"), ("stl", "preview")):
+            r = client.get(f"/api/bolt/model.{fmt}", params={**CAPPED, "quality": quality})
+            assert r.status_code == 200, quality
+            name = download_name(capped, fmt, quality)
+            assert r.headers["content-disposition"] == f'attachment; filename="{name}"'
+            assert "thread_length" + repr(capped.thread_length).removesuffix(".0") in name
+    assert seen == [capped, capped]
+
+
+@pytest.mark.parametrize("named", [{"thread_length": 20}, {"thread_length": 20, "length": 20}])
+def test_a_named_thread_length_is_never_capped_and_the_422_stands(named: Params) -> None:
+    # The raw query keys decide, so a typed default counts as named on the API (truth 3); the
+    # length cap never goes below a named thread_length (B-03 clarification, ruling 1).
+    calls = 0
+
+    async def counting_backend(p: FastenerParams, fmt: str, quality: str) -> bytes:
+        nonlocal calls
+        calls += 1
+        return b"never served"
+
+    query = {**CAPPED, **named}
+    part = BoltParams.model_validate(query)
+    doc = client.get("/api/bolt/info", params=query).json()
+    assert doc["warnings"][0] == STANDING_WARNING
+    assert not any(w.startswith(("thread_length: ", "length: ")) for w in doc["warnings"])
+    with _backend(counting_backend):
+        r = client.get("/api/bolt/model.stl", params=query)
+    assert r.status_code == 422
+    (detail,) = r.json()["detail"]
+    assert detail["type"] == "over_budget"
+    assert detail["msg"] == cost_model.refusal(part, "stl-fine")
+    assert calls == 0
 
 
 def test_every_download_the_document_lists_is_answered_by_the_route_as_it_says() -> None:
     """G-04-3, T-04-29: the document and the model route read one rule, so they cannot disagree.
 
-    ISO 4017 M8 x 70 and a part off every row, 5.55 mm, a diameter no other test downloads (the
-    byte cache is session-wide, and the stub's bytes would answer a later real download).
+    A part the model refuses and a part off every row, 5.55 mm, neither of which another test
+    downloads for real (the byte cache is session-wide, and the stub's bytes would answer a later
+    real download).
     """
-    row = expand("bolt", "iso4017:M8x70")
-    assert row is not None
-    capped: Params = {**row}
     plain: Params = {"d": 5.55}
     seen: list[tuple[str, str]] = []
 
@@ -1187,10 +1436,12 @@ def test_every_download_the_document_lists_is_answered_by_the_route_as_it_says()
         seen.append((fmt, quality))
         return b"stub"
 
-    for fields, refused in ((capped, 1), (plain, 0)):
+    for fields in (OVER, plain):
+        p = BoltParams.model_validate(fields)
         downloads = client.get("/api/bolt/info", params=fields).json()["downloads"]
         assert len(downloads) == 4
-        assert sum(e["refusal"] is not None for e in downloads) == refused
+        assert [e["refusal"] for e in downloads] == [
+            download_refusal(p, e["format"], e["quality"]) for e in downloads]
         with _backend(stub):
             for entry in downloads:
                 before = len(seen)
@@ -1202,13 +1453,13 @@ def test_every_download_the_document_lists_is_answered_by_the_route_as_it_says()
                 else:
                     assert r.status_code == 422, entry
                     (detail,) = r.json()["detail"]
-                    assert detail["type"] == "fine_stl_cap"
+                    assert detail["type"] == "over_budget"
                     assert detail["msg"] == entry["refusal"]
                     assert len(seen) == before
 
 
-def test_the_left_hand_part_l11_measured_inside_the_budget_reaches_the_backend() -> None:
-    """D-21: the right-hand M10 x 60 is a 422, the left-hand one the same size is served."""
+def test_either_hand_of_m10_x_60_reaches_the_backend_as_the_shared_rule_says() -> None:
+    """D-21: the hand is a feature of the cost model, so each hand reads its own outcome."""
     seen: list[FastenerParams] = []
 
     async def stub(p: FastenerParams, fmt: str, quality: str) -> bytes:
@@ -1217,14 +1468,17 @@ def test_the_left_hand_part_l11_measured_inside_the_budget_reaches_the_backend()
 
     mirror: Params = {"d": 10, "pitch": 1.5, "length": 60, "thread_length": 60, "s": 16,
                       "k": 6.4}
+    hands = (False, True)
     with _backend(stub):
-        left = client.get("/api/bolt/model.stl", params={**mirror, "left_hand": "true"})
-        right = client.get("/api/bolt/model.stl", params=mirror)
-    assert left.status_code == 200
-    assert [p.left_hand for p in seen if isinstance(p, BoltParams)] == [True]
-    assert right.status_code == 422
-    assert right.json()["detail"][0]["type"] == "fine_stl_cap"
-    assert "right-hand" in right.json()["detail"][0]["msg"]
+        for left_hand in hands:
+            p = BoltParams.model_validate({**mirror, "left_hand": left_hand})
+            r = client.get("/api/bolt/model.stl", params={**mirror, "left_hand": str(left_hand)})
+            assert r.status_code == _status(p, "stl", "fine"), left_hand
+            if r.status_code == 422:
+                assert r.json()["detail"][0]["msg"] == cost_model.refusal(p, "stl-fine")
+    assert [p.left_hand for p in seen if isinstance(p, BoltParams)] == [
+        h for h in hands if download_refusal(
+            BoltParams.model_validate({**mirror, "left_hand": h}), "stl", "fine") is None]
 
 
 CONFLICT_MSG = ("thread_length and length: thread_length 30 mm is longer than length 10 mm; "
@@ -1356,15 +1610,17 @@ def test_an_unreadable_s_or_k_beside_a_deep_head_chamfer_is_its_field_422_not_th
     assert details[0]["type"] != "head_chamfer_conflict"
 
 
-def test_a_head_so_small_its_width_squared_underflows_is_a_document_not_a_500() -> None:
-    # Codex review of PR #21: s = 1e-170 passes the model, and s * s == 0.0 raised
-    # ZeroDivisionError in the kernel bound. The bound is now inf, so the chamfer rows are withheld.
+def test_a_head_so_small_its_width_squared_underflows_is_a_422_naming_d_and_pitch() -> None:
+    # Codex review of PR #21: s = 1e-170 passed the model, and s * s == 0.0 raised
+    # ZeroDivisionError in the kernel bound (a 500). The root-radius floor (07 D-18) now refuses
+    # every d under 0.02 mm before a head is judged, so the request is a 422 and not a document;
+    # `head_chamfer_kernel_bound` keeps its guard, tested in test_calc.py.
     r = client.get("/api/bolt/info",
                    params={"s": "1e-170", "d": "1e-171", "pitch": "1e-172", "length": "1e-171"})
-    assert r.status_code == 200
-    body = r.json()
-    assert "head_chamfer" not in {row["key"] for row in body["rows"]}
-    assert any("may be refused as a build error" in w for w in body["warnings"])
+    assert r.status_code == 422
+    [detail] = r.json()["detail"]
+    assert detail["type"] == "pitch_too_coarse"
+    assert detail["ctx"]["fields"] == ["d", "pitch"]
 
 
 def test_a_repeated_head_chamfer_is_the_duplicate_422_not_the_conflict() -> None:
@@ -1412,21 +1668,22 @@ def test_an_explicit_head_chamfer_exactly_at_half_k_builds_uncapped_and_one_floa
     assert [d["type"] for d in r.json()["detail"]] == ["head_chamfer_conflict"]
 
 
-def test_a_length_below_the_floor_is_a_warned_info_document_and_a_422_build_error() -> None:
-    # IN-01: the info document and the build agree on what is a part. The info document says so
-    # with a warning and no turns or volume; the build names thread_length and length.
-    info = client.get("/api/bolt/info", params={"length": 0.0005})
+def test_a_length_below_the_floor_is_a_warned_info_document_and_a_422() -> None:
+    # IN-01: the info document and the download agree on what is a part. The info document says
+    # so with a warning and no turns or volume; the download, refused before the build since G30
+    # (fewer turns than any fitted bolt), names thread_length and length.
+    info = client.get("/api/bolt/info", params={"length": 0.00005})
     assert info.status_code == 200
     body = info.json()
-    assert any(w.startswith("thread_length and length: a thread of 0.0005 mm is shorter")
+    assert any(w.startswith("thread_length and length: a thread of 5e-05 mm is shorter")
                for w in body["warnings"])
     assert {"turns", "volume"}.isdisjoint(row["key"] for row in body["rows"])
 
-    r = client.get("/api/bolt/model.stl", params={"length": 0.0005, "quality": "preview"})
+    r = client.get("/api/bolt/model.stl", params={"length": 0.00005, "quality": "preview"})
     assert r.status_code == 422
     detail = r.json()["detail"][0]
-    assert detail["type"] == "build_error"
-    assert detail["msg"].startswith("thread_length and length: ")
+    assert detail["type"] == "over_budget"
+    assert detail["msg"].startswith("pitch, length and thread_length: ")
 
 
 def test_the_m18_nut_info_carries_the_pair_proof_label_on_the_route() -> None:
@@ -1434,7 +1691,8 @@ def test_the_m18_nut_info_carries_the_pair_proof_label_on_the_route() -> None:
     label = "kernel pair proof inconclusive at K = 3 (2026-10-08-a-pair)"
     m18 = {"d": 18.0, "pitch": 2.5, "s": 27.0, "m": 14.8, "clearance": 0.1}
     assert label in client.get("/api/nut/info", params=m18).json()["notes"]
-    assert label not in client.get("/api/nut/info", params={**m18, "pitch": 2.0}).json()["notes"]
+    # Another pitch inside the nut's fine-pitch wall (07 R31): M18 x 2, the fine pitch, is past it.
+    assert label not in client.get("/api/nut/info", params={**m18, "pitch": 3.0}).json()["notes"]
 
 
 def test_the_counterpart_travels_on_the_wire_for_both_kinds_and_keeps_a_boolean() -> None:

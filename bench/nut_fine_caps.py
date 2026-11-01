@@ -29,10 +29,13 @@ THE CONSTANTS. `CLEARANCE_MM` (C) is 5.0 mm, the owner's answer to R16 (`.planni
 05-hex-nut-and-kernel-pair-proof/05-OWNER-READS.md`, "Rulings": `option-a`, the largest clearance
 any GOST ISO 4032-2014 row's own s admits, (30 - 20) / 2 at M20 since s > d + 2 c). The product
 refuses a fine STL above C on a measured key; this run measures nothing above C. `S_MM` is 1e5 mm,
-the largest s the parameter model admits (`INTERIM_MAX_MM`): the planner's probe (05-19 Task 1)
-found that s adds a near-constant number of bytes that does not grow with m, so a cap measured at
-the largest s holds for every s. The agent chose neither number. The ladder, C, s, the checks and
-the budget are fixed here: none may change once a row has been run.
+the largest s the parameter model admitted then: the planner's probe (05-19 Task 1) found that s
+adds a near-constant number of bytes that does not grow with m, so a cap measured at the largest s
+holds for every smaller s. Since L20 the model admits an s of at most 1e3 mm, so the run is read
+and written again under the guards it was made under (`bench.oper_lift.registered`: 250 turns and
+1e5 mm), the same way the point files of the phase 7 sweep are. The agent chose neither number.
+The ladder, C, s, the checks and the budget are fixed here: none may change once a row has been
+run.
 
 WHAT A SINGLE RUN DOES NOT SHOW. It is one run on one host (macOS arm64, not the linux/amd64 the
 service ships on; Phase 7 re-measures, OPER-02). The bytes are geometry and do not depend on load;
@@ -79,14 +82,12 @@ from typing import TextIO
 
 import cadquery as cq
 
-from bench import machine_facts
+from bench import machine_facts, oper_lift
 from bench.quiet import Reading, read_now
 from bench.thread_spike.measure import gzip1
 from bench.thread_spike.verdict import BUDGET_BYTES as BUDGET_BYTES
 from screw import solid
 from screw.build_errors import BuildError
-from screw.calc.thread import MAX_TURNS
-from screw.params import NutParams
 from screw.solid import TESSELLATION
 from screw.tables.iso262 import SIZES
 from screw.tables.iso4032 import NUTS
@@ -96,7 +97,8 @@ FIRST_RUN_ID = "2026-10-20-nut-fine-caps"    # stopped on refused checks; R17 am
 RECORDS = Path("bench/results/phase-05/nut-fine-caps-amended.jsonl")
 
 CLEARANCE_MM = 5.0    # C, R16 option-a
-S_MM = 1e5            # equal to params INTERIM_MAX_MM
+S_MM = 1e5            # the model's ceiling when the run was made, a literal since L20
+RUN_TURNS = 250       # `MAX_TURNS` when the run was made (L11); L20 measured 90, this keeps 250
 CHECK_CLEARANCES = (-0.05, 0.0, 0.1, CLEARANCE_MM / 2)
 
 Key = tuple[float, float, bool]
@@ -139,13 +141,13 @@ def total(r: Row) -> int | None:
 
 
 def ladder_end(pitch: float) -> float:
-    """The turn cap's largest m for this pitch: (MAX_TURNS - 2) pitches, as exact decimals."""
-    return float(Fraction(MAX_TURNS - 2) * Fraction(repr(pitch)))
+    """The turn cap's largest m for this pitch: (RUN_TURNS - 2) pitches, as exact decimals."""
+    return float(Fraction(RUN_TURNS - 2) * Fraction(repr(pitch)))
 
 
 def ladder_ms(pitch: float) -> list[float]:
     """m = 1, 2, 3, ... to the turn cap's last whole mm, then the cap's own m if it is not whole."""
-    end = Fraction(MAX_TURNS - 2) * Fraction(repr(pitch))
+    end = Fraction(RUN_TURNS - 2) * Fraction(repr(pitch))
     out = [float(m) for m in range(1, int(end) + 1)]
     if end.denominator != 1:
         out.append(float(end))
@@ -232,7 +234,8 @@ def measure(role: str, key: Key, m: float, clearance: float, s: float) -> Row:
     d, pitch, left_hand = key
     t0 = time.perf_counter()
     try:
-        p = NutParams(d=d, pitch=pitch, s=s, m=m, clearance=clearance, left_hand=left_hand)
+        p = oper_lift.registered("nut", {"d": d, "pitch": pitch, "s": s, "m": m,
+                                         "clearance": clearance, "left_hand": left_hand})
         data = solid.export(p, "stl", "fine")
         gz, _ = gzip1(data)
     except Exception as exc:

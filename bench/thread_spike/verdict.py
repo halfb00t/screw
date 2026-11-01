@@ -73,8 +73,9 @@ GZIP_TABLE_TIMEOUT_S = 900.0
 # a mesh above it is not checked, and the report counts every skipped check.
 FINE_CHECK_CEILING = 1_000_000
 
-# The INTERIM budgets of Phase 1 D-01 (SCREW_BUILD_TIMEOUT 30 s and SCREW_EXPORT_CACHE_MB 64):
-# a row is over budget past either, and over budget caps a size, it is never an escape (D-10).
+# The INTERIM budgets of Phase 1 D-01, SCREW_BUILD_TIMEOUT 30 s (history: removed by L24) and
+# SCREW_EXPORT_CACHE_MB 64: a row is over budget past either, and over budget caps a size, it is
+# never an escape (D-10).
 # Phase 7 re-measures both. Seconds compare as floats, bytes as integers.
 BUDGET_S = 30.0
 BUDGET_BYTES = 64 * 1024 * 1024

@@ -152,6 +152,9 @@ head with exactly the verified title and body, waits up to a minute for the CI r
 new `main` commit and prints its URL, switches to `main`, pulls, and deletes the local
 phase branch only if its tip is the landed commit. Any refusal means nothing was landed.
 
+It does not read the PR's diff. The full-tier and gate-file rules went with the runner
+measurement on CI (`L33`), so no `operability.yml` run is needed and no flag exists.
+
 `make pr.land` is a tool, not a wall: it checks the job list and the lag behind `main` at
 the moment of its read, and the window between that read and the merge is closed by the
 ruleset's strict up-to-date policy. The button on GitHub merges only what the ruleset

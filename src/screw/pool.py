@@ -24,12 +24,13 @@ import asyncio
 import functools
 import importlib
 import multiprocessing as mp
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures.process import BrokenProcessPool
 from typing import ParamSpec, cast
 
 from .build_errors import BuildTimeout
+from .calc.cost import Artifact, artifact_of
 from .params import FastenerParams
 from .records import worker_replaced
 
@@ -70,20 +71,26 @@ def build_export(p: FastenerParams, fmt: str, quality: str) -> bytes:
 class BuildPool:
     """N independent single-worker executors, routed to by parameter-hash affinity."""
 
-    def __init__(self, workers: int, timeout: int) -> None:
+    def __init__(self, workers: int, timeout: Mapping[Artifact, float]) -> None:
         self.workers = workers
-        self.timeout = timeout  # per-build ceiling in seconds; see app.py's lifespan for
-        # where the number itself comes from -- this class only enforces it.
+        self.timeout = timeout  # per-build ceiling in seconds, one per artifact (D-09); see
+        # calc/cost.py's BUILD_TIMEOUT_S for where the numbers come from -- this class only
+        # enforces them.
         self.replaced = 0  # workers replaced since start, reported at /api/health
-        # `max_tasks_per_child` is deliberately absent (stays None -- no recycling). spur's
-        # memory sweep split each N's samples into an early/late half to check for drift
-        # that malloc_trim doesn't flatten: N=2 and N=4 grew late vs early, but spur's
-        # corpus was strictly ascending tooth count, so the "late" half was inherently the
-        # biggest gears -- a bounded per-worker solid cache holding increasingly large
-        # solids grows resident memory for that reason alone, with no leak required. No run
-        # showed unbounded growth. Recycling anyway would cost a respawn plus a cadquery
-        # import and wipe the warm solid cache that affinity exists to keep. Not measured
-        # for screw; Phase 7 re-sweeps (OPER-02).
+        # Per hash slot, the timeouts of the requests submitted and not yet finished; read
+        # and written only on the event loop (see `_run_with_timeout`).
+        self._pending: list[list[float]] = [[] for _ in range(workers)]
+        # `max_tasks_per_child` is deliberately absent (stays None -- no recycling), by
+        # 07-SWEEP-PROTOCOL R23 under the owner's ruling G32. A worker does grow: one part
+        # built cold 20 times in a row rose up to 323194880 B from build 1 to build 20 (fine
+        # STL, run 41016507364), above R23's 10 % allowance at every artifact. Built 60 times
+        # (run 41022812680, 5 repetitions), it levels off: the worst repetition's peak over
+        # builds 41-60 is 6467584 B (preview STL), 11583488 B (fine STL) and 5222400 B
+        # (STEP) above its peak over builds 21-40, within allowances of 44044697.6,
+        # 134713753.6 and 28473344.0 B. The growth is counted in W instead, the largest
+        # peak after any drift build, 1758363648 B, so mem_limit is sized for a warm worker.
+        # Recycling would cost a respawn plus a cadquery import and wipe the warm solid
+        # cache that affinity exists to keep.
         self._executors = [
             ProcessPoolExecutor(max_workers=1, mp_context=_SPAWN, initializer=_warm)
             for _ in range(workers)
@@ -132,8 +139,9 @@ class BuildPool:
         # already dequeued into the (single, busy) worker, that 2-deep call queue is
         # exactly big enough to also make requests 2 and 3 RUNNING; a *fourth* same-slot
         # request is the first one that can still be sitting in `work_ids_queue`, genuinely
-        # PENDING -- and reachable in production, since `MAX_QUEUED_BUILDS` admits 4 builds
-        # and affinity can route all four to one hash slot. [spur verified, with and
+        # PENDING -- and reachable in production once `MAX_QUEUED_BUILDS` admits 4 builds
+        # (2 build workers or more; the measured default admits 2) and affinity routes all
+        # four to one hash slot. [spur verified, with and
         # without `cancel_futures=True`, 5 runs each: the 2nd and 3rd same-slot requests
         # always reached `BrokenProcessPool`, but the *4th* raised
         # `asyncio.CancelledError` with `cancel_futures=True` restored, in every run --
@@ -146,10 +154,12 @@ class BuildPool:
         worker_replaced(slot=i, cause=cause)
 
     async def _run_with_timeout(
-        self, p: FastenerParams, func: Callable[P, bytes], *args: P.args, **kwargs: P.kwargs,
+        self, p: FastenerParams, timeout: float, func: Callable[P, bytes],
+        *args: P.args, **kwargs: P.kwargs,
     ) -> bytes:
-        """Route `func(*args, **kwargs)` to `p`'s worker, enforcing the per-build timeout
-        and replacing the worker if it wedges or dies.
+        """Route `func(*args, **kwargs)` to `p`'s worker, enforcing `timeout` seconds for
+        the build itself (not the wait behind earlier same-slot builds) and replacing the
+        worker if it wedges or dies.
 
         A private seam behind `export()` rather than inlined there, so tests/test_pool.py
         can drive the timeout/replacement path with a trivial sleeping function instead of
@@ -157,8 +167,20 @@ class BuildPool:
         terminate -> recreate, and broken-pool -> recreate) don't depend on what `func`
         actually builds.
         """
-        executor = self.executor_for(p)
+        slot = hash(p) % self.workers
+        executor = self._executors[slot]
         loop = asyncio.get_running_loop()
+        # The clock must not count the wait behind another build on this slot (D-14).
+        # Affinity serialises a slot, so a request queued behind a build that ends inside
+        # its own timeout used to be killed for the wait: spur L37 saw four of ten admitted
+        # requests exceed the timeout that way. The deadline is this request's own timeout
+        # plus the timeouts of the requests already submitted and not yet finished on the
+        # slot, taken now. No lock: the parent is single-threaded on the event loop and
+        # nothing awaits between the sum and the append. Deadlines on one slot are strictly
+        # increasing in submit order, so a later request never fires before the one it
+        # queues behind. This is the second divergence from spur's pool.py, after the
+        # same-slot guard below (the decision log records it).
+        deadline = timeout + sum(self._pending[slot])
         # run_in_executor(executor, func, *args) takes positional arguments only, so
         # func/args/kwargs are bound into a functools.partial first -- the partial carries
         # the keyword arguments across the boundary that run_in_executor's own signature
@@ -168,8 +190,9 @@ class BuildPool:
         # function pickles by reference under `spawn`, so a callable still has to be
         # importable by its qualified name.
         future = loop.run_in_executor(executor, functools.partial(func, *args, **kwargs))
+        self._pending[slot].append(timeout)
         try:
-            return await asyncio.wait_for(future, timeout=self.timeout)
+            return await asyncio.wait_for(future, timeout=deadline)
         except TimeoutError:
             # The builtin TimeoutError, not the qualified asyncio.TimeoutError: since
             # Python 3.11 the asyncio name is an alias of the builtin, and 3.12 is this
@@ -188,7 +211,7 @@ class BuildPool:
             # means there is nothing left to terminate or recreate: report the timeout.
             if self._executors[hash(p) % self.workers] is not executor:
                 raise BuildTimeout(
-                    f"Build exceeded the {self.timeout}s per-build timeout. "
+                    f"Build exceeded its {timeout:g}s per-build timeout. "
                     "Try a coarser quality."
                 ) from None
             # Executor.shutdown(cancel_futures=True) is not a substitute for this: it only
@@ -209,7 +232,7 @@ class BuildPool:
                 proc.terminate()
             self.recreate_for(p, executor, "timeout")
             raise BuildTimeout(
-                f"Build exceeded the {self.timeout}s per-build timeout. "
+                f"Build exceeded its {timeout:g}s per-build timeout. "
                 "Try a coarser quality."
             ) from None
         except BrokenProcessPool:
@@ -220,9 +243,14 @@ class BuildPool:
             # instead of this module deciding HTTP semantics.
             self.recreate_for(p, executor, "broken_pool")
             raise
+        finally:
+            # Every exit frees the entry, or a leaked one would inflate every later
+            # deadline on this slot.
+            self._pending[slot].remove(timeout)
 
     async def export(self, p: FastenerParams, fmt: str, quality: str) -> bytes:
-        return await self._run_with_timeout(p, build_export, p, fmt, quality)
+        return await self._run_with_timeout(
+            p, self.timeout[artifact_of(fmt, quality)], build_export, p, fmt, quality)
 
     def shutdown(self) -> None:
         for executor in self._executors:

@@ -7,22 +7,29 @@ services:
       # something with authentication in front (the app has none).
       - "127.0.0.1:8000:8000"
     environment:
-      # INTERIM (D-01, D-03): one server process, N builders -- process count and cache
-      # count move together on one knob (SCREW_BUILD_WORKERS below), so a memory sweep has
-      # one variable, not two multiplied. spur L17's choice; not measured for screw;
-      # Phase 7 re-sweeps (OPER-02).
+      # One server process (R24): /api/health's p95 under load was 0.00935187669999209 s,
+      # inside the HEALTHCHECK probe's 1 s, at the picked N (load run 40909724292). The build
+      # workers carry the parallelism, so process count and cache count move on one knob.
       SCREW_WORKERS: "1"
-      SCREW_BUILD_WORKERS: "2"
+      # R16's pick (D-03): the lowest load p95 over all requests among the N that qualify,
+      # max over 5 repetitions: 35.09087210645002 s at N = 1, 51.878674375850004 s at 2,
+      # 69.78429913074984 s at 3 (load run 40909724292). A deployer who moves it re-sweeps,
+      # and mem_limit and the tmpfs below are sized for this N.
+      SCREW_BUILD_WORKERS: "1"
       # SCREW_ROOT_PATH: /screw   # when served under a sub-path by a reverse proxy
-    # INTERIM (D-01, D-03): spur L17's 4g, measured on two workers over spur's 160-199
-    # tooth gear corpus; a labelled cap beats none and the skeleton is lighter; not
-    # measured for screw; Phase 7 re-sweeps (OPER-02)
-    mem_limit: 4g
+    # 2415919104 B (R16, G20, D-02): the larger of W x N + B + the export cache + the tmpfs
+    # and the load peak at N = 1, rounded up to 256 MiB. W 1758363648 B is the largest peak
+    # after any build of R23's drift readings (60-build run 41022812680, G32); B 65208320 B
+    # the idle server and 1657307136 B the load peak (load run 40909724292); the export
+    # cache 251658240 B (R21) and the tmpfs 268435456 B (R26). W(4) 1652121600 B (solid
+    # cache run 41016510597, R22) gives the same limit. Under 16 x 10^9 B (D-02) and under
+    # the smallest runner MemTotal, 16758394880 B; tests/test_runtime_bounds.py holds it.
+    mem_limit: 2304m
     read_only: true
     tmpfs:
-      # INTERIM (D-01, D-03): spur's choice (F9), not measured for screw; Phase 7
-      # re-sweeps (OPER-02). Exports are written here before being read back; bounded so
-      # a huge STL cannot eat the memory limit.
+      # 268435456 B (R26): the fine-STL bytes budget, 239508059.14804876 B (B-01), x N = 1,
+      # rounded up to 256 MiB and inside mem_limit. Exports are written here before being
+      # read back; bounded so one huge STL cannot eat the memory limit.
       - /tmp:size=256m
     cap_drop: [ALL]
     security_opt:

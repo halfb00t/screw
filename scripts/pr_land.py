@@ -26,11 +26,10 @@ appearing at all; and the local follow-up.
 
 Steps, in order: (1) read and parse the PR, refuse on its state/base; (2) refuse a
 dirty working tree; (3) `check_head` -- refuse a behind, run-less, unfinished or
-non-green head, and refuse a skip token in the checked subject/body
-(`message_refusals`); (4) squash-merge with the exact subject and body just
-checked; (5) poll for a run on the squash commit (~60 s,
-`POLL_ATTEMPTS * POLL_INTERVAL_S`) and print its URL, or, when none is observed,
-what was observed (`no_run_report`); (6) the local follow-up --
+non-green head; and refuse a skip token in the checked subject/body (`message_refusals`); (4)
+squash-merge with the exact subject and body just checked; (5) poll for a run on the
+squash commit (~60 s, `POLL_ATTEMPTS * POLL_INTERVAL_S`) and print its URL, or, when
+none is observed, what was observed (`no_run_report`); (6) the local follow-up --
 switch to the PR's base, pull, delete the local branch only when its tip equals
 the merged head.
 

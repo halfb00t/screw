@@ -1,0 +1,78 @@
+{
+ "set": "drift-60",
+ "rule": "07-SWEEP-PROTOCOL.md R23 (G4, G14, G32)",
+ "reps": 5,
+ "shards": 1,
+ "deadline_s": 600,
+ "points": [
+  {
+   "label": "drift-nut-d100-p3.5-m0.8d-s4d-c5-right",
+   "kind": "drift",
+   "artifact": "stl-preview",
+   "part": {
+    "kind": "nut",
+    "params": {
+     "d": 100.0,
+     "pitch": 3.5,
+     "m": 80.0,
+     "s": 400.0,
+     "clearance": 5.0,
+     "left_hand": false
+    }
+   },
+   "k": 60,
+   "deadline_s": 1560
+  },
+  {
+   "label": "drift-nut-d30-p1-m0.8d-s4d-c5-right",
+   "kind": "drift",
+   "artifact": "stl-fine",
+   "part": {
+    "kind": "nut",
+    "params": {
+     "d": 30.0,
+     "pitch": 1.0,
+     "m": 24.0,
+     "s": 120.0,
+     "clearance": 5.0,
+     "left_hand": false
+    }
+   },
+   "k": 60,
+   "deadline_s": 4260
+  },
+  {
+   "label": "drift-iso4017:M16x160",
+   "kind": "drift",
+   "artifact": "step",
+   "part": {
+    "kind": "bolt",
+    "params": {
+     "d": 16.0,
+     "pitch": 2.0,
+     "length": 160.0,
+     "s": 24.0,
+     "k": 10.0,
+     "thread_length": 160.0
+    }
+   },
+   "k": 60,
+   "deadline_s": 1560
+  }
+ ],
+ "dropped": [],
+ "notes": [
+  "per artifact Z(A): the point of the committed bound set (bound.json) with the largest memory_peak_bytes among its ok explore readings, a tie to the label that sorts first",
+  "K = 60 cold builds in one process, the solid cache emptied before each; the peak read after each build, its export and a level-1 gzip (G14)",
+  "each reading's deadline_s is 60 x its artifact's timeout (runtime.json, R14), and it is charged that deadline (R6, G4); 5 repetitions",
+  "the plateau reading (G32): the same parts in the same order as drift.json; builds 41 to 60 against builds 21 to 40"
+ ],
+ "shard_sizes": [
+  3
+ ],
+ "sources": [
+  "bound=bench/points/bound.json",
+  "explore=bench/results/phase-07/explore-40646117094",
+  "runtime=bench/results/phase-07/runtime.json"
+ ]
+}

@@ -54,7 +54,7 @@ substituted figure.
 
 ## R3 - Repetitions (D-04, D-19)
 
-Exploration takes 1 repetition per point (`explore`, `walls`, `controls` and the R7 walk-down set). 5 repetitions are taken
+Exploration takes 1 repetition per point (`explore`, `walls`, `controls`, the R7 walk-down set and the void walk of R4 (d)). 5 repetitions are taken
 on `spread` and on every set that sets a bound: the Runs II bound set, the contention and load sets
 and the walls confirm set. The 5 repetitions of a point are 5 matrix jobs (`rep` 1 to 5), so 5
 runner instances. Per point the median and the max over its ok repetitions are recorded; a point
@@ -71,7 +71,8 @@ status; a disagreement keeps the stricter outcome, that is the lower wall.
 
 The *next step past* a decided value is: for R7, 10 turns more (260 where 250 stands); for R8, the next
 decade (1e6 where 1e5 stands); for R9 and R10, the next smaller walked value, which `walls` groups (c)
-and (d) already hold. Where R9 or R10 decides "above 0", no walked value lies below the decided one, so
+and (d) already hold; for R10 the confirm reads the rods of group (d) only, as the nut voids bear on
+no bound (R10). Where R9 or R10 decides "above 0", no walked value lies below the decided one, so
 the confirm set for that rule is the smallest walked value (tail 1e-9 mm, root radius 1e-6 mm) for every
 cell of the rule, at 5 repetitions, and nothing past it. Any reading there that is not `ok` awards no
 floor, and the phase stops and asks the owner, as R7 does. A step that lies past a validator's own cap would be refused before the kernel, so
@@ -140,7 +141,12 @@ with the builder's guard (`MIN_TAIL_MM`) lowered inside the probe only and resto
 whose pitch solves `d / 2 - thread_depth(pitch) + 0.15 = r`, 3 turns (nut `m` = 3 pitch). The pitch
 is solved to full float precision and not rounded to 6 figures: a 6-figure pitch moves the root
 radius by up to about 5e-6 mm, which is more than the 1e-6 mm end of the walk, so the radius named
-in the label would not be the radius walked. (e) The nuts the two open nut debt items name, so their
+in the label would not be the radius walked. Above 1e-2 mm the nut voids are walked in a set of their
+own, the void walk (`walls-voids`), added after the first runner reading by the owner's ruling that
+R30 asks for: for each of the 15 sizes and both hands, the nut of this group, built and labelled the
+same way, at `r` in {3e-2, 1e-1, 3e-1, 1} mm, 120 points at 1 repetition and R2's deadline. Every
+pitch it solves is positive. No rod is walked above 1e-2 mm, and the void walk is not extended past
+1 mm. (e) The nuts the two open nut debt items name, so their
 fate is decided by records: the lead-in item's M2 (m 12), M8 (m 38) and M14 (m 46) at `clearance`
 0.1 and `s` in {1e3, 1e4, 1e5}, and the countersink item's `d` 2, `s` 4, `m` 3 nuts at `clearance`
 0.05 with pitch 1.5 and 1.8 and at `clearance` 0.01 with pitch 1.5. (f) Past the caps, the
@@ -172,7 +178,7 @@ instance and for the image build. A point of an explore-like set whose own charg
 stops the phase and asks the owner; a reading of the contention, load, drift, gzip and arena sets is
 ruled below.
 
-For a set of explore-like parts (`walls`, the walls confirm set and the R7 walk-down set), each point is
+For a set of explore-like parts (`walls`, the walls confirm set, the R7 walk-down set and the void walk of R4 (d)), each point is
 charged the largest `wall_s` of any `explore` reading in its (kind, artifact) group, whatever the
 status of that reading (`wall_s` is kept for every status, R2), so a part is charged the slowest cold
 wall measured for its kind of part at its artifact. A (kind, artifact) group with no `explore` reading
@@ -239,6 +245,13 @@ lower value, and each field whose ceiling differs gets its own named constant
 (`MAX_<KIND>_<FIELD>_MM`). If a field has no `ok` decade, the phase stops and asks the owner: there
 is no number.
 
+The nut `d` gets no constant of its own. Its reading at 1e3 was `ok` once and `capped` in all 5 confirm
+repetitions, and its reading at 1e4 is `refused`, so it has no confirmed decade. A `capped` reading is
+cost, so the cost model's admission (R12) and the timeouts bound a large nut, not a wall. The nut `d`
+stays under the shared `MAX_FIELD_MM` only while that value lies below the nut `d`'s first refused
+decade (1e4). A shared value at or above that decade stops the phase and asks the owner. This
+sentence was added after the first runner reading by the owner's ruling that R30 asks for.
+
 ## R9 - MIN_TAIL_MM (D-08)
 
 Let F be the largest `tail` in `walls` group (c) whose reading is `refused` or `crashed` at any size or
@@ -255,18 +268,26 @@ either (R8). Otherwise there is no number: the phase stops and asks the owner.
 
 ## R10 - MIN_ROOT_RADIUS_MM (D-18)
 
-Let F be the largest root radius `r` in `walls` group (d) whose reading is `refused` or `crashed`, at
-any size, hand, rod or void (F = 0 when none fails). `MIN_ROOT_RADIUS_MM` is the smallest power of ten
-at or above 10 F. If no reading fails down to 1e-6 mm, the floor stays "above 0" and the entry says
-the walk reached 1e-6 mm, but only if the confirm set of R3 at 1e-6 mm, for every size, hand, rod and
-void, is `ok` in all 5 repetitions. 10 is one decade, the coarsest margin that is still tighter than the
-tail rule's 100; the walk's own steps are half-decades, so 10 F sits at least two steps clear of F.
+Let F be the largest root radius `r` of a rod in `walls` group (d) whose reading is `refused` or
+`crashed`, at any size or hand (F = 0 when none fails). `MIN_ROOT_RADIUS_MM` is the smallest power of
+ten at or above 10 F. If no rod reading fails down to 1e-6 mm, the floor stays "above 0" and the entry
+says the walk reached 1e-6 mm, but only if the confirm set of R3 at 1e-6 mm, for every size and hand,
+rods only, is `ok` in all 5 repetitions. 10 is one decade, the coarsest margin that is still tighter
+than the tail rule's 100; the walk's own steps are half-decades, so 10 F sits at least two steps clear
+of F.
 
-The value V this names stands only on `ok` readings. V must be a radius the walk holds (1e-2 to 1e-6
-as a power of ten), and every reading of group (d) at a radius of V or more, at every size and hand,
-rod and void, must be `ok`; for "above 0", every reading of group (d) must be `ok`. A `killed` or
-`capped` reading sets no F but cannot support a bound either (R8). Otherwise there is no number: the
-phase stops and asks the owner.
+The value V this names stands only on `ok` readings. V must be a radius the rods of group (d) hold, a
+power of ten from 1e-2 mm down to 1e-6 mm, and every rod reading of group (d) at a radius of V or
+more, at every size and hand, must be `ok`; for "above 0", every rod reading of group (d) must be
+`ok`. A `killed` or `capped` reading sets no F, being cost and not a wall, but it cannot support a
+bound either (R8). Otherwise there is no number: the phase stops and asks the owner.
+
+The nut voids bear on no bound: the nut readings of group (d) and the readings of the void walk of R4
+(d) are recorded, set no F, need not be `ok` for V and are not in the R3 confirm. The owner ruled this
+after the first runner reading, once the void walk had been read, as R30 asks: in one reading each,
+the voids failed up to a root radius that grows with `d`, so no single floor in millimetres holds
+them. That is an observation and not a bound; a void the kernel refuses is refused by no guard before
+the build, and stays open as debt.
 
 ## R11 - The cost model's form (D-05, D-17)
 
@@ -279,6 +300,57 @@ d, ln pitch, ln s, ln m, `clearance` and `left_hand`. It is fitted on the per-po
 `ok` has no max (R3) and is not fitted, however many of its other repetitions were `ok`. The
 tessellation presets are kept (R23). The model is kernel-free (`calc` import boundary) and adds no
 dependency.
+
+A part whose head ratio lies above the band the fit saw is predicted no lower than anywhere in that
+band, and one whose ratio lies below it no lower than at the band's low edge. The head ratios are the
+bolt's k / d and s / d and the nut's s / d and m / d. Each ratio's band is its smallest and largest
+value over the fitted points of its kind, each point's fields read through the parameter model so
+that an omitted field takes its default; the bands are computed from the records by code and shipped
+with the coefficients, never typed. For a part with any ratio outside its band, each target is
+predicted raw and at every combination of edges of its out-of-band ratios, a ratio above its band
+taking both edges (the smallest and the largest) and a ratio below it the smallest only, each such
+field (k, s or m) set to the edge times d and every other field held; the prediction is the largest
+of these, target by target, and R12 applies the envelope to it. Below the band this assumes, without
+a measurement, that a smaller head never costs more than one at the low edge. Inside every band the
+prediction is the fit's own, unchanged. The second campaign
+reads, at 5 repetitions, per kind, artifact and ratio, at least one part above the band and one below
+it, each a part this rule admits; a reading above its enveloped prediction stops the phase for the
+owner and does not widen `e`. This sentence was added after the first runner reading by the owner's
+ruling that R30 asks for. After that stop, the owner ruled that a nut reading of these parts above its
+enveloped prediction widens `e` as a cold isolated reading does (R12), and that a bolt reading of
+them widens no `e`. This sentence was added after the first runner reading by the owner's ruling that
+R30 asks for.
+
+A bolt whose built thread has fewer turns than the fewest among the fitted bolt points (computed from
+the records by code, never typed) is refused before any build at every artifact, with the budget's
+refusal (B-02) naming the fields that set its turns: the pitch, the length and the thread length. No
+fitted point lies below that count, so no reading supports a prediction there. The second campaign
+read, at 5 repetitions, per artifact, two bolts below that count that the walls and the fit's
+admission admitted: the one closest to the budget and the first in catalogue order. Those readings
+widen no `e`. This sentence was added after the first runner reading by the owner's ruling that R30
+asks for.
+
+The nut's `clearance` is banded as the head ratios are, in millimetres rather than over d: its band
+is its smallest and largest value over the fitted nut points, each point's fields read through the
+parameter model so that an omitted field takes its default, computed from the records by code and
+shipped with the head-ratio bands, never typed. A clearance above its band takes both edges and one
+below it the smallest only, combined with the part's other out-of-band edges, and the prediction is
+the largest of these and the raw one, target by target, as for the head ratios. Below the band this
+assumes, without a measurement, that a smaller clearance never costs more than one at the low edge.
+Inside the band the prediction is the fit's own, unchanged. This sentence was added after the first
+runner reading by the owner's ruling that R30 asks for.
+
+A nut whose `clearance` and at least one other field lie outside their bands is also predicted at
+each edge its clearance takes with every other field at its real value, and the prediction is the
+largest of these, the raw one and the edge combinations above, target by target; a clearance alone
+outside its band is predicted as above, and no head ratio is paired with a real value. Without
+this, a clearance below its band met a nut height above its band only at that band's edges, so a
+nut many times taller than any fitted point was priced as one at the high edge. The second campaign
+reads, at 5 repetitions, the code review's tall nut (d 92.28, pitch 31.418, s 130.54, the default
+clearance) scaled whole by 1, 0.5 and 0.25, with m at 5, 10.5, 20 and 29.5 d, and the two bolts
+that name only d, at 2 and 3 mm, each at every artifact the shipped rule admits it. A nut reading
+above its enveloped prediction widens `e` (R12) and a bolt reading widens none. This sentence was
+added after the first runner reading by the owner's ruling that R30 asks for.
 
 ## R12 - The envelope (D-07)
 
@@ -322,21 +394,23 @@ The bound set of an artifact is the 5 admitted points with the largest enveloped
 prediction, plus the worst measured admitted point (the largest cold wall in `explore`), plus the two
 memory extrema: the admitted point with the largest enveloped peak-bytes prediction and the admitted
 point with the largest measured peak (the largest `memory_peak_bytes` in `explore`). The candidates are
-the admitted `explore` points at that artifact (for the two measured choices, those whose reading is
-`ok`), a tie going to the label that sorts first; a point that is in two of these groups counts once, so the set holds 5 to 8 points. The set is drawn once and is not redrawn when `e` widens (R12). The
+the admitted `explore` points at that artifact whose `explore` reading is `ok` at every artifact, a
+tie going to the label that sorts first; a point that is in two of these groups counts once, so the set holds 5 to 8 points. The set is drawn once and is not redrawn when `e` widens (R12). The
 memory extrema are in it because W (R16) is read from the bound set's containers, and the heaviest
 point in memory need not be among the slowest. Contention runs, for every point P of the bound set and every N in {1, 2, 3}:
-P on one slot and, on each of the other N - 1 slots, one admitted point of the same artifact, all cold
+P on one slot and, on each of the other N - 1 slots, one candidate of the same artifact, all cold
 and submitted together. A slot is a worker of the pool, which routes a part to worker `hash(p) % N`
 with `p = KINDS[kind].model_validate(params)` (`BuildPool.executor_for`); the hash is of the field
 values and is the same in every process, so every slot is computed when the set is built, before any
-server runs. P has its own slot. The partner of each other slot is the admitted point other than P
+server runs. P has its own slot. The partner of each other slot is the candidate other than P
 whose slot at this N is that one and whose enveloped build-seconds prediction is the largest, a tie
 going to the label that sorts first. The N points are therefore on N distinct workers and none waits
-behind another. A slot that holds no admitted point leaves that (P, N) unrunnable, and the phase stops
+behind another. A slot that holds no candidate leaves that (P, N) unrunnable, and the phase stops
 and asks the owner: no rule here puts two points on one worker, which would leave a worker idle and
 measure less than N-way contention. The partners are chosen for each (P, N), since the slots depend
-on N. Every (P, N) takes 5 repetitions (R3), so no
+on N. Where this candidate rule changed a set already read, only the points it changed are read
+again, at 5 repetitions, and the earlier readings of the points they replace are kept as records and
+decide nothing; R19's gzip set takes the bound set's points, so the same holds there. This sentence was added after the first runner reading by the owner's ruling that R30 asks for. Every (P, N) takes 5 repetitions (R3), so no
 reading waits for a worker count that R16 has not yet picked. The *bound point* of an artifact is the P
 whose max cold wall over its 5 repetitions at the picked N (R16) is the largest. The timeout of the
 artifact is `ceil(2 x` that max `)` seconds. The 2 is D-09's factor.
@@ -394,6 +468,9 @@ its 5 repetitions of each repetition's p95, D-04), ties to the smaller N. 256 Mi
 step fixed before the data: small against the 16 GB ceiling (about 1.7 %), large enough to be a visible
 margin and not an arithmetic residue. The `mem_limit` that ships is the larger of `mem_limit(N)` at
 the picked N built from this W and the one built from `W(K)` at the K R22 keeps.
+W is also at least the largest peak after any build of R23's drift readings, the 20-build and the
+60-build one, once R23's plateau holds, so that the limit is sized for a warm worker and not only for
+one cold build. This sentence was added after the first runner reading by the owner's ruling that R30 asks for.
 
 ## R17 - The queue depth
 
@@ -460,8 +537,8 @@ trim on and 5 with it off. The measure is the cgroup's `memory.current`, read af
 maxima over the 5 repetitions are compared, and the trim is kept only if the max with the trim on is
 lower than the max with it off at every artifact. If a max the arena comparison needs is missing (R3:
 a point with any repetition that is not `ok` has no max), the phase stops and asks the owner.
-`max_tasks_per_child` stays unset unless the drift run shows growth above its allowance for any
-artifact; if it does, the phase stops and asks the owner, because no rule here sets a recycling value.
+`max_tasks_per_child` stays unset unless the plateau (below) fails for any artifact; if it does,
+the phase stops and asks the owner, because no rule here sets a recycling value.
 
 *The drift run.* It is separate from the load run, because a load run builds different parts and a
 larger transient build later in it would read as growth. For each artifact it builds one fixed part
@@ -487,8 +564,21 @@ K = 20 times in a row, and compares the cgroup peak after build 1 with the peak 
   smallest peak after build 1 among its 5 repetitions. The owner fixed the fraction before any
   reading: it scales with the part, and 10 % sits above the run-to-run spread expected between cold
   builds of one part. It is a pre-registered allowance, not a measured figure.
-- *Memory limit.* Drift adds nothing to R16's `mem_limit(N)`: drift above the allowance stops the
-  phase, so a drift term in the limit would count the same growth twice.
+- *Memory limit.* Drift adds to R16's `mem_limit(N)` only through W, which takes the largest peak
+  after any build of the drift readings once the plateau holds; no separate drift term is added, as
+  it would count the same growth twice.
+
+*The plateau.* A drift above its allowance does not stop the phase by itself: it is counted in W
+(R16), and whether the growth has levelled off decides. A second drift reading builds the same Z(A),
+at the same three artifacts in the same order, K = 60 times, 5 repetitions, each with a deadline of
+60 x the artifact's timeout, which R6 charges it. Per artifact and repetition, the plateau
+difference is the max peak over builds 41 to 60 minus the max peak over builds 21 to 40. The plateau
+holds when, at every artifact, the difference of its worst repetition is at most the allowance: 0.10 x
+the smallest peak after build 1 among the repetitions of both drift readings of that artifact, so
+never more than the allowance of the 20-build reading alone. If any artifact misses it, the phase
+stops and asks the owner again, and the next step is recycling. A 60-build repetition that is not
+`ok`, or whose peak after any of its 60 builds is missing, leaves no plateau and stops the phase as
+well. This criterion was fixed before the 60-build reading was taken. This sentence was added after the first runner reading by the owner's ruling that R30 asks for.
 
 ## R24 - SCREW_WORKERS
 
@@ -545,6 +635,24 @@ that two implementations write the same list.
    timeouts, which R14 fixes after R16 has picked N, so the tier is built only then and never before.
    A point's charge is its `explore` reading and the timeout, each fixed before the tier is built.
 
+The tier is read in parallel shards, one job each, all on the one image: in the order the tier
+file lists its points, a shard is the longest run of consecutive points not yet placed whose
+summed estimate stays under 600 s, D-12's 10 minutes, so every point is in exactly one shard and
+is read once. A point's estimate is the container wall (`wall_s`) of its `explore` reading when
+that reading is `ok`, and otherwise the larger of that wall and its artifact's timeout. Each shard
+job's `timeout-minutes` is at least twice its shard's summed estimate. The 600 s of step 5 per
+artifact is unchanged. This sentence was added after the first runner reading by the owner's
+ruling that R30 asks for.
+
+When `tier-order.json` or the tier file is written again to check it, every value must be the same
+except a float computed from the cost model's prediction (an edge ratio of step 2, a limit of
+R29), which may differ from the committed one by a relative difference of at most 2^-51, that is
+2 x 2^-52. The prediction is `exp` of a sum of `log` terms, and the platform's libm sets their
+last bit: written again on the Linux runner, 2 of the 2559 such floats in the two files moved by
+one ulp from the files written on macOS, the larger by a relative 1.459 x 2^-52, and no other
+value moved. 2^-51 is the smallest whole multiple of 2^-52 at or above that measurement. This
+sentence was added after the first runner reading by the owner's ruling that R30 asks for.
+
 ## R28 - The full tier (D-12)
 
 Every catalogue row x 3 artifacts, the nut factorial, and the dense boundary. The dense boundary is
@@ -569,6 +677,71 @@ reading exists and lands on `main` with PR A (plan 07-04). A harness fix that ch
 in the parent, the child or the workflow) is recorded under "Harness fixes" below with its commit
 sha, and nothing else in this file is edited. A rule change stops the phase for the owner's ruling.
 The point files change only through `bench/oper_sets.py`, so the same rule binds them.
+
+## R31 - The fine-pitch walls (D-08, L02)
+
+The pitch has no lower bound of its own, and at a fine pitch for its diameter the kernel refuses
+parts that every other wall admits: the booleans that cut the tip cone and the nut's countersinks
+and void act on a swept thread whose representation error does not shrink with the thread depth,
+and they return a wrong solid that the build's gates refuse. Each kind gets a *fine-pitch wall* W.
+A part of that kind whose `d / pitch`, taken as exact decimals (the fraction of each value's
+`repr`), is above W is refused before any build with a `422` of type `pitch_too_fine` naming `d`
+and `pitch`; a part at W is admitted.
+
+*The walk.* `bench/oper_sets.py` writes the walk set `walls-pitch` from code alone, per kind, as a
+grid around the wall:
+
+- bolts: `d` in {0.3, 0.5, 0.8, 1, 1.2, 1.5, 1.8, 2, 2.2, 2.5, 2.8, 3, 3.5, 4, 4.5, 5, 6, 8, 10,
+  12, 16, 20, 24, 30, 42, 60, 100, 150, 200, 300, 450, 600, 999.999} mm, a ratio q in {5, 8, 10,
+  12, 14} or a whole number from 15 to 31, both hands, and two forms with 3 turns of thread:
+  `thread_length = length = 3 x pitch`, and `thread_length = 3 x pitch` with `length =
+  thread_length + d` (a shank); `s = 1.6 d`, and at most 1000 mm, and `k = 0.6 d`;
+- nuts: `d` in {0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.4, 1.5, 1.6, 1.8, 2, 2.2, 2.4, 2.5, 2.6,
+  2.8, 3, 3.2, 3.5, 4, 4.5, 5, 5.5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 30, 42, 60, 100,
+  200, 300, 600} mm, q a whole number from 5 to 12, both hands, and four forms: `m = 0.8 d`, `s =
+  1.6 d` and `clearance` 0.15 mm; the same with `s = 4 d`; the same with `clearance` 0; and the
+  same with `m = d`.
+
+`s`, `k` and `m` are formed as decimals and rounded to 6 significant figures (R4). The pitch of a
+cell is `d / q` rounded up to 6 significant figures, so its exact `d / pitch` is at most q. A cell
+the parameter model refuses, the fine-pitch wall aside, is in the file's `dropped` array with its
+error type, and so is a cell the cost model admits at no artifact (R12, under the envelope the
+file records), with the type `over_budget`: a request for it is refused before any build already.
+Every other cell is read once, at `step`. A kernel refusal comes in the build, before the export,
+so its status is the same at every artifact, and `step` is the artifact whose `explore` groups R6
+charges least for both kinds. The walk has R2's deadline and is charged and cut into shards as R6
+charges a set of explore-like parts.
+
+*F and W.* Per kind, F is the smallest exact `d / pitch` over the walk's readings of that kind
+whose status is `refused` or `crashed`. Every point of the walk must have exactly one reading. A
+reading that is `killed`, `capped` or `no_cgroup` is cost or a gap and not a wall, and it cannot
+support a bound either (R8); with such a reading, a missing reading, or no `refused` or `crashed`
+reading of a kind, F has no number and the phase stops and asks the owner. For the bolt, W is the
+largest number of the ISO 3 R10 series (1, 1.25, 1.6, 2, 2.5, 3.15, 4, 5, 6.3 and 8, times a power
+of ten) at or below F / 1.25, so F lies at least one R10 step above W; the owner ruled W = 20 on
+readings taken off the runner, the walk on the runner decides, and a bolt W other than 20 stops the
+phase and asks the owner. The bolt's W that ships is written from the walk's records by code, never
+typed. For the nut, W is 8, set by the owner's ruling and not by the margin rule: the walk on the
+runner refused nuts at `d / pitch` 7 (`d` 2.2 mm, in three of the four forms and both hands, with
+every neighbouring cell `ok`), and a nut W at or below that would refuse nut catalogue rows, the
+default nut among them. Every nut cell the walk refused at or below the nut's W is recorded and
+kept open as debt.
+
+*What it leaves open.* The walk reads bolts with 3 turns of thread only. A bolt with a longer
+thread can be refused by the kernel below the bolt's W, in two bands of `d`, because its tip-cone
+error grows with the number of turns at a fixed `d / pitch`. A nut can be refused at an isolated
+cell below its W, as the walk found at `d / pitch` 7, or at a cell the grid does not hold. W bounds
+neither of these. They are recorded and kept open as debt, and they are not a wall.
+
+*The sets already drawn.* The point files and the sets drawn from runner records before this rule
+are checked under the parameter model they were drawn under, without the fine-pitch wall, and are
+not drawn again, so D(A) (R27 steps 1 to 4), the bound set, the load mix and every value derived
+from their readings stand. The required tier is cut from D(A) by R27 step 5 as before, and a point
+the fine-pitch wall refuses is then left out of it, with nothing drawn in its place: an artifact can
+keep fewer than 3 edge points, and the tier holds fewer than 10 minutes of charges.
+
+This rule was added after the first runner reading by the owner's ruling that R30 asks for, and
+amended after the walk's runner reading by a second ruling of the owner's that R30 asks for.
 
 ## Debt this campaign leaves open
 

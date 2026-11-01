@@ -1,0 +1,785 @@
+{
+ "set": "outband",
+ "rule": "07-SWEEP-PROTOCOL.md R11 (G28, G29)",
+ "reps": 5,
+ "shards": 2,
+ "deadline_s": 600,
+ "points": [
+  {
+   "label": "outband-bolt-k-below-iso4017:M20x160",
+   "kind": "bolt",
+   "params": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "length": 160.0,
+    "s": 30.0,
+    "k": 11.9,
+    "thread_length": 160.0
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "outband-bolt-k-below-iso4017:M2x4",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 4.0,
+    "s": 4.0,
+    "k": 1.1,
+    "thread_length": 4.0
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "outband-bolt-k-above-iso4017:M18x180",
+   "kind": "bolt",
+   "params": {
+    "d": 18.0,
+    "pitch": 2.5,
+    "length": 180.0,
+    "s": 27.0,
+    "k": 12.7,
+    "thread_length": 180.0
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "outband-bolt-k-above-iso4017:M2x4",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 4.0,
+    "s": 4.0,
+    "k": 1.5,
+    "thread_length": 4.0
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "outband-bolt-k-far-iso4017:M2x4",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 4.0,
+    "s": 4.0,
+    "k": 14.0,
+    "thread_length": 4.0
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "outband-bolt-k-below-iso4017:M20x100",
+   "kind": "bolt",
+   "params": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "length": 100.0,
+    "s": 30.0,
+    "k": 11.9,
+    "thread_length": 100.0
+   },
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "outband-bolt-k-below-iso4017:M2x4",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 4.0,
+    "s": 4.0,
+    "k": 1.1,
+    "thread_length": 4.0
+   },
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "outband-bolt-k-above-iso4017:M18x150",
+   "kind": "bolt",
+   "params": {
+    "d": 18.0,
+    "pitch": 2.5,
+    "length": 150.0,
+    "s": 27.0,
+    "k": 12.7,
+    "thread_length": 150.0
+   },
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "outband-bolt-k-above-iso4017:M2x4",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 4.0,
+    "s": 4.0,
+    "k": 1.5,
+    "thread_length": 4.0
+   },
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "outband-bolt-k-far-iso4017:M2x4",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 4.0,
+    "s": 4.0,
+    "k": 14.0,
+    "thread_length": 4.0
+   },
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "outband-bolt-k-below-iso4017:M20x150",
+   "kind": "bolt",
+   "params": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "length": 150.0,
+    "s": 30.0,
+    "k": 11.9,
+    "thread_length": 150.0
+   },
+   "artifact": "step"
+  },
+  {
+   "label": "outband-bolt-k-below-iso4017:M2x4",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 4.0,
+    "s": 4.0,
+    "k": 1.1,
+    "thread_length": 4.0
+   },
+   "artifact": "step"
+  },
+  {
+   "label": "outband-bolt-k-above-iso4017:M16x130",
+   "kind": "bolt",
+   "params": {
+    "d": 16.0,
+    "pitch": 2.0,
+    "length": 130.0,
+    "s": 24.0,
+    "k": 11.3,
+    "thread_length": 130.0
+   },
+   "artifact": "step"
+  },
+  {
+   "label": "outband-bolt-k-above-iso4017:M2x4",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 4.0,
+    "s": 4.0,
+    "k": 1.5,
+    "thread_length": 4.0
+   },
+   "artifact": "step"
+  },
+  {
+   "label": "outband-bolt-k-far-iso4017:M2x4",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 4.0,
+    "s": 4.0,
+    "k": 14.0,
+    "thread_length": 4.0
+   },
+   "artifact": "step"
+  },
+  {
+   "label": "outband-bolt-s-below-iso4017:M20x200",
+   "kind": "bolt",
+   "params": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "length": 200.0,
+    "s": 29.9,
+    "k": 12.5,
+    "thread_length": 200.0
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "outband-bolt-s-below-iso4017:M2x4",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 4.0,
+    "s": 2.9,
+    "k": 1.4,
+    "thread_length": 4.0
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "outband-bolt-s-above-iso4017:M4x25",
+   "kind": "bolt",
+   "params": {
+    "d": 4.0,
+    "pitch": 0.7,
+    "length": 25.0,
+    "s": 8.1,
+    "k": 2.8,
+    "thread_length": 25.0
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "outband-bolt-s-above-iso4017:M2x4",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 4.0,
+    "s": 4.1,
+    "k": 1.4,
+    "thread_length": 4.0
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "outband-bolt-s-below-iso4017:M20x200",
+   "kind": "bolt",
+   "params": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "length": 200.0,
+    "s": 29.9,
+    "k": 12.5,
+    "thread_length": 200.0
+   },
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "outband-bolt-s-below-iso4017:M2x4",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 4.0,
+    "s": 2.9,
+    "k": 1.4,
+    "thread_length": 4.0
+   },
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "outband-bolt-s-above-iso4017:M10x50",
+   "kind": "bolt",
+   "params": {
+    "d": 10.0,
+    "pitch": 1.5,
+    "length": 50.0,
+    "s": 20.1,
+    "k": 6.4,
+    "thread_length": 50.0
+   },
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "outband-bolt-s-above-iso4017:M2x4",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 4.0,
+    "s": 4.1,
+    "k": 1.4,
+    "thread_length": 4.0
+   },
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "outband-bolt-s-below-iso4017:M16x160",
+   "kind": "bolt",
+   "params": {
+    "d": 16.0,
+    "pitch": 2.0,
+    "length": 160.0,
+    "s": 23.9,
+    "k": 10.0,
+    "thread_length": 160.0
+   },
+   "artifact": "step"
+  },
+  {
+   "label": "outband-bolt-s-below-iso4017:M2x4",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 4.0,
+    "s": 2.9,
+    "k": 1.4,
+    "thread_length": 4.0
+   },
+   "artifact": "step"
+  },
+  {
+   "label": "outband-bolt-s-above-iso4017:M18x120",
+   "kind": "bolt",
+   "params": {
+    "d": 18.0,
+    "pitch": 2.5,
+    "length": 120.0,
+    "s": 36.1,
+    "k": 11.5,
+    "thread_length": 120.0
+   },
+   "artifact": "step"
+  },
+  {
+   "label": "outband-bolt-s-above-iso4017:M2x4",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 4.0,
+    "s": 4.1,
+    "k": 1.4,
+    "thread_length": 4.0
+   },
+   "artifact": "step"
+  },
+  {
+   "label": "outband-nut-s-below-iso4032:M20",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "s": 29.9,
+    "m": 18.0
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "outband-nut-s-below-iso4032:M2",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "s": 2.9,
+    "m": 1.6
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "outband-nut-s-above-iso4032:M20",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "s": 80.1,
+    "m": 18.0
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "outband-nut-s-above-iso4032:M2",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "s": 8.1,
+    "m": 1.6
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "outband-nut-s-far-iso4032:M2",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "s": 80.0,
+    "m": 1.6
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "outband-nut-s-below-iso4032:M20",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "s": 29.9,
+    "m": 18.0
+   },
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "outband-nut-s-below-iso4032:M2",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "s": 2.9,
+    "m": 1.6
+   },
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "outband-nut-s-above-iso4032:M20",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "s": 80.1,
+    "m": 18.0
+   },
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "outband-nut-s-above-iso4032:M2",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "s": 8.1,
+    "m": 1.6
+   },
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "outband-nut-s-far-iso4032:M2",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "s": 80.0,
+    "m": 1.6
+   },
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "outband-nut-s-below-iso4032:M16",
+   "kind": "nut",
+   "params": {
+    "d": 16.0,
+    "pitch": 2.0,
+    "s": 23.9,
+    "m": 14.8
+   },
+   "artifact": "step"
+  },
+  {
+   "label": "outband-nut-s-below-iso4032:M2",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "s": 2.9,
+    "m": 1.6
+   },
+   "artifact": "step"
+  },
+  {
+   "label": "outband-nut-s-above-iso4032:M16",
+   "kind": "nut",
+   "params": {
+    "d": 16.0,
+    "pitch": 2.0,
+    "s": 64.1,
+    "m": 14.8
+   },
+   "artifact": "step"
+  },
+  {
+   "label": "outband-nut-s-above-iso4032:M2",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "s": 8.1,
+    "m": 1.6
+   },
+   "artifact": "step"
+  },
+  {
+   "label": "outband-nut-s-far-iso4032:M2",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "s": 80.0,
+    "m": 1.6
+   },
+   "artifact": "step"
+  },
+  {
+   "label": "outband-nut-m-below-iso4032:M20",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "s": 30.0,
+    "m": 15.9
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "outband-nut-m-below-iso4032:M2",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "s": 4.0,
+    "m": 1.5
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "outband-nut-m-above-iso4032:M20",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "s": 30.0,
+    "m": 60.1
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "outband-nut-m-above-iso4032:M2",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "s": 4.0,
+    "m": 6.1
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "outband-nut-m-below-iso4032:M20",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "s": 30.0,
+    "m": 15.9
+   },
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "outband-nut-m-below-iso4032:M2",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "s": 4.0,
+    "m": 1.5
+   },
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "outband-nut-m-above-iso4032:M20",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "s": 30.0,
+    "m": 60.1
+   },
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "outband-nut-m-above-iso4032:M2",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "s": 4.0,
+    "m": 6.1
+   },
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "outband-nut-m-below-iso4032:M16",
+   "kind": "nut",
+   "params": {
+    "d": 16.0,
+    "pitch": 2.0,
+    "s": 24.0,
+    "m": 12.7
+   },
+   "artifact": "step"
+  },
+  {
+   "label": "outband-nut-m-below-iso4032:M2",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "s": 4.0,
+    "m": 1.5
+   },
+   "artifact": "step"
+  },
+  {
+   "label": "outband-nut-m-above-iso4032:M16",
+   "kind": "nut",
+   "params": {
+    "d": 16.0,
+    "pitch": 2.0,
+    "s": 24.0,
+    "m": 48.1
+   },
+   "artifact": "step"
+  },
+  {
+   "label": "outband-nut-m-above-iso4032:M2",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "s": 4.0,
+    "m": 6.1
+   },
+   "artifact": "step"
+  },
+  {
+   "label": "turns-below-iso4017:M20x40",
+   "kind": "bolt",
+   "params": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "length": 40.0,
+    "s": 30.0,
+    "k": 12.5,
+    "thread_length": 7.0
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-below-iso4017:M2x4",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 4.0,
+    "s": 4.0,
+    "k": 1.4,
+    "thread_length": 1.0
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns-below-iso4014:M20x200",
+   "kind": "bolt",
+   "params": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "length": 200.0,
+    "s": 30.0,
+    "k": 12.5,
+    "thread_length": 7.0
+   },
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "turns-below-iso4017:M2x4",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 4.0,
+    "s": 4.0,
+    "k": 1.4,
+    "thread_length": 1.0
+   },
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "turns-below-iso4017:M20x40",
+   "kind": "bolt",
+   "params": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "length": 40.0,
+    "s": 30.0,
+    "k": 12.5,
+    "thread_length": 7.0
+   },
+   "artifact": "step"
+  },
+  {
+   "label": "turns-below-iso4017:M2x4",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 4.0,
+    "s": 4.0,
+    "k": 1.4,
+    "thread_length": 1.0
+   },
+   "artifact": "step"
+  }
+ ],
+ "dropped": [],
+ "notes": [
+  "G28: per head ratio of cost.BANDS (bolt k/d and s/d, nut s/d and m/d), artifact and side, catalogue rows with the ratio field at the first value on its 0.1 mm form step strictly below the band's low edge x d (outband-*-below-*) or strictly above its high edge x d (outband-*-above-*) that the walls and the shipped rule admit: the one with the largest enveloped edge ratio (R27's rank, a tie to the label) and the first in file order, one point when they coincide",
+  "G28: far above (outband-*-far-*), the first row admitted with the field at the first value on its step at or above 10 x the high edge x d; none for bolt s/d far above its band at stl-preview; bolt s/d far above its band at stl-fine; bolt s/d far above its band at step; nut m/d far above its band at stl-preview; nut m/d far above its band at stl-fine; nut m/d far above its band at step",
+  "G29 (turns-below-*): per artifact bolt catalogue rows with thread_length at the largest value on its 0.5 mm form step whose built thread has fewer turns than cost.MIN_FITTED_TURNS, admitted by the walls and the rule: the nearest the budget and the first in file order",
+  "a reading above its enveloped prediction stops the phase for the owner and widens no e (R11); 5 repetitions; each point charged the largest explore wall_s of its (kind, artifact) group (R6, G4)"
+ ],
+ "shard_sizes": [
+  22,
+  38
+ ],
+ "sources": [
+  "explore=bench/results/phase-07/explore-40646117094"
+ ],
+ "envelope": {
+  "bolt": {
+   "stl-preview": {
+    "bytes": 2.264581945786201,
+    "seconds": 4.286137349093968,
+    "peak": 2.040087854388461
+   },
+   "stl-fine": {
+    "bytes": 0.5633622849303941,
+    "seconds": 2.690232029900006,
+    "peak": 2.170967259675211
+   },
+   "step": {
+    "bytes": 0.9874058238127998,
+    "seconds": 2.616422482555953,
+    "peak": 0.45747877720379804
+   }
+  },
+  "nut": {
+   "stl-preview": {
+    "bytes": 0.7070121785110755,
+    "seconds": 1.061383246630594,
+    "peak": 0.556086702674923
+   },
+   "stl-fine": {
+    "bytes": 0.4996608149413484,
+    "seconds": 1.1069417227945801,
+    "peak": 0.5571452809681212
+   },
+   "step": {
+    "bytes": 0.3802587303182223,
+    "seconds": 0.8785228687431521,
+    "peak": 0.48786919655819627
+   }
+  }
+ }
+}

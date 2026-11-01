@@ -61,9 +61,9 @@ Requirements for the first release: the mating-pair cut (infra port, thread spik
 
 ### Operability
 
-- [ ] **OPER-01**: CAD builds run in worker processes off the event loop with a per-build timeout measured by the thread spike over the whole allowed grid (every size, every standard length, including lengths where `L/P` is an integer), recorded as a constant with its measurement cited.
-- [ ] **OPER-02**: Memory ceiling, gzip level, worker count and bytes-cache budget are re-swept for threaded parts on linux/amd64 before any is set; none of spur's figures is carried.
-- [ ] **OPER-03**: Every allowed configuration builds inside the timeout; a configuration that cannot is capped and warned or refused with a `422`, never silently shortened.
+- [x] **OPER-01**: CAD builds run in worker processes off the event loop with a per-build timeout measured by the thread spike over the whole allowed grid (every size, every standard length, including lengths where `L/P` is an integer), recorded as a constant with its measurement cited.
+- [x] **OPER-02**: Memory ceiling, gzip level, worker count and bytes-cache budget are re-swept for threaded parts on linux/amd64 before any is set; none of spur's figures is carried.
+- [ ] **OPER-03**: Every allowed configuration builds inside the timeout; a configuration that cannot is capped and warned or refused with a `422`, never silently shortened. Held Pending at the close of Phase 7 by owner ruling (2026-11-01, Phase 7 UAT test 1): an admitted in-wall part can still get a kernel `BuildError` (a `422 build_error` that names no field). The must debt `docs/tech_debt/active/2026-10-29-in-wall-parts-the-kernel-refuses.md` carries it, to be fixed before the first release.
 
 ### Infrastructure Port
 
@@ -150,9 +150,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FRNT-04 | Phase 1 | Complete |
 | FRNT-05 | Phase 1 | Complete |
 | FRNT-06 | Phase 5 | Complete |
-| OPER-01 | Phase 7 | Pending |
-| OPER-02 | Phase 7 | Pending |
-| OPER-03 | Phase 7 | Pending |
+| OPER-01 | Phase 7 | Complete |
+| OPER-02 | Phase 7 | Complete |
+| OPER-03 | Phase 7 | Pending (carried by the in-wall debt, before first release) |
 | INFR-01 | Phase 1 | Complete |
 | INFR-02 | Phase 1 | Complete |
 | INFR-03 | Phase 2 | Complete |

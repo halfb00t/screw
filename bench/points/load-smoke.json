@@ -1,0 +1,71 @@
+{
+ "set": "load-smoke",
+ "rule": "smoke, not a figure: 07-08 path check",
+ "reps": 1,
+ "shards": 1,
+ "deadline_s": 600,
+ "points": [
+  {
+   "label": "load-n1",
+   "kind": "load",
+   "workers": 1,
+   "queue": 2,
+   "clients": 2,
+   "solid_cache": 4,
+   "bodies": true,
+   "mix": [
+    {
+     "label": "default-bolt",
+     "kind": "bolt",
+     "params": {},
+     "artifact": "stl-preview"
+    },
+    {
+     "label": "default-bolt",
+     "kind": "bolt",
+     "params": {},
+     "artifact": "stl-fine"
+    },
+    {
+     "label": "default-bolt",
+     "kind": "bolt",
+     "params": {},
+     "artifact": "step"
+    },
+    {
+     "label": "default-nut",
+     "kind": "nut",
+     "params": {},
+     "artifact": "stl-preview"
+    },
+    {
+     "label": "default-nut",
+     "kind": "nut",
+     "params": {},
+     "artifact": "stl-fine"
+    },
+    {
+     "label": "default-nut",
+     "kind": "nut",
+     "params": {},
+     "artifact": "step"
+    }
+   ]
+  },
+  {
+   "label": "default-bolt",
+   "kind": "bolt",
+   "params": {},
+   "artifact": "stl-fine",
+   "gzip_levels": [
+    1,
+    6,
+    9
+   ]
+  }
+ ],
+ "dropped": [],
+ "notes": [
+  "A path check of bench.oper_load, bench.oper_serve and the gzip levels on the runner (07-08 Task 3); no figure from it is a bound or is recorded under bench/results."
+ ]
+}

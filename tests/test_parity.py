@@ -27,7 +27,8 @@ from pydantic_core import PydanticUndefined
 
 from screw import cli
 from screw.app import STATIC, app, build_backend
-from screw.calc import STANDING_WARNING, derive, download_name
+from screw.calc import STANDING_WARNING, cost, derive, download_name, download_refusal
+from screw.calc.cost import artifact_of
 from screw.calc.presets import expand
 from screw.params import DEFAULT_KIND, KINDS, BoltParams, FastenerParams
 from screw.solid import Format, Quality, export
@@ -390,9 +391,11 @@ def test_the_cli_and_the_api_print_the_same_document(
         if isinstance(field.default, bool):
             cases.append({**required, name: not field.default})
         elif isinstance(field.default, float):
-            cases.append({**required, name: field.default * 1.5})
+            # 1.25 and not 1.5: the default nut's d at 1.5 x is d / pitch 9, past the nut's
+            # fine-pitch wall (07 R31), and the case would be a 422, not a document.
+            cases.append({**required, name: field.default * 1.25})
     for name, value in REQUIRED_VALUES.get(kind, {}).items():
-        cases.append({**required, name: value * 1.5})
+        cases.append({**required, name: value * 1.25})
     assert len(cases) > 1, "no float field to move off its default"
 
     def argv(values: Params) -> list[str]:
@@ -410,10 +413,13 @@ def test_the_cli_and_the_api_print_the_same_document(
         cli_doc = json.loads(capsys.readouterr().out)
         api_doc = client.get(f"/api/{kind}/info", params=values).json()
         assert cli_doc == api_doc, values
-        assert cli_doc["warnings"][0] == STANDING_WARNING
-        assert api_doc["warnings"][0] == STANDING_WARNING
+        # B-03: a capped part opens on the cap's warning; every other document on the standing
+        # entry. No case here is capped since B-03's turns floor (M6 with s 15 is refused at the
+        # preview instead); tests/test_cost.py's PARITY_CAPS hold the capped parts.
+        capped = list(cost.cap_defaults(model.model_validate(values), frozenset(values))[1])
+        assert api_doc["warnings"][:len(capped) + 1] == [*capped, STANDING_WARNING], values
         # The literal too, so rewording the constant fails here and not only in test_calc (D-04).
-        assert api_doc["warnings"][0] == (
+        assert api_doc["warnings"][len(capped)] == (
             "ends modelled per L15 and L19: bolt tip chamfer, hex head chamfer, under-head "
             "fillet on an ISO 4014 plain shank, nut lead-in countersinks and face chamfers; "
             "nominal, not toleranced; not a product build")
@@ -431,32 +437,106 @@ def test_the_limits_heading_is_the_same_ascii_string_on_the_cli_and_the_api(
         assert heading in {r["group"] for r in api.json()["rows"]}
 
 
-def test_the_downloads_of_iso_4017_m8_x_70_are_one_sentence_on_the_cli_the_api_and_export(
+def test_the_downloads_of_a_refused_preset_part_are_one_sentence_on_the_cli_the_api_and_export(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     # G-04-3, FRNT-05: the document, the model route and `screw export` read one rule, so the
-    # entry the document refuses is the 422 the route answers and the line export prints.
-    row = expand("bolt", "iso4017:M8x70")
+    # entry the document refuses is the 422 the route answers and the line export prints. B-01
+    # refuses no catalogue row, so the part is ISO 4017 M20 x 70 at pitch 1 (70 turns), which
+    # the cost model refuses (L21); an R12 widening only refuses more.
+    row = expand("bolt", "iso4017:M20x70")
     assert row is not None
-    fields: Params = {**row}
-    cli.main(["info", "bolt", "--preset", "iso4017:M8x70"])
+    fields: Params = {**row, "pitch": 1}
+    cli.main(["info", "bolt", "--preset", "iso4017:M20x70", "--pitch", "1"])
     cli_downloads = json.loads(capsys.readouterr().out)["downloads"]
     api_downloads = client.get("/api/bolt/info", params=fields).json()["downloads"]
     assert cli_downloads == api_downloads
-    (refused,) = [e for e in api_downloads if e["refusal"] is not None]
+    refused = api_downloads[0]
     assert (refused["format"], refused["quality"]) == ("stl", "fine")
-    assert refused["refusal"].startswith("thread_length and length: ")
+    assert refused["refusal"] == cost.refusal(BoltParams.model_validate(fields), "stl-fine")
+    assert refused["refusal"].startswith("d, pitch, length, s, k and thread_length: ")
 
     route = client.get("/api/bolt/model.stl", params=fields)   # quality defaults to fine
     assert route.status_code == 422
     (detail,) = route.json()["detail"]
-    assert (detail["type"], detail["msg"]) == ("fine_stl_cap", refused["refusal"])
+    assert (detail["type"], detail["msg"]) == ("over_budget", refused["refusal"])
 
     out = tmp_path / "x.stl"
     with pytest.raises(SystemExit) as stop:
-        cli.main(["export", "bolt", "--preset", "iso4017:M8x70", "-o", str(out)])
+        cli.main(["export", "bolt", "--preset", "iso4017:M20x70", "--pitch", "1", "-o",
+                  str(out)])
     assert stop.value.code == 2
     assert capsys.readouterr().err == f"error: {refused['refusal']}\n"
     assert not out.exists()
+
+
+# Parts for the three-front-end parity below. The first is an explore point (run 40646117094) the
+# shipped cost model refuses under C1 (B-01), which an R12 widening keeps refused; the second a nut
+# it refuses at stl-fine, at the nut's fine-pitch wall (d / pitch 8, 07 R31): no explore nut inside
+# that wall is refused, and the first pick, `nut-d100-p1-...`, is past it. The other two are
+# off-row sizes no other test downloads for real (the byte cache is session-wide), whatever the
+# model says of them.
+PARITY_PARTS: list[tuple[str, Params]] = [
+    ("bolt", {"d": 30, "pitch": 3, "length": 90, "thread_length": 90, "s": 48, "k": 18}),
+    ("nut", {"d": 300, "pitch": 37.5, "s": 480, "m": 240}),
+    ("bolt", {"d": 5.61}),
+    ("nut", {"d": 6.61}),
+]
+DOWNLOAD_PAIRS = [("stl", "fine"), ("stl", "preview"), ("step", "fine"), ("step", "preview")]
+
+
+def test_every_front_end_refuses_the_same_downloads_with_the_same_words(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str],
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    """FRNT-05, B-02, T-07-28: the info document, the model route and `screw export` agree on
+    every download of every part, and a refused request never reaches the backend. Both
+    builders are stubbed: the rule is under test, not the kernel."""
+    calls: list[tuple[str, str]] = []
+
+    async def stub(p: FastenerParams, fmt: str, quality: str) -> bytes:
+        calls.append((fmt, quality))
+        return b"stub"
+
+    monkeypatch.setattr("screw.solid.export", lambda p, fmt, quality: b"solid")
+    app.dependency_overrides[build_backend] = lambda: stub
+    refused = 0
+    try:
+        for kind, fields in PARITY_PARTS:
+            p = KINDS[kind].model_validate(fields)
+            flags = [w for name, value in fields.items() for w in (_flag(name), str(value))]
+            cli.main(["info", kind, *flags])
+            cli_downloads = json.loads(capsys.readouterr().out)["downloads"]
+            downloads = client.get(f"/api/{kind}/info", params=fields).json()["downloads"]
+            assert cli_downloads == downloads
+            assert [(e["format"], e["quality"]) for e in downloads] == DOWNLOAD_PAIRS
+            for entry in downloads:
+                fmt, quality = entry["format"], entry["quality"]
+                refusal = download_refusal(p, fmt, quality)
+                assert entry["refusal"] == refusal
+                before = len(calls)
+                r = client.get(f"/api/{kind}/model.{fmt}", params={**fields, "quality": quality})
+                out = tmp_path / f"{kind}-{p.d:g}-{quality}.{fmt}"
+                argv = ["export", kind, *flags, "-o", str(out), "--quality", quality]
+                if refusal is None:
+                    assert r.status_code == 200, (kind, fields, fmt, quality)
+                    cli.main(argv)
+                    assert out.exists()
+                    continue
+                refused += 1
+                assert r.status_code == 422
+                assert r.json()["detail"] == [{
+                    "loc": ["query"], "type": "over_budget", "msg": refusal,
+                    "ctx": {"fields": list(cost.FIELDS[kind]),
+                            "artifact": artifact_of(fmt, quality)}}]
+                assert len(calls) == before
+                capsys.readouterr()
+                with pytest.raises(SystemExit) as stop:
+                    cli.main(argv)
+                assert stop.value.code == 2
+                assert capsys.readouterr().err == f"error: {refusal}\n"
+                assert not out.exists()
+    finally:
+        app.dependency_overrides[build_backend] = lambda: _inline_backend
+    assert refused
 
 
 @pytest.mark.parametrize("kind", list(KINDS))
@@ -720,7 +800,7 @@ def test_the_badge_composes_from_the_status_and_the_display_and_the_basis_stays_
         "api/schema?kind=${encodeURIComponent(kind)}",
         "api/presets?kind=${encodeURIComponent(kind)}",
         "api/${currentKind}/info?${q}",
-        "api/${currentKind}/model.stl?${stlQ}",
+        "api/${currentKind}/model.${PREVIEW.format}?${stlQ}",
     ]
     assert "location.hash" not in _function_body("pick")
 
@@ -772,13 +852,16 @@ def test_the_ui_builds_both_download_links_from_the_info_document_and_names_no_q
     assert "qs.set('quality', download.quality)" in body
     assert "title" in body
     assert "`${label} (${download.quality})`" in APP_JS
-    # The only quality the page names is the preview mesh it fetches; no format, no other
-    # quality, no spelling of the cap or of the warning.
+    # The only format and quality the page names are the preview mesh it fetches; no other
+    # format or quality, no spelling of the cap or of the warning.
     assert len(re.findall(r"""(['"`])preview\1""", APP_JS)) == 1
-    for word in ("fine", "stl", "step"):
+    for word in ("fine", "step"):
         assert re.findall(rf"""(['"`]){word}\1""", APP_JS) == [], word
+    # 07-14: the preview STL the page fetches is named once, in PREVIEW, to find its own entry.
+    assert len(re.findall(r"""(['"`])stl\1""", APP_JS)) == 1
     assert APP_JS.count("info.warnings") == 1   # the pendingWarnings line, nothing matches a text
     assert "fine_stl_cap" not in APP_JS
+    assert "over_budget" not in APP_JS
     assert "fine STL" not in APP_JS
     for name in ("partQuery", "writeHash"):
         assert "quality" not in _function_body(name), name
@@ -819,14 +902,14 @@ def test_the_download_labels_are_static_and_the_refused_fine_stl_reads_download_
     assert set(labels) == set(fmt_param["schema"]["enum"])
     assert labels == {"stl": "Download STL", "step": "Download STEP"}
 
-    row = expand("bolt", "iso4017:M8x70")
-    assert row is not None
-    fields: Params = {**row}
-    capped = client.get("/api/bolt/info", params=fields).json()["downloads"]
-    assert _links_by_rule_17(labels, capped) == {
-        "stl": "Download STL (preview)", "step": "Download STEP"}
+    # The all-default part refuses nothing (OPER-03's empty edge); a refused fine STL is
+    # written into its document, so the rule is read without pinning another part's outcome.
     served = client.get("/api/bolt/info").json()["downloads"]
     assert _links_by_rule_17(labels, served) == labels
+    capped = [{**e, "refusal": "x"} if (e["format"], e["quality"]) == ("stl", "fine") else e
+              for e in served]
+    assert _links_by_rule_17(labels, capped) == {
+        "stl": "Download STL (preview)", "step": "Download STEP"}
     # A format whose every entry is refused has no link: the page keeps it disabled.
     assert _links_by_rule_17(labels, [{**e, "refusal": "x"} for e in capped
                                       if e["format"] == "stl"]) == {}
@@ -1050,7 +1133,54 @@ def test_a_kind_change_drops_the_old_mesh_and_what_described_it() -> None:
                       "meshWarnings = [];", "meshNotes = [];", "pendingWarnings = [];",
                       "pendingNotes = [];", "fitted = false;"):
         assert statement in drop, statement
-    assert APP_JS.count("dropMesh()") == 2  # the definition and the one call on a kind change
+    # The definition, the call on a kind change and the call on a refused preview (07-14).
+    assert APP_JS.count("dropMesh()") == 3
+
+
+def test_the_ui_offers_the_downloads_that_fit_when_the_preview_is_refused() -> None:
+    # 07 D-06, L21, Pitfall 5: the budget can refuse the preview STL while it admits the fine STL
+    # (ISO 4017 M20 x 60 at pitch 1). update() reads the preview's entry in the info document
+    # before it asks for the mesh. Refused: no model.stl request; the last mesh goes, so it cannot
+    # pass for this part (L02, T-07-36); the panel is drawn after the drop, which clears messages;
+    # every served download is linked; the status is the server's sentence (rule 17, D-10).
+    body = _squash(_function_body("update"))
+    find = _squash("const preview = info.downloads.find((download) => "
+                   "download.format === PREVIEW.format && download.quality === PREVIEW.quality);")
+    refused = _squash("""if (preview.refusal !== null) {
+      dropMesh();
+      renderInfo(info);
+      setDownloads(q, info.downloads);
+      setStatus(preview.refusal);
+      return;
+    }""")
+    assert find in body
+    assert refused in body
+    mesh_fetch = body.index("await fetch(`api/${currentKind}/model.")
+    assert body.index(find) < body.index(refused) < mesh_fetch
+    # Served: rule 13's order, unchanged; a failed mesh request still goes through fail (rule 15).
+    served = body[body.index(refused) + len(refused):]
+    assert _squash("""renderInfo(info);
+    const stlQ = new URLSearchParams(q);
+    stlQ.set('quality', PREVIEW.quality);""") in served
+    assert "if (!res.ok) return fail(await problems(res));" in served
+    assert served.index("showModel(buf);") < served.index("setDownloads(q, info.downloads);") \
+        < served.index("setStatus('');")
+    # The preview STL is the one format and quality the page names, in one place.
+    assert "const PREVIEW = { format: 'stl', quality: 'preview' };" in APP_JS
+    assert APP_JS.count("PREVIEW = ") == 1
+
+
+def test_the_debounce_is_a_ui_choice_and_not_a_runtime_bound() -> None:
+    # 07 discretion: 350 ms is how long typing pauses before a request, carried from spur; it
+    # bounds no build and is not measured, so it carries no INTERIM label and no promise to a
+    # later phase.
+    body = re.search(r"const scheduleUpdate = \(\) => \{(.*?)\n\};", APP_JS, re.DOTALL)
+    assert body is not None
+    assert "debounce = setTimeout(update, 350);" in body.group(1)
+    assert "UI choice" in body.group(1)
+    for word in ("INTERIM", "Phase 7"):
+        assert word not in body.group(1), word
+    assert "INTERIM" not in APP_JS
 
 
 def _rebuild_block() -> str:

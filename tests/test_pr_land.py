@@ -12,9 +12,8 @@ directly during this plan's own execution) -- a comment above each names the cal
 Per-case variants change **values** (state, a PR number, conclusions, ids), never
 **shape**. Every test except the drift test (`test_required_jobs_file_matches_ci_yml_job_names`)
 is independent of `.github/workflows/required-jobs.txt`'s current contents: pure tests
-pass `required`/`REQUIRED` explicitly, and `land()` tests use only `test (3.12)`,
-`vendor-bundle` and `image` -- the jobs required both now and after Plan 05-04 drops the
-`test (3.10)` line.
+pass `required`/`REQUIRED` explicitly, and `land()` tests see `required_jobs()` return
+`REQUIRED` (`test (3.12)`, `vendor-bundle` and `image`), the jobs the recorded runs carry.
 """
 
 from __future__ import annotations
@@ -189,6 +188,14 @@ SQUASH_COMMIT_READ = (
 
 REQUIRED = frozenset({"test (3.12)", "vendor-bundle", "image"})
 
+
+@pytest.fixture(autouse=True)
+def _land_requires_the_recorded_jobs(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`land()` reads `required_jobs()` itself, so it is held to REQUIRED, the jobs the recorded
+    runs carry, whatever the file lists later. The tests that read the file import
+    `required_jobs` by name and are not affected."""
+    monkeypatch.setattr("scripts.pr_land.required_jobs", lambda: REQUIRED)
+
 # A compare result that is neither behind nor identical -- the neutral value the Task 1
 # tests use for `head_refusals`, which now requires a `compare` argument as of Task 2.
 NOT_BEHIND = (1, 0)
@@ -229,18 +236,15 @@ def _effective_job_names(ci_yml: str) -> set[str]:
     Only a `^    name:` line -- exactly four spaces, one level under the id -- inside
     that block gives the effective name; step `name:` keys sit at six-or-more spaces
     under `steps:` and are never read (`ci.yml`'s own two, `bundle matches web/` and
-    `the packaged entrypoint serves a gear`, confirm the depth). The `test` id still
-    expands to `f"{name} ({v})"` for each version in its `python: [...]` matrix list,
-    using its own effective name -- identical to today's `test (3.12)` while `test`
-    carries no `name:`."""
+    `the packaged entrypoint serves a gear`, confirm the depth). A job with a one-key
+    matrix list -- `test`'s `python: [...]` -- expands to
+    `f"{name} ({v})"` for each value, using its own effective name: `test (3.12)` while
+    `test` carries no `name:`."""
     jobs_section = ci_yml.split("\njobs:\n", 1)[1]
     id_matches = list(re.finditer(r"^  ([a-zA-Z][\w-]*):\s*$", jobs_section, re.MULTILINE))
     job_ids = [m.group(1) for m in id_matches]
     assert "test" in job_ids
 
-    matrix_match = re.search(r"python:\s*\[([^\]]*)\]", jobs_section)
-    assert matrix_match is not None, "no python matrix found in ci.yml"
-    versions = [v.strip().strip('"') for v in matrix_match.group(1).split(",")]
 
     effective: dict[str, str] = {}
     for i, match in enumerate(id_matches):
@@ -258,11 +262,16 @@ def _effective_job_names(ci_yml: str) -> set[str]:
         effective[job_id] = value
 
     names: set[str] = set()
-    for job_id, name in effective.items():
-        if job_id == "test":
-            names.update(f"{name} ({v})" for v in versions)
-        else:
+    for i, name in enumerate(effective.values()):
+        block_end = id_matches[i + 1].start() if i + 1 < len(id_matches) else len(jobs_section)
+        block = jobs_section[id_matches[i].end():block_end]
+        # GitHub reports a one-key matrix job as `<name> (<value>)` per value: `test`'s python list.
+        matrix = re.search(r"^      matrix:\n        \w+:\s*\[([^\]]*)\]", block, re.MULTILINE)
+        if matrix is None:
             names.add(name)
+            continue
+        values = [v.strip().strip('"') for v in matrix.group(1).split(",")]
+        names.update(f"{name} ({v})" for v in values)
     return names
 
 
@@ -980,3 +989,31 @@ def test_land_several_problems_at_once_prints_all_then_one_nothing_was_merged_li
     assert "[ci skip]" in out
     assert out.count("nothing was merged") == 1
     assert not any(c[:3] == ["gh", "pr", "merge"] for c in runner.calls)
+
+
+# --- the required set is required-jobs.txt and nothing else (L33) -----------------------------
+
+
+def _jobs_json(names: list[str]) -> str:
+    return json.dumps([{"name": name, "status": "completed", "conclusion": "success"}
+                       for name in names])
+
+
+def test_land_requires_exactly_the_jobs_required_jobs_txt_lists(
+        monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """L33 removed the full-tier and gate-file rules, so a ci.yml run carrying every job the file
+    lists, green, lands with no other read (the runner fails on any call it has no handler for:
+    no PR diff, no operability.yml run), and a run missing any one listed job is refused by name.
+    The file is read as `land()` reads it, not the fixture's REQUIRED."""
+    monkeypatch.setattr("scripts.pr_land.required_jobs", required_jobs)
+    listed = sorted(required_jobs())
+    assert listed
+    runner = _happy_runner().replace("runs/36088409707/jobs", cp(0, _jobs_json(listed)))
+    assert land(3, runner, sleep=lambda _: None) == 0
+    for missing in listed:
+        rest = [name for name in listed if name != missing]
+        runner = _happy_runner().replace("runs/36088409707/jobs", cp(0, _jobs_json(rest)))
+        assert land(3, runner, sleep=lambda _: None) == 1
+        out = capsys.readouterr().out
+        assert f"pr.land: required job {missing!r} is missing from the run." in out
+        assert not [call for call in runner.calls if call[:3] == ["gh", "pr", "merge"]]

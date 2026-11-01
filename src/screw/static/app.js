@@ -520,6 +520,11 @@ const setStatus = (text) => { $('#status').textContent = text; };
 
 // ---------------------------------------------------------------- update loop
 
+// The one mesh the page draws is the preview STL, so it is the one format and quality the page
+// names: to fetch it and to find its own entry in the info document. Every other download is the
+// server's to name and order (rule 17, D-10).
+const PREVIEW = { format: 'stl', quality: 'preview' };
+
 let seq = 0;
 let inflight = null;
 
@@ -560,11 +565,25 @@ async function update() {
     if (!infoRes.ok) return fail(await problems(infoRes));
     const info = await infoRes.json();
     if (mine !== seq) return;
+
+    // Each artifact has its own budget, so the preview can be refused while the finer mesh and
+    // the STEP are admitted (L21: ISO 4017 M20 x 60 at pitch 1). Then this part has no mesh: the last
+    // one goes so it cannot pass for this part (L02), the panel is drawn after the drop because
+    // dropMesh clears the messages, every download that fits is linked, and the status is the
+    // server's sentence. A refused preview is not a failed request, so fail() is not called.
+    const preview = info.downloads.find((download) => download.format === PREVIEW.format && download.quality === PREVIEW.quality);
+    if (preview.refusal !== null) {
+      dropMesh();
+      renderInfo(info);
+      setDownloads(q, info.downloads);
+      setStatus(preview.refusal);
+      return;
+    }
     renderInfo(info);
 
     const stlQ = new URLSearchParams(q);
-    stlQ.set('quality', 'preview');
-    const res = await fetch(`api/${currentKind}/model.stl?${stlQ}`, { signal: ctl.signal });
+    stlQ.set('quality', PREVIEW.quality);
+    const res = await fetch(`api/${currentKind}/model.${PREVIEW.format}?${stlQ}`, { signal: ctl.signal });
     if (!res.ok) return fail(await problems(res));
     const buf = await res.arrayBuffer();
     if (mine !== seq) return;
@@ -579,9 +598,9 @@ async function update() {
 let debounce;
 const scheduleUpdate = () => {
   clearTimeout(debounce);
-  // INTERIM (D-01): 350 ms carried from spur's app.js, a UI choice never measured for
-  // screw. Phase 7 re-sweeps (OPER-02); tracked in
-  // docs/tech_debt/active/2026-10-05-interim-runtime-bounds.md.
+  // 350 ms is how long typing pauses before a request, carried from spur's app.js: a UI choice,
+  // not a runtime bound. It limits no build and is not measured; the cost model and the
+  // admission slot bound the server (L21).
   debounce = setTimeout(update, 350);
 };
 

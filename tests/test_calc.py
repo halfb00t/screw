@@ -28,6 +28,8 @@ from screw.calc import (
     explicit_conflict,
     printability,
 )
+from screw.calc import cost as cost_model
+from screw.calc.cost import artifact_of
 from screw.calc.presets import WITHDRAWN_DIN_WRENCH_MM, designation_for, match
 from screw.calc.thread import (
     HEAD_CHAMFER_KERNEL_FLOOR_DEG,
@@ -35,7 +37,6 @@ from screw.calc.thread import (
     axial_play,
     basic_minor_diameter,
     bolt_end_closed_volume,
-    fine_stl_refusal,
     flank_normal_gap,
     head_chamfer_conflict,
     head_chamfer_depths,
@@ -43,7 +44,6 @@ from screw.calc.thread import (
     head_chamfer_warnings,
     nut_closed_volume,
     nut_end_closed_volume,
-    nut_fine_stl_refusal,
     pitch_diameter,
     section_radius,
     thread_depth,
@@ -162,13 +162,14 @@ def test_a_thread_length_equal_to_the_length_has_no_shank_and_no_warning() -> No
 
 
 def test_a_shank_too_short_to_model_is_folded_into_the_thread_and_warned() -> None:
-    # D-27: 0.0005 mm is below the 0.001 mm the builder can take.
-    info = derive(BoltParams(thread_length=19.9995))
+    # D-27: 0.00005 mm is below the 0.0001 mm the builder can take (L20; 4.99995 keeps six figures,
+    # which `:g` prints as they are).
+    info = derive(BoltParams(length=5.0, thread_length=4.99995))
     assert info.warnings[1:] == [
-        "thread_length 19.9995 leaves a plain shank of 0.0005 mm, shorter than the 0.001 mm the "
+        "thread_length 4.99995 leaves a plain shank of 5e-05 mm, shorter than the 0.0001 mm the "
         "builder can model: thread built to the full length", NO_ROW]
     rows = {r.key: r.value for r in info.rows}
-    assert (rows["thread_length"], rows["shank_length"]) == (20.0, 0.0)
+    assert (rows["thread_length"], rows["shank_length"]) == (5.0, 0.0)
 
 
 def test_a_shank_of_exactly_the_floor_keeps_its_shank_and_warns_of_nothing() -> None:
@@ -324,6 +325,10 @@ def test_the_kernel_bound_grows_for_a_small_or_tall_head_and_has_a_floor_for_the
     assert head_chamfer_kernel_bound(100.0, 40.0) == HEAD_CHAMFER_KERNEL_FLOOR_DEG
     assert head_chamfer_kernel_bound(1.0, 0.4) == pytest.approx(1.4e-3)
     assert head_chamfer_kernel_bound(10.0, 400.0) == pytest.approx(1.4e-2)
+    # s * s underflows to 0.0 at 1e-170: the bound overflows to inf and does not divide by zero
+    # (k / s / s with k = 4 is 4e340)
+    # (the model no longer accepts such a head, but the guard is in the function, not the model).
+    assert head_chamfer_kernel_bound(1e-170, 4.0) == math.inf
     angle = 1e-3
     assert _below_bound_warnings(derive(BoltParams(head_chamfer=angle))) == []
     small = BoltParams(d=0.5, pitch=0.1, length=5.0, thread_length=5.0, s=1.0, k=0.4,
@@ -515,39 +520,40 @@ def test_a_nut_with_a_positive_clearance_has_no_clearance_warning(clearance: flo
     assert info.warnings == [STANDING_WARNING]
 
 
-def test_a_tall_nut_fine_stl_is_refused_by_the_nuts_cap_and_nothing_else_is() -> None:
-    # R16, R17: the M10 x 1.5 nut's cap is 36 mm (not the rod's 56): a nut one mm above it is
-    # refused on its fine STL, with the sentence the info document and the warnings carry.
-    tall = NutParams(d=10.0, pitch=1.5, s=16.0, m=37.0, clearance=0.1)
-    sentence = nut_fine_stl_refusal(10.0, 1.5, 37.0, 0.1, False)
+# A nut the shipped cost model refuses at every artifact under C1 (B-01): d 50, d / pitch 8 at the
+# nut's fine-pitch wall (07 R31), m 10 d. An R12 widening only refuses more. The first pick, the
+# explore point `nut-d100-p1-m0.8d-s1.6d-c5-right`, is past that wall and no explore nut inside it
+# is refused by the cost model.
+NUT_OVER = NutParams(d=50.0, pitch=6.25, s=80.0, m=500.0)
+
+
+def test_a_nut_over_its_budget_is_refused_per_artifact_by_the_cost_model() -> None:
+    # D-06, L21: the nut is judged by its own fitted model, never the rod's, at each artifact.
+    info = derive(NUT_OVER)
+    refusals: dict[tuple[str, str], str | None] = {
+        (e.format, e.quality): e.refusal for e in info.downloads}
+    for fmt, quality in DOWNLOAD_PAIRS:
+        sentence = cost_model.refusal(NUT_OVER, artifact_of(fmt, quality))
+        assert download_refusal(NUT_OVER, fmt, quality) == sentence
+        assert refusals[fmt, quality] == sentence
+    sentence = cost_model.refusal(NUT_OVER, "stl-fine")
     assert sentence is not None
-    assert sentence.startswith("m: ")
-    assert download_refusal(tall, "stl", "fine") == sentence
-    for fmt, quality in (("stl", "preview"), ("step", "fine"), ("step", "preview")):
-        assert download_refusal(tall, fmt, quality) is None
-    info = derive(tall)
-    refusals = {(e.format, e.quality): e.refusal for e in info.downloads}
-    assert refusals == {("stl", "fine"): sentence, ("stl", "preview"): None,
-                        ("step", "fine"): None, ("step", "preview"): None}
-    assert info.warnings.count(sentence) == 1
-    at_cap = NutParams(d=10.0, pitch=1.5, s=16.0, m=36.0, clearance=0.1)
-    assert download_refusal(at_cap, "stl", "fine") is None
-    assert sentence not in derive(at_cap).warnings
-    # a clearance above the ceiling is refused on the fine STL too, naming the clearance
-    loose = NutParams(d=10.0, pitch=1.5, s=26.0, m=5.0, clearance=5.5)
-    loose_refusal = download_refusal(loose, "stl", "fine")
-    assert loose_refusal is not None
-    assert loose_refusal.startswith("clearance: ")
+    assert sentence.startswith("d, pitch, s, m and clearance: ")
+    for reason in _refused(NUT_OVER):
+        assert info.warnings.count(reason) == 1
 
 
 @pytest.mark.parametrize("left_hand", [False, True])
-def test_nut_fine_stl_serves_every_catalogue_row_at_its_own_s_and_m_max(left_hand: bool) -> None:
-    """No cap lands below a GOST ISO 4032-2014 catalogue height (plan 05-19, stop condition)."""
+def test_every_catalogue_nut_at_its_s_and_m_max_is_judged_by_the_shared_rule(
+        left_hand: bool) -> None:
+    """Plan 05-19's catalogue heights, now held to the cost model at every download (L21)."""
     diameters = {size.label: size.d for size in iso262.SIZES}
     for row in NUTS:
         nut = NutParams(d=diameters[row.size], pitch=row.pitch, s=row.s, m=row.m_max,
                         clearance=0.1, left_hand=left_hand)
-        assert download_refusal(nut, "stl", "fine") is None, row.size
+        for fmt, quality in DOWNLOAD_PAIRS:
+            assert download_refusal(nut, fmt, quality) == cost_model.refusal(
+                nut, artifact_of(fmt, quality)), row.size
 
 
 def test_the_nut_closed_form_is_the_prism_less_the_section_times_the_height() -> None:
@@ -562,16 +568,26 @@ def test_the_nut_closed_form_is_the_prism_less_the_section_times_the_height() ->
     assert nut_closed_volume(6.0, 1.0, 10.0, 5.2, 0.2) < nut_closed_volume(6.0, 1.0, 10.0, 5.2, 0.1)
 
 
-def test_only_the_fine_stl_of_a_capped_part_is_refused() -> None:
-    capped = BoltParams(d=8.0, pitch=1.25, length=67.6, thread_length=67.6)
-    refusal = download_refusal(capped, "stl", "fine")
-    assert refusal == fine_stl_refusal(8.0, 1.25, 67.6, False)
+# The explore point `bolt-d30-p3-n30-right` (run 40646117094), refused at stl-preview and stl-fine
+# by the shipped cost model under C1 (B-01); an R12 widening only refuses more. Its d / pitch is 10,
+# inside the bolt's fine-pitch wall (07 R31); the first pick, `bolt-d30-p1-n30-right`, is past it.
+OVER = BoltParams(d=30.0, pitch=3.0, length=90.0, thread_length=90.0, s=48.0, k=18.0)
+
+DOWNLOAD_PAIRS: list[tuple[str, str]] = [
+    ("stl", "fine"), ("stl", "preview"), ("step", "fine"), ("step", "preview")]
+
+
+def _refused(p: FastenerParams) -> list[str]:
+    """The distinct reasons the shared rule refuses `p`'s downloads, in the page's order."""
+    reasons = (download_refusal(p, fmt, quality) for fmt, quality in DOWNLOAD_PAIRS)
+    return list(dict.fromkeys(r for r in reasons if r is not None))
+
+
+def test_the_bolts_fine_stl_is_judged_by_the_cost_model() -> None:
+    refusal = download_refusal(OVER, "stl", "fine")
+    assert refusal == cost_model.refusal(OVER, "stl-fine")
     assert refusal is not None
-    assert download_refusal(capped, "stl", "preview") is None
-    assert download_refusal(capped, "step", "fine") is None
-    assert download_refusal(capped, "step", "preview") is None
-    at_cap = BoltParams(d=8.0, pitch=1.25, length=67.5, thread_length=67.5)
-    assert download_refusal(at_cap, "stl", "fine") is None
+    assert download_refusal(BoltParams(), "stl", "fine") is None   # the empty edge (OPER-03)
 
 
 def test_a_kind_without_a_download_rule_is_a_bug_not_a_user_error() -> None:
@@ -588,45 +604,46 @@ def test_every_registered_kind_has_a_download_rule(
         assert download_refusal(part_of(kind), "stl", "fine") is None
 
 
-def test_a_capped_part_warns_about_its_fine_stl_after_the_standing_warning() -> None:
+def test_a_refused_part_warns_about_its_fine_stl_after_the_no_row_warning() -> None:
     # The document names the refused download in `downloads`; this sentence is the reason the
-    # page and `screw info` show.
-    capped = derive(BoltParams(d=8.0, pitch=1.25, length=67.6, thread_length=67.6))
-    assert capped.warnings == [STANDING_WARNING, NO_ROW,
-                               fine_stl_refusal(8.0, 1.25, 67.6, False)]
+    # page and `screw info` show, before the counterpart's off-row sentence, which stays last.
+    refusal = cost_model.refusal(OVER, "stl-fine")
+    assert refusal is not None
+    assert derive(OVER).warnings == [
+        STANDING_WARNING, NO_ROW, *_refused(OVER),
+        "no GOST ISO 4032-2014 (ISO 4032:2012) row for d 30 pitch 3; set s and m on the nut"]
+    assert refusal in _refused(OVER)
 
 
-def test_no_fine_stl_warning_at_the_cap_or_off_the_measured_rows() -> None:
+def test_the_download_warnings_are_the_shared_rules_off_the_old_measured_rows_too() -> None:
     for p in (BoltParams(d=8.0, pitch=1.25, length=67.5, thread_length=67.5),
               BoltParams(d=8.0, pitch=1.0, length=67.6, thread_length=67.6)):
         # M8 at pitch 1.25 is a size; pitch 1.0 is not, so the second also warns on the nut side.
         assert derive(p).warnings[:2] == [STANDING_WARNING, NO_ROW]
-        assert derive(p).warnings[2:] == ([] if p.pitch == 1.25 else [
-            "no GOST ISO 4032-2014 (ISO 4032:2012) row for d 8 pitch 1; set s and m on the nut"])
+        assert derive(p).warnings[2:] == [*_refused(p), *([] if p.pitch == 1.25 else [
+            "no GOST ISO 4032-2014 (ISO 4032:2012) row for d 8 pitch 1; set s and m on the nut"])]
 
 
-def test_the_fine_stl_cap_reads_the_built_thread_not_the_length() -> None:
-    # D-22: M8 x 1.25 is capped at 67.5 mm of thread; a 100 mm bolt with 60 mm of it is inside.
-    inside = BoltParams(d=8.0, pitch=1.25, length=100.0, thread_length=60.0)
-    assert derive(inside).warnings == [STANDING_WARNING, NO_ROW]
-    assert download_refusal(inside, "stl", "fine") is None
-    over = BoltParams(d=8.0, pitch=1.25, length=100.0, thread_length=67.6)
-    assert download_refusal(over, "stl", "fine") == fine_stl_refusal(8.0, 1.25, 67.6, False)
+def test_the_fine_stl_rule_reads_the_built_thread_not_the_stored_field() -> None:
+    # D-22, D-17: the turns feature is the built thread over the pitch, so a thread_length past
+    # the length is judged as the full length the builder makes.
+    past = BoltParams(d=8.0, pitch=1.25, length=70.0, thread_length=80.0)
+    full = BoltParams(d=8.0, pitch=1.25, length=70.0, thread_length=70.0)
+    assert cost_model.predict(past, "stl-fine") == cost_model.predict(full, "stl-fine")
+    for p in (past, full, BoltParams(d=8.0, pitch=1.25, length=100.0, thread_length=60.0)):
+        assert download_refusal(p, "stl", "fine") == cost_model.refusal(p, "stl-fine")
 
 
-def test_a_left_hand_part_is_judged_by_its_own_measured_cap() -> None:
-    # L11 measured the left-hand M10 x 60 inside the budget and the right-hand one over it, so
-    # the same millimetres are served on one hand and refused on the other (D-21).
+def test_a_left_hand_part_is_judged_by_the_model_with_its_hand() -> None:
+    # The hand is a feature of R11 (D-21): the same millimetres predict a different cost on each
+    # hand, and each is judged by the same rule.
     left = BoltParams(d=10.0, pitch=1.5, length=60.0, thread_length=60.0, left_hand=True, s=16.0,
                       k=6.4)
     right = BoltParams(d=10.0, pitch=1.5, length=60.0, thread_length=60.0, s=16.0, k=6.4)
-    assert download_refusal(left, "stl", "fine") is None
-    assert derive(left).warnings == [STANDING_WARNING]  # an ISO 4017 M10 x 60 row, left-hand
-    refusal = download_refusal(right, "stl", "fine")
-    assert refusal == fine_stl_refusal(10.0, 1.5, 60.0, False)
-    assert refusal is not None
-    assert "right-hand" in refusal
-    assert derive(right).warnings == [STANDING_WARNING, refusal]
+    assert cost_model.predict(left, "stl-fine") != cost_model.predict(right, "stl-fine")
+    for p in (left, right):   # an ISO 4017 M10 x 60 row on either hand
+        assert download_refusal(p, "stl", "fine") == cost_model.refusal(p, "stl-fine")
+        assert derive(p).warnings == [STANDING_WARNING, *_refused(p)]
 
 
 # --- the download state: one entry per served format and quality, from the shared rule ---------
@@ -641,34 +658,31 @@ def test_the_default_part_lists_its_four_downloads_in_the_pages_order_none_refus
     assert derive(BoltParams()).downloads == ALL_SERVED
 
 
-def test_a_capped_part_refuses_exactly_its_fine_stl_download_by_the_shared_rule() -> None:
-    capped = BoltParams(d=8.0, pitch=1.25, length=67.6, thread_length=67.6)
-    downloads = derive(capped).downloads
-    assert [(e.format, e.quality) for e in downloads] == [
-        ("stl", "fine"), ("stl", "preview"), ("step", "fine"), ("step", "preview")]
+def test_a_refused_part_lists_its_downloads_by_the_shared_rule() -> None:
+    downloads = derive(OVER).downloads
+    assert [(e.format, e.quality) for e in downloads] == DOWNLOAD_PAIRS
     for entry in downloads:
-        assert entry.refusal == download_refusal(capped, entry.format, entry.quality)
-    sentence = fine_stl_refusal(8.0, 1.25, 67.6, False)
-    assert sentence is not None
-    assert [e.refusal for e in downloads] == [sentence, None, None, None]
+        assert entry.refusal == download_refusal(OVER, entry.format, entry.quality)
+    for entry in downloads:
+        assert entry.refusal == cost_model.refusal(OVER, artifact_of(entry.format, entry.quality))
+    assert downloads[0].refusal is not None
 
 
-def test_the_fine_stl_warning_is_the_refused_downloads_reasons_once_in_entry_order() -> None:
-    info = derive(BoltParams(d=8.0, pitch=1.25, length=67.6, thread_length=67.6))
-    reasons = [e.refusal for e in info.downloads if e.refusal is not None]
-    assert info.warnings == [STANDING_WARNING, NO_ROW, *reasons]
-    assert len(reasons) == 1
+def test_the_download_warnings_are_the_refused_downloads_reasons_once_in_entry_order() -> None:
+    info = derive(OVER)
+    reasons = list(dict.fromkeys(e.refusal for e in info.downloads if e.refusal is not None))
+    assert info.warnings[2:-1] == reasons
+    assert reasons
+    assert len(set(info.warnings)) == len(info.warnings)
 
 
-def test_a_left_hand_part_refuses_no_download_and_the_right_hand_one_only_its_fine_stl() -> None:
-    left = BoltParams(d=10.0, pitch=1.5, length=60.0, thread_length=60.0, left_hand=True, s=16.0,
-                      k=6.4)
-    right = BoltParams(d=10.0, pitch=1.5, length=60.0, thread_length=60.0, s=16.0, k=6.4)
-    assert derive(left).downloads == ALL_SERVED
-    sentence = fine_stl_refusal(10.0, 1.5, 60.0, False)
-    assert sentence is not None
-    assert "right-hand" in sentence
-    assert [e.refusal for e in derive(right).downloads] == [sentence, None, None, None]
+def test_either_hand_lists_its_downloads_by_the_shared_rule() -> None:
+    for left_hand in (False, True):
+        p = BoltParams(d=10.0, pitch=1.5, length=60.0, thread_length=60.0, left_hand=left_hand,
+                       s=16.0, k=6.4)
+        downloads = derive(p).downloads
+        assert [e.refusal for e in downloads] == [
+            cost_model.refusal(p, artifact_of(fmt, quality)) for fmt, quality in DOWNLOAD_PAIRS]
 
 
 def test_every_registered_kinds_document_agrees_with_its_download_rule(
@@ -682,13 +696,13 @@ def test_every_registered_kinds_document_agrees_with_its_download_rule(
 
 
 SHORT_THREAD_WARNING = (
-    "thread_length and length: a thread of {t} mm is shorter than the 0.001 mm the builder can "
+    "thread_length and length: a thread of {t} mm is shorter than the 0.0001 mm the builder can "
     "model, so this part is not built; turns and volume not reported")
 
 
 @pytest.mark.parametrize(("params", "t"), [
-    (BoltParams(length=0.0005), "0.0005"),                  # the whole length is the thread
-    (BoltParams(length=30.0, thread_length=0.0005), "0.0005"),   # a short thread on a long shank
+    (BoltParams(length=0.00005), "5e-05"),                  # the whole length is the thread
+    (BoltParams(length=30.0, thread_length=0.00005), "5e-05"),   # a short thread on a long shank
 ])
 def test_a_thread_too_short_to_build_gets_a_warning_and_no_turns_or_volume(
         params: BoltParams, t: str) -> None:
@@ -702,8 +716,8 @@ def test_a_thread_too_short_to_build_gets_a_warning_and_no_turns_or_volume(
 
 
 def test_a_thread_of_exactly_the_floor_is_built_and_reports_turns_and_volume() -> None:
-    info = derive(BoltParams(length=0.001))
-    assert not any("shorter than the 0.001 mm the builder can model, so this part" in w
+    info = derive(BoltParams(length=0.0001))
+    assert not any("shorter than the 0.0001 mm the builder can model, so this part" in w
                    for w in info.warnings)
     keys = [r.key for r in info.rows]
     assert "turns" in keys
@@ -916,14 +930,13 @@ def test_an_iso_4014_part_with_an_edited_thread_length_reports_no_b_lg_max_or_ls
     assert info.warnings[-1] == NO_ROW
 
 
-def test_the_no_row_warning_follows_the_thread_warnings_and_precedes_the_fine_stl_one() -> None:
-    # M8 x 1.25 over 67.5 mm of thread is capped (D-22); thread_length 80 exceeds length 70.
-    info = derive(BoltParams(d=8.0, pitch=1.25, length=70.0, thread_length=80.0))
-    refusal = fine_stl_refusal(8.0, 1.25, 70.0, False)
-    assert info.warnings == [
+def test_the_no_row_warning_follows_the_thread_warnings_and_precedes_the_download_ones() -> None:
+    # thread_length 80 exceeds length 70; the download refusals, if any, come after NO_ROW.
+    p = BoltParams(d=8.0, pitch=1.25, length=70.0, thread_length=80.0)
+    assert derive(p).warnings == [
         STANDING_WARNING,
         "thread_length 80 exceeds length 70: thread built to the full length",
-        NO_ROW, refusal]
+        NO_ROW, *_refused(p)]
 
 
 def test_an_off_band_head_chamfer_builds_as_asked_and_warns_naming_the_band() -> None:
@@ -946,7 +959,7 @@ def test_a_defaulted_head_chamfer_deeper_than_half_k_is_cut_at_half_k_and_warned
     cap = head_chamfer_warnings(100.0, 4.0, 30.0)
     assert len(cap) == 1
     assert cap[0].startswith("head_chamfer 30 and k 4:")
-    assert info.warnings == [STANDING_WARNING, cap[0], NO_ROW]
+    assert info.warnings == [STANDING_WARNING, cap[0], NO_ROW, *_refused(BoltParams(s=100.0))]
     assert _rows(BoltParams(s=100.0))["chamfer_depth"] == 2.0
 
 
@@ -965,11 +978,10 @@ def test_the_head_chamfer_warnings_follow_the_thread_warnings_and_precede_the_no
     p = BoltParams(d=8.0, pitch=1.25, length=70.0, thread_length=80.0, head_chamfer=80.0)
     s, k = p.s, p.k
     info = derive(p)
-    refusal = fine_stl_refusal(8.0, 1.25, 70.0, False)
     assert info.warnings == [
         STANDING_WARNING,
         "thread_length 80 exceeds length 70: thread built to the full length",
-        *head_chamfer_warnings(s, k, 80.0), NO_ROW, refusal]
+        *head_chamfer_warnings(s, k, 80.0), NO_ROW, *_refused(p)]
 
 
 # --- the notes: product grade and the ISO versus withdrawn DIN wrench size (D-20, INFO-05) -----
@@ -1332,7 +1344,7 @@ def test_a_nut_that_is_no_row_still_carries_the_m18_note() -> None:
 def test_only_the_exact_m18_key_carries_the_note() -> None:
     above = math.nextafter(18.0, math.inf)
     for nut in (NutParams(d=above, pitch=2.5, s=27.0, m=14.8, clearance=0.1),
-                NutParams(d=18.0, pitch=2.0, s=27.0, m=14.8, clearance=0.1),
+                NutParams(d=18.0, pitch=3.0, s=27.0, m=14.8, clearance=0.1),
                 NutParams(d=18.0, pitch=math.nextafter(2.5, math.inf), s=27.0, m=14.8,
                           clearance=0.1),
                 NutParams(clearance=0.1)):
@@ -1426,8 +1438,8 @@ def test_clearance_length_and_thread_length_are_never_in_a_counterpart(p: Fasten
 def test_following_a_bolts_counterpart_gives_the_nut_row_of_its_size(nut: HexNut) -> None:
     size = next(s for s in iso262.SIZES if s.label == nut.size)
     head = next(h for h in HEADS if h.size == nut.size)
-    bolt = BoltParams(d=size.d, pitch=size.pitch, s=head.s, k=head.k, length=40.0,
-                      thread_length=40.0)
+    bolt = BoltParams(d=size.d, pitch=size.pitch, s=head.s, k=head.k, length=30.0,
+                      thread_length=30.0)
     follow = NutParams.model_validate({**_counterpart(bolt).fields, "clearance": 0.1})
     assert (follow.d, follow.pitch, follow.s, follow.m) == (size.d, size.pitch, nut.s, nut.m_max)
     assert follow.clearance == 0.1
@@ -1580,11 +1592,11 @@ def test_a_bolt_never_carries_the_measured_range_warning(d: float) -> None:
 
 def test_the_measured_range_warning_changes_no_row_and_keeps_the_warning_order(
         monkeypatch: pytest.MonkeyPatch) -> None:
-    # The sentence sits after the download refusal and before the counterpart's off-row sentence,
-    # which stays last (D-09, D-15): M5 x 0.8 and a tall m draws the refusal, d 5.5 the off-row.
-    outside = NutParams(d=5.0, pitch=0.8, s=9.0, m=40.0, clearance=0.1)
+    # The sentence sits after the download refusals and before the counterpart's off-row sentence,
+    # which stays last (D-09, D-15): NUT_OVER, d 50, draws the refusals, d 5.5 the off-row.
+    outside = NUT_OVER
     info = derive(outside)
-    new = MEASURED_RANGE.format(d="5")
+    new = MEASURED_RANGE.format(d="50")
     refusal = download_refusal(outside, "stl", "fine")
     assert refusal is not None
     assert info.warnings[0] == STANDING_WARNING
@@ -1716,15 +1728,18 @@ def test_the_printability_warning_keeps_the_warning_order(
         monkeypatch: pytest.MonkeyPatch) -> None:
     # A nut crossing both D-09 and D-13 carries two separate sentences, D-09 first; the standing
     # warning leads and the counterpart's off-row sentence stays last (D-09, D-13, D-15).
-    nut = NutParams(d=5.0, pitch=0.4, s=9.0, m=4.0, clearance=0.1)
+    # d 4.8 at pitch 0.6: d / pitch 8, at the nut's fine-pitch wall (07 R31); the first picks, d 5
+    # at pitch 0.4 and d 12 at pitch 0.5, are past it, and no nut inside it from M6 to M12 has a
+    # pitch below P_min, so the off-row nut is this one too.
+    nut = NutParams(d=4.8, pitch=0.6, s=9.0, m=4.0, clearance=0.1)
     info = derive(nut)
-    outside = MEASURED_RANGE.format(d="5")
+    outside = MEASURED_RANGE.format(d="4.8")
     (below,) = _printability_warnings(nut)
     assert outside != below
     assert info.warnings[0] == STANDING_WARNING
     assert info.warnings.index(outside) + 1 == info.warnings.index(below)
-    off_row = derive(NutParams(d=12.0, pitch=0.5, s=19.0, m=8.0, clearance=0.1)).warnings
-    assert off_row[-2].startswith("pitch 0.5 mm is below P_min 0.7 mm")
+    off_row = derive(NutParams(d=4.8, pitch=0.6, s=8.0, m=4.0, clearance=0.1)).warnings
+    assert off_row[-2].startswith("pitch 0.6 mm is below P_min 0.7 mm")
     assert off_row[-1].startswith("no ISO 4017:2022 row for")
     bolt = derive(BoltParams(d=3.0, pitch=0.5, s=5.5, k=2.0, length=10.0, thread_length=10.0))
     assert bolt.warnings[0] == STANDING_WARNING

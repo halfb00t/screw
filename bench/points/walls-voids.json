@@ -1,0 +1,1460 @@
+{
+ "set": "walls-voids",
+ "rule": "07-SWEEP-PROTOCOL.md R10 (G25)",
+ "reps": 1,
+ "shards": 1,
+ "deadline_s": 600,
+ "points": [
+  {
+   "label": "root-nut-M2-right-r0.03",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 2.069223364775619,
+    "m": 6.207670094326858,
+    "s": 3.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2-right-r0.1",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 1.9398969044771428,
+    "m": 5.819690713431428,
+    "s": 3.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2-right-r0.3",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 1.5703927321957822,
+    "m": 4.711178196587347,
+    "s": 3.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2-right-r1",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.2771281292110204,
+    "m": 0.8313843876330613,
+    "s": 3.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2-left-r0.03",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 2.069223364775619,
+    "m": 6.207670094326858,
+    "s": 3.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2-left-r0.1",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 1.9398969044771428,
+    "m": 5.819690713431428,
+    "s": 3.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2-left-r0.3",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 1.5703927321957822,
+    "m": 4.711178196587347,
+    "s": 3.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2-left-r1",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.2771281292110204,
+    "m": 0.8313843876330613,
+    "s": 3.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2.5-right-r0.03",
+   "kind": "nut",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.53110358012732,
+    "m": 7.593310740381959,
+    "s": 4.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2.5-right-r0.1",
+   "kind": "nut",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.4017771198288433,
+    "m": 7.2053313594865305,
+    "s": 4.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2.5-right-r0.3",
+   "kind": "nut",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.032272947547483,
+    "m": 6.096818842642449,
+    "s": 4.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2.5-right-r1",
+   "kind": "nut",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.7390083445627211,
+    "m": 2.2170250336881634,
+    "s": 4.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2.5-left-r0.03",
+   "kind": "nut",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.53110358012732,
+    "m": 7.593310740381959,
+    "s": 4.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2.5-left-r0.1",
+   "kind": "nut",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.4017771198288433,
+    "m": 7.2053313594865305,
+    "s": 4.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2.5-left-r0.3",
+   "kind": "nut",
+   "params": {
+    "d": 2.5,
+    "pitch": 2.032272947547483,
+    "m": 6.096818842642449,
+    "s": 4.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M2.5-left-r1",
+   "kind": "nut",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.7390083445627211,
+    "m": 2.2170250336881634,
+    "s": 4.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3-right-r0.03",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 2.9929837954790206,
+    "m": 8.978951386437062,
+    "s": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3-right-r0.1",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 2.863657335180544,
+    "m": 8.590972005541632,
+    "s": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3-right-r0.3",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 2.4941531628991838,
+    "m": 7.482459488697551,
+    "s": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3-right-r1",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 1.2008885599144217,
+    "m": 3.6026656797432652,
+    "s": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3-left-r0.03",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 2.9929837954790206,
+    "m": 8.978951386437062,
+    "s": 4.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3-left-r0.1",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 2.863657335180544,
+    "m": 8.590972005541632,
+    "s": 4.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3-left-r0.3",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 2.4941531628991838,
+    "m": 7.482459488697551,
+    "s": 4.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3-left-r1",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 1.2008885599144217,
+    "m": 3.6026656797432652,
+    "s": 4.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3.5-right-r0.03",
+   "kind": "nut",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.4548640108307214,
+    "m": 10.364592032492164,
+    "s": 5.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3.5-right-r0.1",
+   "kind": "nut",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.325537550532245,
+    "m": 9.976612651596735,
+    "s": 5.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3.5-right-r0.3",
+   "kind": "nut",
+   "params": {
+    "d": 3.5,
+    "pitch": 2.9560333782508845,
+    "m": 8.868100134752654,
+    "s": 5.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3.5-right-r1",
+   "kind": "nut",
+   "params": {
+    "d": 3.5,
+    "pitch": 1.6627687752661224,
+    "m": 4.9883063257983675,
+    "s": 5.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3.5-left-r0.03",
+   "kind": "nut",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.4548640108307214,
+    "m": 10.364592032492164,
+    "s": 5.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3.5-left-r0.1",
+   "kind": "nut",
+   "params": {
+    "d": 3.5,
+    "pitch": 3.325537550532245,
+    "m": 9.976612651596735,
+    "s": 5.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3.5-left-r0.3",
+   "kind": "nut",
+   "params": {
+    "d": 3.5,
+    "pitch": 2.9560333782508845,
+    "m": 8.868100134752654,
+    "s": 5.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M3.5-left-r1",
+   "kind": "nut",
+   "params": {
+    "d": 3.5,
+    "pitch": 1.6627687752661224,
+    "m": 4.9883063257983675,
+    "s": 5.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M4-right-r0.03",
+   "kind": "nut",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.9167442261824217,
+    "m": 11.750232678547265,
+    "s": 6.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M4-right-r0.1",
+   "kind": "nut",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.787417765883945,
+    "m": 11.362253297651836,
+    "s": 6.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M4-right-r0.3",
+   "kind": "nut",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.417913593602585,
+    "m": 10.253740780807755,
+    "s": 6.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M4-right-r1",
+   "kind": "nut",
+   "params": {
+    "d": 4.0,
+    "pitch": 2.124648990617823,
+    "m": 6.373946971853469,
+    "s": 6.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M4-left-r0.03",
+   "kind": "nut",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.9167442261824217,
+    "m": 11.750232678547265,
+    "s": 6.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M4-left-r0.1",
+   "kind": "nut",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.787417765883945,
+    "m": 11.362253297651836,
+    "s": 6.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M4-left-r0.3",
+   "kind": "nut",
+   "params": {
+    "d": 4.0,
+    "pitch": 3.417913593602585,
+    "m": 10.253740780807755,
+    "s": 6.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M4-left-r1",
+   "kind": "nut",
+   "params": {
+    "d": 4.0,
+    "pitch": 2.124648990617823,
+    "m": 6.373946971853469,
+    "s": 6.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M5-right-r0.03",
+   "kind": "nut",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.840504656885823,
+    "m": 14.52151397065747,
+    "s": 8.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M5-right-r0.1",
+   "kind": "nut",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.711178196587347,
+    "m": 14.13353458976204,
+    "s": 8.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M5-right-r0.3",
+   "kind": "nut",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.341674024305987,
+    "m": 13.02502207291796,
+    "s": 8.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M5-right-r1",
+   "kind": "nut",
+   "params": {
+    "d": 5.0,
+    "pitch": 3.048409421321224,
+    "m": 9.145228263963672,
+    "s": 8.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M5-left-r0.03",
+   "kind": "nut",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.840504656885823,
+    "m": 14.52151397065747,
+    "s": 8.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M5-left-r0.1",
+   "kind": "nut",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.711178196587347,
+    "m": 14.13353458976204,
+    "s": 8.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M5-left-r0.3",
+   "kind": "nut",
+   "params": {
+    "d": 5.0,
+    "pitch": 4.341674024305987,
+    "m": 13.02502207291796,
+    "s": 8.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M5-left-r1",
+   "kind": "nut",
+   "params": {
+    "d": 5.0,
+    "pitch": 3.048409421321224,
+    "m": 9.145228263963672,
+    "s": 8.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M6-right-r0.03",
+   "kind": "nut",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.764265087589225,
+    "m": 17.292795262767676,
+    "s": 9.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M6-right-r0.1",
+   "kind": "nut",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.634938627290747,
+    "m": 16.904815881872242,
+    "s": 9.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M6-right-r0.3",
+   "kind": "nut",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.2654344550093874,
+    "m": 15.796303365028162,
+    "s": 9.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M6-right-r1",
+   "kind": "nut",
+   "params": {
+    "d": 6.0,
+    "pitch": 3.9721698520246256,
+    "m": 11.916509556073876,
+    "s": 9.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M6-left-r0.03",
+   "kind": "nut",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.764265087589225,
+    "m": 17.292795262767676,
+    "s": 9.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M6-left-r0.1",
+   "kind": "nut",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.634938627290747,
+    "m": 16.904815881872242,
+    "s": 9.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M6-left-r0.3",
+   "kind": "nut",
+   "params": {
+    "d": 6.0,
+    "pitch": 5.2654344550093874,
+    "m": 15.796303365028162,
+    "s": 9.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M6-left-r1",
+   "kind": "nut",
+   "params": {
+    "d": 6.0,
+    "pitch": 3.9721698520246256,
+    "m": 11.916509556073876,
+    "s": 9.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M7-right-r0.03",
+   "kind": "nut",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.688025518292625,
+    "m": 20.064076554877875,
+    "s": 11.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M7-right-r0.1",
+   "kind": "nut",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.558699057994149,
+    "m": 19.67609717398245,
+    "s": 11.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M7-right-r0.3",
+   "kind": "nut",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.189194885712789,
+    "m": 18.56758465713837,
+    "s": 11.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M7-right-r1",
+   "kind": "nut",
+   "params": {
+    "d": 7.0,
+    "pitch": 4.895930282728027,
+    "m": 14.687790848184079,
+    "s": 11.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M7-left-r0.03",
+   "kind": "nut",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.688025518292625,
+    "m": 20.064076554877875,
+    "s": 11.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M7-left-r0.1",
+   "kind": "nut",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.558699057994149,
+    "m": 19.67609717398245,
+    "s": 11.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M7-left-r0.3",
+   "kind": "nut",
+   "params": {
+    "d": 7.0,
+    "pitch": 6.189194885712789,
+    "m": 18.56758465713837,
+    "s": 11.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M7-left-r1",
+   "kind": "nut",
+   "params": {
+    "d": 7.0,
+    "pitch": 4.895930282728027,
+    "m": 14.687790848184079,
+    "s": 11.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M8-right-r0.03",
+   "kind": "nut",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.611785948996027,
+    "m": 22.83535784698808,
+    "s": 12.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M8-right-r0.1",
+   "kind": "nut",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.48245948869755,
+    "m": 22.44737846609265,
+    "s": 12.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M8-right-r0.3",
+   "kind": "nut",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.1129553164161905,
+    "m": 21.33886594924857,
+    "s": 12.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M8-right-r1",
+   "kind": "nut",
+   "params": {
+    "d": 8.0,
+    "pitch": 5.819690713431428,
+    "m": 17.459072140294285,
+    "s": 12.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M8-left-r0.03",
+   "kind": "nut",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.611785948996027,
+    "m": 22.83535784698808,
+    "s": 12.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M8-left-r0.1",
+   "kind": "nut",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.48245948869755,
+    "m": 22.44737846609265,
+    "s": 12.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M8-left-r0.3",
+   "kind": "nut",
+   "params": {
+    "d": 8.0,
+    "pitch": 7.1129553164161905,
+    "m": 21.33886594924857,
+    "s": 12.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M8-left-r1",
+   "kind": "nut",
+   "params": {
+    "d": 8.0,
+    "pitch": 5.819690713431428,
+    "m": 17.459072140294285,
+    "s": 12.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M10-right-r0.03",
+   "kind": "nut",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.459306810402829,
+    "m": 28.377920431208487,
+    "s": 16.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M10-right-r0.1",
+   "kind": "nut",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.329980350104353,
+    "m": 27.98994105031306,
+    "s": 16.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M10-right-r0.3",
+   "kind": "nut",
+   "params": {
+    "d": 10.0,
+    "pitch": 8.960476177822992,
+    "m": 26.881428533468977,
+    "s": 16.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M10-right-r1",
+   "kind": "nut",
+   "params": {
+    "d": 10.0,
+    "pitch": 7.667211574838231,
+    "m": 23.001634724514695,
+    "s": 16.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M10-left-r0.03",
+   "kind": "nut",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.459306810402829,
+    "m": 28.377920431208487,
+    "s": 16.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M10-left-r0.1",
+   "kind": "nut",
+   "params": {
+    "d": 10.0,
+    "pitch": 9.329980350104353,
+    "m": 27.98994105031306,
+    "s": 16.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M10-left-r0.3",
+   "kind": "nut",
+   "params": {
+    "d": 10.0,
+    "pitch": 8.960476177822992,
+    "m": 26.881428533468977,
+    "s": 16.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M10-left-r1",
+   "kind": "nut",
+   "params": {
+    "d": 10.0,
+    "pitch": 7.667211574838231,
+    "m": 23.001634724514695,
+    "s": 16.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M12-right-r0.03",
+   "kind": "nut",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.306827671809632,
+    "m": 33.9204830154289,
+    "s": 19.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M12-right-r0.1",
+   "kind": "nut",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.177501211511156,
+    "m": 33.53250363453347,
+    "s": 19.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M12-right-r0.3",
+   "kind": "nut",
+   "params": {
+    "d": 12.0,
+    "pitch": 10.807997039229795,
+    "m": 32.42399111768938,
+    "s": 19.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M12-right-r1",
+   "kind": "nut",
+   "params": {
+    "d": 12.0,
+    "pitch": 9.514732436245035,
+    "m": 28.544197308735107,
+    "s": 19.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M12-left-r0.03",
+   "kind": "nut",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.306827671809632,
+    "m": 33.9204830154289,
+    "s": 19.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M12-left-r0.1",
+   "kind": "nut",
+   "params": {
+    "d": 12.0,
+    "pitch": 11.177501211511156,
+    "m": 33.53250363453347,
+    "s": 19.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M12-left-r0.3",
+   "kind": "nut",
+   "params": {
+    "d": 12.0,
+    "pitch": 10.807997039229795,
+    "m": 32.42399111768938,
+    "s": 19.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M12-left-r1",
+   "kind": "nut",
+   "params": {
+    "d": 12.0,
+    "pitch": 9.514732436245035,
+    "m": 28.544197308735107,
+    "s": 19.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M14-right-r0.03",
+   "kind": "nut",
+   "params": {
+    "d": 14.0,
+    "pitch": 13.154348533216435,
+    "m": 39.463045599649305,
+    "s": 22.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M14-right-r0.1",
+   "kind": "nut",
+   "params": {
+    "d": 14.0,
+    "pitch": 13.025022072917958,
+    "m": 39.075066218753875,
+    "s": 22.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M14-right-r0.3",
+   "kind": "nut",
+   "params": {
+    "d": 14.0,
+    "pitch": 12.655517900636598,
+    "m": 37.966553701909795,
+    "s": 22.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M14-right-r1",
+   "kind": "nut",
+   "params": {
+    "d": 14.0,
+    "pitch": 11.362253297651836,
+    "m": 34.08675989295551,
+    "s": 22.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M14-left-r0.03",
+   "kind": "nut",
+   "params": {
+    "d": 14.0,
+    "pitch": 13.154348533216435,
+    "m": 39.463045599649305,
+    "s": 22.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M14-left-r0.1",
+   "kind": "nut",
+   "params": {
+    "d": 14.0,
+    "pitch": 13.025022072917958,
+    "m": 39.075066218753875,
+    "s": 22.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M14-left-r0.3",
+   "kind": "nut",
+   "params": {
+    "d": 14.0,
+    "pitch": 12.655517900636598,
+    "m": 37.966553701909795,
+    "s": 22.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M14-left-r1",
+   "kind": "nut",
+   "params": {
+    "d": 14.0,
+    "pitch": 11.362253297651836,
+    "m": 34.08675989295551,
+    "s": 22.4,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M16-right-r0.03",
+   "kind": "nut",
+   "params": {
+    "d": 16.0,
+    "pitch": 15.001869394623236,
+    "m": 45.00560818386971,
+    "s": 25.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M16-right-r0.1",
+   "kind": "nut",
+   "params": {
+    "d": 16.0,
+    "pitch": 14.872542934324763,
+    "m": 44.61762880297429,
+    "s": 25.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M16-right-r0.3",
+   "kind": "nut",
+   "params": {
+    "d": 16.0,
+    "pitch": 14.503038762043401,
+    "m": 43.5091162861302,
+    "s": 25.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M16-right-r1",
+   "kind": "nut",
+   "params": {
+    "d": 16.0,
+    "pitch": 13.20977415905864,
+    "m": 39.62932247717592,
+    "s": 25.6,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M16-left-r0.03",
+   "kind": "nut",
+   "params": {
+    "d": 16.0,
+    "pitch": 15.001869394623236,
+    "m": 45.00560818386971,
+    "s": 25.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M16-left-r0.1",
+   "kind": "nut",
+   "params": {
+    "d": 16.0,
+    "pitch": 14.872542934324763,
+    "m": 44.61762880297429,
+    "s": 25.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M16-left-r0.3",
+   "kind": "nut",
+   "params": {
+    "d": 16.0,
+    "pitch": 14.503038762043401,
+    "m": 43.5091162861302,
+    "s": 25.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M16-left-r1",
+   "kind": "nut",
+   "params": {
+    "d": 16.0,
+    "pitch": 13.20977415905864,
+    "m": 39.62932247717592,
+    "s": 25.6,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M18-right-r0.03",
+   "kind": "nut",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.849390256030038,
+    "m": 50.54817076809012,
+    "s": 28.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M18-right-r0.1",
+   "kind": "nut",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.720063795731566,
+    "m": 50.1601913871947,
+    "s": 28.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M18-right-r0.3",
+   "kind": "nut",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.350559623450202,
+    "m": 49.05167887035061,
+    "s": 28.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M18-right-r1",
+   "kind": "nut",
+   "params": {
+    "d": 18.0,
+    "pitch": 15.057295020465443,
+    "m": 45.171885061396324,
+    "s": 28.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M18-left-r0.03",
+   "kind": "nut",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.849390256030038,
+    "m": 50.54817076809012,
+    "s": 28.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M18-left-r0.1",
+   "kind": "nut",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.720063795731566,
+    "m": 50.1601913871947,
+    "s": 28.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M18-left-r0.3",
+   "kind": "nut",
+   "params": {
+    "d": 18.0,
+    "pitch": 16.350559623450202,
+    "m": 49.05167887035061,
+    "s": 28.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M18-left-r1",
+   "kind": "nut",
+   "params": {
+    "d": 18.0,
+    "pitch": 15.057295020465443,
+    "m": 45.171885061396324,
+    "s": 28.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M20-right-r0.03",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.69691111743684,
+    "m": 56.09073335231052,
+    "s": 32.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M20-right-r0.1",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.56758465713837,
+    "m": 55.702753971415106,
+    "s": 32.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M20-right-r0.3",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.198080484857005,
+    "m": 54.59424145457102,
+    "s": 32.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M20-right-r1",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 16.904815881872246,
+    "m": 50.71444764561674,
+    "s": 32.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M20-left-r0.03",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.69691111743684,
+    "m": 56.09073335231052,
+    "s": 32.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M20-left-r0.1",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.56758465713837,
+    "m": 55.702753971415106,
+    "s": 32.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M20-left-r0.3",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 18.198080484857005,
+    "m": 54.59424145457102,
+    "s": 32.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "root-nut-M20-left-r1",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 16.904815881872246,
+    "m": 50.71444764561674,
+    "s": 32.0,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  }
+ ],
+ "dropped": [],
+ "notes": [
+  "the walls group (d) nut at r in {3e-2, 1e-1, 3e-1, 1} mm for each of the 15 sizes and both hands, 3 turns, the pitch solved to full float precision (d/2 - 5H/8 + 0.15 = r), 1 repetition",
+  "walls run 40646134133 refused every group (d) nut void at every radius from 1e-2 mm down, so R10 walks the voids upward; the walk is not extended past 1 mm (G25)"
+ ],
+ "shard_sizes": [
+  120
+ ],
+ "sources": [
+  "explore=bench/results/phase-07/explore-40646117094"
+ ]
+}

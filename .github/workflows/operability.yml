@@ -11,11 +11,16 @@ name: operability
 # 07 D-15: the image is built from the commit under test, exactly as the image job in ci.yml
 # builds it, and each reading starts a new container of it under its own memory cap.
 #
-# T-3-14, T-07-02: dispatch is the only trigger for now, so no code from a fork runs with this
-# token, and the token reads the repository and nothing else. The `set` input is typed by a
-# human; it reaches a script only through an environment variable, is checked against
-# [a-z0-9-]+ and an existing file by `python -m bench.oper matrix`, and is never interpolated
-# into a shell line. tests/test_oper.py pins all of it.
+# L33 (owner, 2026-11-01): CI measures nothing on the runner any more. The full tier's schedule, its
+# PR trigger and its follow-up and verdict jobs are gone (L26, L27 superseded), and so is ci.yml's
+# required `bounds` job. What stays is this hand dispatch of one point set, so a later re-sweep can
+# read any set under bench/points/ (`full` included) exactly as Runs I and II did.
+#
+# T-3-14, T-07-02: no job runs in the base context of a PR, which would hand a fork's code the
+# base's secrets and token. The token reads the repository and nothing else, and no job names a secret. The
+# `set` input is typed by a human; it reaches a script only through an environment variable, is
+# checked against [a-z0-9-]+ and an existing file by `python -m bench.oper matrix`, and is never
+# interpolated into a shell line. tests/test_oper.py pins all of it.
 on:
   workflow_dispatch:
     inputs:

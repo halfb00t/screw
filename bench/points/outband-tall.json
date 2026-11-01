@@ -1,0 +1,342 @@
+{
+ "set": "outband-tall",
+ "rule": "07-SWEEP-PROTOCOL.md R11 (G39)",
+ "reps": 5,
+ "shards": 1,
+ "deadline_s": 600,
+ "points": [
+  {
+   "label": "tall-nut-x1-m5d",
+   "kind": "nut",
+   "params": {
+    "d": 92.28,
+    "pitch": 31.418,
+    "s": 130.54,
+    "m": 461.4
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "tall-nut-x1-m5d",
+   "kind": "nut",
+   "params": {
+    "d": 92.28,
+    "pitch": 31.418,
+    "s": 130.54,
+    "m": 461.4
+   },
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "tall-nut-x1-m5d",
+   "kind": "nut",
+   "params": {
+    "d": 92.28,
+    "pitch": 31.418,
+    "s": 130.54,
+    "m": 461.4
+   },
+   "artifact": "step"
+  },
+  {
+   "label": "tall-nut-x1-m10.5d",
+   "kind": "nut",
+   "params": {
+    "d": 92.28,
+    "pitch": 31.418,
+    "s": 130.54,
+    "m": 968.9
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "tall-nut-x1-m10.5d",
+   "kind": "nut",
+   "params": {
+    "d": 92.28,
+    "pitch": 31.418,
+    "s": 130.54,
+    "m": 968.9
+   },
+   "artifact": "step"
+  },
+  {
+   "label": "tall-nut-x1-m20d",
+   "kind": "nut",
+   "params": {
+    "d": 92.28,
+    "pitch": 31.418,
+    "s": 130.54,
+    "m": 1845.6
+   },
+   "artifact": "step"
+  },
+  {
+   "label": "tall-nut-x0.5-m5d",
+   "kind": "nut",
+   "params": {
+    "d": 46.14,
+    "pitch": 15.709,
+    "s": 65.27,
+    "m": 230.7
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "tall-nut-x0.5-m5d",
+   "kind": "nut",
+   "params": {
+    "d": 46.14,
+    "pitch": 15.709,
+    "s": 65.27,
+    "m": 230.7
+   },
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "tall-nut-x0.5-m5d",
+   "kind": "nut",
+   "params": {
+    "d": 46.14,
+    "pitch": 15.709,
+    "s": 65.27,
+    "m": 230.7
+   },
+   "artifact": "step"
+  },
+  {
+   "label": "tall-nut-x0.5-m10.5d",
+   "kind": "nut",
+   "params": {
+    "d": 46.14,
+    "pitch": 15.709,
+    "s": 65.27,
+    "m": 484.5
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "tall-nut-x0.5-m10.5d",
+   "kind": "nut",
+   "params": {
+    "d": 46.14,
+    "pitch": 15.709,
+    "s": 65.27,
+    "m": 484.5
+   },
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "tall-nut-x0.5-m10.5d",
+   "kind": "nut",
+   "params": {
+    "d": 46.14,
+    "pitch": 15.709,
+    "s": 65.27,
+    "m": 484.5
+   },
+   "artifact": "step"
+  },
+  {
+   "label": "tall-nut-x0.5-m20d",
+   "kind": "nut",
+   "params": {
+    "d": 46.14,
+    "pitch": 15.709,
+    "s": 65.27,
+    "m": 922.8
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "tall-nut-x0.5-m20d",
+   "kind": "nut",
+   "params": {
+    "d": 46.14,
+    "pitch": 15.709,
+    "s": 65.27,
+    "m": 922.8
+   },
+   "artifact": "step"
+  },
+  {
+   "label": "tall-nut-x0.25-m5d",
+   "kind": "nut",
+   "params": {
+    "d": 23.07,
+    "pitch": 7.8545,
+    "s": 32.635,
+    "m": 115.4
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "tall-nut-x0.25-m5d",
+   "kind": "nut",
+   "params": {
+    "d": 23.07,
+    "pitch": 7.8545,
+    "s": 32.635,
+    "m": 115.4
+   },
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "tall-nut-x0.25-m5d",
+   "kind": "nut",
+   "params": {
+    "d": 23.07,
+    "pitch": 7.8545,
+    "s": 32.635,
+    "m": 115.4
+   },
+   "artifact": "step"
+  },
+  {
+   "label": "tall-nut-x0.25-m10.5d",
+   "kind": "nut",
+   "params": {
+    "d": 23.07,
+    "pitch": 7.8545,
+    "s": 32.635,
+    "m": 242.2
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "tall-nut-x0.25-m10.5d",
+   "kind": "nut",
+   "params": {
+    "d": 23.07,
+    "pitch": 7.8545,
+    "s": 32.635,
+    "m": 242.2
+   },
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "tall-nut-x0.25-m10.5d",
+   "kind": "nut",
+   "params": {
+    "d": 23.07,
+    "pitch": 7.8545,
+    "s": 32.635,
+    "m": 242.2
+   },
+   "artifact": "step"
+  },
+  {
+   "label": "tall-nut-x0.25-m20d",
+   "kind": "nut",
+   "params": {
+    "d": 23.07,
+    "pitch": 7.8545,
+    "s": 32.635,
+    "m": 461.4
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "tall-nut-x0.25-m20d",
+   "kind": "nut",
+   "params": {
+    "d": 23.07,
+    "pitch": 7.8545,
+    "s": 32.635,
+    "m": 461.4
+   },
+   "artifact": "step"
+  },
+  {
+   "label": "tall-nut-x0.25-m29.5d",
+   "kind": "nut",
+   "params": {
+    "d": 23.07,
+    "pitch": 7.8545,
+    "s": 32.635,
+    "m": 680.6
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "d-only-bolt-M2",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0
+   },
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "d-only-bolt-M2",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0
+   },
+   "artifact": "step"
+  },
+  {
+   "label": "d-only-bolt-M3",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0
+   },
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "d-only-bolt-M3",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0
+   },
+   "artifact": "step"
+  }
+ ],
+ "dropped": [],
+ "notes": [
+  "G39 (tall-nut-*): the nut d 92.28, pitch 31.418, s 130.54 at the default clearance, scaled whole by 1, 0.5 and 0.25, with m at 5, 10.5, 20 and 29.5 d on its 0.1 mm form step, at every artifact the shipped rule admits it",
+  "G39 (d-only-bolt-*): the bolts that name only d, at 2 and 3 mm, at every artifact the shipped rule admits them",
+  "a nut reading above its enveloped prediction widens e (R12, G30); a bolt reading widens none; 5 repetitions; each point charged the largest explore wall_s of its (kind, artifact) group (R6, G4)"
+ ],
+ "shard_sizes": [
+  27
+ ],
+ "sources": [
+  "explore=bench/results/phase-07/explore-40646117094"
+ ],
+ "envelope": {
+  "bolt": {
+   "stl-preview": {
+    "bytes": 2.264581945786201,
+    "seconds": 4.286137349093968,
+    "peak": 2.040087854388461
+   },
+   "stl-fine": {
+    "bytes": 0.5633622849303941,
+    "seconds": 2.690232029900006,
+    "peak": 2.170967259675211
+   },
+   "step": {
+    "bytes": 0.9874058238127998,
+    "seconds": 2.616422482555953,
+    "peak": 0.45747877720379804
+   }
+  },
+  "nut": {
+   "stl-preview": {
+    "bytes": 0.7070121785110755,
+    "seconds": 1.061383246630594,
+    "peak": 0.556086702674923
+   },
+   "stl-fine": {
+    "bytes": 0.4996608149413484,
+    "seconds": 1.7812452161769916,
+    "peak": 0.5976833077470993
+   },
+   "step": {
+    "bytes": 0.3802587303182223,
+    "seconds": 0.8785228687431521,
+    "peak": 0.48786919655819627
+   }
+  }
+ }
+}

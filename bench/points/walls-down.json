@@ -1,0 +1,2909 @@
+{
+ "set": "walls-down",
+ "rule": "07-SWEEP-PROTOCOL.md R7 (G2)",
+ "reps": 1,
+ "shards": 9,
+ "deadline_s": 600,
+ "points": [
+  {
+   "label": "turns240-bolt-M2-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 96.0,
+    "thread_length": 96.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns230-bolt-M2-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 92.0,
+    "thread_length": 92.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns220-bolt-M2-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 88.0,
+    "thread_length": 88.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns210-bolt-M2-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 84.0,
+    "thread_length": 84.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns200-bolt-M2-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 80.0,
+    "thread_length": 80.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns190-bolt-M2-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 76.0,
+    "thread_length": 76.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns180-bolt-M2-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 72.0,
+    "thread_length": 72.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns170-bolt-M2-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 68.0,
+    "thread_length": 68.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns160-bolt-M2-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 64.0,
+    "thread_length": 64.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns150-bolt-M2-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 60.0,
+    "thread_length": 60.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns140-bolt-M2-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 56.0,
+    "thread_length": 56.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns130-bolt-M2-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 52.0,
+    "thread_length": 52.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns120-bolt-M2-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 48.0,
+    "thread_length": 48.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns110-bolt-M2-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 44.0,
+    "thread_length": 44.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns100-bolt-M2-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 40.0,
+    "thread_length": 40.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns90-bolt-M2-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 36.0,
+    "thread_length": 36.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns80-bolt-M2-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 32.0,
+    "thread_length": 32.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns70-bolt-M2-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 28.0,
+    "thread_length": 28.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns60-bolt-M2-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 24.0,
+    "thread_length": 24.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns50-bolt-M2-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 20.0,
+    "thread_length": 20.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns40-bolt-M2-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 16.0,
+    "thread_length": 16.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns30-bolt-M2-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 12.0,
+    "thread_length": 12.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns20-bolt-M2-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 8.0,
+    "thread_length": 8.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns10-bolt-M2-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 4.0,
+    "thread_length": 4.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns240-nut-M2-right",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 95.2,
+    "s": 3.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns230-nut-M2-right",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 91.2,
+    "s": 3.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns220-nut-M2-right",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 87.2,
+    "s": 3.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns210-nut-M2-right",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 83.2,
+    "s": 3.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns200-nut-M2-right",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 79.2,
+    "s": 3.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns190-nut-M2-right",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 75.2,
+    "s": 3.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns180-nut-M2-right",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 71.2,
+    "s": 3.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns170-nut-M2-right",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 67.2,
+    "s": 3.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns160-nut-M2-right",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 63.2,
+    "s": 3.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns150-nut-M2-right",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 59.2,
+    "s": 3.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns140-nut-M2-right",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 55.2,
+    "s": 3.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns130-nut-M2-right",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 51.2,
+    "s": 3.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns120-nut-M2-right",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 47.2,
+    "s": 3.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns110-nut-M2-right",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 43.2,
+    "s": 3.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns100-nut-M2-right",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 39.2,
+    "s": 3.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns90-nut-M2-right",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 35.2,
+    "s": 3.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns80-nut-M2-right",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 31.2,
+    "s": 3.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns70-nut-M2-right",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 27.2,
+    "s": 3.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns60-nut-M2-right",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 23.2,
+    "s": 3.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns50-nut-M2-right",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 19.2,
+    "s": 3.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns40-nut-M2-right",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 15.2,
+    "s": 3.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns30-nut-M2-right",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 11.2,
+    "s": 3.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns20-nut-M2-right",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 7.2,
+    "s": 3.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns10-nut-M2-right",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 3.2,
+    "s": 3.2,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns240-bolt-M2-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 96.0,
+    "thread_length": 96.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns230-bolt-M2-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 92.0,
+    "thread_length": 92.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns220-bolt-M2-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 88.0,
+    "thread_length": 88.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns210-bolt-M2-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 84.0,
+    "thread_length": 84.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns200-bolt-M2-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 80.0,
+    "thread_length": 80.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns190-bolt-M2-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 76.0,
+    "thread_length": 76.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns180-bolt-M2-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 72.0,
+    "thread_length": 72.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns170-bolt-M2-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 68.0,
+    "thread_length": 68.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns160-bolt-M2-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 64.0,
+    "thread_length": 64.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns150-bolt-M2-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 60.0,
+    "thread_length": 60.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns140-bolt-M2-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 56.0,
+    "thread_length": 56.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns130-bolt-M2-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 52.0,
+    "thread_length": 52.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns120-bolt-M2-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 48.0,
+    "thread_length": 48.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns110-bolt-M2-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 44.0,
+    "thread_length": 44.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns100-bolt-M2-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 40.0,
+    "thread_length": 40.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns90-bolt-M2-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 36.0,
+    "thread_length": 36.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns80-bolt-M2-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 32.0,
+    "thread_length": 32.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns70-bolt-M2-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 28.0,
+    "thread_length": 28.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns60-bolt-M2-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 24.0,
+    "thread_length": 24.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns50-bolt-M2-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 20.0,
+    "thread_length": 20.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns40-bolt-M2-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 16.0,
+    "thread_length": 16.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns30-bolt-M2-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 12.0,
+    "thread_length": 12.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns20-bolt-M2-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 8.0,
+    "thread_length": 8.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns10-bolt-M2-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "length": 4.0,
+    "thread_length": 4.0,
+    "s": 3.2,
+    "k": 1.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns240-nut-M2-left",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 95.2,
+    "s": 3.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns230-nut-M2-left",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 91.2,
+    "s": 3.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns220-nut-M2-left",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 87.2,
+    "s": 3.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns210-nut-M2-left",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 83.2,
+    "s": 3.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns200-nut-M2-left",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 79.2,
+    "s": 3.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns190-nut-M2-left",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 75.2,
+    "s": 3.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns180-nut-M2-left",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 71.2,
+    "s": 3.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns170-nut-M2-left",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 67.2,
+    "s": 3.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns160-nut-M2-left",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 63.2,
+    "s": 3.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns150-nut-M2-left",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 59.2,
+    "s": 3.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns140-nut-M2-left",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 55.2,
+    "s": 3.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns130-nut-M2-left",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 51.2,
+    "s": 3.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns120-nut-M2-left",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 47.2,
+    "s": 3.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns110-nut-M2-left",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 43.2,
+    "s": 3.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns100-nut-M2-left",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 39.2,
+    "s": 3.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns90-nut-M2-left",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 35.2,
+    "s": 3.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns80-nut-M2-left",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 31.2,
+    "s": 3.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns70-nut-M2-left",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 27.2,
+    "s": 3.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns60-nut-M2-left",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 23.2,
+    "s": 3.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns50-nut-M2-left",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 19.2,
+    "s": 3.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns40-nut-M2-left",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 15.2,
+    "s": 3.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns30-nut-M2-left",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 11.2,
+    "s": 3.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns20-nut-M2-left",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 7.2,
+    "s": 3.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns10-nut-M2-left",
+   "kind": "nut",
+   "params": {
+    "d": 2.0,
+    "pitch": 0.4,
+    "m": 3.2,
+    "s": 3.2,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns240-bolt-M2.5-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 108.0,
+    "thread_length": 108.0,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns230-bolt-M2.5-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 103.5,
+    "thread_length": 103.5,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns220-bolt-M2.5-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 99.0,
+    "thread_length": 99.0,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns210-bolt-M2.5-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 94.5,
+    "thread_length": 94.5,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns200-bolt-M2.5-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 90.0,
+    "thread_length": 90.0,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns190-bolt-M2.5-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 85.5,
+    "thread_length": 85.5,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns180-bolt-M2.5-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 81.0,
+    "thread_length": 81.0,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns170-bolt-M2.5-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 76.5,
+    "thread_length": 76.5,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns160-bolt-M2.5-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 72.0,
+    "thread_length": 72.0,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns150-bolt-M2.5-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 67.5,
+    "thread_length": 67.5,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns140-bolt-M2.5-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 63.0,
+    "thread_length": 63.0,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns130-bolt-M2.5-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 58.5,
+    "thread_length": 58.5,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns120-bolt-M2.5-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 54.0,
+    "thread_length": 54.0,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns110-bolt-M2.5-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 49.5,
+    "thread_length": 49.5,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns100-bolt-M2.5-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 45.0,
+    "thread_length": 45.0,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns90-bolt-M2.5-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 40.5,
+    "thread_length": 40.5,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns80-bolt-M2.5-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 36.0,
+    "thread_length": 36.0,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns70-bolt-M2.5-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 31.5,
+    "thread_length": 31.5,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns60-bolt-M2.5-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 27.0,
+    "thread_length": 27.0,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns50-bolt-M2.5-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 22.5,
+    "thread_length": 22.5,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns40-bolt-M2.5-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 18.0,
+    "thread_length": 18.0,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns30-bolt-M2.5-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 13.5,
+    "thread_length": 13.5,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns20-bolt-M2.5-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 9.0,
+    "thread_length": 9.0,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns10-bolt-M2.5-right",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 4.5,
+    "thread_length": 4.5,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns240-bolt-M2.5-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 108.0,
+    "thread_length": 108.0,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns230-bolt-M2.5-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 103.5,
+    "thread_length": 103.5,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns220-bolt-M2.5-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 99.0,
+    "thread_length": 99.0,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns210-bolt-M2.5-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 94.5,
+    "thread_length": 94.5,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns200-bolt-M2.5-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 90.0,
+    "thread_length": 90.0,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns190-bolt-M2.5-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 85.5,
+    "thread_length": 85.5,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns180-bolt-M2.5-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 81.0,
+    "thread_length": 81.0,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns170-bolt-M2.5-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 76.5,
+    "thread_length": 76.5,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns160-bolt-M2.5-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 72.0,
+    "thread_length": 72.0,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns150-bolt-M2.5-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 67.5,
+    "thread_length": 67.5,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns140-bolt-M2.5-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 63.0,
+    "thread_length": 63.0,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns130-bolt-M2.5-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 58.5,
+    "thread_length": 58.5,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns120-bolt-M2.5-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 54.0,
+    "thread_length": 54.0,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns110-bolt-M2.5-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 49.5,
+    "thread_length": 49.5,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns100-bolt-M2.5-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 45.0,
+    "thread_length": 45.0,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns90-bolt-M2.5-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 40.5,
+    "thread_length": 40.5,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns80-bolt-M2.5-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 36.0,
+    "thread_length": 36.0,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns70-bolt-M2.5-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 31.5,
+    "thread_length": 31.5,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns60-bolt-M2.5-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 27.0,
+    "thread_length": 27.0,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns50-bolt-M2.5-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 22.5,
+    "thread_length": 22.5,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns40-bolt-M2.5-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 18.0,
+    "thread_length": 18.0,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns30-bolt-M2.5-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 13.5,
+    "thread_length": 13.5,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns20-bolt-M2.5-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 9.0,
+    "thread_length": 9.0,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns10-bolt-M2.5-left",
+   "kind": "bolt",
+   "params": {
+    "d": 2.5,
+    "pitch": 0.45,
+    "length": 4.5,
+    "thread_length": 4.5,
+    "s": 4.0,
+    "k": 1.5,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns240-bolt-M3-right",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 120.0,
+    "thread_length": 120.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns230-bolt-M3-right",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 115.0,
+    "thread_length": 115.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns220-bolt-M3-right",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 110.0,
+    "thread_length": 110.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns210-bolt-M3-right",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 105.0,
+    "thread_length": 105.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns200-bolt-M3-right",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 100.0,
+    "thread_length": 100.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns190-bolt-M3-right",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 95.0,
+    "thread_length": 95.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns180-bolt-M3-right",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 90.0,
+    "thread_length": 90.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns170-bolt-M3-right",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 85.0,
+    "thread_length": 85.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns160-bolt-M3-right",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 80.0,
+    "thread_length": 80.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns150-bolt-M3-right",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 75.0,
+    "thread_length": 75.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns140-bolt-M3-right",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 70.0,
+    "thread_length": 70.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns130-bolt-M3-right",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 65.0,
+    "thread_length": 65.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns120-bolt-M3-right",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 60.0,
+    "thread_length": 60.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns110-bolt-M3-right",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 55.0,
+    "thread_length": 55.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns100-bolt-M3-right",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 50.0,
+    "thread_length": 50.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns90-bolt-M3-right",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 45.0,
+    "thread_length": 45.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns80-bolt-M3-right",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 40.0,
+    "thread_length": 40.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns70-bolt-M3-right",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 35.0,
+    "thread_length": 35.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns60-bolt-M3-right",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 30.0,
+    "thread_length": 30.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns50-bolt-M3-right",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 25.0,
+    "thread_length": 25.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns40-bolt-M3-right",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 20.0,
+    "thread_length": 20.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns30-bolt-M3-right",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 15.0,
+    "thread_length": 15.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns20-bolt-M3-right",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 10.0,
+    "thread_length": 10.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns10-bolt-M3-right",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 5.0,
+    "thread_length": 5.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns240-nut-M3-right",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "m": 119.0,
+    "s": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns230-nut-M3-right",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "m": 114.0,
+    "s": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns220-nut-M3-right",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "m": 109.0,
+    "s": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns210-nut-M3-right",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "m": 104.0,
+    "s": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns200-nut-M3-right",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "m": 99.0,
+    "s": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns190-nut-M3-right",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "m": 94.0,
+    "s": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns180-nut-M3-right",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "m": 89.0,
+    "s": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns170-nut-M3-right",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "m": 84.0,
+    "s": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns160-nut-M3-right",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "m": 79.0,
+    "s": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns150-nut-M3-right",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "m": 74.0,
+    "s": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns140-nut-M3-right",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "m": 69.0,
+    "s": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns130-nut-M3-right",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "m": 64.0,
+    "s": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns120-nut-M3-right",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "m": 59.0,
+    "s": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns110-nut-M3-right",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "m": 54.0,
+    "s": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns100-nut-M3-right",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "m": 49.0,
+    "s": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns90-nut-M3-right",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "m": 44.0,
+    "s": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns80-nut-M3-right",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "m": 39.0,
+    "s": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns70-nut-M3-right",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "m": 34.0,
+    "s": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns60-nut-M3-right",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "m": 29.0,
+    "s": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns50-nut-M3-right",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "m": 24.0,
+    "s": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns40-nut-M3-right",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "m": 19.0,
+    "s": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns30-nut-M3-right",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "m": 14.0,
+    "s": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns20-nut-M3-right",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "m": 9.0,
+    "s": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns10-nut-M3-right",
+   "kind": "nut",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "m": 4.0,
+    "s": 4.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns240-bolt-M3-left",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 120.0,
+    "thread_length": 120.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns230-bolt-M3-left",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 115.0,
+    "thread_length": 115.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns220-bolt-M3-left",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 110.0,
+    "thread_length": 110.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns210-bolt-M3-left",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 105.0,
+    "thread_length": 105.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns200-bolt-M3-left",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 100.0,
+    "thread_length": 100.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns190-bolt-M3-left",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 95.0,
+    "thread_length": 95.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns180-bolt-M3-left",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 90.0,
+    "thread_length": 90.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns170-bolt-M3-left",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 85.0,
+    "thread_length": 85.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns160-bolt-M3-left",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 80.0,
+    "thread_length": 80.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns150-bolt-M3-left",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 75.0,
+    "thread_length": 75.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns140-bolt-M3-left",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 70.0,
+    "thread_length": 70.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns130-bolt-M3-left",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 65.0,
+    "thread_length": 65.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns120-bolt-M3-left",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 60.0,
+    "thread_length": 60.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns110-bolt-M3-left",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 55.0,
+    "thread_length": 55.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns100-bolt-M3-left",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 50.0,
+    "thread_length": 50.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns90-bolt-M3-left",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 45.0,
+    "thread_length": 45.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns80-bolt-M3-left",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 40.0,
+    "thread_length": 40.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns70-bolt-M3-left",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 35.0,
+    "thread_length": 35.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns60-bolt-M3-left",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 30.0,
+    "thread_length": 30.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns50-bolt-M3-left",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 25.0,
+    "thread_length": 25.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns40-bolt-M3-left",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 20.0,
+    "thread_length": 20.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns30-bolt-M3-left",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 15.0,
+    "thread_length": 15.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns20-bolt-M3-left",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 10.0,
+    "thread_length": 10.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "turns10-bolt-M3-left",
+   "kind": "bolt",
+   "params": {
+    "d": 3.0,
+    "pitch": 0.5,
+    "length": 5.0,
+    "thread_length": 5.0,
+    "s": 4.8,
+    "k": 1.8,
+    "left_hand": true
+   },
+   "artifact": "stl-preview"
+  }
+ ],
+ "dropped": [],
+ "notes": [
+  "every cell (size, hand, kind) whose 250-turn reading in `walls` is refused or crashed, at every step of 10 turns from 240 down to 10, 1 repetition, read in one dispatch",
+  "a cell's readings below its first ok step are recorded and used for nothing (R7, G2)"
+ ],
+ "shard_sizes": [
+  17,
+  38,
+  20,
+  35,
+  17,
+  17,
+  17,
+  38,
+  17
+ ],
+ "sources": [
+  "walls=bench/results/phase-07/walls-40646134133",
+  "explore=bench/results/phase-07/explore-40646117094"
+ ]
+}

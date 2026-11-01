@@ -20,7 +20,13 @@ THRD-04's positive-control test needs rows that are silent-wrong on the platform
 and CI and the image are linux/amd64. A control that raises fails the test instead of
 exercising the volume gate. The 2026-10-11 evidence is one emulated, ad-hoc run.
 
-## Next step
+## Next step (done)
 Revisit when Phase 7 (OPER-02) is planned. The linux/amd64 re-sweep runs the `controls` block
 (`naive_sweep_fuse`, `one_pipe`) natively, next to the builder, and records it as a
 `bench/RESULTS.md` entry. Then check the THRD-04 test rows and the L11 known-bad list against it.
+
+## Outcome
+Done in Phase 7. Run 40646142406 ran the 69 control rows on linux/amd64 (`### controls, run
+40646142406` and `#### controls against L11 and the THRD-04 test rows` in `bench/RESULTS.md`). The
+one-pipe twist agrees with L11 on all 40 rows; the naive fuse differs in outcome on 8 of 29. The four
+THRD-04 test rows still fail silently on the runner, so no test row changes. L20 records it.
