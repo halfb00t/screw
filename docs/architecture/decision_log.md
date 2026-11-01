@@ -159,6 +159,9 @@ spur's byte for byte.
 Extended by L28: `make pr.land` refuses a PR that touches a file deciding the full operability
 verdict or a required job's unless the owner passes `--owner-approves-gate-change`.
 
+Superseded in part by L33: the three extensions above are withdrawn. The required jobs are
+`test (3.12)`, `vendor-bundle` and `image` again, and `make pr.land` reads no PR diff.
+
 Date: 2026-10-06. Decided by the owner in the Phase 1 discussion (D-11, D-12, D-17, D-19).
 A port of spur's L22 and L25, which carry the evidence; this entry says what is ported,
 what is different here, and what is deferred.
@@ -2109,6 +2112,9 @@ superseding entry, and lifting the wall needs both.
 
 ## L26 — Two operability tiers: a required bounds job on every change and a full recording tier weekly and on cost-model PRs, both in the production image
 
+Superseded by L33: both tiers are removed from CI, and nothing re-reads the bounds on the runner.
+The point sets, their records and the hand dispatch of a set stay.
+
 Date: 2026-10-31. Decided by D-12, D-15 and D-19 of Phase 7 and by the pre-registered rules R5, R6
 and R27 to R29 of `07-SWEEP-PROTOCOL.md`, as ruled where they had gaps (G4, G12, G19, G33, G34, G36
 and G37 in `07-GAP-RULINGS.md`). Every point set is written by `bench/oper_sets.py` from committed
@@ -2190,6 +2196,9 @@ workflow file's triggers and jobs, removed in one commit. The point sets stay as
 
 ## L27 — make pr.land also requires a green full operability tier on the head of a PR that touches the cost model's files or src/screw/solid/
 
+Superseded by L33: the full tier is gone, and `make pr.land` no longer reads the PR's diff or any
+`operability.yml` run.
+
 Superseded in part by L28: the PR's diff decides which run is needed, but that run, its name and
 its verdict come from the PR's own checkout. A PR that touches a `GATE_PATHS` file, the workflows
 among them, is refused unless the owner passes `--owner-approves-gate-change`.
@@ -2240,6 +2249,11 @@ one path list, held by tests, decides both.
 Reversibility: reversible. One rule and one constant pair in `scripts/pr_land.py`, and its tests.
 
 ## L28 — make pr.land refuses a PR that edits the files that judge its own full operability tier or required jobs, unless the owner passes --owner-approves-gate-change
+
+Superseded by L33: `GATE_PATHS` and `--owner-approves-gate-change` are removed, and so is the WR-02
+addition of `Dockerfile` and `requirements.txt` to `FULL_TIER_PATHS`. With no runner tier left, no
+run judges its own bounds. `ci.yml`, `required-jobs.txt` and the merge gate's files are guarded by
+review alone, like the rest of a PR (the limit paragraph below).
 
 Date: 2026-10-31. Decided by the owner on two findings of the phase 7 security audit: T-07-71,
 "Add as threat, mitigate (Recommended)", and T-07-72, "Extend L28 guard (Recommended)".
@@ -2442,7 +2456,8 @@ owner ruled that they be, by their own commands (`python -m bench.oper_sets full
 
 Each limit loosens by at most 9.31 %, where the runner showed the old one was too tight. No point is
 added or dropped, and `prediction-drift` is 0 in every file. These are `GATE_PATHS` files (L28), so
-landing needs `--owner-approves-gate-change`, which PR #26 needs already. `derive-runtime` moves
+landing needs `--owner-approves-gate-change`, which PR #26 needs already (superseded by L33: no
+flag exists, and none is needed). `derive-runtime` moves
 only `runtime.json`'s sources and its header count (355 to 360); W and every timeout stand.
 
 Reason: a number the tool prints is a number someone will cut metal to (L02), and a part is admitted
@@ -2510,3 +2525,62 @@ Reason: a part the model admits must build inside the container it is served fro
 
 Reversibility: reversible. One constant pair and one function in `calc/cost.py`, one emitted value,
 and their tests. A re-fit of the nut peak model, or a new `mem_limit`, needs a superseding entry.
+
+## L33 — CI measures nothing on the runner: the bounds job and the full operability tier are removed, and the timeouts and budgets stay frozen at the values measured
+
+Date: 2026-11-01. Decided by the owner. On the runner measurement on CI, the owner said "this shit
+doesn't matter". Asked "What should be cut from the CI measurement?", they answered "Drop all
+runner measurement", whose option text was "Delete both full and bounds, and remove bounds from the
+required jobs. The timeouts and budgets stay frozen at the values already measured. Nothing
+re-checks them." Supersedes L26, L27 and L28. Supersedes in part L08 (its three extensions) and L31
+(its landing sentence). Carried out by quick task 261101-g4f.
+
+**What is removed.**
+
+- ci.yml's `bounds` job, its 4 shards in `required-jobs.txt`, and the `image` job's hand-on of its
+  image to it. The required jobs are `test (3.12)`, `vendor-bundle` and `image`, L08's list before
+  L26 (commit 727c2c4).
+- operability.yml's weekly `schedule`, its `pull_request` paths trigger, and the `followup-plan`,
+  `followup` and `verdict` jobs (727c2c4).
+- `make pr.land`'s full-tier rule (L27: `FULL_TIER_PATHS`, `check_full_tier`) and its gate-file rule
+  (L28: `GATE_PATHS`, `--owner-approves-gate-change`), with the Makefile's `PR_LAND_FLAGS`. `make
+  pr.land` reads no diff. It requires the ci.yml jobs `required-jobs.txt` lists, as before L27, and
+  `tests/test_pr_land.py` pins that it requires exactly those (commit ac463a5).
+- The tests that pinned the removed jobs, triggers and rules.
+
+**What stays.**
+
+- `operability.yml`'s `workflow_dispatch` of one named set (`plan` and `measure`). `set` is now a
+  required input. ASSUMPTION, told to the owner when the change was made: a later re-sweep starts
+  by hand, as Runs I and II did, from any set under `bench/points/`, `full.json` included.
+- The shipped values and how they are derived: `calc/cost.py`'s emitted constants, `runtime.json`,
+  `derive-runtime`, `emit-constants`, compose and the Dockerfile. No shipped number moves.
+- `bench/` with its sets and records. That includes `bench.oper check`, `followup-matrix` and
+  `verdict`, which no workflow runs now. Every point file stays, `full.json` and
+  `tests/data/oper_boundary.json` included: `oper_sets --check` and `prediction-drift` still write
+  them again from their sources.
+
+**The consequence.** The timeouts (L24) and the budgets (L21's B-01, L32) are frozen at the values
+measured on the runner in phase 7. Nothing re-checks them on the runner. A change that makes a build
+slower or larger is no longer caught before it lands. That can be a kernel bump, an image change or
+new runner hardware. It shows only in production:
+
+- a build past its timeout is a `503` of type `timeout`, logged as `cost_model.miss` (`app.py`,
+  `records.py`);
+- a build past the container's `mem_limit` is killed. When the killed process is the worker, the
+  service replaces it (`worker.replaced`) and answers a `503` of type `pool_broken`. ASSUMPTION,
+  not read on the runner: the kernel's OOM killer picks the worker, the largest process, and not
+  the server.
+
+`make verify` still holds every shipped constant to the committed records, so a hand edit of a
+number with no record behind it still fails. A change that moves the real cost under an unchanged
+number does not. This is L26's reason, accepted as a known risk. The owner accepted it explicitly
+here, so it is not filed as debt.
+
+Reason: the owner's ruling, above. For scale, the removed jobs cost each PR 4 required shards of up
+to 747 s (run 41089145344). A full-tier run cost 40 `measure` jobs, the longest 453 s (run
+41161227951), weekly and on every cost-model PR.
+
+Reversibility: reversible. Reverting ac463a5 and 727c2c4 restores the jobs, the rules and their
+tests. A tier that judges against today's sets would need them regenerated first if the model has
+moved since.

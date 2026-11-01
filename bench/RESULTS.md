@@ -17632,6 +17632,8 @@ MAX_BOLT_D_PER_PITCH = Fraction("20")
 
 ## Phase 7 full tier, G37's pre-read of the residual band (07-19)
 
+The full tier and the `bounds` job were removed from CI on 2026-11-01 (L33). These are the records they left; `operability.yml` now reads a set only when someone dispatches it.
+
 ### dense-band, run 41153581470
 
 - Dispatched sha: `5e5c07dacafb06456e51fdaf450745b382650c5a`
@@ -17682,6 +17684,8 @@ MAX_BOLT_D_PER_PITCH = Fraction("20")
 All 18 points are `ok`, inside their timeouts and their limits, so G37's ruling 1 lets the full tier judge every point as R28 and R29 write it, with no exclusion. The closest to the gate is `tip-dense-M3-n90-right`, at 0.97 of T_PIECE, the debug session's +0.0291 (E27, macOS arm64), now read on linux/amd64. The kernel's result for these parts matched across platforms to 1e-9 (E29), so this margin is a property of the part and not of the runner, but it is a thin one: the residual debt (`docs/tech_debt/active/2026-10-29-in-wall-parts-the-kernel-refuses.md`) stays open.
 
 ## Phase 7 full recording tier (07-19, R28, R29)
+
+The full tier and the `bounds` job were removed from CI on 2026-11-01 (L33). These are the records they left; `operability.yml` now reads a set only when someone dispatches it.
 
 ### full, run 41155746591
 
