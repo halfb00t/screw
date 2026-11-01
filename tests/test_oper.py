@@ -1036,13 +1036,6 @@ def _run_values(text: str) -> list[str]:
     return values
 
 
-# 07 D-12, D-13 (07-19): the full tier runs on a dispatch, weekly and on a PR that touches the
-# cost model's files or the solid package. These pins replace 07-01's "dispatch only" pin.
-FULL_TIER_PATHS_YML = ["src/screw/calc/cost.py", "src/screw/calc/thread.py",
-                       "src/screw/params.py", "src/screw/solid/**", "Dockerfile",
-                       "requirements.txt"]
-
-
 def workflow_triggers(text: str) -> dict[str, str]:
     """The `on:` block of a workflow, by trigger name, each with its indented body."""
     block = text[text.index("\non:\n") + 5:]
@@ -1054,19 +1047,13 @@ def workflow_triggers(text: str) -> dict[str, str]:
     return found
 
 
-def workflow_paths(text: str) -> list[str]:
-    """The `pull_request` trigger's `paths:` entries, in order."""
-    return re.findall(r'^      - "([^"]+)"$', workflow_triggers(text)["pull_request"],
-                      re.MULTILINE)
-
-
-def test_the_workflow_starts_on_a_dispatch_a_weekly_schedule_and_cost_model_prs() -> None:
+def test_the_workflow_starts_only_on_a_dispatch_of_a_named_set() -> None:
+    """L33: no schedule and no PR trigger; a run reads the one set a human names."""
     text = WORKFLOW_YML.read_text()
     triggers = workflow_triggers(text)
-    assert list(triggers) == ["workflow_dispatch", "schedule", "pull_request"]
-    assert re.findall(r'- cron: "([^"]+)"', triggers["schedule"]) == ["41 4 * * 1"]
-    assert workflow_paths(text) == FULL_TIER_PATHS_YML
-    assert "required: false" in triggers["workflow_dispatch"]
+    assert list(triggers) == ["workflow_dispatch"]
+    assert "required: true" in triggers["workflow_dispatch"]
+    assert "run-name: \"operability: ${{ inputs.set }}\"" in text
 
 
 def test_the_workflow_never_runs_in_the_base_context_or_on_a_push() -> None:
@@ -1090,9 +1077,7 @@ def test_the_set_input_reaches_a_script_only_through_an_env_variable() -> None:
     runs = _run_values(text)
     assert runs, "no run: steps found"
     assert not [run for run in runs if "${{ inputs." in run]
-    # A schedule or a PR run has no input, so it reads the full set (R28).
-    assert re.findall(r"^\s+SET: (.*)$", text, re.MULTILINE) == [
-        "${{ inputs.set || 'full' }}"] * 2
+    assert re.findall(r"^\s+SET: (.*)$", text, re.MULTILINE) == ["${{ inputs.set }}"] * 2
     assert 'python -m bench.oper matrix --set "$SET"' in text
     assert 'python -m bench.oper run --set "$SET"' in text
 
@@ -1111,23 +1096,6 @@ def test_the_measure_job_has_a_timeout_and_keeps_the_artifact_of_a_red_run() -> 
     assert "fail-fast: false" in text
     upload = text.index("actions/upload-artifact@v4")
     assert "if: always()" in text[upload - 200:upload + 200]
-
-
-def test_the_full_tiers_follow_up_and_verdict_jobs_run_after_measure_on_its_records() -> None:
-    """R5 and R29 (07-19): the follow-up selection and the verdict use this run's artifacts."""
-    text = WORKFLOW_YML.read_text()
-    jobs = {name: text[text.index(f"\n  {name}:"):] for name in ("followup-plan", "followup",
-                                                                  "verdict")}
-    assert "needs: measure\n    if: always() && (inputs.set || 'full') == 'full'" in jobs[
-        "followup-plan"]
-    assert "python -m bench.oper followup-matrix --set full --from records" in text
-    assert "needs.followup-plan.outputs.count != '0'" in jobs["followup"]
-    assert "matrix: ${{ fromJSON(needs.followup-plan.outputs.matrix) }}" in jobs["followup"]
-    assert "--followup-from records" in jobs["followup"]
-    assert "name: oper-full-followup-${{ env.SHARD }}-${{ env.REP }}" in jobs["followup"]
-    assert "needs: [measure, followup-plan, followup]\n    if: always()" in jobs["verdict"]
-    assert "python -m bench.oper verdict --set full --from records" in jobs["verdict"]
-    assert text.count("pattern: oper-full-*") == 3
 
 
 def test_the_child_reads_an_expected_refusal_from_the_info_document_and_builds_nothing(
@@ -3147,10 +3115,9 @@ def test_check_out_writes_the_header_and_every_reading_in_the_run_format(
     assert [(row["label"], row["status"]) for row in rows] == [("b0", "ok"), ("b1", "refused")]
 
 
-# --- the bounds job in ci.yml (07-18; D-12, D-15, L08, T-07-44, T-07-45) ------------------------
+# --- ci.yml's trust surface and the boundary file's shards (L08, T-07-44, L33) -----------------
 
 CI_YML = REPO_ROOT / ".github" / "workflows" / "ci.yml"
-REQUIRED_JOBS = REPO_ROOT / ".github" / "workflows" / "required-jobs.txt"
 
 
 def _ci_job(job_id: str) -> str:
@@ -3180,32 +3147,7 @@ def _step_with(job: str, *needles: str) -> str:
     return found[0]
 
 
-def test_the_bounds_job_checks_the_boundary_set_in_the_image_the_image_job_built() -> None:
-    job = _ci_job("bounds")
-    assert re.search(r"^    needs: image$", job, re.MULTILINE)
-    assert re.search(r"^    runs-on: ubuntu-latest$", job, re.MULTILINE)
-    download = _step_with(job, "actions/download-artifact@v4")
-    assert re.search(r"^\s+name: screw-ci-image$", download, re.MULTILINE)
-    assert "gunzip -c screw-ci.tar.gz | docker load" in _step_with(job, "docker load")
-    python = _step_with(job, "actions/setup-python@v5")
-    assert 'python-version: "3.12"' in python
-    assert "cache" not in python
-    check = _step_with(job, "bench.oper check")
-    assert ('python3 -m bench.oper check tests/data/oper_boundary.json --shard "$SHARD" '
-            '--image screw:ci --out "bounds-records-$SHARD.jsonl"') in check
-    assert re.search(r"^    env:\n      SHARD: \$\{\{ matrix\.shard \}\}$", job, re.MULTILINE)
-    assert '"$GITHUB_STEP_SUMMARY"' in check
-    # The table is piped into the summary, so the step must fail with the check, not with tee.
-    assert re.search(r"^\s+shell: bash$", check, re.MULTILINE)
-    assert ".venv" not in job
-    assert "make " not in job
-
-
-def test_the_bounds_job_reads_the_repository_and_holds_no_secret() -> None:
-    job = _ci_job("bounds")
-    permissions = re.search(r"^    permissions:\n((?:      .*\n)+)", job, re.MULTILINE)
-    assert permissions is not None
-    assert permissions.group(1).splitlines() == ["      contents: read"]
+def test_ci_holds_no_secret_and_never_runs_in_the_base_context() -> None:
     text = CI_YML.read_text()
     assert "secrets." not in text
     assert not re.search(r"^\s+github-token:", text, re.MULTILINE)
@@ -3213,47 +3155,11 @@ def test_the_bounds_job_reads_the_repository_and_holds_no_secret() -> None:
     assert "\non:\n  push:\n    branches: [main]\n  pull_request:\n\n" in text
 
 
-def test_the_bounds_job_keeps_the_readings_of_a_red_run_for_seven_days() -> None:
-    upload = _step_with(_ci_job("bounds"), "actions/upload-artifact@v4")
-    assert re.search(r"^\s+if: always\(\)$", upload, re.MULTILINE)
-    assert re.search(r"^\s+name: bounds-records-\$\{\{ env\.SHARD \}\}$", upload, re.MULTILINE)
-    assert re.search(r"^\s+path: bounds-records-\$\{\{ env\.SHARD \}\}\.jsonl$", upload,
-                     re.MULTILINE)
-    assert re.search(r"^\s+retention-days: 7$", upload, re.MULTILINE)
-
-
-def test_the_image_job_hands_its_image_on_for_one_day() -> None:
-    job = _ci_job("image")
-    save = _step_with(job, "docker save")
-    assert "docker save screw:ci | gzip -1 > screw-ci.tar.gz" in save
-    assert re.search(r"^\s+shell: bash$", save, re.MULTILINE)
-    upload = _step_with(job, "actions/upload-artifact@v4")
-    assert re.search(r"^\s+name: screw-ci-image$", upload, re.MULTILINE)
-    assert re.search(r"^\s+path: screw-ci\.tar\.gz$", upload, re.MULTILINE)
-    assert re.search(r"^\s+retention-days: 1$", upload, re.MULTILINE)
-
-
 BOUNDARY_FILE = REPO_ROOT / "tests" / "data" / "oper_boundary.json"
 
 
 def _shard_list() -> list[int]:
-    match = re.search(r"^      matrix:\n        shard: \[([\d, ]+)\]$", _ci_job("bounds"),
-                      re.MULTILINE)
-    assert match is not None
-    return [int(n) for n in match.group(1).split(",")]
-
-
-def test_the_bounds_job_reads_every_shard_of_the_boundary_file() -> None:
-    sizes = json.loads(BOUNDARY_FILE.read_text())["shard_sizes"]
-    assert _shard_list() == list(range(1, len(sizes) + 1))
-    assert re.search(r"^      fail-fast: false$", _ci_job("bounds"), re.MULTILINE)
-
-
-def test_every_shard_is_a_job_make_pr_land_requires() -> None:
-    sizes = json.loads(BOUNDARY_FILE.read_text())["shard_sizes"]
-    lines = REQUIRED_JOBS.read_text().splitlines()
-    assert [line for line in lines if line.startswith("bounds")] == [
-        f"bounds ({n})" for n in range(1, len(sizes) + 1)]
+    return list(range(1, len(json.loads(BOUNDARY_FILE.read_text())["shard_sizes"]) + 1))
 
 
 def test_the_shards_partition_the_tier_each_point_once_in_file_order() -> None:
@@ -3265,13 +3171,10 @@ def test_the_shards_partition_the_tier_each_point_once_in_file_order() -> None:
     assert len(set(keys)) == len(keys)
 
 
-def test_each_shard_is_about_ten_minutes_and_under_half_the_job_timeout() -> None:
-    """G34 and R6's precedent: a shard's readings take at most half the job's `timeout-minutes`,
-    the other half left for a slower runner instance, the image load and the upload. A reading is
-    estimated by its explore container wall, or by its timeout where explore did not read it ok
-    (R27's charge); the estimates are recomputed here from the explore records."""
-    match = re.search(r"^    timeout-minutes: (\d+)$", _ci_job("bounds"), re.MULTILINE)
-    assert match is not None
+def test_each_shard_is_about_ten_minutes() -> None:
+    """G34: a shard's readings are estimated under 600 s. A reading is estimated by its explore
+    container wall, or by its timeout where explore did not read it ok (R27's charge); the
+    estimates are recomputed here from the explore records."""
     document = json.loads(BOUNDARY_FILE.read_text())
     explore = dict(str(entry).split("=", 1) for entry in document["sources"])["explore"]
     files = sorted(str(path) for path in (REPO_ROOT / explore).glob("*/*.jsonl"))
@@ -3287,7 +3190,6 @@ def test_each_shard_is_about_ten_minutes_and_under_half_the_job_timeout() -> Non
     for size in document["shard_sizes"]:
         shard = sum(estimates[start:start + size])
         assert shard < document["shard_s"] == 600
-        assert 2 * shard <= int(match.group(1)) * 60
         start += size
 
 

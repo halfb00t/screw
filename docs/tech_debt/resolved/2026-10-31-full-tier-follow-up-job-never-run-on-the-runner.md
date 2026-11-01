@@ -1,7 +1,8 @@
 # The full tier's follow-up job has never run on the runner
 
 Severity: nice
-Status: active
+Status: resolved
+Resolved in: this commit — `ci: drop the required bounds job and the full operability tier (L33)` (quick 261101-g4f; `git log --grep` finds the sha)
 Date: 2026-10-31
 Source: plan 07-19 (L26); its tracer asked for R5's follow-up jobs to judge a within-margin point
 on 5 runner instances
@@ -27,3 +28,10 @@ failure is loud and not silent, but it would come on a PR the full tier is guard
 ## Next step
 Revisit when a full-tier run first selects a follow-up point: read that run's `followup` jobs and
 `verdict`, and resolve this item with the run id.
+
+## Resolution
+Moot. The owner ruled on 2026-11-01 to drop all runner measurement from CI (L33), and this commit
+removes `followup-plan`, `followup` and `verdict` from `operability.yml` with the full tier's
+schedule and PR trigger. The job never ran on the runner and now never will. The offline code
+(`followup_points`, `followup_shards`, `verdict`, `run --followup-from`) stays in `bench/oper.py`
+with its tests as part of the harness.

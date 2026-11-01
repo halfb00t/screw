@@ -20,7 +20,6 @@ Severity (grep-able `Severity:` field):
 | must | [The bolt's fine-STL peak budget is above the memory a worker has](active/2026-10-31-bolt-fine-peak-budget-above-the-worker-headroom.md) | a re-fit of the bolt peak model, an admitted bolt read above the headroom, or before the first release |
 | must | [The nut's fine-STL peak envelope refuses a nut the runner built under the headroom](active/2026-10-31-nut-peak-envelope-refuses-parts-read-under-the-headroom.md) | the next re-fit of the nut peak model, or before the first release |
 | must | [An above-band head ratio is never priced against a below-band one at its edge](active/2026-10-31-head-ratio-edges-never-meet-a-real-out-of-band-ratio.md) | the runner reading of the d-only M2 and M3 (G39), or before the first release |
-| nice | [The full tier's follow-up job has never run on the runner](active/2026-10-31-full-tier-follow-up-job-never-run-on-the-runner.md) | the first full-tier run that selects a follow-up point |
 | nice | [The build-time corpus is mostly parts the cost model refuses, so the bench judges little](active/2026-10-30-build-time-corpus-is-mostly-refused-by-the-cost-model.md) | the next change to bench/corpus.py or bench/build_time.py |
 | nice | [The refused preview's status sentence runs under the Fit button](active/2026-10-29-status-sentence-runs-under-fit.md) | the phase 7 UAT, or the next change to the viewport overlay |
 | nice | [The shank-fold warning prints its numbers with :g, so a value near the 0.0001 mm line can read as the wrong side of it](active/2026-10-28-shank-fold-warning-rounds-the-numbers-it-compares.md) | the next change to the warning texts |
@@ -43,6 +42,7 @@ Severity (grep-able `Severity:` field):
 
 | Item | Resolved in |
 |---|---|
+| [The full tier's follow-up job has never run on the runner](resolved/2026-10-31-full-tier-follow-up-job-never-run-on-the-runner.md) | this commit — ci: drop the required bounds job and the full operability tier (L33) |
 | [A tall nut below the clearance band was admitted on a prediction that never priced its height](resolved/2026-10-31-tall-nut-misses-its-envelope-inside-the-clearance-band.md) | this commit — fix(cost): price a nut's clearance edges with its other fields real (G39, L30) |
 | [Interim runtime bounds are spur's figures, not screw's measurements](resolved/2026-10-05-interim-runtime-bounds.md) | this commit — chore(07): remove the last interim runtime labels and close the debt they tracked (07 D-16) |
 | [bench.memory samples too coarsely to read a peak off a corpus that runs in seconds](resolved/2026-10-06-bench-memory-sampling-is-too-coarse-for-short-corpora.md) | this commit — chore(07): remove the last interim runtime labels and close the debt they tracked (07 D-16) |

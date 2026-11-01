@@ -187,16 +187,13 @@ SQUASH_COMMIT_READ = (
 )
 
 REQUIRED = frozenset({"test (3.12)", "vendor-bundle", "image"})
-# The required tier's shard jobs (07-18, G34), as GitHub reports a matrix job: 4 since the
-# fine-pitch wall dropped the points it refuses (G36).
-BOUNDS_SHARDS = ("bounds (1)", "bounds (2)", "bounds (3)", "bounds (4)")
 
 
 @pytest.fixture(autouse=True)
 def _land_requires_the_recorded_jobs(monkeypatch: pytest.MonkeyPatch) -> None:
     """`land()` reads `required_jobs()` itself, so it is held to REQUIRED, the jobs the recorded
-    runs carry: the required list has grown since (07-18's `bounds`), and a recorded run cannot.
-    The tests that read the file import `required_jobs` by name and are not affected."""
+    runs carry, whatever the file lists later. The tests that read the file import
+    `required_jobs` by name and are not affected."""
     monkeypatch.setattr("scripts.pr_land.required_jobs", lambda: REQUIRED)
 
 # A compare result that is neither behind nor identical -- the neutral value the Task 1
@@ -240,7 +237,7 @@ def _effective_job_names(ci_yml: str) -> set[str]:
     that block gives the effective name; step `name:` keys sit at six-or-more spaces
     under `steps:` and are never read (`ci.yml`'s own two, `bundle matches web/` and
     `the packaged entrypoint serves a gear`, confirm the depth). A job with a one-key
-    matrix list -- `test`'s `python: [...]`, `bounds`' `shard: [...]` -- expands to
+    matrix list -- `test`'s `python: [...]` -- expands to
     `f"{name} ({v})"` for each value, using its own effective name: `test (3.12)` while
     `test` carries no `name:`."""
     jobs_section = ci_yml.split("\njobs:\n", 1)[1]
@@ -268,8 +265,7 @@ def _effective_job_names(ci_yml: str) -> set[str]:
     for i, name in enumerate(effective.values()):
         block_end = id_matches[i + 1].start() if i + 1 < len(id_matches) else len(jobs_section)
         block = jobs_section[id_matches[i].end():block_end]
-        # GitHub reports a one-key matrix job as `<name> (<value>)` per value: `test`'s python
-        # list and `bounds`' shard list (07-18, G34).
+        # GitHub reports a one-key matrix job as `<name> (<value>)` per value: `test`'s python list.
         matrix = re.search(r"^      matrix:\n        \w+:\s*\[([^\]]*)\]", block, re.MULTILINE)
         if matrix is None:
             names.add(name)
@@ -297,14 +293,13 @@ def test_a_job_name_override_moves_the_derived_required_set() -> None:
     renamed = ci_yml.replace("  image:\n", "  image:\n    name: renamed-image\n", 1)
     assert renamed != ci_yml
     names = _effective_job_names(renamed)
-    assert names == {"test (3.12)", "vendor-bundle", "renamed-image", *BOUNDS_SHARDS}
+    assert names == {"test (3.12)", "vendor-bundle", "renamed-image"}
     assert "bundle matches web/" not in names
     assert "the packaged entrypoint serves a gear" not in names
 
     quoted = ci_yml.replace("  image:\n", '  image:\n    name: "renamed image"\n', 1)
     assert quoted != ci_yml
-    assert _effective_job_names(quoted) == {"test (3.12)", "vendor-bundle", "renamed image",
-                                            *BOUNDS_SHARDS}
+    assert _effective_job_names(quoted) == {"test (3.12)", "vendor-bundle", "renamed image"}
 
 
 # --- pure decisions ----------------------------------------------------------------

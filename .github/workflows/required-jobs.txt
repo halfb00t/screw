@@ -4,7 +4,3 @@
 test (3.12)
 vendor-bundle
 image
-bounds (1)
-bounds (2)
-bounds (3)
-bounds (4)

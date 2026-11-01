@@ -3075,11 +3075,3 @@ def test_an_expectation_other_than_a_plain_refusal_is_refused(tmp_path: Path, ov
     with pytest.raises(ValueError, match="only `refused` is expected"):
         _judged_set(tmp_path, [{"label": "r", "kind": "bolt", "params": {}, "artifact": "step",
                                 **over}])
-
-
-def test_the_follow_up_jobs_timeout_is_the_workflows() -> None:
-    workflow = (REPO_ROOT / ".github" / "workflows" / "operability.yml").read_text()
-    followup = workflow[workflow.index("\n  followup:"):]
-    match = re.search(r"timeout-minutes: (\d+)", followup)
-    assert match
-    assert int(match.group(1)) == oper.FOLLOWUP_TIMEOUT_MIN
