@@ -152,7 +152,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FRNT-06 | Phase 5 | Complete |
 | OPER-01 | Phase 7 | Complete |
 | OPER-02 | Phase 7 | Complete |
-| OPER-03 | Phase 7 | Pending (carried by the in-wall debt, before first release) |
+| OPER-03 | Phase 8 | Pending (moved from Phase 7 after the v1.0 audit, 2026-11-01; carried by the in-wall debt, before first release) |
 | INFR-01 | Phase 1 | Complete |
 | INFR-02 | Phase 1 | Complete |
 | INFR-03 | Phase 2 | Complete |

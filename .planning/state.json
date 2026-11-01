@@ -41,13 +41,13 @@
     {
       "number": "7",
       "name": "Operability Re-sweep",
-      "status": "in_progress"
+      "status": "complete"
     }
   ],
   "next": {
-    "command": "/gsd-progress --next",
-    "label": "Advance to the next step",
-    "reason": "Phase 8 of 8 · 84% · executing"
+    "command": "/gsd-new-milestone",
+    "label": "Start a new milestone",
+    "reason": "All phases complete — start a new milestone"
   },
-  "updated_at": "2026-10-27T11:36:26.814Z"
+  "updated_at": "2026-11-01T14:18:42.327Z"
 }

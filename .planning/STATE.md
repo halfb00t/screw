@@ -1,18 +1,18 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 07
-status: completed
-stopped_at: Phase 07 complete — all phases complete
+current_phase: 08
+status: planning
+stopped_at: Phase 08 added after the v1.0 audit — not planned
 last_updated: "2026-11-01T04:27:19.666Z"
 last_activity: 2026-11-01
 last_activity_desc: Phase 07 complete
 state_head: 3e1c0118160130021de447bf86497093edd7ca66
 progress:
-  total_phases: 8
+  total_phases: 9
   completed_phases: 8
   total_plans: 103
   completed_plans: 103
-  percent: 100
+  percent: 89
 ---
 
 # Project State
@@ -395,6 +395,7 @@ None yet.
 
 - Phase 5 edited: L11 escape clause revision: direction named (scope the proof, M18 reads inconclusive); edited fields: precondition line, success_criteria 3, new success_criteria 6
 - Phase 06.1 inserted after Phase 6: Bolt head chamfer: head_chamfer angle field, default 30, cone from s/2, top face only; supersedes L13 D-01; before the Phase 7 re-sweep (owner ruling 2026-10-24) (URGENT)
+- Phase 8 added: Pre-release Gap Closure: closes the v1.0 milestone audit gaps (OPER-03 in-wall build_error moved from Phase 7, CLI build deadline INT-01, TABL-06 vs L19 head_chamfer badge INT-02, typed-default parity INT-03, INFO-05 bookkeeping, Nyquist 06/07); owner chose "close OPER-03 in v1" (2026-11-01)
 
 ## Deferred Items
 
@@ -407,5 +408,5 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-11-01
-Stopped at: Phase 07 complete — milestone ready to complete
+Stopped at: Phase 08 added (v1.0 audit gaps_found) — next /gsd-discuss-phase 8
 Resume file: None

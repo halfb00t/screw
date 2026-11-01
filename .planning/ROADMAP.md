@@ -30,6 +30,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 5: Hex Nut and Kernel Pair Proof** - ISO 4032 nut with a clearance field, matching-part derivation and a kernel pair proof that can fail (completed 2026-10-22)
 - [x] **Phase 6: Printed Pair Acceptance** - the owner's printed test sets the clearance default and the printability threshold; a printed pair threads together by hand (completed 2026-10-24)
 - [x] **Phase 7: Operability Re-sweep** - every runtime bound measured on the full grid on linux/amd64 and cited; every allowed configuration builds inside the timeout (completed 2026-11-01)
+- [ ] **Phase 8: Pre-release Gap Closure** - close the v1.0 audit gaps: OPER-03 in-wall build errors, the CLI build deadline, the head_chamfer badge rule and typed-default parity
 
 ## Phase Details
 
@@ -453,10 +454,27 @@ Plans:
 **Wave 15** *(blocked on Wave 14 completion)*
 - [x] 07-20-PLAN.md — Proof on the head: the full tier green and recorded, every required job green, `make check`
 
+### Phase 8: Pre-release Gap Closure
+
+**Goal**: Close the gaps the v1.0 milestone audit found (`.planning/v1.0-MILESTONE-AUDIT.md`) so the first release ships with OPER-03 met: no admitted part ends in a kernel `422 build_error`, every build path has a deadline or a logged reason it has none, and the front ends answer the same part the same way.
+**Depends on**: Phase 7
+**Requirements**: OPER-03 (moved from Phase 7, Pending by owner ruling 2026-11-01); touches TABL-06, FRNT-05, INFO-05 (audit INT-01, INT-02, INT-03)
+**Success Criteria** (what must be TRUE):
+  1. Every part the model admits inside the L25 walls builds, or is refused before the kernel with a `422` naming the fields (`ctx.fields`), or is capped and warned; the in-wall cases in `docs/tech_debt/active/2026-10-29-in-wall-parts-the-kernel-refuses.md` are tests, and that debt is resolved.
+  2. `screw export` on the CLI either runs under the same per-artifact `BUILD_TIMEOUT_S` or its unbounded build is an owner decision logged as an `Lxx` (INT-01); the choice is made in discuss-phase.
+  3. The TABL-06 wording and L19 agree on whether editing `head_chamfer` flips the preset badge, by amending one of them on an owner ruling (INT-02).
+  4. A value typed equal to its default gets the same answer on the web, the API and the CLI, or the difference is an owner decision logged as an `Lxx` (INT-03).
+  5. INFO-05 is listed in a Phase 4 SUMMARY's `requirements-completed`; `/gsd-validate-phase 6` and `/gsd-validate-phase 7` leave both VALIDATION.md files `validated`; the re-run milestone audit reads `passed` or `tech_debt`.
+
+**Plans**: 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 8 to break down)
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 2 needs nothing from Phase 1 and may run alongside it; Phase 3 needs both.
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 6.1 → 7 → 8. Phase 2 needs nothing from Phase 1 and may run alongside it; Phase 3 needs both.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -468,3 +486,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7. Phase 2 
 | 6. Printed Pair Acceptance | 10/10 | Complete    | 2026-10-24 |
 | 6.1. Bolt head chamfer (INSERTED) | 5/5 | Complete    | 2026-10-25 |
 | 7. Operability Re-sweep | 21/21 | Complete    | 2026-11-01 |
+| 8. Pre-release Gap Closure | 0/0 | Not started | - |
