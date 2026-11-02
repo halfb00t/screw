@@ -144,6 +144,18 @@ here. INT-06 is a wording fix, made when the in-wall debt is resolved.
   The same commit amends the ROADMAP Phase 8 Goal line's "no admitted part ends in a kernel
   `422 build_error`" to the same grid bar (extended by the owner's grid-bar ruling, 2026-11-02).
 
+- **D-21 (2026-11-02, after plan check 3):** L34 also covers `screw pair`. It is unbounded by design
+  for the same reasons as `screw export`: it runs on the user's machine, Ctrl-C is the user's
+  deadline, and it is an on-demand proof with no artifact budget (`cmd_pair`: "Never capped").
+  The docs and help line name both commands. ROADMAP SC2's wording is amended to name both, in
+  the commit that lands L34.
+- **D-22 (2026-11-02, after plan check 3, amends D-17):** `solid/pair.py` is unchanged. The
+  verdict rods (`pair.py:68`, `:78`, which call `helical.thread` directly) keep the shipped sweep.
+  The shipped evidence row (`_shipped`, `pair.py:269`, `build(p)`) builds the served nut, which is
+  the fine sweep for M5 to M20 after Phase 8, so the evidence matches what users download. L36,
+  the D-17 debt item and the protocol say exactly this. They must not say that pair proves only on
+  the shipped representation.
+
 ### Claude's Discretion
 - The error type name and message wording for the turns guard (follow `pitch_too_fine`).
 - How the per-kind threshold is expressed in code (constants beside `MAX_*_D_PER_PITCH`, read by
