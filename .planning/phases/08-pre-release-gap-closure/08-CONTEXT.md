@@ -129,6 +129,13 @@ here. INT-06 is a wording fix, made when the in-wall debt is resolved.
   `tests/data/pair_expected.tsv` is not re-measured.
 - **D-18:** The turns guard's `ctx.fields` names `d`, `pitch`, `thread_length` and `length`
   (amends D-06), because the built thread is `min(thread_length, length)`.
+- **D-19 (2026-11-02, after plan check):** The bolt fine trigger is the D-15 band clause only;
+  there is no d / pitch-only bolt clause. D-03 reads the bolt threshold from the refusals, and the
+  committed Phase 6 and 7 runner records hold 973 `ok` bolt readings and no refusal outside the
+  bands at 8 < d / pitch <= 20; the 6 refusals there are inside the bands (d 3, d / pitch 8.57,
+  84 mm thread). So bolts outside the bands stay on the shipped sweep up to the wall of 20. The
+  runner walk adds out-of-band check cells at d / pitch in (8, 20]; if any is refused, the protocol
+  stops and asks the owner. This refines D-03 and D-15.
 
 ### Claude's Discretion
 - The error type name and message wording for the turns guard (follow `pitch_too_fine`).

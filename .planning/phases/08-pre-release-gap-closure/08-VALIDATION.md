@@ -47,9 +47,10 @@ Filled by the planner per task (2026-11-02); the requirement-to-test map below i
 | 08-01 T3 | OPER-03 / SC1 | checkpoint: owner dispatches `fine-bands`; `gh run view <id> --json headSha,event` | ⬜ |
 | 08-02 T1 | OPER-03 / SC2 | `make test PYTEST_ARGS="tests/test_cli.py -q -n0 --no-cov"` | ⬜ |
 | 08-02 T2 | TABL-06 / SC3 | `grep -q 'once a dimension the row prints is edited' .planning/REQUIREMENTS.md` | ⬜ |
-| 08-03 T1 | OPER-03 / SC1 | `make test PYTEST_ARGS="tests/test_oper_fine.py -q -n0 --no-cov"` | ⬜ |
+| 08-02 T3 | INFO-05 / SC5 | `grep -q '^requirements-completed: \[INFO-05\]$' .planning/phases/04-iso-hex-bolts-and-screws/04-11-SUMMARY.md`; INT-04 and INT-05 debt files and INDEX rows | ⬜ |
+| 08-03 T1 | OPER-03 / SC1 | `make test PYTEST_ARGS="tests/test_oper_fine.py -q -n0 --no-cov"` (edge and D-19 check-cell cases) | ⬜ |
 | 08-03 T2 | OPER-03 / SC1 | `.venv/bin/python -m bench.oper_sets fine-bands --from bench/results/phase-08/fine-bands-<id>` | ⬜ |
-| 08-04 T1 | FRNT-05 / SC4 | `make test PYTEST_ARGS="tests/test_parity.py tests/test_cost.py -q -n0 --no-cov"` | ⬜ |
+| 08-04 T1 | FRNT-05 / SC4 | `make test PYTEST_ARGS="tests/test_parity.py tests/test_cost.py -q -n0 --no-cov"`; human-check: browser at d 30, pitch 2, s 48, k 18, typed thread_length 20, recorded under `## Browser check` | ⬜ |
 | 08-04 T2 | FRNT-05 / SC4 | L35 and note greps; `make test PYTEST_ARGS="tests/test_runtime_bounds.py tests/test_parity.py -q -n0 --no-cov"` | ⬜ |
 | 08-05 T1 | OPER-03 / SC1 | `make test PYTEST_ARGS="tests/test_thread_maths.py tests/test_nut.py -q -n0 --no-cov"`; `make lint typecheck lint-imports` | ⬜ |
 | 08-05 T2 | OPER-03 / SC1 | `make test PYTEST_ARGS="tests/test_thread_maths.py tests/test_oper_fine.py tests/test_solid.py -q -n0 --no-cov"` | ⬜ |
@@ -60,22 +61,25 @@ Filled by the planner per task (2026-11-02); the requirement-to-test map below i
 | 08-07 T2 | OPER-03 / SC1 | `.venv/bin/python -m bench.oper_sets fine-ceilings --from bench/results/phase-08/fine-proof-<id>` | ⬜ |
 | 08-08 T1 | OPER-03 / SC1 | `make test PYTEST_ARGS="tests/test_cost.py tests/test_oper_fit.py -q -n0 --no-cov"` | ⬜ |
 | 08-08 T2 | OPER-03 / SC1 | `--check`; `make test PYTEST_ARGS="tests/test_runtime_bounds.py tests/test_oper_bound.py tests/test_cost.py -q -n0 --no-cov"` | ⬜ |
-| 08-09 T1 | OPER-03 / SC1 | `make test PYTEST_ARGS="tests/test_turn_guard.py tests/test_fine_pitch.py tests/test_oper_fine.py tests/test_params.py -q -n0 --no-cov"` | ⬜ |
-| 08-09 T2 | OPER-03 / SC1 | `make test PYTEST_ARGS="tests/test_oper_fine.py tests/test_fine_pitch.py tests/test_oper_pitch.py tests/test_runtime_bounds.py -q -n0 --no-cov"` | ⬜ |
-| 08-10 T1 | INFO-05 / SC5 | `make verify`; `--check`; L34 to L36, OPER-03, TABL-06 greps | ⬜ |
-| 08-10 T2, T3 | SC5 | checkpoints: owner runs `/gsd-validate-phase 6`, `/gsd-validate-phase 7`, `/gsd-audit-milestone` | ⬜ |
+| 08-09 T1 | OPER-03 / SC1 | `make test PYTEST_ARGS="tests/test_turn_guard.py tests/test_fine_pitch.py tests/test_oper_fine.py tests/test_params.py -q -n0 --no-cov"`; `--check`; no guard region beyond the bands | ⬜ |
+| 08-09 T2 | OPER-03 / SC1 | F13, A3 and D-17 debt files with `Severity: must` and INDEX rows; every Active INDEX link resolves | ⬜ |
+| 08-10 T1 | OPER-03 / SC1 | `make test PYTEST_ARGS="tests/test_oper_fine.py tests/test_fine_pitch.py tests/test_oper_pitch.py tests/test_runtime_bounds.py tests/test_oper.py -q -n0 --no-cov"`; debt move, OPER-03 and L36 greps | ⬜ |
+| 08-10 T2 | SC1 to SC5 | `make verify`; `--check`; L34 to L36, OPER-03, TABL-06, INFO-05 and five-debt greps; head pushed, no PR open | ⬜ |
+| 08-11 T1 | SC1 to SC5 | checkpoint: Codex reviews `git diff origin/main...<sha>` (HOW_TO_DEVELOP section 8) | ⬜ |
+| 08-11 T2 | SC1 to SC5 | `make verify`; `--check`; fixes pushed, no PR open | ⬜ |
+| 08-11 T3 | SC5 | checkpoint: owner runs `/gsd-validate-phase 6`, `/gsd-validate-phase 7`, `/gsd-audit-milestone` | ⬜ |
 
 The requirement-to-test map:
 
 | Req / SC | Behavior | Test Type | Automated Command | File Exists |
 |----------|----------|-----------|-------------------|-------------|
-| SC1 sweep | fine predicate exact and strict at thresholds (nut `> 6`, bolt `> 8`, bolt band predicate D-15); `helical.thread(fine=True)` uses 56 samples and the tolerance; default call unchanged | unit + kernel (2-3 cells) | `make test PYTEST_ARGS="tests/test_thread_maths.py tests/test_solid.py -q -n0 --no-cov"` | extend |
+| SC1 sweep | fine predicate exact and strict at thresholds (nut `> 6`; bolt only inside a measured band above 6, D-15, D-19; no d / pitch-only bolt clause); `helical.thread(fine=True)` uses 56 samples and the tolerance; default call unchanged | unit + kernel (2-3 cells) | `make test PYTEST_ARGS="tests/test_thread_maths.py tests/test_solid.py -q -n0 --no-cov"` | extend |
 | SC1 island | 6 island nuts (d 2.2, d/pitch ~7, forms base/s4/m1, both hands) build | kernel | `make test PYTEST_ARGS="tests/test_nut.py -k island -q -n0 --no-cov"` | ❌ W0 |
 | SC1 long thread | d 3, pitch 0.35, 25 mm right and d 2.5, pitch 0.35, 30 mm right build | kernel | `make test PYTEST_ARGS="tests/test_solid.py -k long_thread -q -n0 --no-cov"` | ❌ W0 |
-| SC1 guard | turns guard is 422 with `ctx.fields` [d, pitch, thread_length, length] on API, exit 2 on CLI, same text; no catalogue row refused | kernel-free | `make test PYTEST_ARGS="tests/test_fine_pitch.py tests/test_turn_guard.py -q -n0 --no-cov"` | ❌ W0 |
+| SC1 guard | turns guard is 422 with `ctx.fields` [d, pitch, thread_length, length] on API, exit 2 on CLI, same text; band regions only, no bolt outside the bands guarded (D-19); no catalogue row refused | kernel-free | `make test PYTEST_ARGS="tests/test_fine_pitch.py tests/test_turn_guard.py -q -n0 --no-cov"` | ❌ W0 |
 | SC1 proof grid | every grid point `ok` in committed runner records or refused by the model | records-driven | `make test PYTEST_ARGS="tests/test_oper_fine.py -q -n0 --no-cov"` | ❌ W0 |
 | SC1 constants | thresholds, bands, ceilings, `FINE_ENVELOPE` equal judge output from `bench/results/phase-08/` | records-driven | `make test PYTEST_ARGS="tests/test_cost.py tests/test_oper_fit.py tests/test_oper_pitch.py -q -n0 --no-cov"` | extend |
-| SC1 debt | 20 in-wall parts handled; debt moved to `resolved/` with INDEX row | existing + grep | `make test PYTEST_ARGS="tests/test_fine_pitch.py -q -n0 --no-cov"` | exists |
+| SC1 debt | 20 in-wall parts handled; debt moved to `resolved/` with INDEX row; F13, A3 and D-17 residuals filed under `active/` | existing + grep | `make test PYTEST_ARGS="tests/test_fine_pitch.py -q -n0 --no-cov"` | exists |
 | SC2 | `export` help or README carries the no-deadline line; Lxx exists | text assertion | `make test PYTEST_ARGS="tests/test_cli.py -q -n0 --no-cov"` | extend |
 | SC3 | TABL-06 text agrees with L19 | grep | `grep -n "TABL-06" .planning/REQUIREMENTS.md` | n/a |
 | SC4 | d=30 pitch=2 s=48 k=18 with typed `thread_length=20` is 422 `over_budget` / exit 2 on API and CLI; page source writes a touched field | API+CLI executed, web source assertions | `make test PYTEST_ARGS="tests/test_parity.py tests/test_cost.py -q -n0 --no-cov"` | extend |
@@ -100,7 +104,8 @@ The requirement-to-test map:
 | Behavior | Requirement | Why Manual | Test Instructions |
 |----------|-------------|------------|-------------------|
 | Runner walk and re-sweep readings on linux/amd64 | OPER-03 (D-04, D-05) | L33: CI measures nothing; dispatches are by hand | `gh workflow run operability.yml --ref <branch> -f set=<set>` (`set` is the workflow's only input, L33); then `gh run download <id> -p 'oper-*'` |
-| Web form typed-default behavior in a browser | FRNT-05 / INT-03 | No browser harness (L01) | Type a field equal to its default, check the link keeps it and the answer matches the API |
+| Web form typed-default behavior in a browser | FRNT-05 / INT-03 | No browser harness (L01) | 08-04 T1 human-check: `make serve`, d 30, pitch 2, s 48, k 18, type thread_length 20; the link keeps it and the refusal matches the API; record in 08-04-SUMMARY `## Browser check` |
+| Codex review of the phase branch | SC1 to SC5 | the author CLI may not review its own diff (HOW_TO_DEVELOP section 8) | 08-11 T1: Codex reviews `git diff origin/main...<sha>`; findings become commits in 08-11 T2 |
 | `/gsd-validate-phase 6`, `/gsd-validate-phase 7`, `/gsd-audit-milestone` | SC5 | GSD workflows run by the human | Run each; check status fields |
 
 ---

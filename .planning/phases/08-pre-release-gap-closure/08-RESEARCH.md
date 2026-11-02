@@ -301,18 +301,27 @@ Not a rename or migration phase. Omitted.
 | A6 | A Phase 8 sweep protocol (rules written before data, set files pinned by blob sha) is expected by the owner as in Phase 7. | Patterns | If not, the extra document is overhead; if expected and skipped, the thresholds read as post-hoc. |
 | A7 | The number of runner readings needed (a walk of a few thousand `step` points plus a re-sweep of the above-threshold labels at 3 artifacts) fits one or two dispatches like Phase 7's 19-shard walk (5656 points). | Runner | Larger sets need more shards; shard counts come from R6 charges. |
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+Each question's resolution, recorded 2026-11-02 after the owner's rulings D-15 to D-19 (08-CONTEXT.md) and the plan check.
 
 1. **Bolt below-threshold residual (the main one).**
    - Known: the shipped sweep refuses ordinary long-thread parts at d 1.6 to 3.3 mm, d / pitch 7 to 8, turns 70 to 90; a threshold above 8 does not reach them; the catalogue squeezes the ceiling to the interval [60, ~66].
    - Unclear: where the runner puts the first refusal and the band edges at d / pitch 6 to 8.
    - Recommendation: a pre-registered shipped-sweep walk of that region, a 2-D guard (d band, d / pitch above 6, turns above N), and the band-specific fine predicate offered to the owner as the alternative. If neither fits without moving a catalogue bolt, stop and ask (D-03).
+   - **RESOLVED by D-15 and D-19:** the band-specific fine predicate (d in a measured band, d / pitch > 6), and no d / pitch-only bolt clause (D-19). The band edges are read on the runner by 08-SWEEP-PROTOCOL.md F4 and F5 (plans 08-01, 08-03).
 2. **Nut threshold: 6 or something in (6, 7).** Recommend `> 6`; the planner states the 8 catalogue rows it moves.
+   - **RESOLVED by D-16:** strict `d / pitch > 6`; it moves M5, M8, M10, M12, M14, M16, M18 and M20.
 3. **Pair proof and the sweep.** Recommend leaving `solid/pair.py` on the shipped sweep, log it, and let the owner rule if they want the pair proof on the served geometry (it would need `pair_expected.tsv` re-measured, outside this phase).
+   - **RESOLVED by D-17:** `solid/pair.py` stays on the shipped sweep; L36 records it and plan 08-09 files the residual as debt.
 4. **Guard `ctx.fields`.** D-06 says `d`, `pitch`, `thread_length`; the built thread also depends on `length`. Recommend all four, text starting `d, pitch, thread_length and length: `.
+   - **RESOLVED by D-18:** all four fields.
 5. **Does the fine sweep leave any bolt refusal at all above the threshold?** Locally no (48 of 48). If the runner agrees, D-06's "if no refusal is left in a band, that band gets no ceiling" applies to d / pitch above 8, and the guard exists only for the below-threshold residual of Question 1.
+   - **RESOLVED by the protocol and D-19:** D-19 removes the d / pitch-only bolt clause, so no bolt outside the measured bands is on the fine sweep. Inside a band, F7 and F8 turn each fine-sweep refusal into that band's ceiling, and a band with no refusal gets none (D-06). Outside the bands, F5's check cells (8 < d / pitch <= 20) re-read the shipped sweep, and a refusal there is a stop for the owner (D-19). A refused nut on the fine sweep is an F7 stop. Each stop has its owner path in the protocol's `## Stops and owner paths`.
 6. **Web UX after a preset pick (D-12).** Editing `length` below the picked row's `thread_length` becomes a 422. This is the owner's rule; mention it in the Lxx and the UI-SPEC so it is not found as a regression.
+   - **RESOLVED by L35** (plan 08-04): L35 and UI-SPEC rule 38 name the consequence: `thread_length_conflict` can now fire on the web once a picked row's thread_length is explicit.
 7. **Does the fine envelope change the admitted set enough to move runtime.json's R21 count or any frozen B-01 count?** Compute before committing the constants.
+   - **RESOLVED by F10 and F12** (plan 08-08): F12 re-derives `runtime.json`, and a move of any value other than R21's export-cache candidate count is a stop. F10 stops if `FINE_ENVELOPE` refuses a catalogue row or a default part at any artifact (B-01). Both stops have owner paths in the protocol.
 
 ## Environment Availability
 
