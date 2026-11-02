@@ -466,20 +466,22 @@ Plans:
   4. A value typed equal to its default gets the same answer on the web, the API and the CLI, or the difference is an owner decision logged as an `Lxx` (INT-03).
   5. INFO-05 is listed in a Phase 4 SUMMARY's `requirements-completed`; `/gsd-validate-phase 6` and `/gsd-validate-phase 7` leave both VALIDATION.md files `validated`; the re-run milestone audit reads `passed` or `tech_debt`.
 
-**Plans**: 11 plans
+**Plans**: 13 plans
 
-Plans:
-- [ ] 08-01-PLAN.md — Pre-register the sweep protocol F1 to F14 with its stops S1 to S11, and the band walk with out-of-band check cells (D-19); owner dispatches it (wave 1)
-- [ ] 08-02-PLAN.md — L34: `screw export` has no build deadline; amend TABL-06 to agree with L19; INFO-05 traced; INT-04 and INT-05 filed as debt (wave 1)
+Plans (in execution order; 08-12 and 08-13 were split from 08-05 and 08-08 to fit the context budget):
+- [ ] 08-01-PLAN.md — Pre-register the sweep protocol F1 to F14 with its stops S1 to S11, and the band walk with out-of-band check cells (D-19); owner dispatches it (wave 1, alone)
+- [ ] 08-02-PLAN.md — L34: `screw export` has no build deadline; amend TABL-06 to agree with L19; INFO-05 traced; INT-04 and INT-05 filed as debt (wave 2, after 08-01's dispatch)
 - [ ] 08-03-PLAN.md — F5 band judge with the D-19 check-cell stop; commit the band walk records and print the bands (wave 2)
-- [ ] 08-04-PLAN.md — Web counts a typed, picked or linked field as explicit; L35, L19/L21 notes, UI-SPEC rule 38; recorded browser check (wave 2)
-- [ ] 08-05-PLAN.md — Fine sweep for nuts above d / pitch 6 and bolts inside the measured bands only (D-19); island and long-thread tests (wave 3)
-- [ ] 08-06-PLAN.md — Proof walk and cost sets on the freeze commit; owner dispatches them (wave 4)
-- [ ] 08-07-PLAN.md — F7/F8 ceilings judge per band; commit the proof and cost records (wave 5)
-- [ ] 08-08-PLAN.md — FINE_ENVELOPE fitted by F10 on the fine parts; sweep-aware `cost.fits`; pre-Phase-8 sets unchanged (wave 6)
-- [ ] 08-09-PLAN.md — Turns guard `turn_guard` with band regions only; F13, A3 and D-17 residuals filed as debt (wave 7)
-- [ ] 08-10-PLAN.md — Records-driven proof; L36; in-wall debt resolved; OPER-03 complete; phase gate green and branch pushed (wave 8)
-- [ ] 08-11-PLAN.md — Codex reviews the branch; owner runs validate-phase 6 and 7 and the milestone audit; landing via ship and pr.land (wave 9)
+- [ ] 08-04-PLAN.md — Web counts a typed, picked or linked field as explicit; registry-driven API/CLI typed-default test; L35, L19/L21 notes, UI-SPEC rule 38; recorded browser check; web half filed as debt (wave 3)
+- [ ] 08-05-PLAN.md — Fine sweep in helical; nuts above d / pitch 6 on it; bolts routed through the predicate; island and catalogue tests (wave 3)
+- [ ] 08-12-PLAN.md — Measured bolt bands in `calc/thread.py` (D-15, D-19); long-thread debt bolts build; band-edge tests; push (wave 4)
+- [ ] 08-06-PLAN.md — Proof walk (with the band walk's in-band refusals) and cost sets on the freeze commit; owner dispatches them (wave 5)
+- [ ] 08-07-PLAN.md — F7/F8 ceilings judge per band; commit the proof and cost records (wave 6)
+- [ ] 08-08-PLAN.md — FINE_ENVELOPE fitted by F10 on the fine parts and emitted beside ENVELOPE; admission unchanged (wave 7)
+- [ ] 08-13-PLAN.md — Sweep-aware `cost.fits` with the F12 lift and runtime.json in one commit; F10 recorded in RESULTS (wave 8)
+- [ ] 08-09-PLAN.md — Turns guard `turn_guard` with band regions only; F13, A3 and D-17 residuals filed as debt (wave 9)
+- [ ] 08-10-PLAN.md — Records-driven proof; L36; in-wall debt resolved; OPER-03 and SC1 amended to D-07's grid bar (D-20); OPER-03 complete; phase gate green and branch pushed (wave 10)
+- [ ] 08-11-PLAN.md — Codex reviews the branch; owner runs validate-phase 6 and 7 and the milestone audit; landing via ship and pr.land (wave 11)
 
 ## Progress
 

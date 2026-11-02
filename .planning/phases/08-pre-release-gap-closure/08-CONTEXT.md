@@ -136,6 +136,11 @@ here. INT-06 is a wording fix, made when the in-wall debt is resolved.
   84 mm thread). So bolts outside the bands stay on the shipped sweep up to the wall of 20. The
   runner walk adds out-of-band check cells at d / pitch in (8, 20]; if any is refused, the protocol
   stops and asks the owner. This refines D-03 and D-15.
+- **D-20 (2026-11-02, after plan check 2):** OPER-03 and ROADMAP SC1 are amended to D-07's bar,
+  in the same commit that marks OPER-03 complete. The new bar: every part on the named grids
+  builds, or is refused before the kernel with a `422` naming its fields, or is capped and warned.
+  The requirement text names the off-grid residual, which the `Lxx` and a debt item log as
+  unproven. This amends D-08's "only when SC1 holds" so that it reads against the amended SC1.
 
 ### Claude's Discretion
 - The error type name and message wording for the turns guard (follow `pitch_too_fine`).
