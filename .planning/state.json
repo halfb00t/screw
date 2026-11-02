@@ -1,7 +1,7 @@
 {
   "contract": "1.0.0",
   "flavor": "core",
-  "milestone": null,
+  "milestone": "v1.0",
   "phases": [
     {
       "number": "1",
@@ -42,12 +42,17 @@
       "number": "7",
       "name": "Operability Re-sweep",
       "status": "complete"
+    },
+    {
+      "number": "8",
+      "name": "Pre-release Gap Closure",
+      "status": "pending"
     }
   ],
   "next": {
-    "command": "/gsd-new-milestone",
-    "label": "Start a new milestone",
-    "reason": "All phases complete — start a new milestone"
+    "command": "/gsd-progress --next",
+    "label": "Advance to the next step (plan phase 08)",
+    "reason": "Phase 9 of 9 — needs a plan"
   },
-  "updated_at": "2026-11-01T14:18:42.327Z"
+  "updated_at": "2026-11-02T12:09:14.275Z"
 }

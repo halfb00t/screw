@@ -156,6 +156,12 @@ here. INT-06 is a wording fix, made when the in-wall debt is resolved.
   the D-17 debt item and the protocol say exactly this. They must not say that pair proves only on
   the shipped representation.
 
+- **D-23 (2026-11-02, after the final plan check):** The owner accepts the reduced web proof
+  for D-13 and SC4. API and CLI are executed. The web half is source-pinned (`touched.has` and the
+  `partQuery` write) plus one recorded browser check, because no browser harness exists (L01).
+  The gap is filed as a `Severity: must` debt carrying this sign-off, and L35 states the web
+  half's proof is source-pinned. No JS test harness is added.
+
 ### Claude's Discretion
 - The error type name and message wording for the turns guard (follow `pitch_too_fine`).
 - How the per-kind threshold is expressed in code (constants beside `MAX_*_D_PER_PITCH`, read by
