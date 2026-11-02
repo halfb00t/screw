@@ -111,6 +111,25 @@ here. INT-06 is a wording fix, made when the in-wall debt is resolved.
   - Run `/gsd-validate-phase 6` and `/gsd-validate-phase 7`.
   - Re-run `/gsd-audit-milestone`.
 
+### Owner rulings after research (2026-11-02, from 08-RESEARCH.md open questions)
+- **D-15:** Bolt residual below the bolt threshold (research Pitfall 3, Open Question 1): a
+  band-specific fine predicate. The fine sweep applies when the bolt's d is in a measured band
+  (about 0.5 to 0.85 mm and 1.6 to 3.3 mm, edges read on the runner) and d / pitch > 6. Those
+  long-thread parts build instead of being refused, and no catalogue bolt moves (none in the bands
+  has d / pitch above 6). This adds a second kind of fine trigger beside D-03's d / pitch
+  threshold, and the new `Lxx` records it. The D-06 turns guard stays as the backstop for anything
+  the runner shows the fine sweep still refuses. A 2-D turns guard squeezed into [60, ~66] turns by
+  iso4017:M3x30 was rejected.
+- **D-16:** Nut threshold is strict `d / pitch > 6` (research Pitfall 2). It moves 8 of 14 nut
+  catalogue rows (M5, M8, M10, M12, M14, M16, M18, M20) to the fine sweep. The default nut (d 6,
+  pitch 1) and M2, M2.5, M3, M3.5, M4 and M6 stay on the shipped sweep. The `Lxx` lists the moved
+  rows.
+- **D-17:** `solid/pair.py` stays on the shipped sweep (research Pitfall 9). The `Lxx` records that
+  `screw pair` for M5 to M20 proves a pair on the shipped representation, not the served fine one.
+  `tests/data/pair_expected.tsv` is not re-measured.
+- **D-18:** The turns guard's `ctx.fields` names `d`, `pitch`, `thread_length` and `length`
+  (amends D-06), because the built thread is `min(thread_length, length)`.
+
 ### Claude's Discretion
 - The error type name and message wording for the turns guard (follow `pitch_too_fine`).
 - How the per-kind threshold is expressed in code (constants beside `MAX_*_D_PER_PITCH`, read by
