@@ -38,7 +38,34 @@ created: "2026-11-02"
 
 ## Per-Task Verification Map
 
-Filled by the planner per task; the requirement-to-test map below is the source.
+Filled by the planner per task (2026-11-02); the requirement-to-test map below it is the source.
+
+| Task | Req / SC | Automated command | Status |
+|------|----------|-------------------|--------|
+| 08-01 T1 | OPER-03 / SC1 | `make test PYTEST_ARGS="tests/test_oper_fine.py tests/test_oper_pitch.py -q -n0 --no-cov"`; `.venv/bin/python -m bench.oper_sets --check` | ⬜ |
+| 08-01 T2 | OPER-03 / SC1 | F1 to F14 heading check; blob sha grep | ⬜ |
+| 08-01 T3 | OPER-03 / SC1 | checkpoint: owner dispatches `fine-bands`; `gh run view <id> --json headSha,event` | ⬜ |
+| 08-02 T1 | OPER-03 / SC2 | `make test PYTEST_ARGS="tests/test_cli.py -q -n0 --no-cov"` | ⬜ |
+| 08-02 T2 | TABL-06 / SC3 | `grep -q 'once a dimension the row prints is edited' .planning/REQUIREMENTS.md` | ⬜ |
+| 08-03 T1 | OPER-03 / SC1 | `make test PYTEST_ARGS="tests/test_oper_fine.py -q -n0 --no-cov"` | ⬜ |
+| 08-03 T2 | OPER-03 / SC1 | `.venv/bin/python -m bench.oper_sets fine-bands --from bench/results/phase-08/fine-bands-<id>` | ⬜ |
+| 08-04 T1 | FRNT-05 / SC4 | `make test PYTEST_ARGS="tests/test_parity.py tests/test_cost.py -q -n0 --no-cov"` | ⬜ |
+| 08-04 T2 | FRNT-05 / SC4 | L35 and note greps; `make test PYTEST_ARGS="tests/test_runtime_bounds.py tests/test_parity.py -q -n0 --no-cov"` | ⬜ |
+| 08-05 T1 | OPER-03 / SC1 | `make test PYTEST_ARGS="tests/test_thread_maths.py tests/test_nut.py -q -n0 --no-cov"`; `make lint typecheck lint-imports` | ⬜ |
+| 08-05 T2 | OPER-03 / SC1 | `make test PYTEST_ARGS="tests/test_thread_maths.py tests/test_oper_fine.py tests/test_solid.py -q -n0 --no-cov"` | ⬜ |
+| 08-06 T1 | OPER-03 / SC1 | `make test PYTEST_ARGS="tests/test_oper_fine.py tests/test_oper_pitch.py -q -n0 --no-cov"`; `--check` | ⬜ |
+| 08-06 T2 | OPER-03 / SC1 | `make test PYTEST_ARGS="tests/test_oper_fine.py -q -n0 --no-cov"`; `--check`; `bench.oper matrix` | ⬜ |
+| 08-06 T3 | OPER-03 / SC1 | checkpoint: owner dispatches `fine-proof`, `fine-cost`, `fine-spread` | ⬜ |
+| 08-07 T1 | OPER-03 / SC1 | `make test PYTEST_ARGS="tests/test_oper_fine.py -q -n0 --no-cov"` | ⬜ |
+| 08-07 T2 | OPER-03 / SC1 | `.venv/bin/python -m bench.oper_sets fine-ceilings --from bench/results/phase-08/fine-proof-<id>` | ⬜ |
+| 08-08 T1 | OPER-03 / SC1 | `make test PYTEST_ARGS="tests/test_cost.py tests/test_oper_fit.py -q -n0 --no-cov"` | ⬜ |
+| 08-08 T2 | OPER-03 / SC1 | `--check`; `make test PYTEST_ARGS="tests/test_runtime_bounds.py tests/test_oper_bound.py tests/test_cost.py -q -n0 --no-cov"` | ⬜ |
+| 08-09 T1 | OPER-03 / SC1 | `make test PYTEST_ARGS="tests/test_turn_guard.py tests/test_fine_pitch.py tests/test_oper_fine.py tests/test_params.py -q -n0 --no-cov"` | ⬜ |
+| 08-09 T2 | OPER-03 / SC1 | `make test PYTEST_ARGS="tests/test_oper_fine.py tests/test_fine_pitch.py tests/test_oper_pitch.py tests/test_runtime_bounds.py -q -n0 --no-cov"` | ⬜ |
+| 08-10 T1 | INFO-05 / SC5 | `make verify`; `--check`; L34 to L36, OPER-03, TABL-06 greps | ⬜ |
+| 08-10 T2, T3 | SC5 | checkpoints: owner runs `/gsd-validate-phase 6`, `/gsd-validate-phase 7`, `/gsd-audit-milestone` | ⬜ |
+
+The requirement-to-test map:
 
 | Req / SC | Behavior | Test Type | Automated Command | File Exists |
 |----------|----------|-----------|-------------------|-------------|
@@ -72,7 +99,7 @@ Filled by the planner per task; the requirement-to-test map below is the source.
 
 | Behavior | Requirement | Why Manual | Test Instructions |
 |----------|-------------|------------|-------------------|
-| Runner walk and re-sweep readings on linux/amd64 | OPER-03 (D-04, D-05) | L33: CI measures nothing; dispatches are by hand | `gh workflow run operability.yml --ref <branch> -f mode=measure -f set=<set>`; then `gh run download <id> -p 'oper-*'` |
+| Runner walk and re-sweep readings on linux/amd64 | OPER-03 (D-04, D-05) | L33: CI measures nothing; dispatches are by hand | `gh workflow run operability.yml --ref <branch> -f set=<set>` (`set` is the workflow's only input, L33); then `gh run download <id> -p 'oper-*'` |
 | Web form typed-default behavior in a browser | FRNT-05 / INT-03 | No browser harness (L01) | Type a field equal to its default, check the link keeps it and the answer matches the API |
 | `/gsd-validate-phase 6`, `/gsd-validate-phase 7`, `/gsd-audit-milestone` | SC5 | GSD workflows run by the human | Run each; check status fields |
 
