@@ -3183,7 +3183,7 @@ def _regenerate_runs2(name: str, text: str) -> str:
     needs = {"bound": ("explore",), "load": ("tier-order", "explore"), "gzip": ("explore",),
              "arenas": ("explore",), "outband": ("explore",), "bound-rerun": ("explore", "run"),
              "gzip-rerun": ("explore", "run"), PITCH_WALK: ("explore",),
-             TALL_SET: ("explore",)}[name]
+             BAND_WALK: ("explore",), TALL_SET: ("explore",)}[name]
     missing = [source for source in needs if source not in sources]
     if missing:
         raise ValueError(f"it names no {' and '.join(missing)} source")
@@ -3199,6 +3199,8 @@ def _regenerate_runs2(name: str, text: str) -> str:
         return build_rerun(name, sources["explore"], sources["run"], envelope).text()
     if name == PITCH_WALK:
         return build_pitch_walk(sources["explore"], envelope).text()
+    if name == BAND_WALK:
+        return build_band_walk(sources["explore"], envelope).text()
     if name == TALL_SET:
         return build_tall(sources["explore"], envelope).text()
     return build_gzip(sources["explore"], envelope).text()
@@ -3209,7 +3211,8 @@ def _check_runs2() -> str | None:
     with the reason, or None. Absent files are not checked: each is written by its own step."""
     paths = [("tier-order", REPO_ROOT / TIER_ORDER),
              *((name, POINTS_DIR / f"{name}.json") for name in (*RUNS2_SETS, *RERUN_SETS,
-                                                                PITCH_WALK, TALL_SET))]
+                                                                PITCH_WALK, BAND_WALK,
+                                                                TALL_SET))]
     for name, path in paths:
         if not path.is_file():
             continue
@@ -3388,9 +3391,9 @@ def _ceil_figures(x: Fraction) -> float:
     return _dec(math.ceil(x / step) * step)
 
 
-def _pitch_params(kind: str, form: str, d: str, q: int,
+def _pitch_params(kind: str, form: str, d: str, q: int | Fraction,
                   left: bool) -> dict[str, float | bool]:
-    """The fields of one R31 cell."""
+    """The fields of one R31 cell (and, with a fractional q, of F4's large check cells)."""
     pitch = _ceil_figures(Fraction(d) / q)
     size = float(d)
     if kind == "bolt":
@@ -3563,6 +3566,110 @@ def pitch_walls_block(walls: Mapping[str, PitchWall], source: str) -> str:
             f"# {source}`; not edited by hand.\n"
             f'MAX_BOLT_D_PER_PITCH = Fraction("{walls["bolt"].w}")\n'
             "# END pitch-walls\n")
+
+
+# --- Phase 8: the fine sweep (08-SWEEP-PROTOCOL.md) -----------------------------------------------
+#
+# D-15 reads the bands in which the shipped sweep refuses a long-thread bolt, and D-19 reads it
+# again outside them at d / pitch above 8, from a commit that holds the shipped sweep only. The
+# walk is bolts only: the nut threshold is ruled (D-16), not read.
+
+BAND_WALK = "fine-bands"
+BAND_RULE = "08-SWEEP-PROTOCOL.md F4 (08 D-15, D-19)"
+# F4: the sizes of the two bands D-15 named (0.3 to 1.2 and 1.3 to 3.8 mm in 0.05 mm steps, built
+# as decimals so "0.35" is the float of "0.35") and the catalogue-like sizes around them.
+BAND_D = (*(format((Decimal("0.3") + k * Decimal("0.05")).normalize(), "f") for k in range(19)),
+          *(format((Decimal("1.3") + k * Decimal("0.05")).normalize(), "f") for k in range(51)),
+          "4", "4.5", "5", "6", "8", "10", "12", "16", "20")
+BAND_Q = ("5", "6", "6.5", "7", "7.5", "8")
+BAND_TURNS = (50, 70, 90)
+# D-19: the same sizes and larger ones, at d / pitch above 8, to the bolt wall of 20.
+CHECK_D = (*BAND_D, "24", "30", "42", "60", "100")
+CHECK_LARGE_D = ("150", "200", "300", "450", "600", "999.999")  # R31's n3 and n3s forms
+CHECK_Q = ("9", "12.5", "16", "20")
+CHECK_TURNS = (3, 30, 90)
+CHECK_FORMS = PITCH_BOLT_FORMS
+# F4: a build is the same at every artifact, so a cell is read at the cheapest one that admits it.
+BAND_ARTIFACTS: tuple[cost.Artifact, ...] = ("step", "stl-preview", "stl-fine")
+
+
+def _band_params(d: str, q: str, n: int, left: bool) -> dict[str, float | bool]:
+    """The full-thread bolt of both groups: t = L = n pitches, pitch = d / q rounded up to 6
+    figures, s 1.6 d (at most 1000 mm), k 0.6 d."""
+    pitch = _ceil_figures(Fraction(d) / Fraction(q))
+    thread = _dec(n * Fraction(repr(pitch)))
+    size = float(d)
+    return {"d": size, "pitch": pitch, "length": thread, "thread_length": thread,
+            "s": min(_scaled(size, "1.6"), PITCH_BOLT_S_MAX), "k": _scaled(size, "0.6"),
+            "left_hand": left}
+
+
+def _first_admitted(part: FastenerParams, envelope: Envelope,
+                    budget: Budget) -> cost.Artifact | None:
+    """The first of `step`, `stl-preview` and `stl-fine` the cost model admits `part` at."""
+    for artifact in BAND_ARTIFACTS:
+        if admits(part, artifact, envelope, budget):
+            return artifact
+    return None
+
+
+def _band_cells() -> Iterator[tuple[str, dict[str, float | bool]]]:
+    """(label, params) of every cell of the walk, in file order: the edge group, the check group
+    at full thread, then the check group's large sizes."""
+    for d in BAND_D:
+        for q in BAND_Q:
+            for n in BAND_TURNS:
+                for left in (False, True):
+                    yield f"band-d{d}-q{q}-n{n}-{_hand(left)}", _band_params(d, q, n, left)
+    for d in CHECK_D:
+        for q in CHECK_Q:
+            for n in CHECK_TURNS:
+                for left in (False, True):
+                    yield f"check-d{d}-q{q}-n{n}-{_hand(left)}", _band_params(d, q, n, left)
+    for form in CHECK_FORMS:
+        for d in CHECK_LARGE_D:
+            for q in CHECK_Q:
+                for left in (False, True):
+                    yield (f"check-{form}-d{d}-q{q}-{_hand(left)}",
+                           _pitch_params("bolt", form, d, Fraction(q), left))
+
+
+def band_walk_set(envelope: Envelope, budget: Budget = cost.BUDGET) -> _Set:
+    """F4's walk, unsharded: every cell once, at the first artifact `envelope` admits it at; a cell
+    the parameter model refuses (pitch walls lifted, as R31's walk) in `dropped` with its type and
+    a cell admitted at no artifact as `over_budget`."""
+    out = _Set(BAND_WALK, reps=1, shards=1, rule=BAND_RULE, notes=[
+        "F4 edge group: bolts with a full thread t = L = n pitches at n 50, 70 and 90, s 1.6 d (at "
+        "most 1000 mm), k 0.6 d, both hands; pitch = d / q rounded up to 6 significant figures "
+        "for q 5, 6, 6.5, 7, 7.5 and 8, so the exact d / pitch is at most q; d from 0.3 to 1.2 "
+        "and from 1.3 to 3.8 mm in 0.05 mm steps and at 4, 4.5, 5, 6, 8, 10, 12, 16 and 20 mm",
+        "F4 check group (D-19): the shipped sweep re-read outside the bands at d / pitch above 8: "
+        "the same sizes and 24, 30, 42, 60 and 100 mm, full thread at n 3, 30 and 90, and d 150, "
+        "200, 300, 450, 600 and 999.999 mm in R31's n3 and n3s forms, at q 9, 12.5, 16 and 20",
+        "1 repetition per cell, read at step when the shipped model admits it there, else at the "
+        "first of stl-preview and stl-fine it admits (a build is the same at every artifact); "
+        "read from a commit whose src/screw/solid/ is the shipped sweep (D-02)"])
+    for label, params in _band_cells():
+        error = _model_refusal("bolt", params)
+        artifact: cost.Artifact | None = None
+        if error is None:
+            artifact = _first_admitted(oper_lift.drawn("bolt", params), envelope, budget)
+            if artifact is None:
+                error = "over_budget"
+        if artifact is None:
+            out.dropped.append({"label": label, "kind": "bolt", "params": params,
+                                "artifacts": list(BAND_ARTIFACTS), "error": error})
+            continue
+        out.copy({"label": label, "kind": "bolt", "params": params, "artifact": artifact})
+    out.envelope = envelope_document(envelope)
+    return out
+
+
+def build_band_walk(explore_dir: str, envelope: Envelope) -> _Set:
+    """F4's walk under `envelope`, sharded by R6 from an explore run."""
+    out = band_walk_set(envelope)
+    out.sharded(charge_table(_read(explore_dir)), [f"explore={explore_dir}"])
+    return out
 
 
 # --- R28: the full recording tier (07-19) -------------------------------------------------------
@@ -3824,6 +3931,7 @@ def _regenerations() -> Iterator[tuple[Path, str, Callable[[], str]]]:
                        *((name, POINTS_DIR / f"{name}.json") for name in (*RUNS2_SETS,
                                                                           *RERUN_SETS,
                                                                           PITCH_WALK,
+                                                                          BAND_WALK,
                                                                           TALL_SET))):
         if path.is_file():
             text = path.read_text()
@@ -4020,6 +4128,11 @@ def _run(args: argparse.Namespace) -> int:
         Path(args.out).write_text(made.text())
         print(f"{made.name}: {len(made.points)} points in shards of {made.shard_sizes}, "
               f"{len(made.dropped)} dropped")
+    elif args.command == "band-walk":
+        made = build_band_walk(explore_dir, shipped_envelope())
+        Path(args.out).write_text(made.text())
+        print(f"{made.name}: {len(made.points)} points in shards of {made.shard_sizes}, "
+              f"{len(made.dropped)} dropped")
     elif args.command == "pitch-walls":
         readings = read_readings(Path(args.source))
         walls = pitch_walls(_points_of(PITCH_WALK), readings)
@@ -4105,6 +4218,10 @@ def main(argv: list[str] | None = None) -> int:
     pitch_walk = sub.add_parser("pitch-walk", help="write R31's fine-pitch walk (G35)")
     pitch_walk.add_argument("--explore", required=True)
     pitch_walk.add_argument("--out", required=True)
+    band_walk = sub.add_parser("band-walk", help="write F4's band walk of the shipped sweep "
+                                                 "(08 D-15, D-19)")
+    band_walk.add_argument("--explore", required=True)
+    band_walk.add_argument("--out", required=True)
     sub.add_parser("pitch-walls", help="R31's F and W per kind from the walk's records, exit 3 "
                                        "if the bolt W is not 20 (G35, G36)").add_argument(
         "--from", dest="source", required=True)
