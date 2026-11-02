@@ -141,6 +141,8 @@ here. INT-06 is a wording fix, made when the in-wall debt is resolved.
   builds, or is refused before the kernel with a `422` naming its fields, or is capped and warned.
   The requirement text names the off-grid residual, which the `Lxx` and a debt item log as
   unproven. This amends D-08's "only when SC1 holds" so that it reads against the amended SC1.
+  The same commit amends the ROADMAP Phase 8 Goal line's "no admitted part ends in a kernel
+  `422 build_error`" to the same grid bar (extended by the owner's grid-bar ruling, 2026-11-02).
 
 ### Claude's Discretion
 - The error type name and message wording for the turns guard (follow `pitch_too_fine`).
