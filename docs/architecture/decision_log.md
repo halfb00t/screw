@@ -1454,7 +1454,7 @@ model cannot tell an explicit value from a default (L13 D-25). The rule needs on
 explicit: `s` and `k` come from the request, or from the frozen `BoltParams` defaults when the query
 does not name them (`?head_chamfer=80` alone is judged at `s` 10, `k` 4); a preset's `s` and `k`, filled
 by the CLI before the check, count as given; `thread_length` is judged first. The page writes only the
-fields that differ from their defaults, so a typed 30 is never explicit there. **The owner's D-25
+fields that differ from their defaults, so a typed 30 is never explicit there. (Superseded in part by L35, 2026-11-02: the page now writes a field the user typed, so a typed 30 is explicit there too.) **The owner's D-25
 exception is extended to this one rule and no other (D-06):** a direct `BoltParams(head_chamfer=80)` is
 not refused, it is capped and warned. At the default part (`s` 10, `k` 4) the cap binds from
 68.85595459078384 degrees; it binds at 30 degrees whenever `k < 0.0893 s`.
@@ -1768,7 +1768,7 @@ one capped part. A part no cap admits keeps its per-artifact `over_budget` 422. 
 every artifact is never capped. "Named" is what the request names: the raw query keys on the API (the
 set `refuse_explicit_conflict` reads) and the given flags plus a preset's fields on the CLI (the set
 passed to `explicit_conflict`), so a preset is never capped; the page writes only fields that differ
-from their defaults, so a typed default counts as not set there, as for L19's head chamfer. The code
+from their defaults, so a typed default counts as not set there, as for L19's head chamfer. (Superseded in part by L35, 2026-11-02: the page now writes a field the user typed, picked or linked, so a typed default counts as set there, as on the API and the CLI.) The code
 is `cost.cap_defaults` and `calc.derive_capped`, called by the API's info and model routes and by
 `screw info` and `screw export`; `tests/test_cost.py` holds the two front ends to the same part,
 warning and file name. A d-only M5, whose preview G28 ruling 5 refuses, is served with its defaulted
@@ -2617,3 +2617,51 @@ have a deadline or a logged reason it has none.
 
 Reversibility: reversible. A flag and a child process could be added later without changing any
 shipped number.
+
+## L35 — The page counts a field the user typed, picked or linked as explicit, as the API and the CLI do
+
+Date: 2026-11-02. Decided by the owner in the Phase 8 discussion (08-CONTEXT.md D-11 to D-13),
+closing the v1.0 audit's INT-03 and ROADMAP Phase 8 success criterion 4.
+
+**The rule.** The page keeps `touched`, a set of field names in page memory. `partQuery` writes a
+field when its value differs from its default or when it is in `touched`, and never writes an empty
+control. Link keys stay in form order, `kind` first. `touched` has these writers and clearers:
+
+- a field's `input` event adds the field while the control holds a value and removes it when the
+  control is empty;
+- a preset pick adds every field the picked row defines, in union with what the user already set
+  (D-12);
+- `navigate()` empties it and then adds every field key the hash names, so a link's fields stay
+  explicit;
+- Reset empties it, and a kind change empties it (the selector writes a hash with no field).
+
+`partQuery` is the only reader. No request, download or badge reads `touched`, and a reload or a new
+tab forgets it.
+
+**Why (L02).** The API counts the raw query keys as explicit and the CLI counts the given flags plus a
+preset's fields. Before L35 the page wrote only fields that differ from their defaults. A typed
+`thread_length=20` on bolt d 30, pitch 2, s 48, k 18 was therefore capped to the default-cap value on
+the web (`cost.cap_defaults`, L21), while the API and the CLI refused the STLs `over_budget`. The same
+typed part got two answers, and a parameter the user set had changed the part.
+
+**Consequences.**
+
+- A preset link now carries every field its row defines.
+- A typed default can be refused `over_budget` on the web where it was silently capped.
+- `thread_length_conflict` and `head_chamfer_conflict` can now fire on the web, when the user sets
+  both fields.
+- A link with no touched field is unchanged, so every link already shared opens the same part.
+
+**Supersedes in part.** L19, its sentence that the page writes only the fields that differ from their
+defaults, so a typed 30 is never explicit there. L21, its clause that a typed default counts as not
+set on the page. Both sentences stay in place with a note.
+
+**How it is held.** `tests/test_parity.py` executes the API and the CLI on the part d 30, pitch 2,
+s 48, k 18 with `thread_length` typed at its default, and for every kind's defaulted fields typed at
+their defaults. The page is pinned as source text and by one recorded browser check (08-04 SUMMARY),
+because no harness runs the page (L01). That un-executed half is filed as debt with its triggers
+(`docs/tech_debt/active/2026-11-03-typed-default-web-half-is-source-pinned.md`).
+
+Reason: the owner's ruling and SC4.
+
+Reversibility: reversible. One statement in `partQuery` and the set's writers.
