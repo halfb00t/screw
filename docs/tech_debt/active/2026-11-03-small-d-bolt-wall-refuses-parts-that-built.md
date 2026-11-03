@@ -22,11 +22,16 @@ now gets a 422 naming d and pitch.
 A user who asks for d 0.6, pitch 0.04 and a short thread gets a 422 for a part that builds. Every
 failure seen was a 90-turn thread; a turns ceiling would keep the short ones.
 
+## Owner sign-off
+2026-11-03, after the over-refusal above was put to the owner with three paths (keep L37, supersede
+it now with a turns ceiling, or keep L37 and fix it as debt after the release), the owner replied
+`3`: L37 ships in the first release and the turns ceiling is this item's fix, after the release.
+The parts it refuses have pitches of 0.025 to 0.068 mm.
+
 ## Next step
-Revisit if the owner wants those parts back before the first release, or if a user report names one.
-The narrower tool is a turns ceiling for d 0.45 to 0.9 mm read by F8's rule over a proof walk of
-that interval (a supersession of L37 and a new set). Cheapest while plan 08-12 has not written the
-wall.
+After the first release, or sooner if a user report names a refused part. The fix is a turns
+ceiling for d 0.45 to 0.9 mm read by F8's rule over a new pre-registered walk of that interval, as
+a supersession of L37.
 
 <!-- On resolve: set Status: resolved, add `Resolved in: <commit sha>`,
      git mv into resolved/, move the INDEX row to Resolved — same commit as the fix. -->
