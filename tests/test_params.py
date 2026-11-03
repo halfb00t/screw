@@ -291,11 +291,12 @@ def test_a_pitch_past_the_float_range_of_turns_is_a_turn_cap_error_not_an_overfl
 
 
 def test_the_exact_90_turn_row_is_accepted_though_float_division_reads_above_90() -> None:
-    # 2.7 / 0.03 is a float above 90; the user typed exactly 90 turns (Pitfall 2). d 0.6 keeps
-    # the pitch inside the bolt's fine-pitch wall (07 R31, d / pitch 20).
+    # 2.7 / 0.03 is a float above 90; the user typed exactly 90 turns (Pitfall 2). d 0.45 keeps
+    # the pitch inside the bolt's fine-pitch wall (07 R31, d / pitch 15) and outside the open
+    # interval (0.45, 0.9) where the wall is 9 (L37): d 0.6 here is refused at d / pitch 20.
     assert 2.7 / 0.03 > 90
-    p = BoltParams.model_validate({"d": 0.6, "pitch": 0.03, "length": 2.7, "thread_length": 2.7})
-    assert (p.d, p.pitch, p.length, p.thread_length) == (0.6, 0.03, 2.7, 2.7)
+    p = BoltParams.model_validate({"d": 0.45, "pitch": 0.03, "length": 2.7, "thread_length": 2.7})
+    assert (p.d, p.pitch, p.length, p.thread_length) == (0.45, 0.03, 2.7, 2.7)
 
 
 def test_a_field_error_hides_the_model_rules_that_need_every_field() -> None:

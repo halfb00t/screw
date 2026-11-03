@@ -91,10 +91,11 @@ def _root_floor(floor: float) -> Iterator[None]:
 
 @contextmanager
 def _no_pitch_wall() -> Iterator[None]:
-    """Neither kind's fine-pitch wall for the validation inside the block, like `_turn_cap`: the
-    refusal reads both constants at call time."""
+    """No fine-pitch wall for the validation inside the block, like `_turn_cap`: the refusal reads
+    all three constants at call time (the two kinds' walls and the small-d bolt wall of L37)."""
     module = vars(thread)
-    saved = {name: module[name] for name in ("MAX_BOLT_D_PER_PITCH", "MAX_NUT_D_PER_PITCH")}
+    saved = {name: module[name] for name in ("MAX_BOLT_D_PER_PITCH", "MAX_NUT_D_PER_PITCH",
+                                             "SMALL_BOLT_D_PER_PITCH")}
     module.update(dict.fromkeys(saved, UNWALLED))
     try:
         yield

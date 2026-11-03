@@ -81,6 +81,17 @@ MAX_BOLT_D_PER_PITCH = Fraction("20")
 # the 14 nut catalogue rows and the default nut (d / pitch 6). The island stays debt with the bolt's
 # residual; 8 is the catalogue's largest d / pitch, and every other refused nut sat at 11.
 MAX_NUT_D_PER_PITCH = Fraction(8)
+# The bolt wall for a small d, by the owner's ruling at the band walk's stop S5 (L37, F15 of
+# `08-SWEEP-PROTOCOL.md`; supersedes L25 for this interval only): a bolt whose exact d lies strictly
+# between 0.45 and 0.9 mm has a wall of d / pitch 9, not 20. Band walk run 41635270998 (linux/amd64)
+# refused 40 check cells there, all with 90 turns, at d / pitch 12.5 and above, and read every q 9
+# cell ok; the 9 is the owner's, not a margin rule's. It is written here and not inside the
+# pitch-walls block, which the pitch-walls judge writes. The wall refuses before the kernel, so it
+# also refuses parts that built (104 of the 144 check cells above 9 read ok, all of them 3 or 30
+# turns, or left hand), filed as
+# docs/tech_debt/active/2026-11-03-small-d-bolt-wall-refuses-parts-that-built.md.
+SMALL_BOLT_D_MM = (Fraction("0.45"), Fraction("0.9"))
+SMALL_BOLT_D_PER_PITCH = Fraction(9)
 
 # Who is swept finely (08 D-01, F2, F3): `helical.thread(..., fine=True)` samples each flank at 56
 # points and sets the pipe shell's tolerance, which builds the island of six nuts the shipped sweep
@@ -431,21 +442,32 @@ def _smallest_admitted_pitch(d: float, wall: Fraction) -> float | None:
 
 def pitch_too_fine_refusal(kind: str, d: float, pitch: float) -> str | None:
     """None when the exact d / pitch is at most the kind's fine-pitch wall (`MAX_BOLT_D_PER_PITCH`
-    or `MAX_NUT_D_PER_PITCH`, read at call time); otherwise the text (07 R31).
+    or `MAX_NUT_D_PER_PITCH`, read at call time); otherwise the text (07 R31). A bolt with d
+    strictly inside `SMALL_BOLT_D_MM` has the wall `SMALL_BOLT_D_PER_PITCH` instead (L37).
 
     Exact decimals, as the walls of the turn cap: a d / pitch typed as exactly the wall is
     admitted. The ratio prints from the fraction itself, so a subnormal pitch reads as a huge
     number and not as an overflow. The text begins `d and pitch: `. No braces: pydantic formats a
     custom error from its context.
     """
-    wall = MAX_BOLT_D_PER_PITCH if kind == "bolt" else MAX_NUT_D_PER_PITCH
+    small_low, small_high = SMALL_BOLT_D_MM
+    small = kind == "bolt" and small_low < _exact(d) < small_high
+    wall = (SMALL_BOLT_D_PER_PITCH if small
+            else MAX_BOLT_D_PER_PITCH if kind == "bolt" else MAX_NUT_D_PER_PITCH)
     ratio = _exact(d) / _exact(pitch)
     if ratio <= wall:
         return None
-    why = ("the bolt's wall, one R10 step below the smallest d / pitch at which the kernel "
-           "refused a 3-turn bolt on linux/amd64 (run 41074314305)" if kind == "bolt" else
-           "the nut's wall as the owner ruled it (07 G36), below d / pitch 11, where the kernel "
-           "refused nuts on linux/amd64 (run 41074314305)")
+    if small:
+        why = (f"the wall of a bolt with d above {float(small_low):g} and below "
+               f"{float(small_high):g} mm as the owner ruled it (L37), below d / pitch 12.5, "
+               f"where the kernel refused 90-turn bolts of that size on linux/amd64 "
+               f"(run 41635270998)")
+    elif kind == "bolt":
+        why = ("the bolt's wall, one R10 step below the smallest d / pitch at which the kernel "
+               "refused a 3-turn bolt on linux/amd64 (run 41074314305)")
+    else:
+        why = ("the nut's wall as the owner ruled it (07 G36), below d / pitch 11, where the "
+               "kernel refused nuts on linux/amd64 (run 41074314305)")
     text = (f"d and pitch: d / pitch is {ratio:.6g} at d {_plain(d)} and pitch {_plain(pitch)}, "
             f"above {wall}, {why}")
     smallest = _smallest_admitted_pitch(d, wall)

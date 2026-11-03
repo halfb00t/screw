@@ -519,3 +519,25 @@ def test_fine_bands_exits_3_on_a_stop_and_prints_the_block_otherwise(
     _write(tmp_path / "bad", _readings({**TWO_BANDS, "check-d3.4-q9-n3-right": "refused"}))
     assert oper_sets.main(["fine-bands", "--from", str(tmp_path / "bad")]) == 3
     assert "oper_sets: stop (F5): " in capsys.readouterr().err
+
+
+def test_the_judges_walled_edges_and_wall_are_the_small_d_wall_of_calc_thread() -> None:
+    """F15 and L37: the judge's two edges and its 9 are the rulings, and `calc.thread` carries the
+    same three numbers (plan 08-12), so the cells the judge calls walled are the ones the model
+    refuses."""
+    assert oper_sets.SMALL_D == thread.SMALL_BOLT_D_MM == (Fraction("0.45"), Fraction("0.9"))
+    assert oper_sets.SMALL_WALL == thread.SMALL_BOLT_D_PER_PITCH == 9
+
+
+def test_the_walled_cells_are_the_ones_the_parameter_model_refuses() -> None:
+    """Every cell the judge lists as walled is refused by `pitch_too_fine_refusal` under the
+    production walls, and the cells outside the interval are not."""
+    readings = oper_sets.read_readings(RECORDS)
+    points = _list("points")
+    bands = oper_sets.fine_bands(points, readings)
+    _, _, walled = oper_sets.check_group(points, readings, bands)
+    by_label = {str(p["label"]): _params(p) for p in points}
+    assert len(walled) == 40
+    for label in walled:
+        params = by_label[label]
+        assert thread.pitch_too_fine_refusal("bolt", float(params["d"]), float(params["pitch"]))
