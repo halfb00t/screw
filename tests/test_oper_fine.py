@@ -465,6 +465,29 @@ def test_the_text_and_the_cli_report_the_walled_cells(
     assert "walled: 2 refused above d / pitch 9" in capsys.readouterr().out
 
 
+# --- the committed records (run 41635270998) -----------------------------------------------------
+
+RECORDS = REPO_ROOT / "bench" / "results" / "phase-08" / "fine-bands-41635270998"
+
+
+def test_the_band_walk_records_give_the_bands_08_12_ships() -> None:
+    """F5 over the committed linux/amd64 records: one band, d 1.55 to 3.35 mm (the block 08-12
+    pastes into `calc.thread`, which replaces this expected tuple with the block check), the 315
+    in-band check refusals, and the 40 cells at d 0.5 to 0.85 mm that F15 hands to the wall."""
+    readings = oper_sets.read_readings(RECORDS)
+    points = _list("points")
+    bands = oper_sets.fine_bands(points, readings)
+    assert [(b.low, b.high) for b in bands] == [(Fraction("1.55"), Fraction("3.35"))]
+    assert len(bands[0].refused) == 175
+    inband, ok_outside, walled = oper_sets.check_group(points, readings, bands)
+    assert (len(inband), ok_outside, len(walled)) == (315, 1158, 40)
+    assert {_q(label) for label in walled} == {Fraction("12.5"), Fraction(16), Fraction(20)}
+    assert {label.split("-")[1] for label in walled} == {
+        f"d{d}" for d in ("0.5", "0.55", "0.6", "0.65", "0.7", "0.75", "0.8", "0.85")}
+    assert all(label.endswith(("-right", "-left")) and "-n90-" in label for label in walled)
+    assert oper_sets.fine_bands_block(bands, "x").count('Fraction("') == 2
+
+
 def _write(directory: Path, readings: list[Raw]) -> None:
     (directory / "oper-fine-bands-1-1").mkdir(parents=True)
     lines = [json.dumps({"type": "header", "GITHUB_RUN_ID": "1"})]
