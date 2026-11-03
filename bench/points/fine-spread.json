@@ -1,0 +1,343 @@
+{
+ "set": "fine-spread",
+ "rule": "08-SWEEP-PROTOCOL.md F9, the catalogue spread (08 D-05)",
+ "reps": 5,
+ "shards": 1,
+ "deadline_s": 600,
+ "points": [
+  {
+   "label": "fspread-row-iso4032:M5",
+   "kind": "nut",
+   "params": {
+    "d": 5.0,
+    "pitch": 0.8,
+    "s": 8.0,
+    "m": 4.7,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "fspread-row-iso4032:M5",
+   "kind": "nut",
+   "params": {
+    "d": 5.0,
+    "pitch": 0.8,
+    "s": 8.0,
+    "m": 4.7,
+    "left_hand": false
+   },
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "fspread-row-iso4032:M5",
+   "kind": "nut",
+   "params": {
+    "d": 5.0,
+    "pitch": 0.8,
+    "s": 8.0,
+    "m": 4.7,
+    "left_hand": false
+   },
+   "artifact": "step"
+  },
+  {
+   "label": "fspread-row-iso4032:M8",
+   "kind": "nut",
+   "params": {
+    "d": 8.0,
+    "pitch": 1.25,
+    "s": 13.0,
+    "m": 6.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "fspread-row-iso4032:M8",
+   "kind": "nut",
+   "params": {
+    "d": 8.0,
+    "pitch": 1.25,
+    "s": 13.0,
+    "m": 6.8,
+    "left_hand": false
+   },
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "fspread-row-iso4032:M8",
+   "kind": "nut",
+   "params": {
+    "d": 8.0,
+    "pitch": 1.25,
+    "s": 13.0,
+    "m": 6.8,
+    "left_hand": false
+   },
+   "artifact": "step"
+  },
+  {
+   "label": "fspread-row-iso4032:M10",
+   "kind": "nut",
+   "params": {
+    "d": 10.0,
+    "pitch": 1.5,
+    "s": 16.0,
+    "m": 8.4,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "fspread-row-iso4032:M10",
+   "kind": "nut",
+   "params": {
+    "d": 10.0,
+    "pitch": 1.5,
+    "s": 16.0,
+    "m": 8.4,
+    "left_hand": false
+   },
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "fspread-row-iso4032:M10",
+   "kind": "nut",
+   "params": {
+    "d": 10.0,
+    "pitch": 1.5,
+    "s": 16.0,
+    "m": 8.4,
+    "left_hand": false
+   },
+   "artifact": "step"
+  },
+  {
+   "label": "fspread-row-iso4032:M12",
+   "kind": "nut",
+   "params": {
+    "d": 12.0,
+    "pitch": 1.75,
+    "s": 18.0,
+    "m": 10.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "fspread-row-iso4032:M12",
+   "kind": "nut",
+   "params": {
+    "d": 12.0,
+    "pitch": 1.75,
+    "s": 18.0,
+    "m": 10.8,
+    "left_hand": false
+   },
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "fspread-row-iso4032:M12",
+   "kind": "nut",
+   "params": {
+    "d": 12.0,
+    "pitch": 1.75,
+    "s": 18.0,
+    "m": 10.8,
+    "left_hand": false
+   },
+   "artifact": "step"
+  },
+  {
+   "label": "fspread-row-iso4032:M14",
+   "kind": "nut",
+   "params": {
+    "d": 14.0,
+    "pitch": 2.0,
+    "s": 21.0,
+    "m": 12.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "fspread-row-iso4032:M14",
+   "kind": "nut",
+   "params": {
+    "d": 14.0,
+    "pitch": 2.0,
+    "s": 21.0,
+    "m": 12.8,
+    "left_hand": false
+   },
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "fspread-row-iso4032:M14",
+   "kind": "nut",
+   "params": {
+    "d": 14.0,
+    "pitch": 2.0,
+    "s": 21.0,
+    "m": 12.8,
+    "left_hand": false
+   },
+   "artifact": "step"
+  },
+  {
+   "label": "fspread-row-iso4032:M16",
+   "kind": "nut",
+   "params": {
+    "d": 16.0,
+    "pitch": 2.0,
+    "s": 24.0,
+    "m": 14.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "fspread-row-iso4032:M16",
+   "kind": "nut",
+   "params": {
+    "d": 16.0,
+    "pitch": 2.0,
+    "s": 24.0,
+    "m": 14.8,
+    "left_hand": false
+   },
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "fspread-row-iso4032:M16",
+   "kind": "nut",
+   "params": {
+    "d": 16.0,
+    "pitch": 2.0,
+    "s": 24.0,
+    "m": 14.8,
+    "left_hand": false
+   },
+   "artifact": "step"
+  },
+  {
+   "label": "fspread-row-iso4032:M18",
+   "kind": "nut",
+   "params": {
+    "d": 18.0,
+    "pitch": 2.5,
+    "s": 27.0,
+    "m": 15.8,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "fspread-row-iso4032:M18",
+   "kind": "nut",
+   "params": {
+    "d": 18.0,
+    "pitch": 2.5,
+    "s": 27.0,
+    "m": 15.8,
+    "left_hand": false
+   },
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "fspread-row-iso4032:M18",
+   "kind": "nut",
+   "params": {
+    "d": 18.0,
+    "pitch": 2.5,
+    "s": 27.0,
+    "m": 15.8,
+    "left_hand": false
+   },
+   "artifact": "step"
+  },
+  {
+   "label": "fspread-row-iso4032:M20",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "s": 30.0,
+    "m": 18.0,
+    "left_hand": false
+   },
+   "artifact": "stl-preview"
+  },
+  {
+   "label": "fspread-row-iso4032:M20",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "s": 30.0,
+    "m": 18.0,
+    "left_hand": false
+   },
+   "artifact": "stl-fine"
+  },
+  {
+   "label": "fspread-row-iso4032:M20",
+   "kind": "nut",
+   "params": {
+    "d": 20.0,
+    "pitch": 2.5,
+    "s": 30.0,
+    "m": 18.0,
+    "left_hand": false
+   },
+   "artifact": "step"
+  }
+ ],
+ "dropped": [],
+ "notes": [
+  "F9: the nut catalogue rows F3 puts on the fine sweep (M5 to M20 but M6), right hand, at every artifact the shipped model admits under the shipped envelope and B-01, 5 repetitions"
+ ],
+ "shard_sizes": [
+  24
+ ],
+ "sources": [
+  "explore=bench/results/phase-07/explore-40646117094"
+ ],
+ "envelope": {
+  "bolt": {
+   "stl-preview": {
+    "bytes": 2.264581945786201,
+    "seconds": 4.286137349093968,
+    "peak": 2.040087854388461
+   },
+   "stl-fine": {
+    "bytes": 0.5633622849303941,
+    "seconds": 2.690232029900006,
+    "peak": 2.170967259675211
+   },
+   "step": {
+    "bytes": 0.9874058238127998,
+    "seconds": 2.616422482555953,
+    "peak": 0.45747877720379804
+   }
+  },
+  "nut": {
+   "stl-preview": {
+    "bytes": 0.7070121785110755,
+    "seconds": 1.0971665633647603,
+    "peak": 0.556086702674923
+   },
+   "stl-fine": {
+    "bytes": 0.4996608149413484,
+    "seconds": 1.7812452161769916,
+    "peak": 0.5976833077470993
+   },
+   "step": {
+    "bytes": 0.3802587303182223,
+    "seconds": 1.0534097750071423,
+    "peak": 0.48786919655819627
+   }
+  }
+ }
+}

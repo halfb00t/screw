@@ -824,3 +824,166 @@ def test_the_proof_walk_subcommand_writes_the_committed_file(tmp_path: Path) -> 
     assert oper_sets.main(["proof-walk", "--explore", EXPLORE_RUN, "--bands", BANDS_RUN,
                            "--out", str(out)]) == 0
     assert out.read_text() == PROOF.read_text()
+
+
+# --- F9: the cost re-sweep and the spread (08-06) -----------------------------------------------
+
+COST = REPO_ROOT / "bench" / "points" / f"{oper_sets.FINE_COST}.json"
+SPREAD = REPO_ROOT / "bench" / "points" / f"{oper_sets.FINE_SPREAD}.json"
+
+
+def _doc(path: Path) -> dict[str, object]:
+    found: dict[str, object] = json.loads(path.read_text())
+    return found
+
+
+def _entries(path: Path, key: str) -> list[Raw]:
+    found = _doc(path)[key]
+    assert isinstance(found, list)
+    return found
+
+
+def _both(path: Path) -> list[Raw]:
+    return [*_entries(path, "points"), *_entries(path, "dropped")]
+
+
+@pytest.mark.parametrize(("path", "name", "reps"),
+                         [(COST, "fine-cost", 1), (SPREAD, "fine-spread", 5)])
+def test_the_cost_headers_name_the_explore_run_the_shipped_envelope_and_f9(
+        path: Path, name: str, reps: int) -> None:
+    document = _doc(path)
+    assert document["set"] == name
+    assert document["reps"] == reps
+    assert document["sources"] == [f"explore={EXPLORE_RUN}"]
+    assert str(document["rule"]).startswith("08-SWEEP-PROTOCOL.md F9")
+    assert oper_sets.envelope_of(document["envelope"]) == oper_sets.shipped_envelope()
+    sizes = document["shard_sizes"]
+    assert isinstance(sizes, list)
+    assert sum(sizes) == len(_entries(path, "points"))
+    assert oper.load_set(name).reps == reps
+
+
+@pytest.mark.parametrize("name", [oper_sets.FINE_COST, oper_sets.FINE_SPREAD])
+def test_the_cost_files_are_what_the_generator_writes_from_their_sources(name: str) -> None:
+    text = (REPO_ROOT / "bench" / "points" / f"{name}.json").read_text()
+    assert oper_sets._regenerate_runs2(name, text) == text
+
+
+def test_a_cost_copy_with_one_point_removed_is_not_what_the_generator_writes(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    document = json.loads(COST.read_text())
+    del document["points"][0]
+    (tmp_path / COST.name).write_text(json.dumps(document, indent=1) + "\n")
+    (tmp_path / "explore.json").write_text((COST.parent / "explore.json").read_text())
+    monkeypatch.setattr(oper_sets, "POINTS_DIR", tmp_path)
+    failure = oper_sets._check_runs2()
+    assert failure is not None
+    assert COST.name in failure
+
+
+@pytest.mark.parametrize("path", [COST, SPREAD])
+def test_no_point_of_a_cost_file_is_off_the_fine_sweep(path: Path) -> None:
+    """D-05: only the parts above the thresholds are re-swept."""
+    points = _entries(path, "points")
+    assert points
+    for point in points:
+        assert _fine(point), point["label"]
+
+
+@pytest.mark.parametrize("path", [COST, SPREAD])
+def test_every_cost_point_is_one_the_runner_accepts_at_an_artifact_the_model_admits(
+        path: Path) -> None:
+    envelope = oper_sets.envelope_of(_doc(path)["envelope"])
+    for point in _entries(path, "points"):
+        part = oper_lift.validate(str(point["kind"]), _params(point))
+        artifact = next(a for a in cost.ARTIFACTS if a == point["artifact"])
+        assert oper_sets.admits(part, artifact, envelope, cost.BUDGET), point["label"]
+
+
+@pytest.mark.parametrize("path", [COST, SPREAD])
+def test_a_cost_part_is_at_every_artifact_it_is_admitted_at_and_dropped_at_the_rest(
+        path: Path) -> None:
+    envelope = oper_sets.envelope_of(_doc(path)["envelope"])
+    at: dict[str, set[str]] = {}
+    for point in _entries(path, "points"):
+        at.setdefault(str(point["label"]), set()).add(str(point["artifact"]))
+    dropped = {str(c["label"]): c for c in _entries(path, "dropped")}
+    for label in {*at, *dropped}:
+        cell = next(c for c in _both(path) if c["label"] == label)
+        kind, params = str(cell["kind"]), _params(cell)
+        if (error := oper_sets._runner_refusal(kind, params)) is not None:
+            assert label not in at, label
+            assert dropped[label]["error"] == error
+            assert dropped[label]["artifacts"] == list(cost.ARTIFACTS)
+            continue
+        part = oper_lift.drawn(kind, params)
+        admitted = {a for a in cost.ARTIFACTS if oper_sets.admits(part, a, envelope, cost.BUDGET)}
+        assert at.get(label, set()) == admitted, label
+        if admitted == set(cost.ARTIFACTS):
+            assert label not in dropped, label
+        else:
+            assert dropped[label]["error"] == "over_budget", label
+            artifacts = dropped[label]["artifacts"]
+            assert isinstance(artifacts, list)
+            assert set(artifacts) == set(cost.ARTIFACTS) - admitted, label
+
+
+def test_fine_cost_holds_the_explore_parts_the_rows_the_inband_bolts_and_the_nuts() -> None:
+    explore: set[str] = set()
+    for point in oper_sets._points_of("explore"):
+        part = oper_lift.registered(str(point["kind"]), _params(dict(point)))
+        if thread.uses_fine_sweep(str(point["kind"]), part.d, part.pitch):
+            explore.add(f"fcost-explore-{point['label']}")
+    assert len(explore) == 87
+    labels = {str(c["label"]) for c in _both(COST)}
+    assert {label for label in labels if label.startswith("fcost-explore-")} == explore
+    assert {label for label in labels if label.startswith("fcost-row-")} == {
+        f"fcost-row-{row}" for row in NUT_ROW_IDS}
+    bands = {f"fcost-band-d{d}-q{q}-n{n}" for d in ("1.6", "2.5", "3", "3.3")
+             for q in ("7", "8", "12.5", "20") for n in (3, 30, 90)}
+    assert len(bands) == 48  # d 0.5 and 0.8 lie outside the one band and are not drawn
+    assert {label for label in labels if label.startswith("fcost-band-")} == bands
+    nuts = {f"fcost-nut-{form}-d{d}-q{q}" for form in ("base", "s4")
+            for d in ("0.8", "2.2", "5", "10", "20") for q in ("6.25", "7", "8")}
+    assert len(nuts) == 30
+    assert {label for label in labels if label.startswith("fcost-nut-")} == nuts
+    assert len(labels) == 87 + 8 + 48 + 30
+
+
+def test_fine_cost_parts_are_right_handed_full_thread_bolts_and_the_catalogue_nuts() -> None:
+    for cell in _both(COST):
+        label, params = str(cell["label"]), _params(cell)
+        if label.startswith(("fcost-band-", "fcost-nut-", "fcost-row-")):
+            assert params["left_hand"] is False, label
+        match = re.match(r"^fcost-band-d([0-9.]+)-q([0-9.]+)-n(\d+)$", label)
+        if match:
+            assert params == oper_sets._band_params(match[1], match[2], int(match[3]), False)
+        match = re.match(r"^fcost-nut-(\w+)-d([0-9.]+)-q([0-9.]+)$", label)
+        if match:
+            assert params == oper_sets._pitch_params("nut", match[1], match[2],
+                                                     Fraction(match[3]), False)
+
+
+def test_fine_spread_is_the_eight_moved_nut_rows_at_five_repetitions() -> None:
+    assert {str(c["label"]) for c in _both(SPREAD)} == {f"fspread-row-{row}" for row in NUT_ROW_IDS}
+    assert {p["label"] for p in _entries(SPREAD, "points")} == {
+        f"fspread-row-{row}" for row in NUT_ROW_IDS}
+    assert _doc(SPREAD)["reps"] == 5
+    for cell in _both(SPREAD):
+        assert _params(cell)["left_hand"] is False, cell["label"]
+
+
+def test_a_part_off_the_fine_sweep_cannot_enter_a_cost_set() -> None:
+    envelope = oper_sets.shipped_envelope()
+    off = ("fcost-off", "nut", oper_sets._pitch_params("nut", "base", "5", Fraction(6), False))
+    with pytest.raises(ValueError, match="not on the fine sweep"):
+        oper_sets._fine_parts_set(oper_sets._Set("x", reps=1, shards=1, notes=[]), [off],
+                                  envelope, cost.BUDGET)
+
+
+def test_the_fine_cost_sets_subcommand_writes_both_committed_files(tmp_path: Path) -> None:
+    assert oper_sets.main(["fine-cost-sets", "--explore", EXPLORE_RUN,
+                           "--cost-out", str(tmp_path / "c.json"),
+                           "--spread-out", str(tmp_path / "s.json")]) == 0
+    assert (tmp_path / "c.json").read_text() == COST.read_text()
+    assert (tmp_path / "s.json").read_text() == SPREAD.read_text()

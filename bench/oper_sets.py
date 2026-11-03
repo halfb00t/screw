@@ -3184,7 +3184,8 @@ def _regenerate_runs2(name: str, text: str) -> str:
              "arenas": ("explore",), "outband": ("explore",), "bound-rerun": ("explore", "run"),
              "gzip-rerun": ("explore", "run"), PITCH_WALK: ("explore",),
              BAND_WALK: ("explore",), TALL_SET: ("explore",),
-             PROOF_WALK: ("explore", "bands")}[name]
+             PROOF_WALK: ("explore", "bands"), FINE_COST: ("explore",),
+             FINE_SPREAD: ("explore",)}[name]
     missing = [source for source in needs if source not in sources]
     if missing:
         raise ValueError(f"it names no {' and '.join(missing)} source")
@@ -3206,6 +3207,10 @@ def _regenerate_runs2(name: str, text: str) -> str:
         return build_tall(sources["explore"], envelope).text()
     if name == PROOF_WALK:
         return build_proof_walk(sources["explore"], sources["bands"], envelope).text()
+    if name == FINE_COST:
+        return build_fine_cost(sources["explore"], envelope).text()
+    if name == FINE_SPREAD:
+        return build_fine_spread(sources["explore"], envelope).text()
     return build_gzip(sources["explore"], envelope).text()
 
 
@@ -3215,7 +3220,8 @@ def _check_runs2() -> str | None:
     paths = [("tier-order", REPO_ROOT / TIER_ORDER),
              *((name, POINTS_DIR / f"{name}.json") for name in (*RUNS2_SETS, *RERUN_SETS,
                                                                 PITCH_WALK, BAND_WALK,
-                                                                PROOF_WALK, TALL_SET))]
+                                                                PROOF_WALK, FINE_COST,
+                                                                FINE_SPREAD, TALL_SET))]
     for name, path in paths:
         if not path.is_file():
             continue
@@ -3997,6 +4003,118 @@ def build_proof_walk(explore_dir: str, bands_dir: str, envelope: Envelope) -> _S
     return out
 
 
+# --- F9: the cost re-sweep (D-05) -----------------------------------------------------------------
+
+FINE_COST = "fine-cost"
+FINE_SPREAD = "fine-spread"
+COST_RULE = "08-SWEEP-PROTOCOL.md F9 (08 D-05)"
+COST_SPREAD_RULE = "08-SWEEP-PROTOCOL.md F9, the catalogue spread (08 D-05)"
+COST_BAND_D = ("0.5", "0.8", "1.6", "2.5", "3", "3.3")
+COST_BAND_Q = ("7", "8", "12.5", "20")
+COST_BAND_TURNS = (3, 30, 90)
+COST_NUT_D = ("0.8", "2.2", "5", "10", "20")
+COST_NUT_Q = ("6.25", "7", "8")
+COST_NUT_FORMS = ("base", "s4")
+SPREAD_REPS = 5
+
+
+def _fine_rows() -> list[tuple[str, dict[str, float]]]:
+    """The nut catalogue rows F3 puts on the fine sweep."""
+    return [(row_id, cast("dict[str, float]", fields)) for row_id, fields in _catalogue_rows("nut")
+            if calc_thread.uses_fine_sweep("nut", float(cast("float", fields["d"])),
+                                           float(cast("float", fields["pitch"])))]
+
+
+def _fine_cost_parts() -> Iterator[tuple[str, str, dict[str, float | bool]]]:
+    """(label, kind, params) of every part of `fine-cost`, all on the fine sweep (D-05): the
+    explore parts F3 moves, the moved nut rows, in-band bolts and the nut forms of F9."""
+    seen: set[str] = set()
+    for point in _explore_points():
+        label, kind = str(point["label"]), str(point["kind"])
+        if label in seen:
+            continue
+        seen.add(label)
+        part = oper_lift.registered(kind, _point_params(point))
+        if calc_thread.uses_fine_sweep(kind, part.d, part.pitch):
+            yield f"fcost-explore-{label}", kind, _point_params(point)
+    for row_id, fields in _fine_rows():
+        yield f"fcost-row-{row_id}", "nut", {**fields, "left_hand": False}
+    bands = calc_thread.FINE_BOLT_BANDS
+    for d in COST_BAND_D:
+        if any(low < Fraction(d) < high for low, high in bands):
+            for q in COST_BAND_Q:
+                for n in COST_BAND_TURNS:
+                    yield f"fcost-band-d{d}-q{q}-n{n}", "bolt", _band_params(d, q, n, False)
+    for form in COST_NUT_FORMS:
+        for d in COST_NUT_D:
+            for q in COST_NUT_Q:
+                yield (f"fcost-nut-{form}-d{d}-q{q}", "nut",
+                       _pitch_params("nut", form, d, Fraction(q), False))
+
+
+def _fine_parts_set(out: _Set, parts: Iterable[tuple[str, str, dict[str, float | bool]]],
+                    envelope: Envelope, budget: Budget) -> _Set:
+    """Each part at every artifact `envelope` admits it at; the artifacts it does not admit it at
+    in `dropped` as `over_budget`, and a part the runner would refuse in `dropped` with its
+    type. A part off the fine sweep is a bug here and not a point (D-05)."""
+    for label, kind, params in parts:
+        error = _runner_refusal(kind, params)
+        if error is not None:
+            out.dropped.append({"label": label, "kind": kind, "params": params,
+                                "artifacts": list(cost.ARTIFACTS), "error": error})
+            continue
+        part = oper_lift.drawn(kind, params)
+        if not calc_thread.uses_fine_sweep(kind, part.d, part.pitch):
+            raise ValueError(f"{label} is not on the fine sweep (D-05)")
+        admitted = [a for a in cost.ARTIFACTS if admits(part, a, envelope, budget)]
+        for artifact in admitted:
+            out.copy({"label": label, "kind": kind, "params": params, "artifact": artifact})
+        refused = [a for a in cost.ARTIFACTS if a not in admitted]
+        if refused:
+            out.dropped.append({"label": label, "kind": kind, "params": params,
+                                "artifacts": refused, "error": "over_budget"})
+    out.envelope = envelope_document(envelope)
+    return out
+
+
+def fine_cost_set(envelope: Envelope, budget: Budget = cost.BUDGET) -> _Set:
+    """F9's `fine-cost`, unsharded: reps 1."""
+    out = _Set(FINE_COST, reps=1, shards=1, rule=COST_RULE, notes=[
+        "F9: every explore.json part and every nut catalogue row that F3 puts on the fine sweep "
+        "(right hand); in-band bolts d 0.5, 0.8, 1.6, 2.5, 3 and 3.3 (each kept only strictly "
+        "inside a band) at q 7, 8, 12.5 and 20 and n 3, 30 and 90, full thread, s 1.6 d at most "
+        "1000 mm, k 0.6 d; and nuts d 0.8, 2.2, 5, 10 and 20 at q 6.25, 7 and 8 in forms base "
+        "and s4",
+        "each part at every artifact the shipped model admits under the shipped envelope and "
+        "B-01, the others in dropped as over_budget; no bolt outside the bands (D-19)"])
+    return _fine_parts_set(out, _fine_cost_parts(), envelope, budget)
+
+
+def fine_spread_set(envelope: Envelope, budget: Budget = cost.BUDGET) -> _Set:
+    """F9's `fine-spread`, unsharded: the moved nut rows at 5 repetitions."""
+    out = _Set(FINE_SPREAD, reps=SPREAD_REPS, shards=1, rule=COST_SPREAD_RULE, notes=[
+        "F9: the nut catalogue rows F3 puts on the fine sweep (M5 to M20 but M6), right hand, at "
+        "every artifact the shipped model admits under the shipped envelope and B-01, 5 "
+        "repetitions"])
+    parts = ((f"fspread-row-{row_id}", "nut", {**fields, "left_hand": False})
+             for row_id, fields in _fine_rows())
+    return _fine_parts_set(out, parts, envelope, budget)
+
+
+def build_fine_cost(explore_dir: str, envelope: Envelope) -> _Set:
+    """`fine-cost` sharded by R6 from the explore run."""
+    out = fine_cost_set(envelope)
+    out.sharded(charge_table(_read(explore_dir)), [f"explore={explore_dir}"])
+    return out
+
+
+def build_fine_spread(explore_dir: str, envelope: Envelope) -> _Set:
+    """`fine-spread` sharded by R6 from the explore run."""
+    out = fine_spread_set(envelope)
+    out.sharded(charge_table(_read(explore_dir)), [f"explore={explore_dir}"])
+    return out
+
+
 # --- R28: the full recording tier (07-19) -------------------------------------------------------
 #
 # The full grid as a judged set (D-12): every catalogue row of both kinds at each artifact, the
@@ -4258,6 +4376,8 @@ def _regenerations() -> Iterator[tuple[Path, str, Callable[[], str]]]:
                                                                           PITCH_WALK,
                                                                           BAND_WALK,
                                                                           PROOF_WALK,
+                                                                          FINE_COST,
+                                                                          FINE_SPREAD,
                                                                           TALL_SET))):
         if path.is_file():
             text = path.read_text()
@@ -4464,6 +4584,13 @@ def _run(args: argparse.Namespace) -> int:
         Path(args.out).write_text(made.text())
         print(f"{made.name}: {len(made.points)} points in shards of {made.shard_sizes}, "
               f"{len(made.dropped)} dropped")
+    elif args.command == "fine-cost-sets":
+        for made, out_path in ((build_fine_cost(explore_dir, shipped_envelope()), args.cost_out),
+                               (build_fine_spread(explore_dir, shipped_envelope()),
+                                args.spread_out)):
+            Path(out_path).write_text(made.text())
+            print(f"{made.name}: {len(made.points)} points in shards of {made.shard_sizes}, "
+                  f"{len(made.dropped)} dropped")
     elif args.command == "pitch-walls":
         readings = read_readings(Path(args.source))
         walls = pitch_walls(_points_of(PITCH_WALK), readings)
@@ -4565,6 +4692,11 @@ def main(argv: list[str] | None = None) -> int:
     proof_walk.add_argument("--explore", required=True)
     proof_walk.add_argument("--bands", required=True)
     proof_walk.add_argument("--out", required=True)
+    fine_cost = sub.add_parser("fine-cost-sets", help="write F9's cost re-sweep and spread of the "
+                                                      "fine-swept parts (08 D-05)")
+    fine_cost.add_argument("--explore", required=True)
+    fine_cost.add_argument("--cost-out", required=True)
+    fine_cost.add_argument("--spread-out", required=True)
     sub.add_parser("pitch-walls", help="R31's F and W per kind from the walk's records, exit 3 "
                                        "if the bolt W is not 20 (G35, G36)").add_argument(
         "--from", dest="source", required=True)
