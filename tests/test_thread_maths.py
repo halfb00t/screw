@@ -36,6 +36,7 @@ from screw.calc.thread import (
     thread_length_conflict,
     turn_cap_refusal,
     turns_of,
+    uses_fine_sweep,
     void_root_radius_refusal,
     volume_check,
 )
@@ -518,3 +519,21 @@ def test_a_nut_above_the_retired_clearance_ceiling_is_judged_by_the_cost_model_a
     # which refused it (D-17 retires that refusal). s 20 makes the nut valid (s > d + 2 c).
     p = NutParams(clearance=6.0, s=20.0)
     assert download_refusal(p, "stl", "fine") == cost.refusal(p, "stl-fine")
+
+
+# ------------------------------------------------------------ the fine-sweep predicate (08 D-01)
+
+
+def test_a_nut_is_fine_strictly_above_a_d_over_pitch_of_six() -> None:
+    assert not uses_fine_sweep("nut", 6, 1)  # exactly 6 keeps the shipped sweep (D-02)
+    assert uses_fine_sweep("nut", 5, 0.8)  # 6.25
+    assert uses_fine_sweep("nut", 2.2, 0.314286)  # the island, 1100000 / 157143 (D-16)
+    assert not uses_fine_sweep("nut", 6, 1.25)
+
+
+def test_the_fine_sweep_threshold_compares_the_decimals_typed_not_the_floats() -> None:
+    # 4.2 / 0.7 is 6.000000000000001 in floats and exactly 6 as typed: a float compare would move
+    # a part that sits on its threshold (D-02).
+    assert 4.2 / 0.7 > 6
+    assert not uses_fine_sweep("nut", 4.2, 0.7)
+    assert uses_fine_sweep("nut", 4.2, 0.6999)

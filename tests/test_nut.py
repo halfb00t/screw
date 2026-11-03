@@ -21,8 +21,10 @@ from pathlib import Path
 import cadquery as cq
 import pytest
 from fastapi.testclient import TestClient
+from OCP.BRepOffsetAPI import BRepOffsetAPI_MakePipeShell
 from pydantic import ValidationError
 
+from bench import oper_sets
 from bench.thread_spike.measure import stl_check
 from screw import app as app_module
 from screw import cli
@@ -44,10 +46,11 @@ from screw.calc.thread import (
     section_area,
     section_radius,
     thread_depth,
+    uses_fine_sweep,
     volume_check,
 )
 from screw.params import MAX_NUT_CLEARANCE_MM, BoltParams, NutParams
-from screw.solid import build, clear_cache, export, nut, precise_volume
+from screw.solid import build, clear_cache, export, helical, nut, precise_volume
 from screw.tables.presets import nut_catalogue
 
 client = TestClient(app)
@@ -689,3 +692,111 @@ def test_a_cone_that_ends_on_the_root_passes_every_volume_gate_and_opens_the_mes
     assert not nut.countersink_inner_radius(p, depth) < root
     assert len(build(p).Solids()) == 1  # built: no gate refused it
     assert stl_check(export(p, "stl", "preview")).open_edges > 0
+
+
+# ---------------------------------------------------------------- the fine sweep (08 D-01, D-07)
+
+ISLAND_FORMS = ["base", "s4", "m1"]
+
+
+def _spy_pipe(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, tuple[float, ...]]]:
+    """Record every call a `MakePipeShell` receives, by name and float arguments, and pass it on."""
+    log: list[tuple[str, tuple[float, ...]]] = []
+    real = BRepOffsetAPI_MakePipeShell
+
+    class Spy:
+        def __init__(self, spine: object) -> None:
+            self._pipe = real(spine)
+
+        def __getattr__(self, name: str) -> object:
+            method = getattr(self._pipe, name)
+
+            def call(*args: object) -> object:
+                log.append((name, tuple(a for a in args if isinstance(a, float))))
+                return method(*args)
+
+            return call
+
+    monkeypatch.setattr(helical, "BRepOffsetAPI_MakePipeShell", Spy)
+    return log
+
+
+def _spy_thread(monkeypatch: pytest.MonkeyPatch) -> list[bool]:
+    """The `fine` each call of `helical.thread` receives. `fine` has no default here, so a call
+    site that leaves it out fails the test instead of passing as the shipped sweep."""
+    seen: list[bool] = []
+    real = helical.thread
+
+    def spy(d: float, pitch: float, length: float, *, clearance: float = 0.0,
+            left_hand: bool = False, k: int = helical.DEFAULT_K, fine: bool) -> cq.Solid:
+        seen.append(fine)
+        return real(d, pitch, length, clearance=clearance, left_hand=left_hand, k=k, fine=fine)
+
+    monkeypatch.setattr(helical, "thread", spy)
+    return seen
+
+
+def test_the_fine_sweep_sets_the_tolerance_between_the_mode_and_the_section(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    # F2: SetTolerance(1e-6, 1e-6, 1e-4) after SetMode and before Add on every pipe, in the order
+    # the debug session's E12/E14 variant used. 5 mm of thread at k = 3 is a base twist and a tail.
+    log = _spy_pipe(monkeypatch)
+    helical.thread(6.0, 1.0, 5.0, fine=True)
+    order = ["SetMaxSegments", "SetMode", "SetTolerance", "Add"]
+    assert [name for name, _ in log if name in order] == order * 2
+    assert {args for name, args in log if name == "SetTolerance"} == {(1e-6, 1e-6, 1e-4)}
+
+
+def test_the_shipped_sweep_sets_no_tolerance(monkeypatch: pytest.MonkeyPatch) -> None:
+    log = _spy_pipe(monkeypatch)
+    helical.thread(6.0, 1.0, 5.0)
+    assert "SetTolerance" not in {name for name, _ in log}
+    assert [name for name, _ in log if name in ("SetMode", "Add")] == ["SetMode", "Add"] * 2
+
+
+@pytest.mark.parametrize(("fine", "points"), [(True, 56), (False, 14)])
+def test_each_flank_spline_has_the_samples_of_its_sweep(
+        monkeypatch: pytest.MonkeyPatch, fine: bool, points: int) -> None:
+    counts: list[int] = []
+    spline = cq.Workplane.spline
+
+    def spy(self: cq.Workplane, points: list[tuple[float, float]],
+            includeCurrent: bool = False) -> cq.Workplane:  # noqa: N803 (cadquery's keyword)
+        counts.append(len(points))
+        return spline(self, points, includeCurrent=includeCurrent)
+
+    monkeypatch.setattr(cq.Workplane, "spline", spy)
+    helical.section(6.0, 1.0, fine=fine)
+    assert counts == [points, points]
+
+
+@pytest.mark.parametrize("left", [False, True], ids=["right", "left"])
+@pytest.mark.parametrize("form", ISLAND_FORMS)
+def test_the_island_nuts_build_on_the_fine_sweep(form: str, left: bool) -> None:
+    """The six nuts the Phase 7 pitch walk refused on the shipped sweep (run 41074314305): d 2.2,
+    pitch 0.314286 (d / pitch 1100000/157143, R31's base), forms base, s4 and m1, both hands. They
+    build through the served path and pass the volume gate (D-07)."""
+    p = NutParams.model_validate(oper_sets._pitch_params("nut", form, "2.2", 7, left))
+    assert uses_fine_sweep("nut", p.d, p.pitch)
+    shape = build(p)
+    assert len(shape.Solids()) == 1
+    assert shape.isValid()
+    closed = nut_end_closed_volume(p.d, p.pitch, p.s, p.m, p.clearance)
+    assert abs(precise_volume(shape) / closed - 1.0) <= T_GATE
+
+
+def test_the_default_nut_stays_on_the_shipped_sweep(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen = _spy_thread(monkeypatch)
+    build(NutParams())
+    assert seen
+    assert not any(seen)
+
+
+def test_a_nut_above_the_threshold_reaches_the_builder_as_fine(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    # The call `solid.pair._shipped` makes for the evidence row (D-22): the served nut of the
+    # iso4032:M8 row (d / pitch 6.4), with no edit to pair.py.
+    seen = _spy_thread(monkeypatch)
+    row = next(r for r in nut_catalogue() if r.id == "iso4032:M8")
+    build(NutParams.model_validate(dict(row.fields)))
+    assert seen == [True]

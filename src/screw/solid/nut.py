@@ -20,6 +20,7 @@ from screw.calc.thread import (
     countersink_face_radius,
     end_depths,
     thread_depth,
+    uses_fine_sweep,
 )
 from screw.params import NutParams
 from screw.solid import bolt, helical
@@ -43,7 +44,9 @@ def void(p: NutParams) -> cq.Solid:
     pitch (RESEARCH P11): a cut that stopped on a face would leave a zero-thickness skin there.
     """
     return helical.thread(p.d, p.pitch, p.m + 2 * p.pitch, clearance=p.clearance,
-                          left_hand=p.left_hand).translate(cq.Vector(0, 0, -p.pitch))
+                          left_hand=p.left_hand,
+                          fine=uses_fine_sweep("nut", p.d, p.pitch)).translate(
+        cq.Vector(0, 0, -p.pitch))
 
 
 def assemble(p: NutParams, void: cq.Solid) -> cq.Shape:

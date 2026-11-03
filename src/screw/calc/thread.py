@@ -82,6 +82,31 @@ MAX_BOLT_D_PER_PITCH = Fraction("20")
 # residual; 8 is the catalogue's largest d / pitch, and every other refused nut sat at 11.
 MAX_NUT_D_PER_PITCH = Fraction(8)
 
+# Who is swept finely (08 D-01, F2, F3): `helical.thread(..., fine=True)` samples each flank at 56
+# points and sets the pipe shell's tolerance, which builds the island of six nuts the shipped sweep
+# was refused at (d 2.2 mm, pitch 0.314286, d / pitch 1100000/157143 = 6.999993636..., run
+# 41074314305). A nut is fine strictly above d / pitch 6 (D-16), not at 7: the island sits just
+# under 7 and a threshold of 7 would miss it. That moves the 8 nut rows M5, M8, M10, M12, M14, M16,
+# M18 and M20 and keeps M2 to M4, M6 and the default nut (d / pitch 6, exactly the threshold) on
+# the shipped sweep, with its timeouts, budgets and cost points (D-02, D-03).
+# There is no d / pitch-only bolt clause (D-19): the committed Phase 6 and 7 runner records hold
+# 973 `ok` bolt readings and no refusal outside the bands at 8 < d / pitch <= 20, so a bolt outside
+# every band keeps the shipped sweep up to the wall of 20. That the shipped sweep builds it there
+# is read at sampled ratios only (F3, F13). A bolt is fine only inside a measured band (D-15); the
+# bands come from the band walk and land with their clause in 08-12, so no bolt is fine yet.
+FINE_NUT_ABOVE = Fraction(6)
+
+
+def uses_fine_sweep(kind: str, d: float, pitch: float) -> bool:
+    """True when a part of `kind` is built on the fine sweep (`helical.thread(fine=True)`).
+
+    Exact decimals, as the walls: a nut typed at exactly d / pitch 6 is on its threshold, not
+    above it, and keeps the shipped sweep. Pure arithmetic, no kernel (import-linter contract).
+    """
+    if kind == "nut":
+        return _exact(d) / _exact(pitch) > FINE_NUT_ABOVE
+    return False
+
 
 def fundamental_height(pitch: float) -> float:
     """H = (sqrt(3) / 2) * P, the height of the sharp 60 degree triangle."""

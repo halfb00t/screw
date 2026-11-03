@@ -24,6 +24,13 @@ from screw.calc.thread import MIN_TAIL_MM, thread_depth
 # Spline samples per flank: 14 sits 0.1 um off the ideal Archimedean spiral, 4 gives 7 um
 # (STACK, measured). MEASURED-PRIOR protocol input of L11, not a campaign result.
 SECTION_SAMPLES = 14
+# The fine sweep (08 D-01, F2): 56 samples per flank and a pipe-shell tolerance of (3D, boundary,
+# angular) = (1e-6, 1e-6, 1e-4), set after `SetMode` and before `Add`. It is the variant of the
+# debug session's E12/E14 that built the nuts and bolts the shipped sweep was refused at (macOS
+# arm64 figures, context only; the proof is the runner walk, 08-06). Chosen by
+# `screw.calc.thread.uses_fine_sweep`, passed as an argument so one process serves both sweeps.
+FINE_SECTION_SAMPLES = 56
+FINE_TOLERANCE = (1e-6, 1e-6, 1e-4)
 # The default pipe fails with Standard_Failure from about 80 turns; 500 builds a 250-turn pipe
 # (STACK, measured). MEASURED-PRIOR protocol input of L11.
 MAX_SEGMENTS = 500
@@ -35,15 +42,16 @@ SEWING_TOLERANCE = 1e-4
 DEFAULT_K = 3
 
 
-def section(d: float, pitch: float, clearance: float = 0.0) -> cq.Wire:
+def section(d: float, pitch: float, clearance: float = 0.0, fine: bool = False) -> cq.Wire:
     """Transverse outline of the basic-profile thread, one start.
 
     Crest flat P/8 at d/2, root flat P/4 at d/2 - 5H/8, both grown by `clearance`; the flanks
-    are Archimedean spirals (radius linear in angle) sampled at `SECTION_SAMPLES` points.
+    are Archimedean spirals (radius linear in angle) sampled at `SECTION_SAMPLES` points, or at
+    `FINE_SECTION_SAMPLES` when `fine`.
     """
     ro = d / 2 + clearance
     rr = d / 2 - thread_depth(pitch) + clearance
-    nf = SECTION_SAMPLES
+    nf = FINE_SECTION_SAMPLES if fine else SECTION_SAMPLES
 
     def pt(r: float, th: float) -> tuple[float, float]:
         return (r * math.cos(th), r * math.sin(th))
@@ -63,7 +71,7 @@ def section(d: float, pitch: float, clearance: float = 0.0) -> cq.Wire:
 
 
 def twist(d: float, pitch: float, length: float, clearance: float = 0.0,
-          left_hand: bool = False) -> cq.Solid:
+          left_hand: bool = False, fine: bool = False) -> cq.Solid:
     """One pipe over a spine of `length` mm, z in [0, length]."""
     spine = cq.Wire.assembleEdges([cq.Edge.makeLine(cq.Vector(0, 0, 0), cq.Vector(0, 0, length))])
     # Radius 1 is arbitrary: the auxiliary helix only sets the twist rate.
@@ -71,14 +79,16 @@ def twist(d: float, pitch: float, length: float, clearance: float = 0.0,
     pipe = BRepOffsetAPI_MakePipeShell(spine.wrapped)
     pipe.SetMaxSegments(MAX_SEGMENTS)
     pipe.SetMode(aux.wrapped, False)
-    pipe.Add(section(d, pitch, clearance).wrapped)
+    if fine:
+        pipe.SetTolerance(*FINE_TOLERANCE)
+    pipe.Add(section(d, pitch, clearance, fine).wrapped)
     pipe.Build()
     pipe.MakeSolid()
     return cq.Solid(pipe.Shape())
 
 
 def thread(d: float, pitch: float, length: float, *, clearance: float = 0.0,
-           left_hand: bool = False, k: int = DEFAULT_K) -> cq.Solid:
+           left_hand: bool = False, k: int = DEFAULT_K, fine: bool = False) -> cq.Solid:
     """Solid with z in [0, length], both ends plain planar cuts, and no boolean.
 
     Integer `k`-turn copies of one base twist, translated by i * k * pitch, plus a last
@@ -87,6 +97,8 @@ def thread(d: float, pitch: float, length: float, *, clearance: float = 0.0,
     `MIN_TAIL_MM`, and (3.5, 0.6, 5.4) leaves 8.9e-16 mm, which SIGSEGVs the kernel (RESEARCH
     Pitfall 1). A tail that short is folded into the previous segment, so the end face still
     sits at `length`. Segments are sewn with `SEWING_TOLERANCE`, interior seam caps left out.
+    `fine` selects the fine sweep (`FINE_SECTION_SAMPLES`, `FINE_TOLERANCE`); False is the shipped
+    sweep, call for call.
     """
     if not length >= MIN_TAIL_MM:  # NaN-safe: a NaN fails the comparison
         raise BuildError(f"length {length:g} mm is too short to model a thread "
@@ -97,11 +109,11 @@ def thread(d: float, pitch: float, length: float, *, clearance: float = 0.0,
     bases = full - 1 if folded else full  # full segments that are plain copies of one twist
     parts: list[tuple[cq.Solid, float, float]] = []
     if bases:
-        base = twist(d, pitch, segment, clearance, left_hand)
+        base = twist(d, pitch, segment, clearance, left_hand, fine)
         parts += [(base.translate(cq.Vector(0, 0, i * k * pitch)),
                    i * k * pitch, (i + 1) * k * pitch) for i in range(bases)]
     z0 = bases * k * pitch
-    parts.append((twist(d, pitch, length - z0, clearance, left_hand).translate(
+    parts.append((twist(d, pitch, length - z0, clearance, left_hand, fine).translate(
         cq.Vector(0, 0, z0)), z0, length))
     if len(parts) == 1:
         return parts[0][0]
