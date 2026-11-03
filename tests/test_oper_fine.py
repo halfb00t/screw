@@ -19,7 +19,7 @@ import pytest
 
 from bench import oper, oper_lift, oper_sets
 from bench.oper_sets import ProtocolStop
-from screw.calc import cost
+from screw.calc import cost, thread
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 WALK = REPO_ROOT / "bench" / "points" / f"{oper_sets.BAND_WALK}.json"
@@ -470,10 +470,9 @@ def test_the_text_and_the_cli_report_the_walled_cells(
 RECORDS = REPO_ROOT / "bench" / "results" / "phase-08" / "fine-bands-41635270998"
 
 
-def test_the_band_walk_records_give_the_bands_08_12_ships() -> None:
-    """F5 over the committed linux/amd64 records: one band, d 1.55 to 3.35 mm (the block 08-12
-    pastes into `calc.thread`, which replaces this expected tuple with the block check), the 315
-    in-band check refusals, and the 40 cells at d 0.5 to 0.85 mm that F15 hands to the wall."""
+def test_the_band_walk_records_give_one_band_and_the_walled_cells() -> None:
+    """F5 over the committed linux/amd64 records: one band, d 1.55 to 3.35 mm, the 315 in-band
+    check refusals, and the 40 cells at d 0.5 to 0.85 mm that F15 hands to the wall."""
     readings = oper_sets.read_readings(RECORDS)
     points = _list("points")
     bands = oper_sets.fine_bands(points, readings)
@@ -486,6 +485,17 @@ def test_the_band_walk_records_give_the_bands_08_12_ships() -> None:
         f"d{d}" for d in ("0.5", "0.55", "0.6", "0.65", "0.7", "0.75", "0.8", "0.85")}
     assert all(label.endswith(("-right", "-left")) and "-n90-" in label for label in walled)
     assert oper_sets.fine_bands_block(bands, "x").count('Fraction("') == 2
+
+
+def test_the_shipped_bands_are_the_block_the_records_write() -> None:
+    """D-15: `calc.thread` holds exactly the block `fine-bands --from` prints for the committed
+    run, never a typed edge, and its bands are what `uses_fine_sweep` reads."""
+    bands = oper_sets.fine_bands(_list("points"), oper_sets.read_readings(RECORDS))
+    block = oper_sets.fine_bands_block(bands, str(RECORDS.relative_to(REPO_ROOT)))
+    source = (REPO_ROOT / "src" / "screw" / "calc" / "thread.py").read_text()
+    assert source.count("# BEGIN fine-bands") == 1
+    assert block in source
+    assert tuple((b.low, b.high) for b in bands) == thread.FINE_BOLT_BANDS
 
 
 def _write(directory: Path, readings: list[Raw]) -> None:

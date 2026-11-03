@@ -92,20 +92,37 @@ MAX_NUT_D_PER_PITCH = Fraction(8)
 # There is no d / pitch-only bolt clause (D-19): the committed Phase 6 and 7 runner records hold
 # 973 `ok` bolt readings and no refusal outside the bands at 8 < d / pitch <= 20, so a bolt outside
 # every band keeps the shipped sweep up to the wall of 20. That the shipped sweep builds it there
-# is read at sampled ratios only (F3, F13). A bolt is fine only inside a measured band (D-15); the
-# bands come from the band walk and land with their clause in 08-12, so no bolt is fine yet.
+# is read at sampled ratios only (F3, F13): the band walk's check cells read it at q 9, 12.5, 16
+# and 20, and a ratio or d between them carries no reading. A bolt is fine only when its exact d
+# lies strictly inside a band and its exact d / pitch is above `FINE_BAND_ABOVE` (D-15).
 FINE_NUT_ABOVE = Fraction(6)
+FINE_BAND_ABOVE = Fraction(6)
+# The bolt bands, the d ranges where the shipped sweep was refused above d / pitch 6 (F5). Band
+# walk run 41635270998 (linux/amd64, sha b69aae5, 4803 points) read one: d 1.55 to 3.35 mm, both
+# edges walked sizes that built and are excluded. Its edge group refused nothing at d 0.5 to 0.85
+# mm; the check cells there that the shipped sweep refused are walled instead (L37, F15). The
+# check cells outside the band read the shipped sweep, at sampled ratios only (D-19, F13).
+# BEGIN fine-bands: written by `python -m bench.oper_sets fine-bands --from
+# bench/results/phase-08/fine-bands-41635270998`; not edited by hand.
+FINE_BOLT_BANDS: tuple[tuple[Fraction, Fraction], ...] = (
+    (Fraction("1.55"), Fraction("3.35")),
+)
+# END fine-bands
 
 
 def uses_fine_sweep(kind: str, d: float, pitch: float) -> bool:
     """True when a part of `kind` is built on the fine sweep (`helical.thread(fine=True)`).
 
     Exact decimals, as the walls: a nut typed at exactly d / pitch 6 is on its threshold, not
-    above it, and keeps the shipped sweep. Pure arithmetic, no kernel (import-linter contract).
+    above it, and keeps the shipped sweep. A bolt is fine only strictly inside a band, above
+    d / pitch 6 (D-15); a bolt on a band edge keeps the shipped sweep. Pure arithmetic, no kernel
+    (import-linter contract).
     """
+    ratio = _exact(d) / _exact(pitch)
     if kind == "nut":
-        return _exact(d) / _exact(pitch) > FINE_NUT_ABOVE
-    return False
+        return ratio > FINE_NUT_ABOVE
+    # Read at call time, like the walls, so a test or the guard of 08-09 can move the bands.
+    return ratio > FINE_BAND_ABOVE and any(low < _exact(d) < high for low, high in FINE_BOLT_BANDS)
 
 
 def fundamental_height(pitch: float) -> float:

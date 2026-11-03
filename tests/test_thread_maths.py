@@ -540,10 +540,9 @@ def test_the_fine_sweep_threshold_compares_the_decimals_typed_not_the_floats() -
     assert uses_fine_sweep("nut", 4.2, 0.6999)
 
 
-@pytest.mark.parametrize(("d", "pitch"), [(16, 2), (10, 0.5), (16, 1.99), (3, 0.35), (0.5, 0.05)])
-def test_no_bolt_is_fine_until_a_band_exists(d: float, pitch: float) -> None:
-    # D-19: no d / pitch-only bolt clause, so a bolt is fine only inside a measured band (D-15),
-    # and 08-12 adds the bands; until then every bolt keeps the shipped sweep.
+@pytest.mark.parametrize(("d", "pitch"), [(16, 2), (10, 0.5), (16, 1.99), (0.5, 0.05)])
+def test_a_bolt_outside_every_band_keeps_the_shipped_sweep(d: float, pitch: float) -> None:
+    # D-19: no d / pitch-only bolt clause, so a bolt is fine only inside a measured band (D-15).
     assert not uses_fine_sweep("bolt", d, pitch)
 
 

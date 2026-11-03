@@ -35,6 +35,7 @@ from screw.calc.thread import (
     tip_cone_fits,
     tip_cone_length,
     tip_cone_volume,
+    uses_fine_sweep,
     volume_check,
 )
 from screw.params import KINDS, BoltParams, FastenerParams
@@ -524,6 +525,24 @@ def test_a_length_off_the_whole_turns_builds_through_the_gate_and_ends_at_its_le
     box = solid.BoundingBox()
     assert box.zmin == pytest.approx(0.0, abs=TOL)
     assert box.zmax == pytest.approx(length + 4.0, abs=TOL)  # the head ends at length + k
+
+
+@pytest.mark.parametrize(("d", "length", "s", "k"), [
+    pytest.param(3.0, 25.0, 4.8, 1.8, id="d3-25mm"),
+    pytest.param(2.5, 30.0, 4.0, 1.5, id="d2.5-30mm"),
+])
+def test_the_long_thread_debt_examples_build_on_the_fine_sweep(
+        d: float, length: float, s: float, k: float) -> None:
+    """The two bolts of docs/tech_debt/active/2026-10-29-in-wall-parts-the-kernel-refuses.md that
+    the shipped sweep was refused at (E31): pitch 0.35 puts d / pitch above 6 inside the measured
+    band, so 08 D-15 sends them to the fine sweep, where they build through every gate (E12,
+    E14). Development evidence on this host; the runner proof is the proof walk (D-04)."""
+    assert uses_fine_sweep("bolt", d, 0.35)
+    solid = build(BoltParams(d=d, pitch=0.35, length=length, thread_length=length, s=s, k=k,
+                             left_hand=False))
+    assert len(solid.Solids()) == 1
+    assert solid.isValid()
+    assert solid.BoundingBox().zmax == pytest.approx(length + k, abs=TOL)
 
 
 def _inside_at(solid: cq.Solid, d: float, pitch: float, sign: int, z: float) -> bool:
