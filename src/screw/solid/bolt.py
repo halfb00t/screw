@@ -16,7 +16,13 @@ import math
 import cadquery as cq
 
 from screw.build_errors import BuildError
-from screw.calc.thread import MIN_TAIL_MM, TIP_ANGLE_DEG, built_thread_length, thread_depth
+from screw.calc.thread import (
+    MIN_TAIL_MM,
+    TIP_ANGLE_DEG,
+    built_thread_length,
+    thread_depth,
+    uses_fine_sweep,
+)
 from screw.params import BoltParams
 from screw.solid import helical
 
@@ -35,7 +41,8 @@ def thread(p: BoltParams) -> cq.Solid:
         # user to the wrong field when the short value is the thread (RESEARCH Alert 6).
         raise BuildError(f"thread_length and length: the thread built here is {t:g} mm, shorter "
                          f"than the {MIN_TAIL_MM:g} mm the builder can model.")
-    return helical.thread(p.d, p.pitch, t, left_hand=p.left_hand)
+    return helical.thread(p.d, p.pitch, t, left_hand=p.left_hand,
+                          fine=uses_fine_sweep("bolt", p.d, p.pitch))
 
 
 def _solid(made: object, what: str) -> cq.Solid:

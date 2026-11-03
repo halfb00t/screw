@@ -40,7 +40,8 @@ from screw.calc.thread import (
     void_root_radius_refusal,
     volume_check,
 )
-from screw.params import NutParams
+from screw.params import BoltParams, NutParams
+from screw.tables.presets import catalogue, nut_catalogue
 
 
 def test_the_basic_profile_has_the_coefficients_the_owner_confirmed() -> None:
@@ -537,3 +538,24 @@ def test_the_fine_sweep_threshold_compares_the_decimals_typed_not_the_floats() -
     assert 4.2 / 0.7 > 6
     assert not uses_fine_sweep("nut", 4.2, 0.7)
     assert uses_fine_sweep("nut", 4.2, 0.6999)
+
+
+@pytest.mark.parametrize(("d", "pitch"), [(16, 2), (10, 0.5), (16, 1.99), (3, 0.35), (0.5, 0.05)])
+def test_no_bolt_is_fine_until_a_band_exists(d: float, pitch: float) -> None:
+    # D-19: no d / pitch-only bolt clause, so a bolt is fine only inside a measured band (D-15),
+    # and 08-12 adds the bands; until then every bolt keeps the shipped sweep.
+    assert not uses_fine_sweep("bolt", d, pitch)
+
+
+def test_the_fine_sweep_moves_exactly_the_eight_nut_rows() -> None:
+    nuts = {row.id for row in nut_catalogue() if _fine("nut", row.fields)}
+    assert nuts == {f"iso4032:M{size}" for size in (5, 8, 10, 12, 14, 16, 18, 20)}
+    assert not any(_fine("bolt", row.fields) for row in catalogue())
+    # The defaults are absolute millimetres and stay on the shipped sweep (D-03).
+    assert not uses_fine_sweep("bolt", BoltParams().d, BoltParams().pitch)
+    assert not uses_fine_sweep("nut", NutParams().d, NutParams().pitch)
+
+
+def _fine(kind: str, fields: tuple[tuple[str, float], ...]) -> bool:
+    row = dict(fields)
+    return uses_fine_sweep(kind, row["d"], row["pitch"])

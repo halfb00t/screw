@@ -50,7 +50,7 @@ from screw.calc.thread import (
     volume_check,
 )
 from screw.params import MAX_NUT_CLEARANCE_MM, BoltParams, NutParams
-from screw.solid import build, clear_cache, export, helical, nut, precise_volume
+from screw.solid import bolt, build, clear_cache, export, helical, nut, precise_volume
 from screw.tables.presets import nut_catalogue
 
 client = TestClient(app)
@@ -799,4 +799,21 @@ def test_a_nut_above_the_threshold_reaches_the_builder_as_fine(
     seen = _spy_thread(monkeypatch)
     row = next(r for r in nut_catalogue() if r.id == "iso4032:M8")
     build(NutParams.model_validate(dict(row.fields)))
+    assert seen == [True]
+
+
+def test_the_default_bolt_stays_on_the_shipped_sweep(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen = _spy_thread(monkeypatch)
+    build(BoltParams())
+    assert seen
+    assert not any(seen)
+
+
+def test_the_bolt_passes_the_predicates_answer_to_the_builder(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    # No bolt is fine until 08-12 adds the bands, so the call site is read with the predicate
+    # planted: what it says reaches `helical.thread` as `fine`.
+    seen = _spy_thread(monkeypatch)
+    monkeypatch.setattr(bolt, "uses_fine_sweep", lambda kind, d, pitch: kind == "bolt")
+    bolt.thread(BoltParams())
     assert seen == [True]
