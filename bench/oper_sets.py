@@ -4003,6 +4003,136 @@ def build_proof_walk(explore_dir: str, bands_dir: str, envelope: Envelope) -> _S
     return out
 
 
+# --- F7 and F8: the proof walk's judgement and the turn ceilings (D-06, D-18, D-19) ---------------
+#
+# Regions are the shipped bands only: a bolt outside every band is on the shipped sweep (D-19), so
+# its refusal is a stop here and never a ceiling.
+
+MIN_CEILING_TURNS = 3  # F8 (S8): B-03's fitted minimum
+
+
+def _region(d: Fraction) -> str | None:
+    """`band-<i>` for the i-th shipped band holding `d` strictly, else None. Read at call time, as
+    `uses_fine_sweep` reads the bands, so a fine-sweep bolt always has one (F3, D-19)."""
+    for i, (low, high) in enumerate(calc_thread.FINE_BOLT_BANDS, 1):
+        if low < d < high:
+            return f"band-{i}"
+    return None
+
+
+def turn_ceiling(f: Fraction) -> int:
+    """F8's N: the largest whole number at or below F / 1.25 (R31's margin). A bolt at exactly N
+    turns is therefore not over it."""
+    return math.floor(f / PITCH_MARGIN)
+
+
+@dataclass(frozen=True)
+class FineCeiling:
+    """F8 for one band: F, the label that sets it, N, and every refused or crashed fine-sweep bolt
+    of the band as (label, exact built turns, exact d / pitch) in label order."""
+
+    region: str
+    f: Fraction
+    label: str
+    n: int
+    refused: tuple[tuple[str, Fraction, Fraction], ...]
+
+
+type Judged = dict[tuple[str, str], tuple[Mapping[str, object], str]]
+
+
+def _proof_status(points: Sequence[Mapping[str, object]], readings: Iterable[Reading]) -> Judged:
+    """F7's first rule: every point read exactly once and nothing read that the walk does not hold,
+    every status `ok`, `refused` or `crashed`. Returns (point, status) per (label, artifact)."""
+    held = {(str(p["label"]), str(p["artifact"])): p for p in points}
+    seen: dict[tuple[str, str], Reading] = {}
+    for reading in readings:
+        key = (str(reading.get("label")), str(reading.get("artifact")))
+        if key not in held:
+            raise ProtocolStop("F7", f"S1: {key[0]} at {key[1]} is not a point of the walk")
+        if key in seen:
+            raise ProtocolStop("F7", f"S1: {key[0]} at {key[1]} was read twice")
+        seen[key] = reading
+    missing = sorted(set(held) - set(seen))
+    if missing:
+        raise ProtocolStop("F7", f"S1: {len(missing)} points of the walk have no reading, the "
+                                 f"first {missing[0][0]} at {missing[0][1]}")
+    out: Judged = {}
+    for key, reading in sorted(seen.items()):
+        status = str(reading.get("status"))
+        if status != "ok" and status not in FAILED:
+            raise ProtocolStop("F7", f"S1: {key[0]} is {status}, which is cost or a gap and not a "
+                                     "refusal, so no ceiling has a number")
+        out[key] = (held[key], status)
+    return out
+
+
+def fine_ceilings(points: Sequence[Mapping[str, object]],
+                  readings: Iterable[Reading]) -> tuple[FineCeiling, ...]:
+    """F7 then F8 over the proof walk (D-06, D-18): the ceiling of every band that has a refused or
+    crashed fine-sweep bolt, in ascending band order; a band without one is left out. Anything
+    else has no number: `ProtocolStop`."""
+    found: dict[str, list[tuple[Fraction, str, Fraction]]] = {}
+    for (label, _), (point, status) in _proof_status(points, readings).items():
+        if status == "ok":
+            continue
+        params, kind = _point_params(point), str(point["kind"])
+        d, pitch = _exact(float(params["d"])), _exact(float(params["pitch"]))
+        fine = calc_thread.uses_fine_sweep(kind, float(params["d"]), float(params["pitch"]))
+        if kind == "nut":
+            raise ProtocolStop("F7", f"S{'7' if fine else '6'}: {label} was {status} at d / pitch "
+                                     f"{d / pitch}, a nut on the {'fine' if fine else 'shipped'} "
+                                     "sweep, and the turns guard is a bolt rule")
+        region = _region(d)
+        if region is None or not fine:
+            raise ProtocolStop("F7", f"S6: {label} was {status} at d {d}, d / pitch {d / pitch}, "
+                                     "a bolt F3 keeps on the shipped sweep")
+        built = _exact(built_thread_length(float(params["thread_length"]), float(params["length"])))
+        found.setdefault(region, []).append((built / pitch, label, d / pitch))
+    out: list[FineCeiling] = []
+    for i in range(1, len(calc_thread.FINE_BOLT_BANDS) + 1):
+        if (region := f"band-{i}") not in found:
+            continue
+        rows = sorted((turns, label, ratio) for turns, label, ratio in found[region])
+        (f, label, _), n = rows[0], turn_ceiling(rows[0][0])
+        if n < MIN_CEILING_TURNS:
+            raise ProtocolStop("F8", f"S8: {region}: F = {f} at {label} gives N {n}, below 3, "
+                                     "so it would refuse every fine bolt there")
+        out.append(FineCeiling(region, f, label, n, tuple(
+            (lab, turns, ratio) for turns, lab, ratio in sorted(rows, key=lambda r: r[1]))))
+    return tuple(out)
+
+
+def fine_ceilings_text(ceilings: Sequence[FineCeiling]) -> str:
+    """Per band: F as the exact fraction and its float, the reading that sets it, N, then the
+    refusal count and the turns and d / pitch they span; a band without a refusal says so."""
+    by_region = {c.region: c for c in ceilings}
+    out: list[str] = []
+    for i in range(1, len(calc_thread.FINE_BOLT_BANDS) + 1):
+        if (c := by_region.get(f"band-{i}")) is None:
+            out.append(f"band-{i}: no refusal, no ceiling\n")
+            continue
+        turns = [t for _, t, _ in c.refused]
+        ratios = [r for _, _, r in c.refused]
+        out.append(f"band-{i}: F = {c.f} ({float(c.f)!r}) at {c.label}; "
+                   f"F / 1.25 = {float(c.f / PITCH_MARGIN)!r}; N = {c.n}\n"
+                   f"  {len(c.refused)} refused or crashed, turns {float(min(turns))!r} to "
+                   f"{float(max(turns))!r}, d / pitch {float(min(ratios))!r} to "
+                   f"{float(max(ratios))!r}\n")
+    return "".join(out)
+
+
+def fine_ceilings_block(ceilings: Sequence[FineCeiling], source: str) -> str:
+    """The `calc.thread` lines between its turn-ceilings markers: the ceilings read from `source`
+    (F8), band-1 first."""
+    body = ("(\n" + "".join(f'    ("{c.region}", {c.n}),\n' for c in ceilings) + ")"
+            ) if ceilings else "()"
+    return ("# BEGIN turn-ceilings: written by `python -m bench.oper_sets fine-ceilings --from\n"
+            f"# {source}`; not edited by hand.\n"
+            f"FINE_TURN_CEILINGS: tuple[tuple[str, int], ...] = {body}\n"
+            "# END turn-ceilings\n")
+
+
 # --- F9: the cost re-sweep (D-05) -----------------------------------------------------------------
 
 FINE_COST = "fine-cost"
@@ -4609,6 +4739,10 @@ def _run(args: argparse.Namespace) -> int:
         inband, ok_outside, walled = check_group(points, readings, bands)
         sys.stdout.write(fine_bands_text(bands, inband, ok_outside, walled))
         sys.stdout.write(fine_bands_block(bands, args.source))
+    elif args.command == "fine-ceilings":
+        ceilings = fine_ceilings(_points_of(PROOF_WALK), read_readings(Path(args.source)))
+        sys.stdout.write(fine_ceilings_text(ceilings))
+        sys.stdout.write(fine_ceilings_block(ceilings, args.source))
     elif args.command in (FULL, DENSE_BAND):
         made = (full_set if args.command == FULL else dense_band_set)(
             explore_dir, _relative(args.spread))
@@ -4702,6 +4836,9 @@ def main(argv: list[str] | None = None) -> int:
         "--from", dest="source", required=True)
     sub.add_parser("fine-bands", help="F5's bands and check cells from the band walk's records, "
                                       "exit 3 on a stop (08 D-15, D-19)").add_argument(
+        "--from", dest="source", required=True)
+    sub.add_parser("fine-ceilings", help="F7 and F8's turn ceilings from the proof walk's "
+                                         "records, exit 3 on a stop (08 D-06, D-18)").add_argument(
         "--from", dest="source", required=True)
     for name, helptext in ((FULL, "write R28's full tier (07-19)"),
                            (DENSE_BAND, "write G37's dense-band pre-read of the full tier")):

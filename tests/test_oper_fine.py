@@ -987,3 +987,178 @@ def test_the_fine_cost_sets_subcommand_writes_both_committed_files(tmp_path: Pat
                            "--spread-out", str(tmp_path / "s.json")]) == 0
     assert (tmp_path / "c.json").read_text() == COST.read_text()
     assert (tmp_path / "s.json").read_text() == SPREAD.read_text()
+
+
+# --- F7 and F8: the proof walk's judgement and the turn ceilings -------------------------------
+
+
+def _proof_points() -> list[Raw]:
+    return [dict(p) for p in oper_sets._points_of(oper_sets.PROOF_WALK)]
+
+
+def _proof_readings(failing: dict[str, str]) -> list[Raw]:
+    """One reading per proof-walk point: `failing[label]` for the labels named, else ok."""
+    points = _proof_points()
+    assert set(failing) <= {str(p["label"]) for p in points}, set(failing)
+    return [{**p, "rep": 1, "status": failing.get(str(p["label"]), "ok")} for p in points]
+
+
+def _ceilings(failing: dict[str, str]) -> tuple[oper_sets.FineCeiling, ...]:
+    return oper_sets.fine_ceilings(_proof_points(), _proof_readings(failing))
+
+
+def _ceiling_stop(failing: dict[str, str], rule: str, match: str) -> None:
+    with pytest.raises(ProtocolStop, match=match) as raised:
+        _ceilings(failing)
+    assert raised.value.rule == rule
+
+
+def _turns(n: int, d: str = "2", q: str = "7", hand: str = "right") -> str:
+    return f"proof-band-d{d}-q{q}-n{n}-{hand}"
+
+
+DEBT_3 = "proof-debt-d3-p0.35-L25-right"
+SHIPPED_NUT = "proof-nut-base-d5-q6-right"  # d / pitch just under 6: the shipped sweep
+FINE_NUT = "proof-nut-base-d5-q7-right"
+
+
+def test_the_proof_walk_without_a_refusal_gives_no_ceiling_and_an_empty_block() -> None:
+    ceilings = _ceilings({})
+    assert ceilings == ()
+    assert ("FINE_TURN_CEILINGS: tuple[tuple[str, int], ...] = ()\n# END turn-ceilings\n"
+            in oper_sets.fine_ceilings_block(ceilings, "somewhere"))
+
+
+def test_f_is_the_smallest_refused_turns_of_the_band_and_n_one_margin_under_it() -> None:
+    (ceiling,) = _ceilings({_turns(90): "refused", _turns(60): "refused"})
+    assert (ceiling.region, ceiling.f, ceiling.label, ceiling.n) == (
+        "band-1", Fraction(60), "proof-band-d2-q7-n60-right", 48)
+    assert [turns for _, turns, _ in ceiling.refused] == [Fraction(60), Fraction(90)]
+
+
+def test_f_is_exact_not_a_float_quotient() -> None:
+    (ceiling,) = _ceilings({DEBT_3: "refused"})
+    assert ceiling.f == Fraction("25") / Fraction("0.35") == Fraction(500, 7)
+    assert ceiling.n == 57  # 71.43 / 1.25 = 57.14
+
+
+def test_a_crashed_reading_counts_as_a_refusal() -> None:
+    assert _ceilings({_turns(30): "crashed"})[0].n == 24
+
+
+def test_n_is_the_whole_number_at_or_below_f_over_1_25() -> None:
+    """A bolt at exactly N turns is admitted by the guard 08-09 builds, so N never rounds up."""
+    assert oper_sets.turn_ceiling(Fraction(125, 2)) == 50
+    assert oper_sets.turn_ceiling(Fraction(125, 2) - Fraction(1, 10**9)) == 49
+
+
+def test_ties_are_set_by_the_first_label() -> None:
+    (ceiling,) = _ceilings({_turns(30, "2.05"): "refused", _turns(30, "2"): "refused"})
+    assert ceiling.label == "proof-band-d2-q7-n30-right"
+
+
+@pytest.fixture
+def two_bands(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The proof walk's one band cut at d 2.5 into two, so the walk has a refusal to put in each."""
+    monkeypatch.setattr(thread, "FINE_BOLT_BANDS",
+                        ((Fraction("1.55"), Fraction("2.5")), (Fraction("2.5"), Fraction("3.35"))))
+
+
+@pytest.mark.usefixtures("two_bands")
+def test_regions_are_the_bands_in_ascending_order_and_the_block_lists_band_1_first() -> None:
+    ceilings = _ceilings({_turns(90, "3"): "refused", _turns(60, "2"): "refused"})
+    assert [(c.region, c.n) for c in ceilings] == [("band-1", 48), ("band-2", 72)]
+    block = oper_sets.fine_ceilings_block(ceilings, "src")
+    assert block.index('("band-1", 48),') < block.index('("band-2", 72),')
+
+
+@pytest.mark.usefixtures("two_bands")
+def test_a_band_with_no_refusal_has_no_ceiling() -> None:
+    ceilings = _ceilings({_turns(60, "3"): "refused"})
+    assert [c.region for c in ceilings] == ["band-2"]
+    assert '"band-1"' not in oper_sets.fine_ceilings_block(ceilings, "src")
+
+
+def test_the_block_is_the_markers_the_source_and_one_line_per_ceiling() -> None:
+    block = oper_sets.fine_ceilings_block(_ceilings({_turns(60): "refused"}), "bench/results/x")
+    assert block == (
+        "# BEGIN turn-ceilings: written by `python -m bench.oper_sets fine-ceilings --from\n"
+        "# bench/results/x`; not edited by hand.\n"
+        "FINE_TURN_CEILINGS: tuple[tuple[str, int], ...] = (\n"
+        '    ("band-1", 48),\n'
+        ")\n"
+        "# END turn-ceilings\n")
+
+
+def test_the_text_names_f_exact_and_float_the_label_n_and_the_spans() -> None:
+    text = oper_sets.fine_ceilings_text(_ceilings({DEBT_3: "refused", _turns(90): "crashed"}))
+    assert "band-1: F = 500/7 (71.42857142857143) at proof-debt-d3-p0.35-L25-right;" in text
+    assert "F / 1.25 = 57.142857142857146; N = 57" in text
+    assert "2 refused or crashed" in text
+    assert "turns 71.42857142857143 to 90.0" in text
+
+
+def test_the_text_says_when_no_band_has_a_ceiling() -> None:
+    assert "no ceiling" in oper_sets.fine_ceilings_text(())
+
+
+def test_a_bolt_the_shipped_sweep_keeps_refused_is_a_stop_not_a_ceiling(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(thread, "FINE_BOLT_BANDS", ((Fraction("9"), Fraction("10")),))
+    _ceiling_stop({_turns(60): "refused"}, "F7", "S6: proof-band-d2-q7-n60-right")
+
+
+def test_a_shipped_sweep_nut_refused_is_a_stop() -> None:
+    _ceiling_stop({SHIPPED_NUT: "refused"}, "F7", f"S6: {SHIPPED_NUT}")
+
+
+def test_a_fine_sweep_nut_refused_is_a_stop_and_no_guard_for_nuts() -> None:
+    _ceiling_stop({FINE_NUT: "crashed"}, "F7", f"S7: {FINE_NUT}")
+
+
+def test_a_ceiling_below_3_turns_is_a_stop() -> None:
+    _ceiling_stop({_turns(3): "refused"}, "F8", "S8: .* N 2")
+
+
+def test_the_edge_of_s8_is_a_ceiling_of_exactly_3() -> None:
+    assert oper_sets.turn_ceiling(Fraction("3.75")) == 3
+    assert oper_sets.turn_ceiling(Fraction("3.7499")) == 2
+
+
+@pytest.mark.parametrize("status", ["killed", "capped", "no_cgroup", "missing", "timeout"])
+def test_a_status_other_than_ok_refused_or_crashed_is_a_stop(status: str) -> None:
+    _ceiling_stop({_turns(60): status}, "F7", f"S1: proof-band-d2-q7-n60-right is {status}")
+
+
+def test_a_missing_a_doubled_or_a_foreign_reading_is_a_stop() -> None:
+    points, readings = _proof_points(), _proof_readings({})
+    with pytest.raises(ProtocolStop, match="S1: 1 points of the walk have no reading") as raised:
+        oper_sets.fine_ceilings(points, readings[1:])
+    assert raised.value.rule == "F7"
+    with pytest.raises(ProtocolStop, match=r"S1: .* was read twice"):
+        oper_sets.fine_ceilings(points, [*readings, readings[0]])
+    with pytest.raises(ProtocolStop, match=r"S1: nowhere at .* is not a point"):
+        oper_sets.fine_ceilings(points, [*readings, {**readings[0], "label": "nowhere"}])
+
+
+def test_fine_ceilings_exits_3_on_a_stop_and_prints_the_block_otherwise(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _write(tmp_path / "good", _proof_readings({_turns(60): "refused"}))
+    assert oper_sets.main(["fine-ceilings", "--from", str(tmp_path / "good")]) == 0
+    out = capsys.readouterr().out
+    assert "band-1: F = 60 (60.0) at proof-band-d2-q7-n60-right; F / 1.25 = 48.0; N = 48" in out
+    assert out.count("# BEGIN turn-ceilings") == 1
+    assert '    ("band-1", 48),' in out
+    assert out.rstrip().endswith("# END turn-ceilings")
+    _write(tmp_path / "bad", _proof_readings({FINE_NUT: "refused"}))
+    assert oper_sets.main(["fine-ceilings", "--from", str(tmp_path / "bad")]) == 3
+    assert "oper_sets: stop (F7): S7: " in capsys.readouterr().err
+    _write(tmp_path / "small", _proof_readings({_turns(3): "refused"}))
+    assert oper_sets.main(["fine-ceilings", "--from", str(tmp_path / "small")]) == 3
+    assert "oper_sets: stop (F8): S8: " in capsys.readouterr().err
+
+
+def test_the_regions_are_the_shipped_bands_and_a_fine_bolt_always_has_one() -> None:
+    assert oper_sets._region(Fraction("2")) == "band-1"
+    assert oper_sets._region(Fraction("1.55")) is None  # a band's edge is excluded
+    assert oper_sets._region(Fraction("5")) is None
