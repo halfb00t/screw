@@ -3677,6 +3677,10 @@ def build_band_walk(explore_dir: str, envelope: Envelope) -> _Set:
 BAND_RANGES = (("0.3", "1.2"), ("1.3", "3.8"))  # F5: the walked ranges, ends included
 BAND_RATIO = Fraction(6)  # D-15: a bolt is on the fine sweep only above this exact d / pitch
 BAND_D_MAX = Fraction(4)  # F5: an edge refusal at this d or above is outside both bands
+# F15 (owner ruling at S5, L37): the bolt wall of 9 for d strictly inside this interval. The
+# ruling's values, not read from data; plan 08-12 puts the same three numbers in `calc.thread`.
+SMALL_D = (Fraction("0.45"), Fraction("0.9"))
+SMALL_WALL = Fraction(9)
 
 
 @dataclass(frozen=True)
@@ -3764,23 +3768,28 @@ def _inside(d: Fraction, bands: Sequence[Band]) -> bool:
 
 
 def check_group(points: Sequence[Mapping[str, object]], readings: Iterable[Reading],
-                bands: Sequence[Band]) -> tuple[tuple[str, ...], int]:
+                bands: Sequence[Band]) -> tuple[tuple[str, ...], int, tuple[str, ...]]:
     """F5's check group (D-19, labels `check-`): the refused or crashed cells strictly inside a
-    band, listed in label order, and the count of `ok` cells outside every band. A refused or
-    crashed cell outside every band is the stop S5."""
+    band, listed in label order, the count of `ok` cells outside every band, and (F15, L37) the
+    refused or crashed cells outside every band that the parameter model's small-d wall refuses
+    before the kernel: 0.45 < d < 0.9 and d / pitch above 9. Any other refused or crashed cell
+    outside every band is the stop S5."""
     listed: list[str] = []
+    walled: list[str] = []
     ok_outside = 0
-    for label, d, _, status in _band_readings(points, readings):
+    for label, d, ratio, status in _band_readings(points, readings):
         if not label.startswith("check-"):
             continue
         if status == "ok":
             ok_outside += not _inside(d, bands)
         elif _inside(d, bands):
             listed.append(label)
+        elif SMALL_D[0] < d < SMALL_D[1] and ratio > SMALL_WALL:
+            walled.append(label)
         else:
             raise ProtocolStop("F5", f"S5: {label} was {status} at d {d}, outside every band, and "
                                      "no bolt outside the bands goes on the fine sweep (D-19)")
-    return tuple(listed), ok_outside
+    return tuple(listed), ok_outside, tuple(walled)
 
 
 def fine_bands(points: Sequence[Mapping[str, object]],
@@ -3801,8 +3810,9 @@ def _band_text_d(x: Fraction) -> str:
     return next(s for s in BAND_D if Fraction(s) == x)
 
 
-def fine_bands_text(bands: Sequence[Band], inband: Sequence[str], ok_outside: int) -> str:
-    """One line per band (and the readings that set it), then the check group's line."""
+def fine_bands_text(bands: Sequence[Band], inband: Sequence[str], ok_outside: int,
+                    walled: Sequence[str] = ()) -> str:
+    """One line per band (and the readings that set it), then the check group's lines."""
     if not bands:
         head = "no band: no bolt of the walk was refused or crashed above d / pitch 6\n"
     else:
@@ -3812,7 +3822,9 @@ def fine_bands_text(bands: Sequence[Band], inband: Sequence[str], ok_outside: in
             f"  d / pitch {float(min(b.ratios))!r} to {float(max(b.ratios))!r}, last "
             f"{b.refused[-1]}\n" for i, b in enumerate(bands, 1))
     return head + (f"check: {len(inband)} refused inside a band ({', '.join(inband)}), "
-                   f"{ok_outside} ok outside every band\n")
+                   f"{ok_outside} ok outside every band\n"
+                   f"walled: {len(walled)} refused above d / pitch 9 at 0.45 < d < 0.9 (F15, L37)"
+                   f"{': ' + ', '.join(walled) if walled else ''}\n")
 
 
 def fine_bands_block(bands: Sequence[Band], source: str) -> str:
@@ -4303,8 +4315,8 @@ def _run(args: argparse.Namespace) -> int:
         readings = read_readings(Path(args.source))
         points = _points_of(BAND_WALK)
         bands = fine_bands(points, readings)
-        inband, ok_outside = check_group(points, readings, bands)
-        sys.stdout.write(fine_bands_text(bands, inband, ok_outside))
+        inband, ok_outside, walled = check_group(points, readings, bands)
+        sys.stdout.write(fine_bands_text(bands, inband, ok_outside, walled))
         sys.stdout.write(fine_bands_block(bands, args.source))
     elif args.command in (FULL, DENSE_BAND):
         made = (full_set if args.command == FULL else dense_band_set)(

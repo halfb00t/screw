@@ -392,7 +392,9 @@ def test_a_check_cell_refused_inside_a_band_is_listed_and_moves_no_edge() -> Non
     bands = _bands(failing)
     assert [(b.low, b.high) for b in bands] == [
         (Fraction("0.45"), Fraction("0.9")), (Fraction("1.55"), Fraction("3.35"))]
-    inband, ok_outside = oper_sets.check_group(_list("points"), _readings(failing), bands)
+    inband, ok_outside, walled = oper_sets.check_group(
+        _list("points"), _readings(failing), bands)
+    assert walled == ()
     assert inband == (CHECK_IN,)
     outside = [p for p in _list("points") if str(p["label"]).startswith("check-")
                if not any(b.low < Fraction(repr(_params(p)["d"])) < b.high for b in bands)]
@@ -412,6 +414,55 @@ def test_a_check_cell_refused_or_crashed_outside_every_band_stops(label: str) ->
 def test_a_check_refusal_with_no_band_at_all_stops() -> None:
     """F5 S5 (D-19): no band, no cell inside one."""
     _stop({CHECK_IN: "refused"}, "S5")
+
+
+# F15 (owner ruling at S5, L37): a refused check cell at 0.45 < d < 0.9 and d / pitch above 9,
+# outside every band, is the parameter model's to refuse and is no stop. Nothing else is let
+# through.
+
+ONE_BAND = {_band("1.6", "6.5"): "refused", _band("3.3", "7.5", 70): "crashed"}
+WALLED = ("check-d0.5-q12.5-n90-right", "check-d0.85-q20-n90-left", "check-d0.6-q16-n90-right")
+
+
+def test_a_check_cell_above_the_small_d_wall_is_walled_and_no_stop() -> None:
+    failing = {**ONE_BAND, WALLED[0]: "refused", WALLED[1]: "crashed", WALLED[2]: "refused"}
+    bands = _bands(failing)
+    assert [(b.low, b.high) for b in bands] == [(Fraction("1.55"), Fraction("3.35"))]
+    inband, _, walled = oper_sets.check_group(_list("points"), _readings(failing), bands)
+    assert inband == ()
+    assert walled == tuple(sorted(WALLED))
+
+
+@pytest.mark.parametrize("label", [
+    "check-d0.5-q9-n90-right",       # d / pitch at most 9: the wall admits it
+    "check-d0.45-q20-n90-right",     # d 0.45 is not strictly inside the interval
+    "check-d0.9-q12.5-n90-left",     # nor is d 0.9
+    "check-d0.95-q16-n90-right",     # past the interval
+    "check-d0.4-q16-n90-right",      # before it
+    "check-d1.4-q12.5-n3-right",     # between the bands
+    "check-n3s-d150-q9-right"])      # another kind of cell
+def test_a_refused_check_cell_the_small_d_wall_does_not_hold_still_stops(label: str) -> None:
+    """F15 hides no other refusal: the wall holds only 0.45 < d < 0.9 above d / pitch 9."""
+    _stop({**ONE_BAND, label: "refused"}, r"S5.*D-19")
+    _stop({**ONE_BAND, label: "crashed"}, r"S5.*D-19")
+
+
+def test_a_cell_inside_a_band_is_listed_and_not_walled_even_at_small_d() -> None:
+    failing = {**TWO_BANDS, WALLED[0]: "refused"}
+    bands = _bands(failing)
+    inband, _, walled = oper_sets.check_group(_list("points"), _readings(failing), bands)
+    assert inband == (WALLED[0],)
+    assert walled == ()
+
+
+def test_the_text_and_the_cli_report_the_walled_cells(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    failing = {**ONE_BAND, WALLED[0]: "refused", WALLED[1]: "refused"}
+    text = oper_sets.fine_bands_text(_bands(failing), (), 7, WALLED[:2])
+    assert "walled: 2 refused above d / pitch 9 at 0.45 < d < 0.9 (F15, L37)" in text
+    _write(tmp_path / "walled", _readings(failing))
+    assert oper_sets.main(["fine-bands", "--from", str(tmp_path / "walled")]) == 0
+    assert "walled: 2 refused above d / pitch 9" in capsys.readouterr().out
 
 
 def _write(directory: Path, readings: list[Raw]) -> None:
