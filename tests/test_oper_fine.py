@@ -1162,3 +1162,18 @@ def test_the_regions_are_the_shipped_bands_and_a_fine_bolt_always_has_one() -> N
     assert oper_sets._region(Fraction("2")) == "band-1"
     assert oper_sets._region(Fraction("1.55")) is None  # a band's edge is excluded
     assert oper_sets._region(Fraction("5")) is None
+
+
+PROOF_RECORDS = REPO_ROOT / "bench" / "results" / "phase-08" / "fine-proof-41684315321"
+PRINTED_CEILINGS = ()  # fine-ceilings --from PROOF_RECORDS: the fine sweep refused nothing
+
+
+def test_the_proof_walk_records_give_the_ceilings_08_09_ships() -> None:
+    """Run 41684315321 read all 5790 points ok, so F8 has no ceiling to print (D-06: no refusal,
+    no ceiling). 08-09 replaces this with the `calc.thread` block check."""
+    readings = oper_sets.read_readings(PROOF_RECORDS)
+    assert len(readings) == len(_proof_points()) == 5790
+    ceilings = oper_sets.fine_ceilings(_proof_points(), readings)
+    assert ceilings == PRINTED_CEILINGS
+    block = oper_sets.fine_ceilings_block(ceilings, f"bench/results/phase-08/{PROOF_RECORDS.name}")
+    assert "FINE_TURN_CEILINGS: tuple[tuple[str, int], ...] = ()\n" in block
