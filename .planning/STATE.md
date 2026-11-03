@@ -4,16 +4,16 @@ milestone: v1.0
 current_phase: 08
 current_phase_name: Pre-release Gap Closure
 status: executing
-stopped_at: Completed 08-12-PLAN.md
-last_updated: "2026-11-03T15:57:53.357Z"
+stopped_at: Completed 08-06-PLAN.md
+last_updated: "2026-11-03T17:28:36.425Z"
 last_activity: 2026-11-02
 last_activity_desc: Phase 08 execution started
-state_head: 9a5a8d676f0f10ba14beba5c19ec34c0ffb231f2
+state_head: 09af247322141e81c8584092ab7f92cea66b7cfa
 progress:
   total_phases: 9
   completed_phases: 8
   total_plans: 116
-  completed_plans: 109
+  completed_plans: 110
 ---
 
 # Project State
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-01)
 ## Current Position
 
 Phase: 08 (Pre-release Gap Closure) — EXECUTING
-Plan: 7 of 13
+Plan: 8 of 13
 Status: Ready to execute
 Last activity: 2026-11-02 — Phase 08 execution started
 
@@ -172,6 +172,7 @@ Progress: [████████████████████] 103/103
 | Phase 8 P03 | two sessions | 2 tasks | 9 files |
 | Phase 08 P05 | 55min | 2 tasks | 6 files |
 | Phase 08 P12 | one session | 3 tasks | 7 files |
+| Phase 08 P06 | n/a | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -362,6 +363,7 @@ Recent decisions affecting current work:
 - [Phase 8]: L37 (owner ruling at S5, reply c): bolt wall 9 for d strictly between 0.45 and 0.9 mm; code in plan 08-12; F15 amends the sweep protocol
 - [Phase 08]: 08-12: bolt wall of 9 for 0.45 < d < 0.9 mm (L37) lives in calc.thread beside the pitch-walls block
 - [Phase 08]: 08-12: FINE_BOLT_BANDS is the fine-bands block verbatim; a bolt is fine only inside a band and above d / pitch 6, no d / pitch-only clause (D-15, D-19)
+- [Phase 08]: 08-06: fine-proof drops use _runner_refusal (oper_child validates with oper_lift.validate); F6 (b) explore evidence that never reaches the runner dispatched as is, owner accepted
 
 ### Pending Todos
 
@@ -420,6 +422,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-03T15:57:53.082Z
-Stopped at: Completed 08-12-PLAN.md
+Last session: 2026-11-03T17:28:36.134Z
+Stopped at: Completed 08-06-PLAN.md
 Resume file: None
