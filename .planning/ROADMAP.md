@@ -466,14 +466,14 @@ Plans:
   4. A value typed equal to its default gets the same answer on the web, the API and the CLI, or the difference is an owner decision logged as an `Lxx` (INT-03).
   5. INFO-05 is listed in a Phase 4 SUMMARY's `requirements-completed`; `/gsd-validate-phase 6` and `/gsd-validate-phase 7` leave both VALIDATION.md files `validated`; the re-run milestone audit reads `passed` or `tech_debt`.
 
-**Plans**: 4/13 plans executed
+**Plans**: 5/13 plans executed
 
 Plans (in execution order; 08-12 and 08-13 were split from 08-05 and 08-08 to fit the context budget):
 - [x] 08-01-PLAN.md — Pre-register the sweep protocol F1 to F14 with its stops S1 to S11, and the band walk with out-of-band check cells (D-19); owner dispatches it (wave 1, alone)
 - [x] 08-02-PLAN.md — L34: `screw export` has no build deadline; amend TABL-06 to agree with L19; INFO-05 traced; INT-04 and INT-05 filed as debt (wave 2, after 08-01's dispatch)
 - [x] 08-03-PLAN.md — F5 band judge with the D-19 check-cell stop; commit the band walk records and print the bands (wave 2)
 - [x] 08-04-PLAN.md — Web counts a typed, picked or linked field as explicit; registry-driven API/CLI typed-default test; L35, L19/L21 notes, UI-SPEC rule 38; recorded browser check; web half filed as debt (wave 3)
-- [ ] 08-05-PLAN.md — Fine sweep in helical; nuts above d / pitch 6 on it; bolts routed through the predicate; island and catalogue tests (wave 3)
+- [x] 08-05-PLAN.md — Fine sweep in helical; nuts above d / pitch 6 on it; bolts routed through the predicate; island and catalogue tests (wave 3)
 - [ ] 08-12-PLAN.md — Measured bolt bands in `calc/thread.py` (D-15, D-19); long-thread debt bolts build; band-edge tests; push (wave 4)
 - [ ] 08-06-PLAN.md — Proof walk (with the band walk's in-band refusals) and cost sets on the freeze commit; owner dispatches them (wave 5)
 - [ ] 08-07-PLAN.md — F7/F8 ceilings judge per band; commit the proof and cost records (wave 6)
@@ -498,4 +498,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 6.1 → 7 �
 | 6. Printed Pair Acceptance | 10/10 | Complete    | 2026-10-24 |
 | 6.1. Bolt head chamfer (INSERTED) | 5/5 | Complete    | 2026-10-25 |
 | 7. Operability Re-sweep | 21/21 | Complete    | 2026-11-01 |
-| 8. Pre-release Gap Closure | 4/13 | In Progress | - |
+| 8. Pre-release Gap Closure | 5/13 | In Progress | - |
