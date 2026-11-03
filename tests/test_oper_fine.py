@@ -18,6 +18,7 @@ from pathlib import Path
 import pytest
 
 from bench import oper, oper_lift, oper_sets
+from bench.oper_sets import ProtocolStop
 from screw.calc import cost
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -257,3 +258,180 @@ def test_a_cell_admitted_at_stl_preview_only_is_read_there(
     assert {p["artifact"] for p in made.points} == {"stl-preview"}
     assert len(made.points) + len(made.dropped) == (
         6 * 3 * 2 + 4 * 3 * 2 + 4 * 2 * 2)
+
+
+# --- F5: the band edges and the check cells -----------------------------------------------------
+
+
+def _readings(failing: dict[str, str]) -> list[Raw]:
+    """One reading per walk point: `failing[label]` for the labels named, else ok. A label that is
+    not a point of the walk is a mistake in the test, not a foreign reading."""
+    points = _list("points")
+    assert set(failing) <= {str(p["label"]) for p in points}, set(failing)
+    return [{**p, "rep": 1, "status": failing.get(str(p["label"]), "ok")} for p in points]
+
+
+def _band(d: str, q: str = "7", n: int = 50, hand: str = "right") -> str:
+    return f"band-d{d}-q{q}-n{n}-{hand}"
+
+
+def _stop(failing: dict[str, str], match: str) -> None:
+    with pytest.raises(ProtocolStop, match=match) as raised:
+        oper_sets.fine_bands(_list("points"), _readings(failing))
+    assert raised.value.rule == "F5"
+
+
+TWO_BANDS = {_band("0.5"): "refused", _band("0.85", "7", 90, "left"): "refused",
+             _band("1.6", "6.5"): "refused", _band("3.3", "7.5", 70): "crashed"}
+
+
+def _bands(failing: dict[str, str]) -> tuple[oper_sets.Band, ...]:
+    return oper_sets.fine_bands(_list("points"), _readings(failing))
+
+
+def test_no_refusal_gives_no_band_and_an_empty_block() -> None:
+    bands = _bands({})
+    assert bands == ()
+    block = oper_sets.fine_bands_block(bands, "somewhere")
+    assert ("FINE_BOLT_BANDS: tuple[tuple[Fraction, Fraction], ...] = ()\n"
+            "# END fine-bands\n") in block
+    assert "no band: no bolt of the walk was refused or crashed above d / pitch 6" in (
+        oper_sets.fine_bands_text(bands, (), 0))
+
+
+def test_a_band_is_the_two_walked_sizes_just_outside_its_refusals_and_crashed_counts() -> None:
+    bands = _bands(TWO_BANDS)
+    assert [(b.low, b.high) for b in bands] == [
+        (Fraction("0.45"), Fraction("0.9")), (Fraction("1.55"), Fraction("3.35"))]
+    assert bands[0].refused == (_band("0.5"), _band("0.85", "7", 90, "left"))
+    assert bands[1].refused == (_band("1.6", "6.5"), _band("3.3", "7.5", 70))
+
+
+def test_the_text_names_each_band_its_edges_and_the_check_group() -> None:
+    bands = _bands(TWO_BANDS)
+    text = oper_sets.fine_bands_text(bands, ("check-d3-q9-n3-right",), 1234)
+    assert f"band-1: d in (0.45, 0.9), excluded, from 2 refused readings, first {_band('0.5')}" in (
+        text)
+    assert "band-2: d in (1.55, 3.35), excluded, from 2 refused readings, first " in text
+    assert "check: 1 refused inside a band (check-d3-q9-n3-right), 1234 ok outside every band" in (
+        text)
+
+
+def test_the_block_lists_the_bands_in_ascending_d_each_on_its_own_line() -> None:
+    block = oper_sets.fine_bands_block(_bands(TWO_BANDS), "bench/results/x")
+    assert block == (
+        "# BEGIN fine-bands: written by `python -m bench.oper_sets fine-bands --from\n"
+        "# bench/results/x`; not edited by hand.\n"
+        "FINE_BOLT_BANDS: tuple[tuple[Fraction, Fraction], ...] = (\n"
+        '    (Fraction("0.45"), Fraction("0.9")),\n'
+        '    (Fraction("1.55"), Fraction("3.35")),\n'
+        ")\n"
+        "# END fine-bands\n")
+    assert all(len(line) <= 100 for line in block.splitlines())
+
+
+def test_an_edge_refusal_at_exact_d_over_pitch_6_stops() -> None:
+    """F5 S2."""
+    _stop({_band("2", "6"): "refused"}, r"S2.*d / pitch")
+
+
+def test_an_edge_refusal_at_d_4_or_more_stops() -> None:
+    """F5 S3: outside both bands."""
+    _stop({_band("4"): "refused"}, "S3")
+    _stop({_band("20", "8"): "crashed"}, "S3")
+
+
+@pytest.mark.parametrize("d", ["0.3", "1.2", "1.3", "3.8"])
+def test_a_refused_size_at_either_end_of_a_walked_range_stops(d: str) -> None:
+    """F5 S3: a range end has no out value."""
+    _stop({_band(d): "refused"}, rf"S3.*{d}")
+
+
+@pytest.mark.parametrize("status", ["killed", "capped", "no_cgroup"])
+def test_a_reading_that_is_not_ok_refused_or_crashed_stops(status: str) -> None:
+    """F5 S1: cost or a gap."""
+    _stop({_band("0.5"): "refused", _band("1.6"): status}, rf"S1.*is {status}")
+
+
+def test_a_missing_a_doubled_or_a_foreign_reading_stops() -> None:
+    """F5 S1."""
+    every = _readings(TWO_BANDS)
+    points = _list("points")
+    with pytest.raises(ProtocolStop, match=r"S1.*1 points of the walk have no reading") as raised:
+        oper_sets.fine_bands(points, every[1:])
+    assert raised.value.rule == "F5"
+    with pytest.raises(ProtocolStop, match=r"S1.*was read twice"):
+        oper_sets.fine_bands(points, [*every, every[0]])
+    with pytest.raises(ProtocolStop, match=r"S1.*is not a point of the walk"):
+        oper_sets.fine_bands(points, [*every, {**every[0], "label": "band-elsewhere"}])
+
+
+def test_a_catalogue_bolt_above_d_over_pitch_6_inside_a_band_stops(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    """F5 S4: D-15, no catalogue bolt moves."""
+    assert len(_bands(TWO_BANDS)) == 2
+    monkeypatch.setattr(oper_sets, "_catalogue_bolts",
+                        lambda: [("planted", Fraction(2), Fraction("0.3"))])
+    _stop(TWO_BANDS, r"S4.*planted")
+    monkeypatch.setattr(oper_sets, "_catalogue_bolts",
+                        lambda: [("on the edge", Fraction("1.55"), Fraction("0.2")),
+                                 ("at six", Fraction(2), Fraction("0.5"))])
+    assert len(_bands(TWO_BANDS)) == 2
+
+
+def test_the_shipped_catalogue_holds_no_bolt_above_6_inside_a_band() -> None:
+    assert all(d / pitch <= 6 or not 1 <= d <= 4 for _, d, pitch in oper_sets._catalogue_bolts())
+    assert oper_sets._catalogue_bolts()
+
+
+CHECK_IN = "check-d3-q9-n3-right"
+
+
+def test_a_check_cell_refused_inside_a_band_is_listed_and_moves_no_edge() -> None:
+    failing = {**TWO_BANDS, CHECK_IN: "refused"}
+    bands = _bands(failing)
+    assert [(b.low, b.high) for b in bands] == [
+        (Fraction("0.45"), Fraction("0.9")), (Fraction("1.55"), Fraction("3.35"))]
+    inband, ok_outside = oper_sets.check_group(_list("points"), _readings(failing), bands)
+    assert inband == (CHECK_IN,)
+    outside = [p for p in _list("points") if str(p["label"]).startswith("check-")
+               if not any(b.low < Fraction(repr(_params(p)["d"])) < b.high for b in bands)]
+    assert ok_outside == len(outside) > 0
+
+
+@pytest.mark.parametrize("label", ["check-d1.4-q12.5-n3-right",   # between the bands
+                                   "check-d3.4-q9-n3-right",       # just past band 2's edge
+                                   "check-n3s-d150-q9-right",      # the n3s form
+                                   "check-d0.3-q20-n30-left"])     # a walked range's end
+def test_a_check_cell_refused_or_crashed_outside_every_band_stops(label: str) -> None:
+    """F5 S5 (D-19)."""
+    _stop({**TWO_BANDS, label: "refused"}, r"S5.*D-19")
+    _stop({**TWO_BANDS, label: "crashed"}, r"S5.*D-19")
+
+
+def test_a_check_refusal_with_no_band_at_all_stops() -> None:
+    """F5 S5 (D-19): no band, no cell inside one."""
+    _stop({CHECK_IN: "refused"}, "S5")
+
+
+def _write(directory: Path, readings: list[Raw]) -> None:
+    (directory / "oper-fine-bands-1-1").mkdir(parents=True)
+    lines = [json.dumps({"type": "header", "GITHUB_RUN_ID": "1"})]
+    lines += [json.dumps({"type": "reading", **r}) for r in readings]
+    (directory / "oper-fine-bands-1-1" / "oper-fine-bands-1-1.jsonl").write_text(
+        "\n".join(lines) + "\n")
+
+
+def test_fine_bands_exits_3_on_a_stop_and_prints_the_block_otherwise(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _write(tmp_path / "good", _readings({**TWO_BANDS, CHECK_IN: "refused"}))
+    assert oper_sets.main(["fine-bands", "--from", str(tmp_path / "good")]) == 0
+    out = capsys.readouterr().out
+    assert "band-1: d in (0.45, 0.9)" in out
+    assert "check: 1 refused inside a band (check-d3-q9-n3-right)" in out
+    assert out.count("# BEGIN fine-bands") == 1
+    assert 'Fraction("3.35")' in out
+    assert out.rstrip().endswith("# END fine-bands")
+    _write(tmp_path / "bad", _readings({**TWO_BANDS, "check-d3.4-q9-n3-right": "refused"}))
+    assert oper_sets.main(["fine-bands", "--from", str(tmp_path / "bad")]) == 3
+    assert "oper_sets: stop (F5): " in capsys.readouterr().err

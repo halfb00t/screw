@@ -3672,6 +3672,161 @@ def build_band_walk(explore_dir: str, envelope: Envelope) -> _Set:
     return out
 
 
+# --- F5: the band edges and the check cells -------------------------------------------------------
+
+BAND_RANGES = (("0.3", "1.2"), ("1.3", "3.8"))  # F5: the walked ranges, ends included
+BAND_RATIO = Fraction(6)  # D-15: a bolt is on the fine sweep only above this exact d / pitch
+BAND_D_MAX = Fraction(4)  # F5: an edge refusal at this d or above is outside both bands
+
+
+@dataclass(frozen=True)
+class Band:
+    """One band F5 reads: `low` and `high` are walked sizes just outside the refusals (excluded),
+    `refused` the edge-group labels above d / pitch 6 inside it, `ratios` their exact d / pitch."""
+
+    low: Fraction
+    high: Fraction
+    refused: tuple[str, ...]
+    ratios: tuple[Fraction, ...]
+
+
+def _catalogue_bolts() -> list[tuple[str, Fraction, Fraction]]:
+    """(id, exact d, exact pitch) of every bolt catalogue row."""
+    rows = [(row.id, dict(row.fields)) for row in catalogue()]
+    return [(row_id, _exact(fields["d"]), _exact(fields["pitch"])) for row_id, fields in rows]
+
+
+def _band_readings(points: Sequence[Mapping[str, object]],
+                   readings: Iterable[Reading]) -> list[tuple[str, Fraction, Fraction, str]]:
+    """F5's first rule: every point read exactly once, nothing read that the walk does not hold,
+    every status `ok`, `refused` or `crashed`. Returns (label, exact d, exact d / pitch, status)
+    per point in label order, taking the params from the walk's own point."""
+    held = {(str(p["label"]), str(p["artifact"])): p for p in points}
+    seen: dict[tuple[str, str], Reading] = {}
+    for reading in readings:
+        key = (str(reading.get("label")), str(reading.get("artifact")))
+        if key not in held:
+            raise ProtocolStop("F5", f"S1: {key[0]} at {key[1]} is not a point of the walk")
+        if key in seen:
+            raise ProtocolStop("F5", f"S1: {key[0]} at {key[1]} was read twice")
+        seen[key] = reading
+    missing = sorted(set(held) - set(seen))
+    if missing:
+        raise ProtocolStop("F5", f"S1: {len(missing)} points of the walk have no reading, the "
+                                 f"first {missing[0][0]} at {missing[0][1]}")
+    out: list[tuple[str, Fraction, Fraction, str]] = []
+    for key, reading in sorted(seen.items()):
+        status = str(reading.get("status"))
+        if status != "ok" and status not in FAILED:
+            raise ProtocolStop("F5", f"S1: {key[0]} is {status}, which is cost or a gap and not "
+                                     "a refusal, so no band edge has a number")
+        params = held[key]["params"]
+        if not isinstance(params, Mapping):
+            raise ProtocolStop("F5", f"S1: the point {key[0]} carries no params")
+        d = _exact(float(params["d"]))
+        out.append((key[0], d, d / _exact(float(params["pitch"])), status))
+    return out
+
+
+def _band_edges(rows: Sequence[tuple[str, Fraction, Fraction, str]]) -> tuple[Band, ...]:
+    """F5 over the edge group (labels `band-`): the stops S2 and S3, then each range's band."""
+    failed = [(label, d, ratio) for label, d, ratio, status in rows
+              if label.startswith("band-") and status in FAILED]
+    for label, d, ratio in failed:
+        if ratio <= BAND_RATIO:
+            raise ProtocolStop("F5", f"S2: {label} was refused at d / pitch {ratio}, at most 6, "
+                                     "where the bolt would stay on the shipped sweep")
+        if d >= BAND_D_MAX:
+            raise ProtocolStop("F5", f"S3: {label} was refused at d {d}, 4 mm or more, outside "
+                                     "both bands")
+    bands: list[Band] = []
+    for first, last in BAND_RANGES:
+        walked = sorted(Fraction(x) for x in BAND_D
+                        if Fraction(first) <= Fraction(x) <= Fraction(last))
+        inside = sorted((d, label, ratio) for label, d, ratio in failed
+                        if walked[0] <= d <= walked[-1])
+        if not inside:
+            continue
+        smallest, largest = inside[0][0], inside[-1][0]
+        for end in (walked[0], walked[-1]):
+            if end in (smallest, largest):
+                raise ProtocolStop("F5", f"S3: a refused d {end} is the end of the walked range "
+                                         f"{first} to {last} mm, so the band has no out value")
+        bands.append(Band(max(x for x in walked if x < smallest),
+                          min(x for x in walked if x > largest),
+                          tuple(sorted(label for _, label, _ in inside)),
+                          tuple(ratio for _, _, ratio in sorted(inside, key=lambda r: r[1]))))
+    return tuple(sorted(bands, key=lambda band: band.low))
+
+
+def _inside(d: Fraction, bands: Sequence[Band]) -> bool:
+    return any(band.low < d < band.high for band in bands)
+
+
+def check_group(points: Sequence[Mapping[str, object]], readings: Iterable[Reading],
+                bands: Sequence[Band]) -> tuple[tuple[str, ...], int]:
+    """F5's check group (D-19, labels `check-`): the refused or crashed cells strictly inside a
+    band, listed in label order, and the count of `ok` cells outside every band. A refused or
+    crashed cell outside every band is the stop S5."""
+    listed: list[str] = []
+    ok_outside = 0
+    for label, d, _, status in _band_readings(points, readings):
+        if not label.startswith("check-"):
+            continue
+        if status == "ok":
+            ok_outside += not _inside(d, bands)
+        elif _inside(d, bands):
+            listed.append(label)
+        else:
+            raise ProtocolStop("F5", f"S5: {label} was {status} at d {d}, outside every band, and "
+                                     "no bolt outside the bands goes on the fine sweep (D-19)")
+    return tuple(listed), ok_outside
+
+
+def fine_bands(points: Sequence[Mapping[str, object]],
+               readings: Iterable[Reading]) -> tuple[Band, ...]:
+    """F5 (D-15, D-19): the bands in ascending d from the edge group alone, after the stops S1 to
+    S4 and with the check group held to S5. Anything else has no number: `ProtocolStop`."""
+    rows = _band_readings(points, readings)
+    bands = _band_edges(rows)
+    for row_id, d, pitch in _catalogue_bolts():
+        if d / pitch > BAND_RATIO and _inside(d, bands):
+            raise ProtocolStop("F5", f"S4: the catalogue bolt {row_id} (d {d}, d / pitch "
+                                     f"{d / pitch}) lies strictly inside a band, so it would move")
+    check_group(points, readings, bands)
+    return bands
+
+
+def _band_text_d(x: Fraction) -> str:
+    return next(s for s in BAND_D if Fraction(s) == x)
+
+
+def fine_bands_text(bands: Sequence[Band], inband: Sequence[str], ok_outside: int) -> str:
+    """One line per band (and the readings that set it), then the check group's line."""
+    if not bands:
+        head = "no band: no bolt of the walk was refused or crashed above d / pitch 6\n"
+    else:
+        head = "".join(
+            f"band-{i}: d in ({_band_text_d(b.low)}, {_band_text_d(b.high)}), excluded, from "
+            f"{len(b.refused)} refused readings, first {b.refused[0]}\n"
+            f"  d / pitch {float(min(b.ratios))!r} to {float(max(b.ratios))!r}, last "
+            f"{b.refused[-1]}\n" for i, b in enumerate(bands, 1))
+    return head + (f"check: {len(inband)} refused inside a band ({', '.join(inband)}), "
+                   f"{ok_outside} ok outside every band\n")
+
+
+def fine_bands_block(bands: Sequence[Band], source: str) -> str:
+    """The `calc.thread` lines between its fine-bands markers: the bands read from `source` (F5),
+    each edge a `Fraction` of the walk's own decimal string."""
+    body = ("(\n" + "".join(
+        f'    (Fraction("{_band_text_d(b.low)}"), Fraction("{_band_text_d(b.high)}")),\n'
+        for b in bands) + ")") if bands else "()"
+    return ("# BEGIN fine-bands: written by `python -m bench.oper_sets fine-bands --from\n"
+            f"# {source}`; not edited by hand.\n"
+            f"FINE_BOLT_BANDS: tuple[tuple[Fraction, Fraction], ...] = {body}\n"
+            "# END fine-bands\n")
+
+
 # --- R28: the full recording tier (07-19) -------------------------------------------------------
 #
 # The full grid as a judged set (D-12): every catalogue row of both kinds at each artifact, the
@@ -4144,6 +4299,13 @@ def _run(args: argparse.Namespace) -> int:
         if walls["bolt"].w != EXPECTED_BOLT_PITCH_W:
             raise ProtocolStop("R31", f"the bolt W is {walls['bolt'].w}, not "
                                       f"{EXPECTED_BOLT_PITCH_W}")
+    elif args.command == "fine-bands":
+        readings = read_readings(Path(args.source))
+        points = _points_of(BAND_WALK)
+        bands = fine_bands(points, readings)
+        inband, ok_outside = check_group(points, readings, bands)
+        sys.stdout.write(fine_bands_text(bands, inband, ok_outside))
+        sys.stdout.write(fine_bands_block(bands, args.source))
     elif args.command in (FULL, DENSE_BAND):
         made = (full_set if args.command == FULL else dense_band_set)(
             explore_dir, _relative(args.spread))
@@ -4224,6 +4386,9 @@ def main(argv: list[str] | None = None) -> int:
     band_walk.add_argument("--out", required=True)
     sub.add_parser("pitch-walls", help="R31's F and W per kind from the walk's records, exit 3 "
                                        "if the bolt W is not 20 (G35, G36)").add_argument(
+        "--from", dest="source", required=True)
+    sub.add_parser("fine-bands", help="F5's bands and check cells from the band walk's records, "
+                                      "exit 3 on a stop (08 D-15, D-19)").add_argument(
         "--from", dest="source", required=True)
     for name, helptext in ((FULL, "write R28's full tier (07-19)"),
                            (DENSE_BAND, "write G37's dense-band pre-read of the full tier")):
