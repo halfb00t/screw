@@ -43,7 +43,7 @@ key-decisions:
 patterns-established:
   - "Existing tests that use a custom part now expect the no-row warning after the thread warnings; tests/test_calc.py defines NO_ROW and ROW_KEYS once for that"
 
-requirements-completed: []
+requirements-completed: [INFO-05]
 
 duration: about 35 min
 completed: 2026-10-12
