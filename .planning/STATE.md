@@ -4,16 +4,16 @@ milestone: v1.0
 current_phase: 08
 current_phase_name: Pre-release Gap Closure
 status: executing
-stopped_at: Completed 08-05-PLAN.md
-last_updated: "2026-11-03T15:26:00.442Z"
+stopped_at: Completed 08-12-PLAN.md
+last_updated: "2026-11-03T15:57:53.357Z"
 last_activity: 2026-11-02
 last_activity_desc: Phase 08 execution started
-state_head: da29a12790ec29c539c65a8062690d78d0018e12
+state_head: 9a5a8d676f0f10ba14beba5c19ec34c0ffb231f2
 progress:
   total_phases: 9
   completed_phases: 8
   total_plans: 116
-  completed_plans: 108
+  completed_plans: 109
 ---
 
 # Project State
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-01)
 ## Current Position
 
 Phase: 08 (Pre-release Gap Closure) — EXECUTING
-Plan: 6 of 13
+Plan: 7 of 13
 Status: Ready to execute
 Last activity: 2026-11-02 — Phase 08 execution started
 
@@ -171,6 +171,7 @@ Progress: [████████████████████] 103/103
 | Phase 08 P04 | two sessions (owner browser check between) | 2 tasks | 6 files |
 | Phase 8 P03 | two sessions | 2 tasks | 9 files |
 | Phase 08 P05 | 55min | 2 tasks | 6 files |
+| Phase 08 P12 | one session | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -359,6 +360,8 @@ Recent decisions affecting current work:
 - [Phase 08]: L34: screw export and screw pair have no build deadline (08 D-09, D-21)
 - [Phase 08]: L35: the page counts a field the user typed, picked or linked as explicit, as the API and the CLI do (08 D-11 to D-13)
 - [Phase 8]: L37 (owner ruling at S5, reply c): bolt wall 9 for d strictly between 0.45 and 0.9 mm; code in plan 08-12; F15 amends the sweep protocol
+- [Phase 08]: 08-12: bolt wall of 9 for 0.45 < d < 0.9 mm (L37) lives in calc.thread beside the pitch-walls block
+- [Phase 08]: 08-12: FINE_BOLT_BANDS is the fine-bands block verbatim; a bolt is fine only inside a band and above d / pitch 6, no d / pitch-only clause (D-15, D-19)
 
 ### Pending Todos
 
@@ -417,6 +420,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-03T15:26:00.170Z
-Stopped at: Completed 08-05-PLAN.md
+Last session: 2026-11-03T15:57:53.082Z
+Stopped at: Completed 08-12-PLAN.md
 Resume file: None
