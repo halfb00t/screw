@@ -34,6 +34,11 @@ let presetBasis = null;
 // 2026-10-21, WR-08). Page memory only, so a reload or a new tab forgets it. No request, hash or
 // download ever reads it.
 const lastTyped = new Map();
+// The fields the user set in this page: typed into, picked from a preset, or named by the link.
+// partQuery() writes them even at their default, because the API and the CLI count such a field
+// explicit and a cap must never move it (L02, L35, audit INT-03). Page memory only, like
+// presetBasis: no request, download or badge reads it, and a reload or a new tab forgets it.
+const touched = new Set();
 // Warnings belong to a mesh, not to the last info fetch (D-11). update() fetches info first,
 // so by the time a model.stl request fails the newest info document describes the part that
 // did not build while the mesh on screen is an older one. A rendered info document waits in
@@ -234,6 +239,7 @@ function pick(changed) {
   if (!entry) return showMatch(shownPreset);
   showPicks(picks);
   for (const [name, value] of Object.entries(entry.fields)) write(fields.get(name).input, value);
+  for (const name of Object.keys(entry.fields)) touched.add(name);
   presetBasis = entry;
   return update();
 }
@@ -299,6 +305,7 @@ async function navigate() {
   ++seq;
   const mine = ++formSeq;
   presetBasis = null;
+  touched.clear();
   const h = new URLSearchParams(location.hash.slice(1));
   // First, before the kind lookup: get() would answer for the first of two values and the
   // link would open a part it does not name (`#kind=bolt&kind=x`). The API refuses a
@@ -366,6 +373,7 @@ async function navigate() {
   kindSelect.value = kind;
   for (const [name, { input }] of fields) write(input, h.get(name) ?? defaults[name]);
   for (const { input } of fields.values()) forgetUntyped(input);
+  for (const name of fields.keys()) if (h.has(name)) touched.add(name);
   // A checkbox holds only true or false. Any other control hands back '' for a value it
   // cannot hold (a number input given "abc") or was given empty (`#d=`), and partQuery() would
   // skip it and open the default part under a link that named the field. The API answers `?d=`
@@ -380,7 +388,7 @@ async function navigate() {
   await update();
 }
 
-/** Query string with only the parameters that differ from the defaults. */
+/** Query string with only the parameters that differ from the defaults or that the user set. */
 function partQuery() {
   const q = new URLSearchParams();
   for (const [name, { input }] of fields) {
@@ -391,7 +399,7 @@ function partQuery() {
     const changed = input.type === 'number'
       ? Number(value) !== Number(defaults[name])
       : value !== String(defaults[name]);
-    if (changed) q.set(name, value);
+    if (changed || touched.has(name)) q.set(name, value);
   }
   return q;
 }
@@ -759,7 +767,12 @@ function forgetUntyped(input) {
     delete typed[input.name];
   }
 }
-form.addEventListener('input', (e) => { rememberTyped(e.target); scheduleUpdate(); });
+// A control holding a value is set by the user, an emptied one is not (L35).
+function touch(input) {
+  if (read(input) === '') touched.delete(input.name);
+  else touched.add(input.name);
+}
+form.addEventListener('input', (e) => { rememberTyped(e.target); touch(e.target); scheduleUpdate(); });
 window.addEventListener('hashchange', () => navigate().catch(reportLoadError));
 kindSelect.addEventListener('change', () => {
   const q = new URLSearchParams();
@@ -772,6 +785,7 @@ new ResizeObserver(resize).observe(canvas.parentElement);
 
 $('#fit').addEventListener('click', fit);
 $('#reset').addEventListener('click', () => {
+  touched.clear();
   for (const [name, { input }] of fields) write(input, defaults[name]);
   for (const { input } of fields.values()) forgetUntyped(input);
   update();

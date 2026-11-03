@@ -24,6 +24,7 @@ from conftest import REQUIRED_VALUES
 from fastapi.testclient import TestClient
 from pydantic import Field
 from pydantic_core import PydanticUndefined
+from test_cost import PARITY_CAPS
 
 from screw import cli
 from screw.app import STATIC, app, build_backend
@@ -377,6 +378,17 @@ def test_the_printability_warning_is_the_same_on_the_cli_and_the_api(
     assert sentence in by_preset["warnings"]
 
 
+def _cli_argv(values: Params) -> list[str]:
+    out: list[str] = []
+    for k, v in values.items():
+        if isinstance(v, bool):
+            # A boolean flag takes no value: `--x` or `--no-x`, never `--x false`.
+            out.append(_flag(k) if v else "--no-" + k.replace("_", "-"))
+        else:
+            out += [_flag(k), repr(v)]
+    return out
+
+
 @pytest.mark.parametrize("kind", list(KINDS))
 def test_the_cli_and_the_api_print_the_same_document(
         kind: str, capsys: pytest.CaptureFixture[str]) -> None:
@@ -398,18 +410,8 @@ def test_the_cli_and_the_api_print_the_same_document(
         cases.append({**required, name: value * 1.25})
     assert len(cases) > 1, "no float field to move off its default"
 
-    def argv(values: Params) -> list[str]:
-        out: list[str] = []
-        for k, v in values.items():
-            if isinstance(v, bool):
-                # A boolean flag takes no value: `--x` or `--no-x`, never `--x false`.
-                out.append(_flag(k) if v else "--no-" + k.replace("_", "-"))
-            else:
-                out += [_flag(k), repr(v)]
-        return out
-
     for values in cases:
-        cli.main(["info", kind, *argv(values)])
+        cli.main(["info", kind, *_cli_argv(values)])
         cli_doc = json.loads(capsys.readouterr().out)
         api_doc = client.get(f"/api/{kind}/info", params=values).json()
         assert cli_doc == api_doc, values
@@ -423,6 +425,88 @@ def test_the_cli_and_the_api_print_the_same_document(
             "ends modelled per L15 and L19: bolt tip chamfer, hex head chamfer, under-head "
             "fillet on an ISO 4014 plain shank, nut lead-in countersinks and face chamfers; "
             "nominal, not toleranced; not a product build")
+
+
+def test_a_typed_default_is_explicit_on_the_api_and_the_cli(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """SC4, INT-03, D-13, L35: bolt d 30, pitch 2, s 48, k 18 with thread_length 20 given.
+
+    The default 20 mm, typed, is explicit: the API refuses the STL `over_budget` naming
+    thread_length and the CLI exits 2 with the same sentence, where the omitted part is capped
+    and warned on both (L02). The page sends the same query once it counts a typed field
+    explicit (test_the_page_writes_a_touched_field_even_at_its_default).
+    """
+    base: Params = {"d": 30.0, "pitch": 2.0, "s": 48.0, "k": 18.0}
+    typed: Params = {**base, "thread_length": 20.0}
+
+    refused = client.get("/api/bolt/model.stl", params=typed)
+    assert refused.status_code == 422
+    (detail,) = refused.json()["detail"]
+    assert detail["type"] == "over_budget"
+    assert "thread_length" in detail["ctx"]["fields"]
+    info = client.get("/api/bolt/info", params=typed).json()
+    assert not any(w.startswith("thread_length: the default") for w in info["warnings"])
+    stls = {d["quality"]: d["refusal"] for d in info["downloads"] if d["format"] == "stl"}
+    assert stls["fine"] == detail["msg"]
+    assert stls["preview"] is not None
+
+    out = tmp_path / "x.stl"
+    with pytest.raises(SystemExit) as stop:
+        cli.main(["export", "bolt", *_cli_argv(typed), "-o", str(out)])
+    assert stop.value.code == 2
+    assert detail["msg"] in capsys.readouterr().err
+    assert not out.exists()
+
+    # Omitted, the same default is capped and warned on both, the same first sentence.
+    omitted = client.get("/api/bolt/info", params=base).json()["warnings"][0]
+    cli.main(["info", "bolt", *_cli_argv(base)])
+    assert json.loads(capsys.readouterr().out)["warnings"][0] == omitted
+    assert omitted.startswith("thread_length: the default 20 mm")
+
+
+def _typed_default_cases() -> list[object]:
+    return [pytest.param(kind, base, name, id=f"{kind}{i}-{name}")
+            for i, (kind, base) in enumerate(PARITY_CAPS)
+            for name in KINDS[kind].model_fields if name not in base]
+
+
+@pytest.mark.parametrize(("kind", "base", "name"), _typed_default_cases())
+def test_every_defaulted_field_typed_at_its_default_is_explicit_on_the_api_and_the_cli(
+        kind: str, base: dict[str, float], name: str,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    """SC4, FRNT-05, D-13: typing a field at its default gives the same answer on both.
+
+    From one capped base per kind, the field left at its default and then typed at it is either
+    the same info document on the API and the CLI with no cap warning naming it, or a 422 and an
+    exit 2 with one message. Info only: the cap and the refusals are decided before any build.
+    """
+    values: Params = {**base, name: KINDS[kind].model_fields[name].default}
+    response = client.get(f"/api/{kind}/info", params=values)
+    if response.status_code == 200:
+        cli.main(["info", kind, *_cli_argv(values)])
+        assert json.loads(capsys.readouterr().out) == response.json()
+        assert not any(w.startswith(f"{name}: the default") for w in response.json()["warnings"])
+    else:
+        assert response.status_code == 422
+        with pytest.raises(SystemExit) as stop:
+            cli.main(["info", kind, *_cli_argv(values)])
+        assert stop.value.code == 2
+        assert response.json()["detail"][0]["msg"] in capsys.readouterr().err
+
+
+def test_every_kind_has_a_capped_base_for_the_typed_default_cases() -> None:
+    # A kind added without a capped base, or a base that caps nothing, would make the cases above
+    # pass without testing the cap: every field the cap moves has a case and a cap warning to drop.
+    assert {kind for kind, _ in PARITY_CAPS} == set(KINDS)
+    for kind, base in PARITY_CAPS:
+        part = KINDS[kind].model_validate(base)
+        capped, _ = cost.cap_defaults(part, frozenset(base))
+        moved = {n for n in KINDS[kind].model_fields if getattr(capped, n) != getattr(part, n)}
+        assert moved, (kind, base)
+        assert moved.isdisjoint(base), (kind, base)
+        omitted = client.get(f"/api/{kind}/info", params=base).json()["warnings"]
+        for name in moved:
+            assert any(w.startswith(f"{name}: the default") for w in omitted), (kind, name)
 
 
 def test_the_limits_heading_is_the_same_ascii_string_on_the_cli_and_the_api(
@@ -612,6 +696,9 @@ PINNED_STATEMENTS = [
     # its plan quoted `navigate`; the property that matters is that the hash drives navigate().
     "window.addEventListener('hashchange'",
     "navigator.clipboard.writeText(location.href)",
+    # L35 (08 D-11): a touched field is written even at its default.
+    "if (changed || touched.has(name)) q.set(name, value);",
+    "touched.clear();",
 ]
 
 
@@ -1042,7 +1129,7 @@ def test_the_matching_link_carries_only_a_value_typed_in_this_page_into_a_field_
                       "lastTyped.set(formKind, typed)"):
         assert statement in remember, statement
     assert "currentKind" not in remember
-    assert ("form.addEventListener('input', (e) => { rememberTyped(e.target); "
+    assert ("form.addEventListener('input', (e) => { rememberTyped(e.target); touch(e.target); "
             "scheduleUpdate(); });") in source
     assert APP_JS.count("rememberTyped(") == 2  # the definition and the listener
     assert APP_JS.count("lastTyped.set(") == 1
@@ -1051,6 +1138,44 @@ def test_the_matching_link_carries_only_a_value_typed_in_this_page_into_a_field_
         assert "lastTyped" not in _function_body(reader), reader
     for storage in ("localStorage", "sessionStorage", "document.cookie"):
         assert storage not in APP_JS, storage
+
+
+def test_the_page_writes_a_touched_field_even_at_its_default() -> None:
+    """SC4, INT-03, D-11, D-12, L35, 01-UI-SPEC rule 38: the web's half of D-13.
+
+    No browser harness exists (L01), so the page's half is source text: a field typed, picked from
+    a preset or named by the link is in `touched`, and `partQuery` then writes it even at its
+    default, so the page sends the query test_a_typed_default_is_explicit_on_the_api_and_the_cli
+    sends. `touched` is page memory read by `partQuery` alone, and no field name is written here.
+    """
+    source = _squash(APP_JS)
+    assert "const touched = new Set();" in APP_JS
+    assert "if (changed || touched.has(name)) q.set(name, value);" in _squash(
+        _function_body("partQuery"))
+    # The one reader; every other use is a writer or a clearer, in the functions named below.
+    assert re.findall(r"touched\.has\(", APP_JS) == ["touched.has("]
+    # An empty control is not set (the typed-default edge): typing it out forgets the field.
+    touch = _squash(_function_body("touch"))
+    assert "read(input) === ''" in touch
+    assert "touched.delete(input.name)" in touch
+    assert "touched.add(input.name)" in touch
+    assert "rememberTyped(e.target); touch(e.target); scheduleUpdate();" in source
+    # D-12: a pick adds every field its row defines, to what the user already set.
+    assert "for (const name of Object.keys(entry.fields)) touched.add(name);" in _squash(
+        _function_body("pick"))
+    # A link's fields stay explicit; every navigation starts from the hash alone.
+    navigate = _squash(_function_body("navigate"))
+    assert "touched.clear();" in navigate
+    assert "for (const name of fields.keys()) if (h.has(name)) touched.add(name);" in navigate
+    # Reset empties it; a kind change reaches navigate() with a hash that names no field.
+    assert "$('#reset').addEventListener('click', () => { touched.clear();" in source
+    assert APP_JS.count("touched.clear();") == 2
+    for reader in ("writeHash", "update", "setDownloads", "refuseLink", "renderInfo", "showMatch",
+                   "buildForm", "write"):
+        assert "touched" not in _function_body(reader), reader
+    for storage in ("localStorage", "sessionStorage", "document.cookie"):
+        assert storage not in APP_JS, storage
+    assert _field_literals(APP_JS, [n for m in KINDS.values() for n in m.model_fields]) == []
 
 
 def test_the_typed_memory_is_keyed_by_the_kind_of_the_form_on_screen() -> None:
