@@ -541,3 +541,286 @@ def test_the_walled_cells_are_the_ones_the_parameter_model_refuses() -> None:
     for label in walled:
         params = by_label[label]
         assert thread.pitch_too_fine_refusal("bolt", float(params["d"]), float(params["pitch"]))
+
+
+# --- F6: the proof walk `fine-proof` (08-06) ----------------------------------------------------
+
+PROOF = REPO_ROOT / "bench" / "points" / f"{oper_sets.PROOF_WALK}.json"
+EXPLORE_RUN = "bench/results/phase-07/explore-40646117094"
+BANDS_RUN = "bench/results/phase-08/fine-bands-41635270998"
+NUT_ROW_IDS = ("iso4032:M5", "iso4032:M8", "iso4032:M10", "iso4032:M12", "iso4032:M14",
+               "iso4032:M16", "iso4032:M18", "iso4032:M20")
+FAILED = ("refused", "crashed")
+
+
+@functools.cache
+def _proof() -> dict[str, object]:
+    found: dict[str, object] = json.loads(PROOF.read_text())
+    return found
+
+
+def _plist(key: str) -> list[Raw]:
+    found = _proof()[key]
+    assert isinstance(found, list)
+    return found
+
+
+def _pcells(prefix: str) -> list[Raw]:
+    return [c for c in (*_plist("points"), *_plist("dropped"))
+            if str(c["label"]).startswith(prefix)]
+
+
+def _fine(cell: Raw) -> bool:
+    params = _params(cell)
+    return thread.uses_fine_sweep(str(cell["kind"]), params["d"], params["pitch"])
+
+
+def _hands(stem: str) -> list[str]:
+    return [f"{stem}-right", f"{stem}-left"]
+
+
+def test_the_proof_header_names_the_explore_run_the_band_run_and_the_rule() -> None:
+    proof = _proof()
+    assert proof["set"] == "fine-proof"
+    assert proof["reps"] == 1
+    assert proof["sources"] == [f"explore={EXPLORE_RUN}", f"bands={BANDS_RUN}"]
+    assert str(proof["rule"]).startswith("08-SWEEP-PROTOCOL.md F6")
+    assert oper_sets.envelope_of(proof["envelope"]) == oper_sets.shipped_envelope()
+
+
+def test_the_proof_file_is_what_the_generator_writes_from_its_sources() -> None:
+    text = PROOF.read_text()
+    assert oper_sets._regenerate_runs2(oper_sets.PROOF_WALK, text) == text
+    assert oper.load_set(oper_sets.PROOF_WALK).reps == 1
+
+
+def test_a_proof_copy_with_one_point_removed_is_not_what_the_generator_writes(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    document = json.loads(PROOF.read_text())
+    del document["points"][0]
+    (tmp_path / PROOF.name).write_text(json.dumps(document, indent=1) + "\n")
+    for name in ("explore", oper_sets.BAND_WALK):  # the files the proof walk is drawn from
+        (tmp_path / f"{name}.json").write_text((PROOF.parent / f"{name}.json").read_text())
+    monkeypatch.setattr(oper_sets, "POINTS_DIR", tmp_path)
+    failure = oper_sets._check_runs2()
+    assert failure is not None
+    assert PROOF.name in failure
+
+
+def test_the_proof_walk_is_sharded_by_r6() -> None:
+    sizes = _proof()["shard_sizes"]
+    assert isinstance(sizes, list)
+    assert sum(sizes) == len(_plist("points"))
+    assert _proof()["shards"] == len(sizes) > 1
+
+
+def test_every_proof_cell_is_a_point_or_dropped_once_at_a_known_artifact() -> None:
+    cells = [*_plist("points"), *_plist("dropped")]
+    labels = [str(c["label"]) for c in cells]
+    assert len(labels) == len(set(labels))
+    assert {p["artifact"] for p in _plist("points")} <= {"step", "stl-preview", "stl-fine"}
+    assert all(label.startswith("proof-") for label in labels)
+
+
+# F6 grid a: in-band bolts
+
+def test_grid_a_is_every_inband_size_of_the_0_05_grid_by_q_n_and_hand() -> None:
+    """Counted in the test: the band's open interval on the 0.05 grid by decimal arithmetic."""
+    ((low, high),) = thread.FINE_BOLT_BANDS
+    sizes = [d for d in _decimals("0.05", "4", "0.05") if low < Fraction(d) < high]
+    assert (sizes[0], sizes[-1], len(sizes)) == ("1.6", "3.3", 35)
+    expected = {f"proof-band-d{d}-q{q}-n{n}-{hand}" for d in sizes
+                for q in ("6.5", "7", "8", "10", "14", "20") for n in (3, 30, 60, 90)
+                for hand in ("right", "left")}
+    assert len(expected) == 35 * 6 * 4 * 2 == 1680
+    assert {str(c["label"]) for c in _pcells("proof-band-")} == expected
+
+
+def test_every_grid_a_cell_is_on_the_fine_sweep() -> None:
+    """From the committed file and not from the grid spec: a grid drawn over the closed interval
+    puts the band's edges in and fails here."""
+    cells = _pcells("proof-band-")
+    assert cells
+    edges = {edge for band in thread.FINE_BOLT_BANDS for edge in band}
+    for cell in cells:
+        assert _fine(cell), cell["label"]
+        assert Fraction(repr(_params(cell)["d"])) not in edges, cell["label"]
+
+
+def test_a_grid_a_cell_is_a_full_thread_of_n_turns_at_a_pitch_rounded_up() -> None:
+    for cell in _pcells("proof-band-"):
+        match = re.match(r"^proof-band-d([0-9.]+)-q([0-9.]+)-n(\d+)-(right|left)$",
+                         str(cell["label"]))
+        assert match, cell["label"]
+        params = _params(cell)
+        assert params == oper_sets._band_params(match[1], match[2], int(match[3]),
+                                                match[4] == "left"), cell["label"]
+        assert _ratio(params) <= Fraction(match[2]), cell["label"]
+        assert _ratio(params) > 6, cell["label"]
+
+
+# F6 grid b: the examples and the refusals
+
+def test_grid_b_holds_the_debts_two_examples_in_both_hands() -> None:
+    by_label = {str(c["label"]): _params(c) for c in _pcells("proof-debt-")}
+    assert sorted(by_label) == sorted([*_hands("proof-debt-d3-p0.35-L25"),
+                                       *_hands("proof-debt-d2.5-p0.35-L30")])
+    for hand in ("right", "left"):
+        assert by_label[f"proof-debt-d3-p0.35-L25-{hand}"] == {
+            "d": 3.0, "pitch": 0.35, "length": 25.0, "thread_length": 25.0, "s": 4.8,
+            "k": 1.8, "left_hand": hand == "left"}
+        assert by_label[f"proof-debt-d2.5-p0.35-L30-{hand}"] == {
+            "d": 2.5, "pitch": 0.35, "length": 30.0, "thread_length": 30.0, "s": 4.0,
+            "k": 1.5, "left_hand": hand == "left"}
+
+
+def _failed_labels(directory: str) -> set[str]:
+    return {str(r["label"]) for r in oper_sets._read(directory) if r["status"] in FAILED}
+
+
+def test_grid_b_holds_every_refused_explore_bolt_on_the_fine_sweep_as_drawn() -> None:
+    """Counted from the records and the explore file, with the registration's own validation."""
+    failed = _failed_labels(EXPLORE_RUN)
+    drawn: dict[str, Raw] = {}
+    for point in oper_sets._points_of("explore"):
+        if point["kind"] == "bolt" and point["label"] in failed:
+            part = oper_lift.registered("bolt", _params(dict(point)))
+            if thread.uses_fine_sweep("bolt", part.d, part.pitch):
+                drawn.setdefault(str(point["label"]), dict(point))
+    assert drawn
+    found = {str(c["label"]): c for c in _pcells("proof-explore-")}
+    assert set(found) == {f"proof-explore-{label}" for label in drawn}
+    for label, point in drawn.items():
+        assert _params(found[f"proof-explore-{label}"]) == _params(point), label
+    # the 84 mm (240 turns) bolts at d 3, d / pitch 8.57, are past the 90-turn cap of the model
+    for hand in ("right", "left"):
+        cell = found[f"proof-explore-bolt-d3-p0.35-n240-{hand}"]
+        assert cell in _plist("dropped")
+        assert cell["error"] == "turn_cap"
+
+
+def test_grid_b_drops_an_explore_bolt_the_runner_would_refuse_with_the_wall_error() -> None:
+    """d 3 at pitch 0.1 is d / pitch 30, past the bolt wall of 20: the runner's validator answers
+    `bad point` (exit 2) to it, so it is no point (F14), and it is not skipped either."""
+    for label in ("bolt-d3-p0.1-n3-right", "bolt-d3-p0.1-n30-left", "bolt-d3-p0.1-n30-right"):
+        (cell,) = _pcells(f"proof-explore-{label}")
+        assert cell in _plist("dropped"), label
+        assert cell["error"] == "pitch_too_fine", label
+
+
+def test_grid_b_holds_every_inband_refusal_of_the_band_walk_as_drawn() -> None:
+    failed = _failed_labels(BANDS_RUN)
+    expected = {str(p["label"]): p for p in _list("points") if p["label"] in failed
+                and thread.uses_fine_sweep("bolt", _params(p)["d"], _params(p)["pitch"])}
+    assert len(expected) == 490
+    found = {str(c["label"]): c for c in _pcells("proof-walk-")}
+    assert set(found) == {f"proof-walk-{label}" for label in expected}
+    for label, point in expected.items():
+        assert _params(found[f"proof-walk-{label}"]) == _params(point), label
+
+
+# F6 grid c: the denser nut grid
+
+def test_grid_c_is_r31s_four_nut_forms_on_the_denser_grid() -> None:
+    sizes = sorted({*oper_sets.PITCH_NUT_D, "2.1", "2.3"}, key=Decimal)
+    assert len(sizes) == 46
+    assert oper_sets.PITCH_NUT_D[:3] == ("0.5", "0.6", "0.7")
+    qs = ("5.5", "6", "6.25", "6.5", "6.75", "7", "7.25", "7.5", "7.75", "8")
+    expected = {f"proof-nut-{form}-d{d}-q{q}-{hand}" for form in ("base", "s4", "c0", "m1")
+                for d in sizes for q in qs for hand in ("right", "left")}
+    assert len(expected) == 4 * 46 * 10 * 2 == 3680
+    assert {str(c["label"]) for c in _pcells("proof-nut-")} == expected
+    for cell in _pcells("proof-nut-"):
+        match = re.match(r"^proof-nut-(\w+)-d([0-9.]+)-q([0-9.]+)-(right|left)$",
+                         str(cell["label"]))
+        assert match, cell["label"]
+        params = _params(cell)
+        assert params == oper_sets._pitch_params("nut", match[1], match[2], Fraction(match[3]),
+                                                 match[4] == "left"), cell["label"]
+        assert _ratio(params) <= Fraction(match[3]), cell["label"]
+
+
+def test_the_six_island_cells_at_d_2_2_and_q_7_are_points() -> None:
+    points = {str(p["label"]) for p in _plist("points")}
+    island = [f"proof-nut-{form}-d2.2-q7-{hand}" for form in ("base", "s4", "m1")
+              for hand in ("right", "left")]
+    assert all(label in points for label in island)
+    assert sum(1 for label in points if label.startswith("proof-nut-") and "-d2.2-q7-" in label
+               and "-c0-" not in label) == 6
+
+
+# F6 grid d: the moved catalogue rows
+
+def test_grid_d_is_the_eight_nut_rows_the_fine_sweep_moves_in_both_hands() -> None:
+    expected = {f"proof-row-{row}-{hand}" for row in NUT_ROW_IDS for hand in ("right", "left")}
+    cells = _pcells("proof-row-")
+    assert {str(c["label"]) for c in cells} == expected
+    assert len(cells) == 16
+    for cell in cells:
+        assert cell["kind"] == "nut", cell["label"]
+        assert _fine(cell), cell["label"]
+
+
+# the whole file
+
+def test_no_proof_bolt_keeps_the_shipped_sweep_and_none_is_outside_the_bands() -> None:
+    bolts = [c for c in (*_plist("points"), *_plist("dropped")) if c["kind"] == "bolt"]
+    assert bolts
+    assert all(_fine(c) for c in bolts)
+    assert not [c for c in bolts if str(c["label"]).startswith(("proof-out-", "proof-large-"))]
+
+
+def test_every_proof_point_is_one_the_runner_accepts_at_the_first_artifact_that_admits_it() -> None:
+    envelope = oper_sets.envelope_of(_proof()["envelope"])
+    for point in _plist("points"):
+        kind, params = str(point["kind"]), _params(point)
+        part = oper_lift.validate(kind, params)  # bench/oper_child.py's own call: walls enforced
+        assert point["artifact"] == oper_sets._first_admitted(part, envelope, cost.BUDGET), (
+            point["label"])
+
+
+def test_every_dropped_proof_cell_is_refused_by_the_model_or_admitted_at_no_artifact() -> None:
+    envelope = oper_sets.envelope_of(_proof()["envelope"])
+    for cell in _plist("dropped"):
+        kind, params = str(cell["kind"]), _params(cell)
+        error = oper_sets._runner_refusal(kind, params)
+        if error is not None:
+            assert cell["error"] == error, cell["label"]
+            continue
+        assert cell["error"] == "over_budget", cell["label"]
+        part = oper_lift.drawn(kind, params)
+        assert oper_sets._first_admitted(part, envelope, cost.BUDGET) is None, cell["label"]
+
+
+def test_the_runner_refusal_is_the_models_with_the_pitch_wall_back_in() -> None:
+    wall = {"d": 3.0, "pitch": 0.1, "length": 3.0, "thread_length": 3.0, "s": 4.8, "k": 1.8}
+    assert oper_sets._model_refusal("bolt", wall) is None
+    assert oper_sets._runner_refusal("bolt", wall) == "pitch_too_fine"
+    ninety = {**wall, "pitch": 0.35, "length": 31.5, "thread_length": 31.5}
+    assert oper_sets._runner_refusal("bolt", ninety) is None
+    assert oper_sets._runner_refusal("bolt", {**ninety, "length": 36.75,
+                                              "thread_length": 36.75}) == "turn_cap"
+
+
+def test_refused_on_fine_takes_the_refused_fine_swept_bolts_of_a_set_in_label_order(
+        tmp_path: Path) -> None:
+    points = _list("points")
+    fine = [str(p["label"]) for p in points if thread.uses_fine_sweep(
+        "bolt", _params(p)["d"], _params(p)["pitch"])]
+    outside = next(str(p["label"]) for p in points if str(p["label"]).startswith("check-")
+                   and not thread.uses_fine_sweep("bolt", _params(p)["d"], _params(p)["pitch"]))
+    refused = {fine[40]: "refused", fine[7]: "crashed", fine[90]: "refused", outside: "refused"}
+    readings = [{**p, "rep": 1, "status": refused.get(str(p["label"]), "ok")} for p in points]
+    directory = tmp_path / "records"
+    directory.mkdir()
+    _write(directory, readings)
+    found = oper_sets._refused_on_fine(oper_sets.BAND_WALK, str(directory))
+    assert [str(p["label"]) for p in found] == sorted(fine[i] for i in (40, 7, 90))
+    assert all(p in points for p in found)
+
+
+def test_the_proof_walk_subcommand_writes_the_committed_file(tmp_path: Path) -> None:
+    out = tmp_path / "fine-proof.json"
+    assert oper_sets.main(["proof-walk", "--explore", EXPLORE_RUN, "--bands", BANDS_RUN,
+                           "--out", str(out)]) == 0
+    assert out.read_text() == PROOF.read_text()

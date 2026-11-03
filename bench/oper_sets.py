@@ -3183,7 +3183,8 @@ def _regenerate_runs2(name: str, text: str) -> str:
     needs = {"bound": ("explore",), "load": ("tier-order", "explore"), "gzip": ("explore",),
              "arenas": ("explore",), "outband": ("explore",), "bound-rerun": ("explore", "run"),
              "gzip-rerun": ("explore", "run"), PITCH_WALK: ("explore",),
-             BAND_WALK: ("explore",), TALL_SET: ("explore",)}[name]
+             BAND_WALK: ("explore",), TALL_SET: ("explore",),
+             PROOF_WALK: ("explore", "bands")}[name]
     missing = [source for source in needs if source not in sources]
     if missing:
         raise ValueError(f"it names no {' and '.join(missing)} source")
@@ -3203,6 +3204,8 @@ def _regenerate_runs2(name: str, text: str) -> str:
         return build_band_walk(sources["explore"], envelope).text()
     if name == TALL_SET:
         return build_tall(sources["explore"], envelope).text()
+    if name == PROOF_WALK:
+        return build_proof_walk(sources["explore"], sources["bands"], envelope).text()
     return build_gzip(sources["explore"], envelope).text()
 
 
@@ -3212,7 +3215,7 @@ def _check_runs2() -> str | None:
     paths = [("tier-order", REPO_ROOT / TIER_ORDER),
              *((name, POINTS_DIR / f"{name}.json") for name in (*RUNS2_SETS, *RERUN_SETS,
                                                                 PITCH_WALK, BAND_WALK,
-                                                                TALL_SET))]
+                                                                PROOF_WALK, TALL_SET))]
     for name, path in paths:
         if not path.is_file():
             continue
@@ -3839,6 +3842,161 @@ def fine_bands_block(bands: Sequence[Band], source: str) -> str:
             "# END fine-bands\n")
 
 
+# --- F6: the proof walk (D-07) --------------------------------------------------------------------
+#
+# The fine sweep and the F5 bands are read once more on the runner, over the grids D-07 named, from
+# the commit that freezes them (F11). Grids (a), (b) and (d) are parts F3 puts on the fine sweep;
+# grid (c) also holds the nut cells at q 5.5 and 6, which keep the shipped sweep (a refusal there
+# is S6).
+
+PROOF_WALK = "fine-proof"
+PROOF_RULE = "08-SWEEP-PROTOCOL.md F6 (08 D-07)"
+PROOF_STEP = Decimal("0.05")
+PROOF_Q = ("6.5", "7", "8", "10", "14", "20")
+PROOF_TURNS = (3, 30, 60, 90)
+# (d, pitch, thread = length in mm, s, k): the debt's two long-thread examples
+PROOF_DEBT = (("3", "0.35", "25", "4.8", "1.8"), ("2.5", "0.35", "30", "4", "1.5"))
+PROOF_NUT_D = tuple(sorted((*PITCH_NUT_D, "2.1", "2.3"), key=Decimal))
+PROOF_NUT_Q = ("5.5", "6", "6.25", "6.5", "6.75", "7", "7.25", "7.5", "7.75", "8")
+EXPLORE_SET = "explore"
+
+
+def _band_sizes() -> list[str]:
+    """Grid (a)'s d: every size of the 0.05 mm grid strictly between a band's excluded edges, a
+    size once, as decimal strings (so "0.35" is the float of "0.35")."""
+    sizes: list[str] = []
+    for low, high in calc_thread.FINE_BOLT_BANDS:
+        step = Fraction(PROOF_STEP)
+        k = math.floor(low / step) + 1
+        while k * step < high:
+            text = format((k * PROOF_STEP).normalize(), "f")
+            if text not in sizes:
+                sizes.append(text)
+            k += 1
+    return sizes
+
+
+def _point_params(point: Mapping[str, object]) -> dict[str, float | bool]:
+    params = point["params"]
+    if not isinstance(params, Mapping):
+        raise ProtocolStop("F6", f"the point {point['label']} carries no params")
+    return cast("dict[str, float | bool]", dict(params))
+
+
+def _refused_on_fine(points_name: str, records_dir: str) -> list[Mapping[str, object]]:
+    """The bolts of the committed set `points_name` whose reading in `records_dir` is `refused` or
+    `crashed` and that F3 puts on the fine sweep, a label once (the first point whose reading
+    failed, as the file draws it), in label order. The d and pitch are the registration's own
+    (a part with no pitch has the model's default): the explore file holds such parts. Nuts are
+    not drawn: F6 (b) names bolts, and the explore nuts that failed lie at d / pitch 85, far past
+    the nut wall of 8."""
+    failed = {(str(r["label"]), str(r["artifact"])) for r in _read(records_dir)
+              if str(r["status"]) in FAILED}
+    found: dict[str, Mapping[str, object]] = {}
+    for point in _points_of(points_name):
+        label = str(point["label"])
+        if (point["kind"] != "bolt" or label in found
+                or (label, str(point["artifact"])) not in failed):
+            continue
+        part = oper_lift.registered("bolt", _point_params(point))
+        if calc_thread.uses_fine_sweep("bolt", part.d, part.pitch):
+            found[label] = point
+    return [found[label] for label in sorted(found)]
+
+
+def _runner_refusal(kind: str, params: Mapping[str, object]) -> str | None:
+    """The error type with which the runner's validator would refuse `params`, or None. The model
+    of the sets drawn from records (`_model_refusal`: walls lifted), with the pitch wall back in:
+    `bench/oper_child.py` validates a point with the production walls and answers `bad point`
+    (exit 2) to one past them, so a proof cell past the wall is not a point (F14)."""
+    try:
+        part = oper_lift.drawn(kind, params)
+    except ValidationError as exc:
+        return str(exc.errors()[0]["type"])
+    return "pitch_too_fine" if pitch_too_fine_refusal(kind, part.d, part.pitch) else None
+
+
+def _proof_cells(refused_explore: Sequence[Mapping[str, object]],
+                 refused_walk: Sequence[Mapping[str, object]]
+                 ) -> Iterator[tuple[str, str, dict[str, float | bool]]]:
+    """(label, kind, params) of every proof cell in file order: grid (a), (b), (c), (d)."""
+    for d in _band_sizes():
+        for q in PROOF_Q:
+            for n in PROOF_TURNS:
+                for left in (False, True):
+                    yield (f"proof-band-d{d}-q{q}-n{n}-{_hand(left)}", "bolt",
+                           _band_params(d, q, n, left))
+    for d, pitch, length, s, k in PROOF_DEBT:
+        for left in (False, True):
+            yield (f"proof-debt-d{d}-p{pitch}-L{length}-{_hand(left)}", "bolt",
+                   {"d": float(d), "pitch": float(pitch), "length": float(length),
+                    "thread_length": float(length), "s": float(s), "k": float(k),
+                    "left_hand": left})
+    for point in refused_explore:
+        yield f"proof-explore-{point['label']}", "bolt", _point_params(point)
+    for point in refused_walk:
+        yield f"proof-walk-{point['label']}", "bolt", _point_params(point)
+    for form in PITCH_NUT_FORMS:
+        for d in PROOF_NUT_D:
+            for q in PROOF_NUT_Q:
+                for left in (False, True):
+                    yield (f"proof-nut-{form}-d{d}-q{q}-{_hand(left)}", "nut",
+                           _pitch_params("nut", form, d, Fraction(q), left))
+    for row_id, fields in _catalogue_rows("nut"):
+        if calc_thread.uses_fine_sweep("nut", float(cast("float", fields["d"])),
+                                       float(cast("float", fields["pitch"]))):
+            for left in (False, True):
+                yield (f"proof-row-{row_id}-{_hand(left)}", "nut",
+                       {**cast("dict[str, float]", fields), "left_hand": left})
+
+
+def proof_walk_set(envelope: Envelope, refused_explore: Sequence[Mapping[str, object]],
+                   refused_walk: Sequence[Mapping[str, object]],
+                   budget: Budget = cost.BUDGET) -> _Set:
+    """F6's walk, unsharded: every cell once, at `step` when `envelope` admits it there, else at
+    the first of `stl-preview` and `stl-fine` it admits; a cell the runner would refuse in
+    `dropped` with its type and a cell admitted at no artifact as `over_budget`."""
+    out = _Set(PROOF_WALK, reps=1, shards=1, rule=PROOF_RULE, notes=[
+        "F6 (a): in-band bolts, every size of the 0.05 mm grid strictly between a band's excluded "
+        "edges, at q 6.5, 7, 8, 10, 14 and 20 and n 3, 30, 60 and 90, full thread, s 1.6 d at "
+        "most 1000 mm, k 0.6 d, both hands; pitch = d / q rounded up to 6 significant figures",
+        "F6 (b): the debt's two long-thread examples in both hands; then every explore.json bolt "
+        "on the fine sweep that explore run 40646117094 read refused or crashed, and every band "
+        "walk point on the fine sweep that its run read refused or crashed, as drawn (a bolt past "
+        "the 90-turn cap or the bolt wall of 20 is in dropped: the runner would answer bad point)",
+        "F6 (c): R31's four nut forms (base, s4, c0, m1), d = R31's 44 sizes plus 2.1 and 2.3, q "
+        "5.5, 6, 6.25 to 8 in steps of 0.25, both hands (the island is base, s4 and m1 at d 2.2, "
+        "q 7); q 5.5 and 6 stay on the shipped sweep",
+        "F6 (d): the nut catalogue rows F3 puts on the fine sweep, both hands",
+        "1 repetition per cell, read at step when the shipped model admits it there, else at the "
+        "first of stl-preview and stl-fine it admits; read from the commit that holds the fine "
+        "sweep and the F5 bands and no turns guard (F11)"])
+    for label, kind, params in _proof_cells(refused_explore, refused_walk):
+        error = _runner_refusal(kind, params)
+        artifact: cost.Artifact | None = None
+        if error is None:
+            artifact = _first_admitted(oper_lift.drawn(kind, params), envelope, budget)
+            if artifact is None:
+                error = "over_budget"
+        if artifact is None:
+            out.dropped.append({"label": label, "kind": kind, "params": params,
+                                "artifacts": list(BAND_ARTIFACTS), "error": error})
+            continue
+        out.copy({"label": label, "kind": kind, "params": params, "artifact": artifact})
+    out.envelope = envelope_document(envelope)
+    return out
+
+
+def build_proof_walk(explore_dir: str, bands_dir: str, envelope: Envelope) -> _Set:
+    """F6's walk under `envelope`, drawn from the explore run's and the band walk's records and
+    sharded by R6 from the explore run."""
+    out = proof_walk_set(envelope, _refused_on_fine(EXPLORE_SET, explore_dir),
+                         _refused_on_fine(BAND_WALK, bands_dir))
+    out.sharded(charge_table(_read(explore_dir)),
+                [f"explore={explore_dir}", f"bands={bands_dir}"])
+    return out
+
+
 # --- R28: the full recording tier (07-19) -------------------------------------------------------
 #
 # The full grid as a judged set (D-12): every catalogue row of both kinds at each artifact, the
@@ -4099,6 +4257,7 @@ def _regenerations() -> Iterator[tuple[Path, str, Callable[[], str]]]:
                                                                           *RERUN_SETS,
                                                                           PITCH_WALK,
                                                                           BAND_WALK,
+                                                                          PROOF_WALK,
                                                                           TALL_SET))):
         if path.is_file():
             text = path.read_text()
@@ -4300,6 +4459,11 @@ def _run(args: argparse.Namespace) -> int:
         Path(args.out).write_text(made.text())
         print(f"{made.name}: {len(made.points)} points in shards of {made.shard_sizes}, "
               f"{len(made.dropped)} dropped")
+    elif args.command == "proof-walk":
+        made = build_proof_walk(explore_dir, _relative(args.bands), shipped_envelope())
+        Path(args.out).write_text(made.text())
+        print(f"{made.name}: {len(made.points)} points in shards of {made.shard_sizes}, "
+              f"{len(made.dropped)} dropped")
     elif args.command == "pitch-walls":
         readings = read_readings(Path(args.source))
         walls = pitch_walls(_points_of(PITCH_WALK), readings)
@@ -4396,6 +4560,11 @@ def main(argv: list[str] | None = None) -> int:
                                                  "(08 D-15, D-19)")
     band_walk.add_argument("--explore", required=True)
     band_walk.add_argument("--out", required=True)
+    proof_walk = sub.add_parser("proof-walk", help="write F6's proof walk of the fine sweep "
+                                                   "(08 D-07)")
+    proof_walk.add_argument("--explore", required=True)
+    proof_walk.add_argument("--bands", required=True)
+    proof_walk.add_argument("--out", required=True)
     sub.add_parser("pitch-walls", help="R31's F and W per kind from the walk's records, exit 3 "
                                        "if the bolt W is not 20 (G35, G36)").add_argument(
         "--from", dest="source", required=True)
