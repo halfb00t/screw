@@ -2665,3 +2665,54 @@ because no harness runs the page (L01). That un-executed half is filed as debt w
 Reason: the owner's ruling and SC4.
 
 Reversibility: reversible. One statement in `partQuery` and the set's writers.
+
+## L37 — A bolt with d strictly between 0.45 and 0.9 mm has a d / pitch wall of 9, not 20
+
+Date: 2026-11-03. Decided by the owner at protocol stop S5 of the Phase 8 band walk (plan 08-03),
+run 41635270998, after the stop and the options of `08-SWEEP-PROTOCOL.md` S5 were put to them.
+Supersedes L25 in part: its bolt wall of 20 stands for every other d, and the nut's wall of 8 is
+untouched. This entry is numbered after L35 and not as L36, because plan 08-10 writes L36 (the
+fine sweep) and its checks name that id.
+
+**The ruling.** The owner's reply, verbatim: `c`. That is S5's option (c), "lower the bolt wall
+below the refused ratio for that d range (supersede L25 there)", put to them as: lower the bolt
+wall to d / pitch 9 for d in the open interval (0.45, 0.9) mm only. The protocol's own rule
+recommended (b), a d / pitch-only fine clause; the owner chose (c) over it, on the executor's
+recommendation.
+
+**The rule.** A bolt whose exact d lies strictly between 0.45 and 0.9 mm, with
+`Fraction(repr(d))`, and whose exact d / pitch is above 9 is refused with the 422
+`pitch_too_fine`, `ctx.fields` `["d", "pitch"]`, in the form of L25: the same rule position (the
+last model rule), the same text shape, a ratio typed as exactly 9 admitted. d 0.45 and d 0.9 are
+outside the interval and keep the wall of 20. The code that carries it is plan 08-12's, in
+`calc/thread.py` beside `MAX_BOLT_D_PER_PITCH`; this entry changes no source file.
+
+**The evidence.** The band walk (`bench/results/phase-08/fine-bands-41635270998`, linux/amd64,
+sha b69aae5, 152 of 152 jobs, 4803 points, 4273 `ok`, 530 refused, none crashed, killed or
+capped) read the shipped sweep. Its edge group (q at most 8) gave one band, d 1.55 to 3.35 mm,
+and nothing at d 0.5 to 0.85. Its check group (q 9 to 20, F5, D-19) refused 40 cells outside
+every band, all at d 0.5 to 0.85 in 0.05 steps, all with 90 turns: q 12.5 right hand only (8),
+q 16 both hands (16), q 20 both hands (16). The smallest refused exact d / pitch is 12.5. Every
+check cell at q 9 in that range read `ok`, and so did every other check cell with 0.45 < d < 0.9
+at the other turn counts, so d 0.45 and d 0.9 read `ok` at every q. No bolt catalogue row has a
+d / pitch above 8, so none moves.
+
+**What it costs, said plainly.** The refused cells are all long threads, but the wall is on
+d / pitch alone, so it also refuses parts that built. In the band walk, 144 check cells lie in
+the interval above d / pitch 9, and 104 of them read `ok` (all of n 3 and 30, and the 8
+left-hand q 12.5 cells of n 90). In the Phase 7 pitch walk (`walls-pitch-41074314305`), 236 of 244
+readings in the same region read `ok`. Those parts are refused before the kernel, not built wrongly, so L02 holds; but a
+link that carried such a part now gets a 422 naming d and pitch. The narrower tool is a turns
+guard for the region, which the owner may supersede this entry with while plan 08-12 has not
+yet written the code. The interval between d / pitch 9 and 12.5 carries no reading and is
+refused unread, which is the conservative side.
+
+**What it leaves open.** Between the check samples q 9, 12.5, 16 and 20, a bolt outside the bands
+carries no reading (F13). Inside the interval that gap is now closed by the wall; outside it,
+at d 0.9 to 1.55 mm for example, it stays the residual of D-19.
+
+Reason: S5, D-19 and L02. A bolt outside the bands goes on the shipped sweep, so that sweep must
+build it or the parameter model must refuse it; 40 sampled cells were refused by the kernel.
+
+Reversibility: reversible. One constant and one clause in the pitch-wall check; lifting it needs
+a superseding entry.

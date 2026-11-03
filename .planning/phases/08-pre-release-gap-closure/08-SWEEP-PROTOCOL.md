@@ -235,6 +235,46 @@ each point through `oper_lift.validate`, which lifts only the point's own named 
 walls or the guard, so a point the guard refuses reads `bad point` (exit 2). Such a re-dispatch is
 not a Phase 8 reading.
 
+## F15 - The small-d bolt wall (owner ruling at S5, 2026-11-03; amends F3, F5 and F6)
+
+Added after the first Phase 8 runner reading, by the owner's ruling that F14 asks for. F1 to F14 and
+the stops stand as written; this section only adds to them, and the data it cites exists: the band
+walk, run 41635270998 (`bench/results/phase-08/fine-bands-41635270998`, sha b69aae5, 152 of 152 jobs,
+4803 points, 4273 `ok`, 530 refused). Phase 7's R30 did the same for its R31.
+
+**The stop.** `oper_sets: stop (F5): S5: check-d0.5-q12.5-n90-right was refused at d 1/2, outside
+every band, and no bolt outside the bands goes on the fine sweep (D-19)`. The edge group gave one
+band, d 1.55 to 3.35 mm, and nothing at d 0.5 to 0.85. The check group had 355 refusals: 315 inside
+that band and 40 outside every band, all at d 0.5 to 0.85 in 0.05 steps, all with 90 turns: q 12.5
+right hand only (8), q 16 both hands (16), q 20 both hands (16). The smallest refused exact d / pitch
+is 12.5; every q 9 cell in that range and every cell with 0.45 < d < 0.9 at 3 and 30 turns read `ok`.
+
+**The ruling.** Owner's reply, verbatim: `c`. That is S5's option (c) (lower the bolt wall below the
+refused ratio for that d range, superseding L25 there), put to them as: a bolt with exact d strictly
+between 0.45 and 0.9 mm has a d / pitch wall of 9 and no other d changes. The protocol's own rule
+recommended (b); the owner chose (c). It is logged as L37 (`docs/architecture/decision_log.md`), not
+L36, which plan 08-10 writes.
+
+**The amendment.**
+
+- **F5, the check group.** A refused or crashed check cell outside every band is *walled*, and is not
+  a stop, exactly when its exact d lies strictly between 0.45 and 0.9 and its exact d / pitch is above
+  9: the parameter model refuses such a bolt before the kernel (L37), so the cell is not a bolt the
+  shipped sweep is asked to build. The judge lists the walled cells and prints their count. Every other
+  refused or crashed check cell outside every band stays S5: one at d 0.45 or 0.9, one at d / pitch of
+  9 or less, one at any other d. The rule hides no other refusal, and it is not read from the data: the
+  two edges and the 9 are the ruling's.
+- **F3.** A bolt in that interval at d / pitch above 9 is refused by the wall and never reaches a
+  sweep. At 9 or less it is outside every band and keeps the shipped sweep, as F3 says.
+- **F6.** A D-07-named d (0.5 to 0.85 mm) outside every band is proven by the band walk's own cells at
+  that d: each read `ok` or is above the wall of 9, where the model refuses it before the kernel.
+  That is the grid bar's "refused before the kernel with a 422 naming its fields". The grid (a) q and
+  n the band walk does not hold at that d stay F13's residual.
+- **Where the wall's code lands.** Plan 08-12, in `calc/thread.py` beside `MAX_BOLT_D_PER_PITCH`
+  (`pitch_too_fine_refusal` is the only function that reads the walls and `params.py` calls it), with
+  `bench/oper_lift.py` lifting the new constant as it lifts the two walls, and the API and CLI 422 tests
+  in `tests/test_fine_pitch.py`. Plan 08-03 changes no file under `src/`.
+
 ## Stops and owner paths
 
 A stop means the executor commits nothing more for that run, reports the stop line, the readings it
