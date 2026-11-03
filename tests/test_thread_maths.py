@@ -4,12 +4,13 @@ tested without the kernel."""
 from __future__ import annotations
 
 import math
+from fractions import Fraction
 from pathlib import Path
 
 import pytest
 
 from bench.thread_spike.maths import PITCH
-from screw.calc import cost, download_refusal
+from screw.calc import cost, download_refusal, thread
 from screw.calc.thread import (
     HEAD_CHAMFER_BAND_DEG,
     MAX_TURNS,
@@ -544,6 +545,87 @@ def test_the_fine_sweep_threshold_compares_the_decimals_typed_not_the_floats() -
 def test_a_bolt_outside_every_band_keeps_the_shipped_sweep(d: float, pitch: float) -> None:
     # D-19: no d / pitch-only bolt clause, so a bolt is fine only inside a measured band (D-15).
     assert not uses_fine_sweep("bolt", d, pitch)
+
+
+def _ratio(d: float, pitch: float) -> Fraction:
+    return Fraction(repr(d)) / Fraction(repr(pitch))
+
+
+def _walked_d(low: Fraction, high: Fraction) -> float:
+    """A d strictly inside the band whose d / 6 is an exact decimal (the nearest multiple of 0.6
+    above `low`), so a pitch of d / 6 puts the bolt exactly on the threshold."""
+    step = Fraction("0.6")
+    d = (low // step + 1) * step
+    assert low < d < high
+    return float(d)
+
+
+def _pitch(d: float, q: Fraction) -> float:
+    pitch = float(Fraction(repr(d)) / q)
+    assert _ratio(d, pitch) == q, "q must give an exact decimal pitch"
+    return pitch
+
+
+@pytest.mark.parametrize("band", thread.FINE_BOLT_BANDS, ids=lambda b: f"{b[0]}-{b[1]}")
+def test_a_bolt_is_fine_strictly_inside_a_band_and_strictly_above_d_over_pitch_6(
+        band: tuple[Fraction, Fraction]) -> None:
+    low, high = band
+    d = _walked_d(low, high)
+    assert not uses_fine_sweep("bolt", d, _pitch(d, Fraction(6)))  # exactly 6: the threshold
+    assert uses_fine_sweep("bolt", d, _pitch(d, Fraction(25, 4)))  # 6.25
+    assert uses_fine_sweep("bolt", d, _pitch(d, Fraction(20)))  # the wall of 20 is still fine
+    # One float finer than exactly 6 is above it, as typed.
+    assert uses_fine_sweep("bolt", d, math.nextafter(_pitch(d, Fraction(6)), 0.0))
+
+
+@pytest.mark.parametrize("band", thread.FINE_BOLT_BANDS, ids=lambda b: f"{b[0]}-{b[1]}")
+def test_a_bolt_on_a_band_edge_keeps_the_shipped_sweep_at_any_ratio(
+        band: tuple[Fraction, Fraction]) -> None:
+    # The edges are walked sizes that built on the shipped sweep, so they are excluded (F5).
+    for edge in band:
+        d = float(edge)
+        for q in (Fraction("6.25"), Fraction(8), Fraction(20)):
+            pitch = float(Fraction(repr(d)) / q)
+            assert _ratio(d, pitch) > 6
+            assert not uses_fine_sweep("bolt", d, pitch), (d, pitch)
+
+
+@pytest.mark.parametrize("band", thread.FINE_BOLT_BANDS, ids=lambda b: f"{b[0]}-{b[1]}")
+def test_the_d_one_float_inside_each_edge_is_fine_and_one_float_outside_is_not(
+        band: tuple[Fraction, Fraction]) -> None:
+    low, high = (float(edge) for edge in band)
+    for inside, outside in ((math.nextafter(low, math.inf), low),
+                            (math.nextafter(high, 0.0), high)):
+        pitch = float(Fraction(repr(inside)) / 8)
+        assert uses_fine_sweep("bolt", inside, pitch)
+        assert not uses_fine_sweep("bolt", outside, pitch)
+
+
+@pytest.mark.parametrize(("d", "pitch"), [(10, 0.5), (16, 1.99), (3.8, 0.2), (1.2, 0.07),
+                                          (0.9, 0.05), (20, 1.0), (100, 5.0)])
+def test_a_bolt_outside_every_band_is_on_the_shipped_sweep_up_to_the_wall_of_20(
+        d: float, pitch: float) -> None:
+    # D-19: no d / pitch-only clause. 3.8 / 0.2 is d / pitch 19, the walked range's end, which
+    # no excluded edge can hold.
+    assert 6 < _ratio(d, pitch) <= 20
+    assert not any(low < Fraction(repr(d)) < high for low, high in thread.FINE_BOLT_BANDS)
+    assert not uses_fine_sweep("bolt", d, pitch)
+
+
+def test_with_no_band_no_bolt_is_fine(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(thread, "FINE_BOLT_BANDS", ())
+    assert not uses_fine_sweep("bolt", 3, 0.35)
+    assert not uses_fine_sweep("bolt", 2.5, 0.35)
+    assert uses_fine_sweep("nut", 5, 0.8)  # the nut clause has no band
+
+
+def test_a_band_set_by_a_test_takes_effect_at_the_next_call(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    assert uses_fine_sweep("bolt", 3, 0.35)
+    assert not uses_fine_sweep("bolt", 5.5, 0.5)
+    monkeypatch.setattr(thread, "FINE_BOLT_BANDS", ((Fraction(5), Fraction(6)),))
+    assert not uses_fine_sweep("bolt", 3, 0.35)
+    assert uses_fine_sweep("bolt", 5.5, 0.5)  # d / pitch 11
 
 
 def test_the_fine_sweep_moves_exactly_the_eight_nut_rows() -> None:
