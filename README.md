@@ -29,6 +29,10 @@ the product is built from here with gsd.
     .venv/bin/screw presets bolt                    # the ISO 4014 / 4017 catalogue as JSON
     .venv/bin/screw info bolt --preset iso4014:M10x80   # an ISO preset fills the mm fields
 
+`screw export` and `screw pair` have no build deadline by design (L34): the server's timeouts
+protect its shared workers, the cost gate still refuses an over-budget export with exit 2, a pair
+proof has no artifact budget, and Ctrl-C stops either.
+
 ## Develop
 
 Python 3.12 is the only supported interpreter (L01 in `docs/architecture/decision_log.md`).

@@ -461,7 +461,7 @@ Plans:
 **Requirements**: OPER-03 (moved from Phase 7, Pending by owner ruling 2026-11-01); touches TABL-06, FRNT-05, INFO-05 (audit INT-01, INT-02, INT-03)
 **Success Criteria** (what must be TRUE):
   1. Every part the model admits inside the L25 walls builds, or is refused before the kernel with a `422` naming the fields (`ctx.fields`), or is capped and warned; the in-wall cases in `docs/tech_debt/active/2026-10-29-in-wall-parts-the-kernel-refuses.md` are tests, and that debt is resolved.
-  2. `screw export` on the CLI either runs under the same per-artifact `BUILD_TIMEOUT_S` or its unbounded build is an owner decision logged as an `Lxx` (INT-01); the choice is made in discuss-phase.
+  2. `screw export` and `screw pair` on the CLI each either run under the same per-artifact `BUILD_TIMEOUT_S` or have their unbounded build logged as an owner decision in an `Lxx` (INT-01; `screw pair` named by owner ruling D-21, 2026-11-02); the choice is made in discuss-phase.
   3. The TABL-06 wording and L19 agree on whether editing `head_chamfer` flips the preset badge, by amending one of them on an owner ruling (INT-02).
   4. A value typed equal to its default gets the same answer on the web, the API and the CLI, or the difference is an owner decision logged as an `Lxx` (INT-03).
   5. INFO-05 is listed in a Phase 4 SUMMARY's `requirements-completed`; `/gsd-validate-phase 6` and `/gsd-validate-phase 7` leave both VALIDATION.md files `validated`; the re-run milestone audit reads `passed` or `tech_debt`.

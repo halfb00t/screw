@@ -2584,3 +2584,36 @@ to 747 s (run 41089145344). A full-tier run cost 40 `measure` jobs, the longest 
 Reversibility: reversible. Reverting ac463a5 and 727c2c4 restores the jobs, the rules and their
 tests. A tier that judges against today's sets would need them regenerated first if the model has
 moved since.
+
+## L34 — `screw export` and `screw pair` have no build deadline: the server's timeouts guard shared workers, and Ctrl-C is a CLI user's deadline
+
+Date: 2026-11-02. Decided by the owner in the Phase 8 discussion and rulings (08-CONTEXT.md D-09 and
+D-21), closing the v1.0 audit's INT-01 and ROADMAP Phase 8 success criterion 2.
+
+**What the CLI does.** `screw export` and `screw pair` build in-process with no deadline. `export`
+keeps its cost-gate refusals, an over-budget part still exits 2, and `cost.cap_defaults` is
+unchanged. `pair` is never capped (`cmd_pair`: "Never capped: the proof has no artifact budget to
+fit"), so it runs the proof to its verdict.
+
+**Why `screw export` has no deadline (D-09).**
+
+- `BUILD_TIMEOUT_S` (L24) protects a shared server's workers, and it was measured on the runner with
+  every worker busy.
+- A CLI user's machine has a different speed, so a runner deadline would refuse parts that would
+  finish.
+- The cost gate still refuses over-budget parts on the CLI (exit 2), and Ctrl-C is the user's
+  deadline.
+
+**Why `screw pair` has none either (D-21).** It is unbounded by design for the same reasons: it runs
+on the user's machine and Ctrl-C is the user's deadline. It is also an on-demand proof with no
+artifact budget (`cmd_pair`: "Never capped").
+
+**What is not added.** There is no child process and no `--timeout` flag for either command. A
+`--timeout` flag is a deferred idea, to revisit if CLI users ask for a deadline. Both help lines and
+the README say that the build has no deadline, and `tests/test_cli.py` pins the help lines.
+
+Reason: the owner's rulings D-09 and D-21, and ROADMAP Phase 8 SC2, which wants every build path to
+have a deadline or a logged reason it has none.
+
+Reversibility: reversible. A flag and a child process could be added later without changing any
+shipped number.

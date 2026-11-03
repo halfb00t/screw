@@ -242,7 +242,8 @@ def main(argv: list[str] | None = None) -> None:
     ik = i.add_subparsers(dest="kind", required=True)
     i.set_defaults(func=cmd_info)
 
-    e = sub.add_parser("export", help="write an STL or STEP file", allow_abbrev=False)
+    e = sub.add_parser("export", allow_abbrev=False,
+                       help="write an STL or STEP file; no build deadline, Ctrl-C stops it (L34)")
     ek = e.add_subparsers(dest="kind", required=True)
     e.set_defaults(func=cmd_export)
 
@@ -252,7 +253,8 @@ def main(argv: list[str] | None = None) -> None:
     pr.set_defaults(func=cmd_presets)
 
     pa = sub.add_parser("pair", help="prove with the kernel whether a nut mates its bolt; "
-                                     "exit 0 proven, 1 violated, 2 inconclusive",
+                                     "exit 0 proven, 1 violated, 2 inconclusive; "
+                                     "no build deadline, Ctrl-C stops it (L34)",
                         allow_abbrev=False)
     pak = pa.add_subparsers(dest="kind", required=True)
     pa.set_defaults(func=cmd_pair)

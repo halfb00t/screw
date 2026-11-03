@@ -208,6 +208,20 @@ def test_a_nut_without_a_clearance_takes_the_default(
     assert out.stat().st_size > 84
 
 
+def test_export_and_pair_say_they_have_no_build_deadline(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    """SC2, INT-01, L34, D-21: the two CLI build paths log, where a user reads, that they have no
+    deadline."""
+    assert _exit_code(["--help"]) == 0
+    # argparse wraps the subcommand list, so compare with the whitespace collapsed.
+    out = " ".join(capsys.readouterr().out.split())
+    assert "write an STL or STEP file; no build deadline, Ctrl-C stops it (L34)" in out
+    assert "2 inconclusive; no build deadline, Ctrl-C stops it (L34)" in out
+    readme = (Path(__file__).resolve().parents[1] / "README.md").read_text()
+    for needle in ("no build deadline", "screw pair", "L34"):
+        assert needle in readme
+
+
 def test_a_required_flag_is_marked_required_in_the_help(
         capsys: pytest.CaptureFixture[str]) -> None:
     # No registered kind has a required field since L17, so the generic rule is tested on a planted
