@@ -2716,3 +2716,89 @@ build it or the parameter model must refuse it; 40 sampled cells were refused by
 
 Reversibility: reversible. One constant and one clause in the pitch-wall check; lifting it needs
 a superseding entry.
+
+## L38 — Phase 8's fine envelope: host check passed, nut step envelope widened, parts judged under their own envelope, fine-sweep cost feature
+
+Date: 2026-11-04. Decided by the owner at protocol stop S9 of the Phase 8 envelope fit (plan 08-08),
+after the three firings below and S9's options in `08-SWEEP-PROTOCOL.md` were put to them. Supersedes
+D-05 and L33 in part: the shipped `ENVELOPE` is widened for two nut models (L33 froze the budgets
+and timeouts, which stay frozen; the envelope is what L31 widened by the same method). Amends the
+text of F10; carried as F16.
+
+**The ruling.** The owner's reply, verbatim: `recommended`. It accepts the three recommendations the
+orchestrator put to them:
+
+1. Stop 1 (a shipped-sweep reading above its enveloped prediction): S9 (c). The host check of 07 R2
+   is run on the readings; a degraded host is S1, else `ENVELOPE` is widened for the nut `step`
+   seconds and bytes models by the Phase 7 method, and no catalogue row may be refused by it.
+2. Stop 2 (a catalogue row refused under `FINE_ENVELOPE`): F10 is amended so each part is judged
+   under the envelope that applies to it (a fine-swept part under `FINE_ENVELOPE`, every other part
+   under `ENVELOPE`), and only what still fails goes to S9 (b).
+3. Stop 3 (an `ok` reading over `BUILD_TIMEOUT_S` that `FINE_ENVELOPE` admits) and the residue of
+   stop 2: S9 (b), a fine-sweep feature in `calc/cost.py`, fitted on the same Phase 8 readings.
+
+**The evidence** is the three committed directories under `bench/results/phase-08/`: fine-proof
+(run 41684315321, 5790 readings), fine-cost (41684331518, 278) and fine-spread (41684347573, 120),
+linux/amd64, all `ok`, 4 vCPU runners of at least six CPU models.
+
+- Stop 1. 37 readings of shipped-sweep parts, all of them nuts at `step` in fine-proof grid (c)
+  (q 5.5 and 6, which F3 keeps on the shipped sweep), read above their enveloped prediction:
+  41 over-readings in all, 37 on seconds and 4 on bytes (the stopped executor's first report said 41
+  readings, 38 and 3; the count of readings is 37, and 41 is the count of model-readings). Worst
+  `proof-nut-base-d300-q5.5-left`, 5.2587 s against 3.3879 s enveloped (1.552). The four bytes
+  readings are 1.0184, 1.0148, 1.0029 and 1.0013 of theirs.
+- Stop 2. With every guard-admitted fine reading fitted into one candidate, 13 of 18 models widen
+  (nut `step` seconds to 12.904) and judging every catalogue row under that one candidate refused 84
+  catalogue and default parts.
+- Stop 3. `proof-walk-check-d1.65-q20-n90-left` (26.971 s) and `-right` (26.816 s), bolts at
+  `stl-preview`, over `BUILD_TIMEOUT_S` of 26 s, are admitted under the candidate.
+
+**The host check (stop 1), 07 R2.** R2 defines a reading's status, and a degraded host shows as a
+status other than `ok` (`capped`: Docker `OOMKilled`, a cgroup `oom_kill` or a peak at 99 % of the
+12 GiB cap; `no_cgroup`; `killed`: past 600 s). Applied as written to the 37 readings: every status is
+`ok`, `oom_kills` is 0, the cgroup peak is readable and at most 223 MiB, the wall is far inside the
+600 s deadline. 37 of 37 pass, so the host is not degraded and the stop is not S1. R2 also records the
+1-minute load average and the CPU model, and sets no threshold on either; none is invented here. For the
+record: load 1.19 to 2.11 (median 1.58) on 4 vCPUs, against 1.03 to 3.20 over all 6188 readings; 33
+of the 37 were on an EPYC 7763; the over-readings are the left-hand and base or c0 forms at small d,
+not the loaded ones (Pearson r of load against actual over enveloped prediction, 0.095 over the 720
+shipped-sweep nut `step` readings). The model underpredicts that corner; the host did not.
+
+**The widening (stop 1).** `ENVELOPE` for the nut `step` seconds and bytes models is widened by the
+Phase 7 method (R12: the factor raised by whole ulps to cover every cold isolated `ok` reading of a
+shipped-sweep part in the three directories). Scratch figures, recomputed by the plan that writes them
+through the committed judge: seconds 1.0534097750071423 to 2.1872880059605824 (set by
+`proof-nut-base-d300-q5.5-left`), bytes 0.3802587303182223 to 0.40572026921095317 (set by
+`proof-nut-c0-d600-q5.5-left`). No other shipped-sweep model widens. Widened alone it refuses none of
+the 294 bolt and 14 nut catalogue rows, nor the default bolt and nut, at any artifact. L31 is the
+precedent, including its consequence for point files drawn under the envelope (F12 and the
+replanned 08-13 decide those).
+
+**The residue (stop 2, stop 3).** Judged per part, with the widened `ENVELOPE` and a `FINE_ENVELOPE`
+floored at it (scratch, to be recomputed): the fine candidate still widens 13 of 18 models; fine
+bolt catalogue rows: none; the default parts: none refused. What still fails:
+
+- nut `step` seconds (`FINE_ENVELOPE` e 12.904, set by `proof-nut-base-d600-q6.75-left`) refuses the
+  8 fine-swept nut rows iso4032 M5, M8, M10, M12, M14, M16, M18 and M20 at `step`: enveloped 29.6 to
+  37.1 s against B-01's 15.0 s, while their fine-spread actuals are 3.90 to 4.92 s;
+- bolt `stl-preview` seconds (e 5.509) admits the 2 parts over `BUILD_TIMEOUT_S`;
+- no fine-spread reading is above its B-01 component; fine-cost is 278 of 278 `ok` and fine-spread
+  24 of 24 points `ok`; no guard-admitted fine part has a non-`ok` reading.
+
+So the fine nuts are not slow; the envelope that covers a few far-corner nuts is, and the model has
+no term for the fine sweep. That is what the feature in the ruling is for.
+
+**What this decides, and what it leaves.** The form of the feature (a fine-sweep indicator, a
+separate coefficient set, a term in the turns or the d / pitch) is not decided here; the replanned
+08-08 and 08-13 choose it within F16 and D-05. `BUDGET`, `BUILD_TIMEOUT_S`, `COEFFICIENTS` of the
+shipped sweep and every shipped-sweep prediction stand; only the two `ENVELOPE` values above move.
+If the feature leaves any catalogue row refused, any admitted `ok` reading over its timeout or any
+fine-spread B-01 overrun, S9 fires again.
+
+Reason: a number the tool prints is a number someone will cut metal to (L02). A part is admitted only
+on a prediction that some reading covers; the host check shows the nut readings are real, and the
+fine parts need a prediction of their own so that covering the worst fine corner does not refuse the
+catalogue.
+
+Reversibility: costly, as L31. A re-fit or a later reading over these envelopes needs a superseding
+entry.

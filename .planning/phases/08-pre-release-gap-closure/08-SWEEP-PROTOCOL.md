@@ -275,6 +275,59 @@ L36, which plan 08-10 writes.
   `bench/oper_lift.py` lifting the new constant as it lifts the two walls, and the API and CLI 422 tests
   in `tests/test_fine_pitch.py`. Plan 08-03 changes no file under `src/`.
 
+## F16 - The F10 stops (owner ruling at S9, 2026-11-04; amends F10 and S9's use)
+
+Added after the first fine-envelope fit, by the owner's ruling that F14 asks for. F1 to F15 and the
+stops stand as written; this section only adds to them, and the data it cites exists: fine-proof
+(run 41684315321, 5790 readings), fine-cost (41684331518, 278) and fine-spread (41684347573, 120),
+under `bench/results/phase-08/`, all `ok`, `FINE_TURN_CEILINGS` empty. 07 R30 and F15 did the same.
+
+**The stops.** S9 fired three times, on one candidate fine envelope (F10 as written):
+
+1. 37 `ok` cold isolated readings of shipped-sweep parts (nuts at `step` in grid (c), q 5.5 and 6)
+   were above their enveloped prediction: 41 model-readings, 37 on seconds (worst
+   `proof-nut-base-d300-q5.5-left`, 1.552) and 4 on bytes (worst 1.0184).
+2. Judging every catalogue row and default part under that one candidate refused 84.
+3. `proof-walk-check-d1.65-q20-n90-left` and `-right` (`stl-preview`, 26.971 s and 26.816 s) are over
+   `BUILD_TIMEOUT_S` and the candidate admits them.
+
+**The ruling.** Owner's reply, verbatim: `recommended`. It is S9 (c) for stop 1, an amendment of F10
+for stop 2, and S9 (b) for stop 3 and what stop 2 leaves. Logged as L38.
+
+**The amendment.**
+
+- **(i) Stop 1, the host check of 07 R2.** Run as R2 writes it (a reading is `ok`, not `capped`, with a
+  readable cgroup peak, `oom_kills` 0 and inside the deadline) it passes on 37 of 37 readings: the host
+  is not degraded and the stop is not S1. R2 sets no threshold on the recorded load or CPU model, and
+  none is added. Consequence: `ENVELOPE` is widened for the nut `step` seconds and nut `step` bytes
+  models by the Phase 7 method (07 R12 and `bench.oper_sets.envelope_check`, whole ulps of the factor),
+  over every cold isolated `ok` reading of a shipped-sweep part in the three directories, superseding
+  D-05 and L33 there; no other shipped-sweep model widens. F10's "shipped `ENVELOPE` value" and the
+  last stop of F10 (a shipped-sweep reading above its enveloped prediction) then read the widened
+  value, and the stop stands for any other reading. The widened `ENVELOPE` alone must refuse no
+  catalogue row and no default part at any artifact (the 07 R12 check, `oper_sets._admits_all`).
+- **(ii) Stop 2, F10's B-01 stop.** "A catalogue row or default part refused at any artifact under
+  `FINE_ENVELOPE`" is judged for each part under the envelope that applies to it, as `cost.fits` will
+  judge it: `FINE_ENVELOPE` when F3 puts the part on the fine sweep, the (widened) `ENVELOPE` for every
+  other part. The reading of the stop as one envelope over all parts is withdrawn. `FINE_ENVELOPE` is
+  still floored at `ENVELOPE` and fitted only on guard-admitted fine-sweep readings.
+- **(iii) Stop 3 and what (ii) leaves, S9 (b).** A fine-sweep feature in `calc/cost.py`'s prediction,
+  fitted on the same readings (the three directories; no new run), so that the cost gate predicts
+  fine-swept parts honestly. F10's rule is otherwise unchanged, with `cost.predict` meaning the
+  prediction including the feature for a fine-swept part, and `FINE_ENVELOPE` is then the smallest
+  e at or above `ENVELOPE` over the feature's own residuals. The feature's form is not fixed here; the
+  revised 08-08 and 08-13 choose it within D-05. It may not move a shipped-sweep prediction, `BUDGET`,
+  `BUILD_TIMEOUT_S` or `COEFFICIENTS`. F10's stops stand and are judged after the feature: if a
+  catalogue row or default part is refused (ii), a guard-admitted `ok` reading over `BUILD_TIMEOUT_S`
+  is admitted, or a fine-spread reading is above its B-01 component, S9 fires again; the two
+  `check-d1.65-q20-n90` bolts must be refused by the cost gate, not admitted.
+
+**The residue the feature must clear** (a scratch recompute of (ii) at the ruling, to be recomputed by
+the committed judge): nut `step` seconds refuses the 8 fine-swept nut rows iso4032 M5, M8, M10, M12,
+M14, M16, M18 and M20 at `step` (enveloped 29.6 to 37.1 s against 15.0 s; their fine-spread actuals are
+3.90 to 4.92 s); bolt `stl-preview` seconds admits the 2 over-deadline bolts. Every bolt row, every
+shipped-sweep nut row and both default parts are admitted, and there is no fine-spread B-01 overrun.
+
 ## Stops and owner paths
 
 A stop means the executor commits nothing more for that run, reports the stop line, the readings it

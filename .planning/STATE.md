@@ -364,6 +364,7 @@ Recent decisions affecting current work:
 - [Phase 8]: L37 (owner ruling at S5, reply c): bolt wall 9 for d strictly between 0.45 and 0.9 mm; code in plan 08-12; F15 amends the sweep protocol
 - [Phase 08]: 08-12: bolt wall of 9 for 0.45 < d < 0.9 mm (L37) lives in calc.thread beside the pitch-walls block
 - [Phase 08]: 08-12: FINE_BOLT_BANDS is the fine-bands block verbatim; a bolt is fine only inside a band and above d / pitch 6, no d / pitch-only clause (D-15, D-19)
+- [Phase 08]: L38 (owner ruling at S9 of 08-08, reply 'recommended'; F16): R2 host check passes on 37 of 37 nut readings so ENVELOPE widens for nut step seconds and bytes; F10's B-01 stop judges each part under its own envelope; S9 (b) fine-sweep cost feature; 08-08 and 08-13 to be replanned
 - [Phase 08]: 08-06: fine-proof drops use _runner_refusal (oper_child validates with oper_lift.validate); F6 (b) explore evidence that never reaches the runner dispatched as is, owner accepted
 
 ### Pending Todos
